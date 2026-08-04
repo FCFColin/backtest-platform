@@ -370,21 +370,20 @@ export function RebalanceBandsRow({
   const { t } = useTranslation();
   const bands = portfolio.rebalanceBands;
   if (!bands?.enabled) return null;
-  const BAND_DEFS: Record<string, number> = { absoluteBand: 5, relativeBand: 20 };
   const items = [
     {
-      labelKey: 'portfolio.absoluteDeviation',
-      titleKey: 'portfolio.absoluteDeviationTitle',
-      value: bands.absoluteBand,
+      label: t('portfolio.absoluteDeviation'),
+      title: t('portfolio.absoluteDeviationTitle'),
+      val: bands.absoluteBand,
       min: 0.1,
       max: 50,
       step: 0.5,
       field: 'absoluteBand' as const,
     },
     {
-      labelKey: 'portfolio.relativeDeviation',
-      titleKey: 'portfolio.relativeDeviationTitle',
-      value: bands.relativeBand,
+      label: t('portfolio.relativeDeviation'),
+      title: t('portfolio.relativeDeviationTitle'),
+      val: bands.relativeBand,
       min: 1,
       max: 100,
       step: 1,
@@ -396,12 +395,12 @@ export function RebalanceBandsRow({
       {items.map((item) => (
         <NumField
           key={item.field}
-          label={t(item.labelKey)}
-          value={item.value ?? BAND_DEFS[item.field]}
+          label={item.label}
+          value={item.val ?? 5}
           min={item.min}
           max={item.max}
           step={item.step}
-          title={t(item.titleKey)}
+          title={item.title}
           width={numCls80}
           onChange={(v) =>
             onUpdate(portfolio.id, {

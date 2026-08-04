@@ -1,4 +1,4 @@
-import { useState, type Dispatch, type SetStateAction } from 'react';
+import { useState } from 'react';
 import type { TFunction } from 'i18next';
 import {
   CHART_COLORS,
@@ -48,33 +48,24 @@ const createDefaultPortfolio = (suffix: number): PortfolioState => ({
   assets: DEFAULT_ASSETS[suffix === 1 ? 1 : 2],
   rebalanceFrequency: 'yearly',
 });
-const PRESETS: Array<[string, PortfolioState['assets'], number, number, number, number?, number?]> =
+const PRESETS: [string, PortfolioState['assets'], number, number, number, number, number][] = [
+  ['monteCarlo.presets.preset6040', DEFAULT_ASSETS[1], 20, 500, 100000, 1, 5],
+  ['monteCarlo.presets.presetAllStockDCA', [{ ticker: 'VTI', weight: 100 }], 30, 1000, 50000, 1, 5],
   [
-    ['monteCarlo.presets.preset6040', DEFAULT_ASSETS[1], 20, 500, 100000],
-    ['monteCarlo.presets.presetAllStockDCA', [{ ticker: 'VTI', weight: 100 }], 30, 1000, 50000],
+    'monteCarlo.presets.presetThreeFund',
     [
-      'monteCarlo.presets.presetThreeFund',
-      [
-        { ticker: 'VTI', weight: 50 },
-        { ticker: 'VXUS', weight: 30 },
-        { ticker: 'BND', weight: 20 },
-      ],
-      25,
-      500,
-      200000,
-      2,
-      8,
+      { ticker: 'VTI', weight: 50 },
+      { ticker: 'VXUS', weight: 30 },
+      { ticker: 'BND', weight: 20 },
     ],
-  ];
-export function buildPresets(t: {
-  setPortfolioMode: (m: PortfolioMode) => void;
-  setPortfolios: (p: PortfolioState[]) => void;
-  setNumYears: (n: number) => void;
-  setNumSimulations: (n: number) => void;
-  setStartingValue: (n: number) => void;
-  setMinBlock: (n: number) => void;
-  setMaxBlock: (n: number) => void;
-}): Array<{ label: string; onClick: () => void }> {
+    25,
+    500,
+    200000,
+    2,
+    8,
+  ],
+];
+export function buildPresets(t: McSetters): Array<{ label: string; onClick: () => void }> {
   return PRESETS.map(([labelKey, assets, years, sims, value, min, max]) => ({
     label: i18n.t(labelKey),
     onClick: () => {
@@ -83,21 +74,17 @@ export function buildPresets(t: {
       t.setNumYears(years);
       t.setNumSimulations(sims);
       t.setStartingValue(value);
-      t.setMinBlock(min ?? 1);
-      t.setMaxBlock(max ?? 5);
+      t.setMinBlock(min);
+      t.setMaxBlock(max);
     },
   }));
 }
 function usePortfolioOperations(
   portfolios: PortfolioState[],
-  setPortfolios: Dispatch<SetStateAction<PortfolioState[]>>,
+  setPortfolios: (v: PortfolioState[]) => void,
 ) {
   const updatePortfolio = (idx: number, patch: Partial<PortfolioState>) =>
-    setPortfolios((prev) => {
-      const next = [...prev];
-      next[idx] = { ...next[idx], ...patch };
-      return next;
-    });
+    setPortfolios(portfolios.map((p, i) => (i === idx ? { ...p, ...patch } : p)));
   const addAsset = (pIdx: number) =>
     updatePortfolio(pIdx, { assets: [...portfolios[pIdx].assets, { ticker: '', weight: 0 }] });
   const removeAsset = (pIdx: number, aIdx: number) =>
@@ -180,37 +167,23 @@ const MC_INITIAL = {
   goal2: 'minMaxDrawdown',
   goalWeight: 50,
 };
-type McState = typeof MC_INITIAL;
-function useMcSetters() {
+type McInitialState = typeof MC_INITIAL;
+type McSetterNames = {
+  [K in keyof McInitialState as `set${Capitalize<string & K>}`]: (v: McInitialState[K]) => void;
+};
+function useMcSetters(): McInitialState & McSetterNames {
   const [mc, setMc] = useState(MC_INITIAL);
   const set =
-    <K extends keyof McState>(key: K) =>
-    (v: McState[K]) =>
+    <K extends keyof McInitialState>(key: K) =>
+    (v: McInitialState[K]) =>
       setMc((prev) => ({ ...prev, [key]: v }));
-  return {
-    ...mc,
-    setPortfolioMode: set('portfolioMode'),
-    setNumYears: set('numYears'),
-    setNumSimulations: set('numSimulations'),
-    setStartingValue: set('startingValue'),
-    setMinBlock: set('minBlock'),
-    setMaxBlock: set('maxBlock'),
-    setWithReplacement: set('withReplacement'),
-    setStartDate: set('startDate'),
-    setEndDate: set('endDate'),
-    setRandomSeed: set('randomSeed'),
-    setIsLoading: set('isLoading'),
-    setError: set('error'),
-    setResults1: set('results1'),
-    setResults2: set('results2'),
-    setActiveTab: set('activeTab'),
-    setDistMetric: set('distMetric'),
-    setPortfolios: set('portfolios'),
-    setSimMode: set('simMode'),
-    setGoal1: set('goal1'),
-    setGoal2: set('goal2'),
-    setGoalWeight: set('goalWeight'),
-  };
+  const setters = Object.fromEntries(
+    (Object.keys(MC_INITIAL) as (keyof McInitialState)[]).map((k) => [
+      `set${k[0].toUpperCase()}${k.slice(1)}`,
+      set(k),
+    ]),
+  ) as McSetterNames;
+  return { ...mc, ...setters };
 }
 type McSetters = ReturnType<typeof useMcSetters>;
 type PortfolioOps = ReturnType<typeof usePortfolioOperations>;
@@ -293,20 +266,6 @@ export interface FanDataPoint {
   band25_75: [number, number];
   p50: number;
 }
-interface TerminalBin {
-  range: string;
-  count: number;
-  minVal: number;
-}
-interface TerminalHistogramData {
-  data: TerminalBin[];
-  p5Val: number;
-  p50Val: number;
-  p95Val: number;
-  p5Label: string;
-  p50Label: string;
-  p95Label: string;
-}
 export const monthFormatter = (v: number) => (Number.isInteger(v / 12) ? `${v / 12}y` : '');
 export const dollarKFormatter = (v: number) => `$${(v / 1000).toFixed(0)}k`;
 export const yearLabelFormatter = (t: TFunction, l: number) =>
@@ -319,34 +278,19 @@ function sampleMonths(len: number) {
   }
   return out;
 }
-function buildBins<T extends { range: string; count: number; minVal: number }>(
-  vals: number[],
-  binCount: number,
-  formatBin: (v: number) => string,
-  makeBin: (range: string, minVal: number) => T,
-) {
-  const min = Math.min(...vals);
-  const max = Math.max(...vals);
-  const binWidth = (max - min) / binCount || 1;
-  const bins = Array.from({ length: binCount }, (_, i) =>
-    makeBin(formatBin(min + i * binWidth), min + i * binWidth),
-  );
-  for (const v of vals) {
-    const idx = Math.min(binCount - 1, Math.max(0, Math.floor((v - min) / binWidth)));
-    bins[idx].count++;
-  }
-  return { min, max, binWidth, bins };
-}
-const labelForBin =
-  (min: number, binWidth: number, formatBin: (v: number) => string) => (val: number) =>
-    formatBin(Math.floor((val - min) / binWidth) * binWidth + min);
 function buildBinData(vals: number[], binCount: number, formatBin: (v: number) => string) {
-  const { min, binWidth, bins } = buildBins(vals, binCount, formatBin, (range, minVal) => ({
-    range,
+  const min = Math.min(...vals);
+  const binWidth = (Math.max(...vals) - min) / binCount || 1;
+  const bins = Array.from({ length: binCount }, (_, i) => ({
+    range: formatBin(min + i * binWidth),
     count: 0,
-    minVal,
+    minVal: min + i * binWidth,
   }));
-  return { bins, labelFor: labelForBin(min, binWidth, formatBin) };
+  for (const v of vals) {
+    bins[Math.min(binCount - 1, Math.max(0, Math.floor((v - min) / binWidth)))].count++;
+  }
+  const labelFor = (val: number) => formatBin(Math.floor((val - min) / binWidth) * binWidth + min);
+  return { bins, labelFor };
 }
 const binLabel = (metric: DistMetric) =>
   metric === 'finalValue'
@@ -361,9 +305,8 @@ const metricValues = (metrics: PerPathMetrics[], metric: DistMetric, startingVal
 export function buildSummaryData(r: MonteCarloResult, startingValue: number, t: TFunction) {
   const metrics = r.perPathMetrics;
   if (!metrics || metrics.length === 0) return null;
-  const keys = Object.keys(METRIC_FORMAT) as DistMetric[];
   const labels = metricLabels(t);
-  return keys.map((key) => {
+  return (Object.keys(METRIC_FORMAT) as DistMetric[]).map((key) => {
     const vals = metricValues(metrics, key, startingValue);
     const p = (frac: number) => percentile(vals, frac);
     const m = mean(vals);
@@ -447,10 +390,7 @@ export function buildFanChartData(r: MonteCarloResult, startingValue: number): F
     p50: p50[day] * startingValue,
   }));
 }
-export function buildTerminalHistogram(
-  r: MonteCarloResult,
-  startingValue: number,
-): TerminalHistogramData {
+export function buildTerminalHistogram(r: MonteCarloResult, startingValue: number) {
   const metrics = r.perPathMetrics;
   if (!metrics || metrics.length === 0) {
     return { data: [], p5Val: 0, p50Val: 0, p95Val: 0, p5Label: '', p50Label: '', p95Label: '' };

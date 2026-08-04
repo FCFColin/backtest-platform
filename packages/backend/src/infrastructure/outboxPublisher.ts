@@ -1,4 +1,3 @@
-// Architecture: Outbox 发布器，使用 PostgreSQL LISTEN/NOTIFY 监听新事件。
 import pg from 'pg';
 import client from 'prom-client';
 import { logger } from '../utils/logger.js';
@@ -33,7 +32,6 @@ function moduleLog(level: LogLevel, fields: Record<string, unknown>, msg: string
   logger[level]({ module: 'outboxPublisher', ...fields }, msg);
 }
 
-/** outbox 表行（handleNotification 与事件路由共用） */
 interface OutboxEventRow {
   id: string;
   event_type: string;
@@ -108,10 +106,6 @@ export class OutboxPublisher {
     this.startCompensationScanner();
   }
 
-  /**
-   * 处理 outbox 通知：扫描未处理事件并路由到领域事件处理器。
-   * NOTIFY 仅作唤醒信号，实际事件从 outbox 表读取；错过通知的事件由补偿扫描器拾取；单次上限 100 条避免长事务阻塞。
-   */
   async handleNotification(): Promise<void> {
     try {
       const result = await this.pool.query(
@@ -128,8 +122,7 @@ export class OutboxPublisher {
         ),
       );
       const processedIds: string[] = [];
-      for (let i = 0; i < settled.length; i++) {
-        const s = settled[i];
+      settled.forEach((s, i) => {
         if (s.status === 'fulfilled') {
           processedIds.push(s.value);
           moduleLog(
@@ -144,7 +137,7 @@ export class OutboxPublisher {
             'Failed to process outbox event',
           );
         }
-      }
+      });
       if (processedIds.length > 0)
         await this.pool.query('UPDATE outbox SET processed_at = NOW() WHERE id = ANY($1)', [
           processedIds,
@@ -154,7 +147,6 @@ export class OutboxPublisher {
     }
   }
 
-  /** 将 outbox 事件路由到已注册的领域事件处理器。payload 兼容字符串场景做 JSON.parse。 */
   private async routeEvent(event: OutboxEventRow): Promise<void> {
     await eventDispatcher.dispatch({
       eventType: event.event_type,
@@ -188,7 +180,7 @@ export class OutboxPublisher {
     }
   }
 
-  /** 补偿扫描器：每 60s 扫描超过 5 分钟仍未处理的事件重新触发（LISTEN 断开期间错过/处理失败的事件兜底）。 */
+  // 补偿扫描器：LISTEN 断开期间错过/处理失败的事件每 60s 兜底重新触发。
   private startCompensationScanner(): void {
     this.compensationInterval = setInterval(async () => {
       try {
@@ -222,8 +214,7 @@ export class OutboxPublisher {
       ]);
       outboxUnprocessedCount.set(Number(unprocessedResult.rows[0]?.count ?? 0));
       outboxTotalRows.set(Number(totalResult.rows[0]?.count ?? 0));
-      const oldestAge = oldestResult.rows[0]?.age;
-      outboxOldestUnprocessedAgeSeconds.set(oldestAge ? Number(oldestAge) : 0);
+      outboxOldestUnprocessedAgeSeconds.set(Number(oldestResult.rows[0]?.age ?? 0));
     } catch (err) {
       moduleLog(
         'debug',
@@ -268,7 +259,6 @@ export class OutboxPublisher {
 // P3-05 替代通路（ADR-051）：默认 LISTEN/NOTIFY（单实例零依赖）；多 Pod 水平扩展时 CDC via Debezium → Kafka → 消费组。
 // server.ts 调用 createOutboxConsumer(getPool()) 按 CDC_KAFKA_ENABLED 透明切换通路。
 
-/** 创建 Outbox 消费器。mode 显式指定通路（覆盖 CDC_KAFKA_ENABLED）：'listen' = LISTEN/NOTIFY，'kafka' = CDC/Kafka。 */
 export function createOutboxConsumer(pool: pg.Pool, mode?: 'listen' | 'kafka'): OutboxConsumer {
   const useKafka = mode === 'kafka' || (mode === undefined && config.CDC_KAFKA_ENABLED);
   if (useKafka) {

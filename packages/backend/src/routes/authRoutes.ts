@@ -1,4 +1,3 @@
-// 认证路由（T-P1-8.3）：JWT 登录/刷新/登出/用户信息/组织切换 + 注册与邮箱验证（ADR-035）
 import { Router, type Request, type Response } from 'express';
 import { randomBytes } from 'node:crypto';
 import { logger } from '../utils/logger.js';
@@ -49,7 +48,6 @@ import {
   type Membership,
 } from '../application/org/membershipService.js';
 
-/** 空闲会话超时（P0-04）：analyst 60min，其他 30min。 */
 function getIdleTimeoutMs(role: string): number {
   return (
     (role === 'analyst'
@@ -62,7 +60,7 @@ function getClientIp(req: Request): string {
   const xff = req.headers['x-forwarded-for'];
   return typeof xff === 'string' && xff.length > 0 ? xff.split(',')[0].trim() : (req.ip ?? '');
 }
-function orgSummary(m: Membership): Record<string, unknown> {
+function orgSummary(m: Membership) {
   return {
     orgId: m.orgId,
     name: m.orgName,
@@ -85,7 +83,6 @@ function slugify(name: string): string {
   return `${base}-${randomBytes(3).toString('hex')}`;
 }
 
-// P0-1 BFF：Refresh Token httpOnly Cookie（防 XSS/CSRF，path 收敛到 /api/v1/auth）
 const REFRESH_COOKIE_NAME = 'rt';
 const REFRESH_COOKIE_BASE = {
   httpOnly: true,
@@ -93,10 +90,9 @@ const REFRESH_COOKIE_BASE = {
   sameSite: 'strict' as const,
   path: '/api/v1/auth',
 };
-const REFRESH_COOKIE_OPTIONS = { ...REFRESH_COOKIE_BASE, maxAge: 7 * 24 * 60 * 60 * 1000 }; // 7 天，与 JWT_REFRESH_TTL 对齐
-const REFRESH_COOKIE_CLEAR_OPTIONS = { ...REFRESH_COOKIE_BASE }; // 不传 maxAge
+const REFRESH_COOKIE_OPTIONS = { ...REFRESH_COOKIE_BASE, maxAge: 7 * 24 * 60 * 60 * 1000 };
+const REFRESH_COOKIE_CLEAR_OPTIONS = { ...REFRESH_COOKIE_BASE };
 
-/** 签发 access + refresh 令牌并写 RT Cookie（登录 / 切换组织共用）。 */
 async function issueSession(
   res: Response,
   userId: string,
@@ -104,19 +100,21 @@ async function issueSession(
   tenant: TenantContext | undefined,
 ): Promise<string> {
   const accessToken = await generateToken(userId, role, tenant);
-  const refreshToken = await generateRefreshToken(userId, role, undefined, tenant);
-  res.cookie(REFRESH_COOKIE_NAME, refreshToken, REFRESH_COOKIE_OPTIONS);
+  res.cookie(
+    REFRESH_COOKIE_NAME,
+    await generateRefreshToken(userId, role, undefined, tenant),
+    REFRESH_COOKIE_OPTIONS,
+  );
   return accessToken;
 }
 
 const router = Router();
 
-/** POST /api/v1/auth/login/password — argon2id + 常量时间比较 + 枚举防护；RT 写 httpOnly Cookie（P0-1 BFF）。 */
 router.post(
   '/login/password',
   validate(loginPasswordSchema),
   asyncRouteHandler(
-    async (req: Request, res: Response): Promise<void> => {
+    async (req, res) => {
       const { username, password } = req.body;
       const clientIp = getClientIp(req);
       const ipBlockTtl = await isIpBlocked(clientIp); // P0-05：IP 维度撞库检测（等保三级 8.1.4 b)）
@@ -176,8 +174,7 @@ router.post(
   ),
 );
 
-/** POST /api/v1/auth/register — 自助注册（ADR-035）：单事务创建 用户+组织+owner 成员关系，随后签发邮箱验证令牌并发送邮件（失败不阻塞注册）。 */
-router.post('/register', validate(registerSchema), async (req: Request, res: Response) => {
+router.post('/register', validate(registerSchema), async (req, res) => {
   const { username, password, email, orgName } = req.body;
 
   const existing = await getUserByEmail(email);
@@ -231,8 +228,7 @@ router.post('/register', validate(registerSchema), async (req: Request, res: Res
   });
 });
 
-/** POST /api/v1/auth/verify-email — 校验邮箱验证令牌（ADR-035） */
-router.post('/verify-email', validate(verifyEmailSchema), async (req: Request, res: Response) => {
+router.post('/verify-email', validate(verifyEmailSchema), async (req, res) => {
   const { token } = req.body;
   const userId = await verifyEmailToken(token);
   if (!userId) {
@@ -242,11 +238,10 @@ router.post('/verify-email', validate(verifyEmailSchema), async (req: Request, r
   res.json({ success: true, data: { userId, verified: true } });
 });
 
-/** POST /api/v1/auth/refresh — RT 从 httpOnly Cookie 读取，轮换后写回，旧 RT 失效。 */
 router.post(
   '/refresh',
   asyncRouteHandler(
-    async (req: Request, res: Response): Promise<void> => {
+    async (req, res) => {
       const refreshToken = req.cookies?.[REFRESH_COOKIE_NAME];
       if (!refreshToken) {
         sendProblem(res, 401, 'REFRESH_TOKEN_MISSING');
@@ -265,11 +260,10 @@ router.post(
   ),
 );
 
-/** DELETE /api/v1/auth/logout — 撤销 RT + 清除 Cookie。 */
 router.delete(
   '/logout',
   asyncRouteHandler(
-    async (req: Request, res: Response): Promise<void> => {
+    async (req, res) => {
       const refreshToken = req.cookies?.[REFRESH_COOKIE_NAME] as string | undefined;
       if (refreshToken) {
         await revokeRefreshToken(refreshToken);

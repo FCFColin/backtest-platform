@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import { useState, useMemo } from 'react';
 import i18n from '@/i18n/index.js';
 import { useNavigate } from 'react-router-dom';
@@ -268,3 +269,4 @@ function useEfficientFrontierState() {
   };
 }
 export { useEfficientFrontierState };
+export type FrontierState = ReturnType<typeof useEfficientFrontierState>;

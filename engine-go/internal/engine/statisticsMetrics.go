@@ -68,7 +68,6 @@ func CalcCorrelation(returns1, returns2 []float64) float64 {
 	}
 	return mathutil.Covariance(r1, r2) / math.Sqrt(var1*var2)
 }
-func CalcDailyReturns(prices []float64) []float64 { return mathutil.DailyReturns(prices) }
 func CalcTotalReturn(startValue, endValue float64) float64 {
 	if startValue <= 0 {
 		return 0
@@ -98,9 +97,6 @@ func ratioPositive(values []float64) float64 {
 		}
 	}
 	return float64(count) / float64(len(values))
-}
-func CalcDownsideDeviation(returns []float64, mar float64, periodsPerYear float64) float64 {
-	return CalcDownsideDeviationRaw(returns, mar) * math.Sqrt(periodsPerYear)
 }
 func CalcDownsideDeviationRaw(returns []float64, mar float64) float64 {
 	return mathutil.DownsideDeviation(returns, mar)
@@ -165,11 +161,8 @@ func CalcInformationRatio(alpha, trackingError float64) float64 {
 	}
 	return alpha / trackingError
 }
-func CalcUpsideCapture(portfolioReturns, benchmarkReturns []float64) float64 {
-	return calcCaptureRatio(portfolioReturns, benchmarkReturns, func(r float64) bool { return r > 0 })
-}
-func CalcDownsideCapture(portfolioReturns, benchmarkReturns []float64) float64 {
-	return calcCaptureRatio(portfolioReturns, benchmarkReturns, func(r float64) bool { return r < 0 })
+func CalcCaptureRatio(pr, br []float64, upside bool) float64 {
+	return calcCaptureRatio(pr, br, func(r float64) bool { return upside == (r > 0) })
 }
 func sortedReturnsPercentile(returns []float64) []float64 {
 	if len(returns) < 2 {
@@ -253,17 +246,11 @@ func calcCaptureRatio(portfolioReturns, benchmarkReturns []float64, filter func(
 	}
 	return portfolioGeoMean / benchmarkGeoMean
 }
-func CalcUpsideCorrelation(portfolioReturns, benchmarkReturns []float64) float64 {
-	return calcConditionalCorrelation(portfolioReturns, benchmarkReturns, func(r float64) bool { return r > 0 })
+func CalcConditionalCorr(pr, br []float64, upside bool) float64 {
+	return calcConditionalCorrelation(pr, br, func(r float64) bool { return upside == (r > 0) })
 }
-func CalcDownsideCorrelation(portfolioReturns, benchmarkReturns []float64) float64 {
-	return calcConditionalCorrelation(portfolioReturns, benchmarkReturns, func(r float64) bool { return r < 0 })
-}
-func CalcUpsideBeta(portfolioReturns, benchmarkReturns []float64) float64 {
-	return calcConditionalBeta(portfolioReturns, benchmarkReturns, func(r float64) bool { return r > 0 })
-}
-func CalcDownsideBeta(portfolioReturns, benchmarkReturns []float64) float64 {
-	return calcConditionalBeta(portfolioReturns, benchmarkReturns, func(r float64) bool { return r < 0 })
+func CalcConditionalBeta(pr, br []float64, upside bool) float64 {
+	return calcConditionalBeta(pr, br, func(r float64) bool { return upside == (r > 0) })
 }
 func CalcTreynor(cagr, beta float64) float64 {
 	if beta == 0 {
@@ -526,11 +513,19 @@ func rollingWindowSuccessRate(annualReturns []float64, years int, withdrawalRate
 	return float64(successes) / float64(numWindows)
 }
 func CalcPWRAllYears(annualReturns []float64) (pwr10y, swr10y, pwr20y, swr20y, pwr30y, swr30y, pwr40y, swr40y float64) {
-	out := []*float64{&pwr10y, &swr10y, &pwr20y, &swr20y, &pwr30y, &swr30y, &pwr40y, &swr40y}
 	for i, y := range []int{10, 20, 30, 40} {
 		if len(annualReturns) >= y {
-			*out[i*2] = CalcPWRYears(annualReturns, y)
-			*out[i*2+1] = CalcSWR(annualReturns, y, 0.95)
+			p, s := CalcPWRYears(annualReturns, y), CalcSWR(annualReturns, y, 0.95)
+			switch i {
+			case 0:
+				pwr10y, swr10y = p, s
+			case 1:
+				pwr20y, swr20y = p, s
+			case 2:
+				pwr30y, swr30y = p, s
+			case 3:
+				pwr40y, swr40y = p, s
+			}
 		}
 	}
 	return

@@ -10,7 +10,13 @@ import {
 import { useTranslation } from 'react-i18next';
 import { CHART_COLORS, type AssetAnalysisResult, type PortfolioResult } from '@backtest/shared';
 import { CHART_MARGIN, CHART_GRID_PROPS } from '@/lib/chart-theme.js';
-import { ChartXAxis, ChartYAxis, ChartTooltip, ScatterChartContent } from './sharedChartContent.js';
+import {
+  ChartXAxis,
+  ChartYAxis,
+  ChartTooltip,
+  ChartEmptyState,
+  ScatterChartContent,
+} from './sharedChartContent.js';
 import { type RiskMetricKey } from './chartUtils.js';
 import ChartCard from '../ChartCard.js';
 interface ScatterPoint {
@@ -111,16 +117,7 @@ function EmptyScatter() {
   const { t } = useTranslation();
   return (
     <ChartCard title={t('charts.riskReturn.title')}>
-      <div
-        style={{
-          color: 'var(--text-muted)',
-          fontSize: '13px',
-          padding: '40px 0',
-          textAlign: 'center',
-        }}
-      >
-        {t('charts.riskReturn.noData')}
-      </div>
+      <ChartEmptyState message={t('charts.riskReturn.noData')} />
     </ChartCard>
   );
 }
@@ -133,6 +130,8 @@ export function RiskReturnScatter({ portfolios }: RiskReturnScatterProps) {
     cagr: +(p.statistics.cagr * 100).toFixed(2),
     sharpe: +p.statistics.sharpe.toFixed(2),
   }));
+  const volLabel = t('charts.riskReturn.volatility');
+  const retLabel = t('charts.riskReturn.returnRate');
   return (
     <ChartCard
       title={t('charts.riskReturn.title')}
@@ -150,7 +149,7 @@ export function RiskReturnScatter({ portfolios }: RiskReturnScatterProps) {
           <ChartXAxis
             type="number"
             dataKey="stdev"
-            name={t('charts.riskReturn.volatility')}
+            name={volLabel}
             label={{
               value: t('charts.riskReturn.volatilityAxis'),
               position: 'insideBottom',
@@ -162,7 +161,7 @@ export function RiskReturnScatter({ portfolios }: RiskReturnScatterProps) {
           <ChartYAxis
             type="number"
             dataKey="cagr"
-            name={t('charts.riskReturn.returnRate')}
+            name={retLabel}
             label={{
               value: t('charts.riskReturn.returnAxis'),
               angle: -90,
@@ -173,13 +172,13 @@ export function RiskReturnScatter({ portfolios }: RiskReturnScatterProps) {
           />
           <ZAxis range={[80, 80]} />
           <ChartTooltip
-            formatter={(value: number, name: string) => {
-              if (name === 'stdev')
-                return [`${value.toFixed(2)}%`, t('charts.riskReturn.volatility')];
-              if (name === 'cagr')
-                return [`${value.toFixed(2)}%`, t('charts.riskReturn.returnRate')];
-              return [String(value), name];
-            }}
+            formatter={(value: number, name: string) =>
+              name === 'stdev'
+                ? [`${value.toFixed(2)}%`, volLabel]
+                : name === 'cagr'
+                  ? [`${value.toFixed(2)}%`, retLabel]
+                  : [String(value), name]
+            }
             labelFormatter={() => ''}
           />
           {data.map((point, idx) => (

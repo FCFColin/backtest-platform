@@ -1,11 +1,9 @@
-# Redis 7 Sentinel HA (ADR-045: 1 master + 2 replicas + 3 sentinels, quorum=2)
----
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
   name: redis-data
-provisioner: rancher.io/local-path # dev/kind; prod: cloud provider
-reclaimPolicy: Retain # ADR-045: prevent PVC deletion
+provisioner: rancher.io/local-path
+reclaimPolicy: Retain
 volumeBindingMode: WaitForFirstConsumer
 ---
 apiVersion: v1
@@ -20,16 +18,9 @@ data:
     set -e
     ORDINAL="${HOSTNAME##*-}"
     if [ "$ORDINAL" = "0" ]; then
-      exec redis-server \
-        --appendonly yes \
-        --min-slaves-to-write 1 \
-        --min-slaves-max-lag 10 \
-        --save 60 1000
+      exec redis-server --appendonly yes --min-slaves-to-write 1 --min-slaves-max-lag 10 --save 60 1000
     else
-      exec redis-server \
-        --appendonly yes \
-        --replicaof redis-0.redis 6379 \
-        --replica-read-only yes
+      exec redis-server --appendonly yes --replicaof redis-0.redis 6379 --replica-read-only yes
     fi
   sentinel.conf: |
     port 26379
@@ -61,19 +52,13 @@ spec:
         runAsNonRoot: true
         runAsUser: 999
         fsGroup: 999
-        allowPrivilegeEscalation: false
-        capabilities:
-          drop: [ALL]
       initContainers:
         - name: init-script
           image: redis:7-alpine
-          securityContext:
-            runAsNonRoot: true
-            runAsUser: 999
           command:
             [
-              sh,
-              -c,
+              'sh',
+              '-c',
               'cp /config/entrypoint.sh /scripts/entrypoint.sh && chmod +x /scripts/entrypoint.sh',
             ]
           volumeMounts:
@@ -90,9 +75,9 @@ spec:
             - containerPort: 26379
               name: sentinel
           securityContext:
-            runAsNonRoot: true
-            runAsUser: 999
             allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
           env:
             - name: REDIS_PASSWORD
               valueFrom: { secretKeyRef: { name: auth-secret, key: REDIS_PASSWORD } }

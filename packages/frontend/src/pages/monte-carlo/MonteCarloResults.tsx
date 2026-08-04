@@ -263,8 +263,8 @@ const config: ComputeToolConfig<McState> = {
     { titleKey: 'nav.assetAnalysis', href: '/analysis' },
   ],
   presets: buildPresets,
-  params: McParamsPanel,
-  results: MonteCarloResultsPanel,
+  params: ({ state }: { state: McState }) => <McParamsPanel s={state} />,
+  results: ({ state }: { state: McState }) => <MonteCarloResultsPanel s={state} />,
 };
 export default function MonteCarloPage() {
   const s = useMonteCarloState();

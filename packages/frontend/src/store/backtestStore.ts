@@ -79,8 +79,7 @@ export async function pollJobStatus(
       throw new DOMException('Aborted', 'AbortError');
     const pollResponse = await apiFetch(statusUrl, {
       headers: { 'Content-Type': 'application/json' },
-      // 轮询结果每次都要最新值：禁用 HTTP 缓存，否则 ETag 命中返回 304（无 body），
-      cache: 'no-store',
+      cache: 'no-store', // 禁用缓存避免 ETag 304 无 body
       signal,
     });
     const pollJson = await pollResponse.json();
@@ -221,8 +220,6 @@ function loadFromShareAction(
     })),
     parameters: { ...defaultParameters, ...data.parameters },
     results: null,
-    warnings: [],
-    dateRange: null,
     activeTab: 'growth' as const,
     portfolioCounter: maxId,
     hasLoadedFromShare: true,
@@ -318,28 +315,7 @@ export const useBacktestStore = create<BacktestState>()((set, get) => {
         return { portfolioCounter: next, portfolios: [...state.portfolios, copy] };
       });
     },
-    updatePortfolio: (
-      id: string,
-      updates: Partial<
-        Pick<
-          Portfolio,
-          | 'name'
-          | 'assets'
-          | 'rebalanceFrequency'
-          | 'rebalanceThreshold'
-          | 'rebalanceOffset'
-          | 'rebalanceBands'
-          | 'drag'
-          | 'totalReturn'
-          | 'isGlidepath'
-          | 'glidepathFrom'
-          | 'glidepathTo'
-          | 'glidepathYears'
-          | 'glidepathToWeights'
-          | 'tags'
-        >
-      >,
-    ) => patchAssets(set, id, (p) => ({ ...p, ...updates })),
+    updatePortfolio: (id, updates) => patchAssets(set, id, (p) => ({ ...p, ...updates })),
     addGlidepath: (name: string, fromId: string, toId: string, years: number) => {
       const next = get().portfolioCounter + 1;
       set((state) => {

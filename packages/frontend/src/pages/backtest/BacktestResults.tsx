@@ -1,4 +1,4 @@
-import { useEffect, lazy, Suspense, type ReactNode } from 'react';
+import { useEffect, lazy, Suspense, type ReactNode, type ComponentType } from 'react';
 import { useTranslation, Trans } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { Download, Loader2 } from 'lucide-react';
@@ -26,7 +26,9 @@ import {
   createEmptyStatistics,
 } from '@backtest/shared';
 const lazyNamed = (importer: () => Promise<Record<string, unknown>>, name: string) =>
-  lazy(() => importer().then((m) => ({ default: m[name] })));
+  lazy(() =>
+    importer().then((m) => ({ default: m[name] as ComponentType<Record<string, unknown>> })),
+  );
 const GrowthChart = lazyNamed(() => import('@/components/charts/GrowthChart'), 'GrowthChart');
 const DrawdownChart = lazyNamed(
   () => import('@/components/charts/drawdownCharts'),
@@ -321,7 +323,7 @@ function RebalancingStats({ portfolios }: RebalancingStatsProps) {
     (p) => p.rebalanceFrequency && p.rebalanceFrequency !== 'none',
   );
   if (!hasRebalanceInfo) return <RebalancingEmptyState />;
-  const columns: SimpleTableColumn<Portfolio>[] = [
+  const columns: SimpleTableColumn<(typeof portfolios)[number]>[] = [
     {
       key: 'name',
       label: t('backtest.portfolio'),

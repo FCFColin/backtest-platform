@@ -17,7 +17,6 @@ interface SyntheticTicker {
   earliestDate: string;
   methodology: string;
 }
-// 全部 synthetic tickers 使用 splice_by_return 方法论，通过 map 统一注入
 const SYNTHETIC_ROWS: Array<[string, string, string, string, string]> = [
   [
     'SPYSIM',

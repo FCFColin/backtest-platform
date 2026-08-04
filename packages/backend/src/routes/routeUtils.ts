@@ -11,30 +11,26 @@ import type { AuthenticatedRequest } from '../middleware/jwtAuth.js';
 import { hasTenant } from '../middleware/tenantContext.js';
 import { validate } from '../middleware/miscMiddleware.js';
 
-function handleEngineUnavailable(res: Response, error: unknown): boolean {
+function translateError(res: Response, error: unknown): 'engine' | 'app' | null {
   if (error instanceof EngineUnavailableError) {
     sendProblem(res, 503, 'ENGINE_UNAVAILABLE', undefined, {
       headers: { 'Retry-After': String(error.retryAfterSeconds) },
     });
-    return true;
+    return 'engine';
   }
   if (error instanceof UpstreamProblemError) {
     sendProblem(res, error.status, error.code);
-    return true;
+    return 'engine';
   }
-  return false;
-}
-
-function handleApplicationError(res: Response, error: unknown): boolean {
   if (error instanceof ApplicationError) {
     sendProblem(res, error.statusCode, error.errorCode);
-    return true;
+    return 'app';
   }
   if (error instanceof TimeoutError) {
     sendProblem(res, 503, 'COMPUTE_TIMEOUT');
-    return true;
+    return 'app';
   }
-  return false;
+  return null;
 }
 
 export function ownerOf(req: AuthenticatedRequest): string | null {
@@ -81,12 +77,10 @@ export function asyncRouteHandler(
     try {
       await fn(req as AuthenticatedRequest, res);
     } catch (error) {
-      if (handleEngineUnavailable(res, error)) {
-        recordDegraded(errorConfig.endpoint);
-        return;
-      }
-      if (handleApplicationError(res, error)) {
-        recordEndpointError(errorConfig.endpoint);
+      const translated = translateError(res, error);
+      if (translated) {
+        if (translated === 'engine') recordDegraded(errorConfig.endpoint);
+        else recordEndpointError(errorConfig.endpoint);
         return;
       }
       recordEndpointError(errorConfig.endpoint);

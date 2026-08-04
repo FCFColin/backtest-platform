@@ -68,13 +68,13 @@ func CalculateStatisticsFromRequest(req StatisticsRequest) Statistics {
 		rSq = CalcRSquared(req.DailyReturns, bench)
 		trackingErr = CalcTrackingError(req.DailyReturns, bench)
 		infoRatio = CalcInformationRatio(alpha, trackingErr)
-		upsideDaily = CalcUpsideCapture(req.DailyReturns, bench)
-		downsideDaily = CalcDownsideCapture(req.DailyReturns, bench)
+		upsideDaily = CalcCaptureRatio(req.DailyReturns, bench, true)
+		downsideDaily = CalcCaptureRatio(req.DailyReturns, bench, false)
 		benchmarkCorrelation = CalcCorrelation(req.DailyReturns, bench)
-		upsideCorr = CalcUpsideCorrelation(req.DailyReturns, bench)
-		downsideCorr = CalcDownsideCorrelation(req.DailyReturns, bench)
-		upsideBetaVal = CalcUpsideBeta(req.DailyReturns, bench)
-		downsideBetaVal = CalcDownsideBeta(req.DailyReturns, bench)
+		upsideCorr = CalcConditionalCorr(req.DailyReturns, bench, true)
+		downsideCorr = CalcConditionalCorr(req.DailyReturns, bench, false)
+		upsideBetaVal = CalcConditionalBeta(req.DailyReturns, bench, true)
+		downsideBetaVal = CalcConditionalBeta(req.DailyReturns, bench, false)
 		treynor = CalcTreynor(cagr, beta)
 		m2 = CalcM2(sharpe, CalcAnnualizedStdev(bench))
 		alphaDaily = CalcAlphaDaily(req.DailyReturns, bench, beta)
@@ -120,8 +120,8 @@ func CalculateStatisticsFromRequest(req StatisticsRequest) Statistics {
 		AvgAnnualReturn: avgAnnual, AvgMonthlyReturn: avgMonthly, AvgDailyReturn: avgDaily,
 		StdevAnnual: mathutil.Std(req.AnnualReturnValues), StdevMonthly: mathutil.Std(req.MonthlyReturnValues) * math.Sqrt(12), StdevMonthlyRaw: mathutil.Std(req.MonthlyReturnValues),
 		StdevDaily: stdevDaily, StdevDailyRaw: stdevDailyRaw,
-		DownsideDeviation: CalcDownsideDeviation(req.DailyReturns, rfDaily, tradingDaysPerYear), DownsideDeviationDailyRaw: CalcDownsideDeviationRaw(req.DailyReturns, rfDaily),
-		DownsideDeviationMonthly: CalcDownsideDeviation(req.MonthlyReturnValues, rfMonthly, 12), DownsideDeviationMonthlyRaw: CalcDownsideDeviationRaw(req.MonthlyReturnValues, rfMonthly),
+		DownsideDeviation: CalcDownsideDeviationRaw(req.DailyReturns, rfDaily) * math.Sqrt(tradingDaysPerYear), DownsideDeviationDailyRaw: CalcDownsideDeviationRaw(req.DailyReturns, rfDaily),
+		DownsideDeviationMonthly: CalcDownsideDeviationRaw(req.MonthlyReturnValues, rfMonthly) * math.Sqrt(12), DownsideDeviationMonthlyRaw: CalcDownsideDeviationRaw(req.MonthlyReturnValues, rfMonthly),
 		DownsideDeviationAnnual: CalcDownsideDeviationRaw(req.AnnualReturnValues, riskFreeRate), DrawdownRecoveryFactor: CalcDrawdownRecoveryFactor(totalReturn, dd.MaxDrawdown),
 		M2: m2, Treynor: treynor, DiversificationRatio: 1, BenchmarkCorrelation: benchmarkCorrelation, UpsideCorrelation: upsideCorr, DownsideCorrelation: downsideCorr,
 		UpsideBeta: upsideBetaVal, DownsideBeta: downsideBetaVal, AlphaDaily: alphaDaily, AlphaAnnualized: alpha,

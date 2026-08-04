@@ -1,4 +1,3 @@
-# Ingress — TLS 终止 + cert-manager 自动证书 + 强制 HTTPS 重定向
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:

@@ -65,13 +65,13 @@ const WEIGHT_FIELDS = [
     id: 'opt-min-weight',
     labelKey: 'optimizer.minWeight',
     get: (s: EfficientFrontierState) => s.minWeight,
-    set: (s: EfficientFrontierState, v: string) => s.setMinWeight(Number(v)),
+    set: (s: EfficientFrontierState, v: number) => s.setMinWeight(v),
   },
   {
     id: 'opt-max-weight',
     labelKey: 'optimizer.maxWeight',
     get: (s: EfficientFrontierState) => s.maxWeight,
-    set: (s: EfficientFrontierState, v: string) => s.setMaxWeight(Number(v)),
+    set: (s: EfficientFrontierState, v: number) => s.setMaxWeight(v),
   },
 ];
 

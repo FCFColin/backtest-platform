@@ -1,15 +1,6 @@
 import { Play, Loader2, Plus, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import {
-  CartesianGrid,
-  Legend,
-  Line,
-  LineChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts';
+import { Line } from 'recharts';
 import { CHART_COLORS } from '@backtest/shared';
 import {
   ParamsPanel,
@@ -30,7 +21,7 @@ import {
 } from '@/components/ui/uiComponents';
 import { StatCard } from '@/components/cards.js';
 import { SortableTable } from '../../components/tables.js';
-import { CHART_GRID_PROPS, CHART_TOOLTIP_STYLE } from '@/lib/chart-theme.js';
+import { SimpleChart } from '@/components/charts/sharedChartContent.js';
 import {
   FREQ_OPTIONS,
   OBJECTIVE_SORT_KEY,
@@ -130,7 +121,7 @@ function BacktestRangeSection({ s }: OptimizerSectionProps) {
             <input
               type={f.type}
               className={f.placeholderKey ? `${INPUT_CLS} placeholder:text-fg-tertiary` : INPUT_CLS}
-              value={s.form[f.key]}
+              value={s.form[f.key] as string}
               onChange={(e) => s.patchForm({ [f.key]: e.target.value })}
               placeholder={f.placeholderKey ? t(f.placeholderKey) : undefined}
             />
@@ -432,59 +423,46 @@ function GrowthComparisonChart({ best, benchmarkGrowth }: GrowthComparisonChartP
   const { t } = useTranslation();
   const chartData = buildChartData(best, benchmarkGrowth);
   if (chartData.length === 0) return null;
+  const nameMap: Record<string, string> = {
+    portfolio: t('backtest.optimizer.bestPortfolio'),
+    benchmark: t('backtest.optimizer.benchmark'),
+  };
   return (
     <>
       <div className="mb-3 mt-6 text-body font-semibold text-fg">
         {t('backtest.optimizer.growthComparison')}
       </div>
-      <ResponsiveContainer width="100%" height={320}>
-        <LineChart data={chartData} margin={{ left: 8, right: 20, top: 5, bottom: 5 }}>
-          <CartesianGrid {...CHART_GRID_PROPS} stroke="hsl(var(--border-subtle))" />
-          <XAxis
-            dataKey="date"
-            tick={{ fontSize: 12, fill: 'hsl(var(--fg-tertiary))' }}
-            tickFormatter={(d: string) => d.substring(0, 7)}
-            minTickGap={40}
-          />
-          <YAxis
-            tick={{ fontSize: 12, fill: 'hsl(var(--fg-tertiary))' }}
-            tickFormatter={(v: number) => `$${v.toLocaleString('en-US')}`}
-            width={70}
-          />
-          <Tooltip
-            labelFormatter={(d: string) => d}
-            formatter={(v: number, name: string) => [
-              `$${v.toLocaleString('en-US')}`,
-              name === 'portfolio'
-                ? t('backtest.optimizer.bestPortfolio')
-                : t('backtest.optimizer.benchmark'),
-            ]}
-            contentStyle={CHART_TOOLTIP_STYLE}
-          />
-          <Legend
-            formatter={(name: string) =>
-              name === 'portfolio'
-                ? t('backtest.optimizer.bestPortfolio')
-                : t('backtest.optimizer.benchmark')
-            }
-          />
-          <Line
-            type="monotone"
-            dataKey="portfolio"
-            stroke={CHART_COLORS[0]}
-            dot={false}
-            strokeWidth={2}
-          />
-          <Line
-            type="monotone"
-            dataKey="benchmark"
-            stroke={CHART_COLORS[1]}
-            dot={false}
-            strokeWidth={1.5}
-            strokeDasharray="4 2"
-          />
-        </LineChart>
-      </ResponsiveContainer>
+      <SimpleChart
+        type="line"
+        data={chartData}
+        height={320}
+        margin={{ left: 8, right: 20, top: 5, bottom: 5 }}
+        xTickFormatter={(d: string) => d.substring(0, 7)}
+        yTickFormatter={(v: number) => `$${v.toLocaleString('en-US')}`}
+        tooltipFormatter={(v: number, name: string) => [
+          `$${v.toLocaleString('en-US')}`,
+          nameMap[name] ?? name,
+        ]}
+        tooltipLabelFormatter={(d: string) => d}
+        showLegend
+        legendFormatter={(name: string) => nameMap[name] ?? name}
+      >
+        <Line
+          type="monotone"
+          dataKey="portfolio"
+          stroke={CHART_COLORS[0]}
+          dot={false}
+          strokeWidth={2}
+        />
+        <Line
+          type="monotone"
+          dataKey="benchmark"
+          stroke={CHART_COLORS[1]}
+          dot={false}
+          strokeWidth={1.5}
+          strokeDasharray="4 2"
+        />
+      </SimpleChart>
     </>
   );
 }

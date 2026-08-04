@@ -43,7 +43,8 @@ export function getPortfolioColor(index: number): string {
   return PORTFOLIO_COLORS[index % PORTFOLIO_COLORS.length];
 }
 export const DATE_TICK_FORMATTER = (value: string): string => value.slice(0, 7);
-export const YEAR_ONLY_TICK_FORMATTER = (value: string): string => value.slice(0, 4);
+export const YEAR_ONLY_TICK_FORMATTER = (value: string | number): string =>
+  String(value).slice(0, 4);
 export function SMART_DATE_INTERVAL(totalMonths: number): number {
   if (totalMonths <= 12) return 1;
   if (totalMonths <= 60) return 6;

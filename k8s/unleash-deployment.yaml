@@ -1,5 +1,3 @@
-# Unleash 特性开关服务（P1-03）— 2 副本 + PDB 保证可用性
-# 依赖 PostgreSQL（独立 schema）+ Redis（flag 快照缓存）
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -48,13 +46,11 @@ spec:
             initialDelaySeconds: 30
             periodSeconds: 10
             timeoutSeconds: 5
-            failureThreshold: 3
           readinessProbe:
             httpGet: { path: /health, port: 4242 }
             initialDelaySeconds: 10
             periodSeconds: 5
             timeoutSeconds: 3
-            failureThreshold: 3
           volumeMounts:
             - name: tmp
               mountPath: /tmp

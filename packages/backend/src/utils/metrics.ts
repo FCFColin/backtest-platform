@@ -102,30 +102,25 @@ export const engineUnavailableTotal = counter(
   ['reason'],
 );
 
-const backtestRequestsTotal = counter(
-  'backtest_requests_total',
-  'Total backtest-related API requests',
-  ['endpoint', 'mode', 'status'],
-);
-const degradedResponsesTotal = counter(
-  'degraded_responses_total',
-  'Responses served in degraded mode',
-  ['endpoint', 'reason'],
-);
-const cacheHitsTotal = counter('cache_hits_total', 'Cache hit/miss count by layer', [
-  'layer',
-  'result',
-]);
-const cacheEvictionsTotal = counter(
-  'cache_evictions_total',
-  'Cache evictions by level (l1 = in-process LRU capacity eviction)',
-  ['level'],
-);
-const authFailuresTotal = counter(
-  'auth_failures_total',
-  'Authentication/authorization failures by endpoint and reason',
-  ['endpoint', 'reason'],
-);
+const COUNTER_DEFS = {
+  backtest_requests: {
+    help: 'Total backtest-related API requests',
+    labels: ['endpoint', 'mode', 'status'],
+  },
+  degraded_responses: { help: 'Responses served in degraded mode', labels: ['endpoint', 'reason'] },
+  cache_hits: { help: 'Cache hit/miss count by layer', labels: ['layer', 'result'] },
+  cache_evictions: {
+    help: 'Cache evictions by level (l1 = in-process LRU capacity eviction)',
+    labels: ['level'],
+  },
+  auth_failures: {
+    help: 'Authentication/authorization failures by endpoint and reason',
+    labels: ['endpoint', 'reason'],
+  },
+} as const;
+const ctr = Object.fromEntries(
+  Object.entries(COUNTER_DEFS).map(([name, def]) => [name, counter(name, def.help, def.labels)]),
+) as Record<keyof typeof COUNTER_DEFS, client.Counter>;
 export const apiKeysStaleCount = gauge(
   'api_keys_stale_count',
   'Active API keys not used within the staleness threshold (by is_platform_admin)',
@@ -161,19 +156,19 @@ export function recordBacktestRequest(
   mode: 'sync' | 'async',
   status: 'success' | 'error' | 'timeout' | 'queue_error',
 ): void {
-  backtestRequestsTotal.inc({ endpoint, mode, status });
+  ctr.backtest_requests.inc({ endpoint, mode, status });
 }
 export function recordDegradedResponse(endpoint: string, reason: string): void {
-  degradedResponsesTotal.inc({ endpoint, reason: sanitizeMetricLabel(reason) });
+  ctr.degraded_responses.inc({ endpoint, reason: sanitizeMetricLabel(reason) });
 }
 export function recordCacheHit(layer: string, hit: boolean): void {
-  cacheHitsTotal.inc({ layer, result: hit ? 'hit' : 'miss' });
+  ctr.cache_hits.inc({ layer, result: hit ? 'hit' : 'miss' });
 }
 export function recordCacheEviction(level: 'l1'): void {
-  cacheEvictionsTotal.inc({ level });
+  ctr.cache_evictions.inc({ level });
 }
 export function recordAuthFailure(endpoint: string, reason: string): void {
-  authFailuresTotal.inc({
+  ctr.auth_failures.inc({
     endpoint: sanitizeMetricLabel(endpoint, 128, true),
     reason: sanitizeMetricLabel(reason),
   });
@@ -210,32 +205,28 @@ export const readPoolFallbackCounter = counter(
   'read_pool_fallback_total',
   'Number of times read pool fell back to write pool due to connection failure',
 );
-// Redis/DB 不可用时 fail-closed 路径递增
 export const quotaEnforcementFailures = counter(
   'quota_enforcement_failures_total',
   'Total number of quota enforcement failures (Redis/DB unavailable, fail-closed)',
   ['quota_key', 'reason'],
 );
 
-const timescaledbChunkGauges = {
-  total: gauge('timescaledb_chunk_count', 'Total number of chunks in prices hypertable'),
-  compressed: gauge(
+const tsGauges = {
+  chunk_total: gauge('timescaledb_chunk_count', 'Total number of chunks in prices hypertable'),
+  chunk_compressed: gauge(
     'timescaledb_compressed_chunks',
     'Number of compressed chunks in prices hypertable',
   ),
-  uncompressed: gauge(
+  chunk_uncompressed: gauge(
     'timescaledb_uncompressed_chunks',
     'Number of uncompressed chunks in prices hypertable',
   ),
+  compression_ratio: gauge(
+    'timescaledb_compression_ratio',
+    'Compression ratio of prices hypertable (after/before, lower is better)',
+  ),
+  cagg_rows: gauge('timescaledb_cagg_rows', 'Total rows in prices_monthly continuous aggregate'),
 };
-const timescaledbCompressionRatio = gauge(
-  'timescaledb_compression_ratio',
-  'Compression ratio of prices hypertable (after/before, lower is better)',
-);
-const timescaledbCaggRows = gauge(
-  'timescaledb_cagg_rows',
-  'Total rows in prices_monthly continuous aggregate',
-);
 
 export function registerTimescaleMetrics(
   queryFn: (sql: string) => Promise<Array<Record<string, unknown>>>,
@@ -253,9 +244,9 @@ export function registerTimescaleMetrics(
       `);
       const cs = chunkRows[0];
       if (cs) {
-        setNum(timescaledbChunkGauges.total, cs.total_chunks);
-        setNum(timescaledbChunkGauges.compressed, cs.compressed_chunks);
-        setNum(timescaledbChunkGauges.uncompressed, cs.uncompressed_chunks);
+        setNum(tsGauges.chunk_total, cs.total_chunks);
+        setNum(tsGauges.chunk_compressed, cs.compressed_chunks);
+        setNum(tsGauges.chunk_uncompressed, cs.uncompressed_chunks);
       }
       const ratioRows = await queryFn(`
         SELECT
@@ -269,10 +260,10 @@ export function registerTimescaleMetrics(
       `);
       const ratio = ratioRows[0]?.ratio;
       if (ratio !== undefined && ratio !== null) {
-        timescaledbCompressionRatio.set(Number(ratio));
+        tsGauges.compression_ratio.set(Number(ratio));
       }
       const caggRows = await queryFn(`SELECT COUNT(*) AS cnt FROM prices_monthly`);
-      if (caggRows[0]?.cnt !== undefined) setNum(timescaledbCaggRows, caggRows[0].cnt);
+      if (caggRows[0]?.cnt !== undefined) setNum(tsGauges.cagg_rows, caggRows[0].cnt);
     } catch {
       /* ignore query error */
     }

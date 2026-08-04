@@ -1,4 +1,3 @@
-# API 出站: engine-go:5004 / data-fetcher:5003 / pgbouncer:5432 / redis-sentinel:26379 / SaaS OTel:443
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:

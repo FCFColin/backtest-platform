@@ -38,6 +38,9 @@ func newProblem(c *gin.Context, status int, code, title, detail string) {
 func withComputeSpan(ctx context.Context, name string, attrs ...attribute.KeyValue) (context.Context, trace.Span) {
 	return otel.Tracer("engine-go").Start(ctx, name, trace.WithAttributes(attrs...))
 }
+func okJSON(c *gin.Context, data any) {
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": data})
+}
 func withComputeHandler[T any](c *gin.Context, errMsg string, fn func(ctx context.Context) (T, error)) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -53,7 +56,7 @@ func withComputeHandler[T any](c *gin.Context, errMsg string, fn func(ctx contex
 		newProblem(c, http.StatusInternalServerError, "COMPUTE_FAILED", "Computation Failed", errMsg)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": result})
+	okJSON(c, result)
 }
 func withSpannedCompute[T any](c *gin.Context, errMsg, spanName string, fn func(ctx context.Context) (T, error)) {
 	withComputeHandler(c, errMsg, func(ctx context.Context) (T, error) {
@@ -232,20 +235,17 @@ func handleCalculators(c *gin.Context) {
 	}
 	switch req.Type {
 	case "cagr":
-		if !requireParam(c, "CALC_MISSING_CAGR", "cagr 类型需要 cagr 参数", req.CAGR != nil) {
-			return
+		if requireParam(c, "CALC_MISSING_CAGR", "cagr 类型需要 cagr 参数", req.CAGR != nil) {
+			okJSON(c, calculators.CalcCAGR(*req.CAGR))
 		}
-		c.JSON(http.StatusOK, gin.H{"success": true, "data": calculators.CalcCAGR(*req.CAGR)})
 	case "swr":
-		if !requireParam(c, "CALC_MISSING_SWR", "swr 类型需要 swr 参数", req.SWR != nil) {
-			return
+		if requireParam(c, "CALC_MISSING_SWR", "swr 类型需要 swr 参数", req.SWR != nil) {
+			okJSON(c, calculators.CalcSWR(*req.SWR))
 		}
-		c.JSON(http.StatusOK, gin.H{"success": true, "data": calculators.CalcSWR(*req.SWR)})
 	case "frontier":
-		if !requireParam(c, "CALC_MISSING_FRONTIER", "frontier 类型需要 frontier 参数", req.Frontier != nil) {
-			return
+		if requireParam(c, "CALC_MISSING_FRONTIER", "frontier 类型需要 frontier 参数", req.Frontier != nil) {
+			okJSON(c, calculators.CalcTwoFundFrontier(*req.Frontier))
 		}
-		c.JSON(http.StatusOK, gin.H{"success": true, "data": calculators.CalcTwoFundFrontier(*req.Frontier)})
 	default:
 		newProblem(c, http.StatusBadRequest, "CALC_INVALID_TYPE", "Bad Request", "type 必须是 cagr/swr/frontier")
 	}
@@ -277,7 +277,7 @@ func handleSignalAnalyze(c *gin.Context) {
 			missingTicker()
 			return
 		}
-		c.JSON(http.StatusOK, gin.H{"success": true, "data": signal.AnalyzeSignal(*req.Single, engineutil.ToPricePoints(tickerData))})
+		okJSON(c, signal.AnalyzeSignal(*req.Single, engineutil.ToPricePoints(tickerData)))
 	case "dual":
 		if req.Dual == nil {
 			newProblem(c, http.StatusBadRequest, "SIGNAL_MISSING_DUAL", "Bad Request", "dual 模式需要 dual 参数")
@@ -289,7 +289,7 @@ func handleSignalAnalyze(c *gin.Context) {
 			missingTicker()
 			return
 		}
-		c.JSON(http.StatusOK, gin.H{"success": true, "data": signal.AnalyzeDualSignal(req.Dual.Signal1, req.Dual.Signal2, engineutil.ToPricePoints(td1), engineutil.ToPricePoints(td2), req.Dual.CombinationMethod)})
+		okJSON(c, signal.AnalyzeDualSignal(req.Dual.Signal1, req.Dual.Signal2, engineutil.ToPricePoints(td1), engineutil.ToPricePoints(td2), req.Dual.CombinationMethod))
 	case "multi":
 		if req.Multi == nil || len(req.Multi.Signals) == 0 {
 			newProblem(c, http.StatusBadRequest, "SIGNAL_MISSING_MULTI", "Bad Request", "multi 模式需要 multi.signals 参数")
@@ -300,7 +300,7 @@ func handleSignalAnalyze(c *gin.Context) {
 			missingTicker()
 			return
 		}
-		c.JSON(http.StatusOK, gin.H{"success": true, "data": signal.AnalyzeMultiSignal(ctx, req.Multi.Signals, engineutil.ToPricePoints(td), req.Multi.AggregationMethod, req.Multi.Weights)})
+		okJSON(c, signal.AnalyzeMultiSignal(ctx, req.Multi.Signals, engineutil.ToPricePoints(td), req.Multi.AggregationMethod, req.Multi.Weights))
 	default:
 		newProblem(c, http.StatusBadRequest, "SIGNAL_INVALID_MODE", "Bad Request", "mode 必须是 single/dual/multi")
 	}

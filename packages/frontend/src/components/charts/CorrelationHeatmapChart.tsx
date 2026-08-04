@@ -127,34 +127,27 @@ function PairSelect({
     </select>
   );
 }
+type RollingCorrelationProps = {
+  portfolios: PortfolioResult[];
+  selectedPair: [number, number] | null;
+  rollingWindow: number;
+  onSelectPair: (pair: [number, number] | null) => void;
+  onSetWindow: (w: number) => void;
+};
 function RollingCorrelationControls({
   portfolios,
   selectedPair,
   rollingWindow,
   onSelectPair,
   onSetWindow,
-}: {
-  portfolios: PortfolioResult[];
-  selectedPair: [number, number] | null;
-  rollingWindow: number;
-  onSelectPair: (pair: [number, number] | null) => void;
-  onSetWindow: (w: number) => void;
-}) {
+}: RollingCorrelationProps) {
   const { t } = useTranslation();
   const setA = (i: number) =>
     onSelectPair(selectedPair ? [i, selectedPair[1]] : [i, i === 0 ? 1 : 0]);
   const setB = (j: number) => onSelectPair(selectedPair ? [selectedPair[0], j] : [0, j]);
   const labels = [
-    {
-      key: 'charts.correlation.portfolioA',
-      value: selectedPair ? selectedPair[0] : 0,
-      onChange: setA,
-    },
-    {
-      key: 'charts.correlation.portfolioB',
-      value: selectedPair ? selectedPair[1] : 1,
-      onChange: setB,
-    },
+    { key: 'charts.correlation.portfolioA', value: selectedPair?.[0] ?? 0, onChange: setA },
+    { key: 'charts.correlation.portfolioB', value: selectedPair?.[1] ?? 1, onChange: setB },
   ];
   return (
     <div className="flex flex-wrap items-center gap-3 mb-3">
@@ -256,13 +249,7 @@ function RollingCorrelationSection({
   rollingWindow,
   onSelectPair,
   onSetWindow,
-}: {
-  portfolios: PortfolioResult[];
-  selectedPair: [number, number] | null;
-  rollingWindow: number;
-  onSelectPair: (pair: [number, number] | null) => void;
-  onSetWindow: (w: number) => void;
-}) {
+}: RollingCorrelationProps) {
   const { t } = useTranslation();
   const task = useMemo<WorkerTask | null>(() => {
     if (!selectedPair || portfolios.length < 2 || selectedPair[0] === selectedPair[1]) return null;
@@ -293,27 +280,17 @@ function RollingCorrelationSection({
         onSelectPair={onSelectPair}
         onSetWindow={onSetWindow}
       />
-      {isPending && (
+      {isPending ? (
         <div className="flex items-center justify-center py-5">
           <div className="size-5 animate-spin rounded-full border-2 border-current border-t-transparent text-fg-tertiary" />
         </div>
-      )}
-      {!isPending && !selectedPair && (
+      ) : !selectedPair ? (
         <EmptyState message={t('charts.correlation.selectTwoPortfolios')} />
+      ) : !rollingCorrelationData?.length ? (
+        <EmptyState message={t('charts.correlation.insufficientData', { window: rollingWindow })} />
+      ) : (
+        <RollingCorrelationLineChart data={rollingCorrelationData} pairName={pairName} />
       )}
-      {!isPending &&
-        selectedPair &&
-        (!rollingCorrelationData || rollingCorrelationData.length === 0) && (
-          <EmptyState
-            message={t('charts.correlation.insufficientData', { window: rollingWindow })}
-          />
-        )}
-      {!isPending &&
-        selectedPair &&
-        rollingCorrelationData &&
-        rollingCorrelationData.length > 0 && (
-          <RollingCorrelationLineChart data={rollingCorrelationData} pairName={pairName} />
-        )}
     </ChartCard>
   );
 }

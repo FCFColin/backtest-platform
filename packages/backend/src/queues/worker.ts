@@ -24,9 +24,7 @@ import { errorMessage, UpstreamProblemError } from '../utils/errors.js';
 import { EngineUnavailableError } from '../utils/engineClient.js';
 import type { Job } from 'bullmq';
 
-function inflightKey(tenantId: string): string {
-  return `inflight:${tenantId}`;
-}
+const inflightKey = (tenantId: string): string => `inflight:${tenantId}`;
 
 async function tenantConcurrencyCap(tenantId: string): Promise<number> {
   try {

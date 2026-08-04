@@ -177,20 +177,6 @@ function FloatingLabelSelect({
   );
 }
 
-function validateDateChange(
-  field: 'startDate' | 'endDate',
-  value: string,
-  otherDate: string,
-  t: TFunction,
-): string | null {
-  if (!value) return null;
-  const today = new Date().toISOString().slice(0, 10);
-  if (field === 'endDate' && value > today) return t('params.endDateAfterToday');
-  if (field === 'startDate' && otherDate && value > otherDate) return t('params.startDateAfterEnd');
-  if (field === 'endDate' && otherDate && value < otherDate) return t('params.endDateBeforeStart');
-  return null;
-}
-
 type BasicParamsField =
   'startDate' | 'endDate' | 'startingValue' | 'baseCurrency' | 'adjustForInflation';
 interface BasicParamsRowProps {
@@ -201,8 +187,6 @@ interface BasicParamsRowProps {
   adjustForInflation: boolean;
   onChange: (field: BasicParamsField, value: string | number | boolean) => void;
 }
-const selectClassName =
-  'flex h-10 w-full rounded-md border border-border bg-input-bg px-3 py-2 text-body text-fg transition-colors hover:border-border-strong focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/15 disabled:cursor-not-allowed disabled:opacity-50';
 export function BasicParamsRow({
   startDate,
   endDate,
@@ -252,7 +236,7 @@ export function BasicParamsRow({
         <FieldLabel htmlFor="bp-currency">{t('params.currency')}</FieldLabel>
         <select
           id="bp-currency"
-          className={selectClassName}
+          className="flex h-10 w-full rounded-md border border-border bg-input-bg px-3 py-2 text-body text-fg transition-colors hover:border-border-strong focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/15 disabled:cursor-not-allowed disabled:opacity-50"
           value={baseCurrency}
           onChange={(e) => onChange('baseCurrency', e.target.value as 'usd' | 'cny')}
         >
@@ -313,17 +297,22 @@ function useBasicParamFields() {
     updateParameter('endDate', value === 'all' ? '' : DEFAULT_END_DATE);
   };
   const handleDateChange = (field: 'startDate' | 'endDate', e: ChangeEvent<HTMLInputElement>) => {
-    const err = validateDateChange(
-      field,
-      e.target.value,
-      field === 'startDate' ? parameters.endDate : parameters.startDate,
-      t,
-    );
+    const value = e.target.value;
+    const otherDate = field === 'startDate' ? parameters.endDate : parameters.startDate;
+    let err: string | null = null;
+    if (value) {
+      const today = new Date().toISOString().slice(0, 10);
+      if (field === 'endDate' && value > today) err = t('params.endDateAfterToday');
+      else if (field === 'startDate' && otherDate && value > otherDate)
+        err = t('params.startDateAfterEnd');
+      else if (field === 'endDate' && otherDate && value < otherDate)
+        err = t('params.endDateBeforeStart');
+    }
     if (err) {
       useToastStore.getState().addToast('warning', err);
       return;
     }
-    updateParameter(field, e.target.value);
+    updateParameter(field, value);
   };
   const handleNum = (
     key: 'startingValue' | 'rollingWindowMonths',

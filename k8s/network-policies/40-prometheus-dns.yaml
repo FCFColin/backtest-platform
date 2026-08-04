@@ -1,4 +1,3 @@
-# Prometheus 抓取 + DNS 解析放行
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy

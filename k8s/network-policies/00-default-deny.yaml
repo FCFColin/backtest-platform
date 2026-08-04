@@ -1,4 +1,3 @@
-# 默认拒绝所有入站+出站流量（零信任模型，后续策略按最小权限逐条放行）
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:

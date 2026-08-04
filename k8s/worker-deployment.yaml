@@ -1,5 +1,3 @@
-# BullMQ Worker — 独立部署与 API 解耦，无 HTTP 端口，探针通过 Redis heartbeat
-# terminationGracePeriodSeconds=60 给 Worker 足够时间完成当前任务
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -26,8 +24,6 @@ spec:
         - name: worker
           image: backtest-platform/worker:v1.0.0
           securityContext:
-            runAsNonRoot: true
-            runAsUser: 1000
             readOnlyRootFilesystem: true
             allowPrivilegeEscalation: false
             capabilities:
@@ -58,7 +54,6 @@ spec:
             initialDelaySeconds: 20
             periodSeconds: 30
             timeoutSeconds: 10
-            failureThreshold: 3
           volumeMounts:
             - name: tmp
               mountPath: /tmp

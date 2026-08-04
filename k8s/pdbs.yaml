@@ -1,4 +1,3 @@
-# PodDisruptionBudgets — 滚动更新/节点维护时保证最小可用副本数
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
@@ -39,7 +38,6 @@ spec:
     matchLabels:
       app: data-fetcher
 ---
-# Worker: maxUnavailable=0 — 自愿中断期间不被驱逐，直到替代 Pod 就绪
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:

@@ -1,22 +1,16 @@
-# HPA — CPU>70% 扩容，依赖 metrics-server
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
   name: api-hpa
 spec:
-  scaleTargetRef:
-    apiVersion: apps/v1
-    kind: Deployment
-    name: api
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: api }
   minReplicas: 2
   maxReplicas: 10
   metrics:
     - type: Resource
       resource:
         name: cpu
-        target:
-          type: Utilization
-          averageUtilization: 70
+        target: { type: Utilization, averageUtilization: 70 }
   behavior:
     scaleDown:
       {
@@ -34,19 +28,14 @@ kind: HorizontalPodAutoscaler
 metadata:
   name: engine-go-hpa
 spec:
-  scaleTargetRef:
-    apiVersion: apps/v1
-    kind: Deployment
-    name: engine-go
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: engine-go }
   minReplicas: 2
   maxReplicas: 10
   metrics:
     - type: Resource
       resource:
         name: cpu
-        target:
-          type: Utilization
-          averageUtilization: 70
+        target: { type: Utilization, averageUtilization: 70 }
   behavior:
     scaleUp:
       {
@@ -64,19 +53,14 @@ kind: HorizontalPodAutoscaler
 metadata:
   name: data-fetcher-hpa
 spec:
-  scaleTargetRef:
-    apiVersion: apps/v1
-    kind: Deployment
-    name: data-fetcher
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: data-fetcher }
   minReplicas: 2
   maxReplicas: 6
   metrics:
     - type: Resource
       resource:
         name: cpu
-        target:
-          type: Utilization
-          averageUtilization: 70
+        target: { type: Utilization, averageUtilization: 70 }
   behavior:
     scaleDown:
       {
@@ -89,25 +73,19 @@ spec:
         policies: [{ type: Percent, value: 100, periodSeconds: 60 }],
       }
 ---
-# Worker: BullMQ 天然防并发重复，多副本需任务幂等性（ADR-024 Redis NX+EX 守卫）
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
   name: worker-hpa
 spec:
-  scaleTargetRef:
-    apiVersion: apps/v1
-    kind: Deployment
-    name: worker
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: worker }
   minReplicas: 2
   maxReplicas: 5
   metrics:
     - type: Resource
       resource:
         name: cpu
-        target:
-          type: Utilization
-          averageUtilization: 70
+        target: { type: Utilization, averageUtilization: 70 }
   behavior:
     scaleDown:
       {

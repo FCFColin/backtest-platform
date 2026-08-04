@@ -60,51 +60,12 @@ function DrawdownAreas({
     />
   ));
 }
-export function DrawdownChart({ portfolios }: DrawdownChartProps) {
-  const { t } = useTranslation();
-  const chartData = useDrawdownData(portfolios);
-  const totalMonths = useTotalMonths(chartData);
-  return (
-    <div className="bg-surface border border-border rounded-xl">
-      <div className="px-6 pt-5 pb-3">
-        <h3 className="text-h3">{t('charts.drawdown.title')}</h3>
-      </div>
-      {chartData.length === 0 ? (
-        <div className="px-6 pb-4">
-          <ChartEmptyState />
-        </div>
-      ) : (
-        <div className="h-[440px]">
-          <SimpleAreaChart
-            data={chartData}
-            margin={{ ...CHART_MARGIN, left: 64, right: 8 }}
-            xTickFormatter={YEAR_ONLY_TICK_FORMATTER}
-            xTickInterval={SMART_DATE_INTERVAL(totalMonths)}
-            yTickFormatter={(v: number) => formatPercent(v)}
-            yDomain={['auto', 0]}
-            gradientId="dangerGradient"
-            tooltipFormatter={(value: number, name: string) => [formatPercent(value), name]}
-            tooltipLabelFormatter={(label) => t('charts.drawdown.dateLabel', { label })}
-          >
-            <DrawdownAreas portfolios={portfolios} gradientId="dangerGradient" />
-          </SimpleAreaChart>
-        </div>
-      )}
-    </div>
-  );
-}
-
-type DrawdownPoint = { date: string; drawdown: number };
-type ChartDataRow = Record<string, string | number>;
-interface UnderwaterCurveProps {
-  portfolios: Array<{ id: string; name: string; drawdownCurve: DrawdownPoint[] }>;
-}
 interface UnderwaterStats {
   maxDrawdown: number;
   underwaterPct: number;
   longestDays: number;
 }
-function computeUnderwaterStats(curve: DrawdownPoint[]): UnderwaterStats {
+function computeUnderwaterStats(curve: Array<{ date: string; drawdown: number }>): UnderwaterStats {
   if (curve.length === 0) return { maxDrawdown: 0, underwaterPct: 0, longestDays: 0 };
   let maxDrawdown = 0,
     underwaterCount = 0,
@@ -123,19 +84,9 @@ function computeUnderwaterStats(curve: DrawdownPoint[]): UnderwaterStats {
   }
   return {
     maxDrawdown,
-    underwaterPct: curve.length > 0 ? underwaterCount / curve.length : 0,
+    underwaterPct: underwaterCount / curve.length,
     longestDays: longestStreak,
   };
-}
-function buildChartData(portfolios: UnderwaterCurveProps['portfolios']): ChartDataRow[] {
-  const merged: Record<string, ChartDataRow> = {};
-  portfolios.forEach((p) => {
-    p.drawdownCurve.forEach((point) => {
-      if (!merged[point.date]) merged[point.date] = { date: point.date };
-      merged[point.date][p.id] = -Math.abs(point.drawdown);
-    });
-  });
-  return Object.values(merged).sort((a, b) => String(a.date).localeCompare(String(b.date)));
 }
 function StatsBar({ stats }: { stats: UnderwaterStats }) {
   const { t } = useTranslation();
@@ -166,21 +117,38 @@ function StatsBar({ stats }: { stats: UnderwaterStats }) {
     </div>
   );
 }
-export function UnderwaterCurve({ portfolios }: UnderwaterCurveProps) {
+interface DrawdownAreaChartProps extends DrawdownChartProps {
+  title: string;
+  description?: string;
+  gradientId: string;
+  tooltipLabelKey: string;
+  showStats?: boolean;
+}
+function DrawdownAreaChart({
+  portfolios,
+  title,
+  description,
+  gradientId,
+  tooltipLabelKey,
+  showStats,
+}: DrawdownAreaChartProps) {
   const { t } = useTranslation();
-  const chartData = useMemo(() => buildChartData(portfolios), [portfolios]);
+  const chartData = useDrawdownData(portfolios);
   const totalMonths = useTotalMonths(chartData);
   const stats = useMemo(
-    () => computeUnderwaterStats(portfolios[0]?.drawdownCurve ?? []),
-    [portfolios],
+    () => (showStats ? computeUnderwaterStats(portfolios[0]?.drawdownCurve ?? []) : null),
+    [portfolios, showStats],
   );
   return (
-    <div className="bg-surface border border-border rounded-xl" data-testid="underwater-curve">
+    <div
+      className="bg-surface border border-border rounded-xl"
+      data-testid={showStats ? 'underwater-curve' : undefined}
+    >
       <div className="px-6 pt-5 pb-3">
-        <h3 className="text-h3">{t('underwaterCurve.title')}</h3>
-        <p className="text-caption text-fg-tertiary mt-1">{t('underwaterCurve.description')}</p>
+        <h3 className="text-h3">{title}</h3>
+        {description && <p className="text-caption text-fg-tertiary mt-1">{description}</p>}
       </div>
-      <StatsBar stats={stats} />
+      {stats && <StatsBar stats={stats} />}
       {chartData.length === 0 ? (
         <div className="px-6 pb-6">
           <ChartEmptyState />
@@ -194,14 +162,38 @@ export function UnderwaterCurve({ portfolios }: UnderwaterCurveProps) {
             xTickInterval={SMART_DATE_INTERVAL(totalMonths)}
             yTickFormatter={(v: number) => formatPercent(v)}
             yDomain={['auto', 0]}
-            gradientId="underwaterGradient"
+            gradientId={gradientId}
             tooltipFormatter={(value: number, name: string) => [formatPercent(value), name]}
-            tooltipLabelFormatter={(label) => t('underwaterCurve.dateLabel', { label })}
+            tooltipLabelFormatter={(label) => t(tooltipLabelKey, { label })}
           >
-            <DrawdownAreas portfolios={portfolios} gradientId="underwaterGradient" />
+            <DrawdownAreas portfolios={portfolios} gradientId={gradientId} />
           </SimpleAreaChart>
         </div>
       )}
     </div>
+  );
+}
+export function DrawdownChart({ portfolios }: DrawdownChartProps) {
+  const { t } = useTranslation();
+  return (
+    <DrawdownAreaChart
+      portfolios={portfolios}
+      title={t('charts.drawdown.title')}
+      gradientId="dangerGradient"
+      tooltipLabelKey="charts.drawdown.dateLabel"
+    />
+  );
+}
+export function UnderwaterCurve({ portfolios }: DrawdownChartProps) {
+  const { t } = useTranslation();
+  return (
+    <DrawdownAreaChart
+      portfolios={portfolios}
+      title={t('underwaterCurve.title')}
+      description={t('underwaterCurve.description')}
+      gradientId="underwaterGradient"
+      tooltipLabelKey="underwaterCurve.dateLabel"
+      showStats
+    />
   );
 }

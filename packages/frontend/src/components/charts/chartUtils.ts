@@ -1,5 +1,5 @@
 import { TRADING_DAYS_PER_YEAR } from '@backtest/shared/constants';
-import { pickByAbsThreshold } from '@/lib/chart-theme';
+import { pickByAbsThreshold } from '@/lib/chart-theme.js';
 
 export type RollingMetricKey = 'cagr' | 'volatility' | 'excess' | 'skewness' | 'kurtosis' | 'kelly';
 export type RiskMetricKey = 'stdev' | 'maxDrawdown' | 'avgDrawdown' | 'ulcerIndex';

@@ -78,8 +78,7 @@ func NewClient() *Client {
 	return &Client{userID: "anonymous"}
 }
 func (c *Client) Connect() error {
-	addr := net.JoinHostPort(ServerIP, strconv.Itoa(ServerPort))
-	conn, err := net.DialTimeout("tcp", addr, 10*time.Second)
+	conn, err := net.DialTimeout("tcp", net.JoinHostPort(ServerIP, strconv.Itoa(ServerPort)), 10*time.Second)
 	if err != nil {
 		return fmt.Errorf("连接baostock服务器失败: %w", err)
 	}
@@ -112,8 +111,7 @@ func (c *Client) Login() error {
 	if headerArr[1] != MsgLoginResponse {
 		return fmt.Errorf("登录响应类型错误: %s", headerArr[1])
 	}
-	bodyStr := resp[HeaderLength:]
-	bodyArr := strings.Split(bodyStr, MsgSplit)
+	bodyArr := strings.Split(resp[HeaderLength:], MsgSplit)
 	if len(bodyArr) > 0 && bodyArr[0] != "0" {
 		return fmt.Errorf("登录失败: %s (%s)", bodyArr[1], bodyArr[0])
 	}
@@ -193,7 +191,6 @@ func parseRows(resp, errMsg string) ([][]string, error) {
 	return splitCsvRows(bodyArr), nil
 }
 
-// splitCsvRows 提取非 JSON 回退格式的 CSV 行
 func splitCsvRows(bodyArr []string) [][]string {
 	var rows [][]string
 	for i := 2; i < len(bodyArr); i++ {
@@ -211,10 +208,10 @@ type recordResponse struct {
 }
 
 func findRecordResponse(bodyArr []string) *recordResponse {
-	for i := 1; i < len(bodyArr); i++ {
-		if strings.Contains(bodyArr[i], `"record"`) {
+	for _, s := range bodyArr[1:] {
+		if strings.Contains(s, `"record"`) {
 			var respData recordResponse
-			if err := json.Unmarshal([]byte(bodyArr[i]), &respData); err == nil {
+			if json.Unmarshal([]byte(s), &respData) == nil {
 				return &respData
 			}
 		}
@@ -226,50 +223,45 @@ func (c *Client) parseKDataResponseDynamic(resp string, fieldNames []string) ([]
 	if len(resp) <= HeaderLength {
 		return nil, true, nil
 	}
-	bodyStr := resp[HeaderLength:]
-	bodyArr := strings.Split(bodyStr, MsgSplit)
+	bodyArr := strings.Split(resp[HeaderLength:], MsgSplit)
 	if len(bodyArr) < 2 {
 		return nil, true, nil
 	}
-	if errorCode := bodyArr[0]; errorCode != "0" {
-		return nil, true, fmt.Errorf("baostock错误码: %s", errorCode)
+	if bodyArr[0] != "0" {
+		return nil, true, fmt.Errorf("baostock错误码: %s", bodyArr[0])
 	}
-	if respData := findRecordResponse(bodyArr); respData != nil {
-		var data []map[string]string
-		for _, row := range respData.Record {
-			rowMap := make(map[string]string)
-			for j, name := range fieldNames {
-				if j < len(row) {
-					rowMap[name] = row[j]
-				}
+	respData := findRecordResponse(bodyArr)
+	if respData == nil {
+		return nil, true, nil
+	}
+	data := make([]map[string]string, len(respData.Record))
+	for i, row := range respData.Record {
+		rowMap := make(map[string]string, len(fieldNames))
+		for j, name := range fieldNames {
+			if j < len(row) {
+				rowMap[name] = row[j]
 			}
-			data = append(data, rowMap)
 		}
-		return data, false, nil
+		data[i] = rowMap
 	}
-	return nil, true, nil
+	return data, false, nil
 }
 func (c *Client) parseAllStockResponse(resp string) ([]StockInfo, error) {
 	rows, err := parseRows(resp, "查询股票列表失败")
-	if err != nil {
+	if err != nil || rows == nil {
 		return nil, err
 	}
-	if rows == nil {
-		return nil, nil
-	}
-	stocks := make([]StockInfo, 0, len(rows))
-	for _, row := range rows {
-		si := StockInfo{}
+	stocks := make([]StockInfo, len(rows))
+	for i, row := range rows {
 		if len(row) > 0 {
-			si.Code = row[0]
+			stocks[i].Code = row[0]
 		}
 		if len(row) > 1 {
-			si.TradeStatus = row[1]
+			stocks[i].TradeStatus = row[1]
 		}
 		if len(row) > 2 {
-			si.CodeName = row[2]
+			stocks[i].CodeName = row[2]
 		}
-		stocks = append(stocks, si)
 	}
 	return stocks, nil
 }
@@ -292,20 +284,12 @@ func (c *Client) sendMsg(msgType, msgBody string) (string, error) {
 	if c.conn == nil {
 		return "", fmt.Errorf("未连接")
 	}
-	header := fmt.Sprintf("%s%s%s%s%s",
-		ClientVersion,
-		MsgSplit,
-		msgType,
-		MsgSplit,
-		padLeft(strconv.Itoa(len(msgBody)), "0", HeaderBodyLength),
-	)
+	header := ClientVersion + MsgSplit + msgType + MsgSplit + padLeft(strconv.Itoa(len(msgBody)), "0", HeaderBodyLength)
 	headBody := header + msgBody
 	crc32Val := crc32.ChecksumIEEE([]byte(headBody))
 	fullMsg := headBody + MsgSplit + strconv.FormatUint(uint64(crc32Val), 10) + MsgEnd
-	debugLog("[BaoStock] 发送消息: type=%s bodyLen=%d crc=%d headerLen=%d",
-		msgType, len(msgBody), crc32Val, len(header))
-	debugLog("[BaoStock] 消息头: %q", header)
-	debugLog("[BaoStock] 消息体前100字符: %q", truncate(msgBody, 100))
+	debugLog("[BaoStock] 发送: type=%s bodyLen=%d crc=%d header=%q body=%q",
+		msgType, len(msgBody), crc32Val, header, truncate(msgBody, 100))
 	_, err := c.conn.Write([]byte(fullMsg))
 	if err != nil {
 		return "", fmt.Errorf("发送失败: %w", err)
@@ -346,15 +330,13 @@ func (c *Client) sendMsg(msgType, msgBody string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("响应体长度解析失败: %q, %w", headerArr[2], err)
 	}
-	debugLog("[BaoStock] 响应: type=%s bodyLen=%d totalLen=%d", respType, bodyLength, len(receive))
 	bodyStart := HeaderLength
-	bodyEnd := bodyStart + bodyLength
-	if bodyEnd > len(receive) {
-		bodyEnd = len(receive)
-	}
+	bodyEnd := min(bodyStart+bodyLength, len(receive))
+	bodyDebug := ""
 	if bodyStart < len(receive) {
-		debugLog("[BaoStock] 响应体: %q", string(receive[bodyStart:bodyEnd]))
+		bodyDebug = string(receive[bodyStart:bodyEnd])
 	}
+	debugLog("[BaoStock] 响应: type=%s bodyLen=%d totalLen=%d body=%q", respType, bodyLength, len(receive), bodyDebug)
 	if respType == MsgGetKDataPlusResponse {
 		compressedBody := receive[HeaderLength : HeaderLength+bodyLength]
 		decompressed, err := zlibDecompress(compressedBody)
@@ -366,10 +348,7 @@ func (c *Client) sendMsg(msgType, msgBody string) (string, error) {
 	return string(receive), nil
 }
 func padLeft(s, pad string, length int) string {
-	for len(s) < length {
-		s = pad + s
-	}
-	return s
+	return strings.Repeat(pad, max(0, length-len(s))) + s
 }
 func truncate(s string, maxLen int) string {
 	if len(s) <= maxLen {

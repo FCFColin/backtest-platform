@@ -41,15 +41,11 @@ import {
 } from './portfolioEditorFields.js';
 import type { StorePortfolio, TFunc } from './portfolioEditor.js';
 
-const DEEP_ANALYSIS_ITEMS: {
-  type: 'backtest' | 'mc' | 'ef' | 'fr';
-  icon: typeof Play;
-  labelKey: string;
-}[] = [
-  { type: 'backtest', icon: Play, labelKey: 'portfolio.singleBacktest' },
-  { type: 'mc', icon: Activity, labelKey: 'portfolio.monteCarlo' },
-  { type: 'ef', icon: BarChart3, labelKey: 'portfolio.efficientFrontier' },
-  { type: 'fr', icon: Sigma, labelKey: 'portfolio.factorRegression' },
+const DEEP_ANALYSIS_ITEMS = [
+  { type: 'backtest' as const, icon: Play, labelKey: 'portfolio.singleBacktest' },
+  { type: 'mc' as const, icon: Activity, labelKey: 'portfolio.monteCarlo' },
+  { type: 'ef' as const, icon: BarChart3, labelKey: 'portfolio.efficientFrontier' },
+  { type: 'fr' as const, icon: Sigma, labelKey: 'portfolio.factorRegression' },
 ];
 interface PortfolioCardProps {
   portfolio: StorePortfolio;
@@ -240,14 +236,12 @@ interface PortfolioMetaEditorProps {
   portfolio: StorePortfolio;
   onUpdate: (id: string, patch: Partial<Portfolio>) => void;
 }
-const toAssetsWithIds = (presetAssets: { ticker: string; weight: number }[]): Asset[] => {
-  const now = Date.now();
-  return presetAssets.map((a, idx) => ({
-    id: `asset-${now}-${idx}`,
+const toAssetsWithIds = (presetAssets: { ticker: string; weight: number }[]): Asset[] =>
+  presetAssets.map((a, idx) => ({
+    id: `asset-${Date.now()}-${idx}`,
     ticker: a.ticker,
     weight: a.weight,
   }));
-};
 const sharePortfolioState = (t: TFunc): void => {
   const url = writeStateToURL(useBacktestStore.getState().getShareableState());
   navigator.clipboard

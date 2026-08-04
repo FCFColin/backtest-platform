@@ -14,7 +14,7 @@ import {
 } from './EfficientFrontierCharts.js';
 import { FrontierParams } from './EfficientFrontierParams.js';
 import type { ReturnObjective, FrontierSolver } from './EfficientFrontierParams.js';
-import { useEfficientFrontierState } from './EfficientFrontierUtils.js';
+import { useEfficientFrontierState, type FrontierState } from './EfficientFrontierUtils.js';
 import { ComputeToolShell, type ComputeToolConfig } from '../../components/shells/index.js';
 import { MiniStatCard } from '../../components/cards.js';
 export interface FrontierResultsProps {
@@ -220,7 +220,7 @@ function ParamsSummary({
         {t('efficientFrontier.results.paramsSummary')}
       </h3>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <StatCard
+        <MiniStatCard
           label={t('efficientFrontier.results.rebalanceFreq')}
           value={
             t(`efficientFrontier.rebalanceFreq.${rebalanceFrequency}`, { defaultValue: '' }) ||
@@ -228,12 +228,12 @@ function ParamsSummary({
           }
           color={COLOR_FG_SECONDARY}
         />
-        <StatCard
+        <MiniStatCard
           label={t('efficientFrontier.results.allowCash')}
           value={allowCash ? t('efficientFrontier.results.yes') : t('efficientFrontier.results.no')}
           color={allowCash ? COLOR_SUCCESS : COLOR_FG_TERTIARY}
         />
-        <StatCard
+        <MiniStatCard
           label={t('efficientFrontier.results.returnObjective')}
           value={
             returnObjective === 'maxCagr'
@@ -242,7 +242,7 @@ function ParamsSummary({
           }
           color={COLOR_FG_SECONDARY}
         />
-        <StatCard
+        <MiniStatCard
           label={t('efficientFrontier.results.solver')}
           value={t(`efficientFrontier.solver.${solver}`, { defaultValue: solver })}
           color={COLOR_FG_SECONDARY}
@@ -265,8 +265,8 @@ export function FrontierResults({ state }: { state: FrontierState }) {
     allowCash,
     returnObjective,
     solver,
-    onSelectPoint: setSelectedPoint,
-    onLoadInBacktester: handleLoadInBacktester,
+    setSelectedPoint,
+    handleLoadInBacktester,
   } = state;
   return (
     <div className="flex flex-col gap-6">
@@ -274,7 +274,7 @@ export function FrontierResults({ state }: { state: FrontierState }) {
         scatterData={scatterData}
         sharpeRange={sharpeRange}
         maxSharpe={maxSharpe}
-        frontier={r.frontier}
+        frontier={r?.frontier ?? []}
         onSelectPoint={setSelectedPoint}
         onLoadInBacktester={() => handleLoadInBacktester()}
       />
@@ -294,7 +294,6 @@ export function FrontierResults({ state }: { state: FrontierState }) {
     </div>
   );
 }
-type FrontierState = ReturnType<typeof useEfficientFrontierState>;
 function FrontierResultsView({ state }: { state: FrontierState }) {
   const { t } = useTranslation();
   return (

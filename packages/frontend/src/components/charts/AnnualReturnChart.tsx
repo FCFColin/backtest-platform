@@ -34,6 +34,7 @@ function PortfolioSummaryStats({
   const { t } = useTranslation();
   const stats = calcAnnualSummaryStats(portfolio);
   if (!stats) return null;
+  const borderStyle = { borderBottom: '1px solid var(--border-soft)' } as const;
   return (
     <div style={{ marginTop: '16px' }}>
       <div className="text-label font-semibold mb-2" style={{ color: 'var(--text-strong)' }}>
@@ -53,19 +54,13 @@ function PortfolioSummaryStats({
               >
                 <td
                   className="text-caption py-1.5 px-3"
-                  style={{
-                    color: 'var(--text-body)',
-                    borderBottom: '1px solid var(--border-soft)',
-                  }}
+                  style={{ color: 'var(--text-body)', ...borderStyle }}
                 >
                   {t(row.labelKey)}
                 </td>
                 <td
                   className="text-caption font-medium text-right py-1.5 px-3 font-mono"
-                  style={{
-                    color: 'var(--text-strong)',
-                    borderBottom: '1px solid var(--border-soft)',
-                  }}
+                  style={{ color: 'var(--text-strong)', ...borderStyle }}
                 >
                   {(stats as Record<string, string>)[row.key]}
                 </td>
@@ -77,66 +72,79 @@ function PortfolioSummaryStats({
     </div>
   );
 }
-function AnnualReturnTableHeader({ portfolios }: { portfolios: PortfolioResult[] }) {
+const HEADER_STYLE = {
+  color: 'var(--text-muted)',
+  borderBottom: '2px solid var(--border-soft)',
+} as const;
+function AnnualTableHeader({ portfolios }: { portfolios: PortfolioResult[] }) {
   return (
-    <tr style={{ backgroundColor: 'var(--bg-subtle)' }}>
-      <th
-        className="text-caption font-semibold text-left py-2 px-3"
-        style={{ color: 'var(--text-muted)', borderBottom: '2px solid var(--border-soft)' }}
-      >
-        Year
-      </th>
-      {portfolios.map((p, idx) => (
-        <th
-          key={p.name}
-          className="text-caption font-semibold text-right py-2 px-3"
-          style={{ color: 'var(--text-muted)', borderBottom: '2px solid var(--border-soft)' }}
-        >
-          <span
-            className="inline-block w-2.5 h-2.5 rounded-full mr-1.5 align-middle"
-            style={{ backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] }}
-          />
-          {p.name}
+    <thead>
+      <tr style={{ backgroundColor: 'var(--bg-subtle)' }}>
+        <th className="text-caption font-semibold text-left py-2 px-3" style={HEADER_STYLE}>
+          Year
         </th>
-      ))}
-    </tr>
+        {portfolios.map((p, idx) => (
+          <th
+            key={p.name}
+            className="text-caption font-semibold text-right py-2 px-3"
+            style={HEADER_STYLE}
+          >
+            <span
+              className="inline-block w-2.5 h-2.5 rounded-full mr-1.5 align-middle"
+              style={{ backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] }}
+            />
+            {p.name}
+          </th>
+        ))}
+      </tr>
+    </thead>
   );
 }
-function AnnualReturnTableRow({
-  row,
-  ri,
+function AnnualTableBody({
   portfolios,
+  data,
 }: {
-  row: Record<string, unknown>;
-  ri: number;
   portfolios: PortfolioResult[];
+  data: Array<Record<string, unknown>>;
 }) {
-  const year = row.year as number;
+  const borderStyle = { borderBottom: '1px solid var(--border-soft)' } as const;
   return (
-    <tr key={year} style={{ backgroundColor: ri % 2 === 1 ? 'var(--bg-subtle)' : 'transparent' }}>
-      <td
-        className="text-label py-1.5 px-3 font-mono"
-        style={{ color: 'var(--text-body)', borderBottom: '1px solid var(--border-soft)' }}
-      >
-        {year}
-      </td>
-      {portfolios.map((p) => {
-        const val = row[p.name] as number | undefined;
-        const isNeg = val !== undefined && val < 0;
-        return (
-          <td
-            key={p.name}
-            className="text-label font-medium text-right py-1.5 px-3 font-mono"
-            style={{
-              color: isNeg ? '#c94a4a' : 'var(--text-strong)',
-              borderBottom: '1px solid var(--border-soft)',
-            }}
-          >
-            {val !== undefined ? `${val.toFixed(2)}%` : '-'}
-          </td>
-        );
-      })}
-    </tr>
+    <tbody>
+      {data
+        .slice()
+        .reverse()
+        .map((row, ri) => {
+          const year = row.year as number;
+          return (
+            <tr
+              key={year}
+              style={{ backgroundColor: ri % 2 === 1 ? 'var(--bg-subtle)' : 'transparent' }}
+            >
+              <td
+                className="text-label py-1.5 px-3 font-mono"
+                style={{ color: 'var(--text-body)', ...borderStyle }}
+              >
+                {year}
+              </td>
+              {portfolios.map((p) => {
+                const val = row[p.name] as number | undefined;
+                return (
+                  <td
+                    key={p.name}
+                    className="text-label font-medium text-right py-1.5 px-3 font-mono"
+                    style={{
+                      color: val !== undefined && val < 0 ? '#c94a4a' : 'var(--text-strong)',
+                      ...borderStyle,
+                    }}
+                  >
+                    {val !== undefined ? `${val.toFixed(2)}%` : '-'}
+                  </td>
+                );
+              })}
+            </tr>
+          );
+        })}
+    </tbody>
   );
 }
 function AnnualReturnTable({
@@ -154,22 +162,8 @@ function AnnualReturnTable({
       </div>
       <div className="overflow-x-auto">
         <table className="w-full border-collapse">
-          <thead>
-            <AnnualReturnTableHeader portfolios={portfolios} />
-          </thead>
-          <tbody>
-            {data
-              .slice()
-              .reverse()
-              .map((row, ri) => (
-                <AnnualReturnTableRow
-                  key={row.year as number}
-                  row={row}
-                  ri={ri}
-                  portfolios={portfolios}
-                />
-              ))}
-          </tbody>
+          <AnnualTableHeader portfolios={portfolios} />
+          <AnnualTableBody portfolios={portfolios} data={data} />
         </table>
       </div>
     </div>

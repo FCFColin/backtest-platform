@@ -11,7 +11,18 @@ const tailwindcss = frontendRequire('tailwindcss');
 const autoprefixer = frontendRequire('autoprefixer');
 const tailwindConfigPath = path.resolve(projectRoot, 'tailwind.config.cjs');
 
-/** E2E 覆盖率脚本会设 VITE_COVERAGE=true */
+const sharedTypesDir = path.resolve(projectRoot, 'packages/shared/types');
+const sharedTypeAliases: Record<string, string> = {
+  '@backtest/shared/types/tactical': `${sharedTypesDir}/tactical.ts`,
+  '@backtest/shared/types/signal': `${sharedTypesDir}/signal.ts`,
+  '@backtest/shared/types/letf': `${sharedTypesDir}/letf.ts`,
+  '@backtest/shared/types/index': `${sharedTypesDir}/index.ts`,
+  '@backtest/shared/types': `${sharedTypesDir}/index.ts`,
+  '@backtest/shared': `${sharedTypesDir}/index.ts`,
+  '@backtest/shared/constants': path.resolve(projectRoot, 'packages/shared/constants.ts'),
+};
+
+// E2E 覆盖率脚本会设 VITE_COVERAGE=true
 const enableCoverage = process.env.VITE_COVERAGE === 'true';
 
 const feNm = (p: string) => path.resolve(projectRoot, 'packages/frontend/node_modules', p);
@@ -26,6 +37,7 @@ const FE_PACKAGES = [
   'i18next-browser-languagedetector',
 ];
 const frontendAlias: Record<string, string> = {
+  '@': path.resolve(projectRoot, 'packages/frontend/src'),
   'react/jsx-dev-runtime': feNm('react/jsx-dev-runtime.js'),
   'react/jsx-runtime': feNm('react/jsx-runtime.js'),
   'react-dom/client': feNm('react-dom/client.js'),
@@ -125,28 +137,7 @@ export default defineConfig(async ({ command }) => {
           },
           resolve: {
             alias: {
-              '@backtest/shared/types/tactical': path.resolve(
-                projectRoot,
-                'packages/shared/types/tactical.ts',
-              ),
-              '@backtest/shared/types/signal': path.resolve(
-                projectRoot,
-                'packages/shared/types/signal.ts',
-              ),
-              '@backtest/shared/types/letf': path.resolve(
-                projectRoot,
-                'packages/shared/types/letf.ts',
-              ),
-              '@backtest/shared/types/index': path.resolve(
-                projectRoot,
-                'packages/shared/types/index.ts',
-              ),
-              '@backtest/shared/types': path.resolve(projectRoot, 'packages/shared/types/index.ts'),
-              '@backtest/shared/constants': path.resolve(
-                projectRoot,
-                'packages/shared/constants.ts',
-              ),
-              '@backtest/shared': path.resolve(projectRoot, 'packages/shared/types/index.ts'),
+              ...sharedTypeAliases,
               ...Object.fromEntries(
                 [
                   'express',
@@ -165,7 +156,7 @@ export default defineConfig(async ({ command }) => {
             },
           },
         },
-        // browser: 前端单元/组件/hooks/store
+        // browser
         {
           plugins: [react()],
           test: {
@@ -194,7 +185,7 @@ export default defineConfig(async ({ command }) => {
             },
           },
         },
-        // chaos: Docker 依赖
+        // chaos
         {
           test: {
             name: 'chaos',
@@ -336,9 +327,8 @@ export default defineConfig(async ({ command }) => {
             if (
               id.includes('packages/frontend/src/utils/') ||
               id.includes('packages/frontend/src/hooks/')
-            ) {
+            )
               return 'shared-utils';
-            }
             const nmIdx = id.lastIndexOf('node_modules');
             if (nmIdx === -1) return;
             const afterNm = id.slice(nmIdx + 13);
@@ -385,9 +375,7 @@ export default defineConfig(async ({ command }) => {
           target: `http://localhost:${process.env.API_PORT || '15001'}`,
           changeOrigin: true,
           secure: false,
-          configure: (proxy, _options) => {
-            proxy.on('error', () => {});
-          },
+          configure: (proxy) => proxy.on('error', () => {}),
         },
       },
     },

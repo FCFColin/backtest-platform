@@ -5,6 +5,7 @@ import (
 	"context"
 	"engine-go/internal/engine"
 	"engine-go/internal/engineutil"
+	"engine-go/internal/mathutil"
 )
 
 type AnalysisRequest struct {
@@ -61,7 +62,7 @@ func RunAnalysis(ctx context.Context, req AnalysisRequest) (AnalysisResult, erro
 			tickerMap[ticker] = &tickerData{prices: prices, dates: priceDates, returns: nil}
 			continue
 		}
-		returns := engine.CalcDailyReturns(prices)
+		returns := mathutil.DailyReturns(prices)
 		tickerMap[ticker] = &tickerData{prices: prices, dates: priceDates, returns: returns}
 	}
 	assets := make([]AssetAnalysisItem, 0, len(req.Tickers))

@@ -99,20 +99,22 @@ func TestCalcInformationRatio(t *testing.T) {
 }
 func TestCalcCaptureRatios(t *testing.T) {
 	cases := []struct {
-		name string
-		fn   func([]float64, []float64) float64
-		p, b []float64
-		want float64
+		name   string
+		upside bool
+		p, b   []float64
+		want   float64
 	}{
-		{"upside empty", CalcUpsideCapture, nil, nil, 0},
-		{"upside no upside days", CalcUpsideCapture, []float64{-0.01, -0.02}, []float64{-0.01, -0.02}, 0},
-		{"upside single upside day", CalcUpsideCapture, []float64{0.10, -0.05}, []float64{0.05, -0.02}, 2.0},
-		{"downside empty", CalcDownsideCapture, nil, nil, 0},
-		{"downside no downside days", CalcDownsideCapture, []float64{0.01, 0.02}, []float64{0.01, 0.02}, 0},
-		{"downside single downside day", CalcDownsideCapture, []float64{-0.05, 0.10}, []float64{-0.02, 0.05}, 2.5},
+		{"upside empty", true, nil, nil, 0},
+		{"upside no upside days", true, []float64{-0.01, -0.02}, []float64{-0.01, -0.02}, 0},
+		{"upside single upside day", true, []float64{0.10, -0.05}, []float64{0.05, -0.02}, 2.0},
+		{"downside empty", false, nil, nil, 0},
+		{"downside no downside days", false, []float64{0.01, 0.02}, []float64{0.01, 0.02}, 0},
+		{"downside single downside day", false, []float64{-0.05, 0.10}, []float64{-0.02, 0.05}, 2.5},
 	}
 	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) { assertFloatApprox(t, tc.fn(tc.p, tc.b), tc.want, "CaptureRatio") })
+		t.Run(tc.name, func(t *testing.T) {
+			assertFloatApprox(t, CalcCaptureRatio(tc.p, tc.b, tc.upside), tc.want, "CaptureRatio")
+		})
 	}
 }
 func TestCalcVaR(t *testing.T) {

@@ -1,4 +1,3 @@
-# 内部服务出站: pgbouncer→postgres:5432 / redis-sentinel→redis:6379 / engine-go→data-fetcher:5003
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy

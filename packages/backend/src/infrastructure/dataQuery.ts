@@ -1,4 +1,3 @@
-/** 市场数据查询模块（价格 / Ticker 搜索 + ticker 元数据服务）。prices/tickers 全局共享无 RLS，直连 getReadPool() 正确（P0-03）。P0-03：限制 Go 服务响应体大小防 OOM。 */
 import CircuitBreaker from 'opossum';
 import { logger } from '../utils/logger.js';
 import { toDateStr } from '../utils/misc.js';
@@ -156,12 +155,11 @@ async function fetchMissingFromGoService(
         },
       ),
     );
-    for (const r of results) {
+    for (const r of results)
       if (r) {
         goResult[r.ticker] = r.priceMap;
         await setPriceCache(r.ticker, r.priceMap);
       }
-    }
     if (Object.keys(goResult).length > 0)
       await writeCache(cacheKey, goResult, HISTORY_CACHE_TTL_SEC);
   } catch (err) {
@@ -276,7 +274,6 @@ export async function searchTickers(
   }
 }
 
-/** 获取引擎状态（PostgreSQL） */
 export async function getEngineStatus(): Promise<{
   totalTickers: number;
   cachedTickers: number;
@@ -289,10 +286,7 @@ export async function getEngineStatus(): Promise<{
   }
 }
 
-/** 获取标的列表（PostgreSQL） */
-export async function getTickerList(): Promise<
-  Array<{ ticker: string; name: string; category: string; market: string }>
-> {
+export async function getTickerList() {
   try {
     const pool = getReadPool();
     const { rows } = await pool.query<{ ticker: string; category: string; market: string }>(
@@ -310,16 +304,13 @@ export async function getTickerList(): Promise<
   }
 }
 
-/** 加载标的数据（PostgreSQL） */
 export async function loadTickerData(ticker: string): Promise<Record<string, unknown> | null> {
   if (!isValidTicker(ticker)) {
     logger.warn(`[tickerDataService] loadTickerData: 拒绝非法 ticker: ${ticker}`);
     return null;
   }
-
   try {
-    const pool = getReadPool();
-    const { rows } = await pool.query<{
+    const { rows } = await getReadPool().query<{
       date: Date;
       open: number;
       high: number;
@@ -328,25 +319,21 @@ export async function loadTickerData(ticker: string): Promise<Record<string, unk
       volume: number;
       adjusted_close: number | null;
     }>(
-      `SELECT date, open, high, low, close, volume, adjusted_close
-       FROM prices WHERE ticker = $1 ORDER BY date`,
+      'SELECT date, open, high, low, close, volume, adjusted_close FROM prices WHERE ticker = $1 ORDER BY date',
       [ticker],
     );
     if (rows.length === 0) return null;
-
-    const prices = rows.map((r) => ({
-      date: toDateStr(r.date),
-      open: r.open,
-      high: r.high,
-      low: r.low,
-      close: r.close,
-      volume: r.volume,
-      adj_close: r.adjusted_close ?? r.close,
-    }));
-
     return {
       meta: { ticker },
-      prices,
+      prices: rows.map(({ date, open, high, low, close, volume, adjusted_close }) => ({
+        date: toDateStr(date),
+        open,
+        high,
+        low,
+        close,
+        volume,
+        adj_close: adjusted_close ?? close,
+      })),
     };
   } catch (err) {
     logger.warn(
@@ -361,37 +348,24 @@ export function scanTickersStats(_force = false): Promise<DbMarketStats | null> 
   return scanMarketStatsFromDb();
 }
 
-export function resolveUniverseFromCacheStats(stats: DbMarketStats | null): {
-  total: number;
-  updated_at: string;
-  stats: Record<string, number>;
-} {
-  if (!stats || stats.total_cached <= 0) {
-    return { total: 0, updated_at: '', stats: {} };
-  }
-
-  const us = stats.by_market?.US?.count ?? 0;
-  const cn = stats.by_market?.CN?.count ?? 0;
-  const stocks = stats.by_type?.STOCK ?? 0;
-  const etfs = stats.by_type?.ETF ?? 0;
-  const indices = Object.values(stats.by_market ?? {}).reduce(
-    (sum, m) => sum + (m.indices ?? 0),
-    0,
-  );
-
+export function resolveUniverseFromCacheStats(stats: DbMarketStats | null) {
+  if (!stats || stats.total_cached <= 0) return { total: 0, updated_at: '', stats: {} };
+  const { by_market = {}, by_type = {} } = stats;
   return {
     total: stats.total_cached,
     updated_at: stats.generated_at,
-    stats: { total: stats.total_cached, stocks, etfs, indices, us, cn },
+    stats: {
+      total: stats.total_cached,
+      stocks: by_type.STOCK ?? 0,
+      etfs: by_type.ETF ?? 0,
+      indices: Object.values(by_market).reduce((s, m) => s + (m.indices ?? 0), 0),
+      us: by_market.US?.count ?? 0,
+      cn: by_market.CN?.count ?? 0,
+    },
   };
 }
 
-/** 获取标的宇宙统计（从 PostgreSQL 统计推导） */
-export async function getUniverseStats(): Promise<{
-  total: number;
-  updated_at: string;
-  stats: Record<string, number>;
-}> {
+export async function getUniverseStats() {
   const stats = await scanMarketStatsFromDb();
   return resolveUniverseFromCacheStats(stats);
 }

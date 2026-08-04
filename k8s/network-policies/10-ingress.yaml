@@ -1,4 +1,3 @@
-# Ingress: Nginx Ingress Controller -> frontend(80) / api(5001)
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy

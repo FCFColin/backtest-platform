@@ -108,7 +108,6 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     );
   },
 );
-Button.displayName = 'Button';
 
 export type InputProps = React.InputHTMLAttributes<HTMLInputElement>;
 export const Input = React.forwardRef<HTMLInputElement, InputProps>(
@@ -125,7 +124,6 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
     />
   ),
 );
-Input.displayName = 'Input';
 
 interface AffixInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'prefix'> {
   prefix?: React.ReactNode;
@@ -152,7 +150,6 @@ export const AffixInput = React.forwardRef<HTMLInputElement, AffixInputProps>(
     </div>
   ),
 );
-AffixInput.displayName = 'AffixInput';
 
 const alertVariants = cva(
   'relative w-full rounded-lg border px-4 py-3 text-sm [&>svg]:absolute [&>svg]:left-4 [&>svg]:top-4 [&>svg]:text-fg-tertiary [&>svg~*]:pl-7',
@@ -172,7 +169,6 @@ export const Alert = React.forwardRef<
 >(({ className, variant, ...props }, ref) => (
   <div ref={ref} role="alert" className={cn(alertVariants({ variant }), className)} {...props} />
 ));
-Alert.displayName = 'Alert';
 export const AlertTitle = wrapPrimitive(
   'h5',
   'text-h3 text-fg font-medium leading-none tracking-tight',
@@ -361,10 +357,9 @@ export { SelectContent };
 export const Separator = React.forwardRef<
   React.ElementRef<typeof SeparatorPrimitive.Root>,
   React.ComponentPropsWithoutRef<typeof SeparatorPrimitive.Root>
->(({ className, orientation = 'horizontal', decorative = true, ...props }, ref) => (
+>(({ className, orientation = 'horizontal', ...props }, ref) => (
   <SeparatorPrimitive.Root
     ref={ref}
-    decorative={decorative}
     orientation={orientation}
     className={cn(
       'shrink-0 bg-border-subtle',
@@ -374,7 +369,6 @@ export const Separator = React.forwardRef<
     {...props}
   />
 ));
-Separator.displayName = SeparatorPrimitive.Root.displayName;
 
 export const Skeleton = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
   <div className={cn('animate-pulse rounded-md bg-input-bg', className)} {...props} />

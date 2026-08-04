@@ -43,9 +43,8 @@ export interface TenantedRequest extends Request {
   tenantId: string;
 }
 
-export function hashUserId(sub: string | undefined): string | undefined {
-  return sub ? crypto.createHash('sha256').update(sub).digest('hex').slice(0, 16) : undefined;
-}
+export const hashUserId = (sub: string | undefined): string | undefined =>
+  sub ? crypto.createHash('sha256').update(sub).digest('hex').slice(0, 16) : undefined;
 
 type LoggableRequest = AuthenticatedRequest & {
   log?: {
@@ -73,11 +72,15 @@ export function requireUser(
   return true;
 }
 
-export function authCtx(middleware: string, req: AuthenticatedRequest): Record<string, unknown> {
-  return { middleware, path: req.path, requestId: req.id };
-}
-
 type AuthLogLevel = 'info' | 'warn' | 'error';
+export const authCtx = (
+  middleware: string,
+  req: AuthenticatedRequest,
+): Record<string, unknown> => ({
+  middleware,
+  path: req.path,
+  requestId: req.id,
+});
 function authLog(
   level: AuthLogLevel,
   middleware: string,
@@ -85,7 +88,7 @@ function authLog(
   msg: string,
   extra: Record<string, unknown> = {},
 ): void {
-  logger[level]({ ...authCtx(middleware, req), ...extra }, `[jwtAuth] ${msg}`);
+  logger[level]({ middleware, path: req.path, requestId: req.id, ...extra }, `[jwtAuth] ${msg}`);
 }
 
 type JoseKey = Exclude<Awaited<ReturnType<typeof importPKCS8>>, Uint8Array> | Uint8Array;
@@ -126,9 +129,7 @@ function base64urlEncode(input: string | Buffer): string {
   const buf = typeof input === 'string' ? Buffer.from(input, 'utf-8') : input;
   return buf.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
-async function getHS256Key(): Promise<JoseKey> {
-  return importJWK({ kty: 'oct', k: base64urlEncode(JWT_SECRET) }, 'HS256');
-}
+const getHS256Key = () => importJWK({ kty: 'oct', k: base64urlEncode(JWT_SECRET) }, 'HS256');
 function memoizeKey<T>(loader: () => Promise<T>): () => Promise<T> {
   let cached: T | null = null;
   return async () => {
@@ -155,16 +156,15 @@ export async function generateToken(
   tenant?: TenantContext,
 ): Promise<string> {
   const now = Math.floor(Date.now() / 1000);
-  const payload: JwtPayload = {
+  return signConfiguredJwt({
     sub: userId,
     role,
     iat: now,
     exp: now + (ROLE_TTL[role] || config.JWT_ACCESS_TTL),
-  };
-  if (tenant?.tenantId) payload.tenant_id = tenant.tenantId;
-  if (tenant?.orgRole) payload.org_role = tenant.orgRole;
-  if (tenant?.platformAdmin) payload.platform_admin = true;
-  return signConfiguredJwt(payload);
+    ...(tenant?.tenantId && { tenant_id: tenant.tenantId }),
+    ...(tenant?.orgRole && { org_role: tenant.orgRole }),
+    ...(tenant?.platformAdmin && { platform_admin: true }),
+  });
 }
 
 const tracer = trace.getTracer('backtest-platform', '1.0.0');
@@ -203,31 +203,25 @@ async function verifyWithAlgorithm(
   const { payload } = await jwtVerify(token, key, { algorithms: [algorithm] });
   return validateJwtPayload(payload, algorithm, span);
 }
-async function verifyJwt(token: string): Promise<JwtPayload | null> {
+export async function verifyToken(token: string): Promise<JwtPayload | null> {
   return tracer.startActiveSpan('jwt.verifyJwt', async (span) => {
     try {
-      let payload: JwtPayload | null = null;
-      try {
-        payload = await verifyWithAlgorithm(token, 'RS256', span);
-      } catch {
-        /* RS256 failed */
-      }
-      if (!payload && JWT_ALGORITHM === 'HS256') {
+      const algorithms: ('RS256' | 'HS256')[] = ['RS256'];
+      if (JWT_ALGORITHM === 'HS256') algorithms.push('HS256');
+      for (const alg of algorithms) {
         try {
-          payload = await verifyWithAlgorithm(token, 'HS256', span);
+          const payload = await verifyWithAlgorithm(token, alg, span);
+          if (payload) return payload;
         } catch {
-          /* HS256 failed */
+          /* expected: try next algorithm */
         }
       }
-      if (!payload) span.setAttribute('verify.result', 'failed');
-      return payload;
+      span.setAttribute('verify.result', 'failed');
+      return null;
     } finally {
       span.end();
     }
   });
-}
-export async function verifyToken(token: string): Promise<JwtPayload | null> {
-  return verifyJwt(token);
 }
 
 export function authFail(
@@ -249,12 +243,11 @@ function authSuccess(middleware: string, req: AuthenticatedRequest, next: NextFu
 }
 
 function tryDevBypass(req: AuthenticatedRequest, next: NextFunction): boolean {
-  if (!(
+  const devOk =
     config.NODE_ENV === 'development' &&
     config.DEV_SKIP_AUTH &&
-    config.JWT_SECRET === 'dev-only-jwt-secret-change-in-production'
-  ))
-    return false;
+    config.JWT_SECRET === 'dev-only-jwt-secret-change-in-production';
+  if (!devOk) return false;
   authLog('info', 'jwtAuth', req, '开发旁路认证（readonly）');
   const now = Math.floor(Date.now() / 1000);
   req.user = {
@@ -273,34 +266,24 @@ async function denyIfRevokedOrDisabled(
   res: Response,
   middleware: string,
 ): Promise<boolean> {
-  const checks = [
-    {
-      ok: !(await isAccessTokenRevokedForUser(payload.sub, payload.iat)),
-      code: 'SESSION_REVOKED',
-      msg: '会话已全局撤销',
-      fail: 'session_revoked',
-    },
-    {
-      ok: await isUserSessionValid(payload.sub),
-      code: 'ACCOUNT_DISABLED',
-      msg: '用户已停用',
-      fail: 'account_disabled',
-    },
-  ];
-  for (const c of checks) {
-    if (!c.ok) {
-      authLog('warn', middleware, req, `${c.msg}，拒绝访问`, { userId: hashUserId(payload.sub) });
-      recordAuthFailure(getRoutePattern(req), c.fail);
-      sendProblem(res, 401, c.code);
-      return true;
-    }
+  if (await isAccessTokenRevokedForUser(payload.sub, payload.iat)) {
+    authLog('warn', middleware, req, '会话已全局撤销，拒绝访问', {
+      userId: hashUserId(payload.sub),
+    });
+    recordAuthFailure(getRoutePattern(req), 'session_revoked');
+    sendProblem(res, 401, 'SESSION_REVOKED');
+    return true;
+  }
+  if (!(await isUserSessionValid(payload.sub))) {
+    authLog('warn', middleware, req, '用户已停用，拒绝访问', { userId: hashUserId(payload.sub) });
+    recordAuthFailure(getRoutePattern(req), 'account_disabled');
+    sendProblem(res, 401, 'ACCOUNT_DISABLED');
+    return true;
   }
   return false;
 }
-function bearerToken(req: AuthenticatedRequest): string {
-  const authHeader = req.headers.authorization;
-  return authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
-}
+const bearerToken = (req: AuthenticatedRequest): string =>
+  req.headers.authorization?.startsWith('Bearer ') ? req.headers.authorization.slice(7).trim() : '';
 async function authenticateWithBearer(
   req: AuthenticatedRequest,
   res: Response,

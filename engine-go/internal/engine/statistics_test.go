@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"engine-go/internal/mathutil"
 	"math"
 	"testing"
 )
@@ -160,12 +161,12 @@ func TestCalcDailyReturns(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := CalcDailyReturns(tc.prices)
+			got := mathutil.DailyReturns(tc.prices)
 			if len(got) != len(tc.want) {
 				t.Fatalf("len = %v, want %v", len(got), len(tc.want))
 			}
 			for i := range got {
-				assertFloatApprox(t, got[i], tc.want[i], "CalcDailyReturns[i]")
+				assertFloatApprox(t, got[i], tc.want[i], "DailyReturns[i]")
 			}
 		})
 	}

@@ -1,5 +1,3 @@
-# API 后端 Deployment — 从原合并 Deployment 拆分（R-15），独立伸缩/发布
-# 端口 5001 与 docker-compose/configmap/nginx 反代目标对齐
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -26,8 +24,6 @@ spec:
         - name: api
           image: backtest-platform/api:v1.0.0
           securityContext:
-            runAsNonRoot: true
-            runAsUser: 1000
             readOnlyRootFilesystem: true
             allowPrivilegeEscalation: false
             capabilities:
@@ -46,13 +42,11 @@ spec:
             initialDelaySeconds: 10
             periodSeconds: 15
             timeoutSeconds: 5
-            failureThreshold: 3
           readinessProbe:
             httpGet: { path: /api/ready, port: 5001 }
             initialDelaySeconds: 5
             periodSeconds: 10
             timeoutSeconds: 3
-            failureThreshold: 3
           envFrom:
             - configMapRef:
                 name: backtest-config

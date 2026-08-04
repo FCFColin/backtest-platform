@@ -29,12 +29,7 @@ interface MockResponse {
   [key: string]: unknown;
 }
 
-/**
- * 创建 mock Express Request 对象
- *
- * @param overrides - 可选属性覆盖（method, body, user, tenantId 等）
- * @returns 类型安全的 mock Request 对象，可通过 [key: string] 扩展
- */
+/** 创建 mock Express Request。@param overrides - 可选属性覆盖 @returns mock Request */
 export function createMockRequest(overrides: MockRequestOverrides = {}): Request {
   return {
     method: overrides.method ?? 'GET',
@@ -50,11 +45,7 @@ export function createMockRequest(overrides: MockRequestOverrides = {}): Request
   } as Request;
 }
 
-/**
- * 创建 mock Express Response 对象
- *
- * @returns 包含 status/json/send/end/set/header 等方法的 mock Response
- */
+/** 创建 mock Express Response。@returns 包含 status/json/send 等方法的 mock Response */
 export function createMockResponse(): MockResponse {
   const res: MockResponse = {
     status: vi.fn().mockReturnThis(),
@@ -70,21 +61,12 @@ export function createMockResponse(): MockResponse {
   return res;
 }
 
-/**
- * 创建 mock Express next 函数
- *
- * @returns vi.fn() 包装的 next 函数
- */
+/** 创建 mock Express next 函数。@returns vi.fn() 包装的 next */
 export function createMockNext(): ReturnType<typeof vi.fn> {
   return vi.fn();
 }
 
-/**
- * 创建完整的中间件测试三元组（req, res, next）
- *
- * @param reqOverrides - Request 属性覆盖
- * @returns { req, res, next } 三元组
- */
+/** 创建中间件测试三元组（req, res, next）。@param reqOverrides - Request 属性覆盖 @returns { req, res, next } */
 export function createMockMiddleware(reqOverrides?: MockRequestOverrides): {
   req: Request;
   res: MockResponse;
@@ -97,18 +79,7 @@ export function createMockMiddleware(reqOverrides?: MockRequestOverrides): {
   };
 }
 
-/**
- * 等待中间件执行完成（通过 next 回调 resolve）
- *
- * 企业理由：10+ 测试文件重复 new Promise<void>((resolve) => { middleware(req, res, () => resolve()); }) 模式。
- * 本 helper 集中维护，确保 Promise 正确 resolve。
- *
- * @param middleware - Express 中间件函数
- * @param req - mock Request 对象
- * @param res - mock Response 对象
- * @param onNext - 可选的 next 回调（在 resolve 前执行）
- * @returns Promise，在中间件调用 next 后 resolve
- */
+/** 等待中间件执行完成。@param middleware - Express 中间件 @param req - mock Request @param res - mock Response @param onNext - 可选 next 回调 @returns Promise */
 export async function awaitMiddleware(
   middleware: (req: unknown, res: unknown, next: () => void) => void,
   req: unknown,

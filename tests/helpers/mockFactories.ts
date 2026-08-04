@@ -9,10 +9,7 @@ interface LoggerMocks {
   child: ReturnType<typeof vi.fn>;
 }
 
-/**
- * 创建 logger mock 方法集合（vi.hoisted 安全；须在 vi.mock 调用前使用）。
- * @returns 包含 info/warn/error/debug/child 方法的 mock 对象
- */
+/** 创建 logger mock（vi.hoisted 安全）。@returns LoggerMocks */
 export function createLoggerMocks(): LoggerMocks {
   return {
     info: vi.fn(),
@@ -28,7 +25,7 @@ export function createLoggerMocks(): LoggerMocks {
   };
 }
 
-/** 由 createLoggerMocks() 的返回值构造 vi.mock 工厂可用的 logger 对象。 */
+/** 由 createLoggerMocks() 返回值构造 vi.mock 工厂可用的 logger 对象。 */
 export function mockLogger(mocks: LoggerMocks) {
   return {
     info: mocks.info,
@@ -39,11 +36,7 @@ export function mockLogger(mocks: LoggerMocks) {
   };
 }
 
-/**
- * 创建 config mock 对象（vi.hoisted 安全）。集中维护完整 config 默认值，测试文件只需覆写关心的属性。
- * @param overrides - 要覆写的配置属性（支持全部 config 属性）
- * @returns 完整的 config mock 对象
- */
+/** 创建 config mock（vi.hoisted 安全）。@param overrides - 覆写属性 @returns 完整 config mock */
 export function createConfigMocks(
   overrides: Record<string, unknown> = {},
 ): Record<string, unknown> {
@@ -118,13 +111,7 @@ interface RedisMocksOptions {
   rejectWithError?: Error;
 }
 
-/**
- * 创建 Redis 客户端 mock（appRedis）。在 vi.mock 工厂内调用，通过 target 参数将属性写入
- * vi.hoisted 创建的占位对象，使测试代码可在 top-level 直接引用 useMemoryFallback() 等方法。
- * @param opts - 控制包含哪些方法与辅助函数
- * @param target - 可选的目标对象（通常为 vi.hoisted 创建的空对象）；不传则新建
- * @returns Redis mock 对象（与 target 同一引用）
- */
+/** 创建 Redis 客户端 mock（appRedis）。在 vi.mock 工厂内调用，target 参数将属性写入 vi.hoisted 占位对象。 @param opts - 控制包含哪些方法 @param target - vi.hoisted 占位对象 @returns Redis mock */
 export function createRedisMocks(
   opts: RedisMocksOptions = {},
   target: Record<string, unknown> = {},
@@ -232,13 +219,7 @@ export function createRedisMocks(
   return target;
 }
 
-/**
- * 创建 Redis 模块完整 mock（appRedis + getRedisHealth + markRedisUnhealthy）。
- * getRedisHealth 通过调用 appRedis.ping() 动态返回健康状态，与 useRedisSuccess/useMemoryFallback 联动。
- * @param opts - RedisMocksOptions，控制 appRedis mock 行为
- * @param target - vi.hoisted 创建的占位对象，供测试代码引用 useRedisSuccess 等
- * @returns 完整的 redisClient 模块 mock 对象（含 redisConnection/appRedis/getRedisHealth/markRedisUnhealthy）
- */
+/** 创建 Redis 模块完整 mock（appRedis + getRedisHealth + markRedisUnhealthy）。@param opts - RedisMocksOptions @param target - vi.hoisted 占位对象 @returns redisClient 模块 mock */
 export function createRedisModuleMock(
   opts: RedisMocksOptions = {},
   target: Record<string, unknown> = {},
@@ -271,11 +252,7 @@ export interface JwtAuthConfigMocks {
   DEV_SKIP_AUTH: boolean;
 }
 
-/**
- * 创建 jwtAuth 测试专用 config mock。
- * @param overrides - 覆盖默认字段（如 { JWT_ALGORITHM: 'RS256', NODE_ENV: 'development' }）
- * @returns 完整的 JwtAuthConfigMocks 对象
- */
+/** 创建 jwtAuth 测试专用 config mock。@param overrides - 覆盖默认字段 @returns JwtAuthConfigMocks */
 export function createJwtAuthConfigMocks(
   overrides: Partial<JwtAuthConfigMocks> = {},
 ): JwtAuthConfigMocks {
@@ -294,20 +271,14 @@ export function createJwtAuthConfigMocks(
   };
 }
 
-/**
- * 构造一个 mock pg.Pool,默认 query 返回空结果集
- * @returns 包含 mock query 方法的对象(可强转为 pg.Pool)
- */
+/** 构造 mock pg.Pool。@returns 带 mock query 的对象 */
 export function createMockPool(): { query: ReturnType<typeof vi.fn> } {
   return {
     query: vi.fn().mockResolvedValue({ rows: [], rowCount: 0 }),
   } as unknown as { query: ReturnType<typeof vi.fn> };
 }
 
-/**
- * 构造一个 mock PoolClient,记录所有 query 调用
- * @returns 包含 mock query + release 方法的 PoolClient
- */
+/** 构造 mock PoolClient。@returns 带 mock query + release 的 PoolClient */
 export function createMockClient(): PoolClient & { query: ReturnType<typeof vi.fn> } {
   return {
     query: vi.fn().mockResolvedValue({ rows: [], rowCount: 1 }),
@@ -320,12 +291,7 @@ interface PoolDbMocks {
   withTenant?: ReturnType<typeof vi.fn>;
 }
 
-/**
- * 构造 db/pool 模块 mock：withTenant/withTenantReadOnly 转发到 dbMocks（记录租户断言），
- * getPool/getReadPool 返回带 query 的假池。用于 vi.mock('...db/pool.js') 工厂。
- * @param dbMocks - vi.hoisted 创建的 query/withTenant mock 集合
- * @returns pool 模块 mock 对象
- */
+/** 构造 db/pool 模块 mock：withTenant/withTenantReadOnly 转发到 dbMocks。 @param dbMocks - vi.hoisted 创建的 query/withTenant mock @returns pool 模块 mock */
 export function createPoolModuleMock(dbMocks: PoolDbMocks) {
   const client = () => ({ query: dbMocks.query });
   return {

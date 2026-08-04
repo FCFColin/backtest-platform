@@ -107,7 +107,7 @@ function computeTelltaleData(
   const isResults = !!results;
   const source = isResults ? results!.tickers : (portfolios ?? []);
   const toNamed = (s: (typeof source)[0]) => ({
-    name: isResults ? s.ticker : s.name,
+    name: 'ticker' in s ? s.ticker : s.name,
     growthCurve: s.growthCurve,
   });
   const benchmark = source[0] ? toNamed(source[0]) : undefined;

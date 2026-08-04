@@ -29,7 +29,7 @@ import ChartCard from '../ChartCard.js';
 type SeriesNames = string[];
 type ChartDataPoint = Record<string, number | string>;
 
-function ResponsiveContainer({
+function MeasuredContainer({
   width: propWidth,
   height,
   children,
@@ -90,7 +90,7 @@ export function BarChartContent({
   xTickInterval,
 }: BarChartContentProps) {
   return (
-    <ResponsiveContainer height={height}>
+    <MeasuredContainer height={height}>
       {({ width }) => (
         <SvgBarChart
           data={data}
@@ -110,7 +110,7 @@ export function BarChartContent({
           tooltipValueFormatter={tooltipValueFormatter}
         />
       )}
-    </ResponsiveContainer>
+    </MeasuredContainer>
   );
 }
 
@@ -144,7 +144,7 @@ export function ScatterChartContent({
 }: ScatterChartContentProps) {
   const mergedMargin = { ...CHART_MARGIN, ...margin };
   return (
-    <ResponsiveContainer height={height}>
+    <MeasuredContainer height={height}>
       {({ width }) => (
         <SvgScatterChart
           data={data}
@@ -162,7 +162,7 @@ export function ScatterChartContent({
           tooltipLabelFormatter={tooltipLabelFormatter}
         />
       )}
-    </ResponsiveContainer>
+    </MeasuredContainer>
   );
 }
 
@@ -299,12 +299,6 @@ export function ChartTooltip({
 export function ChartLegend() {
   return <Legend wrapperStyle={LEGEND_WRAPPER_STYLE} />;
 }
-ChartXAxis.displayName = 'XAxis';
-ChartXAxis.defaultProps = { type: 'category' };
-ChartYAxis.displayName = 'YAxis';
-ChartYAxis.defaultProps = { type: 'number' };
-ChartTooltip.displayName = 'Tooltip';
-ChartLegend.displayName = 'Legend';
 
 interface ChartEmptyStateProps {
   message?: string;
@@ -349,45 +343,64 @@ export default memo(function ReturnsTabDailyChart({ portfolios, bins }: ReturnsT
   );
 });
 
-interface SimpleAreaChartProps {
+interface SimpleChartProps {
+  type?: 'line' | 'area';
   data: ChartDataPoint[];
   height?: number;
-  margin?: typeof CHART_MARGIN;
+  margin?: { top?: number; right?: number; bottom?: number; left?: number };
   xDataKey?: string;
   xTickFormatter?: (v: number | string) => string;
   xTickInterval?: number | 'preserveStartEnd';
   yTickFormatter?: (v: number) => string;
   yDomain?: [number | 'auto', number | 'auto'];
+  yScale?: 'log' | 'linear';
   yLabel?: string;
-  tooltipFormatter?: (value: number, name: string) => [string, string];
+  tooltipFormatter?: (value: number, name: string) => [string, string] | string;
   tooltipLabelFormatter?: (label: string) => string;
   showLegend?: boolean;
+  legendFormatter?: (name: string) => string;
   gradientId?: string;
   gradientColor?: string;
   children?: ReactNode;
 }
-export function SimpleAreaChart({
+const CHART_BY_TYPE = { line: LineChart, area: AreaChart } as const;
+function yAxisLabelProp(label?: string) {
+  return label
+    ? {
+        value: label,
+        angle: -90,
+        position: 'insideLeft' as const,
+        style: { fill: 'var(--text-muted)', fontSize: 12 },
+      }
+    : undefined;
+}
+export function SimpleChart({
+  type = 'line',
   data,
-  height = 440,
+  height = 350,
   margin = CHART_MARGIN,
   xDataKey = 'date',
-  xTickFormatter,
+  xTickFormatter = DATE_TICK_FORMATTER as (v: number | string) => string,
   xTickInterval,
   yTickFormatter = (v) => v.toFixed(0),
   yDomain = ['auto', 'auto'],
+  yScale,
   yLabel,
   tooltipFormatter,
   tooltipLabelFormatter,
-  showLegend = false,
+  showLegend,
+  legendFormatter,
   gradientId,
   gradientColor = 'hsl(var(--danger))',
   children,
-}: SimpleAreaChartProps) {
+}: SimpleChartProps) {
+  const isArea = type === 'area';
   const isLargeDataset = data.length >= 100;
+  const Chart = CHART_BY_TYPE[type];
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <AreaChart data={data} margin={margin}>
-        {gradientId && (
+      <Chart data={data} margin={margin}>
+        {isArea && gradientId && (
           <defs>
             <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor={gradientColor} stopOpacity={0.4} />
@@ -395,7 +408,7 @@ export function SimpleAreaChart({
             </linearGradient>
           </defs>
         )}
-        <CartesianGrid {...CHART_GRID_PROPS} />
+        <CartesianGrid {...CHART_GRID_PROPS} stroke={isArea ? undefined : 'var(--bg-subtle)'} />
         <XAxis
           dataKey={xDataKey}
           tickFormatter={xTickFormatter}
@@ -406,78 +419,8 @@ export function SimpleAreaChart({
           tickFormatter={yTickFormatter}
           tick={AXIS_TICK_STYLE}
           domain={yDomain}
-          label={
-            yLabel
-              ? {
-                  value: yLabel,
-                  angle: -90,
-                  position: 'insideLeft',
-                  style: { fill: 'var(--text-muted)', fontSize: 12 },
-                }
-              : undefined
-          }
-        />
-        <Tooltip
-          contentStyle={CHART_TOOLTIP_STYLE}
-          formatter={tooltipFormatter}
-          labelFormatter={tooltipLabelFormatter}
-          isAnimationActive={!isLargeDataset}
-          animationDuration={isLargeDataset ? 0 : 150}
-        />
-        {showLegend && <Legend wrapperStyle={LEGEND_WRAPPER_STYLE} />}
-        {children}
-      </AreaChart>
-    </ResponsiveContainer>
-  );
-}
-interface SimpleLineChartProps {
-  data: ChartDataPoint[];
-  height?: number;
-  margin?: typeof CHART_MARGIN;
-  xDataKey?: string;
-  xTickFormatter?: (v: number | string) => string;
-  yTickFormatter?: (v: number) => string;
-  yDomain?: [number | 'auto', number | 'auto'];
-  yLabel?: string;
-  tooltipFormatter?: (value: number, name: string) => [string, string] | string;
-  tooltipLabelFormatter?: (label: string) => string;
-  showLegend?: boolean;
-  children?: ReactNode;
-}
-export function SimpleLineChart({
-  data,
-  height = 350,
-  margin = CHART_MARGIN,
-  xDataKey = 'date',
-  xTickFormatter = DATE_TICK_FORMATTER as (v: number | string) => string,
-  yTickFormatter = (v) => v.toFixed(0),
-  yDomain = ['auto', 'auto'],
-  yLabel,
-  tooltipFormatter,
-  tooltipLabelFormatter,
-  showLegend = true,
-  children,
-}: SimpleLineChartProps) {
-  const isLargeDataset = data.length >= 100;
-  return (
-    <ResponsiveContainer width="100%" height={height}>
-      <LineChart data={data} margin={margin}>
-        <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--bg-subtle)" />
-        <XAxis dataKey={xDataKey} tickFormatter={xTickFormatter} tick={AXIS_TICK_STYLE} />
-        <YAxis
-          tickFormatter={yTickFormatter}
-          tick={AXIS_TICK_STYLE}
-          domain={yDomain}
-          label={
-            yLabel
-              ? {
-                  value: yLabel,
-                  angle: -90,
-                  position: 'insideLeft',
-                  style: { fill: 'var(--text-muted)', fontSize: 12 },
-                }
-              : undefined
-          }
+          scale={yScale}
+          label={yAxisLabelProp(yLabel)}
         />
         <Tooltip
           contentStyle={CHART_TOOLTIP_STYLE}
@@ -488,9 +431,17 @@ export function SimpleLineChart({
           animationDuration={isLargeDataset ? 0 : 150}
           wrapperStyle={{ zIndex: 100, outline: 'none' }}
         />
-        {showLegend && <Legend wrapperStyle={LEGEND_WRAPPER_STYLE} />}
+        {(showLegend ?? !isArea) && (
+          <Legend wrapperStyle={LEGEND_WRAPPER_STYLE} formatter={legendFormatter} />
+        )}
         {children}
-      </LineChart>
+      </Chart>
     </ResponsiveContainer>
   );
 }
+export const SimpleAreaChart = (p: Omit<SimpleChartProps, 'type'>) => (
+  <SimpleChart type="area" height={440} showLegend={false} {...p} />
+);
+export const SimpleLineChart = (p: Omit<SimpleChartProps, 'type'>) => (
+  <SimpleChart type="line" {...p} />
+);

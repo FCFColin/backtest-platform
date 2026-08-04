@@ -332,24 +332,22 @@ export function ContactPage() {
           {t('contact.feedbackTitle')}
         </div>
         <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {(
-            [
-              {
-                id: 'contact-name',
-                type: 'text',
-                value: name,
-                onChange: setName,
-                ph: 'contact.namePlaceholder',
-              },
-              {
-                id: 'contact-email',
-                type: 'email',
-                value: email,
-                onChange: setEmail,
-                ph: 'contact.emailPlaceholder',
-              },
-            ] as const
-          ).map((f) => (
+          {[
+            {
+              id: 'contact-name',
+              type: 'text',
+              value: name,
+              onChange: setName,
+              ph: 'contact.namePlaceholder',
+            },
+            {
+              id: 'contact-email',
+              type: 'email',
+              value: email,
+              onChange: setEmail,
+              ph: 'contact.emailPlaceholder',
+            },
+          ].map((f) => (
             <Field key={f.id}>
               <FieldLabel htmlFor={f.id}>{t(f.ph)}</FieldLabel>
               <Input

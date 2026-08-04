@@ -71,15 +71,11 @@ func ComputeEfficientFrontier(ctx context.Context, req FrontierRequest) (*Fronti
 	if err != nil {
 		return nil, err
 	}
-	constraints := Constraints{MinWeight: 0, MaxWeight: 1}
-	wMinVol := optimizeMinVolatility(mu, sigma, constraints, defaultIterations)
-	retMinVol, _, _ := portfolioMetrics(wMinVol, mu, sigma)
-	wMaxRet := optimizeMaxReturn(mu, constraints)
-	retMaxRet, _, _ := portfolioMetrics(wMaxRet, mu, sigma)
-	minRet := retMinVol
-	maxRet := retMaxRet
-	if maxRet <= minRet {
-		maxRet = minRet + 0.01
+	c := Constraints{MinWeight: 0, MaxWeight: 1}
+	retMin, _, _ := portfolioMetrics(optimizeMinVolatility(mu, sigma, c, defaultIterations), mu, sigma)
+	retMax, _, _ := portfolioMetrics(optimizeMaxReturn(mu, c), mu, sigma)
+	if retMax <= retMin {
+		retMax = retMin + 0.01
 	}
 	frontier := make([]FrontierPoint, 0, req.NumPoints)
 	for i := 0; i < req.NumPoints; i++ {
@@ -88,8 +84,8 @@ func ComputeEfficientFrontier(ctx context.Context, req FrontierRequest) (*Fronti
 			return nil, ctx.Err()
 		default:
 		}
-		targetRet := minRet + (maxRet-minRet)*float64(i)/float64(req.NumPoints-1)
-		w := solveFrontierPoint(mu, sigma, targetRet, constraints)
+		targetRet := retMin + (retMax-retMin)*float64(i)/float64(req.NumPoints-1)
+		w := solveFrontierPoint(mu, sigma, targetRet, c)
 		ret, vol, sharpe := portfolioMetrics(w, mu, sigma)
 		frontier = append(frontier, FrontierPoint{Weights: makeWeightMap(req.Tickers, w), ExpectedReturn: ret, ExpectedVolatility: vol, SharpeRatio: sharpe})
 	}
@@ -239,11 +235,7 @@ func clipAndNormalize(w []float64, c Constraints, opts clipOpts) []float64 {
 			result[j] = math.Max(c.MinWeight, math.Min(c.MaxWeight, result[j]))
 		}
 		sumW := mathutil.Sum(result)
-		returnUniform := math.Abs(sumW) < 1e-15
-		if !opts.absCheck {
-			returnUniform = sumW <= 1e-15
-		}
-		if returnUniform {
+		if (opts.absCheck && math.Abs(sumW) < 1e-15) || (!opts.absCheck && sumW <= 1e-15) {
 			for j := range result {
 				result[j] = 1.0 / float64(n)
 			}
@@ -326,13 +318,7 @@ func randomWeights(n int, c Constraints, rng *rand.Rand) []float64 {
 			break
 		}
 	}
-	weights[n-1] = remaining
-	if weights[n-1] > c.MaxWeight {
-		weights[n-1] = c.MaxWeight
-	}
-	if weights[n-1] < c.MinWeight && remaining > c.MinWeight {
-		weights[n-1] = c.MinWeight
-	}
+	weights[n-1] = math.Max(c.MinWeight, math.Min(c.MaxWeight, remaining))
 	sumW := mathutil.Sum(weights)
 	if sumW > 0 {
 		for i := range weights {
