@@ -88,9 +88,9 @@ export function MarketDistributionCard({
   const maxCount =
     marketEntries.length > 0 ? Math.max(...marketEntries.map(([, d]) => d.count)) : 0;
   const labelOf = (market: string) =>
-    market === 'US' ? t('dataEngine.usStock') : market === 'CN' ? t('dataEngine.cnStock') : market;
+    market === 'US' ? t('US Stock') : market === 'CN' ? t('CN Stock') : market;
   return (
-    <Panel title={t('dataEngine.byMarket')}>
+    <Panel title={t('By Market')}>
       {marketEntries.map(([market, data]) => (
         <div key={market} className="mb-2.5">
           <div className="mb-0.75 flex justify-between text-label">
@@ -100,14 +100,14 @@ export function MarketDistributionCard({
           <MiniBar pct={maxCount > 0 ? (data.count / maxCount) * 100 : 0} />
           <div className="mt-[3px] flex gap-3 text-caption text-fg-tertiary">
             <span>
-              {t('dataEngine.stock')} {data.stocks}
+              {t('Stock')} {data.stocks}
             </span>
             <span>
-              {t('dataEngine.etf')} {data.etfs}
+              {t('ETF')} {data.etfs}
             </span>
             {data.indices > 0 && (
               <span>
-                {t('dataEngine.index')} {data.indices}
+                {t('Index')} {data.indices}
               </span>
             )}
           </div>
@@ -115,13 +115,13 @@ export function MarketDistributionCard({
       ))}
       {universe?.stats && (universe.stats.us != null || universe.stats.cn != null) && (
         <div className="mt-3 border-t border-subtle pt-3 text-caption text-fg-tertiary">
-          <div className="mb-1 font-semibold">{t('dataEngine.universeVsCache')}</div>
+          <div className="mb-1 font-semibold">{t('Universe vs Cache')}</div>
           <div>
-            {t('dataEngine.usStocks')}: {fmt(universe.stats.us)} → {t('dataEngine.cached')}{' '}
+            {t('US Stocks')}: {fmt(universe.stats.us)} → {t('Cached')}{' '}
             {fmt(stats.by_market?.US?.count)}
           </div>
           <div>
-            {t('dataEngine.cnStocks')}: {fmt(universe.stats.cn)} → {t('dataEngine.cached')}{' '}
+            {t('CN Stocks')}: {fmt(universe.stats.cn)} → {t('Cached')}{' '}
             {fmt(stats.by_market?.CN?.count)}
           </div>
         </div>
@@ -138,11 +138,11 @@ export function ExchangeDistributionCard({ stats }: { stats: Stats }) {
     : [];
   const maxCount = entries.length > 0 ? Math.max(...entries.map(([, c]) => c)) : 0;
   return (
-    <Panel title={t('dataEngine.byExchange')}>
+    <Panel title={t('By Exchange (Top 10)')}>
       {entries.map(([exchange, count]) => (
         <DistributionRow
           key={exchange}
-          label={exchange || t('dataEngine.unknown')}
+          label={exchange || t('Unknown')}
           count={count}
           maxCount={maxCount}
         />

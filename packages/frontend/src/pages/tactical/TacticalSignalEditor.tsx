@@ -127,13 +127,13 @@ function ConditionRow({
       <div className="relative">
         <Input
           type="number"
-          aria-label={t('tactical.params.period')}
+          aria-label={t('Period')}
           className="h-8 w-[88px] pr-14 text-caption"
           value={cond.period}
           onChange={(e) => onUpdate(ci, { period: Number(e.target.value) })}
         />
         <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-caption text-fg-tertiary">
-          {t('tactical.params.period')}
+          {t('Period')}
         </span>
       </div>
       <CompactSelect
@@ -146,20 +146,18 @@ function ConditionRow({
       />
       <div className="relative">
         <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-caption text-fg-tertiary">
-          {t('tactical.params.threshold')}
+          {t('Threshold')}
         </span>
         <Input
           type="number"
           step="0.01"
-          aria-label={t('tactical.params.threshold')}
+          aria-label={t('Threshold')}
           className="h-8 w-[96px] pl-16 text-caption"
           value={cond.threshold}
           onChange={(e) => onUpdate(ci, { threshold: Number(e.target.value) })}
         />
       </div>
-      {canRemove && (
-        <RemoveBtn onClick={() => onRemove(ci)} title={t('tactical.params.deleteCondition')} />
-      )}
+      {canRemove && <RemoveBtn onClick={() => onRemove(ci)} title={t('Delete condition')} />}
     </div>
   );
 }
@@ -184,7 +182,7 @@ function WeightRow({
         className="h-8 flex-1 text-caption uppercase"
         value={weight.ticker}
         onChange={(e) => onUpdate(wi, { ticker: e.target.value.toUpperCase() })}
-        placeholder={t('tactical.params.tickerPlaceholder')}
+        placeholder={t('Ticker')}
       />
       <div className="relative">
         <Input
@@ -198,7 +196,7 @@ function WeightRow({
           %
         </span>
       </div>
-      {canRemove && <RemoveBtn onClick={() => onRemove(wi)} title={t('tactical.params.delete')} />}
+      {canRemove && <RemoveBtn onClick={() => onRemove(wi)} title={t('Delete')} />}
     </div>
   );
 }
@@ -243,19 +241,14 @@ function SignalEditor({
           className="flex-1"
           value={signal.name}
           onChange={(e) => onChange({ ...signal, name: e.target.value })}
-          placeholder={t('tactical.params.signalNamePlaceholder', { index: index + 1 })}
+          placeholder={t('Signal {{index}} name', { index: index + 1 })}
         />
         {canRemove && (
-          <RemoveBtn
-            onClick={onRemove}
-            title={t('tactical.params.deleteSignal')}
-            cls="h-8 w-8"
-            icon="size-4"
-          />
+          <RemoveBtn onClick={onRemove} title={t('Delete signal')} cls="h-8 w-8" icon="size-4" />
         )}
       </div>
       <div className="mb-1.5 text-caption font-semibold text-fg-secondary">
-        {t('tactical.params.triggerConditions')}
+        {t('Trigger Conditions (all must be met)')}
       </div>
       <div className="flex flex-col gap-1.5">
         {signal.conditions.map((cond, ci) => (
@@ -271,10 +264,10 @@ function SignalEditor({
       </div>
       <Button variant="secondary" size="sm" onClick={addCondition} className="mt-2">
         <Plus className="size-3" />
-        {t('tactical.params.addCondition')}
+        {t('Add Condition')}
       </Button>
       <div className="mt-3 mb-1.5 text-caption font-semibold text-fg-secondary">
-        {t('tactical.params.targetWeights')}
+        {t('Target Weights (switch when active)')}
       </div>
       <div className="flex flex-col gap-1.5">
         {signal.targetWeights.map((w, wi) => (
@@ -290,7 +283,7 @@ function SignalEditor({
       </div>
       <Button variant="secondary" size="sm" onClick={addWeight} className="mt-2">
         <Plus className="size-3" />
-        {t('tactical.params.addAsset')}
+        {t('Add Asset')}
       </Button>
     </div>
   );
@@ -299,7 +292,7 @@ export function SignalBuilderSection({ state }: { state: TacticalPageState }) {
   const { t } = useTranslation();
   const { strategy, updateSignal, addSignal, removeSignal } = state;
   return (
-    <ParamSection title={t('tactical.params.signalBuilder')}>
+    <ParamSection title={t('Signal Builder')}>
       <div className="flex flex-col gap-3">
         {strategy.signals.map((sig, idx) => (
           <SignalEditor
@@ -313,7 +306,7 @@ export function SignalBuilderSection({ state }: { state: TacticalPageState }) {
         ))}
         <Button variant="secondary" size="sm" onClick={addSignal} className="w-full justify-center">
           <Plus className="size-4" />
-          {t('tactical.params.addSignal')}
+          {t('Add Signal')}
         </Button>
       </div>
     </ParamSection>

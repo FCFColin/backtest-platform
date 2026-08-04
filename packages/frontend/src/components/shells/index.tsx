@@ -69,12 +69,12 @@ function PageHeaderActions({
     <div className="page-header-actions">
       {showAbout && (
         <button className="text-link-subtle" onClick={onToggle}>
-          {t('common.about')}
+          {t('About')}
         </button>
       )}
       {showRelated && (
         <button className="text-link-subtle" onClick={onToggle}>
-          {t('backtest.relatedTools')}
+          {t('Related Tools:')}
         </button>
       )}
     </div>
@@ -91,7 +91,7 @@ function PresetsCard({ presets }: { presets: PresetButtonProps[] }) {
   const { t } = useTranslation();
   return (
     <div className="preset-chips">
-      <span className="preset-label">{t('monteCarlo.presetsLabel')}：</span>
+      <span className="preset-label">{t('Presets')}：</span>
       {presets.map((preset) => (
         <PresetButton key={preset.label} label={preset.label} onClick={preset.onClick} />
       ))}

@@ -255,7 +255,7 @@ export function ChartEmptyState({ message, height = '280px' }: ChartEmptyStatePr
     >
       <div className="text-center text-fg-tertiary">
         <BarChart3 className="h-8 w-8 mx-auto mb-2 opacity-40" />
-        <p className="text-caption">{message ?? t('chart.emptyData')}</p>
+        <p className="text-caption">{message ?? t('No data available')}</p>
       </div>
     </div>
   );
@@ -269,13 +269,13 @@ export default memo(function ReturnsTabDailyChart({ portfolios, bins }: ReturnsT
   const { t } = useTranslation();
   if (bins.length === 0) return null;
   return (
-    <ChartCard title={t('backtest.dailyReturnsHist')} data={bins}>
+    <ChartCard title={t('Daily Returns Distribution')} data={bins}>
       <BarChartContent
         data={bins}
         seriesNames={portfolios.map((p) => p.name)}
         xDataKey="range"
         height={350}
-        yLabel={t('backtest.frequency')}
+        yLabel={t('Frequency')}
         fillOpacity={0.7}
         xTickFontSize={9}
         xTickInterval={4}
@@ -290,6 +290,8 @@ interface SimpleChartProps {
   height?: number;
   margin?: { top?: number; right?: number; bottom?: number; left?: number };
   xDataKey?: string;
+  xType?: 'number' | 'category';
+  xLabel?: string;
   xTickFormatter?: (v: number | string) => string;
   xTickInterval?: number | 'preserveStartEnd';
   yTickFormatter?: (v: number) => string;
@@ -311,6 +313,8 @@ export function SimpleChart({
   height = 350,
   margin = CHART_MARGIN,
   xDataKey = 'date',
+  xType,
+  xLabel,
   xTickFormatter = DATE_TICK_FORMATTER as (v: number | string) => string,
   xTickInterval,
   yTickFormatter = (v) => v.toFixed(0),
@@ -342,9 +346,21 @@ export function SimpleChart({
         <CartesianGrid {...CHART_GRID_PROPS} stroke={isArea ? undefined : 'var(--bg-subtle)'} />
         <XAxis
           dataKey={xDataKey}
+          type={xType}
           tickFormatter={xTickFormatter}
           interval={xTickInterval}
           tick={AXIS_TICK_STYLE}
+          label={
+            xLabel
+              ? {
+                  value: xLabel,
+                  position: 'insideBottom',
+                  offset: -4,
+                  fontSize: 11,
+                  fill: 'var(--fg-tertiary)',
+                }
+              : undefined
+          }
         />
         <ChartYAxis tickFormatter={yTickFormatter} domain={yDomain} scale={yScale} label={yLabel} />
         <ChartTooltip

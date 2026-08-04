@@ -49,7 +49,7 @@ function ProbabilityDistributionChart({
 }) {
   const { t } = useTranslation();
   return (
-    <ChartCard title={t('goalOptimizer.results.probDistTitle')}>
+    <ChartCard title={t('Final Value Probability Distribution')}>
       <ResponsiveContainer width="100%" height={300}>
         <AreaChart data={data} margin={{ top: 10, right: 20, bottom: 5, left: 10 }}>
           <CartesianGrid {...CHART_GRID_PROPS} />
@@ -63,10 +63,7 @@ function ProbabilityDistributionChart({
           <YAxis tick={AXIS_TICK_STYLE} tickFormatter={(v: number) => `${(v * 100).toFixed(1)}%`} />
           <Tooltip
             contentStyle={CHART_TOOLTIP_STYLE}
-            formatter={(v: number) => [
-              `${(v * 100).toFixed(2)}%`,
-              t('goalOptimizer.results.probability'),
-            ]}
+            formatter={(v: number) => [`${(v * 100).toFixed(2)}%`, t('Probability')]}
             labelFormatter={(v: number) => fmtDollar(v)}
           />
           <ReferenceLine
@@ -74,7 +71,7 @@ function ProbabilityDistributionChart({
             stroke={CHART_COLORS[3]}
             strokeDasharray="4 2"
             label={{
-              value: t('goalOptimizer.results.target'),
+              value: t('Target'),
               position: 'top',
               fill: CHART_COLORS[3],
               fontSize: 11,
@@ -86,7 +83,7 @@ function ProbabilityDistributionChart({
             stroke={CHART_COLORS[0]}
             fill={CHART_COLORS[0]}
             fillOpacity={0.3}
-            name={t('goalOptimizer.results.probability')}
+            name={t('Probability')}
           />
         </AreaChart>
       </ResponsiveContainer>
@@ -102,7 +99,7 @@ function OptimalPathChart({
 }) {
   const { t } = useTranslation();
   return (
-    <ChartCard title={t('goalOptimizer.results.optimalPathTitle')}>
+    <ChartCard title={t('Optimal Path (Median / P10 / P90)')}>
       <ResponsiveContainer width="100%" height={350}>
         <LineChart data={data} margin={{ top: 10, right: 20, bottom: 5, left: 10 }}>
           <CartesianGrid {...CHART_GRID_PROPS} />
@@ -114,7 +111,7 @@ function OptimalPathChart({
           <Tooltip
             contentStyle={CHART_TOOLTIP_STYLE}
             formatter={(v: number) => fmtDollar(v)}
-            labelFormatter={(v: number) => t('goalOptimizer.results.yearLabel', { year: v })}
+            labelFormatter={(v: number) => t('Year {{year}}', { year: v })}
           />
           <Legend wrapperStyle={LEGEND_WRAPPER_STYLE} />
           <ReferenceLine
@@ -122,7 +119,7 @@ function OptimalPathChart({
             stroke={CHART_COLORS[3]}
             strokeDasharray="4 2"
             label={{
-              value: t('goalOptimizer.results.target'),
+              value: t('Target'),
               fill: CHART_COLORS[3],
               fontSize: 11,
               position: 'insideTopRight',
@@ -142,7 +139,7 @@ function OptimalPathChart({
             stroke={CHART_COLORS[0]}
             strokeWidth={2.5}
             dot={false}
-            name={t('goalOptimizer.results.median')}
+            name={t('Median')}
           />
           <Line
             type="monotone"
@@ -166,18 +163,18 @@ function RecommendationCards({
 }) {
   const { t } = useTranslation();
   return (
-    <ChartCard title={t('goalOptimizer.results.recommendationTitle')}>
+    <ChartCard title={t('Recommended Configuration')}>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <StatCard
-          label={t('goalOptimizer.results.expectedReturn')}
+          label={t('Expected Annual Return')}
           value={fmtPct(recommendation.expectedReturn)}
         />
         <StatCard
-          label={t('goalOptimizer.results.requiredContribution')}
+          label={t('Required Annual Contribution')}
           value={fmtDollar(recommendation.requiredContribution)}
         />
         <StatCard
-          label={t('goalOptimizer.results.successRate')}
+          label={t('Success Rate')}
           value={fmtPct(recommendation.successRate)}
           color={probColor}
         />
@@ -205,17 +202,17 @@ export function GoalOptimizerResultsPanel({
   const probColor = r ? getProbColor(r.successProbability) : '';
   return (
     <ResultsShell
-      error={error ? `${t('goalOptimizer.optFailed')}: ${error}` : null}
+      error={error ? `${t('Optimization failed')}: ${error}` : null}
       isLoading={isLoading}
       hasResults={!!results}
-      loadingLabel={t('goalOptimizer.optimizing')}
-      emptyTitle={t('goalOptimizer.results.emptyHint')}
+      loadingLabel={t('Optimizing...')}
+      emptyTitle={t(
+        'Set your goal and asset allocation, then click "Start Optimization" to see results',
+      )}
     >
       <div className="flex flex-col gap-5">
         <Card className="flex flex-col items-center px-6 py-8 text-center">
-          <div className="text-label text-fg-secondary">
-            {t('goalOptimizer.results.achieveProb')}
-          </div>
+          <div className="text-label text-fg-secondary">{t('Probability of Reaching Goal')}</div>
           <div
             className="mt-2 font-mono tabular-nums text-display font-bold"
             style={{ color: probColor }}
@@ -224,7 +221,7 @@ export function GoalOptimizerResultsPanel({
           </div>
           <Progress value={r.successProbability * 100} className="mt-4 h-2 w-full max-w-xs" />
           <div className="mt-3 text-caption text-fg-tertiary">
-            {t('goalOptimizer.results.targetInitialYears', {
+            {t('Target {{target}} · Initial {{initial}} · {{years}} years', {
               target: fmtDollar(targetAmount),
               initial: fmtDollar(initialAmount),
               years,

@@ -35,9 +35,12 @@ function useLETFSlippageState() {
           startDate,
           endDate,
         },
-        i18n.t('letf.errAnalyze'),
+        i18n.t('LETF slippage analysis failed'),
       ),
-    () => (letfTicker.trim() && benchmarkTicker.trim() ? null : t('letf.errEmptyTickers')),
+    () =>
+      letfTicker.trim() && benchmarkTicker.trim()
+        ? null
+        : t('Please enter both the leveraged ETF and benchmark index symbols'),
   );
   return {
     letfTicker,
@@ -100,31 +103,31 @@ function LETFParamsPanel({ state: s }: { state: LETFState }) {
   return (
     <div className="flex flex-col gap-4">
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <LabeledField htmlFor={letfId} label={t('letf.etf.letfTicker')}>
+        <LabeledField htmlFor={letfId} label={t('Leveraged ETF')}>
           <Input
             id={letfId}
             type="text"
             value={s.letfTicker}
             onChange={(e) => s.setLetfTicker(e.target.value)}
-            placeholder={t('letf.etf.letfTickerPlaceholder')}
+            placeholder={t('e.g. TQQQ')}
           />
         </LabeledField>
-        <LabeledField htmlFor={benchId} label={t('letf.etf.benchmarkTicker')}>
+        <LabeledField htmlFor={benchId} label={t('Benchmark Index')}>
           <Input
             id={benchId}
             type="text"
             value={s.benchmarkTicker}
             onChange={(e) => s.setBenchmarkTicker(e.target.value)}
-            placeholder={t('letf.etf.benchmarkTickerPlaceholder')}
+            placeholder={t('e.g. QQQ')}
           />
         </LabeledField>
         <Field>
-          <FieldLabel htmlFor={levId}>{t('letf.etf.leverage')}</FieldLabel>
+          <FieldLabel htmlFor={levId}>{t('Leverage Multiplier')}</FieldLabel>
           <LeverageSelector leverage={s.leverage} onChange={s.setLeverage} />
         </Field>
       </div>
       <div className="grid grid-cols-2 gap-4">
-        <LabeledField htmlFor={startId} label={t('letf.dateRange.startDate')}>
+        <LabeledField htmlFor={startId} label={t('Start Date')}>
           <Input
             id={startId}
             type="date"
@@ -132,7 +135,7 @@ function LETFParamsPanel({ state: s }: { state: LETFState }) {
             onChange={(e) => s.setStartDate(e.target.value)}
           />
         </LabeledField>
-        <LabeledField htmlFor={endId} label={t('letf.dateRange.endDate')}>
+        <LabeledField htmlFor={endId} label={t('End Date')}>
           <Input
             id={endId}
             type="date"
@@ -144,8 +147,8 @@ function LETFParamsPanel({ state: s }: { state: LETFState }) {
       <RunButton
         isLoading={s.isLoading}
         onClick={s.runAnalysis}
-        label={t('letf.startAnalysis')}
-        loadingLabel={t('letf.analyzing')}
+        label={t('Run Analysis')}
+        loadingLabel={t('Analyzing...')}
       />
     </div>
   );

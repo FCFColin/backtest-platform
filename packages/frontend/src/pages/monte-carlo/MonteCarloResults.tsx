@@ -50,20 +50,20 @@ export function StatsGrid({
   return (
     <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
       <MiniStatCard
-        label={t('monteCarlo.results.medianFinalValue')}
+        label={t('Median Final Value')}
         value={fmtDollar(r.statistics.medianFinalValue * startingValue)}
       />
       <MiniStatCard
-        label={t('monteCarlo.results.meanFinalValue')}
+        label={t('Mean Final Value')}
         value={fmtDollar(r.statistics.meanFinalValue * startingValue)}
       />
       <MiniStatCard
-        label={t('monteCarlo.results.preservationRate')}
+        label={t('Capital Preservation')}
         value={`${(r.statistics.successRate * 100).toFixed(1)}%`}
         color="hsl(var(--success))"
       />
       <MiniStatCard
-        label={t('monteCarlo.results.numSimulations')}
+        label={t('Simulations')}
         value={`${r.perPathMetrics?.length ?? numSimulations}`}
       />
     </div>
@@ -80,14 +80,16 @@ export function McErrorState({ error }: { error: string }) {
   const { t } = useTranslation();
   return (
     <div className="p-6 text-center text-danger">
-      {t('monteCarlo.results.simFailed')}: {error}
+      {t('Simulation failed')}: {error}
     </div>
   );
 }
 export function McEmptyState() {
   const { t } = useTranslation();
   return (
-    <div className="p-12 text-center text-fg-tertiary">{t('monteCarlo.results.noResultsHint')}</div>
+    <div className="p-12 text-center text-fg-tertiary">
+      {t('Configure parameters on the left and click "Start Simulation" to see results')}
+    </div>
   );
 }
 export function MonteCarloSummaryTab({
@@ -102,14 +104,12 @@ export function MonteCarloSummaryTab({
   if (!rows) {
     return (
       <Card className="p-5">
-        <div className="py-6 text-center text-caption text-fg-tertiary">
-          {t('monteCarlo.results.noData')}
-        </div>
+        <div className="py-6 text-center text-caption text-fg-tertiary">{t('No data')}</div>
       </Card>
     );
   }
   const columns: SimpleTableColumn<(typeof rows)[number]>[] = [
-    { key: 'metric', label: t('monteCarlo.results.metric'), render: (row) => row.metric },
+    { key: 'metric', label: t('Metric'), render: (row) => row.metric },
     ...SUMMARY_STATS.map((s) => ({
       key: s,
       label: s,

@@ -11,7 +11,7 @@ import {
 import { fmtPct, fmtNum, fmtDollar } from '@/utils/format';
 import type { Column } from '../../components/tables.js';
 import { apiPostJSON } from '@/utils/apiClient';
-import { useListState } from '../../hooks/miscHooks.js';
+import { useAssetList } from '../../hooks/miscHooks.js';
 import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
 export type { Objective };
 export const FREQ_OPTIONS = REBALANCE_FREQUENCY_OPTIONS;
@@ -36,28 +36,28 @@ const numCol = (key: keyof OptimizeResultItem, label: string): Column<OptimizeRe
 export const TABLE_COLUMNS: Column<OptimizeResultItem>[] = [
   {
     key: 'rebalanceFrequency',
-    label: i18n.t('params.rebalanceFrequency'),
+    label: i18n.t('Rebalance Frequency'),
     sortValue: (r) => r.rebalanceFrequency,
     render: (r) =>
       r.rebalanceFrequency === 'threshold'
-        ? i18n.t('params.thresholdWithValue', { value: r.rebalanceThreshold })
+        ? i18n.t('Threshold ({{value}}%)', { value: r.rebalanceThreshold })
         : (REBALANCE_LABELS[r.rebalanceFrequency] ?? r.rebalanceFrequency),
   },
   {
     key: 'rebalanceThreshold',
-    label: i18n.t('params.threshold'),
+    label: i18n.t('Threshold'),
     sortValue: (r) => r.rebalanceThreshold ?? 0,
     render: (r) => (r.rebalanceThreshold !== undefined ? `${r.rebalanceThreshold}%` : '-'),
   },
   {
     key: 'initialCapital',
-    label: i18n.t('params.initialCapital'),
+    label: i18n.t('Initial Capital'),
     sortValue: (r) => r.initialCapital,
     render: (r) => fmtDollar(r.initialCapital),
   },
   pctCol('cagr', 'CAGR'),
-  pctCol('maxDrawdown', i18n.t('statsTable.maxDrawdown')),
-  pctCol('stdev', i18n.t('statsTable.volatility')),
+  pctCol('maxDrawdown', i18n.t('Max Drawdown')),
+  pctCol('stdev', i18n.t('Volatility')),
   numCol('sharpe', 'Sharpe'),
   numCol('sortino', 'Sortino'),
   numCol('calmar', 'Calmar'),
@@ -217,12 +217,10 @@ export function buildBestMetrics(
   ];
 }
 export function useOptimizerState(): BacktestOptimizerState {
-  const {
-    items: assets,
-    addItem: addAsset,
-    removeItem: removeAsset,
-    updateItem,
-  } = useListState<{ ticker: string; weight: string }>(
+  const { assets, addAsset, removeAsset, updateAsset } = useAssetList<{
+    ticker: string;
+    weight: string;
+  }>(
     [
       { ticker: 'VTI', weight: '60' },
       { ticker: 'BND', weight: '40' },
@@ -230,8 +228,6 @@ export function useOptimizerState(): BacktestOptimizerState {
     () => ({ ticker: '', weight: '' }),
     1,
   );
-  const updateAsset = (i: number, field: 'ticker' | 'weight', val: string) =>
-    updateItem(i, (prev) => ({ ...prev, [field]: val }));
   const [frequencies, setFrequencies] = useState<RebalanceFrequency[]>(['quarterly']);
   const toggleFreq = (freq: RebalanceFrequency) =>
     setFrequencies((prev) =>
@@ -246,11 +242,11 @@ export function useOptimizerState(): BacktestOptimizerState {
   const runOptimize = async () => {
     const validAssets = assets.filter((a) => a.ticker.trim());
     if (validAssets.length === 0) {
-      patchResult({ error: i18n.t('errors.atLeastOneTicker') });
+      patchResult({ error: i18n.t('Please enter at least one ticker') });
       return;
     }
     if (frequencies.length === 0) {
-      patchResult({ error: i18n.t('errors.atLeastOneRebalanceFreq') });
+      patchResult({ error: i18n.t('Please select at least one rebalancing frequency') });
       return;
     }
     patchResult({ isLoading: true, error: null, results: null, best: null, benchmarkGrowth: null });
@@ -263,7 +259,7 @@ export function useOptimizerState(): BacktestOptimizerState {
       }>(
         '/api/v1/backtest-optimizer/optimize',
         buildOptimizeBody(validAssets, frequencies, form),
-        i18n.t('errors.optimizerFailed'),
+        i18n.t('Optimization failed'),
       );
       patchResult({
         results: data.results ?? [],
@@ -272,7 +268,7 @@ export function useOptimizerState(): BacktestOptimizerState {
         totalCombos: data.totalCombinations ?? 0,
       });
     } catch (e) {
-      patchResult({ error: e instanceof Error ? e.message : i18n.t('errors.optimizerFailed') });
+      patchResult({ error: e instanceof Error ? e.message : i18n.t('Optimization failed') });
     } finally {
       patchResult({ isLoading: false });
     }

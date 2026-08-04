@@ -41,7 +41,7 @@ function createDefaultCondition(): SignalCondition {
 function createDefaultSignal(): TradingSignal {
   return {
     id: genId('signal'),
-    name: i18n.t('tactical.defaultSignalName', { index: 1 }),
+    name: i18n.t('Signal {{index}}', { index: 1 }),
     conditions: [createDefaultCondition()],
     targetWeights: [
       { ticker: 'SPY', weight: 60 },
@@ -52,7 +52,7 @@ function createDefaultSignal(): TradingSignal {
 function createDefaultStrategy(): TacticalStrategy {
   return {
     id: genId('strategy'),
-    name: i18n.t('tactical.defaultStrategyName'),
+    name: i18n.t('Tactical Strategy'),
     signals: [createDefaultSignal()],
     aggregationMethod: 'voting',
     rankingConfig: { method: 'fixed_share', topN: 3 },
@@ -61,10 +61,10 @@ function createDefaultStrategy(): TacticalStrategy {
 function validateStrategy(signals: TradingSignal[]): string | null {
   for (const sig of signals) {
     if (sig.conditions.length === 0)
-      return i18n.t('tactical.validateErrors.missingConditions', { name: sig.name });
+      return i18n.t('Signal "{{name}}" is missing trigger conditions', { name: sig.name });
     const validWeights = sig.targetWeights.filter((w) => w.ticker && w.weight > 0);
     if (validWeights.length === 0)
-      return i18n.t('tactical.validateErrors.missingWeights', { name: sig.name });
+      return i18n.t('Signal "{{name}}" is missing valid target weights', { name: sig.name });
   }
   return null;
 }
@@ -84,7 +84,7 @@ function useTacticalPageState() {
   };
   const addSignal = () => {
     const newSignal = createDefaultSignal();
-    newSignal.name = i18n.t('tactical.defaultSignalName', { index: strategy.signals.length + 1 });
+    newSignal.name = i18n.t('Signal {{index}}', { index: strategy.signals.length + 1 });
     setStrategy({ ...strategy, signals: [...strategy.signals, newSignal] });
   };
   const removeSignal = (idx: number) => {
@@ -101,7 +101,7 @@ function useTacticalPageState() {
       const data = await apiPostJSON<BacktestResponse>(
         '/api/v1/tactical/backtest',
         { strategy, startDate, endDate, startingValue, rebalanceFrequency },
-        i18n.t('tactical.results.backtestFailed'),
+        i18n.t('Backtest failed'),
       );
       setResults(data);
       setActiveTab('backtest');

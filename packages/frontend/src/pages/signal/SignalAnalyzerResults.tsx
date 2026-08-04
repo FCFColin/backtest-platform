@@ -1,12 +1,12 @@
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { fmtPct, fmtRatio, fmtDollar } from '@/utils/format';
+import { fmtPct, fmtRatio, fmtDollar, downsample } from '@/utils/format';
 import type { SignalAnalysisResult } from '@backtest/shared/types/signal';
 import type { MultiSignalResponse } from './signalTypes.js';
 import { Card, Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/uiComponents';
 import { CollapsibleSection } from '@/components/cards';
 import { SortableTable, type Column } from '../../components/tables.js';
-import { ResultsContainer, EquityLineChart } from './SignalResultsPanel.js';
+import { TimeSeriesLineChart } from '@/components/charts/TimeSeriesLineChart.js';
 import { ResultsShell } from '@/components/resultsShell.js';
 interface SignalRow {
   date: string;
@@ -29,20 +29,20 @@ function StatCard({ label, value, hint }: StatCardProps) {
 }
 function buildSignalColumns(t: (key: string) => string): Column<SignalRow>[] {
   return [
-    { key: 'date', label: t('signal.analyzer.colDate'), sortValue: (r) => r.date },
+    { key: 'date', label: t('Date'), sortValue: (r) => r.date },
     {
       key: 'type',
-      label: t('signal.analyzer.colType'),
+      label: t('Type'),
       render: (r) => (
         <span className={r.type === 'buy' ? 'text-pos font-semibold' : 'text-neg font-semibold'}>
-          {r.type === 'buy' ? t('signal.common.buy') : t('signal.common.sell')}
+          {r.type === 'buy' ? t('Buy') : t('Sell')}
         </span>
       ),
       sortValue: (r) => r.type,
     },
     {
       key: 'price',
-      label: t('signal.analyzer.colPrice'),
+      label: t('Price'),
       render: (r) => fmtDollar(r.price),
       sortValue: (r) => r.price,
     },
@@ -65,7 +65,9 @@ function SignalListSection({ results, signalColumns }: SignalListSectionProps) {
     );
   }
   return (
-    <div className="py-6 text-center text-body text-fg-tertiary">{t('signal.common.noSignal')}</div>
+    <div className="py-6 text-center text-body text-fg-tertiary">
+      {t('No signals generated for the current parameters')}
+    </div>
   );
 }
 interface EquityCurveSectionProps {
@@ -73,11 +75,14 @@ interface EquityCurveSectionProps {
 }
 function EquityCurveSection({ equityCurve: data }: EquityCurveSectionProps) {
   const { t } = useTranslation();
+  const chartData = downsample(data, 400);
   return (
-    <EquityLineChart
-      data={data}
-      series={[{ dataKey: 'value', legendName: t('signal.common.equity') }]}
-      tooltipName={t('signal.common.equity')}
+    <TimeSeriesLineChart
+      data={chartData}
+      series={[{ dataKey: 'value', legendName: t('Equity') }]}
+      referenceY={10000}
+      tooltipValueFormatter={(v) => [`$${v.toLocaleString()}`, t('Equity')]}
+      tooltipLabelFormatter={(label) => `${t('Date')}: ${label}`}
     />
   );
 }
@@ -90,33 +95,18 @@ function SignalResultsContent({ results, signalColumns }: SignalResultsContentPr
   return (
     <>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
-        <StatCard
-          label={t('signal.analyzer.statTotalSignals')}
-          value={String(results.statistics.totalSignals)}
-        />
-        <StatCard
-          label={t('signal.analyzer.statWinRate')}
-          value={fmtPct(results.statistics.winRate)}
-        />
-        <StatCard
-          label={t('signal.analyzer.statAvgReturn')}
-          value={fmtPct(results.statistics.avgReturn)}
-        />
-        <StatCard
-          label={t('signal.analyzer.statMaxDrawdown')}
-          value={fmtPct(results.statistics.maxDrawdown)}
-        />
-        <StatCard
-          label={t('signal.analyzer.statSharpe')}
-          value={fmtRatio(results.statistics.sharpe)}
-        />
+        <StatCard label={t('Total Signals')} value={String(results.statistics.totalSignals)} />
+        <StatCard label={t('Win Rate')} value={fmtPct(results.statistics.winRate)} />
+        <StatCard label={t('Avg Return')} value={fmtPct(results.statistics.avgReturn)} />
+        <StatCard label={t('Max Drawdown')} value={fmtPct(results.statistics.maxDrawdown)} />
+        <StatCard label={t('Sharpe')} value={fmtRatio(results.statistics.sharpe)} />
       </div>
       <Tabs defaultValue="signals">
         <TabsList>
           <TabsTrigger value="signals">
-            {t('signal.analyzer.signalListTitle', { count: results.signals.length })}
+            {t('Signal List ({{count}})', { count: results.signals.length })}
           </TabsTrigger>
-          <TabsTrigger value="equity">{t('signal.analyzer.equityCurve')}</TabsTrigger>
+          <TabsTrigger value="equity">{t('Equity Curve')}</TabsTrigger>
         </TabsList>
         <TabsContent value="signals">
           <SignalListSection results={results} signalColumns={signalColumns} />
@@ -143,14 +133,14 @@ export function SignalAnalyzerResultsPanel({
   return (
     <ResultsShell
       error={error}
-      errorPrefix={t('signal.common.analysisFailedPrefix')}
+      errorPrefix={t('Analysis failed: ')}
       isLoading={isLoading}
       hasResults={!!results}
-      emptyTitle={t('signal.common.emptyHint')}
+      emptyTitle={t('Set parameters and click "Run Analysis" to view results')}
     >
-      <ResultsContainer>
+      <div className="flex flex-col gap-4">
         <SignalResultsContent results={results!} signalColumns={signalColumns} />
-      </ResultsContainer>
+      </div>
     </ResultsShell>
   );
 }
@@ -162,23 +152,23 @@ function buildContributionColumns(
   t: TFunction,
 ): Column<MultiSignalResponse['contributions'][number]>[] {
   return [
-    { key: 'index', label: t('signal.multi.colIndex'), sortValue: (r) => r.index },
-    { key: 'indicator', label: t('signal.multi.colIndicator'), sortValue: (r) => r.indicator },
+    { key: 'index', label: t('#'), sortValue: (r) => r.index },
+    { key: 'indicator', label: t('Indicator'), sortValue: (r) => r.indicator },
     {
       key: 'contribution',
-      label: t('signal.multi.colContribution'),
+      label: t('Contribution (Avg Return)'),
       render: (r) => fmtPct(r.contribution),
       sortValue: (r) => r.contribution,
     },
     {
       key: 'winRate',
-      label: t('signal.multi.colWinRate'),
+      label: t('Win Rate'),
       render: (r) => fmtPct(r.statistics.winRate),
       sortValue: (r) => r.statistics.winRate,
     },
     {
       key: 'totalSignals',
-      label: t('signal.multi.colTotalSignals'),
+      label: t('Signals'),
       render: (r) => String(r.statistics.totalSignals),
       sortValue: (r) => r.statistics.totalSignals,
     },
@@ -206,17 +196,18 @@ export function MultiSignalResultsPanel({
   const { t } = useTranslation();
   const aggStatRows = results ? buildAggStatRows(results) : [];
   const contributionColumns = buildContributionColumns(t);
+  const equityChartData = downsample(results?.aggregated.equityCurve ?? [], 400);
   return (
     <ResultsShell
       error={error}
-      errorPrefix={t('signal.common.analysisFailedPrefix')}
+      errorPrefix={t('Analysis failed: ')}
       isLoading={isLoading}
       hasResults={!!results}
-      emptyTitle={t('signal.common.emptyHint')}
+      emptyTitle={t('Set parameters and click "Run Analysis" to view results')}
     >
-      <ResultsContainer>
+      <div className="flex flex-col gap-4">
         <CollapsibleSection
-          title={t('signal.multi.aggStatsTitle')}
+          title={t('Aggregated Signal Statistics')}
           defaultOpen
           className="rounded-xl border border-border bg-surface"
         >
@@ -227,7 +218,7 @@ export function MultiSignalResultsPanel({
           </div>
         </CollapsibleSection>
         <CollapsibleSection
-          title={t('signal.multi.contributionTitle')}
+          title={t('Signal Contribution Comparison')}
           defaultOpen
           className="rounded-xl border border-border bg-surface"
         >
@@ -240,22 +231,24 @@ export function MultiSignalResultsPanel({
             />
           ) : (
             <div className="py-6 text-center text-body text-fg-tertiary">
-              {t('signal.multi.noContribution')}
+              {t('No contribution data')}
             </div>
           )}
         </CollapsibleSection>
         <CollapsibleSection
-          title={t('signal.multi.equityCurve')}
+          title={t('Equity Curve')}
           defaultOpen
           className="rounded-xl border border-border bg-surface"
         >
-          <EquityLineChart
-            data={results!.aggregated.equityCurve}
-            series={[{ dataKey: 'value', legendName: t('signal.multi.aggEquity') }]}
-            tooltipName={t('signal.common.equity')}
+          <TimeSeriesLineChart
+            data={equityChartData}
+            series={[{ dataKey: 'value', legendName: t('Aggregated Equity') }]}
+            referenceY={10000}
+            tooltipValueFormatter={(v) => [`$${v.toLocaleString()}`, t('Equity')]}
+            tooltipLabelFormatter={(label) => `${t('Date')}: ${label}`}
           />
         </CollapsibleSection>
-      </ResultsContainer>
+      </div>
     </ResultsShell>
   );
 }

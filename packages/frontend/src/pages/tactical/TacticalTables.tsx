@@ -12,17 +12,17 @@ import { fmtPrice, whatIfSignalColor, whatIfSignalLabel } from './tacticalResult
 import type { BacktestResponse } from './TacticalUtils';
 function buildWhatIfColumns(t: TFunction): Column<WhatIfResult>[] {
   return [
-    { key: 'ticker', label: t('tactical.results.ticker'), sortValue: (r) => r.ticker },
+    { key: 'ticker', label: t('Ticker'), sortValue: (r) => r.ticker },
     {
       key: 'currentPrice',
-      label: t('tactical.results.latestPrice'),
+      label: t('Latest Price'),
       sortValue: (r) => r.currentPrice,
       render: (r) => <span className="font-mono tabular-nums">{fmtPrice(r.currentPrice)}</span>,
     },
-    { key: 'signalDate', label: t('tactical.results.signalDate'), sortValue: (r) => r.signalDate },
+    { key: 'signalDate', label: t('Signal Date'), sortValue: (r) => r.signalDate },
     {
       key: 'signalType',
-      label: t('tactical.results.signalStatus'),
+      label: t('Signal Status'),
       sortValue: (r) => r.signalType,
       render: (r) => (
         <span className="font-semibold" style={{ color: whatIfSignalColor(r.signalType) }}>
@@ -40,19 +40,19 @@ function SignalHistoryTable({
   const { t } = useTranslation();
   return (
     <Card className="p-4">
-      <h3 className="mb-3 text-h3 text-fg">{t('tactical.results.signalHistoryTitle')}</h3>
+      <h3 className="mb-3 text-h3 text-fg">{t('Signal Switching History (Rebalance Days)')}</h3>
       <div className="max-h-[400px] overflow-auto">
         <table className="w-full border-collapse">
           <thead className="sticky top-0 z-10 bg-elevated">
             <tr>
               <th className="border-b border-border-strong px-3 py-2 text-left text-caption font-semibold text-fg-tertiary">
-                {t('tactical.results.date')}
+                {t('Date')}
               </th>
               <th className="border-b border-border-strong px-3 py-2 text-left text-caption font-semibold text-fg-tertiary">
-                {t('tactical.results.activeSignals')}
+                {t('Active Signals')}
               </th>
               <th className="border-b border-border-strong px-3 py-2 text-right text-caption font-semibold text-fg-tertiary">
-                {t('tactical.results.targetWeights')}
+                {t('Target Weights')}
               </th>
             </tr>
           </thead>
@@ -66,9 +66,7 @@ function SignalHistoryTable({
                   {h.activeSignals.length > 0 ? (
                     h.activeSignals.join(', ')
                   ) : (
-                    <span className="text-fg-tertiary">
-                      {t('tactical.results.noneEqualWeight')}
-                    </span>
+                    <span className="text-fg-tertiary">{t('None (Equal Weight)')}</span>
                   )}
                 </td>
                 <td className="border-b border-border-subtle px-3 py-2 text-right text-label font-mono tabular-nums text-fg">
@@ -94,33 +92,37 @@ function WhatIfTab({ strategy }: { strategy: TacticalStrategy }) {
       .map((tk) => tk.trim().toUpperCase())
       .filter(Boolean);
     if (tickers.length === 0) {
-      setError(t('tactical.results.whatIfEmptyError'));
+      setError(t('Please enter at least one ticker'));
       return;
     }
     run(async () => {
       const data = await apiPostJSON<WhatIfResult[]>(
         '/api/v1/tactical/what-if',
         { tickers, strategy },
-        t('tactical.results.whatIfFailed'),
+        t('Query failed'),
       );
       setResults(data ?? []);
     });
   };
   return (
     <Card className="p-4">
-      <h3 className="mb-1 text-h3 text-fg">{t('tactical.results.whatIfTitle')}</h3>
-      <p className="mb-3 text-caption text-fg-tertiary">{t('tactical.results.whatIfDesc')}</p>
+      <h3 className="mb-1 text-h3 text-fg">{t('Real-time Price & Signal Query')}</h3>
+      <p className="mb-3 text-caption text-fg-tertiary">
+        {t(
+          'Enter tickers (comma or space separated) to query latest prices and current strategy signal status',
+        )}
+      </p>
       <div className="mb-3 flex gap-2">
         <Input
           type="text"
           value={tickerInput}
           onChange={(e) => setTickerInput(e.target.value)}
-          placeholder={t('tactical.results.whatIfPlaceholder')}
+          placeholder={t('e.g. SPY, TLT, GLD')}
           className="flex-1"
         />
         <Button variant="primary" onClick={handleQuery} disabled={isLoading}>
           <Search className="size-4" />
-          {isLoading ? t('tactical.results.whatIfQuerying') : t('tactical.results.whatIfQuery')}
+          {isLoading ? t('Querying...') : t('Query')}
         </Button>
       </div>
       {error && <p className="mb-3 text-caption text-danger">{error}</p>}
@@ -133,7 +135,7 @@ function WhatIfTab({ strategy }: { strategy: TacticalStrategy }) {
         />
       )}
       {results.length === 0 && !error && !isLoading && (
-        <EmptyState title={t('tactical.results.whatIfHint')} className="py-10" />
+        <EmptyState title={t('Enter tickers and click "Query" to see results')} className="py-10" />
       )}
     </Card>
   );

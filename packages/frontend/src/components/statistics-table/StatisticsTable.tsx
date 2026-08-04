@@ -120,10 +120,10 @@ export function StatisticsTable({
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <h3 className="text-h3">{t('statsTable.ui.title')}</h3>
+          <h3 className="text-h3">{t('Statistics Overview')}</h3>
           <span className="text-caption text-fg-tertiary">
-            {t('statsTable.ui.portfolioCount', { count: portfolios.length })} ·{' '}
-            {t('statsTable.ui.columnCount', { count: visibleColumns.length })}
+            {t('{{count}} portfolios', { count: portfolios.length })} ·{' '}
+            {t('{{count}} columns', { count: visibleColumns.length })}
           </span>
         </div>
         <div className="flex items-center gap-1">
@@ -133,7 +133,7 @@ export function StatisticsTable({
             onClick={() => setExpanded(!expanded)}
             className="text-caption"
           >
-            {expanded ? t('statsTable.ui.collapseExtended') : t('statsTable.ui.expandExtended')}
+            {expanded ? t('Collapse extended metrics') : t('Expand extended metrics (+30)')}
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -277,7 +277,7 @@ const EXTENDED_COLUMNS: StatColumn[] = [
 export function ExtendedMetricsTable({ portfolios }: ExtendedMetricsTableProps) {
   const { t } = useTranslation();
   const columns: SimpleTableColumn<(typeof portfolios)[number]>[] = [
-    { key: 'name', label: t('results.extendedMetrics.portfolio'), render: (p) => p.name },
+    { key: 'name', label: t('Portfolio'), render: (p) => p.name },
     ...EXTENDED_COLUMNS.map((col) => ({
       key: col.key,
       label: col.label,
@@ -374,9 +374,7 @@ export function WithdrawalRatesCard({ portfolios }: WithdrawalRatesCardProps) {
   return (
     <Card data-testid="withdrawal-rates-card">
       <CardHeader className="pb-3">
-        <CardTitle className="text-h3">
-          {t('components.statisticsTable.groups.withdrawalRate')}
-        </CardTitle>
+        <CardTitle className="text-h3">{t('Withdrawal Rates')}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         {portfolios.map((p, idx) => {

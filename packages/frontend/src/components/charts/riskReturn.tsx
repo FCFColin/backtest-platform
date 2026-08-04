@@ -78,10 +78,10 @@ export const RiskReturnChart = memo(function RiskReturnChart({
 }) {
   const { t } = useTranslation();
   const riskMetrics = [
-    { key: 'stdev' as const, label: t('backtest.stdev') },
-    { key: 'maxDrawdown' as const, label: t('backtest.maxDrawdown') },
-    { key: 'avgDrawdown' as const, label: t('analysis.avgDrawdown') },
-    { key: 'ulcerIndex' as const, label: t('analysis.ulcerIndex') },
+    { key: 'stdev' as const, label: t('Annualized Volatility') },
+    { key: 'maxDrawdown' as const, label: t('Max Drawdown') },
+    { key: 'avgDrawdown' as const, label: t('Avg Drawdown') },
+    { key: 'ulcerIndex' as const, label: t('Ulcer Index') },
   ];
   const [riskMetric, setRiskMetric] = useState<RiskMetricKey>('stdev');
   const scatterData = useMemo(
@@ -93,11 +93,11 @@ export const RiskReturnChart = memo(function RiskReturnChart({
       })),
     [results, riskMetric],
   );
-  const riskLabel = riskMetrics.find((m) => m.key === riskMetric)?.label ?? t('analysis.risk');
+  const riskLabel = riskMetrics.find((m) => m.key === riskMetric)?.label ?? t('Risk');
   return (
     <div className="chart-card">
       <div className="flex items-center gap-4 mb-3">
-        <div className="chart-card-title mb-0">{t('analysis.riskVsReturn')}</div>
+        <div className="chart-card-title mb-0">{t('Risk vs Return')}</div>
         <RiskMetricSelector metrics={riskMetrics} selected={riskMetric} onChange={setRiskMetric} />
       </div>
       <RiskScatterChart data={scatterData} riskLabel={riskLabel} />
@@ -116,8 +116,8 @@ interface RiskScatterPoint {
 function EmptyScatter() {
   const { t } = useTranslation();
   return (
-    <ChartCard title={t('charts.riskReturn.title')}>
-      <ChartEmptyState message={t('charts.riskReturn.noData')} />
+    <ChartCard title={t('Risk vs Return')}>
+      <ChartEmptyState message={t('No data')} />
     </ChartCard>
   );
 }
@@ -130,11 +130,11 @@ export function RiskReturnScatter({ portfolios }: RiskReturnScatterProps) {
     cagr: +(p.statistics.cagr * 100).toFixed(2),
     sharpe: +p.statistics.sharpe.toFixed(2),
   }));
-  const volLabel = t('charts.riskReturn.volatility');
-  const retLabel = t('charts.riskReturn.returnRate');
+  const volLabel = t('Volatility');
+  const retLabel = t('Return');
   return (
     <ChartCard
-      title={t('charts.riskReturn.title')}
+      title={t('Risk vs Return')}
       data={data.map((p): Record<string, string | number> => ({
         name: p.name,
         stdev: p.stdev,
@@ -151,7 +151,7 @@ export function RiskReturnScatter({ portfolios }: RiskReturnScatterProps) {
             dataKey="stdev"
             name={volLabel}
             label={{
-              value: t('charts.riskReturn.volatilityAxis'),
+              value: t('Volatility (%)'),
               position: 'insideBottom',
               offset: -10,
               style: { fill: 'var(--text-muted)', fontSize: 12 },
@@ -163,7 +163,7 @@ export function RiskReturnScatter({ portfolios }: RiskReturnScatterProps) {
             dataKey="cagr"
             name={retLabel}
             label={{
-              value: t('charts.riskReturn.returnAxis'),
+              value: t('Return (%)'),
               angle: -90,
               position: 'insideLeft',
               style: { fill: 'var(--text-muted)', fontSize: 12 },

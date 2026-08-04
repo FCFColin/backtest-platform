@@ -127,7 +127,7 @@ function MetricSelector({
           cursor: 'pointer',
         }}
       >
-        {t('components.customMetricsTable.selectMetrics', {
+        {t('Select Metrics ({{selected}}/{{total}})', {
           selected: selectedKeys.size,
           total: ALL_METRICS.length,
         })}
@@ -172,16 +172,16 @@ export default function CustomMetricsTable({ portfolios }: CustomMetricsTablePro
   const visibleMetrics = ALL_METRICS.filter((m) => selectedKeys.has(m.key));
   if (portfolios.length === 0) {
     return (
-      <ChartCard title={t('tabs.myMetrics')}>
+      <ChartCard title={t('My Metrics')}>
         <div className="text-label" style={{ color: 'var(--text-muted)' }}>
-          {t('components.customMetricsTable.noData')}
+          {t('No data')}
         </div>
       </ChartCard>
     );
   }
   return (
     <ChartCard
-      title={t('tabs.myMetrics')}
+      title={t('My Metrics')}
       headerExtra={<MetricSelector selectedKeys={selectedKeys} onToggle={toggleKey} />}
     >
       {visibleMetrics.length === 0 ? (
@@ -189,7 +189,7 @@ export default function CustomMetricsTable({ portfolios }: CustomMetricsTablePro
           className="text-label"
           style={{ color: 'var(--text-muted)', padding: '20px 0', textAlign: 'center' }}
         >
-          {t('components.customMetricsTable.selectAtLeastOne')}
+          {t('Please select at least one metric')}
         </div>
       ) : (
         <div className="overflow-x-auto">

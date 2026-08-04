@@ -55,7 +55,7 @@ export function MonteCarloTerminalHistogram({
   return (
     <Card className="p-5">
       <h4 className="mb-3 text-heading text-fg-secondary tabular-nums">
-        {t('monteCarlo.histogram.title')}
+        {t('Terminal Value Distribution')}
       </h4>
       <ResponsiveContainer width="100%" height={300}>
         <BarChart data={data}>
@@ -69,13 +69,13 @@ export function MonteCarloTerminalHistogram({
           <Tooltip
             contentStyle={CHART_TOOLTIP_STYLE}
             isAnimationActive={false}
-            formatter={(value: number) => [String(value), t('monteCarlo.histogram.frequency')]}
+            formatter={(value: number) => [String(value), t('Frequency')]}
           />
           <Bar
             dataKey="count"
             fill={CHART_COLORS[0]}
             fillOpacity={0.7}
-            name={t('monteCarlo.histogram.frequency')}
+            name={t('Frequency')}
             radius={[2, 2, 0, 0]}
           />
           {[
@@ -122,9 +122,7 @@ export function MonteCarloSuccessTab({ r }: { r: MonteCarloResult }) {
   if (data.length === 0) {
     return (
       <Card className="p-5">
-        <div className="py-6 text-center text-caption text-fg-tertiary">
-          {t('monteCarlo.results.noData')}
-        </div>
+        <div className="py-6 text-center text-caption text-fg-tertiary">{t('No data')}</div>
       </Card>
     );
   }
@@ -148,7 +146,7 @@ export function MonteCarloSuccessTab({ r }: { r: MonteCarloResult }) {
             dataKey="year"
             tick={TICK_STYLE}
             label={{
-              value: t('monteCarlo.results.years'),
+              value: t('Years'),
               position: 'insideBottom',
               offset: -5,
               fontSize: 12,
@@ -192,9 +190,7 @@ export function MonteCarloRangeTab({
   if (data.length === 0) {
     return (
       <Card className="p-5">
-        <div className="py-6 text-center text-caption text-fg-tertiary">
-          {t('monteCarlo.results.noData')}
-        </div>
+        <div className="py-6 text-center text-caption text-fg-tertiary">{t('No data')}</div>
       </Card>
     );
   }
@@ -202,7 +198,7 @@ export function MonteCarloRangeTab({
     <div className="flex flex-col gap-4">
       <Card className="p-5">
         <h4 className="mb-3 text-sm font-semibold tabular-nums text-fg-secondary">
-          {t('monteCarlo.fanChart.title')}
+          {t('Monte Carlo Fan Chart')}
         </h4>
         <FanChart data={data} />
       </Card>

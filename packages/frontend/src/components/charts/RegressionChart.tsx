@@ -89,24 +89,22 @@ function RegressionScatterChart({
           <ChartXAxis
             type="number"
             dataKey="x"
-            name={t('charts.regression.baseDailyReturn')}
-            label={t('charts.regression.dailyReturnAxis', { name: baseName })}
+            name={t('Benchmark Daily Return')}
+            label={t('{{name}} Daily Return', { name: baseName })}
             tickFormatter={(v: number | string) => `${Number(v).toFixed(2)}%`}
           />
           <ChartYAxis
             type="number"
             dataKey="y"
-            name={t('charts.regression.targetDailyReturn')}
-            label={t('charts.regression.dailyReturnAxis', { name: reg.name })}
+            name={t('Target Daily Return')}
+            label={t('{{name}} Daily Return', { name: reg.name })}
             tickFormatter={(v: number | string) => `${Number(v).toFixed(2)}%`}
           />
           <ChartTooltip
             cursor={false}
             formatter={(value: number, name: string) => {
-              if (name === 'x')
-                return [`${value.toFixed(4)}%`, t('charts.regression.baseDailyReturn')];
-              if (name === 'y')
-                return [`${value.toFixed(4)}%`, t('charts.regression.targetDailyReturn')];
+              if (name === 'x') return [`${value.toFixed(4)}%`, t('Benchmark Daily Return')];
+              if (name === 'y') return [`${value.toFixed(4)}%`, t('Target Daily Return')];
               return [String(value), name];
             }}
             labelFormatter={() => ''}
@@ -140,10 +138,10 @@ function RegressionStatsTable({ reg }: { reg: RegressionWithMeta }) {
     { label: 'R²', value: reg.rSquared.toFixed(4) },
   ];
   const columns: SimpleTableColumn<(typeof rows)[number]>[] = [
-    { key: 'metric', label: t('charts.regression.metric'), render: (r) => r.label },
+    { key: 'metric', label: t('Metric'), render: (r) => r.label },
     {
       key: 'value',
-      label: t('charts.regression.value'),
+      label: t('Value'),
       align: 'right',
       render: (r) => r.value,
     },
@@ -160,18 +158,20 @@ function RegressionResidualChart({ reg, color }: { reg: RegressionWithMeta; colo
   return (
     <div>
       <div className="chart-card-title" style={{ marginTop: '8px' }}>
-        {t('charts.regression.residualChartTitle')}
+        {t('Residual Chart')}
       </div>
       <div className="text-label-tiny mb-2" style={{ color: 'var(--text-muted)' }}>
-        {t('charts.regression.residualDesc')}
+        {t(
+          'Regression residual: the portion of portfolio daily return above/below the regression model prediction',
+        )}
       </div>
       <TimeSeriesLineChart
         data={reg.residuals}
         height={200}
         yTickFormatter={(v) => `${v.toFixed(2)}%`}
-        tooltipValueFormatter={(v) => [`${v.toFixed(4)}%`, t('charts.regression.residual')]}
-        tooltipLabelFormatter={(label) => t('charts.regression.dateLabel', { label })}
-        yLabel={t('charts.regression.residualAxisLabel')}
+        tooltipValueFormatter={(v) => [`${v.toFixed(4)}%`, t('Residual')]}
+        tooltipLabelFormatter={(label) => t('Date: {{label}}', { label })}
+        yLabel={t('Residual')}
         referenceY={0}
         showBrush
         xTickInterval="preserveStartEnd"
@@ -202,7 +202,7 @@ function RegressionPanel({
       : reg.points;
   return (
     <ChartCard
-      title={t('charts.regression.panelTitle', { baseName, targetName: reg.name })}
+      title={t('{{baseName}} vs {{targetName}}', { baseName, targetName: reg.name })}
       data={reg.points.map((p): Record<string, string | number> => ({ x: p.x, y: p.y }))}
       csvFilename={`regression-${reg.name}`}
       style={{ marginBottom: isLast ? 0 : '16px' }}
@@ -234,7 +234,7 @@ export default function RegressionChart({ portfolios }: RegressionChartProps) {
   }, [portfolios, basePortfolio]);
   if (portfolios.length < 2) {
     return (
-      <ChartCard title={t('charts.regression.title')}>
+      <ChartCard title={t('Regression Analysis')}>
         <div
           style={{
             color: 'var(--text-muted)',
@@ -243,7 +243,7 @@ export default function RegressionChart({ portfolios }: RegressionChartProps) {
             textAlign: 'center',
           }}
         >
-          {t('charts.regression.needTwoPortfolios')}
+          {t('At least 2 portfolios required')}
         </div>
       </ChartCard>
     );

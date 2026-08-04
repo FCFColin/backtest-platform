@@ -37,8 +37,6 @@ import type {
   OptimizerFormState,
   OptimizerSectionProps,
 } from './backtestOptimizerUtils.js';
-const INPUT_CLS =
-  'flex h-10 w-full rounded-md bg-input-bg border border-border px-3 py-2 text-body text-fg hover:border-border-strong focus:outline-none focus:border-brand focus:ring-4 focus:ring-brand/15 transition-colors duration-150';
 const OBJECTIVE_OPTIONS: Array<{ value: Objective; labelKey: string }> = [
   { value: 'maxCagr', labelKey: 'backtest.optimizer.maxCagr' },
   { value: 'minMaxDrawdown', labelKey: 'backtest.optimizer.minMaxDrawdown' },
@@ -111,15 +109,14 @@ function BacktestRangeSection({ s }: OptimizerSectionProps) {
   const { t } = useTranslation();
   return (
     <ParamsSection
-      title={t('backtest.optimizer.backtestRange')}
-      info={t('backtest.optimizer.backtestRangeInfo')}
+      title={t('Backtest Range')}
+      info={t('Set the backtest time range for parameter search')}
     >
       <ParamRow>
         {DATE_FIELDS.map((f) => (
           <ParamCard key={f.key} label={t(f.labelKey)}>
-            <input
+            <Input
               type={f.type}
-              className={f.placeholderKey ? `${INPUT_CLS} placeholder:text-fg-tertiary` : INPUT_CLS}
               value={s.form[f.key] as string}
               onChange={(e) => s.patchForm({ [f.key]: e.target.value })}
               placeholder={f.placeholderKey ? t(f.placeholderKey) : undefined}
@@ -137,9 +134,9 @@ function BestMetricsCard({ best, totalCombos }: BestMetricsCardProps) {
   return (
     <div>
       <div className="mb-3 flex items-center justify-between">
-        <div className="text-body font-semibold text-fg">{t('backtest.optimizer.bestCombo')}</div>
+        <div className="text-body font-semibold text-fg">{t('Best Combination')}</div>
         <span className="text-caption text-fg-tertiary">
-          {t('backtest.optimizer.totalCombos', { count: totalCombos })}
+          {t('Total Combinations', { count: totalCombos })}
         </span>
       </div>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -166,9 +163,7 @@ export function OptimizerParams({ s }: OptimizerSectionProps) {
           disabled={s.result.isLoading}
         >
           {s.result.isLoading ? <Loader2 className="animate-spin" /> : <Play />}
-          {s.result.isLoading
-            ? t('backtest.optimizer.optimizing')
-            : t('backtest.optimizer.startOptimize')}
+          {s.result.isLoading ? t('Optimizing...') : t('Start Optimization')}
         </Button>
       </div>
     </ParamsPanel>
@@ -179,7 +174,7 @@ export function OptimizerResults({ s }: OptimizerSectionProps) {
   if (s.result.error) {
     return (
       <Card className="flex items-center justify-center p-6 text-center text-danger">
-        {t('backtest.optimizer.optimizeFailed')}
+        {t('Optimization failed: ')}
         {s.result.error}
       </Card>
     );
@@ -187,7 +182,7 @@ export function OptimizerResults({ s }: OptimizerSectionProps) {
   if (!s.result.results) {
     return (
       <Card className="flex items-center justify-center p-12 text-center text-fg-tertiary">
-        {t('backtest.optimizer.configHint')}
+        {t('Configure parameters on the left and click "Start Optimization" to see results')}
       </Card>
     );
   }
@@ -203,8 +198,8 @@ function PortfolioConfigSection({ s }: OptimizerSectionProps) {
   const { t } = useTranslation();
   return (
     <ParamsSection
-      title={t('backtest.optimizer.portfolioConfig')}
-      info={t('backtest.optimizer.portfolioConfigInfo')}
+      title={t('Portfolio Configuration')}
+      info={t('Add tickers and weights for optimization')}
     >
       <div className="flex flex-col gap-2">
         {s.assets.map((a, i) => (
@@ -213,7 +208,7 @@ function PortfolioConfigSection({ s }: OptimizerSectionProps) {
               type="text"
               value={a.ticker}
               onChange={(e) => s.updateAsset(i, 'ticker', e.target.value)}
-              placeholder={t('backtest.optimizer.tickerPlaceholder')}
+              placeholder={t('Enter ticker, e.g. VTI')}
               className="flex-1"
             />
             <div className="flex items-center gap-1 w-[110px]">
@@ -222,7 +217,7 @@ function PortfolioConfigSection({ s }: OptimizerSectionProps) {
                 className="font-mono tabular-nums"
                 value={a.weight}
                 onChange={(e) => s.updateAsset(i, 'weight', e.target.value)}
-                placeholder={t('backtest.optimizer.weightPlaceholder')}
+                placeholder={t('Enter weight, e.g. 30')}
                 min={0}
                 max={100}
               />
@@ -233,8 +228,8 @@ function PortfolioConfigSection({ s }: OptimizerSectionProps) {
                 variant="destructive"
                 size="icon"
                 onClick={() => s.removeAsset(i)}
-                title={t('backtest.optimizer.delete')}
-                aria-label={t('backtest.optimizer.delete')}
+                title={t('Delete')}
+                aria-label={t('Delete')}
               >
                 <X />
               </Button>
@@ -245,7 +240,7 @@ function PortfolioConfigSection({ s }: OptimizerSectionProps) {
       <div className="mt-2">
         <Button variant="ghost" size="sm" onClick={s.addAsset}>
           <Plus />
-          {t('backtest.optimizer.addTicker')}
+          {t('Add Ticker')}
         </Button>
       </div>
     </ParamsSection>
@@ -256,7 +251,7 @@ function FreqMultiSelect({ s }: OptimizerSectionProps) {
   return (
     <div>
       <div className="mb-1.5 text-caption font-medium text-fg-secondary">
-        {t('backtest.optimizer.rebalanceFreq')}
+        {t('Rebalance Frequency')}
       </div>
       <div className="flex flex-wrap gap-2">
         {FREQ_OPTIONS.map((opt) => {
@@ -280,8 +275,8 @@ function ParameterSpaceSection({ s }: OptimizerSectionProps) {
   const { t } = useTranslation();
   return (
     <ParamsSection
-      title={t('backtest.optimizer.paramSpace')}
-      info={t('backtest.optimizer.paramSpaceInfo')}
+      title={t('Parameter Space')}
+      info={t('Set the search range for rebalance frequency and thresholds')}
     >
       <div className="flex flex-col gap-3">
         <FreqMultiSelect s={s} />
@@ -320,12 +315,9 @@ function ParameterSpaceSection({ s }: OptimizerSectionProps) {
 function ObjectiveSection({ s }: OptimizerSectionProps) {
   const { t } = useTranslation();
   return (
-    <ParamsSection
-      title={t('backtest.optimizer.objective')}
-      info={t('backtest.optimizer.objectiveInfo')}
-    >
+    <ParamsSection title={t('Objective')} info={t('Select optimization objective and constraints')}>
       <ParamRow>
-        <ParamCard label={t('backtest.optimizer.target')}>
+        <ParamCard label={t('Target')}>
           <Select
             value={s.form.objective}
             onValueChange={(v) => s.patchForm({ objective: v as Objective })}
@@ -378,14 +370,12 @@ function GrowthComparisonChart({ best, benchmarkGrowth }: GrowthComparisonChartP
   const chartData = buildChartData(best, benchmarkGrowth);
   if (chartData.length === 0) return null;
   const nameMap: Record<string, string> = {
-    portfolio: t('backtest.optimizer.bestPortfolio'),
-    benchmark: t('backtest.optimizer.benchmark'),
+    portfolio: t('Best Portfolio'),
+    benchmark: t('Benchmark'),
   };
   return (
     <>
-      <div className="mb-3 mt-6 text-body font-semibold text-fg">
-        {t('backtest.optimizer.growthComparison')}
-      </div>
+      <div className="mb-3 mt-6 text-body font-semibold text-fg">{t('Growth Comparison')}</div>
       <SimpleChart
         type="line"
         data={chartData}
@@ -425,7 +415,7 @@ function ComparisonTableSection({ results, objective }: ComparisonTableSectionPr
   return (
     <>
       <div className="mb-3 mt-6 text-body font-semibold text-fg">
-        {t('backtest.optimizer.comparisonTable')}
+        {t('Portfolio Comparison Table')}
       </div>
       {results.length > 0 ? (
         <SortableTable
@@ -436,7 +426,7 @@ function ComparisonTableSection({ results, objective }: ComparisonTableSectionPr
         />
       ) : (
         <div className="py-6 text-center text-body text-fg-tertiary">
-          {t('backtest.optimizer.noConstraintMatch')}
+          {t('No portfolio matches the constraints')}
         </div>
       )}
     </>

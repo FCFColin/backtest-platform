@@ -12,6 +12,7 @@ import { useComputeTool, useListState } from '../../hooks/miscHooks.js';
 import { fmtPct } from '@/utils/format';
 import { cn } from '@/lib/utils';
 import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
+import { lazyNamed } from '@/utils/lazyImport';
 import { Loader2 } from '@/icons/icons.js';
 function useAnalysisPageState() {
   const { t } = useTranslation();
@@ -52,7 +53,8 @@ function useAnalysisPageState() {
         t,
       );
     },
-    () => (tickers.filter(Boolean).length > 0 ? null : t('analysis.errorMinOneTicker')),
+    () =>
+      tickers.filter(Boolean).length > 0 ? null : t('Please enter at least one ticker symbol'),
   );
   return {
     tickers,
@@ -81,33 +83,39 @@ function useAnalysisPageState() {
     runAnalysis,
   };
 }
-const OverviewCharts = lazy(() =>
-  import('../../components/charts/analysis.js').then((m) => ({ default: m.OverviewCharts })),
+const OverviewCharts = lazyNamed(
+  () => import('../../components/charts/analysis.js'),
+  'OverviewCharts',
 );
-const TelltaleChart = lazy(() =>
-  import('../../components/charts/analysis.js').then((m) => ({ default: m.TelltaleChart })),
+const TelltaleChart = lazyNamed(
+  () => import('../../components/charts/analysis.js'),
+  'TelltaleChart',
 );
-const CorrelationMatrixTable = lazy(() =>
-  import('../../components/charts/tables.js').then((m) => ({ default: m.CorrelationMatrixTable })),
+const MonthlyHeatmap = lazyNamed(
+  () => import('../../components/charts/analysis.js'),
+  'MonthlyHeatmap',
 );
-const BetaMatrixTable = lazy(() =>
-  import('../../components/charts/tables.js').then((m) => ({ default: m.BetaMatrixTable })),
+const CorrelationMatrixTable = lazyNamed(
+  () => import('../../components/charts/tables.js'),
+  'CorrelationMatrixTable',
 );
-const RollingCorrelationChart = lazy(() =>
-  import('../../components/charts/rolling.js').then((m) => ({
-    default: m.RollingCorrelationChart,
-  })),
+const BetaMatrixTable = lazyNamed(
+  () => import('../../components/charts/tables.js'),
+  'BetaMatrixTable',
 );
-const RollingMetricsChart = lazy(() =>
-  import('../../components/charts/rolling.js').then((m) => ({ default: m.RollingMetricsChart })),
+const RollingCorrelationChart = lazyNamed(
+  () => import('../../components/charts/rolling.js'),
+  'RollingCorrelationChart',
 );
-const RiskReturnChart = lazy(() =>
-  import('../../components/charts/riskReturn.js').then((m) => ({ default: m.RiskReturnChart })),
+const RollingMetricsChart = lazyNamed(
+  () => import('../../components/charts/rolling.js'),
+  'RollingMetricsChart',
+);
+const RiskReturnChart = lazyNamed(
+  () => import('../../components/charts/riskReturn.js'),
+  'RiskReturnChart',
 );
 const AnnualReturnChart = lazy(() => import('../../components/charts/AnnualReturnChart.js'));
-const MonthlyHeatmap = lazy(() =>
-  import('../../components/charts/analysis.js').then((m) => ({ default: m.MonthlyHeatmap })),
-);
 function TabFallback() {
   return (
     <div className="flex justify-center py-12">
@@ -156,9 +164,9 @@ const AnalysisResultsPanel = memo(function AnalysisResultsPanel({
       error={error}
       isLoading={isLoading}
       hasResults={!!results}
-      errorPrefix={`${t('analysis.analysisFailed')}：`}
-      loadingLabel={t('analysis.analyzing')}
-      emptyTitle={t('analysis.noResultsHint')}
+      errorPrefix={`${t('Analysis Failed')}：`}
+      loadingLabel={t('Analyzing...')}
+      emptyTitle={t('Set parameters and click "Start Analysis" to see results')}
       emptyIcon={LineChart}
     >
       {results && (
@@ -209,28 +217,6 @@ const AnalysisResultsPanel = memo(function AnalysisResultsPanel({
   );
 });
 type AnalysisPageState = ReturnType<typeof useAnalysisPageState>;
-function AnalysisParamsWrapper({ state }: { state: AnalysisPageState }) {
-  return (
-    <AnalysisParamsPanel
-      tickers={state.tickers}
-      setTickers={state.setTickers}
-      startDate={state.startDate}
-      setStartDate={state.setStartDate}
-      endDate={state.endDate}
-      setEndDate={state.setEndDate}
-      startingValue={state.startingValue}
-      setStartingValue={state.setStartingValue}
-      rollingWindow={state.rollingWindow}
-      setRollingWindow={state.setRollingWindow}
-      correlationWindow={state.correlationWindow}
-      setCorrelationWindow={state.setCorrelationWindow}
-      adjustForInflation={state.adjustForInflation}
-      setAdjustForInflation={state.setAdjustForInflation}
-      isLoading={state.isLoading}
-      runAnalysis={state.runAnalysis}
-    />
-  );
-}
 const config: ComputeToolConfig<AnalysisPageState> = {
   titleKey: 'analysis.title',
   seoDescKey: 'analysis.seoDesc',
@@ -244,7 +230,7 @@ const config: ComputeToolConfig<AnalysisPageState> = {
     { titleKey: 'optimizer.title', href: '/optimizer' },
     { titleKey: 'nav.efficientFrontier', href: '/efficient-frontier' },
   ],
-  params: AnalysisParamsWrapper,
+  params: ({ state }) => <AnalysisParamsPanel {...state} />,
   results: AnalysisResultsPanel,
 };
 export default function AnalysisPage() {
@@ -308,12 +294,12 @@ export const StatsTable = memo(function StatsTable({
     if (v === undefined || v === null) return '-';
     if (f === 'pct') return fmtPct(v);
     if (f === 'ratio') return v.toFixed(2);
-    return `${v} ${t('common.days')}`;
+    return `${v} ${t('days')}`;
   };
   return (
     <div className="overflow-x-auto">
       <table className="w-full border-collapse text-body">
-        <StatsTableHeader tickers={tickers} metricLabel={t('common.metric')} />
+        <StatsTableHeader tickers={tickers} metricLabel={t('Metric')} />
         <tbody>
           {cols.map((col, ri) => {
             if (!tickers.some((tk) => tk.statistics[col.key] != null)) return null;

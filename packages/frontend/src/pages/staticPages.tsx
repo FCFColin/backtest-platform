@@ -68,11 +68,17 @@ function AboutContent() {
       <div className="mb-6 flex items-center gap-3">
         <BarChart3 className="size-8 text-brand" />
         <div>
-          <div className="text-h2 font-bold text-fg">{t('about.brandName')}</div>
-          <div className="text-label text-fg-tertiary">{t('about.versionInfo')}</div>
+          <div className="text-h2 font-bold text-fg">{t('Backtest Platform')}</div>
+          <div className="text-label text-fg-tertiary">
+            {t('v1.0.0 · Self-hosted · Full data sovereignty')}
+          </div>
         </div>
       </div>
-      <div className="mb-6 text-body leading-loose text-fg-secondary">{t('about.intro')}</div>
+      <div className="mb-6 text-body leading-loose text-fg-secondary">
+        {t(
+          'The Backtest Platform is an open-source portfolio backtesting tool supporting multiple markets (US/China/HK/Japan/Europe etc.), multiple currencies (USD/CNY), inflation adjustment, FX conversion, Monte Carlo simulation, portfolio optimization, and efficient frontier analysis. All data is stored locally — no registration required, no privacy leakage risk.',
+        )}
+      </div>
       <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(220px,1fr))]">
         {features.map((f) => {
           const Icon = FEATURE_ICONS[f.iconName] ?? Shield;
@@ -87,8 +93,12 @@ function AboutContent() {
         })}
       </div>
       <div className="mt-6 rounded-lg bg-input-bg p-4 text-label text-fg-tertiary">
-        <div className="mb-2 font-semibold text-fg-secondary">{t('about.techStackTitle')}</div>
-        <div>{t('about.techStackContent')}</div>
+        <div className="mb-2 font-semibold text-fg-secondary">{t('Tech Stack')}</div>
+        <div>
+          {t(
+            'Go (backtest engine + data service) · TypeScript (frontend + API) · React + Recharts',
+          )}
+        </div>
       </div>
     </div>
   );
@@ -101,7 +111,9 @@ function LimitsContent() {
   return (
     <div>
       <div className="mb-6 text-body leading-loose text-fg-secondary">
-        {t('about.limits.intro')}
+        {t(
+          'This is a self-hosted edition with no cloud restrictions. The following limits apply only to data fetching and compute resources:',
+        )}
       </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {limits.map((l) => (
@@ -109,8 +121,10 @@ function LimitsContent() {
         ))}
       </div>
       <div className="mt-6 rounded-lg bg-warning/10 p-4 text-label text-fg-secondary">
-        <div className="mb-1 font-semibold">{t('about.limits.noticeTitle')}</div>
-        {t('about.limits.noticeContent')}
+        <div className="mb-1 font-semibold">{t('Note')}</div>
+        {t(
+          'Data fetching is subject to third-party API rate limits. yfinance defaults to 30 req/min; iTick API requires registration for a token. Prefer incremental updates over full refreshes to avoid triggering rate limits.',
+        )}
       </div>
     </div>
   );
@@ -133,7 +147,9 @@ function UpgradeContent() {
   return (
     <div>
       <div className="mb-6 text-body leading-loose text-fg-secondary">
-        {t('about.upgrade.intro')}
+        {t(
+          'The current version already includes all core features. The following are optional enhancement plans:',
+        )}
       </div>
       <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(280px,1fr))]">
         {plans.map((p) => (
@@ -151,7 +167,7 @@ function UpgradeContent() {
             ))}
             {p.current && (
               <div className="mt-4 rounded-lg bg-brand py-2 text-center text-label font-semibold text-brand-fg">
-                {t('about.upgrade.currentPlan')}
+                {t('Current Plan')}
               </div>
             )}
           </div>
@@ -227,15 +243,17 @@ export function ChangelogPage() {
   >;
   const versions = Object.entries(raw).map(([version, v]) => ({ version, ...v }));
   return (
-    <StaticPageShell title={t('changelog.title')}>
+    <StaticPageShell title={t('Changelog')}>
       <div className="mb-6 text-body leading-loose text-fg-secondary">
-        {t('changelog.intro')}
-        <span className="font-semibold text-success"> {t('changelog.added')}</span>
+        {t(
+          'Records major changes across platform versions, sorted in reverse chronological order. Changes are categorized as',
+        )}
+        <span className="font-semibold text-success"> {t('Added')}</span>
         {' · '}
-        <span className="font-semibold text-brand">{t('changelog.improved')}</span>
+        <span className="font-semibold text-brand">{t('Improved')}</span>
         {' · '}
-        <span className="font-semibold text-warning"> {t('changelog.fixed')}</span>
-        {t('changelog.categoriesSuffix')}
+        <span className="font-semibold text-warning"> {t('Fixed')}</span>
+        {t('three types.')}
       </div>
       <div className="relative pl-2">
         <div className="absolute bottom-2 left-[19px] top-2 w-0.5 bg-border-subtle" />
@@ -279,7 +297,7 @@ export function ChangelogPage() {
       </div>
       <div className="mt-2 flex items-center gap-2 rounded-lg bg-input-bg p-4 text-caption text-fg-tertiary">
         <GitCommit className="size-4" />
-        {t('changelog.gitHistoryHint')}
+        {t("For the full commit history, see the project's Git repository.")}
       </div>
     </StaticPageShell>
   );
@@ -295,19 +313,21 @@ function ContactCards() {
       <a href="mailto:support@example.com" className={CONTACT_CLS}>
         <Mail className="size-5 text-brand" />
         <div>
-          <div className="text-body font-semibold">{t('contact.emailSupportTitle')}</div>
+          <div className="text-body font-semibold">{t('Email Support')}</div>
           <div className="text-caption text-fg-tertiary">support@example.com</div>
         </div>
       </a>
       <button
         type="button"
-        onClick={() => addToast('warning', t('contact.githubNotConfigured'))}
+        onClick={() => addToast('warning', t('GitHub repository link not yet configured'))}
         className={CONTACT_CLS}
       >
         <Github className="size-5 text-brand" />
         <div>
-          <div className="text-body font-semibold">{t('contact.githubIssuesTitle')}</div>
-          <div className="text-caption text-fg-tertiary">{t('contact.githubIssuesDesc')}</div>
+          <div className="text-body font-semibold">{t('GitHub Issues')}</div>
+          <div className="text-caption text-fg-tertiary">
+            {t('Submit bugs or feature requests')}
+          </div>
         </div>
       </button>
     </div>
@@ -315,44 +335,46 @@ function ContactCards() {
 }
 export function ContactPage() {
   const { t } = useTranslation();
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [message, setMessage] = useState('');
+  const [form, setForm] = useState({ name: '', email: '', message: '' });
   const addToast = useToastStore((s) => s.addToast);
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !email.trim() || !message.trim()) {
-      addToast('warning', t('contact.fillAllFields'));
+    if (!form.name.trim() || !form.email.trim() || !form.message.trim()) {
+      addToast('warning', t('Please fill in all fields'));
       return;
     }
-    const subject = encodeURIComponent(`[Feedback] ${name} - ${message.slice(0, 30)}...`);
-    const body = encodeURIComponent(`Name: ${name}\nEmail: ${email}\n\n${message}`);
+    const subject = encodeURIComponent(`[Feedback] ${form.name} - ${form.message.slice(0, 30)}...`);
+    const body = encodeURIComponent(`Name: ${form.name}\nEmail: ${form.email}\n\n${form.message}`);
     window.location.href = `mailto:support@example.com?subject=${subject}&body=${body}`;
-    addToast('success', t('contact.openingMailClient'));
+    addToast('success', t('Opening mail client...'));
   };
   return (
-    <StaticPageShell title={t('contact.title')} cardClassName="max-w-3xl p-6">
-      <p className="mb-6 text-fg-tertiary">{t('contact.intro')}</p>
+    <StaticPageShell title={t('Contact Us')} cardClassName="max-w-3xl p-6">
+      <p className="mb-6 text-fg-tertiary">
+        {t(
+          'We welcome your feedback, suggestions, and bug reports. Please reach out via the following channels.',
+        )}
+      </p>
       <ContactCards />
       <form onSubmit={handleSubmit}>
         <div className="mb-4 flex items-center gap-2 text-body font-semibold text-fg">
           <MessageSquare className="size-4" />
-          {t('contact.feedbackTitle')}
+          {t('Send Feedback')}
         </div>
         <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
           {[
             {
               id: 'contact-name',
               type: 'text',
-              value: name,
-              onChange: setName,
+              value: form.name,
+              onChange: (v: string) => setForm((p) => ({ ...p, name: v })),
               ph: 'contact.namePlaceholder',
             },
             {
               id: 'contact-email',
               type: 'email',
-              value: email,
-              onChange: setEmail,
+              value: form.email,
+              onChange: (v: string) => setForm((p) => ({ ...p, email: v })),
               ph: 'contact.emailPlaceholder',
             },
           ].map((f) => (
@@ -369,19 +391,21 @@ export function ContactPage() {
           ))}
         </div>
         <Field className="mb-4">
-          <FieldLabel htmlFor="contact-message">{t('contact.messagePlaceholder')}</FieldLabel>
+          <FieldLabel htmlFor="contact-message">
+            {t('Describe your feedback or issue...')}
+          </FieldLabel>
           <textarea
             id="contact-message"
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            placeholder={t('contact.messagePlaceholder')}
+            value={form.message}
+            onChange={(e) => setForm((p) => ({ ...p, message: e.target.value }))}
+            placeholder={t('Describe your feedback or issue...')}
             className="w-full resize-y rounded-md border border-border bg-input-bg px-3 py-2 text-body text-fg placeholder:text-fg-tertiary transition-colors hover:border-border-strong focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/15"
             style={{ minHeight: 120 }}
           />
         </Field>
         <Button type="submit" variant="primary">
           <Mail className="size-4" />
-          {t('contact.submit')}
+          {t('Send Feedback')}
         </Button>
       </form>
     </StaticPageShell>

@@ -69,17 +69,14 @@ function LETFKpiCards({ results }: { results: LETFResult }) {
   return (
     <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
       <KpiCard
-        label={t('letf.results.kpiAnnualDecay')}
+        label={t('Annual Decay')}
         value={fmtPct(results.annualDecay)}
         danger={results.annualDecay < 0}
       />
+      <KpiCard label={t('Benchmark Return')} value={fmtPct(results.stats.benchmarkReturn)} />
+      <KpiCard label={t('LETF Return')} value={fmtPct(results.stats.letfReturn)} />
       <KpiCard
-        label={t('letf.results.kpiBenchmarkReturn')}
-        value={fmtPct(results.stats.benchmarkReturn)}
-      />
-      <KpiCard label={t('letf.results.kpiLetfReturn')} value={fmtPct(results.stats.letfReturn)} />
-      <KpiCard
-        label={t('letf.results.kpiTotalSlippage')}
+        label={t('Total Slippage')}
         value={fmtPct(results.stats.slippage)}
         danger={results.stats.slippage < 0}
       />
@@ -91,7 +88,7 @@ export function SlippageCurveChart({ data }: { data: SlippageCurveDataPoint[] })
   const isLargeDataset = data.length >= 100;
   const seriesAnimationActive = !isLargeDataset;
   return (
-    <ChartCard title={t('letf.results.slippageCurve')}>
+    <ChartCard title={t('Slippage Curve')}>
       <ResponsiveContainer width="100%" height={350}>
         <LineChart data={data} margin={CHART_MARGIN}>
           <CartesianGrid {...CHART_GRID_PROPS} />
@@ -99,7 +96,7 @@ export function SlippageCurveChart({ data }: { data: SlippageCurveDataPoint[] })
           <YAxis tick={AXIS_TICK_STYLE} tickFormatter={(v: number) => `${v.toFixed(1)}%`} />
           <Tooltip
             contentStyle={CHART_TOOLTIP_STYLE}
-            labelFormatter={(label: string) => t('letf.results.slippageDateLabel', { date: label })}
+            labelFormatter={(label: string) => t('Date: {{date}}', { date: label })}
             formatter={(value: number) => [`${value.toFixed(2)}%`, '']}
             isAnimationActive={!isLargeDataset}
             animationDuration={isLargeDataset ? 0 : 150}
@@ -109,7 +106,7 @@ export function SlippageCurveChart({ data }: { data: SlippageCurveDataPoint[] })
           <Line
             type="monotone"
             dataKey="cumulative"
-            name={t('letf.results.cumulativeSlippage')}
+            name={t('Cumulative Slippage')}
             stroke={CHART_COLORS[0]}
             strokeWidth={2}
             dot={false}
@@ -119,7 +116,7 @@ export function SlippageCurveChart({ data }: { data: SlippageCurveDataPoint[] })
           <Line
             type="monotone"
             dataKey="daily"
-            name={t('letf.results.dailySlippage')}
+            name={t('Daily Slippage')}
             stroke={CHART_COLORS[1]}
             strokeWidth={1}
             dot={false}
@@ -143,7 +140,7 @@ export function LeverageComparisonChart({
   const isLargeDataset = data.length >= 100;
   const seriesAnimationActive = !isLargeDataset;
   return (
-    <ChartCard title={t('letf.results.leverageComparison')}>
+    <ChartCard title={t('Effective vs Nominal Leverage')}>
       <ResponsiveContainer width="100%" height={300}>
         <LineChart data={data} margin={CHART_MARGIN}>
           <CartesianGrid {...CHART_GRID_PROPS} />
@@ -151,7 +148,7 @@ export function LeverageComparisonChart({
           <YAxis tick={AXIS_TICK_STYLE} tickFormatter={(v: number) => `${v.toFixed(1)}x`} />
           <Tooltip
             contentStyle={CHART_TOOLTIP_STYLE}
-            labelFormatter={(label: string) => t('letf.results.leverageDateLabel', { date: label })}
+            labelFormatter={(label: string) => t('Date: {{date}}', { date: label })}
             formatter={(value: number) => [`${value.toFixed(2)}x`, '']}
             isAnimationActive={!isLargeDataset}
             animationDuration={isLargeDataset ? 0 : 150}
@@ -160,7 +157,7 @@ export function LeverageComparisonChart({
           <Line
             type="monotone"
             dataKey="nominal"
-            name={t('letf.results.nominalLeverage', { leverage })}
+            name={t('Nominal Leverage ({{leverage}}x)', { leverage })}
             stroke="var(--fg-tertiary)"
             strokeWidth={1.5}
             strokeDasharray="6 3"
@@ -170,7 +167,7 @@ export function LeverageComparisonChart({
           <Line
             type="monotone"
             dataKey="effective"
-            name={t('letf.results.effectiveLeverage')}
+            name={t('Effective Leverage')}
             stroke={CHART_COLORS[2]}
             strokeWidth={1.5}
             dot={false}
@@ -191,13 +188,13 @@ function buildStatColumns(t: TFunction): Column<StatRow>[] {
   return [
     {
       key: 'metric',
-      label: t('letf.stats.metric'),
+      label: t('Metric'),
       render: (r) => t(r.metric),
       sortValue: (r) => t(r.metric),
     },
     {
       key: 'value',
-      label: t('letf.stats.value'),
+      label: t('Value'),
       sortValue: (r) => r.value,
       render: (r) => (
         <span className="font-mono font-semibold tabular-nums text-fg">{fmtPct(r.value)}</span>
@@ -219,7 +216,7 @@ export function LETFStatsTable({ results }: { results: LETFResult }) {
   const columns = buildStatColumns(t);
   const rows = buildStatRows(results);
   return (
-    <ChartCard title={t('letf.results.comparisonStats')}>
+    <ChartCard title={t('Comparison Statistics')}>
       <SortableTable columns={columns} data={rows} initialSortKey="value" initialSortDir="desc" />
     </ChartCard>
   );
@@ -253,8 +250,8 @@ export function LETFResultsPanel({ results, error, isLoading, leverage }: LETFRe
       error={error}
       isLoading={isLoading}
       hasResults={!!results}
-      errorPrefix={t('letf.analysisFailedPrefix')}
-      emptyTitle={t('letf.emptyHint')}
+      errorPrefix={t('Analysis failed: ')}
+      emptyTitle={t('Set parameters and click "Run Analysis" to view results')}
     >
       {results && (
         <div className="flex flex-col gap-4">

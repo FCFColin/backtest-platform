@@ -77,13 +77,13 @@ function PortfolioModeToggle({ s }: { s: McState }) {
   const { portfolioMode, setPortfolioMode } = s;
   return (
     <Field>
-      <FieldLabel>{t('monteCarlo.params.portfolioCount')}</FieldLabel>
+      <FieldLabel>{t('Portfolio Count')}</FieldLabel>
       <SegmentedControl<PortfolioMode>
         value={portfolioMode}
         onChange={setPortfolioMode}
         options={([1, 2] as PortfolioMode[]).map((mode) => ({
           value: mode,
-          label: t('monteCarlo.params.portfolioModeN', { mode }),
+          label: t('Mode {{mode}}', { mode }),
         }))}
       />
     </Field>
@@ -97,8 +97,8 @@ function PortfolioConfigSection({ s }: { s: McState }) {
   return (
     <section className="flex flex-col gap-3">
       <SectionHeader
-        title={t('monteCarlo.params.portfolioConfigTitle')}
-        info={t('monteCarlo.params.portfolioConfigInfo')}
+        title={t('Portfolio Configuration')}
+        info={t('Add tickers and weights for simulation')}
       />
       <PortfolioModeToggle s={s} />
       <div className="flex flex-col gap-3">
@@ -162,9 +162,9 @@ function BasicField({ t, cfg }: { t: TFunction; cfg: FieldConfig }) {
     </Field>
   );
 }
-function SimDateAndCountFields({ s }: { s: McState }) {
+function SimParamsSection({ s }: { s: McState }) {
   const { t } = useTranslation();
-  const numFields: FieldConfig[] = [
+  const fields: FieldConfig[] = [
     {
       labelKey: 'monteCarlo.params.startDate',
       value: s.startDate,
@@ -196,12 +196,6 @@ function SimDateAndCountFields({ s }: { s: McState }) {
       type: 'number',
       prefix: '$',
     },
-  ];
-  return numFields.map((cfg) => <BasicField key={cfg.labelKey} t={t} cfg={cfg} />);
-}
-function SimBlockAndSeedFields({ s }: { s: McState }) {
-  const { t } = useTranslation();
-  const blockFields: FieldConfig[] = [
     {
       labelKey: 'monteCarlo.params.minBlock',
       value: s.minBlock,
@@ -220,32 +214,27 @@ function SimBlockAndSeedFields({ s }: { s: McState }) {
       labelKey: 'monteCarlo.params.randomSeed',
       value: s.randomSeed,
       onChange: s.setRandomSeed,
-      placeholder: t('monteCarlo.params.randomSeedPlaceholder'),
+      placeholder: t('Leave empty to use a random seed'),
     },
   ];
-  return [
-    ...blockFields.map((cfg) => <BasicField key={cfg.labelKey} t={t} cfg={cfg} />),
-    <Field key="withReplacement">
-      <FieldLabel>{t('monteCarlo.params.withReplacement')}</FieldLabel>
-      <Checkbox
-        id="mc-with-replacement"
-        checked={s.withReplacement}
-        onCheckedChange={(c) => s.setWithReplacement(c === true)}
-      />
-    </Field>,
-  ];
-}
-function SimParamsSection({ s }: { s: McState }) {
-  const { t } = useTranslation();
   return (
     <section className="flex flex-col gap-3">
       <SectionHeader
-        title={t('monteCarlo.params.simParamsTitle')}
-        info={t('monteCarlo.params.simParamsInfo')}
+        title={t('Simulation Parameters')}
+        info={t('Set simulation years, count, block size and random seed')}
       />
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <SimDateAndCountFields s={s} />
-        <SimBlockAndSeedFields s={s} />
+        {fields.map((cfg) => (
+          <BasicField key={cfg.labelKey} t={t} cfg={cfg} />
+        ))}
+        <Field>
+          <FieldLabel>{t('With Replacement')}</FieldLabel>
+          <Checkbox
+            id="mc-with-replacement"
+            checked={s.withReplacement}
+            onCheckedChange={(c) => s.setWithReplacement(c === true)}
+          />
+        </Field>
       </div>
     </section>
   );
@@ -256,21 +245,18 @@ function BuildModeSection({ s }: { s: McState }) {
   const modes = [
     {
       value: 'standard' as const,
-      label: t('monteCarlo.params.standardMode'),
-      desc: t('monteCarlo.params.standardModeDesc'),
+      label: t('Standard Mode'),
+      desc: t('Run standard Monte Carlo simulation'),
     },
     {
       value: 'frontier' as const,
-      label: t('monteCarlo.params.frontierMode'),
-      desc: t('monteCarlo.params.frontierModeDesc'),
+      label: t('Frontier Mode'),
+      desc: t('Generate efficient frontier showing risk-return tradeoffs'),
     },
   ];
   return (
     <section className="flex flex-col gap-3">
-      <SectionHeader
-        title={t('monteCarlo.params.buildModeTitle')}
-        info={t('monteCarlo.params.buildModeInfo')}
-      />
+      <SectionHeader title={t('Build Mode')} info={t('Choose standard mode or frontier mode')} />
       <div className="flex flex-col gap-2">
         {modes.map((opt) => (
           <label
@@ -300,26 +286,18 @@ function DualGoalSection({ s }: { s: McState }) {
   return (
     <section className="flex flex-col gap-3">
       <SectionHeader
-        title={t('monteCarlo.params.dualGoalTitle')}
-        info={t('monteCarlo.params.dualGoalInfo')}
+        title={t('Dual-Goal Optimization')}
+        info={t(
+          'Set two objectives and their weights; the system will perform weighted optimization',
+        )}
       />
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <SelectField
-          label={t('monteCarlo.params.goal1')}
-          value={goal1}
-          onChange={setGoal1}
-          options={goalOptions}
-        />
-        <SelectField
-          label={t('monteCarlo.params.goal2')}
-          value={goal2}
-          onChange={setGoal2}
-          options={goalOptions}
-        />
+        <SelectField label={t('Goal 1')} value={goal1} onChange={setGoal1} options={goalOptions} />
+        <SelectField label={t('Goal 2')} value={goal2} onChange={setGoal2} options={goalOptions} />
       </div>
       <Field>
         <div className="flex items-center justify-between">
-          <FieldLabel>{t('monteCarlo.params.goal1Weight')}</FieldLabel>
+          <FieldLabel>{t('Goal 1 Weight')}</FieldLabel>
           <span className="font-mono text-caption tabular-nums text-fg">
             {goalWeight}% : {100 - goalWeight}%
           </span>
@@ -358,8 +336,8 @@ function McParamsPanel({ s }: { s: McState }) {
       <RunButton
         isLoading={s.isLoading}
         onClick={s.runSimulation}
-        label={t('monteCarlo.params.startSim')}
-        loadingLabel={t('monteCarlo.params.simulating')}
+        label={t('RUN SIMULATION')}
+        loadingLabel={t('Simulating...')}
       />
     </div>
   );

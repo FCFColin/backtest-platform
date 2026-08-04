@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { FormEvent, CSSProperties } from 'react';
+import type { FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { Users, Loader2, Mail, Send, Trash2 } from 'lucide-react';
@@ -7,94 +7,20 @@ import { StandardPageShell } from '../components/shells/index.js';
 import { useAuthStore } from '@/store/authStore';
 import { ErrorBanner } from '@/components/stateDisplay';
 import { useOrgMembersState } from './org/hooks/useOrgMembersState.js';
-import {
-  ROLES,
-  TABLE_TD,
-  TABLE_TH,
-  type Invitation,
-  type Member,
-  type Role,
-} from './org/orgTypes.js';
-interface MembersContentProps {
-  members: Member[];
-  invitations: Invitation[];
-  loading: boolean;
-  error: string | null;
-  isAdmin: boolean;
-  busy: boolean;
-  inviteEmail: string;
-  inviteRole: Role;
-  onChangeRole: (userId: string, role: string) => void;
-  onRemoveMember: (userId: string) => void;
-  onInviteEmailChange: (v: string) => void;
-  onInviteRoleChange: (r: Role) => void;
-  onSendInvite: (e: FormEvent) => void;
-  onRevokeInvite: (id: string) => void;
-}
-function MembersContent({
-  members,
-  invitations,
-  loading,
-  error,
-  isAdmin,
-  busy,
-  inviteEmail,
-  inviteRole,
-  onChangeRole,
-  onRemoveMember,
-  onInviteEmailChange,
-  onInviteRoleChange,
-  onSendInvite,
-  onRevokeInvite,
-}: MembersContentProps) {
-  if (error) {
-    return <ErrorBanner message={error} style={{ marginBottom: 14 }} />;
-  }
-  if (loading) {
-    return (
-      <div style={{ padding: 30, textAlign: 'center', color: 'var(--text-muted)' }}>
-        <Loader2 className="w-5 h-5 animate-spin" style={{ margin: '0 auto' }} />
-      </div>
-    );
-  }
-  return (
-    <>
-      <MemberTable
-        members={members}
-        isAdmin={isAdmin}
-        busy={busy}
-        onChangeRole={onChangeRole}
-        onRemoveMember={onRemoveMember}
-      />
-      {isAdmin && (
-        <InviteDialog
-          invitations={invitations}
-          inviteEmail={inviteEmail}
-          inviteRole={inviteRole}
-          busy={busy}
-          onInviteEmailChange={onInviteEmailChange}
-          onInviteRoleChange={onInviteRoleChange}
-          onSendInvite={onSendInvite}
-          onRevokeInvite={onRevokeInvite}
-        />
-      )}
-    </>
-  );
-}
+import { ROLES, type Invitation, type Member, type Role } from './org/orgTypes.js';
+const TH = 'text-left text-xs font-semibold text-[var(--text-muted)] px-[10px] py-2';
+const TD = 'text-[13px] text-[var(--text-body)] py-2 px-[10px]';
 function UnauthedMembers() {
   const { t } = useTranslation();
   return (
-    <div className="bt-page" style={{ maxWidth: 720, margin: '0 auto' }}>
-      <div
-        className="bt-main-card card"
-        style={{ padding: 28, marginTop: 40, textAlign: 'center' }}
-      >
-        <p style={{ color: 'var(--text-muted)' }}>
-          {t('orgMembers.unauthed.prefix')}{' '}
-          <Link to="/login" style={{ color: 'hsl(var(--brand))' }}>
-            {t('orgMembers.unauthed.login')}
+    <div className="bt-page max-w-[720px]">
+      <div className="bt-main-card card p-7 mt-10 text-center">
+        <p className="text-[var(--text-muted)]">
+          {t('Please')}{' '}
+          <Link to="/login" className="text-brand">
+            {t('log in')}
           </Link>{' '}
-          {t('orgMembers.unauthed.suffix')}
+          {t('to manage organization members.')}
         </p>
       </div>
     </div>
@@ -132,29 +58,42 @@ export default function OrgMembersPage() {
     <StandardPageShell
       config={{
         titleKey: 'orgMembers.title',
-        headerExtra: <Users className="w-5 h-5" style={{ color: 'hsl(var(--brand))' }} />,
+        headerExtra: <Users className="w-5 h-5 text-brand" />,
       }}
     >
-      <div className="bt-main-card card" style={{ padding: 24, marginTop: 28 }}>
-        <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '0 0 16px' }}>
-          {org ? `${t('orgMembers.orgLabel')}${org.name}` : t('orgMembers.orgLabel')}
+      <div className="bt-main-card card p-6 mt-7">
+        <p className="text-[13px] text-[var(--text-muted)] mb-4">
+          {org ? `${t('Organization:')}${org.name}` : t('Organization:')}
         </p>
-        <MembersContent
-          members={members}
-          invitations={invitations}
-          loading={loading}
-          error={error}
-          isAdmin={isAdmin}
-          busy={busy}
-          inviteEmail={inviteEmail}
-          inviteRole={inviteRole}
-          onChangeRole={changeRole}
-          onRemoveMember={removeMember}
-          onInviteEmailChange={setInviteEmail}
-          onInviteRoleChange={setInviteRole}
-          onSendInvite={handleSubmitInvite}
-          onRevokeInvite={revokeInvite}
-        />
+        {error ? (
+          <ErrorBanner message={error} style={{ marginBottom: 14 }} />
+        ) : loading ? (
+          <div className="p-[30px] text-center text-[var(--text-muted)]">
+            <Loader2 className="w-5 h-5 animate-spin mx-auto" />
+          </div>
+        ) : (
+          <>
+            <MemberTable
+              members={members}
+              isAdmin={isAdmin}
+              busy={busy}
+              onChangeRole={changeRole}
+              onRemoveMember={removeMember}
+            />
+            {isAdmin && (
+              <InviteDialog
+                invitations={invitations}
+                inviteEmail={inviteEmail}
+                inviteRole={inviteRole}
+                busy={busy}
+                onInviteEmailChange={setInviteEmail}
+                onInviteRoleChange={setInviteRole}
+                onSendInvite={handleSubmitInvite}
+                onRevokeInvite={revokeInvite}
+              />
+            )}
+          </>
+        )}
       </div>
     </StandardPageShell>
   );
@@ -164,16 +103,14 @@ interface RoleSelectProps {
   disabled?: boolean;
   onChange: (role: Role) => void;
   className?: string;
-  style?: CSSProperties;
 }
-function RoleSelect({ value, disabled, onChange, className, style }: RoleSelectProps) {
+function RoleSelect({ value, disabled, onChange, className }: RoleSelectProps) {
   return (
     <select
       value={value}
       disabled={disabled}
       onChange={(e) => onChange(e.target.value as Role)}
       className={className}
-      style={style}
     >
       {ROLES.map((r) => (
         <option key={r} value={r}>
@@ -194,46 +131,40 @@ function MemberTable({ members, isAdmin, busy, onChangeRole, onRemoveMember }: M
   const { t } = useTranslation();
   return (
     <div className="overflow-x-auto">
-      <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 24 }}>
+      <table className="w-full border-collapse mb-6">
         <thead>
           <tr>
-            <th style={TABLE_TH}>{t('orgMembers.table.user')}</th>
-            <th style={TABLE_TH}>{t('orgMembers.table.email')}</th>
-            <th style={TABLE_TH}>{t('orgMembers.table.role')}</th>
-            {isAdmin && <th style={TABLE_TH}>{t('orgMembers.table.action')}</th>}
+            <th className={TH}>{t('User')}</th>
+            <th className={TH}>{t('Email')}</th>
+            <th className={TH}>{t('Role')}</th>
+            {isAdmin && <th className={TH}>{t('Action')}</th>}
           </tr>
         </thead>
         <tbody>
           {members.map((m) => (
             <tr key={m.userId}>
-              <td style={TABLE_TD}>{m.username}</td>
-              <td style={TABLE_TD}>{m.email ?? '-'}</td>
-              <td style={TABLE_TD}>
+              <td className={TD}>{m.username}</td>
+              <td className={TD}>{m.email ?? '-'}</td>
+              <td className={TD}>
                 {isAdmin && m.role !== 'owner' ? (
                   <RoleSelect
                     value={m.role}
                     disabled={busy}
                     onChange={(r) => void onChangeRole(m.userId, r)}
-                    className="bg-input-bg text-fg border border-border-subtle rounded font-medium"
-                    style={{ height: 32 }}
+                    className="bg-input-bg text-fg border border-border-subtle rounded font-medium h-[32px]"
                   />
                 ) : (
-                  <span style={{ textTransform: 'capitalize' }}>{m.role}</span>
+                  <span className="capitalize">{m.role}</span>
                 )}
               </td>
               {isAdmin && (
-                <td style={TABLE_TD}>
+                <td className={TD}>
                   {m.role !== 'owner' && (
                     <button
                       onClick={() => void onRemoveMember(m.userId)}
                       disabled={busy}
-                      title={t('orgMembers.invite.removeTitle')}
-                      style={{
-                        background: 'none',
-                        border: 'none',
-                        cursor: 'pointer',
-                        color: 'var(--danger, #dc2626)',
-                      }}
+                      title={t('Remove Member')}
+                      className="bg-transparent border-0 cursor-pointer text-danger"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -270,18 +201,8 @@ function InviteDialog({
   const { t } = useTranslation();
   return (
     <div>
-      <h2
-        style={{
-          fontSize: 15,
-          fontWeight: 700,
-          color: 'var(--text-strong)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          marginBottom: 12,
-        }}
-      >
-        <Mail className="w-4 h-4" /> {t('orgMembers.invite.title')}
+      <h2 className="text-[15px] font-bold text-[var(--text-strong)] flex items-center gap-2 mb-3">
+        <Mail className="w-4 h-4" /> {t('Invite Member')}
       </h2>
       <InviteForm
         inviteEmail={inviteEmail}
@@ -315,38 +236,26 @@ function InviteForm({
 }: InviteFormProps) {
   const { t } = useTranslation();
   return (
-    <form
-      onSubmit={(e) => void onSendInvite(e)}
-      style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}
-    >
+    <form onSubmit={(e) => void onSendInvite(e)} className="flex gap-2 mb-4 flex-wrap">
       <input
         type="email"
         required
-        placeholder={t('orgMembers.invite.emailPlaceholder')}
+        placeholder={t('Invite email')}
         value={inviteEmail}
         onChange={(e) => onInviteEmailChange(e.target.value)}
-        className="bg-input-bg text-fg border border-border-subtle rounded font-medium"
-        style={{ height: 38, flex: '1 1 220px' }}
+        className="bg-input-bg text-fg border border-border-subtle rounded font-medium h-[38px] flex-[1_1_220px]"
       />
       <RoleSelect
         value={inviteRole}
         onChange={onInviteRoleChange}
-        className="bg-input-bg text-fg border border-border-subtle rounded font-medium"
-        style={{ height: 38 }}
+        className="bg-input-bg text-fg border border-border-subtle rounded font-medium h-[38px]"
       />
       <button
         type="submit"
         disabled={busy}
-        className="main-action-btn"
-        style={{
-          height: 38,
-          padding: '0 16px',
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: 6,
-        }}
+        className="main-action-btn h-[38px] px-4 inline-flex items-center gap-1.5"
       >
-        <Send className="w-4 h-4" /> {t('orgMembers.invite.send')}
+        <Send className="w-4 h-4" /> {t('Send Invitation')}
       </button>
     </form>
   );
@@ -360,35 +269,28 @@ function InvitationTable({ invitations, busy, onRevokeInvite }: InvitationTableP
   const { t } = useTranslation();
   return (
     <div className="overflow-x-auto">
-      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+      <table className="w-full border-collapse">
         <thead>
           <tr>
-            <th style={TABLE_TH}>{t('orgMembers.invite.tableEmail')}</th>
-            <th style={TABLE_TH}>{t('orgMembers.invite.tableRole')}</th>
-            <th style={TABLE_TH}>{t('orgMembers.invite.tableStatus')}</th>
-            <th style={TABLE_TH}>{t('orgMembers.invite.tableAction')}</th>
+            <th className={TH}>{t('Email')}</th>
+            <th className={TH}>{t('Role')}</th>
+            <th className={TH}>{t('Status')}</th>
+            <th className={TH}>{t('Action')}</th>
           </tr>
         </thead>
         <tbody>
           {invitations.map((inv) => (
             <tr key={inv.id}>
-              <td style={TABLE_TD}>{inv.email}</td>
-              <td style={TABLE_TD}>{inv.role}</td>
-              <td style={TABLE_TD}>
-                {inv.acceptedAt ? t('orgMembers.invite.accepted') : t('orgMembers.invite.pending')}
-              </td>
-              <td style={TABLE_TD}>
+              <td className={TD}>{inv.email}</td>
+              <td className={TD}>{inv.role}</td>
+              <td className={TD}>{inv.acceptedAt ? t('Accepted') : t('Pending')}</td>
+              <td className={TD}>
                 {!inv.acceptedAt && (
                   <button
                     onClick={() => void onRevokeInvite(inv.id)}
                     disabled={busy}
-                    title={t('orgMembers.invite.revokeTitle')}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      cursor: 'pointer',
-                      color: 'var(--danger, #dc2626)',
-                    }}
+                    title={t('Revoke Invitation')}
+                    className="bg-transparent border-0 cursor-pointer text-danger"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>

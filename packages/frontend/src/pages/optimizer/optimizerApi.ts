@@ -68,7 +68,7 @@ export async function runOptimizeApi(
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const json = await res.json();
-  if (json.success === false) throw new Error(json.error || t('optimizer.optFailed'));
+  if (json.success === false) throw new Error(json.error || t('Optimization Failed'));
   return json.data ?? json;
 }
 export async function fetchStats(
@@ -80,7 +80,7 @@ export async function fetchStats(
   const btBody = {
     portfolios: [
       {
-        name: t('optimizer.optimalPortfolio'),
+        name: t('Optimal Portfolio'),
         assets: weights.map(([tk, w]) => ({ ticker: tk, weight: Math.round(w * 10000) / 100 })),
         rebalanceFrequency: 'quarterly',
         rebalanceOffset: 0,
@@ -115,7 +115,7 @@ export function loadInBacktesterAction(
     portfolios: [
       {
         id: `portfolio-${Date.now()}-1`,
-        name: t('optimizer.optimalPortfolio'),
+        name: t('Optimal Portfolio'),
         assets: weights.map(([tk, w]) => ({ ticker: tk, weight: Math.round(w * 10000) / 100 })),
         rebalanceFrequency: 'quarterly',
         rebalanceOffset: 0,

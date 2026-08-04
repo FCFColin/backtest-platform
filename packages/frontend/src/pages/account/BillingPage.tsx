@@ -6,6 +6,8 @@ import { useTranslation } from 'react-i18next';
 import { apiFetch } from '@/utils/apiClient';
 import { useAuthStore } from '@/store/authStore';
 import { ErrorBanner } from '@/components/stateDisplay';
+import { cn } from '@/lib/utils';
+
 interface SubscriptionSummary {
   plan: string;
   status: string;
@@ -29,26 +31,26 @@ const usePlans = (): PlanDef[] => {
     {
       id: 'pro',
       name: 'Pro',
-      price: t('account.billing.plans.pro.price'),
+      price: t('$29/mo'),
       features: [
-        t('account.billing.plans.pro.feature1'),
-        t('account.billing.plans.pro.feature2'),
-        t('account.billing.plans.pro.feature3'),
+        t('Advanced backtest features'),
+        t('Unlimited portfolios'),
+        t('10 years of historical data'),
       ],
     },
     {
       id: 'enterprise',
       name: 'Enterprise',
-      price: t('account.billing.plans.enterprise.price'),
+      price: t('Contact Us'),
       features: [
-        t('account.billing.plans.enterprise.feature1'),
-        t('account.billing.plans.enterprise.feature2'),
-        t('account.billing.plans.enterprise.feature3'),
+        t('Unlimited portfolios and backtests'),
+        t('API access (REST + WebSocket)'),
+        t('24/7 priority support'),
       ],
     },
   ];
 };
-// eslint-disable-next-line max-lines-per-function -- 套餐卡片渲染含价格/特性/按钮多区块，内聚保留
+
 function PlanCard({
   plan,
   active,
@@ -64,48 +66,16 @@ function PlanCard({
 }) {
   const { t } = useTranslation();
   return (
-    <div
-      className="card"
-      style={{
-        padding: 18,
-        border: active ? '2px solid var(--brand)' : '1px solid var(--border, #e5e7eb)',
-      }}
-    >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-        <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-strong)', margin: 0 }}>
-          {plan.name}
-        </h3>
-        {active && (
-          <span style={{ fontSize: 11, color: 'var(--brand)', fontWeight: 600 }}>
-            {t('account.billing.current')}
-          </span>
-        )}
+    <div className={cn('card p-[18px]', active ? 'border-2 border-brand' : 'border border-border')}>
+      <div className="flex justify-between items-baseline">
+        <h3 className="text-base font-bold text-fg-strong m-0">{plan.name}</h3>
+        {active && <span className="text-[11px] text-brand font-semibold">{t('Current')}</span>}
       </div>
-      <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-strong)', margin: '8px 0' }}>
-        {plan.price}
-      </div>
-      <ul
-        style={{
-          listStyle: 'none',
-          padding: 0,
-          margin: '0 0 14px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 6,
-        }}
-      >
+      <div className="text-lg font-bold text-fg-strong my-2">{plan.price}</div>
+      <ul className="list-none p-0 m-0 mb-3.5 flex flex-col gap-1.5">
         {plan.features.map((f) => (
-          <li
-            key={f}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              fontSize: 13,
-              color: 'var(--text-body)',
-            }}
-          >
-            <Check className="w-3.5 h-3.5" style={{ color: 'var(--success, #16a34a)' }} /> {f}
+          <li key={f} className="flex items-center gap-1.5 text-[13px] text-fg">
+            <Check className="w-3.5 h-3.5 text-success" /> {f}
           </li>
         ))}
       </ul>
@@ -113,24 +83,15 @@ function PlanCard({
         <button
           onClick={() => void onCheckout(plan.id)}
           disabled={busy}
-          className="main-action-btn"
-          style={{
-            width: '100%',
-            height: 38,
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 6,
-          }}
+          className="main-action-btn w-full h-[38px] inline-flex items-center justify-center gap-1.5"
         >
-          {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : null}{' '}
-          {t('account.billing.upgradeTo', { name: plan.name })}
+          {busy && <Loader2 className="w-4 h-4 animate-spin" />}{' '}
+          {t('Upgrade to {{name}}', { name: plan.name })}
         </button>
       )}
     </div>
   );
 }
-// eslint-disable-next-line max-lines-per-function -- 账单主视图含订阅/发票/用量多区块，内聚保留
 function BillingContent({
   state,
   loading,
@@ -155,34 +116,19 @@ function BillingContent({
   if (error) return <ErrorBanner message={error} style={{ marginBottom: 14 }} />;
   if (loading)
     return (
-      <div style={{ padding: 30, textAlign: 'center' }}>
-        <Loader2 className="w-5 h-5 animate-spin" style={{ margin: '0 auto' }} />
+      <div className="p-8 text-center">
+        <Loader2 className="w-5 h-5 animate-spin mx-auto" />
       </div>
     );
   if (state && !state.enabled)
     return (
-      <div
-        style={{
-          padding: 16,
-          background: 'var(--bg-subtle)',
-          borderRadius: 10,
-          fontSize: 14,
-          color: 'var(--text-muted)',
-        }}
-      >
-        {t('account.billing.disabledNotice')}
+      <div className="p-4 bg-surface-sunken rounded-[10px] text-sm text-fg-tertiary">
+        {t('Subscription management is not enabled')}
       </div>
     );
   return (
     <>
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-          gap: 16,
-          marginBottom: 20,
-        }}
-      >
+      <div className="grid gap-4 mb-5 [grid-template-columns:repeat(auto-fit,minmax(220px,1fr))]">
         {plans.map((p) => (
           <PlanCard
             key={p.id}
@@ -198,21 +144,13 @@ function BillingContent({
         <button
           onClick={() => void onOpenPortal()}
           disabled={busy}
-          className="bg-input-bg text-fg border border-border-subtle rounded font-medium"
-          style={{
-            height: 38,
-            padding: '0 16px',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 6,
-            cursor: 'pointer',
-          }}
+          className="bg-input-bg text-fg border border-border-subtle rounded font-medium h-[38px] px-4 inline-flex items-center gap-1.5 cursor-pointer"
         >
-          <ExternalLink className="w-4 h-4" /> {t('account.billing.managePortal')}
+          <ExternalLink className="w-4 h-4" /> {t('Manage Subscription Portal')}
         </button>
       ) : (
-        <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>
-          {t('account.billing.adminOnlyNotice')}
+        <p className="text-[13px] text-fg-tertiary">
+          {t('Only administrators can manage subscriptions')}
         </p>
       )}
     </>
@@ -271,17 +209,14 @@ export default function BillingPage() {
   const { state, loading, busy, error, checkout, openPortal } = useBillingState(isAuthed);
   if (!isAuthed) {
     return (
-      <div className="bt-page" style={{ maxWidth: 720, margin: '0 auto' }}>
-        <div
-          className="bt-main-card card"
-          style={{ padding: 28, marginTop: 40, textAlign: 'center' }}
-        >
-          <p style={{ color: 'var(--text-muted)' }}>
-            {t('account.billing.loginRequiredPrefix')}{' '}
-            <Link to="/login" style={{ color: 'var(--brand)' }}>
-              {t('account.billing.loginRequiredLink')}
+      <div className="bt-page max-w-[720px] mx-auto">
+        <div className="bt-main-card card p-7 mt-10 text-center">
+          <p className="text-fg-tertiary">
+            {t('Please')}{' '}
+            <Link to="/login" className="text-brand">
+              {t('Log in')}
             </Link>{' '}
-            {t('account.billing.loginRequiredSuffix')}
+            {t('to manage your subscription.')}
           </p>
         </div>
       </div>
@@ -289,22 +224,20 @@ export default function BillingPage() {
   }
   const currentPlan = state?.subscription?.plan ?? org?.plan ?? 'free';
   const statusPrefix = state?.subscription?.status
-    ? t('account.billing.statusPrefix', { status: state.subscription.status })
+    ? t('Status: {{status}}', { status: state.subscription.status })
     : '';
   return (
     <StandardPageShell
       config={{
         titleKey: 'account.billing.title',
-        headerExtra: <CreditCard className="w-5 h-5" style={{ color: 'var(--brand)' }} />,
+        headerExtra: <CreditCard className="w-5 h-5 text-brand" />,
       }}
     >
-      <div className="bt-main-card card" style={{ padding: 24, marginTop: 28 }}>
-        <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '0 0 16px' }}>
-          {org
-            ? t('account.billing.orgPrefix', { name: org.name })
-            : t('account.billing.currentOrg')}
-          {t('account.billing.currentPlanPrefix')}
-          <strong style={{ textTransform: 'capitalize' }}>{currentPlan}</strong>
+      <div className="bt-main-card card p-6 mt-7">
+        <p className="text-[13px] text-fg-tertiary mb-4">
+          {org ? t('Organization: {{name}}', { name: org.name }) : t('Current Organization')}
+          {t('Current plan:')}
+          <strong className="capitalize">{currentPlan}</strong>
           {statusPrefix}
         </p>
         <BillingContent

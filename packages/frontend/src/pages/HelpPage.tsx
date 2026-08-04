@@ -29,14 +29,14 @@ export default function HelpPage() {
   const tabs: { key: Section; label: string; icon: ReactNode }[] = [
     {
       key: 'methodology',
-      label: t('help.tabs.methodology'),
+      label: t('Methodology'),
       icon: <Calculator className="size-4" />,
     },
-    { key: 'data', label: t('help.tabs.data'), icon: <Database className="size-4" /> },
-    { key: 'faq', label: t('help.tabs.faq'), icon: <HelpCircle className="size-4" /> },
+    { key: 'data', label: t('Data Sources'), icon: <Database className="size-4" /> },
+    { key: 'faq', label: t('FAQ'), icon: <HelpCircle className="size-4" /> },
   ];
   return (
-    <StaticPageShell title={t('help.title')}>
+    <StaticPageShell title={t('Help Center')}>
       <div className="mb-6 flex gap-2 border-b-2 border-subtle pb-3">
         {tabs.map((tab) => (
           <button
@@ -110,15 +110,27 @@ function HelpInfoBox({
 function RebalancingModesInfo() {
   const { t } = useTranslation();
   return (
-    <HelpInfoBox title={t('help.methodology.rebalModesTitle')}>
+    <HelpInfoBox title={t('Rebalancing Mode Explanation')}>
       <div className="mb-1.5">
-        <strong>{t('help.methodology.rebalModes.periodic')}</strong>
+        <strong>
+          {t(
+            'Periodic Rebalancing: Restore portfolio weights to target proportions at fixed frequencies (monthly/quarterly/annually).',
+          )}
+        </strong>
       </div>
       <div className="mb-1.5">
-        <strong>{t('help.methodology.rebalModes.threshold')}</strong>
+        <strong>
+          {t(
+            'Threshold Rebalancing: Trigger rebalancing when asset weights deviate from target by more than a set threshold (e.g., 5%).',
+          )}
+        </strong>
       </div>
       <div>
-        <strong>{t('help.methodology.rebalModes.buyHold')}</strong>
+        <strong>
+          {t(
+            'Buy and Hold: No rebalancing after initial setup; let weights drift freely with the market.',
+          )}
+        </strong>
       </div>
     </HelpInfoBox>
   );
@@ -133,8 +145,10 @@ function MethodologySection() {
   return (
     <HelpSection
       icon={<BookOpen className="size-6 text-brand" />}
-      title={t('help.methodology.title')}
-      description={t('help.methodology.desc')}
+      title={t('Backtest Methodology')}
+      description={t(
+        'This platform uses time-weighted returns (TWR) for backtesting, supporting both periodic and threshold rebalancing modes. All returns are compounded as log returns and converted to annualized metrics.',
+      )}
     >
       <HelpGrid>
         {metrics.map((m) => (
@@ -157,8 +171,10 @@ function DataSection() {
   return (
     <HelpSection
       icon={<Database className="size-6 text-brand" />}
-      title={t('help.data.title')}
-      description={t('help.data.desc')}
+      title={t('Data Sources')}
+      description={t(
+        'The platform supports multiple data sources; all data is cached locally in a SQLite database. After the first query, the cache is preferred to reduce API calls.',
+      )}
     >
       <HelpGrid>
         {sources.map((s) => (
@@ -171,9 +187,11 @@ function DataSection() {
       </HelpGrid>
       <HelpInfoBox
         icon={<TrendingUp className="size-4 text-success" />}
-        title={t('help.data.updateStrategyTitle')}
+        title={t('Data Update Strategy')}
       >
-        {t('help.data.updateStrategyContent')}
+        {t(
+          'Prefer incremental updates over full refreshes to avoid triggering third-party API rate limits. The data engine automatically records the last update time and only fetches missing trading days. FX and inflation data are updated monthly.',
+        )}
       </HelpInfoBox>
     </HelpSection>
   );
@@ -182,7 +200,7 @@ function FaqSection() {
   const { t } = useTranslation();
   const faqs = t('help.faq.items', { returnObjects: true }) as FaqItem[];
   return (
-    <HelpSection icon={<HelpCircle className="size-6 text-brand" />} title={t('help.faq.title')}>
+    <HelpSection icon={<HelpCircle className="size-6 text-brand" />} title={t('FAQ')}>
       <div className="flex flex-col gap-3">
         {faqs.map((faq, i) => (
           <FaqItemRow key={i} q={faq.q} a={faq.a} />

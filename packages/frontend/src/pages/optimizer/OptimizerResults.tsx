@@ -43,41 +43,41 @@ function StatCard({ label, value }: { label: string; value: string }) {
 function ConstraintsSummary({ s }: { s: EfficientFrontierState }) {
   const { t } = useTranslation();
   const cards: Array<{ show: boolean; label: string; value: string }> = [
-    { show: true, label: t('optimizer.minWeight'), value: `${s.minWeight}%` },
-    { show: true, label: t('optimizer.maxWeight'), value: `${s.maxWeight}%` },
-    { show: true, label: t('optimizer.tbillRate'), value: `${s.tbillRate}%` },
+    { show: true, label: t('Min Weight'), value: `${s.minWeight}%` },
+    { show: true, label: t('Max Weight'), value: `${s.maxWeight}%` },
+    { show: true, label: t('T-Bill Rate'), value: `${s.tbillRate}%` },
     {
       show: true,
-      label: t('optimizer.allowShort'),
-      value: s.allowShort ? t('common.yes') : t('common.no'),
+      label: t('Allow Short Selling'),
+      value: s.allowShort ? t('Yes') : t('No'),
     },
     {
       show: s.enableMinCagr && s.minCagr !== '',
-      label: t('optimizer.minCagrLabel'),
+      label: t('Min CAGR'),
       value: `${s.minCagr}%`,
     },
-    { show: s.minSharpe !== '', label: t('optimizer.minSharpeLabel'), value: s.minSharpe },
-    { show: s.minSortino !== '', label: t('optimizer.minSortinoLabel'), value: s.minSortino },
+    { show: s.minSharpe !== '', label: t('Min Sharpe'), value: s.minSharpe },
+    { show: s.minSortino !== '', label: t('Min Sortino'), value: s.minSortino },
     {
       show: s.enableMaxVol && s.maxVol !== '',
-      label: t('optimizer.maxVolLabel'),
+      label: t('Max Vol'),
       value: `${s.maxVol}%`,
     },
     {
       show: s.enableMaxDD && s.maxMaxDD !== '',
-      label: t('optimizer.maxMaxDDLabel'),
+      label: t('Max Max DD'),
       value: `${s.maxMaxDD}%`,
     },
-    { show: s.maxAvgDD !== '', label: t('optimizer.maxAvgDDLabel'), value: `${s.maxAvgDD}%` },
-    { show: s.maxHoldings !== '', label: t('optimizer.maxHoldings'), value: s.maxHoldings },
+    { show: s.maxAvgDD !== '', label: t('Max Avg DD'), value: `${s.maxAvgDD}%` },
+    { show: s.maxHoldings !== '', label: t('Max Holdings'), value: s.maxHoldings },
     {
       show: s.minWeightToInclude !== '',
-      label: t('optimizer.minWeightToInclude'),
+      label: t('Min Weight to Include'),
       value: `${s.minWeightToInclude}%`,
     },
     {
       show: true,
-      label: t('optimizer.solver'),
+      label: t('Solver'),
       value: s.solver === 'markowitz' ? 'Markowitz' : 'GA',
     },
   ];
@@ -134,10 +134,10 @@ function MetricsTable({
     return '\u2014';
   };
   const columns: SimpleTableColumn<(typeof METRICS_ROWS)[number]>[] = [
-    { key: 'metric', label: t('common.metric'), render: (r) => r.label },
+    { key: 'metric', label: t('Metric'), render: (r) => r.label },
     {
       key: 'value',
-      label: t('optimizer.optimalPortfolio'),
+      label: t('Optimal Portfolio'),
       align: 'right',
       render: (r) => getVal(r.key, r.fmt),
     },
@@ -161,7 +161,7 @@ function FrontierChart({
           dataKey="expectedVolatility"
           tick={AXIS_TICK_STYLE}
           label={{
-            value: t('optimizer.volatilityAxis'),
+            value: t('Volatility (%)'),
             position: 'insideBottom',
             offset: -5,
             fontSize: 12,
@@ -172,7 +172,7 @@ function FrontierChart({
           dataKey="expectedReturn"
           tick={AXIS_TICK_STYLE}
           label={{
-            value: t('optimizer.returnAxis'),
+            value: t('Return (%)'),
             angle: -90,
             position: 'insideLeft',
             fontSize: 12,
@@ -217,18 +217,20 @@ export function OptimizerResults({ s }: { s: EfficientFrontierState }) {
       error={s.error}
       isLoading={s.isLoading}
       hasResults={!!s.results}
-      errorPrefix={`${t('optimizer.optFailed')}：`}
-      loadingLabel={t('optimizer.optimizing')}
-      emptyTitle={t('optimizer.noResultsHint')}
+      errorPrefix={`${t('Optimization Failed')}：`}
+      loadingLabel={t('Optimizing...')}
+      emptyTitle={t(
+        'Configure parameters on the left and click "Start Calculation" to see optimal weights',
+      )}
     >
       {s.results && (
         <div className="flex flex-col gap-5">
           <ChartCard
-            title={t('optimizer.optimalWeights')}
+            title={t('Optimal Weights')}
             headerExtra={
               <Button variant="ghost" size="sm" onClick={s.handleLoadInBacktester}>
                 <ArrowRight />
-                {t('optimizer.loadInBacktester')}
+                {t('Load in backtester')}
               </Button>
             }
           >
@@ -236,17 +238,15 @@ export function OptimizerResults({ s }: { s: EfficientFrontierState }) {
           </ChartCard>
           <section>
             <div className="mb-3 text-h3 font-semibold text-fg">
-              {t('optimizer.optimalMetrics')}
+              {t('Optimal Portfolio Metrics')}
             </div>
             <MetricsTable backtestStats={s.backtestStats} results={s.results} />
           </section>
-          <ChartCard title={t('optimizer.efficientFrontier')}>
+          <ChartCard title={t('Efficient Frontier')}>
             <FrontierChart data={s.results.frontier ?? []} results={s.results} />
           </ChartCard>
           <section>
-            <div className="mb-3 text-h3 font-semibold text-fg">
-              {t('optimizer.constraintsSummary')}
-            </div>
+            <div className="mb-3 text-h3 font-semibold text-fg">{t('Constraints Summary')}</div>
             <ConstraintsSummary s={s} />
           </section>
         </div>

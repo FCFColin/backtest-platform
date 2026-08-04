@@ -62,7 +62,7 @@ function SystemStatusIndicator() {
         )}
       />
       <span className="text-caption text-fg-tertiary">
-        {status === 'operational' ? t('footer.status.operational') : t('footer.status.degraded')}
+        {status === 'operational' ? t('All systems operational') : t('System degraded')}
       </span>
     </div>
   );
@@ -73,10 +73,10 @@ function FooterBrand() {
     <div>
       <div className="flex items-center gap-2 mb-3">
         <BarChart3 className="h-5 w-5 text-brand" />
-        <span className="text-h3">{t('nav.brandName')}</span>
+        <span className="text-h3">{t('Backtest Platform')}</span>
       </div>
       <p className="text-caption text-fg-tertiary leading-relaxed mb-4">
-        {t('footer.brandTagline')}
+        {t('Professional backtesting platform for individual investors')}
       </p>
       <div className="flex items-center gap-3">
         <a
@@ -109,25 +109,23 @@ function FooterDataColumn() {
   const earliestDate = meta?.earliestDate ?? '1962';
   return (
     <div>
-      <h2 className="text-label-tiny text-fg-tertiary mb-3">{t('footer.sections.data')}</h2>
+      <h2 className="text-label-tiny text-fg-tertiary mb-3">{t('Data')}</h2>
       <div className="space-y-2 text-caption text-fg-tertiary">
         <div>
-          <div className="text-fg-secondary">{t('footer.data.source')}</div>
-          <div>{t('footer.data.sourceValue')}</div>
+          <div className="text-fg-secondary">{t('Data Source')}</div>
+          <div>{t('yfinance · finnhub · akshare · BaoStock')}</div>
         </div>
         <div data-testid="footer-data-update">
-          <div className="text-fg-secondary">{t('footer.data.updated')}</div>
+          <div className="text-fg-secondary">{t('Data Updated')}</div>
           <div className="font-mono">{displayDate}</div>
         </div>
         <div data-testid="footer-data-history">
-          <div className="text-fg-secondary">{t('footer.data.historyDepth')}</div>
-          <div className="font-mono">
-            {t('footer.data.historyDepthValue', { date: earliestDate })}
-          </div>
+          <div className="text-fg-secondary">{t('History Depth')}</div>
+          <div className="font-mono">{t('from {{date}}', { date: earliestDate })}</div>
         </div>
         <div data-testid="footer-data-coverage">
-          <div className="text-fg-secondary">{t('footer.data.coverage')}</div>
-          <div className="font-mono">{t('footer.data.coverageValue', { count: tickerCount })}</div>
+          <div className="text-fg-secondary">{t('Tickers Covered')}</div>
+          <div className="font-mono">{t('{{count}}', { count: tickerCount })}</div>
         </div>
       </div>
     </div>
@@ -139,14 +137,17 @@ function FooterBottom() {
   return (
     <div className="border-t border-border-subtle mt-8 pt-4 flex flex-col gap-3">
       <p className="text-caption text-fg-tertiary">
-        {t('footer.disclaimer')}{' '}
+        {t(
+          'This platform is for research and educational purposes only and does not constitute investment advice',
+        )}{' '}
         <Link to="/legal/disclaimer" className="text-fg-secondary hover:text-fg underline">
-          {t('footer.disclaimerLink')}
+          {t('Disclaimer')}
         </Link>
       </p>
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div className="text-caption text-fg-tertiary">
-          {t('footer.copyright', { year, brand: t('nav.brandName') })} · v{BUILD_HASH.slice(0, 7)}
+          {t('© {{year}} {{brand}}', { year, brand: t('Backtest Platform') })} · v
+          {BUILD_HASH.slice(0, 7)}
         </div>
         <div className="flex items-center gap-4 text-caption">
           <SystemStatusIndicator />
@@ -163,35 +164,35 @@ export function Footer() {
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8">
           <FooterBrand />
           <FooterSection
-            title={t('footer.sections.product')}
+            title={t('Product')}
             links={[
-              { to: '/', label: t('footer.product.portfolioBacktest') },
-              { to: '/monte-carlo', label: t('footer.product.monteCarlo') },
-              { to: '/optimizer', label: t('footer.product.optimizer') },
-              { to: '/tactical', label: t('footer.product.tactical') },
-              { to: '/analysis', label: t('footer.product.analysis') },
+              { to: '/', label: t('Portfolio Backtest') },
+              { to: '/monte-carlo', label: t('Monte Carlo') },
+              { to: '/optimizer', label: t('Optimizer') },
+              { to: '/tactical', label: t('Tactical Allocation') },
+              { to: '/analysis', label: t('Analysis Tools') },
             ]}
           />
           <FooterSection
-            title={t('footer.sections.resources')}
+            title={t('Resources')}
             links={[
-              { to: '/help', label: t('footer.resources.docs') },
-              { href: '/api/docs', label: t('footer.resources.apiRef') },
-              { to: '/help', label: t('footer.resources.changelog') },
-              { to: '/help', label: t('footer.resources.helpCenter') },
-              { to: '/help', label: t('footer.resources.feedback') },
-              { to: '/help', label: t('footer.resources.methodology') },
+              { to: '/help', label: t('Documentation') },
+              { href: '/api/docs', label: t('API Reference') },
+              { to: '/help', label: t('Changelog') },
+              { to: '/help', label: t('Help Center') },
+              { to: '/help', label: t('Feedback') },
+              { to: '/help', label: t('Methodology') },
             ]}
           />
           <FooterSection
-            title={t('footer.sections.company')}
+            title={t('Company')}
             links={[
-              { to: '/about', label: t('footer.company.about') },
-              { to: '/pricing', label: t('footer.company.pricing') },
-              { to: '/about', label: t('footer.company.contact') },
-              { to: '/legal/privacy', label: t('footer.company.privacy') },
-              { to: '/legal/terms', label: t('footer.company.terms') },
-              { to: '/legal/disclaimer', label: t('footer.company.disclaimer') },
+              { to: '/about', label: t('About') },
+              { to: '/pricing', label: t('Pricing') },
+              { to: '/about', label: t('Contact Us') },
+              { to: '/legal/privacy', label: t('Privacy Policy') },
+              { to: '/legal/terms', label: t('Terms of Service') },
+              { to: '/legal/disclaimer', label: t('Disclaimer') },
             ]}
           />
           <FooterDataColumn />

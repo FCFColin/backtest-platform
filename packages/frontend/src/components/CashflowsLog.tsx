@@ -29,11 +29,11 @@ function PeriodicCashflowsTable({
       <table className="w-full border-collapse text-body">
         <thead>
           <tr className="bg-elevated">
-            <th className={cn(TH_BASE, 'text-left')}>{t('params.frequency')}</th>
-            <th className={cn(TH_BASE, 'text-right')}>{t('params.amount')}</th>
-            <th className={cn(TH_BASE, 'text-left')}>{t('params.type')}</th>
-            <th className={cn(TH_BASE, 'text-right')}>{t('components.cashflowsLog.offsetDays')}</th>
-            <th className={cn(TH_BASE, 'text-left')}>{t('components.cashflowsLog.endDate')}</th>
+            <th className={cn(TH_BASE, 'text-left')}>{t('Frequency')}</th>
+            <th className={cn(TH_BASE, 'text-right')}>{t('Amount')}</th>
+            <th className={cn(TH_BASE, 'text-left')}>{t('Type')}</th>
+            <th className={cn(TH_BASE, 'text-right')}>{t('Offset Days')}</th>
+            <th className={cn(TH_BASE, 'text-left')}>{t('End Date')}</th>
           </tr>
         </thead>
         <tbody>
@@ -59,7 +59,7 @@ function PeriodicCashflowsTable({
                 {leg.offset}
               </td>
               <td className={cn(TD_BASE, 'text-left font-mono tabular-nums text-fg-secondary')}>
-                {leg.until || t('components.cashflowsLog.untilEndOfBacktest')}
+                {leg.until || t('Until End of Backtest')}
               </td>
             </tr>
           ))}
@@ -79,9 +79,9 @@ function OneTimeCashflowsTable({
       <table className="w-full border-collapse text-body">
         <thead>
           <tr className="bg-elevated">
-            <th className={cn(TH_BASE, 'text-left')}>{t('common.date')}</th>
-            <th className={cn(TH_BASE, 'text-right')}>{t('params.amount')}</th>
-            <th className={cn(TH_BASE, 'text-left')}>{t('params.type')}</th>
+            <th className={cn(TH_BASE, 'text-left')}>{t('Date')}</th>
+            <th className={cn(TH_BASE, 'text-right')}>{t('Amount')}</th>
+            <th className={cn(TH_BASE, 'text-left')}>{t('Type')}</th>
           </tr>
         </thead>
         <tbody>
@@ -117,26 +117,22 @@ export default function CashflowsLog({ parameters }: CashflowsLogProps) {
   const hasOneTime = oneTimeCashflows && oneTimeCashflows.length > 0;
   if (!hasPeriodic && !hasOneTime) {
     return (
-      <ChartCard title={t('components.cashflowsLog.title')}>
-        <div className="text-body text-fg-tertiary">{t('components.cashflowsLog.notSet')}</div>
+      <ChartCard title={t('Cashflows Log')}>
+        <div className="text-body text-fg-tertiary">{t('Not Set')}</div>
       </ChartCard>
     );
   }
   return (
-    <ChartCard title={t('components.cashflowsLog.title')}>
+    <ChartCard title={t('Cashflows Log')}>
       {hasPeriodic && cashflowLegs && (
         <div className="mb-4">
-          <div className="text-caption font-semibold mb-2 text-fg">
-            {t('components.cashflowsLog.periodic')}
-          </div>
+          <div className="text-caption font-semibold mb-2 text-fg">{t('Periodic')}</div>
           <PeriodicCashflowsTable legs={cashflowLegs} />
         </div>
       )}
       {hasOneTime && oneTimeCashflows && (
         <div>
-          <div className="text-caption font-semibold mb-2 text-fg">
-            {t('components.cashflowsLog.oneTime')}
-          </div>
+          <div className="text-caption font-semibold mb-2 text-fg">{t('One-Time')}</div>
           <OneTimeCashflowsTable cashflows={oneTimeCashflows} />
         </div>
       )}

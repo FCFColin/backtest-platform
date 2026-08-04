@@ -24,7 +24,7 @@ export default function PortfolioPiesChart({ portfolios }: PortfolioPiesChartPro
     return (
       <ChartCard>
         <div className="text-label" style={{ color: 'var(--text-muted)' }}>
-          {t('charts.portfolioPies.noData')}
+          {t('No data')}
         </div>
       </ChartCard>
     );
@@ -32,9 +32,9 @@ export default function PortfolioPiesChart({ portfolios }: PortfolioPiesChartPro
   const portfoliosWithAssets = portfolios.filter((p) => p.assets && p.assets.length > 0);
   if (portfoliosWithAssets.length === 0) {
     return (
-      <ChartCard title={t('charts.portfolioPies.title')}>
+      <ChartCard title={t('Allocation Pies')}>
         <div className="text-label" style={{ color: 'var(--text-muted)' }}>
-          {t('charts.portfolioPies.noAssets')}
+          {t('No assets')}
         </div>
       </ChartCard>
     );
@@ -44,11 +44,7 @@ export default function PortfolioPiesChart({ portfolios }: PortfolioPiesChartPro
     p.assets.map((a) => ({ portfolio: p.name, ticker: a.ticker, weight: a.weight })),
   );
   return (
-    <ChartCard
-      title={t('charts.portfolioPies.title')}
-      data={exportData}
-      csvFilename="portfolio-pies"
-    >
+    <ChartCard title={t('Allocation Pies')} data={exportData} csvFilename="portfolio-pies">
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px' }}>
         {portfoliosWithAssets.map((portfolio) => {
           const pieData = portfolio.assets.map((a) => ({ name: a.ticker, value: a.weight }));
@@ -166,11 +162,7 @@ function AllocationHistoryChart({
   });
   const chartData = data.length > DOWNSAMPLE_THRESHOLD ? downsample(data, DOWNSAMPLE_TARGET) : data;
   return (
-    <ChartCard
-      title={t('charts.portfolioAllocation.title')}
-      data={data}
-      csvFilename="portfolio-allocation"
-    >
+    <ChartCard title={t('Portfolio Allocation')} data={data} csvFilename="portfolio-allocation">
       <AllocationAreaChart
         data={chartData}
         assets={assets}
@@ -196,17 +188,13 @@ function InitialWeightChart({
   });
   if (data.length === 0) {
     const entry: Record<string, string | number> = {
-      date: t('charts.portfolioAllocation.startDate'),
+      date: t('Start Date'),
     };
     for (const asset of assets) entry[asset.ticker] = asset.weight;
     data.push(entry);
   }
   return (
-    <ChartCard
-      title={t('charts.portfolioAllocation.title')}
-      data={data}
-      csvFilename="portfolio-allocation"
-    >
+    <ChartCard title={t('Portfolio Allocation')} data={data} csvFilename="portfolio-allocation">
       <AllocationAreaChart
         data={data}
         assets={assets}
@@ -217,7 +205,7 @@ function InitialWeightChart({
         className="text-label-tiny mt-2 text-center"
         style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}
       >
-        {t('charts.portfolioAllocation.initialWeightHint')}
+        {t('Initial Weight')}
       </div>
     </ChartCard>
   );
@@ -228,7 +216,7 @@ export function PortfolioAllocationChart({ portfolios }: PortfolioAllocationChar
     return (
       <div className="chart-card">
         <div className="text-label" style={{ color: 'var(--text-muted)' }}>
-          {t('charts.portfolioAllocation.noData')}
+          {t('No data')}
         </div>
       </div>
     );
@@ -238,9 +226,9 @@ export function PortfolioAllocationChart({ portfolios }: PortfolioAllocationChar
   if (assets.length === 0) {
     return (
       <div className="chart-card">
-        <div className="chart-card-title">{t('charts.portfolioAllocation.title')}</div>
+        <div className="chart-card-title">{t('Portfolio Allocation')}</div>
         <div className="text-label" style={{ color: 'var(--text-muted)' }}>
-          {t('charts.portfolioAllocation.noAssets')}
+          {t('No assets')}
         </div>
       </div>
     );

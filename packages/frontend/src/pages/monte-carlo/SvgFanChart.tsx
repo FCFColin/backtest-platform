@@ -110,7 +110,7 @@ export default function SvgFanChart({
   );
   if (data.length === 0) return null;
   return (
-    <div ref={containerRef} style={{ width: '100%', height: 450, position: 'relative' }}>
+    <div ref={containerRef} className="w-full h-[450px] relative">
       <svg
         width={width}
         height={height}
@@ -209,42 +209,27 @@ export default function SvgFanChart({
       {/* Tooltip overlay */}
       {tooltip && (
         <div
+          className="absolute z-10 pointer-events-none rounded-md border border-border bg-app p-2 px-3 text-xs shadow-lg"
           style={{
-            position: 'absolute',
             top: MARGIN.top + 8,
             left: Math.min(tooltip.x + 12, width - 180),
-            background: 'hsl(var(--app))',
-            border: '1px solid hsl(var(--border))',
-            borderRadius: 6,
-            padding: '8px 12px',
-            fontSize: 12,
-            pointerEvents: 'none',
-            zIndex: 10,
-            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
           }}
         >
-          <div style={{ fontWeight: 600, marginBottom: 4, color: 'hsl(var(--fg-secondary))' }}>
+          <div className="font-semibold mb-1 text-fg-secondary">
             {monthFormatter(tooltip.data.month)}
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div className="flex items-center gap-1.5">
             <span
-              style={{
-                width: 12,
-                height: 12,
-                borderRadius: 2,
-                background: CHART_COLORS[0],
-                opacity: 0.18,
-              }}
+              className="w-3 h-3 rounded-sm"
+              style={{ background: CHART_COLORS[0], opacity: 0.18 }}
             />
             <span>
               {band25_75Name}: ${(tooltip.data.band25_75[0] / 1000).toFixed(0)}k – $
               {(tooltip.data.band25_75[1] / 1000).toFixed(0)}k
             </span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
-            <span
-              style={{ width: 12, height: 2.5, borderRadius: 1, background: CHART_COLORS[0] }}
-            />
+          <div className="flex items-center gap-1.5 mt-0.5">
+            <span className="w-3 h-[2.5px] rounded-sm" style={{ background: CHART_COLORS[0] }} />
             <span>
               {medianName}: ${(tooltip.data.p50 / 1000).toFixed(0)}k
             </span>
@@ -252,35 +237,20 @@ export default function SvgFanChart({
         </div>
       )}
       {/* Legend */}
-      <div
-        style={{
-          position: 'absolute',
-          top: 8,
-          right: 30,
-          display: 'flex',
-          gap: 16,
-          fontSize: 12,
-          color: 'hsl(var(--fg-tertiary))',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+      <div className="absolute top-2 right-[30px] flex gap-4 text-xs text-fg-tertiary">
+        <div className="flex items-center gap-1">
           <span
-            style={{
-              width: 12,
-              height: 12,
-              borderRadius: 2,
-              background: CHART_COLORS[0],
-              opacity: 0.18,
-            }}
+            className="w-3 h-3 rounded-sm"
+            style={{ background: CHART_COLORS[0], opacity: 0.18 }}
           />
           <span>{band25_75Name}</span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <span style={{ width: 12, height: 2.5, borderRadius: 1, background: CHART_COLORS[0] }} />
+        <div className="flex items-center gap-1">
+          <span className="w-3 h-[2.5px] rounded-sm" style={{ background: CHART_COLORS[0] }} />
           <span>{band5_95Name}</span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <span style={{ width: 12, height: 2.5, borderRadius: 1, background: CHART_COLORS[0] }} />
+        <div className="flex items-center gap-1">
+          <span className="w-3 h-[2.5px] rounded-sm" style={{ background: CHART_COLORS[0] }} />
           <span>{medianName}</span>
         </div>
       </div>

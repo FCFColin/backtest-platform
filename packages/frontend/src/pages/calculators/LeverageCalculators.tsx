@@ -17,17 +17,17 @@ export function LeverageDecayCalculator() {
     return { volDrag, totalDecay, effectiveReturn };
   }, [baseVol, leverage, years]);
   return (
-    <CollapsibleCard icon={Layers} title={t('calculators.leverage.decayTitle')}>
+    <CollapsibleCard icon={Layers} title={t('Volatility Decay Calculator')}>
       <div className="grid grid-cols-3 gap-3">
         <Field
-          label={t('calculators.leverage.assetVolatility')}
+          label={t('Asset Volatility')}
           value={baseVol}
           onChange={setBaseVol}
           suffix="%"
           step={1}
         />
         <Field
-          label={t('calculators.leverage.leverageMultiplier')}
+          label={t('Leverage Multiplier')}
           value={leverage}
           onChange={setLeverage}
           suffix="x"
@@ -35,32 +35,32 @@ export function LeverageDecayCalculator() {
           min={1}
         />
         <Field
-          label={t('calculators.leverage.holdingYears')}
+          label={t('Holding Years')}
           value={years}
           onChange={setYears}
-          suffix={t('calculators.leverage.yearSuffix')}
+          suffix={t('y')}
           step={1}
           min={1}
         />
       </div>
       <div className="mt-3">
         <ResultRow
-          label={t('calculators.leverage.annualVolDrag')}
+          label={t('Annual Volatility Drag')}
           value={formatPct(result.volDrag)}
           tone="warning"
         />
         <ResultRow
-          label={t('calculators.leverage.yearsTotalDecay', { years })}
+          label={t('{{years}}-Year Total Decay', { years })}
           value={formatPct(result.totalDecay)}
           tone="danger"
         />
         <ResultRow
-          label={t('calculators.leverage.effectiveLoss')}
+          label={t('Effective Loss')}
           value={formatPct(result.effectiveReturn)}
           tone="danger"
         />
       </div>
-      <InfoBox>{t('calculators.leverage.decayFormula')}</InfoBox>
+      <InfoBox>{t('Decay Formula: Total Decay = (1 - (1 - Annual Drag)^Years) × 100%')}</InfoBox>
     </CollapsibleCard>
   );
 }
@@ -80,22 +80,12 @@ export function LeverageETFCalculator() {
     return { levCagr, levVol };
   }, [baseCagr, baseVol, leverage, borrowSpread]);
   return (
-    <CollapsibleCard icon={Layers} title={t('calculators.leverage.etfTitle')}>
+    <CollapsibleCard icon={Layers} title={t('Leveraged ETF Calculator')}>
       <div className="grid grid-cols-2 gap-3">
+        <Field label={t('Base CAGR')} value={baseCagr} onChange={setBaseCagr} suffix="%" />
+        <Field label={t('Base Volatility')} value={baseVol} onChange={setBaseVol} suffix="%" />
         <Field
-          label={t('calculators.leverage.baseCagr')}
-          value={baseCagr}
-          onChange={setBaseCagr}
-          suffix="%"
-        />
-        <Field
-          label={t('calculators.leverage.baseVolatility')}
-          value={baseVol}
-          onChange={setBaseVol}
-          suffix="%"
-        />
-        <Field
-          label={t('calculators.leverage.leverageMultiplier')}
+          label={t('Leverage Multiplier')}
           value={leverage}
           onChange={setLeverage}
           suffix="x"
@@ -103,25 +93,21 @@ export function LeverageETFCalculator() {
           min={1}
         />
         <Field
-          label={t('calculators.leverage.borrowSpread')}
+          label={t('Borrow Spread')}
           value={borrowSpread}
           onChange={setBorrowSpread}
           suffix="%"
         />
       </div>
       <div className="mt-3">
+        <ResultRow label={t('Leveraged CAGR')} value={formatPct(result.levCagr)} tone="brand" />
         <ResultRow
-          label={t('calculators.leverage.leveragedCagr')}
-          value={formatPct(result.levCagr)}
-          tone="brand"
-        />
-        <ResultRow
-          label={t('calculators.leverage.leveragedVol')}
+          label={t('Leveraged Volatility')}
           value={formatPct(result.levVol)}
           tone="warning"
         />
         <ResultRow
-          label={t('calculators.leverage.leveragedSharpe')}
+          label={t('Leveraged Sharpe')}
           value={(result.levCagr / result.levVol).toFixed(3)}
         />
       </div>
@@ -144,48 +130,19 @@ export function KellyLeverageCalculator() {
     return { kelly, halfKelly, optimalCagr, halfKellyCagr };
   }, [baseCagr, baseVol, riskFree]);
   return (
-    <CollapsibleCard icon={Target} title={t('calculators.leverage.kellyTitle')}>
+    <CollapsibleCard icon={Target} title={t('Kelly Formula Calculator')}>
       <div className="grid grid-cols-3 gap-3">
-        <Field
-          label={t('calculators.leverage.baseCagr')}
-          value={baseCagr}
-          onChange={setBaseCagr}
-          suffix="%"
-        />
-        <Field
-          label={t('calculators.leverage.volatility')}
-          value={baseVol}
-          onChange={setBaseVol}
-          suffix="%"
-        />
-        <Field
-          label={t('calculators.leverage.riskFreeRate')}
-          value={riskFree}
-          onChange={setRiskFree}
-          suffix="%"
-        />
+        <Field label={t('Base CAGR')} value={baseCagr} onChange={setBaseCagr} suffix="%" />
+        <Field label={t('Volatility')} value={baseVol} onChange={setBaseVol} suffix="%" />
+        <Field label={t('Risk-Free Rate')} value={riskFree} onChange={setRiskFree} suffix="%" />
       </div>
       <div className="mt-3">
-        <ResultRow
-          label={t('calculators.leverage.kellyOptimal')}
-          value={`${result.kelly.toFixed(3)}x`}
-          tone="brand"
-        />
-        <ResultRow
-          label={t('calculators.leverage.halfKelly')}
-          value={`${result.halfKelly.toFixed(3)}x`}
-          tone="muted"
-        />
-        <ResultRow
-          label={t('calculators.leverage.kellyExpectedCagr')}
-          value={formatPct(result.optimalCagr)}
-        />
-        <ResultRow
-          label={t('calculators.leverage.halfKellyExpectedCagr')}
-          value={formatPct(result.halfKellyCagr)}
-        />
+        <ResultRow label={t('Kelly Optimal')} value={`${result.kelly.toFixed(3)}x`} tone="brand" />
+        <ResultRow label={t('Half Kelly')} value={`${result.halfKelly.toFixed(3)}x`} tone="muted" />
+        <ResultRow label={t('Kelly Expected CAGR')} value={formatPct(result.optimalCagr)} />
+        <ResultRow label={t('Half Kelly Expected CAGR')} value={formatPct(result.halfKellyCagr)} />
       </div>
-      <InfoBox>{t('calculators.leverage.kellyFormula')}</InfoBox>
+      <InfoBox>{t('Kelly Formula: f* = (μ - r) / σ²')}</InfoBox>
     </CollapsibleCard>
   );
 }
@@ -225,28 +182,13 @@ export function OptionLeverageCalculator() {
     [spotPrice, strikePrice, optionPrice],
   );
   return (
-    <CollapsibleCard icon={Flame} title={t('calculators.leverage.optionTitle')}>
+    <CollapsibleCard icon={Flame} title={t('Option Leverage Calculator')}>
       <div className="grid grid-cols-2 gap-3">
+        <Field label={t('Underlying Price')} value={spotPrice} onChange={setSpotPrice} step={1} />
+        <Field label={t('Strike Price')} value={strikePrice} onChange={setStrikePrice} step={1} />
+        <Field label={t('Option Price')} value={optionPrice} onChange={setOptionPrice} step={0.5} />
         <Field
-          label={t('calculators.leverage.spotPrice')}
-          value={spotPrice}
-          onChange={setSpotPrice}
-          step={1}
-        />
-        <Field
-          label={t('calculators.leverage.strikePrice')}
-          value={strikePrice}
-          onChange={setStrikePrice}
-          step={1}
-        />
-        <Field
-          label={t('calculators.leverage.optionPrice')}
-          value={optionPrice}
-          onChange={setOptionPrice}
-          step={0.5}
-        />
-        <Field
-          label={t('calculators.leverage.contractMultiplier')}
+          label={t('Contract Multiplier')}
           value={contractMultiplier}
           onChange={setContractMultiplier}
           step={1}
@@ -254,25 +196,19 @@ export function OptionLeverageCalculator() {
       </div>
       <div className="mt-3">
         <ResultRow
-          label={t('calculators.leverage.leverageRatio')}
+          label={t('Leverage Ratio')}
           value={`${result.leverage.toFixed(2)}x`}
           tone="brand"
         />
-        <ResultRow
-          label={t('calculators.leverage.approxDelta')}
-          value={result.delta.toFixed(4)}
-          tone="muted"
-        />
-        <ResultRow
-          label={t('calculators.leverage.intrinsicValue')}
-          value={result.intrinsic.toFixed(2)}
-        />
-        <ResultRow
-          label={t('calculators.leverage.timeValue')}
-          value={result.timeValue.toFixed(2)}
-        />
+        <ResultRow label={t('Approximate Delta')} value={result.delta.toFixed(4)} tone="muted" />
+        <ResultRow label={t('Intrinsic Value')} value={result.intrinsic.toFixed(2)} />
+        <ResultRow label={t('Time Value')} value={result.timeValue.toFixed(2)} />
       </div>
-      <InfoBox>{t('calculators.leverage.optionFormula')}</InfoBox>
+      <InfoBox>
+        {t(
+          'Option Formula: Leverage Ratio = (Delta × Underlying Price + Option Price) / (Option Price × Contract Multiplier)',
+        )}
+      </InfoBox>
     </CollapsibleCard>
   );
 }

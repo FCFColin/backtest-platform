@@ -20,9 +20,9 @@ interface GoalInputs {
 }
 export function validateGoalInputs(inputs: GoalInputs): string | null {
   const { validAssets, totalWeight, targetAmount, initialAmount, years, t } = inputs;
-  if (validAssets.length === 0) return t('goalOptimizer.errEmptyAssets');
-  if (totalWeight !== 100) return t('goalOptimizer.errWeightSum');
+  if (validAssets.length === 0) return t('Please add at least one ticker');
+  if (totalWeight !== 100) return t('Total weight must equal 100%');
   if (targetAmount <= 0 || initialAmount <= 0 || years <= 0)
-    return t('goalOptimizer.errPositiveRequired');
+    return t('Target amount, initial amount, and time range must be positive');
   return null;
 }

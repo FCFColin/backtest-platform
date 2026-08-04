@@ -8,25 +8,25 @@ import { useTagDiff, AllHistoryCheckbox } from '@/components/params/toolFields.j
 import type { SolveSpeed, FrontierSolver, ReturnObjective } from './EfficientFrontierUtils.js';
 import type { FrontierState } from './EfficientFrontierUtils.js';
 const solveSpeedOptions = (t: TFunction): { value: SolveSpeed; label: string }[] => [
-  { value: 'ultrafast', label: t('efficientFrontier.solveSpeed.ultrafast') },
-  { value: 'fast', label: t('efficientFrontier.solveSpeed.fast') },
-  { value: 'medium', label: t('efficientFrontier.solveSpeed.medium') },
-  { value: 'slow', label: t('efficientFrontier.solveSpeed.slow') },
+  { value: 'ultrafast', label: t('Ultra Fast') },
+  { value: 'fast', label: t('Fast') },
+  { value: 'medium', label: t('Medium') },
+  { value: 'slow', label: t('Slow') },
 ];
 const rebalanceFreqOptions = (t: TFunction): { value: string; label: string }[] => [
-  { value: 'daily', label: t('efficientFrontier.rebalanceFreq.daily') },
-  { value: 'weekly', label: t('efficientFrontier.rebalanceFreq.weekly') },
-  { value: 'monthly', label: t('efficientFrontier.rebalanceFreq.monthly') },
-  { value: 'quarterly', label: t('efficientFrontier.rebalanceFreq.quarterly') },
-  { value: 'yearly', label: t('efficientFrontier.rebalanceFreq.yearly') },
+  { value: 'daily', label: t('Daily') },
+  { value: 'weekly', label: t('Weekly') },
+  { value: 'monthly', label: t('Monthly') },
+  { value: 'quarterly', label: t('Quarterly') },
+  { value: 'yearly', label: t('Annual') },
 ];
 const returnObjOptions = (t: TFunction): { value: ReturnObjective; label: string }[] => [
-  { value: 'maxCagr', label: t('efficientFrontier.returnObjective.maxCagr') },
-  { value: 'minVolatility', label: t('efficientFrontier.returnObjective.minVolatility') },
+  { value: 'maxCagr', label: t('Maximize CAGR') },
+  { value: 'minVolatility', label: t('Minimize Volatility') },
 ];
 const solverOptions = (t: TFunction): { value: FrontierSolver; label: string }[] => [
-  { value: 'markowitz', label: t('efficientFrontier.solver.markowitz') },
-  { value: 'nsga2', label: t('efficientFrontier.solver.nsga2') },
+  { value: 'markowitz', label: t('Markowitz') },
+  { value: 'nsga2', label: t('NSGA-II') },
 ];
 interface FrontierParamsProps {
   state: FrontierState;
@@ -36,12 +36,12 @@ function TickerListSection({ s }: { s: FrontierState }) {
   const handleTagChange = useTagDiff(s.tickers, s.addTicker, s.removeTicker, s.updateTicker);
   return (
     <section className="flex flex-col gap-3">
-      <SectionHeader title={t('efficientFrontier.params.tickerList')} />
+      <SectionHeader title={t('Ticker List')} />
       <TickerTagInput
         tickers={s.tickers.filter(Boolean)}
         onChange={handleTagChange}
         minCount={2}
-        placeholder={t('efficientFrontier.params.tickerPlaceholder')}
+        placeholder={t('Enter ticker, e.g. VTI')}
       />
     </section>
   );
@@ -51,15 +51,15 @@ function DateAndPointsGrid({ s }: { s: FrontierState }) {
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
       <Field>
-        <FieldLabel>{t('efficientFrontier.params.startDate')}</FieldLabel>
+        <FieldLabel>{t('Start Date')}</FieldLabel>
         <Input type="date" value={s.startDate} onChange={(e) => s.setStartDate(e.target.value)} />
       </Field>
       <Field>
-        <FieldLabel>{t('efficientFrontier.params.endDate')}</FieldLabel>
+        <FieldLabel>{t('End Date')}</FieldLabel>
         <Input type="date" value={s.endDate} onChange={(e) => s.setEndDate(e.target.value)} />
       </Field>
       <Field>
-        <FieldLabel>{t('efficientFrontier.params.numPoints')}</FieldLabel>
+        <FieldLabel>{t('Sample Points')}</FieldLabel>
         <Input
           type="number"
           min={5}
@@ -69,13 +69,13 @@ function DateAndPointsGrid({ s }: { s: FrontierState }) {
         />
       </Field>
       <Field>
-        <FieldLabel>{t('efficientFrontier.params.allHistory')}</FieldLabel>
+        <FieldLabel>{t('All History')}</FieldLabel>
         <AllHistoryCheckbox
           startDate={s.startDate}
           endDate={s.endDate}
           onStartDateChange={s.setStartDate}
           onEndDateChange={s.setEndDate}
-          label={t('efficientFrontier.params.allHistory')}
+          label={t('All History')}
         />
       </Field>
     </div>
@@ -86,13 +86,13 @@ function AdvancedParamsGrid({ s }: { s: FrontierState }) {
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
       <SelectField
-        label={t('efficientFrontier.params.solveSpeed')}
+        label={t('Solve Speed')}
         value={s.solveSpeed}
         onChange={s.setSolveSpeed}
         options={solveSpeedOptions(t)}
       />
       <Field>
-        <FieldLabel>{t('efficientFrontier.params.minInclusionWeight')}</FieldLabel>
+        <FieldLabel>{t('Min Inclusion Weight')}</FieldLabel>
         <div className="relative">
           <Input
             type="number"
@@ -108,28 +108,28 @@ function AdvancedParamsGrid({ s }: { s: FrontierState }) {
         </div>
       </Field>
       <SelectField
-        label={t('efficientFrontier.params.rebalanceFreq')}
+        label={t('Rebalancing Frequency')}
         value={s.rebalanceFrequency}
         onChange={s.setRebalanceFrequency}
         options={rebalanceFreqOptions(t)}
       />
       <SelectField
-        label={t('efficientFrontier.params.returnObjective')}
+        label={t('Return Objective')}
         value={s.returnObjective}
         onChange={s.setReturnObjective}
         options={returnObjOptions(t)}
       />
       <SelectField
-        label={t('efficientFrontier.params.solver')}
+        label={t('Solver')}
         value={s.solver}
         onChange={s.setSolver}
         options={solverOptions(t)}
       />
       <Field>
-        <FieldLabel>{t('efficientFrontier.params.allowCash')}</FieldLabel>
+        <FieldLabel>{t('Allow Cash Allocation')}</FieldLabel>
         <label className="flex h-10 cursor-pointer items-center gap-2 text-label text-fg-secondary">
           <Checkbox checked={s.allowCash} onCheckedChange={(c) => s.setAllowCash(c === true)} />
-          <span>{t('efficientFrontier.params.allowCash')}</span>
+          <span>{t('Allow Cash Allocation')}</span>
         </label>
       </Field>
     </div>
@@ -139,7 +139,7 @@ function ParamsSection({ s }: { s: FrontierState }) {
   const { t } = useTranslation();
   return (
     <section className="flex flex-col gap-4">
-      <SectionHeader title={t('efficientFrontier.params.title')} />
+      <SectionHeader title={t('Parameters')} />
       <DateAndPointsGrid s={s} />
       <AdvancedParamsGrid s={s} />
     </section>
@@ -154,8 +154,8 @@ function FrontierParams({ state }: FrontierParamsProps) {
       <RunButton
         isLoading={state.isLoading}
         onClick={state.runFrontier}
-        label={t('efficientFrontier.params.calcFrontier')}
-        loadingLabel={t('efficientFrontier.params.calculating')}
+        label={t('Calculate Efficient Frontier')}
+        loadingLabel={t('Calculating...')}
       />
     </div>
   );

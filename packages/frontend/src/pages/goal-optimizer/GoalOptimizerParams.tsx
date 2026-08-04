@@ -53,13 +53,13 @@ function GoalSettingsSection({
   const dollarFields = [
     {
       id: 'go-target',
-      label: t('goalOptimizer.goal.targetAmount'),
+      label: t('Target Amount'),
       value: targetAmount,
       onChange: onTargetAmountChange,
     },
     {
       id: 'go-initial',
-      label: t('goalOptimizer.goal.initialAmount'),
+      label: t('Initial Amount'),
       value: initialAmount,
       onChange: onInitialAmountChange,
     },
@@ -67,8 +67,10 @@ function GoalSettingsSection({
   return (
     <section className="flex flex-col gap-3">
       <SectionHeader
-        title={t('goalOptimizer.goal.section')}
-        info={t('goalOptimizer.goal.sectionInfo')}
+        title={t('Goal Settings')}
+        info={t(
+          'Set your financial goal: target amount, initial amount, and investment time horizon',
+        )}
         variant="label"
       />
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -84,7 +86,7 @@ function GoalSettingsSection({
           </Field>
         ))}
         <Field>
-          <FieldLabel htmlFor="go-years">{t('goalOptimizer.goal.timeRange')}</FieldLabel>
+          <FieldLabel htmlFor="go-years">{t('Time Horizon')}</FieldLabel>
           <div className="relative">
             <Input
               id="go-years"
@@ -95,7 +97,7 @@ function GoalSettingsSection({
               onChange={(e) => onYearsChange(Number(e.target.value))}
             />
             <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-caption text-fg-tertiary">
-              {t('goalOptimizer.yearUnit')}
+              {t('years')}
             </span>
           </div>
         </Field>
@@ -119,8 +121,8 @@ function AssetConfigSection({
   return (
     <section className="flex flex-col gap-3">
       <SectionHeader
-        title={t('goalOptimizer.asset.section')}
-        info={t('goalOptimizer.asset.sectionInfo')}
+        title={t('Asset Allocation')}
+        info={t('Add tickers and weights; total weight must equal 100%')}
       />
       <div className="flex flex-col gap-2">
         {assets.map((a, idx) => (
@@ -129,7 +131,7 @@ function AssetConfigSection({
               type="text"
               className="flex-1 uppercase"
               value={a.ticker}
-              placeholder={t('goalOptimizer.asset.tickerPlaceholder')}
+              placeholder={t('Enter ticker, e.g. VTI')}
               onChange={(e) => onUpdateAsset(idx, 'ticker', e.target.value)}
             />
             <div className="relative w-28 shrink-0">
@@ -151,8 +153,8 @@ function AssetConfigSection({
                 variant="destructive"
                 size="icon"
                 onClick={() => onRemoveAsset(idx)}
-                title={t('goalOptimizer.delete')}
-                aria-label={t('goalOptimizer.delete')}
+                title={t('Delete')}
+                aria-label={t('Delete')}
               >
                 <X />
               </Button>
@@ -163,10 +165,10 @@ function AssetConfigSection({
       <div className="flex items-center justify-between">
         <Button variant="ghost" size="sm" onClick={onAddAsset}>
           <Plus />
-          {t('goalOptimizer.addAsset')}
+          {t('Add Ticker')}
         </Button>
         <div className="text-caption">
-          <span className="text-fg-tertiary">{t('goalOptimizer.total')}</span>{' '}
+          <span className="text-fg-tertiary">{t('Total')}</span>{' '}
           <span
             className={
               isComplete ? 'font-mono tabular-nums text-pos' : 'font-mono tabular-nums text-danger'
@@ -205,19 +207,19 @@ function ConstraintsAndSimulation({
   const constraints = [
     {
       id: 'go-maxdd',
-      label: t('goalOptimizer.constraints.maxDrawdown'),
+      label: t('Max Drawdown Limit'),
       value: maxDrawdown,
       onChange: onMaxDrawdownChange,
     },
     {
       id: 'go-minsr',
-      label: t('goalOptimizer.constraints.minSuccessRate'),
+      label: t('Min Success Rate'),
       value: minSuccessRate,
       onChange: onMinSuccessRateChange,
     },
     {
       id: 'go-maxvol',
-      label: t('goalOptimizer.constraints.maxVolatility'),
+      label: t('Max Volatility'),
       value: maxVolatility,
       onChange: onMaxVolatilityChange,
     },
@@ -225,8 +227,10 @@ function ConstraintsAndSimulation({
   return (
     <>
       <CollapsibleSection
-        title={t('goalOptimizer.constraints.section')}
-        description={t('goalOptimizer.constraints.sectionInfo')}
+        title={t('Constraints')}
+        description={t(
+          'Optional: set max drawdown, min success rate, and max volatility constraints; simulation will filter paths that violate max drawdown and max volatility',
+        )}
       >
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {constraints.map((c) => (
@@ -236,7 +240,7 @@ function ConstraintsAndSimulation({
                 id={c.id}
                 min={0}
                 max={100}
-                placeholder={t('goalOptimizer.noLimit')}
+                placeholder={t('No limit')}
                 value={c.value}
                 onChange={(e) => c.onChange(numOrEmpty(e.target.value))}
               />
@@ -246,12 +250,14 @@ function ConstraintsAndSimulation({
       </CollapsibleSection>
       <section className="flex flex-col gap-3">
         <SectionHeader
-          title={t('goalOptimizer.simulation.section')}
-          info={t('goalOptimizer.simulation.sectionInfo')}
+          title={t('Simulation Parameters')}
+          info={t(
+            'Number of Monte Carlo simulations; more is more accurate but slower (default 1000, max 10000)',
+          )}
         />
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <Field>
-            <FieldLabel htmlFor="go-sims">{t('goalOptimizer.simulation.count')}</FieldLabel>
+            <FieldLabel htmlFor="go-sims">{t('Simulation Count')}</FieldLabel>
             <Input
               id="go-sims"
               type="number"
@@ -276,8 +282,8 @@ export function GoalOptimizerParamsPanel(props: GoalParamsProps) {
       <RunButton
         isLoading={props.isLoading}
         onClick={props.onRun}
-        label={t('goalOptimizer.startOptimize')}
-        loadingLabel={t('goalOptimizer.optimizing')}
+        label={t('Start Optimization')}
+        loadingLabel={t('Optimizing...')}
         size="lg"
       />
     </div>

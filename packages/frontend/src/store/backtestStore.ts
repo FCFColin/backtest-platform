@@ -56,7 +56,10 @@ export async function pollJobStatus(
         data: jobData.result.data,
       } as Record<string, unknown>;
     }
-    if (jobState === 'failed') throw new Error(jobData.error || i18n.t('backtest.runFailed'));
+    if (jobState === 'failed')
+      throw new Error(
+        jobData.error || i18n.t('Backtest failed. Please check ticker symbols and parameters.'),
+      );
     delay = Math.min(delay * 2, 500);
   }
 }
@@ -75,7 +78,7 @@ async function runBacktestAction(set: SetFn, get: GetFn): Promise<void> {
     setIfCurrent(set, requestId, { isLoading: false, _abortController: null });
   };
   if (portfolios.length === 0) {
-    abortEarly(i18n.t('backtest.emptyPortfolios'));
+    abortEarly(i18n.t('Please add at least one portfolio'));
     return;
   }
   const validationError = validatePortfolios(portfolios);
@@ -267,7 +270,7 @@ export const useBacktestStore = create<BacktestState>()((set, get) => {
         const copy: Portfolio = {
           ...source,
           id: `portfolio-${Date.now()}-${next}`,
-          name: `${source.name} (${i18n.t('common.copy')})`,
+          name: `${source.name} (${i18n.t('Copy')})`,
           assets: source.assets.map((a) => ({ ...a })),
         };
         return { portfolioCounter: next, portfolios: [...state.portfolios, copy] };

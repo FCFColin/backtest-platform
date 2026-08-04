@@ -90,7 +90,7 @@ export function extractFreqResult(
       }>;
     }
   )?.portfolios?.[0];
-  if (!p) throw new Error(i18n.t('errors.noResults', { label }));
+  if (!p) throw new Error(i18n.t('No results ({{label}})', { label }));
   const stats = p.statistics ?? {};
   return {
     frequency: freq,
@@ -132,7 +132,7 @@ export async function fetchFreqResult(
   if (!res.ok) throw new Error(`HTTP ${res.status} (${opt.label})`);
   const json = await res.json();
   if (json.success === false)
-    throw new Error(json.error || i18n.t('errors.backtestFailedLabel', { label: opt.label }));
+    throw new Error(json.error || i18n.t('Backtest failed ({{label}})', { label: opt.label }));
   return extractFreqResult(json, freq, opt.label, opt.color);
 }
 export async function fetchOffsetResult(

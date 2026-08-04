@@ -20,31 +20,33 @@ function HeroDetails() {
   return (
     <>
       <p className="text-body text-fg-tertiary max-w-[860px] mb-8 leading-relaxed">
-        {t('backtest.hero.description')}
+        {t(
+          'This platform is a portfolio backtesting tool supporting ETFs, stocks, funds, synthetic tickers, and custom sequences. Compare multiple portfolios over the same historical period, test rebalancing rules, and simulate cashflow contributions or withdrawals.',
+        )}
       </p>
       {/* 三栏能力展示 */}
       <div className={CARD_GRID_CLASSES.hero}>
         {/* 可建模内容 */}
         <CapabilityCard
           icon={Settings}
-          title={t('backtest.hero.model.title')}
+          title={t('What You Can Model')}
           items={t('backtest.hero.model.items', { returnObjects: true }) as string[]}
-          linkLabel={t('backtest.hero.model.link')}
+          linkLabel={t('Start Configuring')}
           linkTo="#parameters"
         />
         {/* 可查看指标 */}
         <CapabilityCard
           icon={BarChart3}
-          title={t('backtest.hero.inspect.title')}
+          title={t('Metrics You Can Inspect')}
           items={t('backtest.hero.inspect.items', { returnObjects: true }) as string[]}
-          linkLabel={t('backtest.hero.inspect.link')}
+          linkLabel={t('View Results')}
           linkTo="#results"
           subtitle="60+"
         />
         {/* 相关研究工具 */}
         <CapabilityCard
           icon={Rocket}
-          title={t('backtest.hero.tools.title')}
+          title={t('Related Research Tools')}
           tools={RESEARCH_TOOLS.map((tool) => ({
             label: t(`backtest.hero.tools.${tool.key}`),
             path: tool.path,
@@ -60,16 +62,18 @@ function HeroDetails() {
           <FlaskConical className="h-5 w-5 text-brand" />
         </div>
         <div className="flex-1">
-          <div className="text-body font-medium text-fg">{t('hero.syntheticPromo.title')}</div>
+          <div className="text-body font-medium text-fg">
+            {t('Synthetic tickers extend 60/40 backtests to 40+ years')}
+          </div>
           <div className="text-caption text-fg-secondary mt-0.5">
-            {t('hero.syntheticPromo.description')}
+            {t('VTISIM · BNDSIM · SPYSIM and 20+ synthetic tickers ready')}
           </div>
         </div>
         <Link
           to="/data-engine#synthetic"
           className="text-caption text-brand hover:underline flex items-center gap-1"
         >
-          {t('hero.syntheticPromo.cta')} <ArrowRight className="h-3 w-3" />
+          {t('View all')} <ArrowRight className="h-3 w-3" />
         </Link>
       </div>
     </>
@@ -98,10 +102,12 @@ export const BacktestHero = memo(function BacktestHero() {
       <div className="flex items-start justify-between mb-4">
         <div>
           <h1 className="text-display md:text-display-xl text-fg mb-3" data-testid="page-title">
-            {t('backtest.hero.title')}
+            {t('Portfolio Backtest')}
           </h1>
           <p className="text-h2 text-fg-secondary font-normal max-w-[720px]">
-            {t('backtest.hero.subtitle')}
+            {t(
+              'Professional tools for backtesting portfolios, asset allocations, and retirement cashflows',
+            )}
           </p>
         </div>
         <Button
@@ -112,11 +118,11 @@ export const BacktestHero = memo(function BacktestHero() {
         >
           {expanded ? (
             <>
-              {t('backtest.hero.collapse')} <ChevronUp className="h-4 w-4 ml-1" />
+              {t('Hide Intro')} <ChevronUp className="h-4 w-4 ml-1" />
             </>
           ) : (
             <>
-              {t('backtest.hero.expand')} <ChevronDown className="h-4 w-4 ml-1" />
+              {t('Show Intro')} <ChevronDown className="h-4 w-4 ml-1" />
             </>
           )}
         </Button>

@@ -42,7 +42,7 @@ function GrowthHeader({
   const { t } = useTranslation();
   return (
     <div className="flex items-center justify-between px-6 pt-5 pb-3">
-      <h3 className="text-h3">{t('charts.growth.title')}</h3>
+      <h3 className="text-h3">{t('Portfolio Value Trend')}</h3>
       <div className="flex items-center gap-1">
         <div
           className="flex items-center gap-0.5 mr-2 bg-input-bg rounded-md p-0.5"
@@ -67,7 +67,7 @@ function GrowthHeader({
           size="icon"
           className="h-8 w-8"
           onClick={onLogScale}
-          title={t('charts.growth.logScale')}
+          title={t('Log Scale')}
           data-testid="chart-log-toggle"
         >
           <FunctionSquare className={cn('h-4 w-4', logScale && 'text-brand')} />
@@ -77,7 +77,7 @@ function GrowthHeader({
           size="icon"
           className="h-8 w-8"
           onClick={onToggleHidden}
-          title={hidden ? t('charts.growth.showChart') : t('charts.growth.hideChart')}
+          title={hidden ? t('Show Chart') : t('Hide Chart')}
         >
           {hidden ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
         </Button>
@@ -167,7 +167,7 @@ function GrowthLines({
         currencyFormatter(value, currency, 2),
         name,
       ]}
-      tooltipLabelFormatter={(label) => t('charts.growth.dateLabel', { label })}
+      tooltipLabelFormatter={(label) => t('Date: {{label}}', { label })}
       showLegend={false}
     >
       {portfolios.map((p, i) =>

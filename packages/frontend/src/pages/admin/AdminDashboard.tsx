@@ -18,19 +18,19 @@ function KpiGrid({ data, totalSizeGB }: { data: ParsedAdminStats; totalSizeGB: s
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
       <KpiCard
-        label={t('adminPage.dashboard.totalTickers')}
+        label={t('Total Tickers')}
         value={data.dataStats.totalTickers.toLocaleString()}
         icon={<Database className="h-5 w-5" />}
         color="blue"
       />
       <KpiCard
-        label={t('adminPage.dashboard.totalDataSize')}
+        label={t('Total Data Size')}
         value={`${totalSizeGB} GB`}
         icon={<HardDrive className="h-5 w-5" />}
         color="green"
       />
       <KpiCard
-        label={t('adminPage.dashboard.dataCoverage')}
+        label={t('Data Coverage')}
         value={
           data.dataStats.earliestDate !== '-'
             ? `${data.dataStats.earliestDate} ~ ${data.dataStats.latestDate}`
@@ -40,7 +40,7 @@ function KpiGrid({ data, totalSizeGB }: { data: ParsedAdminStats; totalSizeGB: s
         color="purple"
       />
       <KpiCard
-        label={t('adminPage.dashboard.nodeUptime')}
+        label={t('Node Uptime')}
         value={data.system.uptime}
         icon={<Clock className="h-5 w-5" />}
         color="orange"
@@ -64,9 +64,7 @@ function ServiceMarketSection({
     <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
       <div className="rounded-lg border border-border bg-surface p-4">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-fg">
-            {t('adminPage.dashboard.serviceStatus')}
-          </h2>
+          <h2 className="text-sm font-semibold text-fg">{t('Service Status')}</h2>
           <button
             onClick={onRefresh}
             disabled={loading}
@@ -76,32 +74,26 @@ function ServiceMarketSection({
           </button>
         </div>
         <div className="space-y-3">
+          <ServiceStatusItem name={t('Go Engine')} port=":15004" status={data.services.goEngine} />
           <ServiceStatusItem
-            name={t('adminPage.dashboard.goEngine')}
-            port=":15004"
-            status={data.services.goEngine}
-          />
-          <ServiceStatusItem
-            name={t('adminPage.dashboard.goDataService')}
+            name={t('Go Data Service')}
             port=":3003"
             status={data.services.goDataService}
           />
           <ServiceStatusItem
-            name={t('adminPage.dashboard.nodeService')}
+            name={t('Node Service')}
             port=":3001"
             status={data.services.nodeServer}
           />
         </div>
         {lastRefresh && (
           <p className="mt-3 text-xs text-fg-tertiary">
-            {t('adminPage.dashboard.lastRefresh')}: {lastRefresh}
+            {t('Last Refresh')}: {lastRefresh}
           </p>
         )}
       </div>
       <div className="rounded-lg border border-border bg-surface p-4 lg:col-span-2">
-        <h2 className="mb-4 text-sm font-semibold text-fg">
-          {t('adminPage.dashboard.marketTickerCount')}
-        </h2>
+        <h2 className="mb-4 text-sm font-semibold text-fg">{t('Market Ticker Count')}</h2>
         {Object.keys(data.dataStats.marketBreakdown).length > 0 ? (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
             {Object.entries(data.dataStats.marketBreakdown)
@@ -114,7 +106,7 @@ function ServiceMarketSection({
               ))}
           </div>
         ) : (
-          <p className="text-sm text-fg-tertiary">{t('common.noData')}</p>
+          <p className="text-sm text-fg-tertiary">{t('No data')}</p>
         )}
       </div>
     </div>
@@ -130,16 +122,12 @@ function SystemResourceSection({
   const { t } = useTranslation();
   return (
     <div className="rounded-lg border border-border bg-surface p-4">
-      <h2 className="mb-4 text-sm font-semibold text-fg">
-        {t('adminPage.dashboard.systemResource')}
-      </h2>
+      <h2 className="mb-4 text-sm font-semibold text-fg">{t('System Resources')}</h2>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div className="rounded-lg border border-border-subtle p-4">
           <div className="flex items-center gap-2 mb-2">
             <Server className="h-4 w-4 text-fg-tertiary" />
-            <span className="text-sm font-medium text-fg-secondary">
-              {t('adminPage.dashboard.nodeMemory')}
-            </span>
+            <span className="text-sm font-medium text-fg-secondary">{t('Node Memory')}</span>
           </div>
           <p className="text-2xl font-bold text-fg">{data.system.memoryMB} MB</p>
         </div>
@@ -147,7 +135,7 @@ function SystemResourceSection({
           <div className="flex items-center gap-2 mb-2">
             <HardDrive className="h-4 w-4 text-fg-tertiary" />
             <span className="text-sm font-medium text-fg-secondary">
-              {t('adminPage.dashboard.dataDirSize')}
+              {t('Data Directory Size')}
             </span>
           </div>
           <p className="text-2xl font-bold text-fg">{totalSizeGB} GB</p>
@@ -155,9 +143,7 @@ function SystemResourceSection({
         <div className="rounded-lg border border-border-subtle p-4">
           <div className="flex items-center gap-2 mb-2">
             <Database className="h-4 w-4 text-fg-tertiary" />
-            <span className="text-sm font-medium text-fg-secondary">
-              {t('adminPage.dashboard.tickerFileCount')}
-            </span>
+            <span className="text-sm font-medium text-fg-secondary">{t('Ticker File Count')}</span>
           </div>
           <p className="text-2xl font-bold text-fg">
             {data.dataStats.totalTickers.toLocaleString()}
@@ -182,7 +168,7 @@ export default function AdminDashboard() {
       setData(parseAdminStats(json.data));
     } catch (error) {
       reportError(error, { component: 'AdminDashboard', action: 'fetchDashboardData' });
-      useToastStore.getState().addToast('error', t('adminPage.dashboard.loadFailed'));
+      useToastStore.getState().addToast('error', t('Load failed'));
     }
     setLoading(false);
     setLastRefresh(new Date().toLocaleTimeString('zh-CN'));

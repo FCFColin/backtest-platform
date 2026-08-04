@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import i18n from '@/i18n/index.js';
 import { useNavigate } from 'react-router-dom';
-import { useAsyncAction, useOptimizerLikeState } from '../../hooks/miscHooks.js';
+import { useAsyncAction, useListState, useOptimizerLikeState } from '../../hooks/miscHooks.js';
 import { apiFetch } from '@/utils/apiClient';
 import type { EfficientFrontierResult, EfficientFrontierPoint } from '@backtest/shared';
 import { buildBacktestParameters } from '@/utils/constants';
@@ -26,7 +26,7 @@ function buildPortfolioData(
     portfolios: [
       {
         id: `portfolio-${Date.now()}-1`,
-        name: i18n.t('statsTable.portfolioName'),
+        name: i18n.t('Portfolio'),
         assets: Object.entries(p.weights).map(([ticker, weight]) => ({
           ticker,
           weight: Math.round(weight * 10000) / 100,
@@ -70,7 +70,7 @@ async function fetchFrontier(params: FetchFrontierParams): Promise<EfficientFron
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const json = await res.json();
-  if (json.success === false) throw new Error(json.error || i18n.t('errors.computeFailed'));
+  if (json.success === false) throw new Error(json.error || i18n.t('Computation failed'));
   return json.data ?? json;
 }
 async function fetchCorrelations(
@@ -141,7 +141,13 @@ function computeFrontierDerivedData(results: EfficientFrontierResult | null) {
 }
 function useEfficientFrontierStateInner() {
   const navigate = useNavigate();
-  const [tickers, setTickers] = useState(['VTI', 'VXUS', 'BND', 'TLT']);
+  const {
+    items: tickers,
+    setItems: setTickers,
+    addItem,
+    removeItem,
+    updateItem,
+  } = useListState(['VTI', 'VXUS', 'BND', 'TLT'], () => '', 2);
   const { startDate, setStartDate, endDate, setEndDate, results, setResults } =
     useOptimizerLikeState<EfficientFrontierResult>();
   const [numPoints, setNumPoints] = useState(20);
@@ -162,6 +168,9 @@ function useEfficientFrontierStateInner() {
     navigate,
     tickers,
     setTickers,
+    addTicker: addItem,
+    removeTicker: removeItem,
+    updateTicker: (i: number, val: string) => updateItem(i, () => val),
     startDate,
     setStartDate,
     endDate,
@@ -196,15 +205,6 @@ function useEfficientFrontierStateInner() {
 }
 function useEfficientFrontierState() {
   const s = useEfficientFrontierStateInner();
-  const addTicker = () => s.setTickers([...s.tickers, '']);
-  const removeTicker = (i: number) => {
-    if (s.tickers.length > 2) s.setTickers(s.tickers.filter((_, idx) => idx !== i));
-  };
-  const updateTicker = (i: number, val: string) => {
-    const n = [...s.tickers];
-    n[i] = val;
-    s.setTickers(n);
-  };
   const { maxSharpe, sharpeRange, scatterData, allocationData, allAssetTickers } = useMemo(
     () => computeFrontierDerivedData(s.results),
     [s.results],
@@ -212,7 +212,7 @@ function useEfficientFrontierState() {
   const runFrontier = () => {
     const validTickers = s.tickers.filter(Boolean);
     if (validTickers.length < 2) {
-      s.setError(i18n.t('errors.atLeastTwoTickers'));
+      s.setError(i18n.t('Please enter at least two tickers'));
       return;
     }
     s.setSelectedPoint(null);
@@ -234,7 +234,7 @@ function useEfficientFrontierState() {
       s.setResults(data);
       const corr = await fetchCorrelations(validTickers, s.startDate, s.endDate);
       if (corr) s.setCorrelations(corr);
-      else s.setCorrelationError(i18n.t('errors.correlationFailed'));
+      else s.setCorrelationError(i18n.t('Correlation matrix computation failed'));
     });
   };
   const handleLoadInBacktester = (point?: EfficientFrontierPoint) => {
@@ -248,9 +248,6 @@ function useEfficientFrontierState() {
   };
   return {
     ...s,
-    addTicker,
-    removeTicker,
-    updateTicker,
     maxSharpe,
     sharpeRange,
     scatterData,

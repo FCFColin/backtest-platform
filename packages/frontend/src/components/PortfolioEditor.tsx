@@ -73,7 +73,7 @@ function SinglePortfolioEditor({
               type="text"
               value={a.ticker}
               onChange={(e) => onUpdate(i, 'ticker', e.target.value)}
-              placeholder={t('optimizer.tickerPlaceholder')}
+              placeholder={t('Enter ticker, e.g. VTI')}
               className="h-8 min-w-0 flex-1 font-mono uppercase"
             />
             <AffixInput
@@ -90,8 +90,8 @@ function SinglePortfolioEditor({
               size="icon"
               className="h-8 w-8 shrink-0"
               onClick={() => onRemove(i)}
-              title={t('common.delete')}
-              aria-label={t('common.delete')}
+              title={t('Delete')}
+              aria-label={t('Delete')}
             >
               <X className="w-4 h-4" />
             </Button>
@@ -101,12 +101,12 @@ function SinglePortfolioEditor({
       <div className="pt-1">
         <Button variant="ghost" size="sm" onClick={onAdd}>
           <Plus className="w-3.5 h-3.5" />
-          {t('portfolio.addAsset')}
+          {t('Add Asset')}
         </Button>
       </div>
       <div className="flex items-center gap-2 pt-2 mt-1 border-t border-border-subtle">
         <span className="shrink-0 text-caption text-fg-tertiary uppercase tracking-wide">
-          {t('portfolio.total')}
+          {t('Total')}
         </span>
         <AllocationBar assets={assets} tw={totalWeight} />
         <TotalWeightBlock tw={totalWeight} isComplete={complete} />
@@ -117,7 +117,7 @@ function SinglePortfolioEditor({
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between">
-        <span className="text-body font-semibold text-fg">{t('portfolio.title')}</span>
+        <span className="text-body font-semibold text-fg">{t('Portfolio')}</span>
       </div>
       <div>{card}</div>
     </div>
@@ -126,7 +126,7 @@ function SinglePortfolioEditor({
 function handleSavePortfolio(portfolio: StorePortfolio, parameters: BacktestParameters, t: TFunc) {
   const data = { portfolios: [portfolio], parameters, exportedAt: new Date().toISOString() };
   downloadJSON(data, `${portfolio.name || 'portfolio'}.json`);
-  useToastStore.getState().addToast('success', t('portfolio.savedAsJson'));
+  useToastStore.getState().addToast('success', t('Portfolio saved as JSON file'));
 }
 const REBALANCE_KEYS: RebalanceFrequency[] = [
   'none',
@@ -155,12 +155,12 @@ function AddPortfolioMenu(props: AddMenuActions) {
       <DropdownMenuTrigger asChild>
         <Button variant="secondary" size="sm">
           <Plus className="w-3.5 h-3.5" />
-          {t('portfolio.addPortfolio')}
+          {t('Add Portfolio')}
           <ChevronDown className="w-3.5 h-3.5" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="min-w-[200px]">
-        <DropdownMenuItem onClick={props.onAdd}>{t('portfolio.addEmpty')}</DropdownMenuItem>
+        <DropdownMenuItem onClick={props.onAdd}>{t('Add Empty')}</DropdownMenuItem>
         {PORTFOLIO_PRESETS.map((preset) => (
           <DropdownMenuItem key={preset.id} onClick={() => props.onAddPreset(preset.id)}>
             <div className="flex flex-col gap-0.5">
@@ -169,16 +169,12 @@ function AddPortfolioMenu(props: AddMenuActions) {
             </div>
           </DropdownMenuItem>
         ))}
-        <DropdownMenuItem onClick={props.onComingSoon}>{t('portfolio.addSaved')}</DropdownMenuItem>
-        <DropdownMenuItem onClick={props.onAddGlidepath}>
-          {t('portfolio.addGlidepath')}
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={props.onLoadExample}>
-          {t('portfolio.loadExample')}
-        </DropdownMenuItem>
+        <DropdownMenuItem onClick={props.onComingSoon}>{t('Add Saved')}</DropdownMenuItem>
+        <DropdownMenuItem onClick={props.onAddGlidepath}>{t('Add Glidepath')}</DropdownMenuItem>
+        <DropdownMenuItem onClick={props.onLoadExample}>{t('Load Example')}</DropdownMenuItem>
         <DropdownMenuItem onClick={props.onLoadCompareExample}>
           <GitCompare className="w-3.5 h-3.5 shrink-0" />
-          {t('portfolio.loadCompareExample')}
+          {t('Load Comparison Example')}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
@@ -192,7 +188,7 @@ function PortfolioEditorHeader({
   return (
     <div className="flex items-center justify-between gap-2 flex-wrap mb-3">
       <div className="flex items-center gap-2">
-        <span className="text-body font-semibold text-fg">{t('portfolio.title')}</span>
+        <span className="text-body font-semibold text-fg">{t('Portfolio')}</span>
         {count > 0 && (
           <Badge variant="secondary" size="sm">
             {count}
@@ -203,10 +199,10 @@ function PortfolioEditorHeader({
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => useToastStore.getState().addToast('warning', t('portfolio.comingSoon'))}
+          onClick={() => useToastStore.getState().addToast('warning', t('Feature coming soon'))}
         >
           <FolderOpen className="w-3.5 h-3.5" />
-          {t('portfolio.load')}
+          {t('Load')}
         </Button>
         <AddPortfolioMenu t={t} {...menuActions} />
       </div>
@@ -237,7 +233,9 @@ function MultiPortfolioEditor() {
   );
   const handleAddGlidepath = () => {
     if (nonGlidepathPortfolios.length < 2) {
-      useToastStore.getState().addToast('warning', t('portfolio.needTwoPortfolios'));
+      useToastStore
+        .getState()
+        .addToast('warning', t('At least 2 regular portfolios required to create a glide path'));
       return;
     }
     setShowGlidepathForm(true);
@@ -257,7 +255,7 @@ function MultiPortfolioEditor() {
         onAddGlidepath={handleAddGlidepath}
         onLoadExample={() => addPortfolio('60-40')}
         onLoadCompareExample={handleLoadCompareExample}
-        onComingSoon={() => useToastStore.getState().addToast('warning', t('portfolio.comingSoon'))}
+        onComingSoon={() => useToastStore.getState().addToast('warning', t('Feature coming soon'))}
       />
       {showGlidepathForm && (
         <GlidepathForm
@@ -274,9 +272,9 @@ function MultiPortfolioEditor() {
       >
         {portfolios.length === 0 ? (
           <div className="flex items-center gap-2 py-2">
-            <span className="text-body text-fg-tertiary">{t('portfolio.emptyPortfolios')}</span>
+            <span className="text-body text-fg-tertiary">{t('No portfolios added yet')}</span>
             <Button variant="ghost" size="sm" onClick={() => addPortfolio('60-40')}>
-              {t('portfolio.loadExample')}
+              {t('Load Example')}
             </Button>
           </div>
         ) : (
@@ -291,7 +289,6 @@ function MultiPortfolioEditor() {
               onDelete={() => removePortfolio(portfolio.id)}
               onDuplicate={() => duplicatePortfolio(portfolio.id)}
               onSave={(p) => handleSavePortfolio(p, parameters, t)}
-              onDeepAnalysis={() => {}}
             />
           ))
         )}

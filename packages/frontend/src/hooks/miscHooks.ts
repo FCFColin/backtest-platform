@@ -15,7 +15,7 @@ export function useAsyncAction() {
     try {
       return await task();
     } catch (e) {
-      setError(e instanceof Error ? e.message : i18n.t('errors.operationFailed'));
+      setError(e instanceof Error ? e.message : i18n.t('Operation failed'));
       return undefined;
     } finally {
       setIsLoading(false);
@@ -38,6 +38,28 @@ export function useListState<T>(initial: T[], makeDefault: () => T, minLength = 
   return { items, setItems, addItem, removeItem, updateItem };
 }
 
+export function useAssetList<T extends { ticker: string; weight: number | string }>(
+  defaults: T[],
+  factory: () => T,
+  minLength = 1,
+) {
+  const { items, setItems, addItem, removeItem, updateItem } = useListState<T>(
+    defaults,
+    factory,
+    minLength,
+  );
+  const updateAsset = (i: number, field: keyof T, val: T[keyof T]) =>
+    updateItem(i, (prev) => ({ ...prev, [field]: val }));
+  return {
+    assets: items,
+    setAssets: setItems,
+    addAsset: addItem,
+    removeAsset: removeItem,
+    updateAsset,
+    totalWeight: items.reduce((sum, a) => sum + (Number(a.weight) || 0), 0),
+  };
+}
+
 export function useNsT(ns: string, options?: UseTranslationOptions<string>) {
   const ret = useTranslation(ns, options);
   useEffect(() => {
@@ -47,11 +69,12 @@ export function useNsT(ns: string, options?: UseTranslationOptions<string>) {
 }
 
 export function useTheme() {
-  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
-    if (typeof window === 'undefined') return 'dark';
-    const s = localStorage.getItem('theme') as 'light' | 'dark' | null;
-    return s ?? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-  });
+  const [theme, setTheme] = useState<'light' | 'dark'>(() =>
+    typeof window === 'undefined'
+      ? 'dark'
+      : ((localStorage.getItem('theme') as 'light' | 'dark' | null) ??
+        (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')),
+  );
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     document.documentElement.classList.remove('light', 'dark');
@@ -91,26 +114,17 @@ export function useComputeTool<TResult>(
   const [results, setResults] = useState<TResult | null>(null);
   const runCompute = useCallback(() => {
     const ve = validateFn?.();
-    if (ve) {
-      setError(ve);
-      return;
-    }
+    if (ve) return void setError(ve);
     setResults(null);
     run(async () => {
       setResults(await computeFn());
     });
   }, [computeFn, validateFn, run, setError]);
-  return {
-    isLoading,
-    error,
-    results,
-    runCompute,
-    setResults,
-    reset: useCallback(() => {
-      resetAction();
-      setResults(null);
-    }, [resetAction]),
-  };
+  const reset = useCallback(() => {
+    resetAction();
+    setResults(null);
+  }, [resetAction]);
+  return { isLoading, error, results, runCompute, setResults, reset };
 }
 
 export function useOptimizerLikeState<TResults>() {
@@ -145,15 +159,9 @@ const tickerMetaCache = new Map<string, TickerMeta>();
 export function useTickerMeta(ticker: string): TickerMeta | null {
   const [meta, setMeta] = useState<TickerMeta | null>(null);
   useEffect(() => {
-    if (!ticker) {
-      setMeta(null);
-      return;
-    }
+    if (!ticker) return void setMeta(null);
     const upper = ticker.toUpperCase();
-    if (tickerMetaCache.has(upper)) {
-      setMeta(tickerMetaCache.get(upper) ?? null);
-      return;
-    }
+    if (tickerMetaCache.has(upper)) return setMeta(tickerMetaCache.get(upper) ?? null);
     const timer = setTimeout(async () => {
       try {
         const res = await apiFetch(`/api/v1/data/ticker-meta?ticker=${encodeURIComponent(upper)}`, {
@@ -172,19 +180,51 @@ export function useTickerMeta(ticker: string): TickerMeta | null {
   return meta;
 }
 
-const ACTIVITY_EVENTS: (keyof WindowEventMap)[] = [
-  'mousemove',
-  'keydown',
-  'mousedown',
-  'touchstart',
-  'scroll',
-];
+interface ResourceCache<T> {
+  data: T | null;
+  time: number;
+  pending: Promise<T> | null;
+  ttl: number;
+  fetcher: () => Promise<T>;
+}
+function createResourceCache<T>(
+  fetcher: () => Promise<T>,
+  initial: T | null = null,
+  ttl = 0,
+): ResourceCache<T> {
+  return { data: initial, time: initial ? Date.now() : 0, pending: null, ttl, fetcher };
+}
+function useCachedResource<T>(cache: ResourceCache<T>): T | null {
+  const [data, setData] = useState<T | null>(cache.data);
+  useEffect(() => {
+    if (cache.data && (!cache.ttl || Date.now() - cache.time < cache.ttl)) {
+      setData(cache.data);
+      return;
+    }
+    if (!cache.pending) {
+      cache.pending = cache
+        .fetcher()
+        .then((d) => {
+          cache.data = d;
+          cache.time = Date.now();
+          return d;
+        })
+        .catch(() => null)
+        .finally(() => {
+          cache.pending = null;
+        });
+    }
+    cache.pending.then(setData);
+  }, []);
+  return data;
+}
+
+const ACTIVITY_EVENTS = ['mousemove', 'keydown', 'mousedown', 'touchstart', 'scroll'] as const;
 const HEARTBEAT_MS = 60_000;
 export function useIdleTimeout(timeoutMs: number, enabled: boolean): void {
   const navigate = useNavigate();
   const logout = useAuthStore((s) => s.logout);
   const lastActivityRef = useRef(Date.now());
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const triggeredRef = useRef(false);
   const resetActivity = useCallback(() => {
     lastActivityRef.current = Date.now();
@@ -208,14 +248,11 @@ export function useIdleTimeout(timeoutMs: number, enabled: boolean): void {
       if (document.visibilityState === 'visible') checkTimeout();
     };
     document.addEventListener('visibilitychange', handleVisibility);
-    timerRef.current = setInterval(checkTimeout, HEARTBEAT_MS);
+    const timerId = setInterval(checkTimeout, HEARTBEAT_MS);
     return () => {
       ACTIVITY_EVENTS.forEach((e) => window.removeEventListener(e, resetActivity));
       document.removeEventListener('visibilitychange', handleVisibility);
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
-      }
+      clearInterval(timerId);
     };
   }, [enabled, timeoutMs, resetActivity, checkTimeout]);
 }
@@ -231,38 +268,34 @@ interface Announcement {
   publishedAt: string;
 }
 const READ_KEY = 'announcements-read';
-let pendingAnnouncements: Promise<Announcement[]> | null = null;
+const announceCache = createResourceCache<Announcement[]>(() =>
+  apiFetch('/api/v1/announcements', { silent: true })
+    .then((r) => (r.ok ? r.json() : { data: [] }))
+    .then((j) => {
+      const d = j.data ?? j ?? [];
+      return Array.isArray(d) ? d : [];
+    })
+    .catch(() => []),
+);
 export function useAnnouncements() {
-  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const announcements = useCachedResource(announceCache);
   const [readIds, setReadIds] = useState<Set<number>>(new Set());
   useEffect(() => {
     try {
       const s = localStorage.getItem(READ_KEY);
       if (s) setReadIds(new Set(JSON.parse(s)));
     } catch {
-      /* noop */
+      // localStorage 不可用/损坏时忽略
     }
-    if (!pendingAnnouncements) {
-      pendingAnnouncements = apiFetch('/api/v1/announcements', { silent: true })
-        .then((r) => (r.ok ? r.json() : { data: [] }))
-        .then((j) => {
-          const d = j.data ?? j ?? [];
-          return Array.isArray(d) ? d : [];
-        })
-        .catch(() => [])
-        .finally(() => {
-          pendingAnnouncements = null;
-        });
-    }
-    pendingAnnouncements.then(setAnnouncements);
   }, []);
-  const unreadCount = announcements.filter((a) => !readIds.has(a.id)).length;
+  const list = announcements ?? [];
+  const unreadCount = list.filter((a) => !readIds.has(a.id)).length;
   const markAllRead = useCallback(() => {
-    const all = new Set(announcements.map((a) => a.id));
+    const all = new Set(list.map((a) => a.id));
     setReadIds(all);
     localStorage.setItem(READ_KEY, JSON.stringify([...all]));
-  }, [announcements]);
-  return { announcements, unreadCount, markAllRead };
+  }, [list]);
+  return { announcements: list, unreadCount, markAllRead };
 }
 
 interface DataMeta {
@@ -271,62 +304,40 @@ interface DataMeta {
   earliestDate: string;
   dataPointCount: number;
 }
-let cachedMeta: DataMeta | null = null;
-let cacheTime = 0;
-let pendingMeta: Promise<DataMeta | null> | null = null;
-const CACHE_TTL = 5 * 60 * 1000;
+const META_TTL = 5 * 60 * 1000;
 function getPreloadedMeta(): DataMeta | null {
   try {
     const g =
       typeof window !== 'undefined'
-        ? (window as { __INITIAL_DATA__?: unknown }).__INITIAL_DATA__
+        ? (window as { __INITIAL_DATA__?: Record<string, unknown> }).__INITIAL_DATA__
         : null;
-    const d = (g && ((g as Record<string, unknown>).data ?? g)) as Partial<DataMeta>;
-    if (d?.tickerCount !== undefined && d?.lastUpdated) {
+    const d = (g && (g.data ?? g)) as Partial<DataMeta>;
+    if (d?.tickerCount !== undefined && d?.lastUpdated)
       return {
         lastUpdated: d.lastUpdated,
         tickerCount: d.tickerCount,
         earliestDate: d.earliestDate || '',
         dataPointCount: d.dataPointCount || 0,
       };
-    }
   } catch {
-    /* noop */
+    // 预加载元数据缺失/损坏时忽略
   }
   return null;
 }
-const preloaded = getPreloadedMeta();
-if (preloaded) {
-  cachedMeta = preloaded;
-  cacheTime = Date.now();
-}
+const metaCache = createResourceCache<DataMeta | null>(
+  () =>
+    apiFetch('/api/v1/data/meta', { silent: true })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        const d = j?.data ?? j;
+        return d?.lastUpdated ? d : null;
+      })
+      .catch(() => null),
+  getPreloadedMeta(),
+  META_TTL,
+);
 export function useDataMeta(): DataMeta | null {
-  const [meta, setMeta] = useState<DataMeta | null>(cachedMeta);
-  useEffect(() => {
-    if (cachedMeta && Date.now() - cacheTime < CACHE_TTL) {
-      setMeta(cachedMeta);
-      return;
-    }
-    if (!pendingMeta) {
-      pendingMeta = apiFetch('/api/v1/data/meta', { silent: true })
-        .then((r) => (r.ok ? r.json() : null))
-        .then((j) => {
-          const d = j?.data ?? j;
-          if (d?.lastUpdated) {
-            cachedMeta = d;
-            cacheTime = Date.now();
-            return d;
-          }
-          return null;
-        })
-        .catch(() => null)
-        .finally(() => {
-          pendingMeta = null;
-        });
-    }
-    pendingMeta.then(setMeta);
-  }, []);
-  return meta;
+  return useCachedResource(metaCache);
 }
 
 export type WorkerTask = { type: string; payload: unknown[] };

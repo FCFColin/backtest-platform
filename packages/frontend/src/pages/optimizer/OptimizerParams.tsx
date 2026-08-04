@@ -33,14 +33,14 @@ function TickerEditor({ s }: { s: EfficientFrontierState }) {
   return (
     <section className="flex flex-col gap-3">
       <SectionHeader
-        title={t('optimizer.assetSelection')}
-        info={t('optimizer.assetSelectionInfo')}
+        title={t('Asset Selection')}
+        info={t('Enter ticker symbols for optimization, at least two required')}
       />
       <TickerTagInput
         tickers={s.tickers.filter(Boolean)}
         onChange={handleTagChange}
         minCount={2}
-        placeholder={t('optimizer.tickerPlaceholder')}
+        placeholder={t('Enter ticker, e.g. VTI')}
       />
     </section>
   );
@@ -81,13 +81,13 @@ function SolverSettings({ s }: { s: EfficientFrontierState }) {
   return (
     <section className="flex flex-col gap-3">
       <SectionHeader
-        title={t('optimizer.solverSettings')}
-        info={t('optimizer.solverSettingsInfo')}
+        title={t('Solver Settings')}
+        info={t('Set optimization objective, weight constraints and solver')}
       />
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <SwitchField
           id="opt-all-history"
-          label={t('optimizer.allHistory')}
+          label={t('All History')}
           checked={allHistory}
           onCheckedChange={(checked) => {
             s.setStartDate(checked ? '' : DEFAULT_BACKTEST_START_DATE);
@@ -123,7 +123,7 @@ function SolverSettings({ s }: { s: EfficientFrontierState }) {
             />
           </LabeledField>
         ))}
-        <LabeledField htmlFor="opt-tbill" label={t('optimizer.tbillRate')}>
+        <LabeledField htmlFor="opt-tbill" label={t('T-Bill Rate')}>
           <PercentInput
             step={0.1}
             value={s.tbillRate}
@@ -132,14 +132,14 @@ function SolverSettings({ s }: { s: EfficientFrontierState }) {
         </LabeledField>
         <SelectField
           id="opt-solver"
-          label={t('optimizer.solver')}
+          label={t('Solver')}
           value={s.solver}
           onChange={(v) => s.setSolver(v as SolverType)}
           options={SOLVERS.map((o) => ({ value: o.value, label: t(o.labelKey) }))}
         />
         <SwitchField
           id="opt-short"
-          label={t('optimizer.allowShort')}
+          label={t('Allow Short Selling')}
           checked={s.allowShort}
           onCheckedChange={s.setAllowShort}
         />
@@ -184,34 +184,36 @@ function HistoricalConstraints({ s }: { s: EfficientFrontierState }) {
   const { t } = useTranslation();
   const fields = [
     {
-      label: t('optimizer.maxDrawdownLT'),
+      label: t('Max Drawdown <'),
       checked: s.enableMaxDD,
       onToggle: s.setEnableMaxDD,
       value: s.maxMaxDD,
       onValueChange: s.setMaxMaxDD,
-      placeholder: t('optimizer.placeholderDD'),
+      placeholder: t('e.g. 20'),
     },
     {
-      label: t('optimizer.cagrGT'),
+      label: t('CAGR >'),
       checked: s.enableMinCagr,
       onToggle: s.setEnableMinCagr,
       value: s.minCagr,
       onValueChange: s.setMinCagr,
-      placeholder: t('optimizer.placeholderCagr'),
+      placeholder: t('e.g. 5'),
     },
     {
-      label: t('optimizer.volatilityLT'),
+      label: t('Volatility <'),
       checked: s.enableMaxVol,
       onToggle: s.setEnableMaxVol,
       value: s.maxVol,
       onValueChange: s.setMaxVol,
-      placeholder: t('optimizer.placeholderVol'),
+      placeholder: t('e.g. 15'),
     },
   ];
   return (
     <CollapsibleSection
-      title={t('optimizer.historicalConstraints')}
-      description={t('optimizer.historicalConstraintsInfo')}
+      title={t('Historical Constraint Optimization')}
+      description={t(
+        'Filter conditions based on historical backtest metrics, only portfolios meeting constraints will be returned when enabled',
+      )}
     >
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {fields.map((f) => (
@@ -256,8 +258,10 @@ function AdvancedConstraints({ s }: { s: EfficientFrontierState }) {
   ];
   return (
     <CollapsibleSection
-      title={t('optimizer.advancedConstraints')}
-      description={t('optimizer.advancedConstraintsInfo')}
+      title={t('Advanced Constraints')}
+      description={t(
+        'Other historical metric constraints and holding limits, leave empty for no limit',
+      )}
     >
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {fields.map((f) => (
@@ -293,10 +297,10 @@ export function OptimizerParams({ s }: { s: EfficientFrontierState }) {
   const { t } = useTranslation();
   const running = s.isLoading || s.isCalculatingStats;
   const btnLabel = s.isCalculatingStats
-    ? t('optimizer.calculatingStats')
+    ? t('Calculating backtest statistics...')
     : s.isLoading
-      ? t('optimizer.optimizing')
-      : t('optimizer.startCalc');
+      ? t('Optimizing...')
+      : t('OPTIMIZE');
   return (
     <div className="flex flex-col gap-5">
       <TickerEditor s={s} />

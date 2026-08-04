@@ -30,30 +30,30 @@ export function DrawdownEpisodes({ episodes }: DrawdownEpisodesProps) {
     >
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-border">
-        <h3 className="text-h3">{t('components.drawdownEpisodes.title')}</h3>
+        <h3 className="text-h3">{t('Drawdown Episodes')}</h3>
         <div className="flex items-center gap-2">
           <select
             value={severity}
             onChange={(e) => setSeverity(e.target.value as Severity)}
             className="text-caption bg-input-bg border border-border rounded-md px-2 py-1 text-fg"
-            aria-label={t('components.drawdownEpisodes.aria.severity')}
+            aria-label={t('Filter by severity')}
             data-testid="filter-severity"
           >
-            <option value="all">{t('components.drawdownEpisodes.filter.all')}</option>
-            <option value="severe">{t('components.drawdownEpisodes.filter.severe')}</option>
-            <option value="moderate">{t('components.drawdownEpisodes.filter.moderate')}</option>
-            <option value="mild">{t('components.drawdownEpisodes.filter.mild')}</option>
+            <option value="all">{t('All')}</option>
+            <option value="severe">{t('Severe (≥20%)')}</option>
+            <option value="moderate">{t('Moderate (≥10%)')}</option>
+            <option value="mild">{t('Mild (<10%)')}</option>
           </select>
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as 'depth' | 'duration' | 'recovery')}
             className="text-caption bg-input-bg border border-border rounded-md px-2 py-1 text-fg"
-            aria-label={t('components.drawdownEpisodes.aria.sortBy')}
+            aria-label={t('Sort episodes')}
             data-testid="sort-selector"
           >
-            <option value="depth">{t('components.drawdownEpisodes.sort.depth')}</option>
-            <option value="duration">{t('components.drawdownEpisodes.sort.duration')}</option>
-            <option value="recovery">{t('components.drawdownEpisodes.sort.recovery')}</option>
+            <option value="depth">{t('By Depth')}</option>
+            <option value="duration">{t('By Duration')}</option>
+            <option value="recovery">{t('By Recovery Factor')}</option>
           </select>
         </div>
       </div>
@@ -70,7 +70,7 @@ export function DrawdownEpisodes({ episodes }: DrawdownEpisodesProps) {
               className="text-caption text-brand hover:underline"
               data-testid="show-more-episodes"
             >
-              {t('components.drawdownEpisodes.showMore', {
+              {t('Show {{count}} more', {
                 count: Math.min(10, filtered.length - displayLimit),
               })}
             </button>
@@ -93,31 +93,23 @@ function DrawdownSummary({ episodes }: { episodes: DrawdownEpisode[] }) {
   return (
     <div className="grid grid-cols-4 gap-6 px-6 py-4 border-b border-border-subtle">
       <div>
-        <div className="text-label-tiny text-fg-tertiary">
-          {t('components.drawdownEpisodes.summary.totalDrawdowns')}
-        </div>
+        <div className="text-label-tiny text-fg-tertiary">{t('Total Drawdowns')}</div>
         <div className="text-h3 font-mono tabular-nums">{summary.total}</div>
       </div>
       <div>
-        <div className="text-label-tiny text-fg-tertiary">
-          {t('components.drawdownEpisodes.summary.maxDrawdown')}
-        </div>
+        <div className="text-label-tiny text-fg-tertiary">{t('Max Drawdown')}</div>
         <div className="text-h3 font-mono tabular-nums text-neg">
           {formatPercent(summary.maxDepth)}
         </div>
       </div>
       <div>
-        <div className="text-label-tiny text-fg-tertiary">
-          {t('components.drawdownEpisodes.summary.avgDrawdown')}
-        </div>
+        <div className="text-label-tiny text-fg-tertiary">{t('Average Drawdown')}</div>
         <div className="text-h3 font-mono tabular-nums text-neg">
           {formatPercent(summary.avgDepth)}
         </div>
       </div>
       <div>
-        <div className="text-label-tiny text-fg-tertiary">
-          {t('components.drawdownEpisodes.summary.avgRecoveryDuration')}
-        </div>
+        <div className="text-label-tiny text-fg-tertiary">{t('Avg Recovery Duration')}</div>
         <div className="text-h3 font-mono tabular-nums">
           {formatDuration(Math.round(summary.avgRecovery))}
         </div>
@@ -154,9 +146,7 @@ function DrawdownEpisodeRow({ episode, testId }: { episode: DrawdownEpisode; tes
           </div>
           <div className="text-caption text-fg-tertiary flex flex-col items-end">
             <span data-testid="episode-status">
-              {episode.recoveryDate
-                ? t('components.drawdownEpisodes.status.recovered')
-                : t('components.drawdownEpisodes.status.ongoing')}
+              {episode.recoveryDate ? t('Recovered') : t('Ongoing')}
             </span>
             <span className="font-mono tabular-nums" data-testid="episode-duration">
               {formatDuration(episode.totalTimeDurationDays)}
@@ -171,33 +161,21 @@ function DrawdownEpisodeRow({ episode, testId }: { episode: DrawdownEpisode; tes
       </button>
       {expanded && (
         <div className="px-6 pb-4 pl-11 grid grid-cols-2 md:grid-cols-3 gap-4 bg-surface-sunken/30">
-          <DetailField
-            label={t('components.drawdownEpisodes.detail.timeToTrough')}
-            value={formatDuration(episode.timeToTrough)}
-          />
+          <DetailField label={t('Time to Trough')} value={formatDuration(episode.timeToTrough)} />
           {episode.recoveryTime > 0 && (
-            <DetailField
-              label={t('components.drawdownEpisodes.detail.recoveryTime')}
-              value={formatDuration(episode.recoveryTime)}
-            />
+            <DetailField label={t('Recovery Time')} value={formatDuration(episode.recoveryTime)} />
           )}
           {episode.recoveryFactor !== undefined && (
-            <DetailField
-              label={t('components.drawdownEpisodes.detail.recoveryFactor')}
-              value={episode.recoveryFactor.toFixed(2)}
-            />
+            <DetailField label={t('Recovery Factor')} value={episode.recoveryFactor.toFixed(2)} />
           )}
           {episode.cagrDuring !== undefined && (
             <DetailField
-              label={t('components.drawdownEpisodes.detail.periodCagr')}
+              label={t('Period CAGR')}
               value={formatPercent(episode.cagrDuring)}
               colorize
             />
           )}
-          <DetailField
-            label={t('components.drawdownEpisodes.detail.periodUlcer')}
-            value={episode.ulcerDuring.toFixed(2)}
-          />
+          <DetailField label={t('Period Ulcer')} value={episode.ulcerDuring.toFixed(2)} />
         </div>
       )}
     </div>

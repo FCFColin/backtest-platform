@@ -297,15 +297,18 @@ export const SelectTrigger = wrapPrimitive(
     </>
   ),
 );
-const SelectScrollButton = (Comp: typeof SelectPrimitive.ScrollUpButton, Icon: typeof ChevronUp) =>
-  wrapPrimitive(
-    Comp,
-    'flex cursor-default items-center justify-center py-1',
-    'SelectScrollButton',
-    () => <Icon className="h-4 w-4 text-fg-tertiary" />,
-  );
-const SelectScrollUpButton = SelectScrollButton(SelectPrimitive.ScrollUpButton, ChevronUp);
-const SelectScrollDownButton = SelectScrollButton(SelectPrimitive.ScrollDownButton, ChevronDown);
+const SelectScrollUpButton = wrapPrimitive(
+  SelectPrimitive.ScrollUpButton,
+  'flex cursor-default items-center justify-center py-1',
+  'SelectScrollUpButton',
+  () => <ChevronUp className="h-4 w-4 text-fg-tertiary" />,
+);
+const SelectScrollDownButton = wrapPrimitive(
+  SelectPrimitive.ScrollDownButton,
+  'flex cursor-default items-center justify-center py-1',
+  'SelectScrollDownButton',
+  () => <ChevronDown className="h-4 w-4 text-fg-tertiary" />,
+);
 const SelectContent = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.Content>
@@ -354,12 +357,12 @@ export const SelectItem = wrapPrimitive(
 );
 export { SelectContent };
 
-export const Separator = React.forwardRef<
-  React.ElementRef<typeof SeparatorPrimitive.Root>,
-  React.ComponentPropsWithoutRef<typeof SeparatorPrimitive.Root>
->(({ className, orientation = 'horizontal', ...props }, ref) => (
+export const Separator = ({
+  className,
+  orientation = 'horizontal',
+  ...props
+}: React.ComponentPropsWithoutRef<typeof SeparatorPrimitive.Root>) => (
   <SeparatorPrimitive.Root
-    ref={ref}
     orientation={orientation}
     className={cn(
       'shrink-0 bg-border-subtle',
@@ -368,7 +371,7 @@ export const Separator = React.forwardRef<
     )}
     {...props}
   />
-));
+);
 
 export const Skeleton = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
   <div className={cn('animate-pulse rounded-md bg-input-bg', className)} {...props} />
@@ -400,30 +403,32 @@ export const TabsContent = wrapPrimitive(
   'TabsContent',
 );
 
-function Tooltip({ children }: { children: ReactNode }) {
-  return <div className="relative inline-flex group">{children}</div>;
-}
-const TooltipTrigger = ({ children, asChild }: { children: ReactNode; asChild?: boolean }) =>
-  asChild && isValidElement(children) ? <>{children}</> : <span>{children}</span>;
-interface TooltipContentProps extends HTMLAttributes<HTMLDivElement> {
-  children: ReactNode;
-}
-const TooltipContent = React.forwardRef<HTMLDivElement, TooltipContentProps>(
-  ({ children, className, ...props }, ref) => (
-    <div
-      ref={ref}
-      role="tooltip"
-      className={cn(
-        'invisible opacity-0 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100 transition-opacity duration-150 absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50',
-        className,
-      )}
-      {...props}
-    >
-      {children}
-    </div>
-  ),
+export const Tooltip = ({ children }: { children: ReactNode }) => (
+  <div className="relative inline-flex group">{children}</div>
 );
-export { Tooltip, TooltipTrigger, TooltipContent };
+export const TooltipTrigger = ({
+  children,
+  asChild,
+}: {
+  children: ReactNode;
+  asChild?: boolean;
+}) => (asChild && isValidElement(children) ? <>{children}</> : <span>{children}</span>);
+export const TooltipContent = React.forwardRef<
+  HTMLDivElement,
+  HTMLAttributes<HTMLDivElement> & { children: ReactNode }
+>(({ children, className, ...props }, ref) => (
+  <div
+    ref={ref}
+    role="tooltip"
+    className={cn(
+      'invisible opacity-0 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100 transition-opacity duration-150 absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50',
+      className,
+    )}
+    {...props}
+  >
+    {children}
+  </div>
+));
 interface LoadingButtonProps extends ButtonProps {
   isLoading: boolean;
   loadingText?: string;
@@ -441,7 +446,20 @@ export function LoadingButton({
   return (
     <Button type={type} variant={variant} disabled={isLoading || disabled} {...rest}>
       {isLoading && <Loader2 className="animate-spin" />}
-      {isLoading ? (loadingText ?? t('common.loading')) : children}
+      {isLoading ? (loadingText ?? t('Loading...')) : children}
     </Button>
+  );
+}
+
+const SPINNER_SIZES: Record<number, string> = { 4: 'size-4', 5: 'size-5', 8: 'h-8 w-8' };
+export function Spinner({ size = 5, className }: { size?: number; className?: string }) {
+  return (
+    <div
+      className={cn(
+        'animate-spin rounded-full border-2 border-current border-t-transparent text-fg-tertiary',
+        SPINNER_SIZES[size],
+        className,
+      )}
+    />
   );
 }

@@ -103,7 +103,7 @@ export function ToolSeoCard({ subtitle, desc, features, related, relatedLabel }:
         {related && related.length > 0 && (
           <div className="min-w-0">
             <div className="mb-1.5 text-label font-semibold text-fg">
-              {relatedLabel ?? t('layout.toolSeoCard.relatedTools')}
+              {relatedLabel ?? t('Related Tools:')}
             </div>
             <div className="text-label leading-relaxed text-fg-tertiary">
               {related.map((link, i) => (

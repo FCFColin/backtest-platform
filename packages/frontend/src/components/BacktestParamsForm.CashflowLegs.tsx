@@ -23,8 +23,8 @@ function RowDeleteButton({ onClick, t }: { onClick: () => void; t: TFunctionProp
         variant="destructive"
         size="icon"
         onClick={onClick}
-        title={t('common.delete')}
-        aria-label={t('common.delete')}
+        title={t('Delete')}
+        aria-label={t('Delete')}
       >
         <X />
       </Button>
@@ -36,7 +36,7 @@ export function CashflowLegsSection() {
   const parameters = useBacktestStore(useShallow((s) => s.parameters));
   const addCashflowLeg = useBacktestStore((s) => s.addCashflowLeg);
   return (
-    <ParamGroup title={t('params.cashflowLegs')} badge={parameters.cashflowLegs?.length || 0}>
+    <ParamGroup title={t('Cashflow Legs')} badge={parameters.cashflowLegs?.length || 0}>
       <ParamRow>
         <div className="flex h-10 items-center gap-2">
           <Switch id="cf-inflation-adjust" />
@@ -44,10 +44,10 @@ export function CashflowLegsSection() {
             htmlFor="cf-inflation-adjust"
             className="cursor-pointer text-caption text-fg-secondary"
           >
-            {t('params.adjustFixedCashflowsForInflation')}
+            {t('Adjust Fixed Cashflows for Inflation')}
           </label>
         </div>
-        <ParamCard label={t('params.annualCashflowGrowth')}>
+        <ParamCard label={t('Annual Cashflow Growth')}>
           <AffixInput
             type="number"
             defaultValue={0}
@@ -61,7 +61,7 @@ export function CashflowLegsSection() {
       ))}
       <Button variant="ghost" size="sm" className="mt-3" onClick={addCashflowLeg}>
         <Plus />
-        {t('params.addCashflowLeg')}
+        {t('Add Cashflow Leg')}
       </Button>
     </ParamGroup>
   );
@@ -80,7 +80,7 @@ function CashflowFrequencySelect({
   t: TFunctionProp['t'];
 }) {
   return (
-    <ParamCard label={t('params.frequency')}>
+    <ParamCard label={t('Frequency')}>
       <Select
         value={leg.frequency}
         onValueChange={(v) =>
@@ -93,10 +93,10 @@ function CashflowFrequencySelect({
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="yearly">{t('params.yearly')}</SelectItem>
-          <SelectItem value="quarterly">{t('params.quarterly')}</SelectItem>
-          <SelectItem value="monthly">{t('params.monthly')}</SelectItem>
-          <SelectItem value="weekly">{t('params.weekly')}</SelectItem>
+          <SelectItem value="yearly">{t('Yearly')}</SelectItem>
+          <SelectItem value="quarterly">{t('Quarterly')}</SelectItem>
+          <SelectItem value="monthly">{t('Monthly')}</SelectItem>
+          <SelectItem value="weekly">{t('Weekly')}</SelectItem>
         </SelectContent>
       </Select>
     </ParamCard>
@@ -107,7 +107,7 @@ function CashflowLegRow({ leg, currency, t }: CashflowLegRowProps) {
   const updateCashflowLeg = useBacktestStore((s) => s.updateCashflowLeg);
   return (
     <ParamRow className="mt-4">
-      <ParamCard label={t('params.amount')}>
+      <ParamCard label={t('Amount')}>
         <AffixInput
           type="number"
           value={leg.amount || ''}
@@ -117,7 +117,7 @@ function CashflowLegRow({ leg, currency, t }: CashflowLegRowProps) {
           onChange={(e) => updateCashflowLeg(leg.id, { amount: Number(e.target.value) || 0 })}
         />
       </ParamCard>
-      <ParamCard label={t('params.cashflowType')}>
+      <ParamCard label={t('Cashflow Type')}>
         <Select
           value={leg.type}
           onValueChange={(v) =>
@@ -128,13 +128,13 @@ function CashflowLegRow({ leg, currency, t }: CashflowLegRowProps) {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="contribution">{t('params.contribution')}</SelectItem>
-            <SelectItem value="withdrawal">{t('params.withdrawal')}</SelectItem>
+            <SelectItem value="contribution">{t('Contribution')}</SelectItem>
+            <SelectItem value="withdrawal">{t('Withdrawal')}</SelectItem>
           </SelectContent>
         </Select>
       </ParamCard>
       <CashflowFrequencySelect leg={leg} updateCashflowLeg={updateCashflowLeg} t={t} />
-      <ParamCard label={t('params.offset')}>
+      <ParamCard label={t('Offset')}>
         <Input
           type="number"
           value={leg.offset || ''}
@@ -143,7 +143,7 @@ function CashflowLegRow({ leg, currency, t }: CashflowLegRowProps) {
           onChange={(e) => updateCashflowLeg(leg.id, { offset: Number(e.target.value) || 0 })}
         />
       </ParamCard>
-      <ParamCard label={t('params.until')}>
+      <ParamCard label={t('Until')}>
         <Input
           type="date"
           value={leg.until || ''}
@@ -162,13 +162,10 @@ export function OneTimeCashflowSection() {
   const removeOneTimeCashflow = useBacktestStore((s) => s.removeOneTimeCashflow);
   const updateOneTimeCashflow = useBacktestStore((s) => s.updateOneTimeCashflow);
   return (
-    <ParamGroup
-      title={t('params.oneTimeCashflow')}
-      badge={parameters.oneTimeCashflows?.length || 0}
-    >
+    <ParamGroup title={t('One-Time Cashflow')} badge={parameters.oneTimeCashflows?.length || 0}>
       {(parameters.oneTimeCashflows || []).map((cf) => (
         <ParamRow key={cf.id} className="mb-4 last:mb-0">
-          <ParamCard label={t('params.amount')}>
+          <ParamCard label={t('Amount')}>
             <AffixInput
               type="number"
               value={cf.amount || ''}
@@ -180,7 +177,7 @@ export function OneTimeCashflowSection() {
               }
             />
           </ParamCard>
-          <ParamCard label={t('params.type')}>
+          <ParamCard label={t('Type')}>
             <Select
               value={cf.type}
               onValueChange={(v) =>
@@ -191,12 +188,12 @@ export function OneTimeCashflowSection() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="contribution">{t('params.contribution')}</SelectItem>
-                <SelectItem value="withdrawal">{t('params.withdrawal')}</SelectItem>
+                <SelectItem value="contribution">{t('Contribution')}</SelectItem>
+                <SelectItem value="withdrawal">{t('Withdrawal')}</SelectItem>
               </SelectContent>
             </Select>
           </ParamCard>
-          <ParamCard label={t('params.date')}>
+          <ParamCard label={t('Date')}>
             <Input
               type="date"
               value={cf.date}
@@ -210,7 +207,7 @@ export function OneTimeCashflowSection() {
       {(parameters.oneTimeCashflows || []).length === 0 && (
         <Button variant="ghost" size="sm" onClick={addOneTimeCashflow}>
           <Plus />
-          {t('params.addOneTimeCashflow')}
+          {t('Add One-Time Cashflow')}
         </Button>
       )}
     </ParamGroup>

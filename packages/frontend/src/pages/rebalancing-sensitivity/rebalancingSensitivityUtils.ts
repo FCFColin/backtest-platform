@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import i18n from '@/i18n/index.js';
 import type { RebalanceFrequency } from '@backtest/shared';
-import { useListState } from '../../hooks/miscHooks.js';
+import { useAssetList } from '../../hooks/miscHooks.js';
 import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
 import { validateAssetWeights } from '@/utils/validation';
 import {
@@ -119,10 +119,11 @@ function createRebalancingRunners(
 ) {
   const validate = (): Array<{ ticker: string; weight: number }> | string => {
     const validAssets = assets.filter((a) => a.ticker.trim() !== '');
-    if (validAssets.length === 0) return i18n.t('errors.atLeastOneAsset');
+    if (validAssets.length === 0) return i18n.t('Please add at least one asset');
     const weightErr = validateAssetWeights(assets);
     if (weightErr) return weightErr;
-    if (s.selectedFreqs.length === 0) return i18n.t('errors.atLeastOneFreq');
+    if (s.selectedFreqs.length === 0)
+      return i18n.t('Please select at least one rebalancing frequency');
     return validAssets;
   };
   const runOffsetScanInner = async (
@@ -136,7 +137,7 @@ function createRebalancingRunners(
         await Promise.all(OFFSETS.map((o) => fetchOffsetResult(o, freq, validAssets, params))),
       );
     } catch {
-      s.setError(i18n.t('errors.rebalancingSensitivityFailed'));
+      s.setError(i18n.t('Rebalancing sensitivity analysis failed'));
     } finally {
       s.setIsLoadingOffset(false);
     }
@@ -161,7 +162,7 @@ function createRebalancingRunners(
       s.setResults(all);
       if (s.selectedFreqs.length > 0) void runOffsetScanInner(s.selectedFreqs[0], validAssets);
     } catch (e) {
-      s.setError(e instanceof Error ? e.message : i18n.t('errors.analysisFailed'));
+      s.setError(e instanceof Error ? e.message : i18n.t('Analysis failed'));
     } finally {
       s.setIsLoading(false);
     }
@@ -179,12 +180,10 @@ export function useRebalancingState(): RebalancingState {
     s.setSelectedFreqs((prev) =>
       prev.includes(freq) ? prev.filter((f) => f !== freq) : [...prev, freq],
     );
-  const {
-    items: assets,
-    addItem: addAsset,
-    removeItem: removeAsset,
-    updateItem,
-  } = useListState<{ ticker: string; weight: number }>(
+  const { assets, addAsset, removeAsset, updateAsset, totalWeight } = useAssetList<{
+    ticker: string;
+    weight: number;
+  }>(
     [
       { ticker: 'VTI', weight: 60 },
       { ticker: 'BND', weight: 40 },
@@ -192,9 +191,6 @@ export function useRebalancingState(): RebalancingState {
     () => ({ ticker: '', weight: 0 }),
     0,
   );
-  const updateAsset = (i: number, field: 'ticker' | 'weight', val: string | number) =>
-    updateItem(i, (prev) => ({ ...prev, [field]: val }));
-  const totalWeight = assets.reduce((sum, a) => sum + (a.weight || 0), 0);
   const params = {
     startDate: s.startDate,
     endDate: s.endDate,

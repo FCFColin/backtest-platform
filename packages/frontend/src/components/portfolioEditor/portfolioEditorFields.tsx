@@ -14,14 +14,9 @@ import {
 import { useTickerMeta } from '@/hooks/miscHooks.js';
 import { cn } from '@/lib/utils';
 import { INPUT_WIDTHS } from '@/utils/constants';
-import type { StorePortfolio, TFunc } from './portfolioEditor.js';
+import type { StorePortfolio } from './portfolioEditor.js';
 
 const numCls = 'h-8 w-[70px] font-mono tabular-nums';
-const numCls80 = 'h-8 w-[80px] font-mono tabular-nums';
-const GP_FORM = 'p-3 mb-2 bg-bg-subtle rounded-[var(--radius-control)] border border-border-soft';
-const GP_TITLE = 'text-[13px] font-semibold text-text-strong mb-2';
-const GP_CONFIG = 'p-2 mb-1.5 bg-bg-elevated rounded-md border border-border-soft';
-const GP_CONFIG_TITLE = 'text-[11px] font-semibold text-accent mb-1.5 tracking-tight';
 const FIELDS_ROW = 'flex flex-wrap gap-2 items-end';
 
 function FieldLabel({ label, children }: { label: string; children: ReactNode }) {
@@ -36,13 +31,12 @@ function PortfolioSelect({
   value,
   onChange,
   portfolios,
-  t,
 }: {
   value: string;
   onChange: (v: string) => void;
   portfolios: StorePortfolio[];
-  t: TFunc;
 }) {
+  const { t } = useTranslation();
   return (
     <Select value={value} onValueChange={onChange}>
       <SelectTrigger className="h-8 w-[120px]">
@@ -51,7 +45,7 @@ function PortfolioSelect({
       <SelectContent>
         {portfolios.map((p, i) => (
           <SelectItem key={p.id} value={p.id}>
-            {p.name || `${t('portfolio.portfolio')} ${i + 1}`}
+            {p.name || `${t('Portfolio')} ${i + 1}`}
           </SelectItem>
         ))}
       </SelectContent>
@@ -62,22 +56,21 @@ function PortfolioSelect({
 function GlidepathTargetWeights({
   portfolio,
   onUpdate,
-  t,
 }: {
   portfolio: StorePortfolio;
   onUpdate: (id: string, patch: Partial<Portfolio>) => void;
-  t: TFunc;
 }) {
+  const { t } = useTranslation();
   return (
     <>
-      <div className="mt-1.5 text-[11px] text-text-muted">{t('portfolio.targetWeights')}</div>
+      <div className="mt-1.5 text-[11px] text-text-muted">{t('Target Weights')}</div>
       <div className="flex flex-wrap gap-1.5 mt-1">
         {portfolio.assets.map((asset, ai) => {
           const w = portfolio.glidepathToWeights?.[ai];
           return (
             <div key={ai} className="flex flex-col gap-0.5 min-w-[90px]">
               <label className="text-[10px] text-text-muted whitespace-nowrap overflow-hidden text-ellipsis">
-                {asset.ticker || `${t('portfolio.asset')} ${ai + 1}`}
+                {asset.ticker || `${t('Asset')} ${ai + 1}`}
               </label>
               <div className="flex items-center gap-1 h-7">
                 <Input
@@ -125,13 +118,13 @@ function GlidepathFields({
   const { t } = useTranslation();
   return (
     <>
-      <FieldLabel label={t('portfolio.sourcePortfolio')}>
-        <PortfolioSelect value={from} onChange={onFromChange} portfolios={portfolios} t={t} />
+      <FieldLabel label={t('Source Portfolio')}>
+        <PortfolioSelect value={from} onChange={onFromChange} portfolios={portfolios} />
       </FieldLabel>
-      <FieldLabel label={t('portfolio.targetPortfolio')}>
-        <PortfolioSelect value={to} onChange={onToChange} portfolios={portfolios} t={t} />
+      <FieldLabel label={t('Target Portfolio')}>
+        <PortfolioSelect value={to} onChange={onToChange} portfolios={portfolios} />
       </FieldLabel>
-      <FieldLabel label={t('portfolio.transitionYears')}>
+      <FieldLabel label={t('Transition Years')}>
         <Input
           type="number"
           value={years}
@@ -158,10 +151,10 @@ export function GlidepathForm({
   const [gp, setGp] = useState({ name: '', from: '', to: '', years: 10 });
   const canConfirm = gp.from && gp.to && gp.from !== gp.to;
   return (
-    <div className={GP_FORM}>
-      <div className={GP_TITLE}>{t('portfolio.newGlidepath')}</div>
+    <div className="p-3 mb-2 bg-bg-subtle rounded-[var(--radius-control)] border border-border-soft">
+      <div className="text-[13px] font-semibold text-text-strong mb-2">{t('New Glide Path')}</div>
       <div className={FIELDS_ROW}>
-        <FieldLabel label={t('portfolio.name')}>
+        <FieldLabel label={t('Name')}>
           <Input
             type="text"
             value={gp.name}
@@ -185,10 +178,10 @@ export function GlidepathForm({
           disabled={!canConfirm}
           onClick={() => canConfirm && onConfirm(gp.name, gp.from, gp.to, gp.years)}
         >
-          {t('common.confirm')}
+          {t('Confirm')}
         </Button>
         <Button variant="secondary" size="sm" className="text-caption" onClick={onCancel}>
-          {t('common.cancel')}
+          {t('Cancel')}
         </Button>
       </div>
     </div>
@@ -206,8 +199,10 @@ export function GlidepathConfig({
 }) {
   const { t } = useTranslation();
   return (
-    <div className={GP_CONFIG}>
-      <div className={GP_CONFIG_TITLE}>{t('portfolio.glidepathConfig')}</div>
+    <div className="p-2 mb-1.5 bg-bg-elevated rounded-md border border-border-soft">
+      <div className="text-[11px] font-semibold text-accent mb-1.5 tracking-tight">
+        {t('Glide Path Configuration')}
+      </div>
       <div className={FIELDS_ROW}>
         <GlidepathFields
           from={portfolio.glidepathFrom ?? ''}
@@ -219,7 +214,7 @@ export function GlidepathConfig({
           portfolios={nonGlidepathPortfolios}
         />
       </div>
-      <GlidepathTargetWeights portfolio={portfolio} onUpdate={onUpdate} t={t} />
+      <GlidepathTargetWeights portfolio={portfolio} onUpdate={onUpdate} />
     </div>
   );
 }
@@ -314,13 +309,12 @@ export function RebalanceControls({
   portfolio,
   rebalanceOptions,
   onUpdate,
-  t,
 }: {
   portfolio: StorePortfolio;
   rebalanceOptions: { value: RebalanceFrequency; label: string }[];
   onUpdate: (id: string, patch: Partial<Portfolio>) => void;
-  t: TFunc;
 }) {
+  const { t } = useTranslation();
   return (
     <>
       <Select
@@ -344,8 +338,8 @@ export function RebalanceControls({
         value={portfolio.rebalanceOffset ?? 0}
         min={0}
         max={252}
-        title={t('portfolio.offsetTitle')}
-        suffix={t('portfolio.offset')}
+        title={t('Trading days offset from period end')}
+        suffix={t('Offset')}
         onChange={(v) => onUpdate(portfolio.id, { rebalanceOffset: v || 0 })}
       />
       {portfolio.rebalanceFrequency === 'threshold' && (
@@ -401,7 +395,7 @@ export function RebalanceBandsRow({
           max={item.max}
           step={item.step}
           title={item.title}
-          width={numCls80}
+          width="h-8 w-[80px] font-mono tabular-nums"
           onChange={(v) =>
             onUpdate(portfolio.id, {
               rebalanceBands: {

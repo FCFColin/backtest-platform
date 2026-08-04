@@ -88,11 +88,13 @@ export function DisclaimerPage() {
       sectionKeys={['riskDisclosure', 'survivorshipBias', 'backtestLimitations', 'dataSource']}
     >
       <div className="mt-6 rounded-lg bg-input-bg p-4 text-label text-fg-tertiary">
-        {t('legal.disclaimer.methodologyPrefix')}{' '}
+        {t(
+          'For detailed information about data processing methodology and survivorship bias, please refer to the',
+        )}{' '}
         <Link to="/help" className="text-brand hover:underline">
-          {t('legal.disclaimer.methodologyLink')}
+          {t('Methodology documentation')}
         </Link>
-        {t('legal.disclaimer.methodologySuffix')}
+        {t('.')}
       </div>
     </LegalPage>
   );

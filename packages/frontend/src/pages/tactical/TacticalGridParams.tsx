@@ -1,15 +1,8 @@
 import { useTranslation } from 'react-i18next';
 import type { RebalanceFrequency } from '@backtest/shared';
-import {
-  Input,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/uiComponents';
+import { Input } from '@/components/ui/uiComponents';
 import { Field, FieldLabel, FieldDescription } from '@/components/form/Field';
-import { LabeledField, RunButton } from '@/components/form/sharedFields';
+import { LabeledField, RunButton, SelectField } from '@/components/form/sharedFields';
 import { ParamSection } from './TacticalSignalEditor';
 import { INDICATOR_OPTIONS, REBALANCE_OPTIONS } from './sharedTacticalConstants';
 import { OBJECTIVE_OPTIONS } from './tacticalGridUtils';
@@ -28,10 +21,10 @@ function ParamRangeRow({
   return (
     <div className="grid grid-cols-3 gap-2">
       <Field>
-        <FieldLabel>{t('tacticalGrid.params.min')}</FieldLabel>
+        <FieldLabel>{t('Min')}</FieldLabel>
         <Input
           type="number"
-          aria-label={t('tacticalGrid.params.min')}
+          aria-label={t('Min')}
           className="font-mono tabular-nums"
           value={range.min}
           min={inputMin}
@@ -39,10 +32,10 @@ function ParamRangeRow({
         />
       </Field>
       <Field>
-        <FieldLabel>{t('tacticalGrid.params.max')}</FieldLabel>
+        <FieldLabel>{t('Max')}</FieldLabel>
         <Input
           type="number"
-          aria-label={t('tacticalGrid.params.max')}
+          aria-label={t('Max')}
           className="font-mono tabular-nums"
           value={range.max}
           min={inputMin}
@@ -50,10 +43,10 @@ function ParamRangeRow({
         />
       </Field>
       <Field>
-        <FieldLabel>{t('tacticalGrid.params.step')}</FieldLabel>
+        <FieldLabel>{t('Step')}</FieldLabel>
         <Input
           type="number"
-          aria-label={t('tacticalGrid.params.step')}
+          aria-label={t('Step')}
           className="font-mono tabular-nums"
           value={range.step}
           min={0.1}
@@ -68,23 +61,14 @@ function SignalGridSection({ state }: { state: TacticalGridState }) {
   const { t } = useTranslation();
   const { indicator, setIndicator, param1, setParam1, param2, setParam2, paramLabels } = state;
   return (
-    <ParamSection title={t('tacticalGrid.params.signalGrid')}>
+    <ParamSection title={t('Signal Parameter Grid')}>
       <div className="flex flex-col gap-3">
-        <Field>
-          <FieldLabel>{t('tacticalGrid.params.indicator')}</FieldLabel>
-          <Select value={indicator} onValueChange={(v) => setIndicator(v as IndicatorType)}>
-            <SelectTrigger aria-label={t('tacticalGrid.params.indicator')}>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {INDICATOR_OPTIONS.map((o) => (
-                <SelectItem key={o.value} value={o.value}>
-                  {t(o.label)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Field>
+        <SelectField
+          label={t('Technical Indicator')}
+          value={indicator}
+          onChange={(v) => setIndicator(v as IndicatorType)}
+          options={INDICATOR_OPTIONS.map((o) => ({ value: o.value, label: t(o.label) }))}
+        />
         <Field>
           <FieldLabel>{paramLabels.p1}</FieldLabel>
           <ParamRangeRow range={param1} onChange={setParam1} inputMin={1} />
@@ -95,8 +79,10 @@ function SignalGridSection({ state }: { state: TacticalGridState }) {
         </Field>
         <FieldDescription>
           {indicator === 'rsi'
-            ? t('tacticalGrid.params.rsiHint')
-            : t('tacticalGrid.params.breakoutHint')}
+            ? t('Enter when RSI falls below oversold threshold, exit when above 100-threshold')
+            : t(
+                'Enter when price breaks through MA±threshold%, exit when falls below MA∓threshold%',
+              )}
         </FieldDescription>
       </div>
     </ParamSection>
@@ -117,18 +103,18 @@ function BacktestParamsSection({ state }: { state: TacticalGridState }) {
     setRebalanceFrequency,
   } = state;
   return (
-    <ParamSection title={t('tacticalGrid.params.backtestParams')}>
+    <ParamSection title={t('Backtest Parameters')}>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <LabeledField htmlFor="grid-ticker" label={t('tacticalGrid.params.ticker')}>
+        <LabeledField htmlFor="grid-ticker" label={t('Ticker')}>
           <Input
             id="grid-ticker"
             type="text"
             value={ticker}
             onChange={(e) => setTicker(e.target.value)}
-            placeholder={t('tacticalGrid.params.tickerPlaceholder')}
+            placeholder={t('e.g. SPY')}
           />
         </LabeledField>
-        <LabeledField htmlFor="grid-start-date" label={t('tacticalGrid.params.startDate')}>
+        <LabeledField htmlFor="grid-start-date" label={t('Start Date')}>
           <Input
             id="grid-start-date"
             type="date"
@@ -136,7 +122,7 @@ function BacktestParamsSection({ state }: { state: TacticalGridState }) {
             onChange={(e) => setStartDate(e.target.value)}
           />
         </LabeledField>
-        <LabeledField htmlFor="grid-end-date" label={t('tacticalGrid.params.endDate')}>
+        <LabeledField htmlFor="grid-end-date" label={t('End Date')}>
           <Input
             id="grid-end-date"
             type="date"
@@ -144,7 +130,7 @@ function BacktestParamsSection({ state }: { state: TacticalGridState }) {
             onChange={(e) => setEndDate(e.target.value)}
           />
         </LabeledField>
-        <LabeledField htmlFor="grid-starting-value" label={t('tacticalGrid.params.startingValue')}>
+        <LabeledField htmlFor="grid-starting-value" label={t('Initial Capital')}>
           <Input
             id="grid-starting-value"
             type="number"
@@ -154,24 +140,13 @@ function BacktestParamsSection({ state }: { state: TacticalGridState }) {
             onChange={(e) => setStartingValue(Number(e.target.value))}
           />
         </LabeledField>
-        <Field>
-          <FieldLabel htmlFor="grid-rebalance">{t('tacticalGrid.params.rebalanceFreq')}</FieldLabel>
-          <Select
-            value={rebalanceFrequency}
-            onValueChange={(v) => setRebalanceFrequency(v as RebalanceFrequency)}
-          >
-            <SelectTrigger id="grid-rebalance">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {REBALANCE_OPTIONS.map((o) => (
-                <SelectItem key={o.value} value={o.value}>
-                  {t(o.label)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Field>
+        <SelectField
+          id="grid-rebalance"
+          label={t('Rebalancing Frequency')}
+          value={rebalanceFrequency}
+          onChange={(v) => setRebalanceFrequency(v as RebalanceFrequency)}
+          options={REBALANCE_OPTIONS.map((o) => ({ value: o.value, label: t(o.label) }))}
+        />
       </div>
     </ParamSection>
   );
@@ -183,28 +158,19 @@ export function GridParamsPanel({ state }: { state: TacticalGridState }) {
     <div className="flex flex-col gap-4">
       <SignalGridSection state={state} />
       <BacktestParamsSection state={state} />
-      <ParamSection title={t('tacticalGrid.params.objectiveSection')}>
-        <Field>
-          <FieldLabel>{t('tacticalGrid.params.objective')}</FieldLabel>
-          <Select value={objective} onValueChange={(v) => setObjective(v as ObjectiveType)}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {OBJECTIVE_OPTIONS.map((o) => (
-                <SelectItem key={o.value} value={o.value}>
-                  {t(o.label)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Field>
+      <ParamSection title={t('Optimization Objective')}>
+        <SelectField
+          label={t('Objective')}
+          value={objective}
+          onChange={(v) => setObjective(v as ObjectiveType)}
+          options={OBJECTIVE_OPTIONS.map((o) => ({ value: o.value, label: t(o.label) }))}
+        />
       </ParamSection>
       <RunButton
         isLoading={isLoading}
         onClick={runSearch}
-        label={t('tacticalGrid.params.startSearch')}
-        loadingLabel={t('tacticalGrid.params.searching')}
+        label={t('Start Grid Search')}
+        loadingLabel={t('Searching...')}
       />
     </div>
   );

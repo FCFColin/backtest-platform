@@ -23,7 +23,7 @@ function useUrlShareLoader() {
     const urlState = readStateFromURL();
     if (urlState) {
       loadFromShare(urlState);
-      useToastStore.getState().addToast('success', t('backtest.loadedFromShare'));
+      useToastStore.getState().addToast('success', t('Configuration loaded from share link'));
       return;
     }
     const loadFromOptimizer = localStorage.getItem('bt_load_from_optimizer');
@@ -39,7 +39,9 @@ function useUrlShareLoader() {
         if (sharePortfolios.length > 0 && shareParameters)
           loadFromShare({ portfolios: sharePortfolios, parameters: shareParameters });
       } catch {
-        useToastStore.getState().addToast('warning', t('backtest.optimizerDataError'));
+        useToastStore
+          .getState()
+          .addToast('warning', t('Optimizer data format error, unable to load'));
       }
     }
     const hash = window.location.hash;
@@ -57,7 +59,7 @@ function useUrlShareLoader() {
           window.history.replaceState(null, '', window.location.pathname);
         }
       } catch {
-        useToastStore.getState().addToast('warning', t('backtest.shareDataError'));
+        useToastStore.getState().addToast('warning', t('Share link data format error'));
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- 仅在挂载时从 URL hash 加载分享数据
@@ -65,18 +67,30 @@ function useUrlShareLoader() {
 }
 function buildBacktestSeoProps(t: TFunction) {
   return {
-    desc: t('backtest.seoDesc'),
+    desc: t(
+      'This platform is a portfolio backtesting tool supporting ETFs, stocks, funds, synthetic assets and custom series. Compare multiple portfolios over the same historical period, test rebalancing rules, and simulate contributions or withdrawals.\n\nSupports benchmark comparison, total return settings, inflation adjustment, rolling window statistics, and retirement withdrawal simulations.\n\nView drawdowns, rolling returns, correlations, Sharpe ratio, Sortino ratio, Calmar ratio, and detailed retirement withdrawal success rates.',
+    ),
     features: [
-      { title: t('backtest.seoModelable'), desc: t('backtest.seoModelableDesc') },
-      { title: t('backtest.seoViewable'), desc: t('backtest.seoViewableDesc') },
+      {
+        title: t('Modelable Content'),
+        desc: t(
+          'Portfolio weights, date ranges, rebalancing schedules, cashflows, inflation, drag and withdrawal assumptions.',
+        ),
+      },
+      {
+        title: t('Viewable Metrics'),
+        desc: t(
+          'CAGR, MWRR, volatility, max drawdown, Sharpe/Sortino/Calmar ratios, rolling metrics, seasonality, correlations and retirement withdrawal statistics.',
+        ),
+      },
     ],
     related: [
-      { title: t('nav.monteCarlo'), href: '/monte-carlo' },
-      { title: t('nav.portfolioOptimize'), href: '/optimizer' },
-      { title: t('nav.efficientFrontier'), href: '/efficient-frontier' },
-      { title: t('nav.assetAnalysis'), href: '/analysis' },
+      { title: t('Monte Carlo'), href: '/monte-carlo' },
+      { title: t('Portfolio Optimization'), href: '/optimizer' },
+      { title: t('Efficient Frontier'), href: '/efficient-frontier' },
+      { title: t('Asset Analysis'), href: '/analysis' },
     ],
-    relatedLabel: t('backtest.relatedTools'),
+    relatedLabel: t('Related Tools:'),
   };
 }
 export function useBacktestPageState(): BacktestPageState {
@@ -94,7 +108,7 @@ export function useBacktestPageState(): BacktestPageState {
     const name = configName.trim();
     if (!name) return;
     await saveNamedConfigApi(name, portfolios, parameters);
-    useToastStore.getState().addToast('success', t('backtest.savedScheme'));
+    useToastStore.getState().addToast('success', t('Scheme saved'));
     setConfigName('');
     setShowSaveInput(false);
   };
@@ -108,7 +122,7 @@ export function useBacktestPageState(): BacktestPageState {
     useBacktestStore
       .getState()
       .loadFromShare({ portfolios: config.portfolios, parameters: config.parameters });
-    useToastStore.getState().addToast('success', t('backtest.loadedScheme'));
+    useToastStore.getState().addToast('success', t('Scheme loaded'));
     setShowLoadList(false);
   };
   const handleDeleteConfig = async (id: string) => {
@@ -120,9 +134,11 @@ export function useBacktestPageState(): BacktestPageState {
     const url = writeStateToURL(state);
     try {
       await navigator.clipboard.writeText(url);
-      useToastStore.getState().addToast('success', t('backtest.shareLinkCopied'));
+      useToastStore.getState().addToast('success', t('Share link copied to clipboard'));
     } catch {
-      useToastStore.getState().addToast('success', t('backtest.shareLinkManual'));
+      useToastStore
+        .getState()
+        .addToast('success', t('Share link generated (please copy from address bar manually)'));
     }
   };
   return {

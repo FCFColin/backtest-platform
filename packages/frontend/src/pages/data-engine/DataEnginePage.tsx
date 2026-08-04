@@ -27,7 +27,7 @@ function useDataEngineState(): DataEngineAction {
   const [, setLoading] = useState(true);
   const [actionMsg, setActionMsg] = useState('');
   const [error, setError] = useState('');
-  const [loadStage, setLoadStage] = useState(t('dataEngine.connecting'));
+  const [loadStage, setLoadStage] = useState(t('Connecting...'));
   const [, setScanning] = useState(false);
   const pollCountRef = useRef(0);
   const fetchStartRef = useRef(0);
@@ -57,7 +57,7 @@ function DataEngineError({ error, onRetry }: { error: string; onRetry: () => voi
     <Card className="flex flex-col items-center p-10 text-center">
       <div className="mb-3 text-body leading-relaxed text-danger">{error}</div>
       <Button variant="secondary" size="sm" onClick={onRetry}>
-        <RotateCcw className="size-3.5" /> {t('common.retry')}
+        <RotateCcw className="size-3.5" /> {t('Retry')}
       </Button>
     </Card>
   );
@@ -68,7 +68,7 @@ export default function DataEnginePage() {
     useDataEngineState();
   return (
     <div className="flex w-full flex-col gap-3">
-      <h1 className="text-display text-fg">{t('dataEngine.title')}</h1>
+      <h1 className="text-display text-fg">{t('Data Engine')}</h1>
       {error ? (
         <DataEngineError error={error} onRetry={() => fetchStats(true)} />
       ) : !stats ? (

@@ -1,21 +1,7 @@
 import { useState, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Portfolio, Asset, RebalanceFrequency, RebalanceBands } from '@backtest/shared';
-import {
-  BookOpen,
-  ChevronDown,
-  X,
-  Share2,
-  Save,
-  Tag,
-  Copy,
-  Download,
-  Trash2,
-  Play,
-  BarChart3,
-  Activity,
-  Sigma,
-} from 'lucide-react';
+import { BookOpen, ChevronDown, X, Share2, Save, Tag, Copy, Download, Trash2 } from 'lucide-react';
 import {
   Card,
   Button,
@@ -41,12 +27,6 @@ import {
 } from './portfolioEditorFields.js';
 import type { StorePortfolio, TFunc } from './portfolioEditor.js';
 
-const DEEP_ANALYSIS_ITEMS = [
-  { type: 'backtest' as const, icon: Play, labelKey: 'portfolio.singleBacktest' },
-  { type: 'mc' as const, icon: Activity, labelKey: 'portfolio.monteCarlo' },
-  { type: 'ef' as const, icon: BarChart3, labelKey: 'portfolio.efficientFrontier' },
-  { type: 'fr' as const, icon: Sigma, labelKey: 'portfolio.factorRegression' },
-];
 interface PortfolioCardProps {
   portfolio: StorePortfolio;
   color: string;
@@ -56,7 +36,6 @@ interface PortfolioCardProps {
   onDelete: () => void;
   onDuplicate: () => void;
   onSave: (p: StorePortfolio) => void;
-  onDeepAnalysis: (type: 'backtest' | 'mc' | 'ef' | 'fr') => void;
 }
 // eslint-disable-next-line max-lines-per-function -- 组合卡片渲染分支多，拆分反而损失内聚
 export function PortfolioCard({
@@ -68,7 +47,6 @@ export function PortfolioCard({
   onDelete,
   onDuplicate,
   onSave,
-  onDeepAnalysis,
 }: PortfolioCardProps) {
   const { t } = useTranslation();
   const tw = portfolio.assets.reduce((sum, a) => sum + a.weight, 0);
@@ -89,17 +67,17 @@ export function PortfolioCard({
   const actionBtns = [
     {
       icon: Copy,
-      title: t('portfolio.copyPortfolio'),
+      title: t('Copy Portfolio'),
       onClick: onDuplicate,
       variant: 'icon' as const,
     },
     {
       icon: Download,
-      title: t('portfolio.saveAsJson'),
+      title: t('Save as JSON'),
       onClick: () => onSave(portfolio),
       variant: 'icon' as const,
     },
-    { icon: Trash2, title: t('common.delete'), onClick: onDelete, variant: 'destructive' as const },
+    { icon: Trash2, title: t('Delete'), onClick: onDelete, variant: 'destructive' as const },
   ];
   return (
     <Card
@@ -130,15 +108,14 @@ export function PortfolioCard({
           portfolio={portfolio}
           rebalanceOptions={rebalanceOptions}
           onUpdate={onUpdate}
-          t={t}
         />
         <NumField
-          label={t('portfolio.drag')}
+          label={t('Drag')}
           value={portfolio.drag ?? 0}
           min={0}
           max={10}
           step={0.1}
-          title={t('portfolio.dragTitle')}
+          title={t('Annual drag percentage, e.g. 0.5 means an extra 0.5% deduction per year')}
           onChange={(v) => onUpdate(portfolio.id, { drag: v || 0 })}
         />
         <div className="flex items-center gap-1.5 shrink-0">
@@ -146,7 +123,7 @@ export function PortfolioCard({
             checked={portfolio.totalReturn ?? true}
             onCheckedChange={(v) => onUpdate(portfolio.id, { totalReturn: v })}
           />
-          <span className="text-caption text-fg-secondary">{t('portfolio.totalReturn')}</span>
+          <span className="text-caption text-fg-secondary">{t('Total Return')}</span>
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
           <Switch
@@ -157,7 +134,7 @@ export function PortfolioCard({
               })
             }
           />
-          <span className="text-caption text-fg-secondary">{t('portfolio.deviationBands')}</span>
+          <span className="text-caption text-fg-secondary">{t('Deviation Bands')}</span>
         </div>
       </div>
       <RebalanceBandsRow portfolio={portfolio} onUpdate={onUpdate} />
@@ -179,14 +156,14 @@ export function PortfolioCard({
             className="text-caption text-fg-tertiary hover:text-fg -ml-2"
             onClick={() => setAssets([...portfolio.assets, { ticker: '', weight: 0 }])}
           >
-            + {t('portfolio.addAsset')}
+            + {t('Add Asset')}
           </Button>
           <div className="flex gap-1">
             <Button variant="ghost" size="sm" className="text-caption" onClick={equalize}>
-              {t('common.equalize')}
+              {t('Equalize')}
             </Button>
             <Button variant="ghost" size="sm" className="text-caption" onClick={normalize}>
-              {t('common.normalize')}
+              {t('Normalize')}
             </Button>
           </div>
         </div>
@@ -196,7 +173,7 @@ export function PortfolioCard({
         className="flex items-center justify-between pt-2 mt-2 border-t border-border-subtle"
       >
         <div className="flex items-center gap-2 text-caption">
-          <span className="text-fg-tertiary uppercase tracking-wide">{t('portfolio.total')}</span>
+          <span className="text-fg-tertiary uppercase tracking-wide">{t('Total')}</span>
           <span
             className={cn(
               'font-mono tabular-nums font-semibold',
@@ -209,25 +186,6 @@ export function PortfolioCard({
             className={cn('w-1.5 h-1.5 rounded-full', isComplete ? 'bg-success' : 'bg-warning')}
           />
         </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-caption h-7"
-              data-testid="deep-analysis-menu"
-            >
-              {t('portfolio.deepAnalysis')} <ChevronDown className="h-3 w-3 ml-1" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            {DEEP_ANALYSIS_ITEMS.map((item) => (
-              <DropdownMenuItem key={item.type} onClick={() => onDeepAnalysis(item.type)}>
-                <item.icon className="h-4 w-4 mr-2" /> {t(item.labelKey)}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
       </div>
     </Card>
   );
@@ -246,11 +204,15 @@ const sharePortfolioState = (t: TFunc): void => {
   const url = writeStateToURL(useBacktestStore.getState().getShareableState());
   navigator.clipboard
     .writeText(url)
-    .then(() => useToastStore.getState().addToast('success', t('backtest.shareLinkCopied')))
-    .catch(() => useToastStore.getState().addToast('success', t('backtest.shareLinkManual')));
+    .then(() => useToastStore.getState().addToast('success', t('Share link copied to clipboard')))
+    .catch(() =>
+      useToastStore
+        .getState()
+        .addToast('success', t('Share link generated (please copy from address bar manually)')),
+    );
 };
 const confirmMetaSaved = (t: TFunc): void =>
-  useToastStore.getState().addToast('success', t('portfolio.metaSaved'));
+  useToastStore.getState().addToast('success', t('Meta saved'));
 function TagsRow({
   tags,
   onAddTag,
@@ -277,7 +239,7 @@ function TagsRow({
           <button
             type="button"
             className="ml-0.5 hover:text-destructive transition-colors"
-            aria-label={t('portfolio.removeTag')}
+            aria-label={t('Remove tag')}
             onClick={() => onRemoveTag(tag)}
           >
             <X className="w-2.5 h-2.5" />
@@ -295,7 +257,7 @@ function TagsRow({
           }
         }}
         onBlur={commit}
-        placeholder={t('portfolio.addTag')}
+        placeholder={t('Add tag')}
         className="h-7 w-[120px] text-caption"
       />
     </div>
@@ -307,7 +269,7 @@ function PresetMenu({ onLoadPreset, t }: { onLoadPreset: (presetId: string) => v
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="sm" className="h-7 text-caption">
           <BookOpen className="w-3.5 h-3.5" />
-          {t('portfolio.loadPreset')}
+          {t('Load preset')}
           <ChevronDown className="w-3 h-3" />
         </Button>
       </DropdownMenuTrigger>
@@ -348,7 +310,7 @@ function PortfolioMetaEditor({ portfolio, onUpdate }: PortfolioMetaEditorProps) 
         assets: toAssetsWithIds(preset.assets),
         tags: [...preset.tags],
       });
-      useToastStore.getState().addToast('success', t('portfolio.presetLoaded'));
+      useToastStore.getState().addToast('success', t('Preset loaded'));
     },
     [portfolio.id, onUpdate, t],
   );
@@ -359,9 +321,9 @@ function PortfolioMetaEditor({ portfolio, onUpdate }: PortfolioMetaEditorProps) 
           type="text"
           value={portfolio.name}
           onChange={(e) => onUpdate(portfolio.id, { name: e.target.value })}
-          placeholder={t('portfolio.name')}
+          placeholder={t('Name')}
           className="h-8 w-[160px] text-body"
-          aria-label={t('portfolio.name')}
+          aria-label={t('Name')}
         />
         <PresetMenu onLoadPreset={handleLoadPreset} t={t} />
         <Button
@@ -369,18 +331,18 @@ function PortfolioMetaEditor({ portfolio, onUpdate }: PortfolioMetaEditorProps) 
           size="sm"
           className="h-7 text-caption"
           onClick={() => sharePortfolioState(t)}
-          title={t('portfolio.shareTitle')}
+          title={t('Share Portfolio')}
         >
-          <Share2 className="w-3.5 h-3.5" /> {t('portfolio.share')}
+          <Share2 className="w-3.5 h-3.5" /> {t('Share')}
         </Button>
         <Button
           variant="ghost"
           size="sm"
           className="h-7 text-caption"
           onClick={() => confirmMetaSaved(t)}
-          title={t('portfolio.saveTitle')}
+          title={t('Save Portfolio')}
         >
-          <Save className="w-3.5 h-3.5" /> {t('portfolio.save')}
+          <Save className="w-3.5 h-3.5" /> {t('Save')}
         </Button>
       </div>
       <TagsRow tags={tags} onAddTag={handleAddTag} onRemoveTag={handleRemoveTag} t={t} />

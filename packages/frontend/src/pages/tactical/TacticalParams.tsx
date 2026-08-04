@@ -1,17 +1,8 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Save, FolderOpen, Trash2, Loader2 } from 'lucide-react';
-import {
-  Button,
-  Input,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/uiComponents';
-import { Field, FieldLabel } from '@/components/form/Field';
-import { LabeledField, DollarInput, RunButton } from '@/components/form/sharedFields';
+import { Button, Input } from '@/components/ui/uiComponents';
+import { LabeledField, DollarInput, RunButton, SelectField } from '@/components/form/sharedFields';
 import {
   useTacticalPageState,
   REBALANCE_OPTIONS,
@@ -27,61 +18,36 @@ function AggregationSection({ state }: { state: TacticalPageState }) {
   const { t } = useTranslation();
   const { strategy, setStrategy } = state;
   return (
-    <ParamSection title={t('tactical.params.aggregationConfig')}>
+    <ParamSection title={t('Aggregation Config')}>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <Field>
-          <FieldLabel>{t('tactical.params.aggregationMethod')}</FieldLabel>
-          <Select
-            value={strategy.aggregationMethod}
-            onValueChange={(v) =>
-              setStrategy({
-                ...strategy,
-                aggregationMethod: v as TacticalStrategy['aggregationMethod'],
-              })
-            }
-          >
-            <SelectTrigger aria-label={t('tactical.params.aggregationMethod')}>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {AGGREGATION_OPTIONS.map((o) => (
-                <SelectItem key={o.value} value={o.value}>
-                  {t(o.label)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Field>
+        <SelectField
+          label={t('Aggregation Method')}
+          value={strategy.aggregationMethod}
+          onChange={(v) =>
+            setStrategy({
+              ...strategy,
+              aggregationMethod: v as TacticalStrategy['aggregationMethod'],
+            })
+          }
+          options={AGGREGATION_OPTIONS.map((o) => ({ value: o.value, label: t(o.label) }))}
+        />
         {strategy.aggregationMethod === 'rank' && (
           <>
-            <Field>
-              <FieldLabel>{t('tactical.params.rankingMethod')}</FieldLabel>
-              <Select
-                value={strategy.rankingConfig?.method ?? 'fixed_share'}
-                onValueChange={(v) =>
-                  setStrategy({
-                    ...strategy,
-                    rankingConfig: {
-                      method: v as 'fixed_share' | 'risk_parity',
-                      topN: strategy.rankingConfig?.topN ?? 3,
-                    },
-                  })
-                }
-              >
-                <SelectTrigger aria-label={t('tactical.params.rankingMethod')}>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {RANKING_METHOD_OPTIONS.map((o) => (
-                    <SelectItem key={o.value} value={o.value}>
-                      {t(o.label)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
-            <Field>
-              <FieldLabel>TopN</FieldLabel>
+            <SelectField
+              label={t('Ranking Method')}
+              value={strategy.rankingConfig?.method ?? 'fixed_share'}
+              onChange={(v) =>
+                setStrategy({
+                  ...strategy,
+                  rankingConfig: {
+                    method: v as 'fixed_share' | 'risk_parity',
+                    topN: strategy.rankingConfig?.topN ?? 3,
+                  },
+                })
+              }
+              options={RANKING_METHOD_OPTIONS.map((o) => ({ value: o.value, label: t(o.label) }))}
+            />
+            <LabeledField label="TopN">
               <Input
                 type="number"
                 min={1}
@@ -96,7 +62,7 @@ function AggregationSection({ state }: { state: TacticalPageState }) {
                   })
                 }
               />
-            </Field>
+            </LabeledField>
           </>
         )}
       </div>
@@ -116,9 +82,9 @@ function BacktestParamsSection({ state }: { state: TacticalPageState }) {
     setRebalanceFrequency,
   } = state;
   return (
-    <ParamSection title={t('tactical.params.backtestParams')}>
+    <ParamSection title={t('Backtest Parameters')}>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <LabeledField htmlFor="tactical-start-date" label={t('tactical.params.startDate')}>
+        <LabeledField htmlFor="tactical-start-date" label={t('Start Date')}>
           <Input
             id="tactical-start-date"
             type="date"
@@ -126,7 +92,7 @@ function BacktestParamsSection({ state }: { state: TacticalPageState }) {
             onChange={(e) => setStartDate(e.target.value)}
           />
         </LabeledField>
-        <LabeledField htmlFor="tactical-end-date" label={t('tactical.params.endDate')}>
+        <LabeledField htmlFor="tactical-end-date" label={t('End Date')}>
           <Input
             id="tactical-end-date"
             type="date"
@@ -134,7 +100,7 @@ function BacktestParamsSection({ state }: { state: TacticalPageState }) {
             onChange={(e) => setEndDate(e.target.value)}
           />
         </LabeledField>
-        <LabeledField htmlFor="tactical-starting-value" label={t('tactical.params.startingValue')}>
+        <LabeledField htmlFor="tactical-starting-value" label={t('Initial Capital')}>
           <DollarInput
             id="tactical-starting-value"
             type="number"
@@ -143,24 +109,13 @@ function BacktestParamsSection({ state }: { state: TacticalPageState }) {
             onChange={(e) => setStartingValue(Number(e.target.value))}
           />
         </LabeledField>
-        <Field>
-          <FieldLabel htmlFor="tactical-rebalance">{t('tactical.params.rebalanceFreq')}</FieldLabel>
-          <Select
-            value={rebalanceFrequency}
-            onValueChange={(v) => setRebalanceFrequency(v as RebalanceFrequency)}
-          >
-            <SelectTrigger id="tactical-rebalance" aria-label={t('tactical.params.rebalanceFreq')}>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {REBALANCE_OPTIONS.map((o) => (
-                <SelectItem key={o.value} value={o.value}>
-                  {t(o.label)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Field>
+        <SelectField
+          id="tactical-rebalance"
+          label={t('Rebalancing Frequency')}
+          value={rebalanceFrequency}
+          onChange={(v) => setRebalanceFrequency(v as RebalanceFrequency)}
+          options={REBALANCE_OPTIONS.map((o) => ({ value: o.value, label: t(o.label) }))}
+        />
       </div>
     </ParamSection>
   );
@@ -192,14 +147,14 @@ function ConfigPersistenceSection({ state }: { state: TacticalPageState }) {
     setSaving(false);
   };
   return (
-    <ParamSection title={t('tactical.params.savedConfigs')}>
+    <ParamSection title={t('Saved Configurations')}>
       <div className="flex items-center gap-2">
         <Input
           type="text"
           className="flex-1"
           value={configName}
           onChange={(e) => setConfigName(e.target.value)}
-          placeholder={t('tactical.params.configNamePlaceholder')}
+          placeholder={t('Configuration name...')}
           onKeyDown={(e) => {
             if (e.key === 'Enter') void handleSave();
           }}
@@ -211,7 +166,7 @@ function ConfigPersistenceSection({ state }: { state: TacticalPageState }) {
           disabled={saving || !configName.trim()}
         >
           {saving ? <Loader2 className="size-3 animate-spin" /> : <Save className="size-3" />}
-          {t('tactical.params.save')}
+          {t('Save')}
         </Button>
       </div>
       {configs.length > 0 && (
@@ -236,7 +191,7 @@ function ConfigPersistenceSection({ state }: { state: TacticalPageState }) {
                 size="icon"
                 className="h-6 w-6 shrink-0"
                 onClick={() => void remove(c.id)}
-                title={t('tactical.params.deleteConfig')}
+                title={t('Delete configuration')}
               >
                 <Trash2 className="size-3" />
               </Button>
@@ -259,8 +214,8 @@ function TacticalParamsPanel({ state }: { state: TacticalPageState }) {
       <RunButton
         isLoading={isLoading}
         onClick={handleRunBacktest}
-        label={t('tactical.params.runBacktest')}
-        loadingLabel={t('tactical.params.running')}
+        label={t('Run Tactical Backtest')}
+        loadingLabel={t('Backtesting...')}
       />
     </div>
   );

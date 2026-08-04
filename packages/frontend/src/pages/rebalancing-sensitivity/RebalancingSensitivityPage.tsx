@@ -12,7 +12,7 @@ function FreqSelector({ s }: { s: RebalancingState }) {
   const { t } = useTranslation();
   return (
     <Field>
-      <FieldLabel>{t('rebalancingSensitivity.params.freqMulti')}</FieldLabel>
+      <FieldLabel>{t('Rebalancing Frequency (multi-select)')}</FieldLabel>
       <div className="flex flex-wrap gap-2">
         {REBALANCE_OPTIONS.map((opt) => {
           const selected = s.selectedFreqs.includes(opt.value);
@@ -49,13 +49,13 @@ function RebalBandFields({ s }: { s: RebalancingState }) {
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
       <Field>
-        <FieldLabel>{t('rebalancingSensitivity.params.absoluteBand')}</FieldLabel>
+        <FieldLabel>{t('Absolute Deviation Band')}</FieldLabel>
         <div className="relative">
           <Input
             type="number"
             value={s.absoluteBand}
             onChange={(e) => s.setAbsoluteBand(e.target.value === '' ? '' : Number(e.target.value))}
-            placeholder={t('rebalancingSensitivity.params.bandPlaceholder')}
+            placeholder={t('Leave empty to disable')}
             min={0}
             max={50}
             className="pr-8"
@@ -66,13 +66,13 @@ function RebalBandFields({ s }: { s: RebalancingState }) {
         </div>
       </Field>
       <Field>
-        <FieldLabel>{t('rebalancingSensitivity.params.relativeBand')}</FieldLabel>
+        <FieldLabel>{t('Relative Deviation Band')}</FieldLabel>
         <div className="relative">
           <Input
             type="number"
             value={s.relativeBand}
             onChange={(e) => s.setRelativeBand(e.target.value === '' ? '' : Number(e.target.value))}
-            placeholder={t('rebalancingSensitivity.params.bandPlaceholder')}
+            placeholder={t('Leave empty to disable')}
             min={0}
             max={100}
             className="pr-8"
@@ -121,9 +121,7 @@ function RebalancingSensitivityParamsForm({ s }: { s: RebalancingState }) {
         disabled={s.isLoading}
       >
         {s.isLoading ? <Loader2 className="animate-spin" /> : <Play />}
-        {s.isLoading
-          ? t('rebalancingSensitivity.params.analyzing')
-          : t('rebalancingSensitivity.params.startAnalysis')}
+        {s.isLoading ? t('Analyzing...') : t('Start Analysis')}
       </Button>
     </div>
   );

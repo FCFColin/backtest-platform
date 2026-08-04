@@ -73,14 +73,14 @@ function SaveInputRow({
         onKeyDown={(e) => {
           if (e.key === 'Enter') void handleSaveConfig();
         }}
-        placeholder={t('backtest.configNamePlaceholder')}
+        placeholder={t('Enter scheme name')}
         className="flex-1"
         // Focuses save-config input on open to allow immediate typing (form UX, not navigation)
         // eslint-disable-next-line jsx-a11y/no-autofocus -- intentional: form input focus on modal open
         autoFocus
       />
       <Button variant="secondary" size="sm" onClick={() => void handleSaveConfig()}>
-        {t('common.confirm')}
+        {t('Confirm')}
       </Button>
       <Button
         variant="destructive"
@@ -89,8 +89,8 @@ function SaveInputRow({
           setShowSaveInput(false);
           setConfigName('');
         }}
-        title={t('common.cancel')}
-        aria-label={t('common.cancel')}
+        title={t('Cancel')}
+        aria-label={t('Cancel')}
       >
         <X />
       </Button>
@@ -112,7 +112,7 @@ function LoadListPanel({
     <div className="mt-2 max-h-[240px] overflow-y-auto rounded-md border border-border-subtle bg-elevated">
       {savedConfigs.length === 0 ? (
         <div className="px-3 py-3 text-center text-caption text-fg-tertiary">
-          {t('backtest.noSavedSchemes')}
+          {t('No saved schemes')}
         </div>
       ) : (
         savedConfigs.map((config) => (
@@ -127,15 +127,15 @@ function LoadListPanel({
               <div className="text-body font-medium text-fg">{config.name}</div>
               <div className="text-caption text-fg-tertiary">
                 {new Date(config.savedAt).toLocaleString('zh-CN')} · {config.portfolios.length}{' '}
-                {t('backtest.portfoliosCount')}
+                {t('portfolios')}
               </div>
             </button>
             <Button
               variant="destructive"
               size="icon"
               onClick={() => void handleDeleteConfig(config.id)}
-              title={t('common.delete')}
-              aria-label={t('common.delete')}
+              title={t('Delete')}
+              aria-label={t('Delete')}
             >
               <Trash2 />
             </Button>
@@ -159,11 +159,11 @@ function BacktestToolbar(props: BacktestToolbarProps) {
           data-testid="backtest-run"
         >
           {isLoading ? <Loader2 className="animate-spin" /> : <Play />}
-          {isLoading ? t('backtest.running') : t('backtest.runButton')}
+          {isLoading ? t('Backtesting...') : t('BACKTEST')}
         </Button>
         <Button variant="secondary" onClick={() => void props.handleOpenLoadList()}>
           <FolderOpen />
-          {t('common.loadSavedBacktest')}
+          {t('LOAD SAVED BACKTEST')}
           <ChevronDown className="size-3.5" />
         </Button>
       </div>

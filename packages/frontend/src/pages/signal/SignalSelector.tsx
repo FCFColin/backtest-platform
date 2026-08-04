@@ -67,14 +67,14 @@ function SignalRow({
         className={ROW_INPUT_CLS}
         value={s.period}
         min={2}
-        title={t('signal.multi.period')}
+        title={t('Period')}
         onChange={(e) => onUpdateSignal(s.id, { period: Number(e.target.value) })}
       />
       <Input
         type="number"
         className={ROW_INPUT_CLS}
         value={s.threshold}
-        title={t('signal.multi.threshold')}
+        title={t('Threshold')}
         onChange={(e) => onUpdateSignal(s.id, { threshold: Number(e.target.value) })}
       />
       {showWeight && (
@@ -83,7 +83,7 @@ function SignalRow({
           step="0.1"
           className={`${ROW_INPUT_CLS} w-[72px]`}
           value={weight}
-          title={t('signal.multi.weight')}
+          title={t('Weight')}
           onChange={(e) => onUpdateWeight(idx, Number(e.target.value))}
         />
       )}
@@ -93,8 +93,8 @@ function SignalRow({
           size="icon"
           className="h-9 w-9"
           onClick={() => onRemoveSignal(s.id)}
-          title={t('signal.multi.delete')}
-          aria-label={t('signal.multi.delete')}
+          title={t('Remove')}
+          aria-label={t('Remove')}
         >
           <X className="size-4" />
         </Button>
@@ -116,8 +116,10 @@ function SignalListSection({ state }: { state: UseMultiSignalStateResult }) {
   return (
     <section className="flex flex-col gap-2">
       <div>
-        <h3 className="text-h3 text-fg">{t('signal.multi.signalList')}</h3>
-        <FieldDescription>{t('signal.multi.signalListInfo')}</FieldDescription>
+        <h3 className="text-h3 text-fg">{t('Signal List')}</h3>
+        <FieldDescription>
+          {t('Add multiple technical-indicator signals; each can be removed individually')}
+        </FieldDescription>
       </div>
       <div className="flex flex-col gap-2">
         {signals.map((s, idx) => (
@@ -136,7 +138,7 @@ function SignalListSection({ state }: { state: UseMultiSignalStateResult }) {
       </div>
       <Button variant="secondary" size="sm" className="w-fit" onClick={addSignal}>
         <Plus className="size-4" />
-        {t('signal.multi.addSignal')}
+        {t('Add Signal')}
       </Button>
     </section>
   );
@@ -146,9 +148,9 @@ function AggregationSection({ state }: { state: UseMultiSignalStateResult }) {
   const { aggregationMethod, setAggregationMethod } = state;
   return (
     <section className="flex flex-col gap-2">
-      <h3 className="text-h3 text-fg">{t('signal.multi.aggregationSection')}</h3>
+      <h3 className="text-h3 text-fg">{t('Aggregation Configuration')}</h3>
       <Field>
-        <FieldLabel>{t('signal.multi.aggregationMethod')}</FieldLabel>
+        <FieldLabel>{t('Aggregation Method')}</FieldLabel>
         <RadioGroup
           value={aggregationMethod}
           onValueChange={(v) => setAggregationMethod(v as AggregationMethod)}
@@ -176,11 +178,11 @@ function BacktestParamsSection({ state }: { state: UseMultiSignalStateResult }) 
   const endId = useId();
   return (
     <section className="flex flex-col gap-2">
-      <h3 className="text-h3 text-fg">{t('signal.multi.backtestParams')}</h3>
+      <h3 className="text-h3 text-fg">{t('Backtest Parameters')}</h3>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <TickerField value={ticker} onChange={setTicker} />
         <Field>
-          <FieldLabel htmlFor={startId}>{t('signal.common.startDate')}</FieldLabel>
+          <FieldLabel htmlFor={startId}>{t('Start Date')}</FieldLabel>
           <Input
             id={startId}
             type="date"
@@ -189,7 +191,7 @@ function BacktestParamsSection({ state }: { state: UseMultiSignalStateResult }) 
           />
         </Field>
         <Field>
-          <FieldLabel htmlFor={endId}>{t('signal.common.endDate')}</FieldLabel>
+          <FieldLabel htmlFor={endId}>{t('End Date')}</FieldLabel>
           <Input
             id={endId}
             type="date"

@@ -36,23 +36,23 @@ function DcaParamsSection({
   return (
     <div className="mt-4">
       <div className="mb-1.5 text-caption font-semibold text-fg-tertiary">
-        {t('lumpSumDca.dcaParams')}
+        {t('DCA Parameters')}
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Field>
-          <FieldLabel htmlFor="lumpsum-dca-frequency">{t('lumpSumDca.dcaFrequency')}</FieldLabel>
+          <FieldLabel htmlFor="lumpsum-dca-frequency">{t('DCA Frequency')}</FieldLabel>
           <select
             id="lumpsum-dca-frequency"
             className={selectClassName}
             value={dcaFrequency}
             onChange={(e) => setDcaFrequency(e.target.value as DcaFrequency)}
           >
-            <option value="monthly">{t('lumpSumDca.dcaMonthly')}</option>
-            <option value="quarterly">{t('lumpSumDca.dcaQuarterly')}</option>
+            <option value="monthly">{t('Monthly')}</option>
+            <option value="quarterly">{t('Quarterly')}</option>
           </select>
         </Field>
         <Field>
-          <FieldLabel>{t('lumpSumDca.dcaPeriods')}</FieldLabel>
+          <FieldLabel>{t('DCA Periods')}</FieldLabel>
           <div className="relative">
             <Input
               type="number"
@@ -63,12 +63,12 @@ function DcaParamsSection({
               max={360}
             />
             <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-caption text-fg-tertiary">
-              {t('lumpSumDca.dcaPeriodsUnit')}
+              {t('periods')}
             </span>
           </div>
         </Field>
         <Field>
-          <FieldLabel>{t('lumpSumDca.perPeriodAmount')}</FieldLabel>
+          <FieldLabel>{t('Per-Period Amount')}</FieldLabel>
           <div className="relative">
             <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-body text-fg-tertiary">
               {prefix}
@@ -83,7 +83,9 @@ function DcaParamsSection({
         </Field>
         <div className="flex h-10 items-center gap-2">
           <Switch checked={investTbill} onCheckedChange={setInvestTbill} />
-          <span className="text-caption text-fg-secondary">{t('lumpSumDca.investTbill')}</span>
+          <span className="text-caption text-fg-secondary">
+            {t('Put uninvested funds in T-Bill')}
+          </span>
         </div>
       </div>
     </div>
@@ -128,11 +130,11 @@ function LumpSumVsDCAParamsForm({ state }: { state: LumpSumVsDCAState }) {
       <LoadingButton
         isLoading={state.isLoading}
         onClick={state.runComparison}
-        loadingText={t('lumpSumDca.comparing')}
+        loadingText={t('Comparing...')}
         className="w-full"
       >
         <Play className="size-4" />
-        {t('lumpSumDca.startCompare')}
+        {t('Start Comparison')}
       </LoadingButton>
     </div>
   );
@@ -147,7 +149,7 @@ function LumpSumVsDCAResults({ state }: { state: LumpSumVsDCAState }) {
     <>
       {state.error && (
         <Card className="mb-3 p-6 text-center text-danger">
-          {t('lumpSumDca.compareFailed')}: {state.error}
+          {t('Comparison failed')}: {state.error}
         </Card>
       )}
       <LsDcaResultsCard s={state} fmtPct={fmtPct} fmtNum={fmtNum} fmtMoney={fmtMoney} />

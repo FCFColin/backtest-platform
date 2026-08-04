@@ -32,8 +32,8 @@ function TickerChips({
             variant="icon"
             size="icon"
             onClick={() => onRemove(idx)}
-            title={t('components.tickerTagInput.remove')}
-            aria-label={t('components.tickerTagInput.removeTicker', { ticker: tk })}
+            title={t('Remove')}
+            aria-label={t('Remove {{ticker}}', { ticker: tk })}
             className="h-3.5 w-3.5 p-0 [&_svg]:size-3 opacity-70 hover:opacity-100"
           >
             <X />
@@ -50,7 +50,7 @@ export function TickerTagInput({
   placeholder,
 }: TickerTagInputProps) {
   const { t } = useTranslation();
-  const resolvedPlaceholder = placeholder ?? t('components.tickerTagInput.placeholder');
+  const resolvedPlaceholder = placeholder ?? t('Enter a ticker and press Enter to add...');
   const [input, setInput] = useState('');
   const addTicker = (raw: string) => {
     const code = raw.trim().toUpperCase();

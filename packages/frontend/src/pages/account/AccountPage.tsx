@@ -17,94 +17,6 @@ import { useAuthStore } from '@/store/authStore';
 import { importLocalConfigsOnce } from '@/utils/portfolioStorage';
 import { SectionTitle, PrefRow } from '../../components/cards.js';
 import { StandardPageShell } from '../../components/shells/index.js';
-const AVATAR_STYLE: React.CSSProperties = {
-  width: 64,
-  height: 64,
-  borderRadius: '50%',
-  background: 'var(--brand)',
-  color: '#fff',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  fontSize: 26,
-  fontWeight: 700,
-  flexShrink: 0,
-};
-const USER_CARD_STYLE: React.CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: 16,
-  marginBottom: 24,
-  padding: 16,
-  background: 'var(--bg-subtle)',
-  borderRadius: 'var(--radius-control)',
-};
-const ROLE_BADGE_STYLE: React.CSSProperties = {
-  fontSize: 11,
-  fontWeight: 600,
-  color: 'var(--brand)',
-  background: 'var(--brand-soft)',
-  padding: '2px 8px',
-  borderRadius: 10,
-};
-const EMAIL_ROW_STYLE: React.CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: 6,
-  fontSize: 13,
-  color: 'var(--text-muted)',
-};
-const LOGIN_LINK_STYLE: React.CSSProperties = {
-  minHeight: 38,
-  padding: '0 16px',
-  fontSize: 13,
-  display: 'inline-flex',
-  alignItems: 'center',
-  gap: 6,
-};
-const SUB_CARD_STYLE: React.CSSProperties = {
-  padding: 20,
-  background: 'var(--brand-soft)',
-  borderRadius: 'var(--radius-control)',
-  border: '1px solid var(--border-soft)',
-  display: 'flex',
-  alignItems: 'center',
-  gap: 16,
-  flexWrap: 'wrap',
-};
-const CROWN_STYLE: React.CSSProperties = {
-  width: 48,
-  height: 48,
-  borderRadius: '50%',
-  background: 'var(--brand)',
-  color: '#fff',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  flexShrink: 0,
-};
-const PLAN_NAME_STYLE: React.CSSProperties = {
-  fontSize: 16,
-  fontWeight: 700,
-  color: 'var(--text-strong)',
-  marginBottom: 4,
-};
-const PLAN_DATE_STYLE: React.CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: 6,
-  fontSize: 12,
-  color: 'var(--text-muted)',
-};
-const NOTICE_STYLE: React.CSSProperties = {
-  marginTop: 20,
-  padding: 14,
-  background: 'var(--bg-subtle)',
-  borderRadius: 'var(--radius-control)',
-  fontSize: 12,
-  color: 'var(--text-muted)',
-  lineHeight: 1.7,
-};
 const SELECT_CLASS = 'bg-input-bg text-fg border border-border-subtle rounded font-medium';
 const CURRENCY_OPTS = [
   ['USD', 'currencyUSD'],
@@ -133,23 +45,28 @@ function UserInfoCard({
 }) {
   const { t } = useTranslation();
   return (
-    <div style={USER_CARD_STYLE}>
-      <div style={AVATAR_STYLE}>{initials}</div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-          <span style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-strong)' }}>
-            {displayName}
+    <div className="flex items-center gap-4 mb-6 p-4 bg-[var(--bg-subtle)] rounded-[var(--radius-control)]">
+      <div className="h-16 w-16 shrink-0 rounded-full bg-brand text-white flex items-center justify-center text-[26px] font-bold">
+        {initials}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 mb-1">
+          <span className="text-[18px] font-bold text-[var(--text-strong)]">{displayName}</span>
+          <span className="text-[11px] font-semibold text-brand bg-[var(--color-brand-soft)] px-2 py-0.5 rounded-[10px]">
+            {roleLabel}
           </span>
-          <span style={ROLE_BADGE_STYLE}>{roleLabel}</span>
         </div>
-        <div style={EMAIL_ROW_STYLE}>
+        <div className="flex items-center gap-1.5 text-[13px] text-[var(--text-muted)]">
           <Mail className="w-3.5 h-3.5" />
-          {userId ? t('account.userIdLabel', { userId }) : 'user@backtest.local'}
+          {userId ? t('User ID: {{userId}}', { userId }) : 'user@backtest.local'}
         </div>
       </div>
       {!userId && (
-        <Link to="/login" className="main-action-btn no-underline" style={LOGIN_LINK_STYLE}>
-          <LogIn className="w-4 h-4" /> {t('account.login')}
+        <Link
+          to="/login"
+          className="main-action-btn no-underline min-h-[38px] px-4 text-[13px] inline-flex items-center gap-1.5"
+        >
+          <LogIn className="w-4 h-4" /> {t('Log In')}
         </Link>
       )}
     </div>
@@ -167,12 +84,8 @@ function ThemeToggleRow({
   return (
     <PrefRow
       icon={<Palette className="w-4 h-4" />}
-      label={t('account.preferences.themeMode')}
-      desc={
-        isDark
-          ? t('account.preferences.themeCurrentDark')
-          : t('account.preferences.themeCurrentLight')
-      }
+      label={t('Theme Mode')}
+      desc={isDark ? t('Currently dark theme') : t('Currently light theme')}
     >
       <div
         className={`toggle-switch ${isDark ? 'active' : ''}`}
@@ -180,7 +93,7 @@ function ThemeToggleRow({
         role="switch"
         tabIndex={0}
         aria-checked={isDark}
-        title={isDark ? t('nav.switchToLight') : t('nav.switchToDark')}
+        title={isDark ? t('Switch to light theme') : t('Switch to dark theme')}
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
@@ -207,46 +120,42 @@ function PreferencesSection({
   onRebalanceChange: (v: string) => void;
 }) {
   const { t } = useTranslation();
+  const renderSelect = (
+    value: string,
+    onChange: (v: string) => void,
+    opts: ReadonlyArray<readonly [string, string]>,
+  ) => (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className={SELECT_CLASS}
+      style={{ width: 140 }}
+    >
+      {opts.map(([v, k]) => (
+        <option key={v} value={v}>
+          {t(`account.preferences.${k}`)}
+        </option>
+      ))}
+    </select>
+  );
   return (
     <>
-      <SectionTitle icon={<Palette className="w-5 h-5" />} title={t('account.preferences.title')} />
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 28 }}>
+      <SectionTitle icon={<Palette className="w-5 h-5" />} title={t('Preferences')} />
+      <div className="flex flex-col gap-3 mb-7">
         <ThemeToggleRow isDark={isDark} toggleTheme={toggleTheme} t={t} />
         <PrefRow
           icon={<DollarSign className="w-4 h-4" />}
-          label={t('account.preferences.currency')}
-          desc={t('account.preferences.currencyDesc')}
+          label={t('Currency')}
+          desc={t('Select the currency displayed in backtest results')}
         >
-          <select
-            value={currency}
-            onChange={(e) => onCurrencyChange(e.target.value)}
-            className={SELECT_CLASS}
-            style={{ width: 140 }}
-          >
-            {CURRENCY_OPTS.map(([v, k]) => (
-              <option key={v} value={v}>
-                {t(`account.preferences.${k}`)}
-              </option>
-            ))}
-          </select>
+          {renderSelect(currency, onCurrencyChange, CURRENCY_OPTS)}
         </PrefRow>
         <PrefRow
           icon={<RefreshCw className="w-4 h-4" />}
-          label={t('account.preferences.rebalance')}
-          desc={t('account.preferences.rebalanceDesc')}
+          label={t('Rebalance Frequency')}
+          desc={t('Set the default rebalance frequency')}
         >
-          <select
-            value={rebalance}
-            onChange={(e) => onRebalanceChange(e.target.value)}
-            className={SELECT_CLASS}
-            style={{ width: 140 }}
-          >
-            {REBALANCE_OPTS.map(([v, k]) => (
-              <option key={v} value={v}>
-                {t(`account.preferences.${k}`)}
-              </option>
-            ))}
-          </select>
+          {renderSelect(rebalance, onRebalanceChange, REBALANCE_OPTS)}
         </PrefRow>
       </div>
     </>
@@ -258,31 +167,28 @@ function SubscriptionSection({ plan }: { plan: string | undefined }) {
     <>
       <SectionTitle
         icon={<CreditCard className="w-5 h-5" />}
-        title={t('account.subscription.title')}
+        title={t('Subscription Information')}
       />
-      <div style={SUB_CARD_STYLE}>
-        <div style={CROWN_STYLE}>
+      <div className="p-5 bg-[var(--color-brand-soft)] rounded-[var(--radius-control)] border border-[var(--border-soft)] flex items-center gap-4 flex-wrap">
+        <div className="h-12 w-12 rounded-full bg-brand text-white flex items-center justify-center shrink-0">
           <Crown className="w-5 h-5" />
         </div>
-        <div style={{ flex: 1, minWidth: 160 }}>
-          <div style={PLAN_NAME_STYLE}>
-            {plan
-              ? t('account.subscription.currentPlanSuffix', { plan: plan.toUpperCase() })
-              : t('account.subscription.freePlan')}
+        <div className="flex-1 min-w-[160px]">
+          <div className="text-[16px] font-bold text-[var(--text-strong)] mb-1">
+            {plan ? t('Current plan: {{plan}}', { plan: plan.toUpperCase() }) : t('Free Plan')}
           </div>
-          <div style={PLAN_DATE_STYLE}>
+          <div className="flex items-center gap-1.5 text-[12px] text-[var(--text-muted)]">
             <Calendar className="w-3 h-3" />
-            {t('account.subscription.localDeploy')}
+            {t('Self-hosted Version')}
           </div>
         </div>
         <button
-          className="main-action-btn"
-          style={{ minHeight: 38, padding: '0 18px', fontSize: 13 }}
+          className="main-action-btn min-h-[38px] px-[18px] text-[13px]"
           onClick={() => {
             window.location.hash = '#/pricing';
           }}
         >
-          {t('account.subscription.upgrade')}
+          {t('Upgrade Plan')}
         </button>
       </div>
     </>
@@ -301,9 +207,9 @@ export default function AccountPage() {
   const displayName = org?.name ?? (user ? user.userId : 'Backtest User');
   const roleLabel = user
     ? user.platformAdmin
-      ? t('account.role.admin')
+      ? t('Platform Administrator')
       : (org?.role ?? user.role)
-    : t('account.role.local');
+    : t('Local User');
   const initials = displayName.slice(0, 2).toUpperCase();
   return (
     <StandardPageShell config={{ titleKey: 'account.title' }}>
@@ -323,12 +229,9 @@ export default function AccountPage() {
           onRebalanceChange={setRebalance}
         />
         <SubscriptionSection plan={org?.plan} />
-        <div style={NOTICE_STYLE}>
-          <User
-            className="w-3.5 h-3.5"
-            style={{ display: 'inline', marginRight: 6, verticalAlign: '-2px' }}
-          />
-          {t('account.localDeployNotice')}
+        <div className="mt-5 p-3.5 bg-[var(--bg-subtle)] rounded-[var(--radius-control)] text-[12px] text-[var(--text-muted)] leading-[1.7]">
+          <User className="w-3.5 h-3.5 inline mr-1.5 align-[-2px]" />
+          {t('You are using the self-hosted version; all features are available.')}
         </div>
       </div>
     </StandardPageShell>

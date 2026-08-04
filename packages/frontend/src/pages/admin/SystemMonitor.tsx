@@ -102,7 +102,7 @@ export default function SystemMonitor() {
       setData(buildMonitorData(json.data, await fetchServices()));
     } catch (error) {
       reportError(error, { component: 'SystemMonitor', action: 'fetchMonitorData' });
-      useToastStore.getState().addToast('error', t('adminPage.monitor.loadFailed'));
+      useToastStore.getState().addToast('error', t('Load failed'));
     }
     setLoading(false);
     setLastRefresh(new Date().toLocaleTimeString('zh-CN'));
@@ -110,12 +110,12 @@ export default function SystemMonitor() {
   usePolling(fetchMonitorData, 10000, { enabled: autoRefresh, deps: [autoRefresh] });
   const memBars = [
     {
-      label: t('adminPage.monitor.rssMemory'),
+      label: t('RSS Memory'),
       valueMB: data.system.memoryMB,
       totalMB: data.system.memoryMB,
     },
     {
-      label: t('adminPage.monitor.heapUsed'),
+      label: t('Heap Used'),
       valueMB: data.system.heapUsedMB,
       totalMB: data.system.memoryMB,
     },
@@ -126,7 +126,7 @@ export default function SystemMonitor() {
         <div className="flex items-center gap-4">
           <Button variant="secondary" onClick={fetchMonitorData} disabled={loading}>
             <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-            {t('adminPage.monitor.refresh')}
+            {t('Refresh')}
           </Button>
           <label className="flex items-center gap-2 text-sm text-fg-secondary">
             <input
@@ -135,41 +135,37 @@ export default function SystemMonitor() {
               onChange={(e) => setAutoRefresh(e.target.checked)}
               className="h-4 w-4 rounded border-border"
             />
-            {t('adminPage.monitor.autoRefresh')}
+            {t('Auto Refresh')}
           </label>
         </div>
         <div className="text-xs text-fg-tertiary">
-          {lastRefresh
-            ? t('adminPage.monitor.lastUpdate', { time: lastRefresh })
-            : t('adminPage.monitor.notRefreshed')}
+          {lastRefresh ? t('Last Update: {{time}}', { time: lastRefresh }) : t('Not Refreshed')}
         </div>
       </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <KpiCard
-          label={t('adminPage.dashboard.nodeMemory')}
+          label={t('Node Memory')}
           value={`${data.system.memoryMB} MB`}
-          subtitle={t('adminPage.monitor.heapUsage', { heap: data.system.heapUsedMB })}
+          subtitle={t('Heap Usage: {{heap}} MB', { heap: data.system.heapUsedMB })}
           icon={<HardDrive className="h-5 w-5" />}
           color="blue"
         />
         <KpiCard
-          label={t('adminPage.monitor.uptime')}
+          label={t('Uptime')}
           value={data.system.uptime}
           icon={<Clock className="h-5 w-5" />}
           color="green"
         />
         <KpiCard
-          label={t('adminPage.monitor.dataDirectory')}
+          label={t('Data Directory')}
           value={`${(data.dataDir.totalSizeMB / 1024).toFixed(1)} GB`}
-          subtitle={t('adminPage.monitor.tickerCount', { count: data.dataDir.tickerCount })}
+          subtitle={t('Ticker Count: {{count}}', { count: data.dataDir.tickerCount })}
           icon={<Activity className="h-5 w-5" />}
           color="purple"
         />
       </div>
       <Card className="p-4">
-        <h2 className="mb-4 text-sm font-semibold text-fg">
-          {t('adminPage.monitor.serviceHealth')}
-        </h2>
+        <h2 className="mb-4 text-sm font-semibold text-fg">{t('Service Health')}</h2>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           {data.services.map((service) => (
             <Card key={service.name} className="p-4">
@@ -182,12 +178,12 @@ export default function SystemMonitor() {
               </div>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-fg-tertiary">{t('adminPage.monitor.latency')}</span>
+                  <span className="text-fg-tertiary">{t('Latency')}</span>
                   <span className="font-medium text-fg-secondary">{service.latency}ms</span>
                 </div>
                 {service.version && (
                   <div className="flex justify-between">
-                    <span className="text-fg-tertiary">{t('adminPage.monitor.version')}</span>
+                    <span className="text-fg-tertiary">{t('Version')}</span>
                     <span className="font-medium text-fg-secondary">{service.version}</span>
                   </div>
                 )}
@@ -202,7 +198,7 @@ export default function SystemMonitor() {
         </div>
       </Card>
       <Card className="p-4">
-        <h2 className="mb-4 text-sm font-semibold text-fg">{t('adminPage.monitor.memoryUsage')}</h2>
+        <h2 className="mb-4 text-sm font-semibold text-fg">{t('Memory Usage')}</h2>
         <div className="space-y-4">
           {memBars.map((bar) => {
             const pct = bar.totalMB > 0 ? Math.min((bar.valueMB / bar.totalMB) * 100, 100) : 0;
@@ -219,7 +215,7 @@ export default function SystemMonitor() {
         </div>
         <div className="mt-4 grid grid-cols-2 gap-4">
           <div className="rounded-lg border border-border-subtle p-3">
-            <p className="text-xs text-fg-tertiary">{t('dataEngine.totalDataPoints')}</p>
+            <p className="text-xs text-fg-tertiary">{t('Total Data Points')}</p>
             <p className="text-lg font-bold text-fg">
               {data.dataDir.totalDataPoints > 0
                 ? `${(data.dataDir.totalDataPoints / 1000000).toFixed(1)}M`
@@ -227,7 +223,7 @@ export default function SystemMonitor() {
             </p>
           </div>
           <div className="rounded-lg border border-border-subtle p-3">
-            <p className="text-xs text-fg-tertiary">{t('adminPage.dashboard.tickerFileCount')}</p>
+            <p className="text-xs text-fg-tertiary">{t('Ticker File Count')}</p>
             <p className="text-lg font-bold text-fg">{data.dataDir.tickerCount.toLocaleString()}</p>
           </div>
         </div>

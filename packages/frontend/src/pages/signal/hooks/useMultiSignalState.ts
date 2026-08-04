@@ -68,12 +68,12 @@ export function useMultiSignalState() {
       return apiPostJSON<MultiSignalResponse>(
         '/api/v1/signal/multi',
         reqBody,
-        i18n.t('signal.common.errAnalyze'),
+        i18n.t('Analysis failed'),
       );
     },
     () => {
-      if (!ticker.trim()) return i18n.t('signal.common.errEmptyTicker');
-      if (signals.length === 0) return i18n.t('signal.multi.errMinOneSignal');
+      if (!ticker.trim()) return i18n.t('Please enter a ticker symbol');
+      if (signals.length === 0) return i18n.t('Please add at least one signal');
       return null;
     },
   );

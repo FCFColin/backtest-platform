@@ -2,6 +2,7 @@ import { memo, useState, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { AssetAnalysisResult, PortfolioResult } from '@backtest/shared';
 import { TRADING_DAYS_PER_YEAR } from '@backtest/shared/constants';
+import { Spinner } from '@/components/ui/uiComponents';
 import { TimeSeriesLineChart } from './TimeSeriesLineChart.js';
 import { useChartCalcWorker, type WorkerTask } from '../../hooks/miscHooks.js';
 import {
@@ -31,7 +32,7 @@ export const RollingCorrelationChart = memo(function RollingCorrelationChart({
   return (
     <div className="chart-card">
       <div className="flex items-center gap-4 mb-3">
-        <div className="chart-card-title mb-0">{t('analysis.rollingCorrelation')}</div>
+        <div className="chart-card-title mb-0">{t('Rolling Correlation')}</div>
         <div className="flex items-center gap-2">
           <select
             className="bg-input-bg text-fg border border-border-subtle rounded font-medium cursor-pointer"
@@ -65,8 +66,8 @@ export const RollingCorrelationChart = memo(function RollingCorrelationChart({
         series={[seriesName]}
         height={300}
         defaultStrokeWidth={1.5}
-        tooltipValueFormatter={(v) => [v.toFixed(3), t('analysis.correlation')]}
-        tooltipLabelFormatter={(label) => `${t('common.date')}: ${label}`}
+        tooltipValueFormatter={(v) => [v.toFixed(3), t('Correlation')]}
+        tooltipLabelFormatter={(label) => `${t('Date')}: ${label}`}
         yDomain={[-1, 1]}
         referenceY={0}
         showLegend={false}
@@ -130,7 +131,7 @@ function RollingLineChart({
       defaultStrokeWidth={1.5}
       yTickFormatter={isPct ? (v) => `${v.toFixed(0)}%` : (v) => v.toFixed(1)}
       tooltipValueFormatter={(v) => [isPct ? `${v.toFixed(2)}%` : v.toFixed(3), '']}
-      tooltipLabelFormatter={(label) => `${t('common.date')}: ${label}`}
+      tooltipLabelFormatter={(label) => `${t('Date')}: ${label}`}
       referenceY={
         metric === 'excess' || metric === 'skewness' || metric === 'kurtosis' ? 0 : undefined
       }
@@ -180,9 +181,7 @@ export const RollingMetricsChart = memo(function RollingMetricsChart({
           onChange={setMetric}
           t={t}
         />
-        {isPending && (
-          <div className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent text-fg-tertiary" />
-        )}
+        {isPending && <Spinner size={4} />}
       </div>
       {displayData ? (
         <RollingLineChart
@@ -194,7 +193,7 @@ export const RollingMetricsChart = memo(function RollingMetricsChart({
         />
       ) : (
         <div className="flex items-center justify-center h-[400px] text-fg-tertiary text-caption">
-          {t('common.loading')}
+          {t('Loading...')}
         </div>
       )}
     </div>
@@ -216,11 +215,7 @@ export default function RollingReturnChart({ portfolios }: RollingReturnChartPro
       ? downsample(mergedData, DOWNSAMPLE_TARGET)
       : mergedData;
   return (
-    <ChartCard
-      title={t('charts.rollingReturn.title')}
-      data={mergedData}
-      csvFilename="rolling-return"
-    >
+    <ChartCard title={t('Rolling Return')} data={mergedData} csvFilename="rolling-return">
       <TimeSeriesLineChart
         data={chartData}
         series={portfolios.map((p) => p.name)}
@@ -228,7 +223,7 @@ export default function RollingReturnChart({ portfolios }: RollingReturnChartPro
         defaultStrokeWidth={1.5}
         yTickFormatter={(v) => `${v.toFixed(0)}%`}
         tooltipValueFormatter={(v) => [`${v.toFixed(2)}%`, '']}
-        tooltipLabelFormatter={(label) => t('charts.rollingReturn.dateLabel', { label })}
+        tooltipLabelFormatter={(label) => t('Date: {{label}}', { label })}
         showBrush
       />
     </ChartCard>

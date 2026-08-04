@@ -14,6 +14,8 @@ import {
 } from 'recharts';
 import { CHART_COLORS, type EfficientFrontierPoint } from '@backtest/shared';
 import { CHART_TOOLTIP_STYLE, CHART_GRID_PROPS, getCorrelationColor } from '@/lib/chart-theme.js';
+import { getCorrelationTextColor } from '@/components/charts/chartUtils.js';
+import { MatrixHeatmap } from '@/components/charts/tables.js';
 import { sharpeToColor } from './EfficientFrontierUtils.js';
 import { LoadInBacktesterButton, type FrontierResultsProps } from './EfficientFrontierResults.js';
 const TICK_STYLE = { fill: 'hsl(var(--fg-tertiary))', fontSize: 12 } as const;
@@ -39,7 +41,7 @@ function FrontierScatterChartInner({
         dataKey="expectedVolatility"
         tick={TICK_STYLE}
         label={{
-          value: t('efficientFrontier.results.volatilityAxis'),
+          value: t('Volatility (%)'),
           position: 'insideBottom',
           offset: -5,
           fontSize: 12,
@@ -50,7 +52,7 @@ function FrontierScatterChartInner({
         dataKey="expectedReturn"
         tick={TICK_STYLE}
         label={{
-          value: t('efficientFrontier.results.returnAxis'),
+          value: t('Return (%)'),
           angle: -90,
           position: 'insideLeft',
           fontSize: 12,
@@ -106,11 +108,8 @@ export function FrontierScatterChart({
   return (
     <div>
       <div className="mb-3 flex items-center justify-between">
-        <h3 className="text-h3 font-semibold text-fg">{t('efficientFrontier.results.title')}</h3>
-        <LoadInBacktesterButton
-          onClick={onLoadInBacktester}
-          label={t('efficientFrontier.results.loadInBacktester')}
-        />
+        <h3 className="text-h3 font-semibold text-fg">{t('Efficient Frontier')}</h3>
+        <LoadInBacktesterButton onClick={onLoadInBacktester} label={t('Load in backtester')} />
       </div>
       <ResponsiveContainer width="100%" height={400}>
         <FrontierScatterChartInner
@@ -135,9 +134,7 @@ export function FrontierAllocations({
   if (allocationData.length === 0 || allAssetTickers.length === 0) return null;
   return (
     <div>
-      <h3 className="mb-3 mt-6 text-h3 font-semibold text-fg">
-        {t('efficientFrontier.results.frontierAllocations')}
-      </h3>
+      <h3 className="mb-3 mt-6 text-h3 font-semibold text-fg">{t('Frontier Allocations')}</h3>
       <ResponsiveContainer width="100%" height={300}>
         <AreaChart data={allocationData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
           <CartesianGrid {...CHART_GRID_PROPS} stroke="hsl(var(--border-subtle))" />
@@ -145,7 +142,7 @@ export function FrontierAllocations({
             dataKey="point"
             tick={TICK_STYLE}
             label={{
-              value: t('efficientFrontier.results.frontierPoint'),
+              value: t('Frontier Point'),
               position: 'insideBottom',
               offset: -5,
               fontSize: 11,
@@ -190,51 +187,15 @@ export function CorrelationMatrixView({
   if (!correlations || correlations.tickers.length < 2) return null;
   return (
     <div>
-      <h3 className="mb-3 mt-6 text-h3 font-semibold text-fg">
-        {t('efficientFrontier.results.correlationMatrix')}
-      </h3>
-      <div className="overflow-x-auto">
-        <table className="border-collapse">
-          <thead>
-            <tr>
-              <th className="px-3 py-2 text-caption font-medium text-fg-tertiary" />
-              {correlations.tickers.map((tk) => (
-                <th
-                  key={tk}
-                  className="px-3 py-2 text-center text-caption font-medium text-fg-tertiary"
-                >
-                  {tk}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {correlations.tickers.map((rowTicker, i) => (
-              <tr key={rowTicker}>
-                <td className="px-3 py-2 text-label font-medium text-fg-secondary">{rowTicker}</td>
-                {correlations.tickers.map((colTicker, j) => {
-                  const val = correlations.matrix[i]?.[j] ?? 0;
-                  return (
-                    <td
-                      key={colTicker}
-                      className="cursor-default text-center font-mono text-label tabular-nums"
-                      style={{
-                        backgroundColor: getCorrelationColor(val),
-                        color: Math.abs(val) > 0.6 ? '#fff' : '#000',
-                        width: `${Math.max(48, 600 / correlations.tickers.length)}px`,
-                        height: `${Math.max(36, 400 / correlations.tickers.length)}px`,
-                      }}
-                      title={`${rowTicker} vs ${colTicker}: ${val.toFixed(2)}`}
-                    >
-                      {val.toFixed(2)}
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <h3 className="mb-3 mt-6 text-h3 font-semibold text-fg">{t('Correlation Matrix')}</h3>
+      <MatrixHeatmap
+        rowLabels={correlations.tickers}
+        columnLabels={correlations.tickers}
+        matrix={correlations.matrix}
+        getBackgroundColor={getCorrelationColor}
+        getTextColor={getCorrelationTextColor}
+        formatValue={(v) => v.toFixed(2)}
+      />
     </div>
   );
 }

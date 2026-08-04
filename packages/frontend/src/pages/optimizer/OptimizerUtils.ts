@@ -183,11 +183,11 @@ async function runOptimizeAction(
   t: (k: string) => string,
 ) {
   if (s.tickers.filter(Boolean).length < 2) {
-    s.setError(t('optimizer.errorMinTwoTickers'));
+    s.setError(t('Please enter at least two ticker symbols'));
     return;
   }
   if (s.minWeight > s.maxWeight) {
-    s.setError(t('optimizer.errorMinGtMax'));
+    s.setError(t('Min weight cannot be greater than max weight'));
     return;
   }
   s.setIsLoading(true);
@@ -203,7 +203,7 @@ async function runOptimizeAction(
       s.setIsCalculatingStats(false);
     }
   } catch (e) {
-    s.setError(e instanceof Error ? e.message : t('optimizer.optFailed'));
+    s.setError(e instanceof Error ? e.message : t('Optimization Failed'));
   } finally {
     s.setIsLoading(false);
   }

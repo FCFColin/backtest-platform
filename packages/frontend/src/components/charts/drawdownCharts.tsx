@@ -93,25 +93,21 @@ function StatsBar({ stats }: { stats: UnderwaterStats }) {
   return (
     <div className="px-6 pb-3 flex flex-wrap gap-4">
       <div className="flex items-baseline gap-1.5">
-        <span className="text-label-tiny text-fg-tertiary">{t('underwaterCurve.maxDrawdown')}</span>
+        <span className="text-label-tiny text-fg-tertiary">{t('Max Drawdown')}</span>
         <span className="text-caption font-mono tabular-nums font-semibold text-neg">
           {formatPercent(-stats.maxDrawdown)}
         </span>
       </div>
       <div className="flex items-baseline gap-1.5">
-        <span className="text-label-tiny text-fg-tertiary">
-          {t('underwaterCurve.underwaterPct')}
-        </span>
+        <span className="text-label-tiny text-fg-tertiary">{t('Time Underwater')}</span>
         <span className="text-caption font-mono tabular-nums font-semibold text-fg">
           {formatPercent(stats.underwaterPct)}
         </span>
       </div>
       <div className="flex items-baseline gap-1.5">
-        <span className="text-label-tiny text-fg-tertiary">
-          {t('underwaterCurve.longestStreak')}
-        </span>
+        <span className="text-label-tiny text-fg-tertiary">{t('Longest Underwater')}</span>
         <span className="text-caption font-mono tabular-nums font-semibold text-fg">
-          {t('underwaterCurve.dataPoints', { count: stats.longestDays })}
+          {t('{{count}} data points', { count: stats.longestDays })}
         </span>
       </div>
     </div>
@@ -178,7 +174,7 @@ export function DrawdownChart({ portfolios }: DrawdownChartProps) {
   return (
     <DrawdownAreaChart
       portfolios={portfolios}
-      title={t('charts.drawdown.title')}
+      title={t('Drawdown Trend')}
       gradientId="dangerGradient"
       tooltipLabelKey="charts.drawdown.dateLabel"
     />
@@ -189,8 +185,10 @@ export function UnderwaterCurve({ portfolios }: DrawdownChartProps) {
   return (
     <DrawdownAreaChart
       portfolios={portfolios}
-      title={t('underwaterCurve.title')}
-      description={t('underwaterCurve.description')}
+      title={t('Underwater Curve')}
+      description={t(
+        'Drawdown depth over time — shows how long and how deep the portfolio was below its peak.',
+      )}
       gradientId="underwaterGradient"
       tooltipLabelKey="underwaterCurve.dateLabel"
       showStats

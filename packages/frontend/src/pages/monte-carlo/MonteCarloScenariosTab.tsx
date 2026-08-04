@@ -88,7 +88,7 @@ function DistHistogramChart({
           dataKey="count"
           fill={CHART_COLORS[0]}
           fillOpacity={0.7}
-          name={t('monteCarlo.results.frequency')}
+          name={t('Frequency')}
           radius={[2, 2, 0, 0]}
         />
         {[medianLabel, meanLabel].map((label, i) => {
@@ -129,9 +129,7 @@ export function MonteCarloDistributionsTab({
   if (!r.perPathMetrics || r.perPathMetrics.length === 0) {
     return (
       <Card className="p-5">
-        <div className="py-6 text-center text-caption text-fg-tertiary">
-          {t('monteCarlo.results.noData')}
-        </div>
+        <div className="py-6 text-center text-caption text-fg-tertiary">{t('No data')}</div>
       </Card>
     );
   }
@@ -191,9 +189,7 @@ export function MonteCarloScenariosTab({
   if (data.length === 0) {
     return (
       <Card className="p-5">
-        <div className="py-6 text-center text-caption text-fg-tertiary">
-          {t('monteCarlo.results.noData')}
-        </div>
+        <div className="py-6 text-center text-caption text-fg-tertiary">{t('No data')}</div>
       </Card>
     );
   }

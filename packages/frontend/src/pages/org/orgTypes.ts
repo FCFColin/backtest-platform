@@ -1,4 +1,3 @@
-import type { CSSProperties } from 'react';
 import type { OrgRole } from '@backtest/shared/types/org';
 export interface Member {
   userId: string;
@@ -16,16 +15,3 @@ export interface Invitation {
 }
 export const ROLES = ['admin', 'analyst', 'readonly'] as const;
 export type Role = Exclude<OrgRole, 'owner'>;
-export const TABLE_TH: CSSProperties = {
-  textAlign: 'left',
-  fontSize: 12,
-  fontWeight: 600,
-  color: 'var(--text-muted)',
-  padding: '8px 10px',
-};
-export const TABLE_TD: CSSProperties = {
-  fontSize: 13,
-  color: 'var(--text-body)',
-  padding: '8px 10px',
-  borderTop: '1px solid var(--border, #e5e7eb)',
-};

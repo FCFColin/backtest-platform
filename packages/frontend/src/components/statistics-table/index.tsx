@@ -31,7 +31,7 @@ export function StatisticsTableHeader({
         className="stat-table-header-cell stat-table-metric-cell text-caption text-left"
         style={{ minWidth }}
       >
-        {t('common.metric')}
+        {t('Metric')}
       </th>
       {portfolios.map((p, idx) => (
         <th

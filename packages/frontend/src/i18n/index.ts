@@ -12,7 +12,7 @@ const NS = [
   'legal',
   'pages',
 ] as const;
-const LANGS = ['zh-CN', 'en'] as const;
+const LANGS = ['zh-CN'] as const;
 
 const modules = import.meta.glob('./locales/*/*.json', { eager: true }) as Record<
   string,
@@ -29,9 +29,7 @@ const SUPPORTED_LNGS = [...LANGS];
 
 function normalizeLng(raw: string | null | undefined): string {
   if (!raw) return DEFAULT_LNG;
-  if (raw === 'en' || raw.startsWith('en-')) return 'en';
-  if (raw === 'zh-CN' || raw.startsWith('zh')) return 'zh-CN';
-  return SUPPORTED_LNGS.includes(raw as (typeof LANGS)[number]) ? raw : DEFAULT_LNG;
+  return raw.startsWith('zh') ? 'zh-CN' : DEFAULT_LNG;
 }
 
 i18n
@@ -39,12 +37,12 @@ i18n
   .use(initReactI18next)
   .init({
     resources,
-    fallbackLng: DEFAULT_LNG,
+    fallbackLng: 'zh-CN',
     supportedLngs: SUPPORTED_LNGS,
     fallbackNS: NS.filter((n) => n !== 'common'),
     ns: ['common'],
     defaultNS: 'common',
-    partialBundledLanguages: false,
+    partialBundledLanguages: true,
     lng: normalizeLng(
       (() => {
         try {
@@ -55,6 +53,8 @@ i18n
       })() ?? (typeof navigator !== 'undefined' ? navigator.language : DEFAULT_LNG),
     ),
     interpolation: { escapeValue: false },
+    keySeparator: false,
+    nsSeparator: ':',
     detection: {
       order: ['localStorage', 'navigator'],
       lookupLocalStorage: 'i18nextLng',

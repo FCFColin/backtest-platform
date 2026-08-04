@@ -73,7 +73,7 @@ export default function PricingPage() {
   return (
     <div className="bt-page">
       <div className="bt-page-header">
-        <h1 className="bt-page-title">{t('account.pricing.title')}</h1>
+        <h1 className="bt-page-title">{t('Pricing Plans')}</h1>
       </div>
       <div className="bt-main-card card" style={{ padding: 24 }}>
         <div
@@ -85,7 +85,7 @@ export default function PricingPage() {
             textAlign: 'center',
           }}
         >
-          {t('account.pricing.intro')}
+          {t('Choose the plan that suits you. All plans include core backtest features.')}
         </div>
         <div style={gridStyle}>
           {plans.map((plan) => (
@@ -103,7 +103,7 @@ function ComparisonTable() {
   const rows = pricingData.comparisonRows as ComparisonRowEntry[];
   const ths: { text: string; align: string; color: string; weight: number }[] = [
     {
-      text: t('account.pricing.compare.feature'),
+      text: t('Feature'),
       align: 'left',
       color: 'var(--text-muted)',
       weight: 600,
@@ -115,7 +115,7 @@ function ComparisonTable() {
   return (
     <div style={{ marginTop: 16 }}>
       <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-strong)', marginBottom: 12 }}>
-        {t('account.pricing.comparisonTitle')}
+        {t('Plan Comparison')}
       </div>
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
@@ -181,8 +181,8 @@ function PricingNotice() {
         lineHeight: 1.7,
       }}
     >
-      <strong style={{ color: 'var(--text-body)' }}>{t('account.pricing.noticeTitle')}</strong>
-      {t('account.pricing.noticeBody')}
+      <strong style={{ color: 'var(--text-body)' }}>{t('Notice:')}</strong>
+      {t('Prices are for display only; the self-hosted version requires no payment.')}
     </div>
   );
 }
@@ -207,7 +207,7 @@ function PlanCard({ plan }: { plan: Plan }) {
     <div
       style={{
         padding: 24,
-        background: isRecommended ? 'var(--brand-soft)' : 'var(--bg-subtle)',
+        background: isRecommended ? 'var(--color-brand-soft)' : 'var(--bg-subtle)',
         borderRadius: 'var(--radius-control)',
         border: isRecommended ? '2px solid var(--brand)' : '1px solid var(--border-soft)',
         position: 'relative',
@@ -294,7 +294,7 @@ function RecommendedBadge() {
         whiteSpace: 'nowrap',
       }}
     >
-      {t('account.pricing.recommended')}
+      {t('Recommended')}
     </div>
   );
 }

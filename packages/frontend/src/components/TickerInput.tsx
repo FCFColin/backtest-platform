@@ -3,7 +3,11 @@ import { useTranslation } from 'react-i18next';
 import { Input } from '@/components/ui/uiComponents';
 import { cn } from '@/lib/utils';
 import { apiFetch } from '@/utils/apiClient';
-import { LOCAL_SUGGESTIONS, type TickerSuggestion } from './tickerInputConstants.js';
+interface TickerSuggestion {
+  ticker: string;
+  name: string;
+  market: string;
+}
 interface TickerInputProps {
   value: string;
   onChange: (value: string) => void;
@@ -67,66 +71,46 @@ function TickerDropdown({
         </div>
       ))}
       {fetchingRemote && (
-        <div className="px-3 py-1.5 text-caption text-fg-tertiary">
-          {t('components.tickerInput.searching')}
-        </div>
+        <div className="px-3 py-1.5 text-caption text-fg-tertiary">{t('Searching...')}</div>
       )}
     </div>
   );
 }
 function useTickerSearch() {
-  const { t } = useTranslation();
   const [suggestions, setSuggestions] = useState<TickerSuggestion[]>([]);
   const [fetchingRemote, setFetchingRemote] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const filterLocal = useCallback(
-    (query: string): TickerSuggestion[] => {
-      if (!query || query.length < 1) return [];
-      const q = query.toUpperCase();
-      return LOCAL_SUGGESTIONS.filter(
-        (item) =>
-          item.ticker.toUpperCase().includes(q) ||
-          resolveDisplayName(item.name, t).toLowerCase().includes(query.toLowerCase()),
-      ).slice(0, 8);
-    },
-    [t],
-  );
-  const updateSuggestions = useCallback(
-    (query: string) => {
-      const local = filterLocal(query);
-      setSuggestions(local);
-      setSelectedIndex(-1);
-      if (local.length === 0 && query.length >= 2) {
-        setFetchingRemote(true);
-        if (debounceRef.current) clearTimeout(debounceRef.current);
-        debounceRef.current = setTimeout(async () => {
-          try {
-            const res = await apiFetch(
-              `/api/backtest/search?query=${encodeURIComponent(query)}&limit=8`,
-              { silent: true },
-            );
-            if (res.ok) {
-              const json = await res.json();
-              const data = json.data ?? json;
-              if (Array.isArray(data) && data.length > 0) {
-                setSuggestions(data);
-                setSelectedIndex(-1);
-              }
-            }
-            // eslint-disable-next-line no-empty -- 远程搜索失败，静默忽略，用户可手动输入
-          } catch {
-          } finally {
-            setFetchingRemote(false);
+  const updateSuggestions = useCallback((query: string) => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    setSuggestions([]);
+    setSelectedIndex(-1);
+    if (query.trim().length < 2) {
+      setFetchingRemote(false);
+      return;
+    }
+    setFetchingRemote(true);
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const res = await apiFetch(
+          `/api/backtest/search?query=${encodeURIComponent(query)}&limit=8`,
+          { silent: true },
+        );
+        if (res.ok) {
+          const json = await res.json();
+          const data = json.data ?? json;
+          if (Array.isArray(data) && data.length > 0) {
+            setSuggestions(data);
+            setSelectedIndex(-1);
           }
-        }, 300);
-      } else {
+        }
+        // eslint-disable-next-line no-empty -- 远程搜索失败，静默忽略，用户可手动输入
+      } catch {
+      } finally {
         setFetchingRemote(false);
-        if (debounceRef.current) clearTimeout(debounceRef.current);
       }
-    },
-    [filterLocal],
-  );
+    }, 300);
+  }, []);
   useEffect(
     () => () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -201,7 +185,7 @@ export default function TickerInput({ value, onChange, placeholder, className }:
           if (value) updateSuggestions(value);
         }}
         onKeyDown={handleKeyDown}
-        placeholder={placeholder || t('components.tickerInput.placeholder')}
+        placeholder={placeholder || t('Enter ticker, e.g. VTI')}
         autoComplete="off"
         spellCheck={false}
         className={className}

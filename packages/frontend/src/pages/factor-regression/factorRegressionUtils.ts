@@ -61,7 +61,7 @@ async function loadFamaFrenchData(): Promise<FFDataPoint[]> {
   if (ffDataCache) return ffDataCache;
   const rows = await apiGetJSON<Array<Record<string, unknown>>>(
     '/api/v1/data/factors',
-    i18n.t('factorRegression.errLoadFF'),
+    i18n.t('Failed to load Fama-French factor data'),
   );
   ffDataCache = rows.map((r) => ({
     date: String(r.date ?? ''),
@@ -117,8 +117,8 @@ export async function fetchRegression(
   params: FetchRegressionParams,
 ): Promise<FactorRegressionResult> {
   const { validAssets, startDate, endDate, selectedFactors } = params;
-  const errFetchData = i18n.t('factorRegression.errFetchData');
-  const errRegCompute = i18n.t('factorRegression.errRegCompute');
+  const errFetchData = i18n.t('Failed to fetch market data');
+  const errRegCompute = i18n.t('Factor regression computation failed');
   const tickers = validAssets.map((a) => a.ticker);
   const analysisRes = await apiFetch('/api/v1/backtest/analysis', {
     method: 'POST',
@@ -143,11 +143,12 @@ export async function fetchRegression(
   if (analysisJson.success === false) throw new Error(analysisJson.error || errFetchData);
   const analysisData = analysisJson.data ?? analysisJson;
   const tickerReturns = extractTickerReturns(analysisData.tickers ?? []);
-  if (tickerReturns.length === 0) throw new Error(i18n.t('factorRegression.errNoPriceData'));
+  if (tickerReturns.length === 0) throw new Error(i18n.t('Insufficient price data available'));
   const totalW = validAssets.reduce((s, a) => s + (a.weight || 0), 0);
   const weightMap = new Map(validAssets.map((a) => [a.ticker, (a.weight || 0) / totalW]));
   const monthlyReturns = computeCombinedMonthlyReturns(tickerReturns, weightMap);
-  if (monthlyReturns.length < 3) throw new Error(i18n.t('factorRegression.errInsufficientData'));
+  if (monthlyReturns.length < 3)
+    throw new Error(i18n.t('Insufficient data points (at least 3 months required)'));
   const ffData = await loadFamaFrenchData();
   const regRes = await apiFetch('/api/v1/analysis/factor-regression', {
     method: 'POST',

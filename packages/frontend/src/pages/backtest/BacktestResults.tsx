@@ -1,4 +1,4 @@
-import { useEffect, lazy, Suspense, type ReactNode, type ComponentType } from 'react';
+import { useEffect, lazy, Suspense, type ReactNode } from 'react';
 import { useTranslation, Trans } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { Download, Loader2 } from 'lucide-react';
@@ -16,6 +16,7 @@ import { downloadFile, dateSuffixedFilename } from '@/utils/format';
 import { REBALANCE_LBL } from '@/utils/constants';
 import { SimpleTable, type SimpleTableColumn } from '@/components/tables.js';
 import ChartCard from '@/components/ChartCard.js';
+import { lazyNamed } from '@/utils/lazyImport';
 import {
   type Portfolio,
   type PortfolioResult,
@@ -25,10 +26,6 @@ import {
   toStatsRecord,
   createEmptyStatistics,
 } from '@backtest/shared';
-const lazyNamed = (importer: () => Promise<Record<string, unknown>>, name: string) =>
-  lazy(() =>
-    importer().then((m) => ({ default: m[name] as ComponentType<Record<string, unknown>> })),
-  );
 const GrowthChart = lazyNamed(() => import('@/components/charts/GrowthChart'), 'GrowthChart');
 const DrawdownChart = lazyNamed(
   () => import('@/components/charts/drawdownCharts'),
@@ -276,7 +273,9 @@ export function ResultsContent() {
   if (!results || results.portfolios.length === 0)
     return (
       <Card className="flex items-center justify-center p-12">
-        <span className="text-body text-fg-tertiary">{t('backtest.noResultsHint')}</span>
+        <span className="text-body text-fg-tertiary">
+          {t('Configure parameters and portfolios, then click "Start Backtest" to see results')}
+        </span>
       </Card>
     );
   const renderer = TAB_RENDERERS[activeTab];
@@ -315,14 +314,14 @@ function RebalancingStats({ portfolios }: RebalancingStatsProps) {
     portfolios.some((p) => p.rebalanceFrequency && p.rebalanceFrequency !== 'none');
   if (!hasData)
     return (
-      <ChartCard title={t('tabs.rebalancing')}>
-        <div className="text-body text-fg-tertiary">{t('components.rebalancingStats.noData')}</div>
+      <ChartCard title={t('Rebalancing')}>
+        <div className="text-body text-fg-tertiary">{t('No data')}</div>
       </ChartCard>
     );
   const columns: SimpleTableColumn<(typeof portfolios)[number]>[] = [
     {
       key: 'name',
-      label: t('backtest.portfolio'),
+      label: t('Portfolio'),
       render: (p, i) => (
         <span className="inline-flex items-center gap-1.5">
           <span
@@ -335,35 +334,35 @@ function RebalancingStats({ portfolios }: RebalancingStatsProps) {
     },
     {
       key: 'rebalanceFrequency',
-      label: t('efficientFrontier.params.rebalanceFreq'),
+      label: t('Rebalancing Frequency'),
       render: (p) => t(REBALANCE_LBL[p.rebalanceFrequency] || p.rebalanceFrequency),
     },
     {
       key: 'rebalanceOffset',
-      label: t('components.rebalancingStats.offsetDays'),
+      label: t('Offset Days'),
       align: 'right',
       render: (p) => String(p.rebalanceOffset ?? 0),
     },
     {
       key: 'rebalanceThreshold',
-      label: t('components.rebalancingStats.deviationThreshold'),
+      label: t('Deviation Threshold'),
       align: 'right',
       render: (p) => (p.rebalanceFrequency === 'threshold' ? `${p.rebalanceThreshold ?? 5}%` : '-'),
     },
     {
       key: 'rebalanceBands',
-      label: t('components.rebalancingStats.rebalanceBands'),
+      label: t('Rebalancing Bands'),
       render: (p) =>
         p.rebalanceBands?.enabled
-          ? t('components.rebalancingStats.bandsText', {
+          ? t('Deviation Bands: {{absolute}} Absolute / {{relative}} Relative', {
               absolute: p.rebalanceBands.absoluteBand ?? '-',
               relative: p.rebalanceBands.relativeBand ?? '-',
             })
-          : t('components.rebalancingStats.bandsDisabled'),
+          : t('Deviation Bands Disabled'),
     },
   ];
   return (
-    <ChartCard title={t('tabs.rebalancing')}>
+    <ChartCard title={t('Rebalancing')}>
       <SimpleTable columns={columns} data={portfolios} rowKey={(p) => p.name} />
     </ChartCard>
   );

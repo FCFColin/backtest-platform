@@ -23,16 +23,16 @@ function GrowthChart({ growthData }: { growthData: Array<Record<string, number |
   const { t } = useTranslation();
   return (
     <Card className="p-4">
-      <ChartCardTitle>{t('tactical.results.growthTitle')}</ChartCardTitle>
+      <ChartCardTitle>{t('Growth Curve')}</ChartCardTitle>
       <TimeSeriesLineChart
         data={growthData}
         height={380}
-        tooltipLabelFormatter={(label) => t('tactical.results.dateLabel', { label })}
+        tooltipLabelFormatter={(label) => t('Date: {{label}}', { label })}
         series={[
-          { dataKey: 'tactical', legendName: t('tactical.results.tactical') },
+          { dataKey: 'tactical', legendName: t('Tactical') },
           {
             dataKey: 'benchmark',
-            legendName: t('tactical.results.benchmark'),
+            legendName: t('Equal Weight'),
             strokeDasharray: '6 3',
           },
         ]}
@@ -46,16 +46,16 @@ function BacktestResultTab({ results }: { results: BacktestResponse }) {
   const growthData = useMemo(() => buildGrowthData(portfolio, benchmark), [portfolio, benchmark]);
   const statRows = useMemo(() => buildStatRows(portfolio, benchmark, t), [portfolio, benchmark, t]);
   const statColumns: Column<StatRow>[] = [
-    { key: 'metric', label: t('tactical.results.metric') },
+    { key: 'metric', label: t('Metric') },
     {
       key: 'tactical',
-      label: t('tactical.results.tactical'),
+      label: t('Tactical'),
       sortValue: (r) => r._sortTactical,
       render: (r) => <span className="font-mono tabular-nums">{r.tactical}</span>,
     },
     {
       key: 'benchmark',
-      label: t('tactical.results.benchmark'),
+      label: t('Equal Weight'),
       render: (r) => <span className="font-mono tabular-nums">{r.benchmark}</span>,
     },
   ];
@@ -63,7 +63,7 @@ function BacktestResultTab({ results }: { results: BacktestResponse }) {
     <div className="flex flex-col gap-3">
       <GrowthChart growthData={growthData} />
       <Card className="p-4">
-        <ChartCardTitle>{t('tactical.results.statsTitle')}</ChartCardTitle>
+        <ChartCardTitle>{t('Statistics')}</ChartCardTitle>
         <SortableTable
           columns={statColumns}
           data={statRows}
@@ -78,7 +78,13 @@ function BacktestResultTab({ results }: { results: BacktestResponse }) {
 function BacktestEmptyState() {
   const { t } = useTranslation();
   return (
-    <EmptyState icon={LineChart} title={t('tactical.results.noResultsHint')} className="py-16" />
+    <EmptyState
+      icon={LineChart}
+      title={t(
+        'Configure signals and parameters, then click "Run Tactical Backtest" to see results',
+      )}
+      className="py-16"
+    />
   );
 }
 function TacticalResultsPanel({ state }: { state: TacticalPageState }) {
@@ -86,7 +92,7 @@ function TacticalResultsPanel({ state }: { state: TacticalPageState }) {
   const { error, activeTab, setActiveTab, results, strategy } = state;
   return (
     <div className="flex flex-col gap-3">
-      {error && <ErrorBanner message={t('tactical.results.backtestFailedDetail', { error })} />}
+      {error && <ErrorBanner message={t('Backtest failed: {{error}}', { error })} />}
       <Card className="p-4">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList>

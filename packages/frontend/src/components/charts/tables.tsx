@@ -113,7 +113,7 @@ export const BetaMatrixTable = memo(function BetaMatrixTable({
 }) {
   const { t } = useTranslation();
   return (
-    <ChartCard title={t('analysis.betaMatrix')}>
+    <ChartCard title={t('Beta Matrix')}>
       <MatrixHeatmap
         rowLabels={tickers}
         columnLabels={tickers}
@@ -129,14 +129,16 @@ export const BetaMatrixTable = memo(function BetaMatrixTable({
 export const CorrelationMatrixTable = memo(function CorrelationMatrixTable({
   tickers,
   correlations,
+  title,
 }: {
-  tickers: Array<{ ticker: string }>;
+  tickers: string[] | Array<{ ticker: string }>;
   correlations: number[][];
+  title?: string;
 }) {
   const { t } = useTranslation();
-  const labels = tickers.map((tk) => tk.ticker);
+  const labels = tickers.map((tk) => (typeof tk === 'string' ? tk : tk.ticker));
   return (
-    <ChartCard title={t('analysis.correlationMatrix')}>
+    <ChartCard title={title ?? t('Correlation Matrix')}>
       <MatrixHeatmap
         rowLabels={labels}
         columnLabels={labels}

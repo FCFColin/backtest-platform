@@ -64,9 +64,6 @@ export function currencyFormatter(
     maximumFractionDigits: digits,
   }).format(value);
 }
-export function PERCENT_TICK_FORMATTER(value: number, digits: number = 2): string {
-  return `${value.toFixed(digits)}%`;
-}
 const CORR_COLORS = {
   strongPositive: '#1a7a3a',
   moderatePositive: '#2e8b57',

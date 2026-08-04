@@ -32,32 +32,32 @@ export function SWRCalculator() {
     return pts;
   }, [swr, expectedReturn, retirementYears]);
   return (
-    <CollapsibleCard icon={ShieldAlert} title={t('calculators.swr.title')}>
+    <CollapsibleCard icon={ShieldAlert} title={t('Safe Withdrawal Rate (SWR) Calculator')}>
       <div className="grid grid-cols-2 gap-3">
         <Field
-          label={t('calculators.swr.expectedReturn')}
+          label={t('Expected Return')}
           value={expectedReturn}
           onChange={setExpectedReturn}
           suffix="%"
           step={0.5}
         />
         <Field
-          label={t('calculators.swr.volatility')}
+          label={t('Volatility')}
           value={volatility}
           onChange={setVolatility}
           suffix="%"
           step={1}
         />
         <Field
-          label={t('calculators.swr.retirementYears')}
+          label={t('Retirement Years')}
           value={retirementYears}
           onChange={setRetirementYears}
-          suffix={t('calculators.swr.yearSuffix')}
+          suffix={t('y')}
           step={1}
           min={1}
         />
         <Field
-          label={t('calculators.swr.successTarget')}
+          label={t('Success Target')}
           value={successTarget}
           onChange={setSuccessTarget}
           suffix="%"
@@ -67,15 +67,19 @@ export function SWRCalculator() {
         />
       </div>
       <div className="mt-3">
-        <ResultRow label={t('calculators.swr.estimatedSwr')} value={formatPct(swr)} tone="brand" />
+        <ResultRow label={t('Estimated SWR')} value={formatPct(swr)} tone="brand" />
         <ResultRow
-          label={t('calculators.swr.annualWithdrawal')}
+          label={t('Annual Withdrawal')}
           value={(swr * 1000000).toFixed(0)}
           tone="success"
         />
       </div>
       <SWRChart data={portfolioSurvival} />
-      <InfoBox>{t('calculators.swr.formula')}</InfoBox>
+      <InfoBox>
+        {t(
+          'Formula: SWR ≈ (Expected Return - Risk Premium × Volatility²) / (1 + Risk Premium × Volatility²)',
+        )}
+      </InfoBox>
     </CollapsibleCard>
   );
 }
@@ -112,25 +116,25 @@ function RiskResults({ result, t }: { result: AllocationRiskComputation; t: TFun
     <>
       <div className="mt-2">
         <ResultRow
-          label={t('calculators.risk.portfolioVol')}
+          label={t('Portfolio Volatility')}
           value={formatPct(result.portfolioVol)}
           tone="brand"
         />
         <ResultRow
-          label={t('calculators.risk.diversificationBenefit')}
+          label={t('Diversification Benefit')}
           value={formatPct(result.diversificationBenefit)}
           tone="success"
         />
         <ResultRow
-          label={t('calculators.risk.stockRiskContribution')}
+          label={t('Stock Risk Contribution')}
           value={formatPct(result.riskContributionStock)}
         />
         <ResultRow
-          label={t('calculators.risk.bondRiskContribution')}
+          label={t('Bond Risk Contribution')}
           value={formatPct(result.riskContributionBond)}
         />
       </div>
-      <InfoBox>{t('calculators.risk.formula')}</InfoBox>
+      <InfoBox>{t('Formula: σp = √(ws²σs² + wb²σb² + 2wswbσsσbρ)')}</InfoBox>
     </>
   );
 }
@@ -146,10 +150,10 @@ export function AssetAllocationRiskCalculator() {
     [stockPct, bondPct, stockVol, bondVol, correlation],
   );
   return (
-    <CollapsibleCard icon={BarChart3} title={t('calculators.risk.title')}>
+    <CollapsibleCard icon={BarChart3} title={t('Risk Contribution Calculator')}>
       <div className="grid grid-cols-2 gap-3">
         <Field
-          label={t('calculators.risk.stockPct')}
+          label={t('Stock Percentage')}
           value={stockPct}
           onChange={setStockPct}
           suffix="%"
@@ -158,7 +162,7 @@ export function AssetAllocationRiskCalculator() {
           max={100}
         />
         <Field
-          label={t('calculators.risk.bondPct')}
+          label={t('Bond Percentage')}
           value={bondPct}
           onChange={setBondPct}
           suffix="%"
@@ -167,14 +171,14 @@ export function AssetAllocationRiskCalculator() {
           max={100}
         />
         <Field
-          label={t('calculators.risk.stockVol')}
+          label={t('Stock Volatility')}
           value={stockVol}
           onChange={setStockVol}
           suffix="%"
           step={1}
         />
         <Field
-          label={t('calculators.risk.bondVol')}
+          label={t('Bond Volatility')}
           value={bondVol}
           onChange={setBondVol}
           suffix="%"
@@ -183,7 +187,7 @@ export function AssetAllocationRiskCalculator() {
       </div>
       <div className="mt-3">
         <Field
-          label={t('calculators.risk.correlation')}
+          label={t('Correlation')}
           value={correlation}
           onChange={setCorrelation}
           step={0.05}

@@ -83,7 +83,7 @@ async function loginPasswordAction(
     });
     const body = await res.json();
     if (!res.ok || !body?.data?.accessToken) {
-      set(asyncFail(body?.detail || i18n.t('errors.invalidCredentials')));
+      set(asyncFail(body?.detail || i18n.t('Invalid username or password')));
       return false;
     }
     setTokens(body.data.accessToken);
@@ -114,7 +114,7 @@ async function registerAction(
     });
     const body = await res.json();
     if (!res.ok) {
-      set(asyncFail(body?.detail || i18n.t('errors.registerFailed')));
+      set(asyncFail(body?.detail || i18n.t('Registration failed')));
       return false;
     }
     set(asyncSuccess());
@@ -138,7 +138,7 @@ async function acceptInviteAction(
     });
     const body = await res.json();
     if (!res.ok) {
-      set(asyncFail(body?.detail || i18n.t('errors.acceptInviteFailed')));
+      set(asyncFail(body?.detail || i18n.t('Failed to accept invitation')));
       return { ok: false };
     }
     set(asyncSuccess());
@@ -170,7 +170,7 @@ async function switchOrgAction(set: SetFn, orgId: string): Promise<boolean> {
     });
     const body = await res.json();
     if (!res.ok || !body?.data?.accessToken) {
-      set(asyncFail(body?.detail || i18n.t('errors.switchOrgFailed')));
+      set(asyncFail(body?.detail || i18n.t('Failed to switch organization')));
       return false;
     }
     setTokens(body.data.accessToken);

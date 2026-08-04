@@ -2,74 +2,15 @@ import i18n from '@/i18n/index.js';
 import type { PortfolioResult } from '@backtest/shared';
 
 const NULL = '—';
-const MONTHS = [
-  'Jan',
-  'Feb',
-  'Mar',
-  'Apr',
-  'May',
-  'Jun',
-  'Jul',
-  'Aug',
-  'Sep',
-  'Oct',
-  'Nov',
-  'Dec',
-] as const;
 
 const invalid = (v: number | null | undefined): v is null | undefined =>
   v == null || Number.isNaN(v);
 
 export function formatDuration(days: number | null | undefined): string {
   if (invalid(days)) return NULL;
-  if (days < 30) return i18n.t('format.durationDays', { count: days });
-  if (days < 365) return i18n.t('format.durationMonthShort', { count: Math.round(days / 30) });
-  return i18n.t('format.durationYearsShort', { count: (days / 365).toFixed(1) });
-}
-
-export function fmtYears(years: number | undefined | null): string {
-  if (years == null || Number.isNaN(years)) return NULL;
-  if (years <= 0) return i18n.t('format.durationZero');
-  const y = Math.floor(years);
-  const m = Math.round((years - y) * 12);
-  if (y === 0) return i18n.t('format.durationMonths', { count: m });
-  return m === 0
-    ? i18n.t('format.durationYears', { count: y })
-    : i18n.t('format.durationYearsMonths', { years: y, months: m });
-}
-
-export function fmtDate(value: string | Date | null | undefined): string {
-  if (value == null || value === '') return NULL;
-  let year: number, monthIndex: number, day: number;
-  if (value instanceof Date) {
-    if (Number.isNaN(value.getTime())) return NULL;
-    year = value.getFullYear();
-    monthIndex = value.getMonth();
-    day = value.getDate();
-  } else {
-    const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
-    if (match) {
-      year = Number(match[1]);
-      monthIndex = Number(match[2]) - 1;
-      day = Number(match[3]);
-      const verify = new Date(year, monthIndex, day);
-      if (
-        verify.getFullYear() !== year ||
-        verify.getMonth() !== monthIndex ||
-        verify.getDate() !== day
-      )
-        return NULL;
-    } else {
-      const parsed = new Date(value);
-      if (Number.isNaN(parsed.getTime())) return NULL;
-      year = parsed.getFullYear();
-      monthIndex = parsed.getMonth();
-      day = parsed.getDate();
-    }
-  }
-  return i18n.language === 'en'
-    ? `${MONTHS[monthIndex]} ${day}, ${year}`
-    : `${year}年${monthIndex + 1}月${day}日`;
+  if (days < 30) return i18n.t('{{count}} days', { count: days });
+  if (days < 365) return i18n.t('{{count}}mo', { count: Math.round(days / 30) });
+  return i18n.t('{{count}}y', { count: (days / 365).toFixed(1) });
 }
 
 export const fmtPct = (v: number | undefined | null, decimals = 2): string =>
@@ -103,15 +44,6 @@ export function formatCurrency(value: number | null | undefined, currency = 'USD
     currency,
     minimumFractionDigits: maxFrac,
     maximumFractionDigits: maxFrac,
-  }).format(value);
-}
-
-export function formatCurrencyShort(value: number | null | undefined, currency = 'USD'): string {
-  if (invalid(value)) return NULL;
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency,
-    maximumFractionDigits: 0,
   }).format(value);
 }
 

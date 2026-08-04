@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { TFunction } from 'i18next';
 import type { GoalOptimizerResult } from '@backtest/shared';
-import { useComputeTool, useListState } from './miscHooks.js';
+import { useComputeTool, useAssetList } from './miscHooks.js';
 import { apiFetch } from '@/utils/apiClient';
 import i18n from '../i18n/index.js';
 import { validateGoalInputs } from '../pages/goal-optimizer/goalOptimizerUtils.js';
@@ -31,20 +31,6 @@ interface GoalOptimizerState {
   totalWeight: number;
   runOptimize: () => void;
 }
-const DEFAULT_ASSETS: GoalAsset[] = [
-  { ticker: 'VTI', weight: 60 },
-  { ticker: 'BND', weight: 40 },
-];
-function useGoalAssets() {
-  const { items, addItem, removeItem, updateItem } = useListState<GoalAsset>(
-    DEFAULT_ASSETS,
-    () => ({ ticker: '', weight: 0 }),
-    1,
-  );
-  const updateAsset = (idx: number, field: 'ticker' | 'weight', val: string | number) =>
-    updateItem(idx, (prev) => ({ ...prev, [field]: val }));
-  return { assets: items, addAsset: addItem, removeAsset: removeItem, updateAsset };
-}
 function buildOptimizeConstraints(
   maxDrawdown: number | '',
   minSuccessRate: number | '',
@@ -60,12 +46,18 @@ export function useGoalOptimizerState(t: TFunction): GoalOptimizerState {
   const [targetAmount, setTargetAmount] = useState(1000000);
   const [initialAmount, setInitialAmount] = useState(100000);
   const [years, setYears] = useState(20);
-  const { assets, addAsset, removeAsset, updateAsset } = useGoalAssets();
+  const { assets, addAsset, removeAsset, updateAsset, totalWeight } = useAssetList<GoalAsset>(
+    [
+      { ticker: 'VTI', weight: 60 },
+      { ticker: 'BND', weight: 40 },
+    ],
+    () => ({ ticker: '', weight: 0 }),
+    1,
+  );
   const [maxDrawdown, setMaxDrawdown] = useState<number | ''>('');
   const [minSuccessRate, setMinSuccessRate] = useState<number | ''>('');
   const [maxVolatility, setMaxVolatility] = useState<number | ''>('');
   const [numSimulations, setNumSimulations] = useState(1000);
-  const totalWeight = assets.reduce((sum, a) => sum + (a.weight || 0), 0);
   const validAssets = assets.filter((a) => a.ticker.trim());
   const {
     isLoading,
@@ -89,8 +81,7 @@ export function useGoalOptimizerState(t: TFunction): GoalOptimizerState {
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
-      if (json.success === false)
-        throw new Error(json.error || i18n.t('goalOptimizer.errOptFailed'));
+      if (json.success === false) throw new Error(json.error || i18n.t('Goal optimization failed'));
       return json.data as GoalOptimizerResult;
     },
     () => {

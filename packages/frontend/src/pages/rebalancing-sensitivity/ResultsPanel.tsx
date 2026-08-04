@@ -54,11 +54,11 @@ function ScatterTab({ results }: { results: FreqResult[] }) {
         <XAxis
           type="number"
           dataKey="volatility"
-          name={t('rebalancingSensitivity.results.volatility')}
+          name={t('Volatility')}
           tick={AXIS_TICK_STYLE}
           tickFormatter={(v: number) => `${v.toFixed(1)}%`}
           label={{
-            value: t('rebalancingSensitivity.results.volatilityAxis'),
+            value: t('Volatility (%)'),
             position: 'insideBottom',
             offset: -15,
             style: { fill: 'var(--text-muted)', fontSize: 12 },
@@ -71,7 +71,7 @@ function ScatterTab({ results }: { results: FreqResult[] }) {
           tick={AXIS_TICK_STYLE}
           tickFormatter={(v: number) => `${v.toFixed(1)}%`}
           label={{
-            value: t('rebalancingSensitivity.results.cagrAxis'),
+            value: t('CAGR (%)'),
             angle: -90,
             position: 'insideLeft',
             style: { fill: 'var(--text-muted)', fontSize: 12 },
@@ -122,11 +122,9 @@ function OffsetSelector({ s }: { s: RebalancingState }) {
   const { t } = useTranslation();
   return (
     <div className="mb-3 flex items-center gap-3">
-      <span className="text-body text-fg-tertiary">
-        {t('rebalancingSensitivity.results.frequency')}:
-      </span>
+      <span className="text-body text-fg-tertiary">{t('Frequency')}:</span>
       <select
-        aria-label={t('rebalancingSensitivity.results.frequency')}
+        aria-label={t('Frequency')}
         className={selectClassName}
         value={s.offsetFreq}
         onChange={(e) => {
@@ -192,9 +190,9 @@ function OffsetTab({ s }: { s: RebalancingState }) {
 }
 const resultsTableCols = (t: TFunction) => [
   ['CAGR', 'cagr'] as const,
-  [t('rebalancingSensitivity.results.volatility'), 'stdev'] as const,
-  [t('rebalancingSensitivity.results.maxDrawdown'), 'mdd'] as const,
-  [t('rebalancingSensitivity.results.sharpe'), 'sharpe'] as const,
+  [t('Volatility'), 'stdev'] as const,
+  [t('Max Drawdown'), 'mdd'] as const,
+  [t('Sharpe'), 'sharpe'] as const,
   ['Sortino', 'sortino'] as const,
 ];
 function ResultsTableHead() {
@@ -204,7 +202,7 @@ function ResultsTableHead() {
     <thead>
       <tr className="bg-input-bg">
         <th className="border-b-2 border-subtle px-3 py-2.5 text-left text-caption font-semibold text-fg-tertiary">
-          {t('rebalancingSensitivity.results.frequency')}
+          {t('Frequency')}
         </th>
         {cols.map(([label]) => (
           <th
@@ -271,13 +269,13 @@ export function ResultsPanel({ s }: { s: RebalancingState }) {
   if (s.error)
     return (
       <Card className="p-6 text-center text-danger">
-        {t('rebalancingSensitivity.results.analysisFailed')}: {s.error}
+        {t('Analysis failed')}: {s.error}
       </Card>
     );
   if (s.results.length === 0 && !s.isLoading)
     return (
       <Card className="p-12 text-center text-fg-tertiary">
-        {t('rebalancingSensitivity.results.noResultsHint')}
+        {t('Select rebalancing frequencies and click "Start Analysis"')}
       </Card>
     );
   if (s.isLoading)

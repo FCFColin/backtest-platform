@@ -12,7 +12,8 @@ import { getErrorI18nKey, reportError } from '../utils/errorReporter.js';
 import { useToastStore } from './toastStore.js';
 import { PRESET_PORTFOLIOS, findPresetPortfolio } from './presetPortfolios.js';
 export function extractApiErrorDetail(json: unknown): string {
-  if (!json || typeof json !== 'object') return i18n.t('backtest.runFailed');
+  if (!json || typeof json !== 'object')
+    return i18n.t('Backtest failed. Please check ticker symbols and parameters.');
   const body = json as Record<string, unknown>;
   if (typeof body.detail === 'string' && body.detail) return body.detail;
   const err = body.error;
@@ -23,7 +24,7 @@ export function extractApiErrorDetail(json: unknown): string {
     const code = typeof e.code === 'string' ? e.code : undefined;
     if (code) return i18n.t(getErrorI18nKey(code));
   }
-  return i18n.t('backtest.runFailed');
+  return i18n.t('Backtest failed. Please check ticker symbols and parameters.');
 }
 export function normalizeBacktestResult(raw: unknown): BacktestResult {
   const data = (raw && typeof raw === 'object' ? raw : {}) as BacktestResult;
@@ -139,8 +140,8 @@ export function validatePortfolios(portfolios: Portfolio[]): string | null {
     },
     onError: (idx, key, total) =>
       key === 'emptyTicker'
-        ? i18n.t('backtest.emptyTickerWarning')
-        : i18n.t('backtest.weightSumWarning', {
+        ? i18n.t('Some ticker symbols are empty. Please fill them in before running.')
+        : i18n.t('{{name}} weights sum to {{total}}%, should be 100%', {
             name: portfolios[idx].name,
             total: total.toFixed(2),
           }),
@@ -171,10 +172,11 @@ export function handleBacktestError(error: unknown): void {
   reportError(error, { component: 'backtestStore', action: 'handleBacktestError' });
   const isAbort = error instanceof DOMException && error.name === 'AbortError';
   const msg = isAbort
-    ? i18n.t('backtest.timeout')
+    ? i18n.t('Backtest request timed out. Please try again later.')
     : error instanceof TypeError
-      ? i18n.t('backtest.networkError')
-      : (error instanceof Error && error.message) || i18n.t('backtest.runFailed');
+      ? i18n.t('Network connection failed. Please check if the backend is running.')
+      : (error instanceof Error && error.message) ||
+        i18n.t('Backtest failed. Please check ticker symbols and parameters.');
   useToastStore.getState().addToast('error', msg);
 }
 export function cancellableSleep(ms: number, signal: AbortSignal): Promise<void> {

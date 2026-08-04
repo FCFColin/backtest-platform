@@ -72,12 +72,12 @@ export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
           <div
             style={{ fontSize: '48px', marginBottom: '16px' }}
             role="img"
-            aria-label={i18n.t('components.errorBoundary.errorAlert')}
+            aria-label={i18n.t('Error')}
           >
             ⚠️
           </div>
           <h1 style={{ fontSize: '24px', fontWeight: 600, margin: '0 0 8px' }}>
-            {i18n.t('errors.pageErrorTitle')}
+            {i18n.t('Something went wrong')}
           </h1>
           <p
             style={{
@@ -87,7 +87,9 @@ export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
               maxWidth: '400px',
             }}
           >
-            {i18n.t('errors.pageErrorMessage')}
+            {i18n.t(
+              'Sorry, the page encountered an error. Please refresh. If the problem persists, contact the administrator.',
+            )}
           </p>
           {this.state.error && (
             <p style={ERROR_DETAIL_STYLE}>
@@ -100,7 +102,7 @@ export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
             style={REFRESH_BTN_STYLE}
             className="error-refresh-btn"
           >
-            {i18n.t('errors.pageRefresh')}
+            {i18n.t('Refresh page')}
           </button>
         </div>
       </>
@@ -181,8 +183,8 @@ export class RouteErrorBoundary extends Component<
   private renderErrorUI(): ReactNode {
     const routeName = this.props.routeName;
     const title = routeName
-      ? i18n.t('errors.routeErrorTitle', { route: routeName })
-      : i18n.t('errors.pageErrorTitle');
+      ? i18n.t('This section could not load ({{route}})', { route: routeName })
+      : i18n.t('Something went wrong');
     return (
       <div style={ROUTE_ERROR_STYLE} role="alert" aria-live="assertive">
         <div style={{ fontSize: '36px', marginBottom: '12px' }} role="img" aria-hidden="true">
@@ -197,7 +199,9 @@ export class RouteErrorBoundary extends Component<
             maxWidth: '420px',
           }}
         >
-          {i18n.t('errors.routeErrorMessage')}
+          {i18n.t(
+            'Something went wrong while rendering this page. You can retry without reloading the whole app.',
+          )}
         </p>
         {this.state.error && (
           <p style={ROUTE_ERROR_DETAIL_STYLE}>
@@ -205,7 +209,7 @@ export class RouteErrorBoundary extends Component<
           </p>
         )}
         <button type="button" onClick={this.handleRetry} style={ROUTE_RETRY_BTN_STYLE}>
-          {i18n.t('errors.routeRetry')}
+          {i18n.t('Retry')}
         </button>
       </div>
     );

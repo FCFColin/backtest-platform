@@ -87,14 +87,14 @@ export function NotificationBell() {
       <SheetContent side="right" className="w-[400px] p-0">
         <div className="flex flex-col gap-1.5 text-center sm:text-left p-4 border-b border-border">
           <div className="flex items-center justify-between">
-            <SheetTitle>{t('notifications.title')}</SheetTitle>
-            <span className="text-caption text-fg-tertiary">{t('notifications.latest')}</span>
+            <SheetTitle>{t('Product Updates')}</SheetTitle>
+            <span className="text-caption text-fg-tertiary">{t('Latest updates')}</span>
           </div>
         </div>
         <div className="overflow-y-auto max-h-[calc(100dvh-4rem)]">
           {announcements.length === 0 ? (
             <div className="p-8 text-center text-caption text-fg-tertiary">
-              {t('notifications.empty')}
+              {t('No announcements')}
             </div>
           ) : (
             announcements.map((ann) => (
@@ -143,8 +143,8 @@ export function NavbarActions() {
             () => void i18n.changeLanguage(i18n.language === 'zh-CN' ? 'en' : 'zh-CN'),
           )
         }
-        title={t('lang.switchLang')}
-        aria-label={`${t('lang.switchLang')} (${i18n.language === 'zh-CN' ? 'ZH' : 'EN'})`}
+        title={t('Switch Language')}
+        aria-label={`${t('Switch Language')} (${i18n.language === 'zh-CN' ? 'ZH' : 'EN'})`}
         className="gap-1 px-2"
         data-testid="language-selector"
       >
@@ -155,8 +155,8 @@ export function NavbarActions() {
         variant="icon"
         size="icon"
         onClick={toggleTheme}
-        title={theme === 'dark' ? t('nav.switchToLight') : t('nav.switchToDark')}
-        aria-label={theme === 'dark' ? t('nav.switchToLight') : t('nav.switchToDark')}
+        title={theme === 'dark' ? t('Switch to light theme') : t('Switch to dark theme')}
+        aria-label={theme === 'dark' ? t('Switch to light theme') : t('Switch to dark theme')}
         data-testid="theme-toggle"
       >
         {theme === 'dark' ? <Sun /> : <MoonStar />}
@@ -165,8 +165,8 @@ export function NavbarActions() {
         variant="secondary"
         size="sm"
         onClick={toggleCurrency}
-        title={t('lang.switchCurrency')}
-        aria-label={`${t('lang.switchCurrency')} (${baseCurrency === 'usd' ? 'USD' : 'CNY'})`}
+        title={t('Switch currency')}
+        aria-label={`${t('Switch currency')} (${baseCurrency === 'usd' ? 'USD' : 'CNY'})`}
         data-testid="currency-selector"
       >
         {baseCurrency === 'usd' ? 'USD' : 'CNY'}
@@ -177,12 +177,12 @@ export function NavbarActions() {
       <div className="w-px h-6 bg-border mx-1" />
       <Link to="/login">
         <Button variant="ghost" size="sm">
-          {t('auth.login.submit')}
+          {t('Log In')}
         </Button>
       </Link>
       <Link to="/signup">
         <Button variant="secondary" size="sm">
-          {t('auth.signup.submit')}
+          {t('Sign Up')}
         </Button>
       </Link>
     </div>

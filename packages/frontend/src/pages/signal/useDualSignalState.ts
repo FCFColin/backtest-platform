@@ -61,10 +61,10 @@ export function useDualSignalState(): UseDualSignalStateResult {
       return apiPostJSON<DualSignalResponse>(
         '/api/v1/signal/dual',
         reqBody,
-        i18n.t('signal.common.errAnalyze'),
+        i18n.t('Analysis failed'),
       );
     },
-    () => (ticker.trim() ? null : t('signal.common.errEmptyTicker')),
+    () => (ticker.trim() ? null : t('Please enter a ticker symbol')),
   );
   return {
     cfg1,

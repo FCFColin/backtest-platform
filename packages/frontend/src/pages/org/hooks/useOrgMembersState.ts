@@ -51,14 +51,14 @@ export function useOrgMembersState(isAdmin: boolean): UseOrgMembersStateResult {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ role }),
       });
-      if (!res.ok) setError((await res.json())?.detail || i18n.t('orgMembers.error.updateRole'));
+      if (!res.ok) setError((await res.json())?.detail || i18n.t('Failed to update role'));
       else await load();
     });
   };
   const removeMember = async (userId: string) => {
     await withBusy(async () => {
       const res = await apiFetch(`/api/v1/orgs/members/${userId}`, { method: 'DELETE' });
-      if (!res.ok) setError((await res.json())?.detail || i18n.t('orgMembers.error.removeMember'));
+      if (!res.ok) setError((await res.json())?.detail || i18n.t('Failed to remove member'));
       else await load();
     });
   };
@@ -70,14 +70,14 @@ export function useOrgMembersState(isAdmin: boolean): UseOrgMembersStateResult {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.trim(), role }),
       });
-      if (!res.ok) setError((await res.json())?.detail || i18n.t('orgMembers.error.sendInvite'));
+      if (!res.ok) setError((await res.json())?.detail || i18n.t('Failed to send invitation'));
       else await load();
     });
   };
   const revokeInvite = async (id: string) => {
     await withBusy(async () => {
       const res = await apiFetch(`/api/v1/orgs/invitations/${id}`, { method: 'DELETE' });
-      if (!res.ok) setError((await res.json())?.detail || i18n.t('orgMembers.error.revokeInvite'));
+      if (!res.ok) setError((await res.json())?.detail || i18n.t('Failed to revoke invitation'));
       else await load();
     });
   };

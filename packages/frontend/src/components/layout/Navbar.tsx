@@ -177,12 +177,12 @@ function NavbarMobileMenu({
   return (
     <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
       <SheetTrigger asChild>
-        <Button variant="icon" size="icon" className="md:hidden" aria-label={t('nav.menu')}>
+        <Button variant="icon" size="icon" className="md:hidden" aria-label={t('Menu')}>
           <Menu />
         </Button>
       </SheetTrigger>
       <SheetContent side="left" className="w-72 p-4">
-        <SheetTitle className="text-h2 text-fg">{t('nav.brandName')}</SheetTitle>
+        <SheetTitle className="text-h2 text-fg">{t('Backtest Platform')}</SheetTitle>
         <NavGroupsContainer
           openGroup={openGroup}
           isActive={isActive}
@@ -231,7 +231,9 @@ export default function Navbar() {
             className="flex items-center gap-2 text-fg transition-colors duration-150 ease-out-quart hover:text-brand"
           >
             <BarChart3 className="size-5 text-brand" />
-            <span className="text-h2 font-bold tracking-tight text-fg">{t('nav.brandName')}</span>
+            <span className="text-h2 font-bold tracking-tight text-fg">
+              {t('Backtest Platform')}
+            </span>
           </Link>
           <PlanBadge tier="free" />
         </div>

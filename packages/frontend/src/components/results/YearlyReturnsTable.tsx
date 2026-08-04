@@ -142,9 +142,9 @@ export function YearlyReturnsTable({
   return (
     <Card className="p-5" data-testid="yearly-returns-table">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-h3">{t('yearlyReturns.title')}</h3>
+        <h3 className="text-h3">{t('Yearly Returns')}</h3>
         <span className="text-caption text-fg-tertiary font-mono tabular-nums">
-          {t('yearlyReturns.positiveSummary', {
+          {t('{{positive}} / {{total}} positive years', {
             positive: positiveYears,
             total: rows.length,
           })}
@@ -156,19 +156,19 @@ export function YearlyReturnsTable({
             <thead>
               <tr className="bg-surface-sunken border-b border-border">
                 <th className="h-10 px-3 text-left text-fg-tertiary text-label-tiny">
-                  {t('yearlyReturns.year')}
+                  {t('Year')}
                 </th>
                 {portfolios.map((p, i) => (
                   <PortfolioHeaderCell key={p.name} name={p.name} index={i} />
                 ))}
                 {hasBenchmark && (
                   <th className="h-10 px-3 text-right text-fg-tertiary text-label-tiny">
-                    {benchmarkName ?? t('yearlyReturns.benchmark')}
+                    {benchmarkName ?? t('Benchmark')}
                   </th>
                 )}
                 {hasBenchmark && (
                   <th className="h-10 px-3 text-right text-fg-tertiary text-label-tiny">
-                    {t('yearlyReturns.vsBenchmark')}
+                    {t('vs Benchmark')}
                   </th>
                 )}
               </tr>

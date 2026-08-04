@@ -3,6 +3,7 @@ import { lazy, Suspense, useEffect, type ReactNode, type ComponentType } from 'r
 import { Route, Routes, useLocation } from 'react-router-dom';
 import { RouteErrorBoundary } from '@/components/errorBoundaries';
 import ProtectedRoute from '@/components/ProtectedRoute';
+import { Spinner } from '@/components/ui/uiComponents';
 import { onNavEnd } from '../utils/performanceReporter.js';
 import { PlaceholderPage } from '@/pages/errors/ErrorPages';
 import NotFoundPage from '@/pages/errors/ErrorPages';
@@ -63,9 +64,6 @@ const AboutPage = lazyNamed(() => import('@/pages/staticPages'), 'AboutPage');
 const ContactPage = lazyNamed(() => import('@/pages/staticPages'), 'ContactPage');
 const HelpPage = lazyDefault(() => import('@/pages/HelpPage'));
 const ChangelogPage = lazyNamed(() => import('@/pages/staticPages'), 'ChangelogPage');
-const ChartBenchmarkPage = lazyDefault(
-  () => import('@/pages/prototype/chart-benchmark/ChartBenchmarkPage'),
-);
 const VerifyEmailPage = lazyDefault(() => import('@/pages/auth/VerifyEmailPage'));
 const AcceptInvitePage = lazyNamed(
   () => import('@/pages/auth/VerifyEmailPage'),
@@ -88,16 +86,9 @@ const SystemSettings = lazyDefault(() => import('@/pages/admin/SystemSettings'))
 function useRouteFallback() {
   const { t } = useTranslation();
   return (
-    <div
-      style={{
-        padding: '80px 16px',
-        textAlign: 'center',
-        color: 'var(--text-muted)',
-        minHeight: '80vh',
-      }}
-    >
-      <div className="animate-spin mx-auto mb-4 h-8 w-8 border-2 border-current border-t-transparent rounded-full" />
-      {t('toolRoutes.loading')}
+    <div className="px-4 py-20 text-center text-[var(--text-muted)] min-h-[80vh]">
+      <Spinner size={8} className="mx-auto mb-4" />
+      {t('Loading...')}
     </div>
   );
 }
@@ -128,28 +119,17 @@ const ANALYSIS_ROUTES = [
 ];
 const ROUTE_NS: Record<string, string> = {
   ...Object.fromEntries(ANALYSIS_ROUTES.map((r) => [r, 'analysis'])),
-  about: 'pages',
-  contact: 'pages',
-  help: 'pages',
-  changelog: 'pages',
-  pricing: 'pages',
-  limits: 'pages',
-  upgrade: 'pages',
-  login: 'auth',
-  signup: 'auth',
-  'verify-email': 'auth',
-  'accept-invite': 'auth',
-  'legal-terms': 'legal',
-  'legal-privacy': 'legal',
-  'legal-disclaimer': 'legal',
-  account: 'account',
-  'org-members': 'account',
-  billing: 'account',
-  admin: 'admin',
-  'admin-dashboard': 'admin',
-  'admin-monitor': 'admin',
-  'admin-data': 'admin',
-  'admin-settings': 'admin',
+  ...Object.fromEntries(
+    (
+      [
+        ['pages', ['about', 'contact', 'help', 'changelog', 'pricing', 'limits', 'upgrade']],
+        ['auth', ['login', 'signup', 'verify-email', 'accept-invite']],
+        ['legal', ['legal-terms', 'legal-privacy', 'legal-disclaimer']],
+        ['account', ['account', 'org-members', 'billing']],
+        ['admin', ['admin', 'admin-dashboard', 'admin-monitor', 'admin-data', 'admin-settings']],
+      ] satisfies Array<[string, string[]]>
+    ).flatMap(([ns, keys]) => keys.map((k): [string, string] => [k, ns])),
+  ),
   'not-found': 'common',
 };
 
@@ -205,7 +185,6 @@ const TOOL_ROUTES: RouteDef[] = [
     ),
     name: 'portfolio-comparison',
   },
-  { path: '/prototype/chart-benchmark', element: <ChartBenchmarkPage />, name: 'chart-benchmark' },
 ];
 const PUBLIC_ROUTES: RouteDef[] = [
   { path: '/about', element: <AboutPage />, name: 'about' },

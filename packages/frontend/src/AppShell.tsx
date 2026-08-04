@@ -47,13 +47,13 @@ export default function AppShell() {
         href="#main-content"
         className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[100] focus:px-4 focus:py-2 focus:bg-brand focus:text-brand-fg focus:rounded focus:outline-none focus:ring-2 focus:ring-brand"
       >
-        {t('a11y.skipToMain')}
+        {t('Skip to main content')}
       </a>
       {!isAdmin && (
         <MemoPromoBar
           id="synthetic-tickers-2026"
-          message={t('promo.synthetic.message')}
-          ctaLabel={t('promo.synthetic.ctaLabel')}
+          message={t('Synthetic tickers support backtesting back to 1962')}
+          ctaLabel={t('Try now')}
           ctaLink="/"
           variant="info"
         />

@@ -43,45 +43,39 @@ function ActionBarActions({
         size="icon"
         className="h-8 w-8"
         onClick={onRefresh}
-        title={t('results.actionBar.refresh')}
+        title={t('Refresh')}
       >
         <RefreshCw className="h-4 w-4" />
       </Button>
       <div className="w-px h-5 bg-border mx-1" />
       <Button variant="ghost" size="sm" onClick={onShare}>
-        <Link className="h-4 w-4 mr-1.5" /> {t('results.actionBar.share')}
+        <Link className="h-4 w-4 mr-1.5" /> {t('Share')}
       </Button>
       <Button variant="ghost" size="sm" onClick={onSaveBacktest}>
-        <Bookmark className="h-4 w-4 mr-1.5" /> {t('results.actionBar.saveBacktest')}
+        <Bookmark className="h-4 w-4 mr-1.5" /> {t('Save Backtest')}
       </Button>
       <Button variant="ghost" size="sm" onClick={onEmailAlerts}>
-        <Bell className="h-4 w-4 mr-1.5" /> {t('results.actionBar.emailAlerts')}
+        <Bell className="h-4 w-4 mr-1.5" /> {t('Email Alerts')}
         <PlanBadge tier="pro" className="ml-1.5" />
       </Button>
       <Button variant="ghost" size="sm" onClick={onSavePortfolio}>
-        <Save className="h-4 w-4 mr-1.5" /> {t('results.actionBar.savePortfolio')}
+        <Save className="h-4 w-4 mr-1.5" /> {t('Save Portfolio')}
       </Button>
       <div className="w-px h-5 bg-border mx-1" />
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="secondary" size="sm">
             <Download className="h-4 w-4 mr-1.5" />
-            {t('results.actionBar.export')}
+            {t('Export')}
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={() => onExport?.('csv')}>
-            {t('results.actionBar.exportCsv')}
-          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => onExport?.('csv')}>{t('CSV (Data)')}</DropdownMenuItem>
           <DropdownMenuItem onClick={() => onExport?.('json')}>
-            {t('results.actionBar.exportJson')}
+            {t('JSON (Full Config + Results)')}
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => onExport?.('png')}>
-            {t('results.actionBar.exportPng')}
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => onExport?.('pdf')}>
-            {t('results.actionBar.exportPdf')}
-          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => onExport?.('png')}>{t('PNG (Chart)')}</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => onExport?.('pdf')}>{t('PDF (Report)')}</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
     </div>
@@ -111,9 +105,9 @@ export function ResultsActionBar(props: ResultsActionBarProps) {
       >
         <div className="max-w-[1440px] mx-auto h-full px-6 flex items-center gap-4">
           <div className="flex items-center gap-3">
-            <h2 className="text-h3">{t('results.actionBar.title')}</h2>
+            <h2 className="text-h3">{t('Results')}</h2>
             <span className="text-caption text-fg-tertiary font-mono tabular-nums">
-              {t('results.actionBar.timeRange', {
+              {t('{{years}} yrs · {{start}} to {{end}}', {
                 years: props.timeRange.years.toFixed(2),
                 start: props.timeRange.start,
                 end: props.timeRange.end,

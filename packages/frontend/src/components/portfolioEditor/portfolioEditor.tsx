@@ -34,7 +34,7 @@ export function RunBacktestButton({
     return (
       <Button variant="primary" size="default" disabled className="min-w-[160px]">
         <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-        {t('backtest.running')}
+        {t('Backtesting...')}
       </Button>
     );
   if (showComplete)
@@ -50,14 +50,14 @@ export function RunBacktestButton({
       >
         <Check className="h-4 w-4 mr-2" />
         {elapsedMs
-          ? t('backtest.completeWithTime', { seconds: (elapsedMs / 1000).toFixed(1) })
-          : t('backtest.complete')}
+          ? t('{{seconds}}s complete', { seconds: (elapsedMs / 1000).toFixed(1) })
+          : t('Complete')}
       </Button>
     );
   return (
     <Button variant="primary" size="default" onClick={onRun} className="min-w-[160px]">
       <PlayIcon className="h-4 w-4 mr-2" />
-      {t('backtest.run')}
+      {t('Run Backtest')}
     </Button>
   );
 }

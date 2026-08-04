@@ -58,7 +58,7 @@ function ServiceConfigSection({ services }: { services: ServiceConfig[] }) {
     <Card className="p-4">
       <div className="mb-4 flex items-center gap-2">
         <Server className="h-4 w-4 text-fg-tertiary" />
-        <h2 className="text-sm font-semibold text-fg">{t('adminPage.settings.serviceConfig')}</h2>
+        <h2 className="text-sm font-semibold text-fg">{t('Service Configuration')}</h2>
       </div>
       <div className="space-y-3">
         {services.map((service) => (
@@ -77,9 +77,7 @@ function ServiceConfigSection({ services }: { services: ServiceConfig[] }) {
               <span
                 className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${service.status === 'healthy' ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger'}`}
               >
-                {service.status === 'healthy'
-                  ? t('adminPage.settings.statusOnline')
-                  : t('adminPage.dataManagement.statusInactive')}
+                {service.status === 'healthy' ? t('Online') : t('Inactive')}
               </span>
             </div>
           </div>
@@ -94,23 +92,23 @@ function RuntimeEnvSection({ config }: { config: AppConfig }) {
     <Card className="p-4">
       <div className="mb-4 flex items-center gap-2">
         <Settings className="h-4 w-4 text-fg-tertiary" />
-        <h2 className="text-sm font-semibold text-fg">{t('adminPage.settings.runtimeEnv')}</h2>
+        <h2 className="text-sm font-semibold text-fg">{t('Runtime Environment')}</h2>
       </div>
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <Field>
-          <FieldLabel>{t('adminPage.settings.nodeVersion')}</FieldLabel>
+          <FieldLabel>{t('Node Version')}</FieldLabel>
           <p className="text-body text-fg">{config.nodeVersion}</p>
         </Field>
         <Field>
-          <FieldLabel>{t('adminPage.settings.runMode')}</FieldLabel>
+          <FieldLabel>{t('Run Mode')}</FieldLabel>
           <p className="text-body text-fg">{config.nodeEnv}</p>
         </Field>
         <Field>
-          <FieldLabel>{t('adminPage.settings.pid')}</FieldLabel>
+          <FieldLabel>{t('Process ID')}</FieldLabel>
           <p className="text-body text-fg">-</p>
         </Field>
         <Field>
-          <FieldLabel>{t('adminPage.settings.platform')}</FieldLabel>
+          <FieldLabel>{t('Platform')}</FieldLabel>
           <p className="text-body text-fg">{navigator.platform || '-'}</p>
         </Field>
       </div>
@@ -127,7 +125,7 @@ function DataManagementSection({ onClearCache, onRestart }: DataManagementProps)
     <Card className="p-4">
       <div className="mb-4 flex items-center gap-2">
         <Database className="h-4 w-4 text-fg-tertiary" />
-        <h2 className="text-sm font-semibold text-fg">{t('adminPage.settings.dataManagement')}</h2>
+        <h2 className="text-sm font-semibold text-fg">{t('Data Management')}</h2>
       </div>
       <div className="flex flex-wrap gap-3">
         <button
@@ -135,28 +133,28 @@ function DataManagementSection({ onClearCache, onRestart }: DataManagementProps)
           className="flex items-center gap-2 rounded-lg border border-warning/20 bg-warning/10 px-3 py-2 text-sm font-medium text-warning hover:bg-warning/20"
         >
           <RotateCcw className="h-4 w-4" />
-          {t('adminPage.settings.refetchData')}
+          {t('Refetch Data')}
         </button>
         <Button variant="secondary" onClick={() => onRestart('Go')}>
           <RefreshCw className="h-4 w-4" />
-          {t('adminPage.settings.refreshGoCache')}
+          {t('Refresh Go Cache')}
         </Button>
       </div>
-      <p className="mt-3 text-xs text-fg-tertiary">{t('adminPage.settings.dataManagementHint')}</p>
+      <p className="mt-3 text-xs text-fg-tertiary">{t('Refresh data cache or refetch data')}</p>
     </Card>
   );
 }
 function ArchitectureSection() {
   const { t } = useTranslation();
   const items = [
-    { color: 'bg-brand', text: t('adminPage.settings.archGoEngine') },
-    { color: 'bg-success', text: t('adminPage.settings.archGoData') },
-    { color: 'bg-warning', text: t('adminPage.settings.archNode') },
-    { color: 'bg-purple-500', text: t('adminPage.settings.archVite') },
+    { color: 'bg-brand', text: t('Go Engine') },
+    { color: 'bg-success', text: t('Go Data Service') },
+    { color: 'bg-warning', text: t('Node.js') },
+    { color: 'bg-purple-500', text: t('Vite') },
   ];
   return (
     <Card className="p-4">
-      <h2 className="mb-4 text-sm font-semibold text-fg">{t('adminPage.settings.architecture')}</h2>
+      <h2 className="mb-4 text-sm font-semibold text-fg">{t('Architecture')}</h2>
       <div className="space-y-2 text-sm text-fg-secondary">
         {items.map((item, i) => (
           <div key={i} className="flex items-start gap-2">
@@ -194,7 +192,7 @@ export default function SystemSettings() {
       }
     } catch (e) {
       reportError(e, { component: 'SystemSettings', action: 'fetchConfig' });
-      useToastStore.getState().addToast('error', t('adminPage.settings.loadFailed'));
+      useToastStore.getState().addToast('error', t('Load failed'));
     }
     setLoading(false);
   }, [t]);
@@ -202,22 +200,20 @@ export default function SystemSettings() {
     fetchConfig();
   }, [fetchConfig]);
   const handleClearCache = async () => {
-    setSaveMsg(t('adminPage.settings.clearingCache'));
+    setSaveMsg(t('Clearing cache...'));
     try {
       const res = await apiFetch('/api/v1/data/manage/update/full', { method: 'PUT' });
       const json = await res.json();
       setSaveMsg(
-        json.success
-          ? t('adminPage.settings.cacheCleared')
-          : t('adminPage.dataManagement.actionFailed', { error: json.error }),
+        json.success ? t('Cache cleared') : t('Action failed: {{error}}', { error: json.error }),
       );
     } catch {
-      setSaveMsg(t('adminPage.dataManagement.actionRequestFailed', { label: '' }));
+      setSaveMsg(t('{{label}} request failed', { label: '' }));
     }
     clearMsgTimerRef.current = setTimeout(() => setSaveMsg(''), 5000);
   };
   const handleRestart = (service: string) => {
-    setSaveMsg(t('adminPage.settings.restartHint', { service }));
+    setSaveMsg(t('Please restart the {{service}} service', { service }));
     clearMsgTimerRef.current = setTimeout(() => setSaveMsg(''), 5000);
   };
   return (
@@ -225,7 +221,7 @@ export default function SystemSettings() {
       <div className="flex items-center gap-3">
         <Button variant="secondary" onClick={fetchConfig} disabled={loading}>
           <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-          {t('adminPage.monitor.refresh')}
+          {t('Refresh')}
         </Button>
         {saveMsg && <span className="text-sm font-medium text-brand">{saveMsg}</span>}
       </div>

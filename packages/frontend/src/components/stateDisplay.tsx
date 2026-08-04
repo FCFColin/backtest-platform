@@ -23,6 +23,16 @@ import {
   type WarningInfo,
 } from '../utils/errorReporter.js';
 
+function CenteredCol({ children, className }: { children: ReactNode; className?: string }) {
+  return (
+    <div
+      className={cn('flex flex-col items-center justify-center text-center py-12 px-4', className)}
+    >
+      {children}
+    </div>
+  );
+}
+
 export function EmptyState({
   icon: Icon,
   title,
@@ -37,16 +47,15 @@ export function EmptyState({
   className?: string;
 }) {
   return (
-    <div
-      className={cn('flex flex-col items-center justify-center text-center py-12 px-4', className)}
-    >
+    <CenteredCol className={className}>
       {Icon && <Icon className="size-12 text-fg-tertiary mb-4" />}
       <h2 className="text-h2 text-fg">{title}</h2>
       {description && <p className="text-body text-fg-secondary mt-1">{description}</p>}
       {action && <div className="mt-4">{action}</div>}
-    </div>
+    </CenteredCol>
   );
 }
+
 export function LoadingState({
   label,
   size = 32,
@@ -57,12 +66,10 @@ export function LoadingState({
   className?: string;
 }) {
   return (
-    <div
-      className={cn('flex flex-col items-center justify-center text-center py-12 px-4', className)}
-    >
+    <CenteredCol className={className}>
       <Loader2 size={size} className="animate-spin text-fg-tertiary mb-4" />
       {label && <p className="text-body text-fg-secondary">{label}</p>}
-    </div>
+    </CenteredCol>
   );
 }
 
@@ -106,20 +113,25 @@ export function OfflineBanner() {
       ) : (
         <WifiOff className="size-4" aria-hidden="true" />
       )}
-      <span>{isBack ? t('common.backOnline') : t('common.offlineBanner')}</span>
+      <span>
+        {isBack
+          ? t('Back online')
+          : t('You are currently offline. Some features may be unavailable.')}
+      </span>
     </div>
   );
 }
 
 const ERROR_TYPE_BASE = 'https://backtest.platform/errors';
-const VARIANT_META = {
+const VARIANT_META: Record<string, { icon: typeof AlertCircle; cls: string }> = {
   error: { icon: AlertCircle, cls: '' },
   warning: {
     icon: AlertTriangle,
     cls: 'bg-warning/10 border-warning/30 text-warning [&>svg]:text-warning',
   },
   info: { icon: Info, cls: 'bg-brand/10 border-brand/30 text-brand [&>svg]:text-brand' },
-} as const;
+};
+
 function CloseBtn({ onClose, className }: { onClose: () => void; className?: string }) {
   const { t } = useTranslation();
   return (
@@ -127,76 +139,15 @@ function CloseBtn({ onClose, className }: { onClose: () => void; className?: str
       variant="icon"
       size="icon"
       onClick={onClose}
-      aria-label={t('common.close')}
+      aria-label={t('Close')}
       className={cn('absolute right-2 top-2 h-6 w-6 [&_svg]:size-3.5', className)}
     >
       <X />
     </Button>
   );
 }
-function WarningAlert({
-  warning,
-  onClose,
-  style,
-}: {
-  warning: WarningInfo;
-  onClose?: () => void;
-  style?: CSSProperties;
-}) {
-  const { t } = useTranslation();
-  const meta = VARIANT_META[warning.code === 'DATE_RANGE_CLAMPED' ? 'info' : 'warning'];
-  return (
-    <Alert variant="default" className={cn('relative', meta.cls)} style={style}>
-      {meta.icon && <meta.icon className="size-4" />}
-      <AlertDescription>
-        {t(getWarningI18nKey(warning.code), getWarningInterpolationParams(warning))}
-        {warning.message ? ` - ${warning.message}` : ''}
-      </AlertDescription>
-      {onClose && <CloseBtn onClose={onClose} />}
-    </Alert>
-  );
-}
-function ErrorCodeAlert({
-  message,
-  errorCode,
-  retryAfter,
-  remaining,
-  onClose,
-  style,
-}: {
-  message?: ReactNode;
-  errorCode: string;
-  retryAfter?: number;
-  remaining: number;
-  onClose?: () => void;
-  style?: CSSProperties;
-}) {
-  const { t } = useTranslation();
-  const uri = `${ERROR_TYPE_BASE}/${errorCode}`;
-  return (
-    <Alert variant="destructive" className="relative" style={style}>
-      <AlertCircle className="size-4" />
-      <AlertTitle>{t(getErrorI18nKey(errorCode))}</AlertTitle>
-      <AlertDescription>
-        {message && typeof message === 'string' ? ` - ${message}` : message}
-        {retryAfter && retryAfter > 0 && (
-          <span className="mt-1 flex items-center gap-1 text-danger">
-            {t('errors.retryIn', { seconds: remaining, defaultValue: 'Retry in {{seconds}}s' })}
-          </span>
-        )}
-        <a
-          href={uri}
-          target="_blank"
-          rel="noreferrer"
-          className="mt-1 inline-flex items-center text-caption text-danger/80 underline-offset-2 hover:underline"
-        >
-          {uri}
-        </a>
-      </AlertDescription>
-      {onClose && <CloseBtn onClose={onClose} className="text-danger" />}
-    </Alert>
-  );
-}
+
+// eslint-disable-next-line max-lines-per-function, complexity
 export function ErrorBanner({
   message,
   errorCode,
@@ -224,6 +175,7 @@ export function ErrorBanner({
     const id = window.setInterval(() => setRemaining((r) => (r > 0 ? r - 1 : 0)), 1000);
     return () => window.clearInterval(id);
   }, [retryAfter]);
+
   if (isDegraded)
     return (
       <Alert
@@ -232,28 +184,58 @@ export function ErrorBanner({
         style={style}
       >
         <AlertTriangle className="size-4" />
-        <AlertTitle className="text-warning">{t('errors.degradedMode')}</AlertTitle>
+        <AlertTitle className="text-warning">{t('Degraded mode:')}</AlertTitle>
         <AlertDescription className="text-warning/90">
-          {message ?? t('errors.degradedDefaultWarning')}
+          {message ?? t('Some features may be unavailable or using fallback data.')}
         </AlertDescription>
         {onClose && <CloseBtn onClose={onClose} />}
       </Alert>
     );
+
   if (warning) {
-    return <WarningAlert warning={warning} onClose={onClose} style={style} />;
-  }
-  if (errorCode) {
+    const meta = VARIANT_META[warning.code === 'DATE_RANGE_CLAMPED' ? 'info' : 'warning'];
     return (
-      <ErrorCodeAlert
-        message={message}
-        errorCode={errorCode}
-        retryAfter={retryAfter}
-        remaining={remaining}
-        onClose={onClose}
-        style={style}
-      />
+      <Alert variant="default" className={cn('relative', meta.cls)} style={style}>
+        {meta.icon && <meta.icon className="size-4" />}
+        <AlertDescription>
+          {t(getWarningI18nKey(warning.code), getWarningInterpolationParams(warning))}
+          {warning.message ? ` - ${warning.message}` : ''}
+        </AlertDescription>
+        {onClose && <CloseBtn onClose={onClose} />}
+      </Alert>
     );
   }
+
+  if (errorCode) {
+    const uri = `${ERROR_TYPE_BASE}/${errorCode}`;
+    return (
+      <Alert variant="destructive" className="relative" style={style}>
+        <AlertCircle className="size-4" />
+        <AlertTitle>{t(getErrorI18nKey(errorCode))}</AlertTitle>
+        <AlertDescription>
+          {message && typeof message === 'string' ? ` - ${message}` : message}
+          {retryAfter && retryAfter > 0 && (
+            <span className="mt-1 flex items-center gap-1 text-danger">
+              {t('Retry in {{seconds}}s', {
+                seconds: remaining,
+                defaultValue: 'Retry in {{seconds}}s',
+              })}
+            </span>
+          )}
+          <a
+            href={uri}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-1 inline-flex items-center text-caption text-danger/80 underline-offset-2 hover:underline"
+          >
+            {uri}
+          </a>
+        </AlertDescription>
+        {onClose && <CloseBtn onClose={onClose} className="text-danger" />}
+      </Alert>
+    );
+  }
+
   if (!message) return null;
   const meta = VARIANT_META[variant];
   return (
@@ -280,22 +262,12 @@ const TYPE_META: Record<
   {
     icon: typeof CheckCircle2;
     accent: string;
-    role: 'alert' | 'status';
-    ariaLive: 'assertive' | 'polite';
+    role?: 'alert' | 'status';
+    ariaLive?: 'assertive' | 'polite';
   }
 > = {
-  error: {
-    icon: XCircle,
-    accent: 'border-l-4 border-l-danger',
-    role: 'alert',
-    ariaLive: 'assertive',
-  },
-  warning: {
-    icon: AlertTriangle,
-    accent: 'border-l-4 border-l-warning',
-    role: 'alert',
-    ariaLive: 'assertive',
-  },
+  error: { icon: XCircle, accent: 'border-l-4 border-l-danger' },
+  warning: { icon: AlertTriangle, accent: 'border-l-4 border-l-warning' },
   success: {
     icon: CheckCircle2,
     accent: 'border-l-4 border-l-success',
@@ -303,6 +275,7 @@ const TYPE_META: Record<
     ariaLive: 'polite',
   },
 };
+
 function ToastCard({ toast }: { toast: ToastItem }) {
   const removeToast = useToastStore((s) => s.removeToast);
   const [fading, setFading] = useState(false);
@@ -316,10 +289,12 @@ function ToastCard({ toast }: { toast: ToastItem }) {
   }, [dismiss, toast.type]);
   const meta = TYPE_META[toast.type];
   const Icon = meta.icon;
+  const role = meta.role ?? 'alert';
+  const ariaLive = meta.ariaLive ?? 'assertive';
   return (
     <Alert
-      role={meta.role}
-      aria-live={meta.ariaLive}
+      role={role}
+      aria-live={ariaLive}
       aria-atomic="true"
       onClick={dismiss}
       className={cn(
@@ -334,6 +309,7 @@ function ToastCard({ toast }: { toast: ToastItem }) {
     </Alert>
   );
 }
+
 export function Toast() {
   const toasts = useToastStore((s) => s.toasts);
   if (toasts.length === 0) return null;

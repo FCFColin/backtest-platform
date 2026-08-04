@@ -4,6 +4,7 @@ import { CHART_COLORS, type AssetAnalysisResult, type PortfolioResult } from '@b
 import { percentile, mean, std, mergePortfolioSeries, fmtPct } from '@/utils/format';
 import ChartCard from '../ChartCard.js';
 import { BarChartContent } from './sharedChartContent.js';
+import { SimpleTable, type SimpleTableColumn } from '../tables.js';
 interface AnnualReturnChartProps {
   portfolios?: PortfolioResult[];
   results?: AssetAnalysisResult;
@@ -34,7 +35,11 @@ function PortfolioSummaryStats({
   const { t } = useTranslation();
   const stats = calcAnnualSummaryStats(portfolio);
   if (!stats) return null;
-  const borderStyle = { borderBottom: '1px solid var(--border-soft)' } as const;
+  const summary = stats as Record<string, string>;
+  const columns: SimpleTableColumn<(typeof SUMMARY_ROWS)[number]>[] = [
+    { key: 'label', label: '', render: (r) => t(r.labelKey) },
+    { key: 'value', label: '', align: 'right', render: (r) => summary[r.key] },
+  ];
   return (
     <div style={{ marginTop: '16px' }}>
       <div className="text-label font-semibold mb-2" style={{ color: 'var(--text-strong)' }}>
@@ -44,107 +49,8 @@ function PortfolioSummaryStats({
         />
         {portfolio.name} Summary Statistics
       </div>
-      <div className="overflow-x-auto">
-        <table className="w-full border-collapse" style={{ maxWidth: '600px' }}>
-          <tbody>
-            {SUMMARY_ROWS.map((row, ri) => (
-              <tr
-                key={row.key}
-                style={{ backgroundColor: ri % 2 === 1 ? 'var(--bg-subtle)' : 'transparent' }}
-              >
-                <td
-                  className="text-caption py-1.5 px-3"
-                  style={{ color: 'var(--text-body)', ...borderStyle }}
-                >
-                  {t(row.labelKey)}
-                </td>
-                <td
-                  className="text-caption font-medium text-right py-1.5 px-3 font-mono"
-                  style={{ color: 'var(--text-strong)', ...borderStyle }}
-                >
-                  {(stats as Record<string, string>)[row.key]}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <SimpleTable columns={columns} data={SUMMARY_ROWS} maxWidth={600} rowKey={(r) => r.key} />
     </div>
-  );
-}
-const HEADER_STYLE = {
-  color: 'var(--text-muted)',
-  borderBottom: '2px solid var(--border-soft)',
-} as const;
-function AnnualTableHeader({ portfolios }: { portfolios: PortfolioResult[] }) {
-  return (
-    <thead>
-      <tr style={{ backgroundColor: 'var(--bg-subtle)' }}>
-        <th className="text-caption font-semibold text-left py-2 px-3" style={HEADER_STYLE}>
-          Year
-        </th>
-        {portfolios.map((p, idx) => (
-          <th
-            key={p.name}
-            className="text-caption font-semibold text-right py-2 px-3"
-            style={HEADER_STYLE}
-          >
-            <span
-              className="inline-block w-2.5 h-2.5 rounded-full mr-1.5 align-middle"
-              style={{ backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] }}
-            />
-            {p.name}
-          </th>
-        ))}
-      </tr>
-    </thead>
-  );
-}
-function AnnualTableBody({
-  portfolios,
-  data,
-}: {
-  portfolios: PortfolioResult[];
-  data: Array<Record<string, unknown>>;
-}) {
-  const borderStyle = { borderBottom: '1px solid var(--border-soft)' } as const;
-  return (
-    <tbody>
-      {data
-        .slice()
-        .reverse()
-        .map((row, ri) => {
-          const year = row.year as number;
-          return (
-            <tr
-              key={year}
-              style={{ backgroundColor: ri % 2 === 1 ? 'var(--bg-subtle)' : 'transparent' }}
-            >
-              <td
-                className="text-label py-1.5 px-3 font-mono"
-                style={{ color: 'var(--text-body)', ...borderStyle }}
-              >
-                {year}
-              </td>
-              {portfolios.map((p) => {
-                const val = row[p.name] as number | undefined;
-                return (
-                  <td
-                    key={p.name}
-                    className="text-label font-medium text-right py-1.5 px-3 font-mono"
-                    style={{
-                      color: val !== undefined && val < 0 ? '#c94a4a' : 'var(--text-strong)',
-                      ...borderStyle,
-                    }}
-                  >
-                    {val !== undefined ? `${val.toFixed(2)}%` : '-'}
-                  </td>
-                );
-              })}
-            </tr>
-          );
-        })}
-    </tbody>
   );
 }
 function AnnualReturnTable({
@@ -155,17 +61,36 @@ function AnnualReturnTable({
   data: Array<Record<string, unknown>>;
 }) {
   const { t } = useTranslation();
+  const columns: SimpleTableColumn<Record<string, unknown>>[] = [
+    { key: 'year', label: 'Year', render: (r) => r.year as number },
+    ...portfolios.map((p, idx) => ({
+      key: p.name,
+      label: (
+        <span className="inline-flex items-center gap-1.5">
+          <span
+            className="inline-block h-2.5 w-2.5 rounded-full"
+            style={{ background: CHART_COLORS[idx % CHART_COLORS.length] }}
+          />
+          {p.name}
+        </span>
+      ),
+      align: 'right' as const,
+      render: (r: Record<string, unknown>) => {
+        const v = r[p.name] as number | undefined;
+        return v !== undefined ? (
+          <span className={v < 0 ? 'text-neg' : undefined}>{v.toFixed(2)}%</span>
+        ) : (
+          '-'
+        );
+      },
+    })),
+  ];
   return (
     <div style={{ marginTop: '20px' }}>
       <div className="text-label font-semibold mb-2" style={{ color: 'var(--text-strong)' }}>
-        {t('charts.annualReturn.tableTitle')}
+        {t('Annual Returns Table')}
       </div>
-      <div className="overflow-x-auto">
-        <table className="w-full border-collapse">
-          <AnnualTableHeader portfolios={portfolios} />
-          <AnnualTableBody portfolios={portfolios} data={data} />
-        </table>
-      </div>
+      <SimpleTable columns={columns} data={[...data].reverse()} rowKey={(r) => String(r.year)} />
     </div>
   );
 }
@@ -198,7 +123,7 @@ export default function AnnualReturnChart({ portfolios, results }: AnnualReturnC
     return [];
   }, [portfolios, results]);
   return (
-    <ChartCard title={t('charts.annualReturn.title')} data={mergedData} csvFilename="annual-return">
+    <ChartCard title={t('Annual Returns')} data={mergedData} csvFilename="annual-return">
       <BarChartContent
         data={mergedData}
         seriesNames={seriesNames}

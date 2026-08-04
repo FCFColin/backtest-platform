@@ -47,11 +47,11 @@ function NotFoundPage(): ReactNode {
     <StatusErrorPage
       statusCode={404}
       icon={FileQuestion}
-      title={t('errors.404.title')}
-      description={t('errors.404.description')}
+      title={t('Page Not Found')}
+      description={t('The page you are looking for does not exist or has been moved.')}
       action={
         <Button asChild variant="primary">
-          <Link to="/">{t('common.goHome')}</Link>
+          <Link to="/">{t('Go home')}</Link>
         </Button>
       }
     />

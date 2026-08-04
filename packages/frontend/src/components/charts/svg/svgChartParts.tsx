@@ -278,7 +278,6 @@ export const computeYDomain = (
   return computeTicks(min, max);
 };
 export const seriesColor = (idx: number) => CHART_COLORS[idx % CHART_COLORS.length];
-export const gradId = (name: string) => `svg-area-grad-${name.replace(/\s+/g, '-')}`;
 export const linearScale = (min: number, max: number, start: number, span: number) => (v: number) =>
   start + ((v - min) / (max - min)) * span;
 const formatTooltipValue = (r: [string, string] | string) => (Array.isArray(r) ? r[0] : r);

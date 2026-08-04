@@ -47,7 +47,7 @@ function buildTurnoverColumns(
   return [
     {
       key: 'name',
-      label: t('components.turnoverTaxReport.columns.portfolio'),
+      label: t('Portfolio'),
       render: (row) => {
         const idx = portfolios.findIndex((p) => p.name === row.name);
         const color = CHART_COLORS[idx % CHART_COLORS.length];
@@ -64,7 +64,7 @@ function buildTurnoverColumns(
     },
     {
       key: 'turnover',
-      label: t('components.turnoverTaxReport.columns.annualTurnover'),
+      label: t('Annual Turnover'),
       render: (row) => (
         <span className="font-mono tabular-nums text-right block text-fg">
           {fmtPct(row.turnover)}
@@ -74,7 +74,7 @@ function buildTurnoverColumns(
     },
     {
       key: 'taxDrag',
-      label: t('components.turnoverTaxReport.columns.taxDrag'),
+      label: t('Tax Drag'),
       render: (row) => (
         <span
           className={cn(
@@ -89,7 +89,7 @@ function buildTurnoverColumns(
     },
     {
       key: 'observations',
-      label: t('components.turnoverTaxReport.columns.observations'),
+      label: t('Observations'),
       render: (row) => (
         <span className="font-mono tabular-nums text-right block text-fg-secondary">
           {row.observations}
@@ -99,7 +99,7 @@ function buildTurnoverColumns(
     },
     {
       key: 'years',
-      label: t('components.turnoverTaxReport.columns.years'),
+      label: t('Years'),
       render: (row) => (
         <span className="font-mono tabular-nums text-right block text-fg-secondary">
           {row.years > 0 ? row.years.toFixed(1) : '\u2014'}
@@ -120,7 +120,7 @@ function TaxRateInput({
   return (
     <div className="flex flex-wrap items-center gap-2 mb-3">
       <label className="text-caption font-medium text-fg-secondary mb-0">
-        {t('components.turnoverTaxReport.taxRateAssumption')}
+        {t('Tax Rate Assumption')}
       </label>
       <div className="flex items-center gap-2 w-[120px]">
         <Input
@@ -135,7 +135,7 @@ function TaxRateInput({
         <span className="text-caption text-fg-tertiary shrink-0">%</span>
       </div>
       <span className="text-caption text-fg-tertiary">
-        {t('components.turnoverTaxReport.taxRateHint')}
+        {t('Assumes a capital gains tax rate of')}
       </span>
     </div>
   );
@@ -153,9 +153,9 @@ export default function TurnoverTaxReport({ portfolios }: TurnoverTaxReportProps
   const hasAnyTurnover = rows.some((r) => r.turnover != null);
   const columns = buildTurnoverColumns(portfolios, t);
   return (
-    <ChartCard title={t('components.turnoverTaxReport.title')}>
+    <ChartCard title={t('Turnover & Tax Report')}>
       <div className="text-caption text-fg-tertiary mb-3">
-        {t('components.turnoverTaxReport.description')}
+        {t('Shows annual turnover and tax drag for each portfolio, assuming a tax rate of')}
       </div>
       <TaxRateInput taxRate={taxRate} setTaxRate={setTaxRate} />
       {hasAnyTurnover ? (
@@ -166,7 +166,7 @@ export default function TurnoverTaxReport({ portfolios }: TurnoverTaxReportProps
           initialSortDir="desc"
         />
       ) : (
-        <div className="text-body text-fg-tertiary">{t('components.turnoverTaxReport.noData')}</div>
+        <div className="text-body text-fg-tertiary">{t('No data')}</div>
       )}
     </ChartCard>
   );

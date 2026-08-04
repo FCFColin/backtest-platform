@@ -1,17 +1,7 @@
 import { useState, useMemo } from 'react';
 import type { ElementType, ReactNode } from 'react';
 import { ChevronDown, PieChart } from 'lucide-react';
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  AreaChart,
-  Area,
-} from 'recharts';
+import { Line, Area } from 'recharts';
 import { useTranslation } from 'react-i18next';
 import { CHART_COLORS } from '@backtest/shared';
 import {
@@ -23,7 +13,7 @@ import {
 } from '@/components/ui/uiComponents';
 import { Field as FieldShell, FieldLabel } from '@/components/form/Field';
 import { cn } from '@/lib/utils';
-import { CHART_TOOLTIP_STYLE, CHART_GRID_PROPS, AXIS_TICK_STYLE } from '@/lib/chart-theme';
+import { SimpleLineChart, SimpleAreaChart } from '@/components/charts/sharedChartContent.js';
 import { computeTwoFundFrontier } from './baseCalculatorUtils.js';
 import { ToolPageLayout } from '../../components/layout/ToolPageLayout.js';
 import {
@@ -146,80 +136,51 @@ export function CollapsibleCard({
 export function TwoFundChart({ data }: { data: Array<{ wA: number; cagr: number; vol: number }> }) {
   const { t } = useTranslation();
   return (
-    <div className="mt-3 h-[220px] w-full">
-      <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={data}>
-          <CartesianGrid {...CHART_GRID_PROPS} />
-          <XAxis
-            dataKey="vol"
-            type="number"
-            tick={AXIS_TICK_STYLE}
-            tickFormatter={(v: number) => `${v.toFixed(1)}%`}
-            label={{
-              value: t('calculators.base.volatility'),
-              position: 'insideBottom',
-              offset: -4,
-              fontSize: 11,
-              fill: 'var(--fg-tertiary)',
-            }}
-          />
-          <YAxis
-            tick={AXIS_TICK_STYLE}
-            tickFormatter={(v: number) => `${v.toFixed(1)}%`}
-            label={{
-              value: 'CAGR',
-              angle: -90,
-              position: 'insideLeft',
-              offset: 8,
-              fontSize: 11,
-              fill: 'var(--fg-tertiary)',
-            }}
-          />
-          <Tooltip
-            contentStyle={CHART_TOOLTIP_STYLE}
-            formatter={(v: number, name: string) => [
-              `${v.toFixed(2)}%`,
-              name === 'cagr' ? 'CAGR' : name,
-            ]}
-            labelFormatter={(l: number) =>
-              t('calculators.base.volatilityWithValue', { value: `${l.toFixed(2)}%` })
-            }
-          />
-          <Line
-            type="monotone"
-            dataKey="cagr"
-            stroke={CHART_COLORS[0]}
-            strokeWidth={2}
-            dot={false}
-          />
-        </LineChart>
-      </ResponsiveContainer>
+    <div className="mt-3">
+      <SimpleLineChart
+        data={data}
+        height={220}
+        xDataKey="vol"
+        xType="number"
+        xLabel={t('Volatility')}
+        yLabel="CAGR"
+        showLegend={false}
+        xTickFormatter={(v) => `${Number(v).toFixed(1)}%`}
+        yTickFormatter={(v) => `${v.toFixed(1)}%`}
+        tooltipFormatter={(v: number, name: string) => [
+          `${v.toFixed(2)}%`,
+          name === 'cagr' ? 'CAGR' : name,
+        ]}
+        tooltipLabelFormatter={(l) =>
+          t('Volatility: {{value}}', { value: `${Number(l).toFixed(2)}%` })
+        }
+      >
+        <Line type="monotone" dataKey="cagr" stroke={CHART_COLORS[0]} strokeWidth={2} dot={false} />
+      </SimpleLineChart>
     </div>
   );
 }
 export function SWRChart({ data }: { data: Array<{ year: number; ratio: number }> }) {
   const { t } = useTranslation();
   return (
-    <div className="mt-3 h-[160px] w-full">
-      <ResponsiveContainer width="100%" height="100%">
-        <AreaChart data={data}>
-          <CartesianGrid {...CHART_GRID_PROPS} />
-          <XAxis dataKey="year" tick={AXIS_TICK_STYLE} />
-          <YAxis tick={AXIS_TICK_STYLE} tickFormatter={(v: number) => v.toFixed(1)} />
-          <Tooltip
-            contentStyle={CHART_TOOLTIP_STYLE}
-            formatter={(v: number) => [v.toFixed(3), t('calculators.base.assetRatio')]}
-          />
-          <Area
-            type="monotone"
-            dataKey="ratio"
-            stroke={CHART_COLORS[2]}
-            fill={CHART_COLORS[2]}
-            fillOpacity={0.12}
-            strokeWidth={2}
-          />
-        </AreaChart>
-      </ResponsiveContainer>
+    <div className="mt-3">
+      <SimpleAreaChart
+        data={data}
+        height={160}
+        xDataKey="year"
+        showLegend={false}
+        yTickFormatter={(v) => v.toFixed(1)}
+        tooltipFormatter={(v: number) => [v.toFixed(3), t('Asset Ratio')]}
+      >
+        <Area
+          type="monotone"
+          dataKey="ratio"
+          stroke={CHART_COLORS[2]}
+          fill={CHART_COLORS[2]}
+          fillOpacity={0.12}
+          strokeWidth={2}
+        />
+      </SimpleAreaChart>
     </div>
   );
 }
@@ -235,36 +196,16 @@ export function TwoFundPortfolioCalculator() {
     [cagrA, volA, cagrB, volB, corr],
   );
   return (
-    <CollapsibleCard icon={PieChart} title={t('calculators.portfolio.twoFundTitle')}>
+    <CollapsibleCard icon={PieChart} title={t('Two-Fund Calculator')}>
       <div className="grid grid-cols-2 gap-3">
-        <Field
-          label={t('calculators.portfolio.assetACagr')}
-          value={cagrA}
-          onChange={setCagrA}
-          suffix="%"
-        />
-        <Field
-          label={t('calculators.portfolio.assetAVol')}
-          value={volA}
-          onChange={setVolA}
-          suffix="%"
-        />
-        <Field
-          label={t('calculators.portfolio.assetBCagr')}
-          value={cagrB}
-          onChange={setCagrB}
-          suffix="%"
-        />
-        <Field
-          label={t('calculators.portfolio.assetBVol')}
-          value={volB}
-          onChange={setVolB}
-          suffix="%"
-        />
+        <Field label={t('Asset A CAGR')} value={cagrA} onChange={setCagrA} suffix="%" />
+        <Field label={t('Asset A Volatility')} value={volA} onChange={setVolA} suffix="%" />
+        <Field label={t('Asset B CAGR')} value={cagrB} onChange={setCagrB} suffix="%" />
+        <Field label={t('Asset B Volatility')} value={volB} onChange={setVolB} suffix="%" />
       </div>
       <div className="mt-3">
         <Field
-          label={t('calculators.portfolio.correlation')}
+          label={t('Correlation')}
           value={corr}
           onChange={setCorr}
           step={0.05}
@@ -274,18 +215,12 @@ export function TwoFundPortfolioCalculator() {
       </div>
       <div className="mt-1">
         <ResultRow
-          label={t('calculators.portfolio.minVarWeight')}
+          label={t('Min Variance Weight')}
           value={`${(minVarW * 100).toFixed(1)}%`}
           tone="brand"
         />
-        <ResultRow
-          label={t('calculators.portfolio.minVarCagr')}
-          value={`${minVarCagr.toFixed(2)}%`}
-        />
-        <ResultRow
-          label={t('calculators.portfolio.minVarVol')}
-          value={`${minVarVol.toFixed(2)}%`}
-        />
+        <ResultRow label={t('Min Variance CAGR')} value={`${minVarCagr.toFixed(2)}%`} />
+        <ResultRow label={t('Min Variance Volatility')} value={`${minVarVol.toFixed(2)}%`} />
       </div>
       <TwoFundChart data={frontier} />
     </CollapsibleCard>
@@ -295,7 +230,7 @@ export default function CalculatorsPage() {
   const { t } = useTranslation();
   return (
     <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-3 px-6 pb-4">
-      <h1 className="text-display text-fg">{t('calculators.page.title')}</h1>
+      <h1 className="text-display text-fg">{t('Investment Calculators')}</h1>
       <ToolPageLayout
         params={
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">

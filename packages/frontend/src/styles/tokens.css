@@ -154,36 +154,11 @@
   --fg-tertiary: 220 9% 52%;
   --fg-disabled: 220 9% 33%;
 
-  --brand: 217 91% 60%;
-  --brand-hover: 221 83% 53%;
-  --brand-active: 224 76% 48%;
-  --brand-fg: 0 0% 100%;
-
   --success: 160 84% 39%;
   --danger: 0 84% 60%;
   --warning: 38 92% 50%;
   --pos: 142 71% 45%;
   --neg: 0 91% 71%;
-
-  /* shadcn 兼容映射 */
-  --background: var(--app);
-  --foreground: var(--fg);
-  --card: var(--surface);
-  --card-foreground: var(--fg);
-  --popover: var(--elevated);
-  --popover-foreground: var(--fg);
-  --primary: var(--brand);
-  --primary-foreground: var(--brand-fg);
-  --secondary: var(--input-bg);
-  --secondary-foreground: var(--fg-secondary);
-  --muted: var(--input-bg);
-  --muted-foreground: var(--fg-tertiary);
-  --accent: var(--hover);
-  --accent-foreground: var(--fg);
-  --destructive: var(--danger);
-  --destructive-foreground: 0 0% 98%;
-  --input: var(--border);
-  --ring: var(--brand);
 
   /* --- Hex 变量（组件 CSS 系统）--- */
   --bg-app: #0a1320;

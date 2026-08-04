@@ -45,19 +45,19 @@ function ResultsSummary({
   const { t } = useTranslation();
   const { bestCombination: best } = results;
   const stats: Array<{ label: string; value: string | number; tone?: StatTone }> = [
-    { label: t('tacticalGrid.results.combinations'), value: results.totalCombinations },
+    { label: t('Combinations'), value: results.totalCombinations },
     {
-      label: t('tacticalGrid.results.bestParam', { label: paramLabels.p1 }),
+      label: t('Best {{label}}', { label: paramLabels.p1 }),
       value: best.param1,
       tone: 'brand',
     },
     {
-      label: t('tacticalGrid.results.bestParam', { label: paramLabels.p2 }),
+      label: t('Best {{label}}', { label: paramLabels.p2 }),
       value: best.param2,
       tone: 'brand',
     },
-    { label: t('tacticalGrid.results.bestCagr'), value: fmtPct(best.cagr), tone: 'success' },
-    { label: t('tacticalGrid.results.bestSharpe'), value: fmtNum(best.sharpe, 3), tone: 'success' },
+    { label: t('Best CAGR'), value: fmtPct(best.cagr), tone: 'success' },
+    { label: t('Best Sharpe'), value: fmtNum(best.sharpe, 3), tone: 'success' },
   ];
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
@@ -88,11 +88,11 @@ function buildTopColumns(
     col('param1', paramLabels.p1),
     col('param2', paramLabels.p2),
     col('cagr', 'CAGR', fmtPct),
-    col('maxDrawdown', t('tacticalGrid.results.maxDrawdown'), fmtPct),
+    col('maxDrawdown', t('Max Drawdown'), fmtPct),
     col('sharpe', 'Sharpe', (v) => fmtNum(v, 3)),
-    col('stdev', t('tacticalGrid.results.stdev'), fmtPct),
+    col('stdev', t('Volatility'), fmtPct),
     col('calmar', 'Calmar', (v) => fmtNum(v, 3)),
-    col('totalReturn', t('tacticalGrid.results.totalReturn'), fmtPct),
+    col('totalReturn', t('Total Return'), fmtPct),
   ];
 }
 function TopCombinationsTable({
@@ -107,7 +107,7 @@ function TopCombinationsTable({
   return (
     <Card className="p-4">
       <h3 className="mb-3 text-h3 text-fg">
-        {t('tacticalGrid.results.topCombinationsTitle', { count: results.topResults.length })}
+        {t('Top {{count}} Combinations', { count: results.topResults.length })}
       </h3>
       <SortableTable
         columns={buildTopColumns(t, paramLabels)}
@@ -131,7 +131,7 @@ function BestGrowthChart({
   return (
     <Card className="p-4">
       <h3 className="mb-3 text-h3 text-fg">
-        {t('tacticalGrid.results.bestGrowthTitle', {
+        {t('Best Combination Growth Curve ({{p1Label}}={{p1}}, {{p2Label}}={{p2}})', {
           p1Label: paramLabels.p1,
           p1: best.param1,
           p2Label: paramLabels.p2,
@@ -141,12 +141,9 @@ function BestGrowthChart({
       <TimeSeriesLineChart
         data={best.growthCurve}
         height={350}
-        tooltipLabelFormatter={(label) => t('tacticalGrid.results.dateLabel', { label })}
-        tooltipValueFormatter={(value) => [
-          `$${value.toLocaleString()}`,
-          t('tacticalGrid.results.netValue'),
-        ]}
-        series={[{ dataKey: 'value', legendName: t('tacticalGrid.results.portfolioNetValue') }]}
+        tooltipLabelFormatter={(label) => t('Date: {{label}}', { label })}
+        tooltipValueFormatter={(value) => [`$${value.toLocaleString()}`, t('Net Value')]}
+        series={[{ dataKey: 'value', legendName: t('Portfolio Net Value') }]}
       />
     </Card>
   );
@@ -177,7 +174,7 @@ function HeatmapCell({
   const displayVal = getCellDisplayValue(cell, heatmap.objective);
   return (
     <td
-      title={t('tacticalGrid.results.heatmapCellTitle', {
+      title={t('{{p1Label}}={{p1}}, {{p2Label}}={{p2}}\n{{objectiveLabel}}: {{value}}', {
         p1Label: heatmap.param1Label,
         p1,
         p2Label: heatmap.param2Label,
@@ -199,7 +196,7 @@ function HeatmapLegend({ objectiveLabel }: { objectiveLabel: string }) {
   const { t } = useTranslation();
   return (
     <div className="mt-2 flex items-center gap-2 text-caption text-fg-tertiary">
-      <span>{t('tacticalGrid.results.legendLow', { label: objectiveLabel })}</span>
+      <span>{t('{{label}} Low', { label: objectiveLabel })}</span>
       <div
         className="h-3 w-28 rounded-sm"
         style={{
@@ -207,7 +204,7 @@ function HeatmapLegend({ objectiveLabel }: { objectiveLabel: string }) {
             'linear-gradient(to right, hsl(0,70%,45%), hsl(60,70%,45%), hsl(120,70%,45%))',
         }}
       />
-      <span>{t('tacticalGrid.results.legendHigh', { label: objectiveLabel })}</span>
+      <span>{t('{{label}} High', { label: objectiveLabel })}</span>
     </div>
   );
 }
@@ -222,7 +219,7 @@ function HeatmapView({ heatmap }: { heatmap: HeatmapData }) {
         <thead>
           <tr>
             <th className={HEATMAP_TH}>
-              {t('tacticalGrid.results.heatmapAxisLabel', {
+              {t('{{p1Label}}  {{p2Label}}', {
                 p1Label: heatmap.param1Label,
                 p2Label: heatmap.param2Label,
               })}
@@ -264,14 +261,14 @@ export function GridResultsPanel({ state }: { state: TacticalGridState }) {
   const { error, results, isLoading, paramLabels } = state;
   return (
     <div className="flex flex-col gap-3">
-      {error && <ErrorBanner message={`${t('tacticalGrid.results.searchFailed')}：${error}`} />}
+      {error && <ErrorBanner message={`${t('Search failed')}：${error}`} />}
       {results && (
         <>
           <ResultsSummary results={results} paramLabels={paramLabels} />
           {results.heatmap.matrix.length > 0 && (
             <Card className="p-4">
               <h3 className="mb-3 text-h3 text-fg">
-                {t('tacticalGrid.results.heatmapTitle', {
+                {t('Parameter Heatmap ({{p1Label}} × {{p2Label}})', {
                   p1Label: results.heatmap.param1Label,
                   p2Label: results.heatmap.param2Label,
                 })}
@@ -286,7 +283,7 @@ export function GridResultsPanel({ state }: { state: TacticalGridState }) {
       {!results && !error && !isLoading && (
         <EmptyState
           icon={Grid3x3}
-          title={t('tacticalGrid.results.noResultsHint')}
+          title={t('Set parameters on the left and click "Start Grid Search" to see results')}
           className="py-16"
         />
       )}

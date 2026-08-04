@@ -43,7 +43,8 @@ export default function LoginPage() {
   const [searchParams] = useSearchParams();
   const sessionExpired = searchParams.get('reason') === 'session_expired';
   const sessionMessage = useMemo(
-    () => (sessionExpired ? t('auth.login.sessionExpired') : null),
+    () =>
+      sessionExpired ? t('Your session has expired due to inactivity. Please log in again.') : null,
     [sessionExpired, t],
   );
   const redirectTo = (location.state as { from?: string } | null)?.from ?? '/';
@@ -62,25 +63,25 @@ export default function LoginPage() {
   return (
     <AuthPageLayout
       icon={<LogIn className="w-5 h-5" />}
-      title={t('auth.login.submit')}
+      title={t('Log In')}
       footer={
         <>
-          {t('auth.login.noAccountPrefix')}
-          <Link to="/signup" style={{ color: 'hsl(var(--brand))' }}>
-            {t('auth.signup.submit')}
+          {t("Don't have an account?")}
+          <Link to="/signup" className="text-brand">
+            {t('Sign Up')}
           </Link>
         </>
       }
     >
-      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <form onSubmit={handleSubmit} className="flex flex-col gap-[14px]">
         <AuthFormField
-          label={t('auth.login.username')}
+          label={t('Username')}
           value={username}
           onChange={setUsername}
           autoComplete="username"
         />
         <AuthFormField
-          label={t('auth.login.password')}
+          label={t('Password')}
           value={password}
           onChange={setPassword}
           type="password"
@@ -90,8 +91,8 @@ export default function LoginPage() {
         <AuthSubmitButton
           loading={loading}
           icon={<LogIn className="w-4 h-4" />}
-          label={t('auth.login.submit')}
-          loadingLabel={t('auth.login.submitting')}
+          label={t('Log In')}
+          loadingLabel={t('Logging in...')}
         />
       </form>
     </AuthPageLayout>
@@ -113,13 +114,13 @@ function TermsCheckbox({
         className="mt-0.5"
       />
       <span className="text-caption text-fg-secondary leading-relaxed">
-        {t('auth.signup.termsLabel')}{' '}
+        {t('I have read and agree to the')}{' '}
         <Link to="/legal/terms" className="text-brand hover:underline">
-          {t('footer.company.terms')}
+          {t('Terms of Service')}
         </Link>{' '}
-        {t('auth.signup.termsAnd')}{' '}
+        {t('and')}{' '}
         <Link to="/legal/privacy" className="text-brand hover:underline">
-          {t('footer.company.privacy')}
+          {t('Privacy Policy')}
         </Link>
       </span>
     </label>
@@ -131,25 +132,16 @@ function SignupSuccess({ email }: { email: string }) {
     <AuthPageLayout
       centered
       maxWidth={460}
-      icon={
-        <MailCheck
-          className="w-10 h-10"
-          style={{ color: 'hsl(var(--brand))', margin: '0 auto 12px' }}
-        />
-      }
-      title={t('auth.signup.successTitle')}
+      icon={<MailCheck className="w-10 h-10 text-brand mx-auto mb-3" />}
+      title={t('Registration Successful')}
     >
-      <p style={{ fontSize: 14, color: 'var(--text-muted)', lineHeight: 1.6 }}>
-        {t('auth.signup.verificationEmailPrefix')} <strong>{email}</strong>{' '}
-        {t('auth.signup.verificationEmailSuffix')}
+      <p className="text-sm text-fg-tertiary leading-relaxed">
+        {t('A verification email has been sent to')} <strong>{email}</strong>{' '}
+        {t('Please check your email to verify.')}
       </p>
-      <div style={{ marginTop: 18 }}>
-        <Link
-          to="/login"
-          className="main-action-btn"
-          style={{ display: 'inline-flex', height: 40, alignItems: 'center', padding: '0 18px' }}
-        >
-          {t('auth.signup.goToLogin')}
+      <div className="mt-[18px]">
+        <Link to="/login" className="main-action-btn inline-flex h-10 items-center px-[18px]">
+          {t('Go to Login')}
         </Link>
       </div>
     </AuthPageLayout>
@@ -193,47 +185,47 @@ export function SignupPage() {
   return (
     <AuthPageLayout
       icon={<UserPlus className="w-5 h-5" />}
-      title={t('auth.signup.createAccount')}
+      title={t('Create Account')}
       maxWidth={460}
       footer={
         <>
-          {t('auth.signup.hasAccountPrefix')}
-          <Link to="/login" style={{ color: 'hsl(var(--brand))' }}>
-            {t('auth.login.submit')}
+          {t('Already have an account?')}
+          <Link to="/login" className="text-brand">
+            {t('Log In')}
           </Link>
         </>
       }
     >
-      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <form onSubmit={handleSubmit} className="flex flex-col gap-[14px]">
         <AuthFormField
-          label={t('auth.login.username')}
+          label={t('Username')}
           value={username}
           onChange={setUsername}
           autoComplete="username"
         />
         <AuthFormField
-          label={t('auth.signup.email')}
+          label={t('Email')}
           value={email}
           onChange={setEmail}
           type="email"
           autoComplete="email"
         />
         <AuthFormField
-          label={t('auth.signup.passwordHint')}
+          label={t('Password must be at least 8 characters')}
           value={password}
           onChange={setPassword}
           type="password"
           autoComplete="new-password"
           minLength={8}
         />
-        <AuthFormField label={t('auth.signup.orgName')} value={orgName} onChange={setOrgName} />
+        <AuthFormField label={t('Organization Name')} value={orgName} onChange={setOrgName} />
         <TermsCheckbox accepted={termsAccepted} onChange={setTermsAccepted} />
         <ErrorBanner message={formError || error} />
         <AuthSubmitButton
           loading={loading}
           icon={<UserPlus className="w-4 h-4" />}
-          label={t('auth.signup.submit')}
-          loadingLabel={t('auth.signup.submitting')}
+          label={t('Sign Up')}
+          loadingLabel={t('Signing up...')}
         />
       </form>
     </AuthPageLayout>

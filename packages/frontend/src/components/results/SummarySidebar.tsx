@@ -80,7 +80,7 @@ export function SummarySidebar({ stats, totalYears, positiveYears }: SummarySide
       <div
         className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1 lg:hidden"
         role="list"
-        aria-label={t('summarySidebar.title')}
+        aria-label={t('Key Metrics')}
       >
         {metrics.map((m) => (
           <Card
@@ -102,7 +102,7 @@ export function SummarySidebar({ stats, totalYears, positiveYears }: SummarySide
       </div>
       {/* 桌面端：sticky 指标卡片 */}
       <Card className="hidden lg:block p-4 lg:sticky lg:top-20" data-testid="summary-sidebar">
-        <h3 className="text-h3 mb-3">{t('summarySidebar.title')}</h3>
+        <h3 className="text-h3 mb-3">{t('Key Metrics')}</h3>
         <dl className="space-y-2.5">
           {metrics.map((m) => (
             <div

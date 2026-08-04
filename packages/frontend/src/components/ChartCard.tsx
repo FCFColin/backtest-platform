@@ -15,7 +15,7 @@ export function ChartExporter({ data, filename = 'chart-data', label }: ChartExp
   return (
     <Button type="button" variant="ghost" size="sm" onClick={handleExport} disabled={disabled}>
       <Download />
-      {label ?? t('components.chartExporter.defaultLabel')}
+      {label ?? t('Chart')}
     </Button>
   );
 }

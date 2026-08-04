@@ -43,11 +43,15 @@ function getLoadStage(t: TFunc, count: number): string {
 }
 function classifyError(t: TFunc, res: Response, json: Record<string, unknown> | null): string {
   const status = res.status || (typeof json?.status === 'number' ? json.status : 0);
-  if (status === 401 || status === 403) return t('dataEngine.authFailed');
+  if (status === 401 || status === 403)
+    return t(
+      'Authentication failed: API Key invalid or missing, please check admin backend key configuration',
+    );
   if (json?.errorType === 'scan_failed')
-    return `${t('dataEngine.scanFailed')}：${json.error || t('dataEngine.unknown')}`;
-  if (res.status >= 500) return t('dataEngine.serverError');
-  return t('dataEngine.loadFailed');
+    return `${t('Data scan failed')}：${json.error || t('Unknown')}`;
+  if (res.status >= 500)
+    return t('Server error, please confirm backend service is running and retry');
+  return t('Data load failed, please retry');
 }
 interface StatsRefs {
   pollCountRef: React.MutableRefObject<number>;
@@ -72,7 +76,7 @@ export async function doFetchStats(
   refs.pollCountRef.current = 0;
   setters.setLoading(true);
   setters.setError('');
-  setters.setLoadStage(t('dataEngine.connecting'));
+  setters.setLoadStage(t('Connecting...'));
   const fail = (msg: string) => {
     setters.setLoading(false);
     setters.setError(msg);
@@ -85,12 +89,12 @@ export async function doFetchStats(
         force ? '/api/v1/data/manage/stats?force=1' : '/api/v1/data/manage/stats',
       );
       if (refs.pollCountRef.current === 0 && Date.now() - t0 > INITIAL_TIMEOUT_MS) {
-        fail(t('dataEngine.connectionTimeout'));
+        fail(t('Connection timeout, please confirm backend service is running and retry'));
         return;
       }
       json = await res.json().catch(() => null);
       if (json === null) {
-        fail(t('dataEngine.serverAbnormal'));
+        fail(t('Server response abnormal, please confirm backend service is running and retry'));
         return;
       }
       if (!json.success) {
@@ -104,7 +108,7 @@ export async function doFetchStats(
         setters.setLoadStage(getLoadStage(t, refs.pollCountRef.current));
         if (refs.pollCountRef.current >= MAX_POLL) {
           setters.setScanning(false);
-          fail(t('dataEngine.loadTimeout'));
+          fail(t('Data engine load timeout, please confirm backend service is running and retry'));
           return;
         }
         setTimeout(poll, 2000);
@@ -112,16 +116,18 @@ export async function doFetchStats(
         setters.setStats((data?.stats ?? null) as Stats | null);
         setters.setUniverse((data?.universe ?? null) as UniverseStats | null);
         setters.setScanning(false);
-        setters.setLoadStage(t('dataEngine.ready'));
+        setters.setLoadStage(t('Ready'));
         setters.setLoading(false);
       }
     } catch (e) {
       reportError(e, { component: 'DataEngine', action: 'fetchStats' });
-      useToastStore.getState().addToast('error', t('dataEngine.statsLoadFailed'));
+      useToastStore.getState().addToast('error', t('Data engine stats load failed'));
       fail(
         e instanceof TypeError && e.message.includes('fetch')
-          ? t('dataEngine.networkError')
-          : t('dataEngine.loadFailed'),
+          ? t(
+              'Network error: unable to connect to server, please confirm backend service is running',
+            )
+          : t('Data load failed, please retry'),
       );
     }
   };
@@ -138,9 +144,9 @@ export async function doActionFn(
   try {
     const res = await apiFetch(url, { method });
     const json = await res.json();
-    setActionMsg(json.success ? `${label} ✓` : t('common.error'));
+    setActionMsg(json.success ? `${label} ✓` : t('Error'));
   } catch {
-    setActionMsg(t('common.error'));
+    setActionMsg(t('Error'));
   }
   setTimeout(() => setActionMsg(''), 5000);
 }

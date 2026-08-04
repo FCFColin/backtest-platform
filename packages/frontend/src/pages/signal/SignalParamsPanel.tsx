@@ -25,13 +25,13 @@ export function TickerField({ value, onChange, placeholder }: TickerFieldProps) 
   const { t } = useTranslation();
   const id = useId();
   return (
-    <LabeledField htmlFor={id} label={t('signal.common.tickerLabel')}>
+    <LabeledField htmlFor={id} label={t('Ticker Symbol')}>
       <Input
         id={id}
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder ?? t('signal.common.tickerPlaceholder')}
+        placeholder={placeholder ?? t('e.g. SPY')}
       />
     </LabeledField>
   );
@@ -79,8 +79,8 @@ export function RunAnalysisButton({
     <RunButton
       isLoading={isLoading}
       onClick={onClick}
-      label={text ?? t('signal.common.startAnalysis')}
-      loadingLabel={loadingText ?? t('signal.common.analyzing')}
+      label={text ?? t('Run Analysis')}
+      loadingLabel={loadingText ?? t('Analyzing...')}
       className="w-full sm:w-auto"
     />
   );
@@ -103,14 +103,14 @@ function SignalCfgFields({ cfg, onChange }: SignalCfgFieldsProps) {
   const thrId = useId();
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-      <LabeledField htmlFor={indId} label={t('signal.dual.indicator')}>
+      <LabeledField htmlFor={indId} label={t('Technical Indicator')}>
         <IndicatorSelect
           value={cfg.indicator}
           onChange={(v) => onChange({ ...cfg, indicator: v })}
           id={indId}
         />
       </LabeledField>
-      <LabeledField htmlFor={periodId} label={t('signal.dual.period')}>
+      <LabeledField htmlFor={periodId} label={t('Period')}>
         <Input
           id={periodId}
           type="number"
@@ -120,7 +120,7 @@ function SignalCfgFields({ cfg, onChange }: SignalCfgFieldsProps) {
           onChange={(e) => onChange({ ...cfg, period: Number(e.target.value) })}
         />
       </LabeledField>
-      <LabeledField htmlFor={thrId} label={t('signal.dual.threshold')}>
+      <LabeledField htmlFor={thrId} label={t('Threshold')}>
         <Input
           id={thrId}
           type="number"
@@ -150,7 +150,7 @@ function CombinationAndDateFields({ state }: { state: UseDualSignalStateResult }
   const endId = useId();
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-      <LabeledField htmlFor={combId} label={t('signal.dual.combinationLogic')}>
+      <LabeledField htmlFor={combId} label={t('Combination Logic')}>
         <Select
           value={combinationMethod}
           onValueChange={(v) => setCombinationMethod(v as 'and' | 'or' | 'xor')}
@@ -168,7 +168,7 @@ function CombinationAndDateFields({ state }: { state: UseDualSignalStateResult }
         </Select>
       </LabeledField>
       <TickerField value={ticker} onChange={setTicker} />
-      <LabeledField htmlFor={startId} label={t('signal.common.startDate')}>
+      <LabeledField htmlFor={startId} label={t('Start Date')}>
         <Input
           id={startId}
           type="date"
@@ -176,7 +176,7 @@ function CombinationAndDateFields({ state }: { state: UseDualSignalStateResult }
           onChange={(e) => setStartDate(e.target.value)}
         />
       </LabeledField>
-      <LabeledField htmlFor={endId} label={t('signal.common.endDate')}>
+      <LabeledField htmlFor={endId} label={t('End Date')}>
         <Input
           id={endId}
           type="date"
@@ -194,15 +194,15 @@ export function DualSignalParamsPanel({ state }: { state: UseDualSignalStateResu
   return (
     <div className="flex flex-col gap-5">
       <section className="flex flex-col gap-2">
-        <SectionHeader title={t('signal.dual.signal1Config')} variant="h3" />
+        <SectionHeader title={t('Signal 1 Configuration')} variant="h3" />
         <SignalCfgFields cfg={cfg1} onChange={setCfg1} />
       </section>
       <section className="flex flex-col gap-2">
-        <SectionHeader title={t('signal.dual.signal2Config')} variant="h3" />
+        <SectionHeader title={t('Signal 2 Configuration')} variant="h3" />
         <SignalCfgFields cfg={cfg2} onChange={setCfg2} />
       </section>
       <section className="flex flex-col gap-2">
-        <SectionHeader title={t('signal.dual.combinationSection')} variant="h3" />
+        <SectionHeader title={t('Combination Method')} variant="h3" />
         <CombinationAndDateFields state={state} />
       </section>
       <RunAnalysisButton isLoading={isLoading} onClick={runAnalysis} />
@@ -227,24 +227,26 @@ function IndicatorConfigSection({ state }: { state: UseSignalAnalyzerStateResult
   return (
     <section className="flex flex-col gap-2">
       <SectionHeader
-        title={t('signal.analyzer.indicatorSection')}
-        info={t('signal.analyzer.indicatorSectionInfo')}
+        title={t('Ticker & Indicator')}
+        info={t(
+          'Select a ticker and a technical indicator; buy/sell signals are generated based on indicator crossovers/breakouts',
+        )}
         variant="h3"
       />
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <LabeledField htmlFor={tickerId} label={t('signal.common.tickerLabel')}>
+        <LabeledField htmlFor={tickerId} label={t('Ticker Symbol')}>
           <Input
             id={tickerId}
             type="text"
             value={ticker}
             onChange={(e) => setTicker(e.target.value)}
-            placeholder={t('signal.common.tickerPlaceholder')}
+            placeholder={t('e.g. SPY')}
           />
         </LabeledField>
-        <LabeledField htmlFor={indId} label={t('signal.analyzer.indicator')}>
+        <LabeledField htmlFor={indId} label={t('Technical Indicator')}>
           <IndicatorSelect value={indicator} onChange={setIndicator} id={indId} />
         </LabeledField>
-        <LabeledField htmlFor={periodId} label={t('signal.analyzer.period')}>
+        <LabeledField htmlFor={periodId} label={t('Period')}>
           <Input
             id={periodId}
             type="number"
@@ -254,7 +256,7 @@ function IndicatorConfigSection({ state }: { state: UseSignalAnalyzerStateResult
             onChange={(e) => setPeriod(Number(e.target.value))}
           />
         </LabeledField>
-        <LabeledField htmlFor={thrId} label={t('signal.analyzer.threshold')}>
+        <LabeledField htmlFor={thrId} label={t('Threshold')}>
           <Input
             id={thrId}
             type="number"
@@ -264,7 +266,11 @@ function IndicatorConfigSection({ state }: { state: UseSignalAnalyzerStateResult
           />
         </LabeledField>
       </div>
-      <FieldDescription>{t('signal.analyzer.thresholdHint')}</FieldDescription>
+      <FieldDescription>
+        {t(
+          'Threshold meaning: RSI is the oversold threshold; Bollinger is the standard-deviation multiplier; SMA/EMA/MACD do not use it.',
+        )}
+      </FieldDescription>
     </section>
   );
 }
@@ -277,9 +283,9 @@ function SignalConfigSection({ state }: { state: UseSignalAnalyzerStateResult })
   const endId = useId();
   return (
     <section className="flex flex-col gap-2">
-      <SectionHeader title={t('signal.analyzer.signalConfigSection')} variant="h3" />
+      <SectionHeader title={t('Signal Configuration')} variant="h3" />
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <LabeledField htmlFor={typeId} label={t('signal.analyzer.signalType')}>
+        <LabeledField htmlFor={typeId} label={t('Signal Type')}>
           <Select value={signalType} onValueChange={(v) => setSignalType(v as SignalType)}>
             <SelectTrigger id={typeId}>
               <SelectValue />
@@ -293,7 +299,7 @@ function SignalConfigSection({ state }: { state: UseSignalAnalyzerStateResult })
             </SelectContent>
           </Select>
         </LabeledField>
-        <LabeledField htmlFor={startId} label={t('signal.common.startDate')}>
+        <LabeledField htmlFor={startId} label={t('Start Date')}>
           <Input
             id={startId}
             type="date"
@@ -301,7 +307,7 @@ function SignalConfigSection({ state }: { state: UseSignalAnalyzerStateResult })
             onChange={(e) => setStartDate(e.target.value)}
           />
         </LabeledField>
-        <LabeledField htmlFor={endId} label={t('signal.common.endDate')}>
+        <LabeledField htmlFor={endId} label={t('End Date')}>
           <Input
             id={endId}
             type="date"

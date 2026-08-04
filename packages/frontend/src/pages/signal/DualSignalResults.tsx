@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { fmtPct, fmtRatio } from '@/utils/format';
+import { fmtPct, fmtRatio, downsample } from '@/utils/format';
 import { CHART_COLORS } from '@backtest/shared';
 import type { SignalAnalysisResult } from '@backtest/shared/types/signal';
 import { CollapsibleSection } from '@/components/cards';
@@ -12,7 +12,7 @@ import {
   SimpleTable,
   type SimpleTableColumn,
 } from '../../components/tables.js';
-import { ResultsContainer, EquityLineChart } from './SignalResultsPanel.js';
+import { TimeSeriesLineChart } from '@/components/charts/TimeSeriesLineChart.js';
 import { ResultsShell } from '@/components/resultsShell.js';
 import type { DualSignalResponse, SignalDir } from './signalTypes.js';
 interface DualSignalResultsProps {
@@ -21,9 +21,8 @@ interface DualSignalResultsProps {
   isLoading: boolean;
 }
 function renderDir(d: SignalDir, t: TFunction): ReactNode {
-  if (d === 'buy') return <span className="font-semibold text-pos">{t('signal.common.buy')}</span>;
-  if (d === 'sell')
-    return <span className="font-semibold text-neg">{t('signal.common.sell')}</span>;
+  if (d === 'buy') return <span className="font-semibold text-pos">{t('Buy')}</span>;
+  if (d === 'sell') return <span className="font-semibold text-neg">{t('Sell')}</span>;
   return <span className="text-fg-tertiary">-</span>;
 }
 function buildEquityData(results: DualSignalResponse): Array<Record<string, number | string>> {
@@ -59,7 +58,7 @@ type StatRow = { name: string; stats: SignalAnalysisResult['statistics'] };
 function StatsComparisonTable({ statRows }: { statRows: StatRow[] }) {
   const { t } = useTranslation();
   const columns: SimpleTableColumn<(typeof STAT_COLS)[number]>[] = [
-    { key: 'metric', label: t('signal.dual.colMetric'), render: (col) => t(col.label) },
+    { key: 'metric', label: t('Metric'), render: (col) => t(col.label) },
     ...statRows.map((r, idx) => ({
       key: `signal${idx}`,
       label: (
@@ -78,7 +77,7 @@ function StatsComparisonTable({ statRows }: { statRows: StatRow[] }) {
   ];
   return (
     <CollapsibleSection
-      title={t('signal.dual.statsComparison')}
+      title={t('Combined Signal Stats vs Single Signal Stats')}
       defaultOpen
       className="rounded-xl border border-border bg-surface"
     >
@@ -88,22 +87,22 @@ function StatsComparisonTable({ statRows }: { statRows: StatRow[] }) {
 }
 function buildComparisonColumns(t: TFunction): Column<DualSignalResponse['comparison'][number]>[] {
   return [
-    { key: 'date', label: t('signal.dual.colDate'), sortValue: (r) => r.date },
+    { key: 'date', label: t('Date'), sortValue: (r) => r.date },
     {
       key: 'signal1',
-      label: t('signal.dual.signal1'),
+      label: t('Signal 1'),
       render: (r) => renderDir(r.signal1, t),
       sortValue: (r) => r.signal1 ?? '',
     },
     {
       key: 'signal2',
-      label: t('signal.dual.signal2'),
+      label: t('Signal 2'),
       render: (r) => renderDir(r.signal2, t),
       sortValue: (r) => r.signal2 ?? '',
     },
     {
       key: 'combined',
-      label: t('signal.dual.combined'),
+      label: t('Combined Signal'),
       render: (r) => renderDir(r.combined, t),
       sortValue: (r) => r.combined ?? '',
     },
@@ -131,11 +130,12 @@ function DualSignalResultsBody({
 }) {
   const pageSize = 100;
   const pageRows = comparison.slice(comparisonPage * pageSize, (comparisonPage + 1) * pageSize);
+  const chartData = downsample(equityData, 400);
   return (
-    <ResultsContainer>
+    <div className="flex flex-col gap-4">
       <StatsComparisonTable statRows={statRows} />
       <CollapsibleSection
-        title={t('signal.dual.signalComparison', { count: comparison.length })}
+        title={t('Signal Comparison ({{count}})', { count: comparison.length })}
         defaultOpen
         className="rounded-xl border border-border bg-surface"
       >
@@ -153,7 +153,7 @@ function DualSignalResultsBody({
                   disabled={comparisonPage === 0}
                   className="btn-ghost btn-sm"
                 >
-                  {t('signal.dual.prevPage')}
+                  {t('Prev')}
                 </button>
                 <button
                   type="button"
@@ -161,7 +161,7 @@ function DualSignalResultsBody({
                   disabled={comparisonPage >= Math.ceil(comparison.length / pageSize) - 1}
                   className="btn-ghost btn-sm"
                 >
-                  {t('signal.dual.nextPage')}
+                  {t('Next')}
                 </button>
               </span>
             </div>
@@ -174,26 +174,27 @@ function DualSignalResultsBody({
           </>
         ) : (
           <div className="py-6 text-center text-body text-fg-tertiary">
-            {t('signal.common.noSignal')}
+            {t('No signals generated for the current parameters')}
           </div>
         )}
       </CollapsibleSection>
       <CollapsibleSection
-        title={t('signal.dual.equityCurveComparison')}
+        title={t('Equity Curve Comparison')}
         defaultOpen
         className="rounded-xl border border-border bg-surface"
       >
-        <EquityLineChart
-          data={equityData}
+        <TimeSeriesLineChart
+          data={chartData}
           series={[
-            { dataKey: 'signal1', legendName: t('signal.dual.signal1Short'), strokeWidth: 1.5 },
-            { dataKey: 'signal2', legendName: t('signal.dual.signal2Short'), strokeWidth: 1.5 },
-            { dataKey: 'combined', legendName: t('signal.dual.combinedShort'), strokeWidth: 2.5 },
+            { dataKey: 'signal1', legendName: t('Sig1'), strokeWidth: 1.5 },
+            { dataKey: 'signal2', legendName: t('Sig2'), strokeWidth: 1.5 },
+            { dataKey: 'combined', legendName: t('Combined'), strokeWidth: 2.5 },
           ]}
-          tooltipName=""
+          referenceY={10000}
+          tooltipLabelFormatter={(label) => `${t('Date')}: ${label}`}
         />
       </CollapsibleSection>
-    </ResultsContainer>
+    </div>
   );
 }
 export function DualSignalResultsPanel({ results, error, isLoading }: DualSignalResultsProps) {
@@ -209,19 +210,19 @@ export function DualSignalResultsPanel({ results, error, isLoading }: DualSignal
   const nextPage = () => setComparisonPage((p) => Math.min(pageCount - 1, p + 1));
   const statRows: StatRow[] = results
     ? [
-        { name: t('signal.dual.signal1'), stats: results.signal1.statistics },
-        { name: t('signal.dual.signal2'), stats: results.signal2.statistics },
-        { name: t('signal.dual.combined'), stats: results.combined.statistics },
+        { name: t('Signal 1'), stats: results.signal1.statistics },
+        { name: t('Signal 2'), stats: results.signal2.statistics },
+        { name: t('Combined Signal'), stats: results.combined.statistics },
       ]
     : [];
   const equityData = results ? buildEquityData(results) : [];
   return (
     <ResultsShell
       error={error}
-      errorPrefix={t('signal.common.analysisFailedPrefix')}
+      errorPrefix={t('Analysis failed: ')}
       isLoading={isLoading}
       hasResults={!!results}
-      emptyTitle={t('signal.common.emptyHint')}
+      emptyTitle={t('Set parameters and click "Run Analysis" to view results')}
     >
       <DualSignalResultsBody
         t={t}

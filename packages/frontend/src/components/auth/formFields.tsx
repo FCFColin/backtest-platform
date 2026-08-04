@@ -1,5 +1,6 @@
 import type { CSSProperties, ReactNode } from 'react';
 import { Loader2 } from 'lucide-react';
+import { cn } from '@/lib/utils.js';
 import { Field, FieldLabel } from '@/components/form/Field.js';
 interface AuthPageLayoutProps {
   icon?: ReactNode;
@@ -17,7 +18,7 @@ export default function AuthPageLayout({
   maxWidth = 420,
   centered = false,
 }: AuthPageLayoutProps) {
-  const cardStyle: CSSProperties = centered
+  const cardStyle = centered
     ? { padding: 28, marginTop: 40, textAlign: 'center' }
     : { padding: 28, marginTop: 40 };
   return (
@@ -26,14 +27,7 @@ export default function AuthPageLayout({
         {centered ? (
           <>
             {icon}
-            <h1
-              style={{
-                fontSize: 20,
-                fontWeight: 700,
-                color: 'var(--text-strong)',
-                ...(icon ? { marginBottom: 8 } : {}),
-              }}
-            >
+            <h1 className={cn('text-[20px] font-bold text-text-strong', icon && 'mb-2')}>
               {title}
             </h1>
           </>
@@ -47,11 +41,7 @@ export default function AuthPageLayout({
         )}
         {children}
         {footer && (
-          <div
-            style={{ marginTop: 16, fontSize: 13, color: 'var(--text-muted)', textAlign: 'center' }}
-          >
-            {footer}
-          </div>
+          <div className="mt-4 text-[13px] text-[var(--text-muted)] text-center">{footer}</div>
         )}
       </div>
     </div>
@@ -63,17 +53,13 @@ interface AuthSubmitButtonProps {
   label: string;
   loadingLabel: string;
 }
-const BUTTON_STYLE = {
-  height: 42,
-  marginTop: 4,
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  gap: 8,
-} as const;
 export function AuthSubmitButton({ loading, icon, label, loadingLabel }: AuthSubmitButtonProps) {
   return (
-    <button type="submit" disabled={loading} className="main-action-btn" style={BUTTON_STYLE}>
+    <button
+      type="submit"
+      disabled={loading}
+      className="main-action-btn flex items-center justify-center gap-2 h-[42px] mt-1"
+    >
       {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : icon}
       {loading ? loadingLabel : label}
     </button>
@@ -84,10 +70,7 @@ interface BrandIconBadgeProps {
   size?: 'sm' | 'lg';
   style?: CSSProperties;
 }
-const SIZE_DIMENSIONS: Record<
-  'sm' | 'lg',
-  { width: number; height: number; borderRadius: number }
-> = {
+const SIZE_DIMENSIONS = {
   sm: { width: 40, height: 40, borderRadius: 10 },
   lg: { width: 44, height: 44, borderRadius: 12 },
 };
@@ -95,15 +78,8 @@ export function BrandIconBadge({ icon, size = 'sm', style }: BrandIconBadgeProps
   const dims = SIZE_DIMENSIONS[size];
   return (
     <div
-      style={{
-        ...dims,
-        background: 'var(--brand)',
-        color: '#fff',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        ...style,
-      }}
+      className="flex items-center justify-center bg-[var(--brand)] text-white"
+      style={{ ...dims, ...style }}
     >
       {icon}
     </div>

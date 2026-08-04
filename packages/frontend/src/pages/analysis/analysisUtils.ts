@@ -65,9 +65,11 @@ export async function fetchAnalysisResult(
     try {
       json = await res.json();
     } catch {
-      throw new Error(t('dataEngine.serverAbnormal'));
+      throw new Error(
+        t('Server response abnormal, please confirm backend service is running and retry'),
+      );
     }
-    throwIfError(res, json, t('analysis.analysisFailed'));
+    throwIfError(res, json, t('Analysis Failed'));
     const raw = (json.data ?? json) as Record<string, unknown>;
     const tickers = (raw.tickers ?? raw.assets ?? []) as AssetAnalysisResult['tickers'];
     for (const tk of tickers) {
@@ -78,7 +80,11 @@ export async function fetchAnalysisResult(
     }
     return { tickers, correlations: (raw.correlations ?? []) as number[][] };
   } catch (e) {
-    throw wrapFetchError(e, t('dataEngine.connectionTimeout'), t('dataEngine.networkError'));
+    throw wrapFetchError(
+      e,
+      t('Connection timeout, please confirm backend service is running and retry'),
+      t('Network error: unable to connect to server, please confirm backend service is running'),
+    );
   } finally {
     clearTimeout(timeoutId);
   }

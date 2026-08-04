@@ -44,7 +44,7 @@ const DEFAULT_ASSETS: Record<1 | 2, PortfolioState['assets']> = {
   ],
 };
 const createDefaultPortfolio = (suffix: number): PortfolioState => ({
-  name: i18n.t('common.portfolioSuffix', { suffix }),
+  name: i18n.t('Portfolio {{suffix}}', { suffix }),
   assets: DEFAULT_ASSETS[suffix === 1 ? 1 : 2],
   rebalanceFrequency: 'yearly',
 });
@@ -114,8 +114,8 @@ const validatePortfolios = (
     isWeightComplete: isComplete,
     onError: (idx, key) =>
       key === 'emptyTicker'
-        ? i18n.t('monteCarlo.emptyTickerWarning', { index: idx + 1 })
-        : i18n.t('monteCarlo.weightSumWarning', { index: idx + 1 }),
+        ? i18n.t('Portfolio {{index}}: please add at least one ticker', { index: idx + 1 })
+        : i18n.t('Portfolio {{index}}: weights must sum to 100%', { index: idx + 1 }),
   });
 async function fetchMcResult(
   idx: number,
@@ -139,9 +139,9 @@ async function fetchMcResult(
       ...reqBody,
     }),
   });
-  if (!res.ok) throw new Error(i18n.t('errors.simulationFailed') + ' ' + (idx + 1));
+  if (!res.ok) throw new Error(i18n.t('Simulation failed') + ' ' + (idx + 1));
   const json = await res.json();
-  if (json.success === false) throw new Error(json.error || i18n.t('errors.simulationFailed'));
+  if (json.success === false) throw new Error(json.error || i18n.t('Simulation failed'));
   return json.data ?? json;
 }
 const MC_INITIAL = {
@@ -229,7 +229,7 @@ async function executeSimulation(s: McSetters, ops: PortfolioOps): Promise<void>
     s.setResults1(r1);
     if (r2) s.setResults2(r2);
   } catch (e) {
-    s.setError(e instanceof Error ? e.message : i18n.t('errors.simulationFailed'));
+    s.setError(e instanceof Error ? e.message : i18n.t('Simulation failed'));
   } finally {
     s.setIsLoading(false);
   }
@@ -272,8 +272,7 @@ export interface FanDataPoint {
 }
 export const monthFormatter = (v: number) => (Number.isInteger(v / 12) ? `${v / 12}y` : '');
 export const dollarKFormatter = (v: number) => `$${(v / 1000).toFixed(0)}k`;
-export const yearLabelFormatter = (t: TFunction, l: number) =>
-  `${(l / 12).toFixed(1)} ${t('monteCarlo.results.year')}`;
+export const yearLabelFormatter = (t: TFunction, l: number) => `${(l / 12).toFixed(1)} ${t('y')}`;
 function sampleMonths(len: number) {
   const out = [{ day: 0, month: 0 }];
   for (let day = 0, month = 1; day < len - 1; month++) {
@@ -296,12 +295,15 @@ function buildBinData(vals: number[], binCount: number, formatBin: (v: number) =
   const labelFor = (val: number) => formatBin(Math.floor((val - min) / binWidth) * binWidth + min);
   return { bins, labelFor };
 }
-const binLabel = (metric: DistMetric) =>
-  metric === 'finalValue'
-    ? dollarKFormatter
-    : metric === 'cagr' || metric === 'maxDrawdown' || metric === 'volatility'
-      ? (v: number) => fmtPct(v, 1)
-      : (v: number) => fmtNum(v);
+const BIN_FORMATTERS: Record<DistMetric, (v: number) => string> = {
+  finalValue: dollarKFormatter,
+  cagr: (v) => fmtPct(v, 1),
+  maxDrawdown: (v) => fmtPct(v, 1),
+  volatility: (v) => fmtPct(v, 1),
+  sharpe: fmtNum,
+  sortino: fmtNum,
+};
+const binLabel = (metric: DistMetric) => BIN_FORMATTERS[metric];
 const metricValues = (metrics: PerPathMetrics[], metric: DistMetric, startingValue: number) =>
   metric === 'finalValue'
     ? metrics.map((m) => m.finalValue * startingValue)
@@ -382,7 +384,7 @@ export const fanMedianLine = (t: TFunction) => ({
   dataKey: 'p50',
   stroke: CHART_COLORS[0],
   strokeWidth: 2.5,
-  name: t('monteCarlo.fanChart.median'),
+  name: t('Median'),
 });
 export function buildFanChartData(r: MonteCarloResult, startingValue: number): FanDataPoint[] {
   const { p5, p25, p50, p75, p95 } = r.percentiles;

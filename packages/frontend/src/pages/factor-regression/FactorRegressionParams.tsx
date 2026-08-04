@@ -50,10 +50,10 @@ export function FactorRegressionParamsPanel({ state: s }: { state: FactorRegress
           endDate={s.endDate}
           onStartDateChange={s.setStartDate}
           onEndDateChange={s.setEndDate}
-          label={t('factorRegression.allHistory')}
+          label={t('All History')}
         />
       </Field>
-      <LabeledField htmlFor="fr-start-date" label={t('factorRegression.startDate')}>
+      <LabeledField htmlFor="fr-start-date" label={t('Start Date')}>
         <Input
           id="fr-start-date"
           type="date"
@@ -61,7 +61,7 @@ export function FactorRegressionParamsPanel({ state: s }: { state: FactorRegress
           onChange={(e) => s.setStartDate(e.target.value)}
         />
       </LabeledField>
-      <LabeledField htmlFor="fr-end-date" label={t('factorRegression.endDate')}>
+      <LabeledField htmlFor="fr-end-date" label={t('End Date')}>
         <Input
           id="fr-end-date"
           type="date"
@@ -71,24 +71,24 @@ export function FactorRegressionParamsPanel({ state: s }: { state: FactorRegress
       </LabeledField>
       <SelectField
         id="fr-freq"
-        label={t('factorRegression.returnFrequency')}
+        label={t('Return Frequency')}
         value={s.returnFrequency}
         onChange={s.setReturnFrequency}
         options={[
-          { value: 'monthly', label: t('factorRegression.freqMonthly') },
-          { value: 'daily', label: t('factorRegression.freqDaily') },
+          { value: 'monthly', label: t('Monthly') },
+          { value: 'daily', label: t('Daily') },
         ]}
       />
       <SelectField
         id="fr-rf"
-        label={t('factorRegression.rfRate')}
+        label={t('Risk-Free Rate')}
         value={s.rfSource}
         onChange={s.setRfSource}
         options={RF_SOURCE_OPTIONS.map((o) => ({ value: o.value, label: t(o.label) }))}
       />
       <div className="col-span-full">
         <Field>
-          <FieldLabel>{t('factorRegression.factorSelect')}</FieldLabel>
+          <FieldLabel>{t('Factor Selection (Multi-select)')}</FieldLabel>
           <FactorSelector selectedFactors={s.selectedFactors} onToggle={s.toggleFactor} />
         </Field>
       </div>
@@ -106,8 +106,8 @@ export function FactorRegressionParamsPanel({ state: s }: { state: FactorRegress
         <RunButton
           isLoading={s.isLoading}
           onClick={s.runRegression}
-          label={t('factorRegression.startAnalysis')}
-          loadingLabel={t('factorRegression.analyzing')}
+          label={t('Start Analysis')}
+          loadingLabel={t('Running regression...')}
         />
       </div>
     </div>

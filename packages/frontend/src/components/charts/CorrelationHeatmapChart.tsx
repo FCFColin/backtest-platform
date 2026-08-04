@@ -8,29 +8,16 @@ import {
   Brush,
 } from 'recharts';
 import { useTranslation } from 'react-i18next';
-import {
-  CHART_MARGIN,
-  CHART_GRID_PROPS,
-  DATE_TICK_FORMATTER,
-  getCorrelationColor,
-} from '@/lib/chart-theme.js';
+import { Spinner } from '@/components/ui/uiComponents';
+import { CHART_MARGIN, CHART_GRID_PROPS, DATE_TICK_FORMATTER } from '@/lib/chart-theme.js';
 import { ChartXAxis, ChartYAxis, ChartTooltip, ChartLegend } from './sharedChartContent.js';
-import { MatrixHeatmap } from './tables.js';
+import { CorrelationMatrixTable } from './tables.js';
 import { SimpleTable, type SimpleTableColumn } from '../tables.js';
-import {
-  getCorrelationTextColor,
-  type RollingCorrelationPoint,
-  type BetaRow,
-} from './chartUtils.js';
+import { type RollingCorrelationPoint, type BetaRow } from './chartUtils.js';
 import { CHART_COLORS, type PortfolioResult } from '@backtest/shared';
 import ChartCard from '../ChartCard.js';
 import { downsample, DOWNSAMPLE_THRESHOLD, DOWNSAMPLE_TARGET } from '../../utils/format.js';
 import { useChartCalcWorker, type WorkerTask } from '../../hooks/miscHooks.js';
-interface CorrelationMatrixProps {
-  tickers: string[];
-  correlations: number[][];
-  title?: string;
-}
 interface CorrelationWithBetaProps {
   portfolios: PortfolioResult[];
   assetTickers?: string[];
@@ -56,32 +43,14 @@ function NoDataCard({ message }: { message: string }) {
     </div>
   );
 }
-export function CorrelationMatrix({ tickers, correlations, title }: CorrelationMatrixProps) {
-  const { t } = useTranslation();
-  if (tickers.length === 0 || correlations.length === 0) {
-    return <NoDataCard message={t('charts.correlation.noData')} />;
-  }
-  return (
-    <div className="chart-card">
-      <div className="chart-card-title">{title || t('charts.correlation.defaultTitle')}</div>
-      <MatrixHeatmap
-        rowLabels={tickers}
-        columnLabels={tickers}
-        matrix={correlations}
-        getBackgroundColor={getCorrelationColor}
-        getTextColor={getCorrelationTextColor}
-        formatValue={(v) => v.toFixed(2)}
-      />
-    </div>
-  );
-}
+
 function BetaTable({ betaData, baseName }: { betaData: BetaRow[]; baseName: string }) {
   const { t } = useTranslation();
   if (betaData.length === 0) return null;
   const columns: SimpleTableColumn<BetaRow>[] = [
     {
       key: 'name',
-      label: t('charts.correlation.portfolio'),
+      label: t('Portfolio'),
       render: (row, idx) => (
         <>
           <span
@@ -96,7 +65,9 @@ function BetaTable({ betaData, baseName }: { betaData: BetaRow[]; baseName: stri
   ];
   return (
     <div className="chart-card">
-      <div className="chart-card-title">{t('charts.correlation.betaTableTitle', { baseName })}</div>
+      <div className="chart-card-title">
+        {t('Beta Table (Benchmark: {{baseName}})', { baseName })}
+      </div>
       <SimpleTable columns={columns} data={betaData} maxWidth={400} rowKey={(r) => r.name} />
     </div>
   );
@@ -165,10 +136,10 @@ function RollingCorrelationControls({
         </span>
       ))}
       <span className="text-caption" style={{ color: 'var(--text-muted)' }}>
-        {t('charts.correlation.windowDays')}
+        {t('Window (days)')}
       </span>
       <select
-        aria-label={t('charts.correlation.windowDays')}
+        aria-label={t('Window (days)')}
         value={rollingWindow}
         onChange={(e) => onSetWindow(parseInt(e.target.value))}
         style={selectStyle}
@@ -199,11 +170,8 @@ function RollingCorrelationLineChart({
         <ChartXAxis tickFontSize={10} interval="preserveStartEnd" />
         <ChartYAxis domain={[-1, 1]} tickFormatter={(v: number) => v.toFixed(1)} />
         <ChartTooltip
-          formatter={(value: number, name: string) => [
-            value.toFixed(4),
-            name || t('charts.correlation.correlation'),
-          ]}
-          labelFormatter={(label: string) => t('charts.correlation.dateLabel', { label })}
+          formatter={(value: number, name: string) => [value.toFixed(4), name || t('Correlation')]}
+          labelFormatter={(label: string) => t('Date: {{label}}', { label })}
           isLargeDataset={isLargeDataset}
         />
         <ReferenceLine y={0} stroke="var(--text-muted)" strokeDasharray="3 3" />
@@ -269,7 +237,7 @@ function RollingCorrelationSection({
     : '';
   return (
     <ChartCard
-      title={t('charts.correlation.rollingTitle')}
+      title={t('Rolling Correlation')}
       data={rollingCorrelationData ?? []}
       csvFilename="rolling-correlation"
     >
@@ -282,12 +250,14 @@ function RollingCorrelationSection({
       />
       {isPending ? (
         <div className="flex items-center justify-center py-5">
-          <div className="size-5 animate-spin rounded-full border-2 border-current border-t-transparent text-fg-tertiary" />
+          <Spinner />
         </div>
       ) : !selectedPair ? (
-        <EmptyState message={t('charts.correlation.selectTwoPortfolios')} />
+        <EmptyState message={t('Please select two portfolios')} />
       ) : !rollingCorrelationData?.length ? (
-        <EmptyState message={t('charts.correlation.insufficientData', { window: rollingWindow })} />
+        <EmptyState
+          message={t('Insufficient data (window: {{window}})', { window: rollingWindow })}
+        />
       ) : (
         <RollingCorrelationLineChart data={rollingCorrelationData} pairName={pairName} />
       )}
@@ -315,27 +285,27 @@ export default function CorrelationWithBeta({
     assetTickers && assetTickers.length >= 2 && assetCorrelations && assetCorrelations.length >= 2;
   const hasPortfolioCorrelation = portfolios.length >= 2;
   if (!hasAssetCorrelation && !hasPortfolioCorrelation) {
-    return <NoDataCard message={t('charts.correlation.needTwoAssets')} />;
+    return <NoDataCard message={t('At least 2 assets required')} />;
   }
   return (
     <div>
       {hasAssetCorrelation && (
-        <CorrelationMatrix
+        <CorrelationMatrixTable
           tickers={assetTickers!}
           correlations={assetCorrelations!}
-          title={t('charts.correlation.assetCorrelationTitle')}
+          title={t('Asset Correlation')}
         />
       )}
       {hasPortfolioCorrelation && (
-        <CorrelationMatrix
+        <CorrelationMatrixTable
           tickers={portfolios.map((p) => p.name)}
           correlations={portfolioCorrelations ?? []}
-          title={t('charts.correlation.portfolioCorrelationTitle')}
+          title={t('Portfolio Correlation')}
         />
       )}
       {betaPending ? (
         <div className="chart-card flex items-center justify-center py-5">
-          <div className="size-5 animate-spin rounded-full border-2 border-current border-t-transparent text-fg-tertiary" />
+          <Spinner />
         </div>
       ) : (
         <BetaTable betaData={betaData ?? []} baseName={portfolios[0]?.name ?? ''} />

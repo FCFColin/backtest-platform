@@ -6,6 +6,7 @@ import {
   forwardRef,
   useId,
   type InputHTMLAttributes,
+  type Ref,
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useShallow } from 'zustand/react/shallow';
@@ -40,142 +41,151 @@ const FIELD_SHELL =
 const LABEL_CLS =
   'absolute left-3 top-1.5 z-10 pointer-events-none text-label-tiny text-fg-tertiary transition-colors duration-150 group-focus-within:text-brand';
 
-function FloatingLabelField({
-  label,
-  error,
-  hint,
-  containerClassName,
-  htmlFor,
-  children,
-}: {
-  label: string;
-  error?: string;
-  hint?: string;
-  containerClassName?: string;
-  htmlFor?: string;
-  children: ReactNode;
-}) {
-  return (
-    <div className={cn('relative', containerClassName)}>
-      <div
-        className={cn(
-          FIELD_SHELL,
-          error
-            ? 'border-danger focus-within:border-danger'
-            : 'border-border focus-within:border-brand hover:border-border-strong',
-        )}
-      >
-        <label htmlFor={htmlFor} className={LABEL_CLS}>
-          {label}
-        </label>
-        {children}
-      </div>
-      {error ? (
-        <p className="mt-1 text-caption text-danger">{error}</p>
-      ) : hint ? (
-        <p className="mt-1 text-caption text-fg-tertiary">{hint}</p>
-      ) : null}
-    </div>
-  );
-}
-
-interface FloatingLabelInputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'prefix'> {
+interface FloatingFieldProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'prefix'> {
   label: string;
   prefix?: ReactNode;
   suffix?: ReactNode;
   error?: string;
   hint?: string;
   containerClassName?: string;
+  type?: 'select' | string;
+  options?: Array<{ value: string; label: string }>;
+  onValueChange?: (value: string) => void;
+  disabled?: boolean;
 }
-export const FloatingLabelInput = forwardRef<HTMLInputElement, FloatingLabelInputProps>(
-  ({ label, prefix, suffix, error, hint, className, containerClassName, id, ...props }, ref) => {
-    const generatedId = useId();
-    const inputId = id ?? generatedId;
+export const FloatingField = forwardRef<HTMLInputElement, FloatingFieldProps>(
+  (
+    {
+      label,
+      prefix,
+      suffix,
+      error,
+      hint,
+      className,
+      containerClassName,
+      id,
+      type = 'text',
+      options,
+      onValueChange,
+      disabled,
+      ...props
+    },
+    ref,
+  ) => {
+    const fallbackId = useId();
+    const inputId = id ?? fallbackId;
     return (
-      <FloatingLabelField
-        label={label}
-        error={error}
-        hint={hint}
-        containerClassName={containerClassName}
-        htmlFor={inputId}
-      >
-        {prefix && (
-          <span className="absolute left-3 bottom-2 text-body text-fg-tertiary pointer-events-none">
-            {prefix}
-          </span>
-        )}
-        <input
-          ref={ref}
-          id={inputId}
+      <div className={cn('relative', containerClassName)}>
+        <div
           className={cn(
-            'w-full h-full pt-6 pb-2 bg-transparent text-body text-fg font-mono tabular-nums focus:outline-none placeholder:text-fg-tertiary',
-            prefix ? 'pl-7' : 'pl-3',
-            suffix ? 'pr-16' : 'pr-3',
-            className,
+            FIELD_SHELL,
+            error
+              ? 'border-danger focus-within:border-danger'
+              : 'border-border focus-within:border-brand hover:border-border-strong',
           )}
-          {...props}
-        />
-        {suffix && (
-          <span className="absolute right-3 bottom-2 text-caption text-fg-tertiary pointer-events-none">
-            {suffix}
-          </span>
-        )}
-      </FloatingLabelField>
+        >
+          <label htmlFor={inputId} className={LABEL_CLS}>
+            {label}
+          </label>
+          <FieldControl
+            inputId={inputId}
+            inputRef={ref}
+            label={label}
+            options={options}
+            onValueChange={onValueChange}
+            disabled={disabled}
+            prefix={prefix}
+            suffix={suffix}
+            className={className}
+            type={type}
+            {...props}
+          />
+        </div>
+        {error ? (
+          <p className="mt-1 text-caption text-danger">{error}</p>
+        ) : hint ? (
+          <p className="mt-1 text-caption text-fg-tertiary">{hint}</p>
+        ) : null}
+      </div>
     );
   },
 );
-FloatingLabelInput.displayName = 'FloatingLabelInput';
+FloatingField.displayName = 'FloatingField';
+export const FloatingLabelInput = FloatingField;
 
-interface FloatingLabelSelectProps {
-  label: string;
-  value?: string;
-  onValueChange?: (value: string) => void;
-  options: Array<{ value: string; label: string }>;
-  error?: string;
-  hint?: string;
-  placeholder?: string;
-  containerClassName?: string;
-  disabled?: boolean;
-}
-function FloatingLabelSelect({
+type FieldControlProps = Omit<
+  FloatingFieldProps,
+  'containerClassName' | 'error' | 'hint' | 'id'
+> & {
+  inputId: string;
+  inputRef: Ref<HTMLInputElement>;
+};
+
+function FieldControl({
+  inputId,
+  inputRef,
   label,
-  value,
-  onValueChange,
   options,
-  error,
-  hint,
-  placeholder,
-  containerClassName,
+  onValueChange,
   disabled,
-}: FloatingLabelSelectProps) {
-  const inputId = useId();
-  return (
-    <FloatingLabelField
-      label={label}
-      error={error}
-      hint={hint}
-      containerClassName={containerClassName}
-      htmlFor={inputId}
-    >
-      <Select value={value} onValueChange={onValueChange} disabled={disabled}>
+  prefix,
+  suffix,
+  className,
+  type,
+  ...inputProps
+}: FieldControlProps) {
+  if (type === 'select') {
+    return (
+      <Select value={inputProps.value as string} onValueChange={onValueChange} disabled={disabled}>
         <SelectTrigger
           id={inputId}
           aria-label={label}
           className="w-full h-full pt-6 pb-2 px-3 pr-9 flex items-center justify-between text-body text-fg text-left border-0 bg-transparent focus:outline-none focus:ring-0 [&>svg]:absolute [&>svg]:right-3 [&>svg]:bottom-3.5 [&>svg]:opacity-100"
         >
-          <SelectValue placeholder={placeholder} />
+          <SelectValue placeholder={inputProps.placeholder as string} />
         </SelectTrigger>
         <SelectContent position="popper" sideOffset={4}>
-          {options.map((o) => (
+          {options?.map((o) => (
             <SelectItem key={o.value} value={o.value}>
               {o.label}
             </SelectItem>
           ))}
         </SelectContent>
       </Select>
-    </FloatingLabelField>
+    );
+  }
+  return (
+    <>
+      {prefix && (
+        <span className="absolute left-3 bottom-2 text-body text-fg-tertiary pointer-events-none">
+          {prefix}
+        </span>
+      )}
+      <input
+        ref={inputRef}
+        id={inputId}
+        type={type}
+        disabled={disabled}
+        className={cn(
+          'w-full h-full pt-6 pb-2 bg-transparent text-body text-fg font-mono tabular-nums focus:outline-none placeholder:text-fg-tertiary',
+          prefix ? 'pl-7' : 'pl-3',
+          suffix ? 'pr-16' : 'pr-3',
+          className,
+        )}
+        {...inputProps}
+      />
+      {suffix && (
+        <span className="absolute right-3 bottom-2 text-caption text-fg-tertiary pointer-events-none">
+          {suffix}
+        </span>
+      )}
+    </>
   );
 }
+
+export const FloatingLabelSelect = (props: Omit<FloatingFieldProps, 'type'> & { type?: never }) => (
+  <FloatingField {...props} type="select" />
+);
 
 type BasicParamsField =
   'startDate' | 'endDate' | 'startingValue' | 'baseCurrency' | 'adjustForInflation';
@@ -199,26 +209,27 @@ export function BasicParamsRow({
   const prefix = baseCurrency === 'usd' ? '$' : '¥';
   return (
     <div className="flex flex-wrap items-end gap-3">
+      {[
+        {
+          id: 'bp-start-date',
+          lbl: t('Start Date'),
+          val: startDate,
+          f: 'startDate' as BasicParamsField,
+        },
+        { id: 'bp-end-date', lbl: t('End Date'), val: endDate, f: 'endDate' as BasicParamsField },
+      ].map((d) => (
+        <Field key={d.id} className="min-w-[8rem] flex-1">
+          <FieldLabel htmlFor={d.id}>{d.lbl}</FieldLabel>
+          <Input
+            id={d.id}
+            type="date"
+            value={d.val}
+            onChange={(e) => onChange(d.f, e.target.value)}
+          />
+        </Field>
+      ))}
       <Field className="min-w-[8rem] flex-1">
-        <FieldLabel htmlFor="bp-start-date">{t('params.startDate')}</FieldLabel>
-        <Input
-          id="bp-start-date"
-          type="date"
-          value={startDate}
-          onChange={(e) => onChange('startDate', e.target.value)}
-        />
-      </Field>
-      <Field className="min-w-[8rem] flex-1">
-        <FieldLabel htmlFor="bp-end-date">{t('params.endDate')}</FieldLabel>
-        <Input
-          id="bp-end-date"
-          type="date"
-          value={endDate}
-          onChange={(e) => onChange('endDate', e.target.value)}
-        />
-      </Field>
-      <Field className="min-w-[8rem] flex-1">
-        <FieldLabel htmlFor="bp-start-val">{t('params.startingValue')}</FieldLabel>
+        <FieldLabel htmlFor="bp-start-val">{t('Starting Value')}</FieldLabel>
         <div className="relative">
           <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-body text-fg-tertiary">
             {prefix}
@@ -233,7 +244,7 @@ export function BasicParamsRow({
         </div>
       </Field>
       <Field className="w-28">
-        <FieldLabel htmlFor="bp-currency">{t('params.currency')}</FieldLabel>
+        <FieldLabel htmlFor="bp-currency">{t('Currency')}</FieldLabel>
         <select
           id="bp-currency"
           className="flex h-10 w-full rounded-md border border-border bg-input-bg px-3 py-2 text-body text-fg transition-colors hover:border-border-strong focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/15 disabled:cursor-not-allowed disabled:opacity-50"
@@ -252,7 +263,7 @@ export function BasicParamsRow({
           checked={adjustForInflation}
           onCheckedChange={(v) => onChange('adjustForInflation', v)}
         />
-        <span className="text-caption text-fg-secondary">{t('params.inflationAdjust')}</span>
+        <span className="text-caption text-fg-secondary">{t('Inflation Adjust')}</span>
       </div>
     </div>
   );
@@ -262,16 +273,6 @@ function useParamField() {
   const { t } = useTranslation();
   const parameters = useBacktestStore(useShallow((s) => s.parameters));
   const updateParameter = useBacktestStore((s) => s.updateParameter);
-  return { t, parameters, updateParameter };
-}
-
-const CURRENCY_OPTIONS = [
-  { value: 'usd', label: 'USD ($)' },
-  { value: 'cny', label: 'CNY (¥)' },
-];
-
-function useBasicParamFields() {
-  const { t, parameters, updateParameter } = useParamField();
   const dateRangeMode = parameters.startDate === '' && parameters.endDate === '' ? 'all' : 'custom';
   const handleDateRangeChange = (value: string) => {
     updateParameter('startDate', value === 'all' ? '' : DEFAULT_BACKTEST_START_DATE);
@@ -279,17 +280,15 @@ function useBasicParamFields() {
   };
   const handleDateChange = (field: 'startDate' | 'endDate', e: ChangeEvent<HTMLInputElement>) => {
     const v = e.target.value;
+    if (!v) return void updateParameter(field, v);
     const other = field === 'startDate' ? parameters.endDate : parameters.startDate;
     const today = new Date().toISOString().slice(0, 10);
-    const err = !v
-      ? null
-      : field === 'endDate' && v > today
-        ? t('params.endDateAfterToday')
-        : field === 'startDate' && other && v > other
-          ? t('params.startDateAfterEnd')
-          : field === 'endDate' && other && v < other
-            ? t('params.endDateBeforeStart')
-            : null;
+    let err: string | null = null;
+    if (field === 'endDate' && v > today) err = t('End date cannot be later than today');
+    else if (field === 'startDate' && other && v > other)
+      err = t('Start date cannot be later than end date');
+    else if (field === 'endDate' && other && v < other)
+      err = t('End date cannot be earlier than start date');
     if (err) {
       useToastStore.getState().addToast('warning', err);
       return;
@@ -311,6 +310,11 @@ function useBasicParamFields() {
   };
 }
 
+const CURRENCY_OPTIONS = [
+  { value: 'usd', label: 'USD ($)' },
+  { value: 'cny', label: 'CNY (¥)' },
+];
+
 function BasicParamsGrid() {
   const {
     t,
@@ -320,15 +324,15 @@ function BasicParamsGrid() {
     handleDateRangeChange,
     handleDateChange,
     handleNum,
-  } = useBasicParamFields();
+  } = useParamField();
   const dateFields = [
-    ['startDate', t('params.startDate'), parameters.startDate || DEFAULT_BACKTEST_START_DATE],
-    ['endDate', t('params.endDate'), parameters.endDate || DEFAULT_END_DATE],
+    ['startDate', t('Start Date'), parameters.startDate || DEFAULT_BACKTEST_START_DATE],
+    ['endDate', t('End Date'), parameters.endDate || DEFAULT_END_DATE],
   ] as const;
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
       {dateFields.map(([field, label, value]) => (
-        <FloatingLabelInput
+        <FloatingField
           key={field}
           label={label}
           type="date"
@@ -338,8 +342,8 @@ function BasicParamsGrid() {
           suffix={<Calendar className="h-4 w-4" />}
         />
       ))}
-      <FloatingLabelInput
-        label={t('params.startingValue')}
+      <FloatingField
+        label={t('Starting Value')}
         type="number"
         value={parameters.startingValue}
         min={1}
@@ -347,27 +351,29 @@ function BasicParamsGrid() {
         onChange={(e) => handleNum('startingValue', e)}
         prefix={parameters.baseCurrency === 'usd' ? '$' : '¥'}
       />
-      <FloatingLabelInput
-        label={t('params.rollingWindow')}
+      <FloatingField
+        label={t('Rolling Window')}
         type="number"
         value={parameters.rollingWindowMonths}
         min={1}
         max={120}
         step={1}
         onChange={(e) => handleNum('rollingWindowMonths', e)}
-        suffix={t('params.months')}
+        suffix={t('mo')}
       />
-      <FloatingLabelSelect
-        label={t('params.dateRange')}
+      <FloatingField
+        label={t('Date Range')}
+        type="select"
         value={dateRangeMode}
         onValueChange={handleDateRangeChange}
         options={[
-          { value: 'all', label: t('params.allHistory') },
-          { value: 'custom', label: t('params.customRange') },
+          { value: 'all', label: t('All History') },
+          { value: 'custom', label: t('Custom Range') },
         ]}
       />
-      <FloatingLabelSelect
-        label={t('params.currency')}
+      <FloatingField
+        label={t('Currency')}
+        type="select"
         value={parameters.baseCurrency}
         onValueChange={(v) => updateParameter('baseCurrency', v as 'usd' | 'cny')}
         options={CURRENCY_OPTIONS}
@@ -399,7 +405,7 @@ function AdvancedParamsSection({
         <ChevronDown
           className={cn('h-4 w-4 transition-transform duration-200', advancedOpen && 'rotate-180')}
         />
-        {t('params.advanced')}
+        {t('Advanced')}
       </CollapsibleTrigger>
       <CollapsibleContent className="mt-4">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-4 border-t border-border-subtle">
@@ -422,7 +428,7 @@ function AdvancedParamsSection({
               className="mt-0.5"
             />
             <div className="flex-1">
-              <div className="text-body text-fg">{t('params.pickBenchmarkTicker')}</div>
+              <div className="text-body text-fg">{t('Pick benchmark ticker')}</div>
               {benchmarkEnabled && (
                 <div className="mt-1 w-[130px]">
                   <TickerInput

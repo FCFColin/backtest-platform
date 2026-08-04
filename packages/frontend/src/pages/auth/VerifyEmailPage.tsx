@@ -13,14 +13,14 @@ export default function VerifyEmailPage() {
   const [params] = useSearchParams();
   const token = params.get('token') ?? '';
   const [status, setStatus] = useState<Status>('pending');
-  const [message, setMessage] = useState(t('auth.verifyEmail.pending'));
+  const [message, setMessage] = useState(t('Verifying your email...'));
   const ran = useRef(false);
   useEffect(() => {
     if (ran.current) return;
     ran.current = true;
     if (!token) {
       setStatus('error');
-      setMessage(t('auth.verifyEmail.missingToken'));
+      setMessage(t('Missing verification token'));
       return;
     }
     void (async () => {
@@ -33,46 +33,37 @@ export default function VerifyEmailPage() {
         const body = await res.json();
         if (res.ok && body?.data?.verified) {
           setStatus('success');
-          setMessage(t('auth.verifyEmail.success'));
+          setMessage(t('Email verified successfully'));
         } else {
           setStatus('error');
-          setMessage(body?.detail || t('auth.verifyEmail.invalidLink'));
+          setMessage(body?.detail || t('Verification link is invalid or has expired'));
         }
       } catch {
         setStatus('error');
-        setMessage(t('auth.verifyEmail.requestFailed'));
+        setMessage(t('Verification request failed'));
       }
     })();
   }, [token, t]);
   const statusIcon =
     status === 'pending' ? (
-      <Loader2 className="w-10 h-10 animate-spin" style={{ color: 'hsl(var(--brand))' }} />
+      <Loader2 className="w-10 h-10 animate-spin text-brand" />
     ) : status === 'success' ? (
-      <CheckCircle2 className="w-10 h-10" style={{ color: 'var(--success, #16a34a)' }} />
+      <CheckCircle2 className="w-10 h-10 text-success" />
     ) : (
-      <XCircle className="w-10 h-10" style={{ color: 'var(--danger, #dc2626)' }} />
+      <XCircle className="w-10 h-10 text-danger" />
     );
   return (
     <AuthPageLayout
       centered
       maxWidth={460}
-      icon={<div style={{ margin: '0 auto 12px' }}>{statusIcon}</div>}
-      title={t('auth.verifyEmail.title')}
+      icon={<div className="mx-auto mb-3">{statusIcon}</div>}
+      title={t('Email Verification')}
     >
-      <p style={{ fontSize: 14, color: 'var(--text-muted)', lineHeight: 1.6 }}>{message}</p>
+      <p className="text-sm text-fg-tertiary leading-relaxed">{message}</p>
       {status !== 'pending' && (
-        <div style={{ marginTop: 18 }}>
-          <Link
-            to="/login"
-            className="main-action-btn"
-            style={{
-              display: 'inline-flex',
-              height: 40,
-              alignItems: 'center',
-              padding: '0 18px',
-            }}
-          >
-            {t('auth.verifyEmail.goToLogin')}
+        <div className="mt-[18px]">
+          <Link to="/login" className="main-action-btn inline-flex h-10 items-center px-[18px]">
+            {t('Go to Login')}
           </Link>
         </div>
       )}
@@ -83,36 +74,22 @@ function NotAuthedContent({ token }: { token: string }) {
   const { t } = useTranslation();
   return (
     <>
-      <p style={{ fontSize: 14, color: 'var(--text-muted)', lineHeight: 1.6 }}>
-        {t('auth.acceptInvite.loginFirstHint')}
+      <p className="text-sm text-fg-tertiary leading-relaxed">
+        {t('Please log in before accepting the invitation')}
       </p>
-      <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 18 }}>
+      <div className="flex gap-2.5 justify-center mt-[18px]">
         <Link
           to="/login"
           state={{ from: `/accept-invite?token=${encodeURIComponent(token)}` }}
-          className="main-action-btn"
-          style={{
-            display: 'inline-flex',
-            height: 40,
-            alignItems: 'center',
-            gap: 6,
-            padding: '0 16px',
-          }}
+          className="main-action-btn inline-flex h-10 items-center gap-1.5 px-4"
         >
-          <LogIn className="w-4 h-4" /> {t('auth.login.submit')}
+          <LogIn className="w-4 h-4" /> {t('Log In')}
         </Link>
         <Link
           to="/signup"
-          className="bg-input-bg text-fg border border-border-subtle rounded font-medium"
-          style={{
-            display: 'inline-flex',
-            height: 40,
-            alignItems: 'center',
-            padding: '0 16px',
-            textDecoration: 'none',
-          }}
+          className="bg-input-bg text-fg border border-border-subtle rounded font-medium inline-flex h-10 items-center px-4 no-underline"
         >
-          {t('auth.signup.submit')}
+          {t('Sign Up')}
         </Link>
       </div>
     </>
@@ -122,16 +99,12 @@ function DoneContent({ onNavigate }: { onNavigate: () => void }) {
   const { t } = useTranslation();
   return (
     <>
-      <p style={{ fontSize: 14, color: 'var(--success, #16a34a)', lineHeight: 1.6 }}>
-        {t('auth.acceptInvite.joinSuccess')}
+      <p className="text-sm text-success leading-relaxed">
+        {t('Successfully joined the organization')}
       </p>
-      <div style={{ marginTop: 18 }}>
-        <button
-          onClick={onNavigate}
-          className="main-action-btn"
-          style={{ height: 40, padding: '0 18px' }}
-        >
-          {t('auth.acceptInvite.goToAccount')}
+      <div className="mt-[18px]">
+        <button onClick={onNavigate} className="main-action-btn h-10 px-[18px]">
+          {t('Go to Account')}
         </button>
       </div>
     </>
@@ -149,29 +122,22 @@ function InviteFormContent({
   const { t } = useTranslation();
   return (
     <>
-      <p style={{ fontSize: 14, color: 'var(--text-muted)', lineHeight: 1.6 }}>
-        {t('auth.acceptInvite.clickToAccept')}
+      <p className="text-sm text-fg-tertiary leading-relaxed">
+        {t('Click the button below to accept the invitation')}
       </p>
       <ErrorBanner message={error} style={{ marginTop: 12 }} />
-      <div style={{ marginTop: 18 }}>
+      <div className="mt-[18px]">
         <button
           onClick={onAccept}
           disabled={loading}
-          className="main-action-btn"
-          style={{
-            height: 42,
-            padding: '0 22px',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 8,
-          }}
+          className="main-action-btn h-[42px] px-[22px] inline-flex items-center gap-2"
         >
           {loading ? (
             <Loader2 className="w-4 h-4 animate-spin" />
           ) : (
             <UserPlus className="w-4 h-4" />
           )}
-          {loading ? t('common.running') : t('auth.acceptInvite.acceptButton')}
+          {loading ? t('Running...') : t('Accept Invitation')}
         </button>
       </div>
     </>
@@ -192,7 +158,7 @@ export function AcceptInvitePage() {
     setError(null);
     const result = await acceptInvite(token);
     if (!result.ok) {
-      setError(useAuthStore.getState().error || t('auth.acceptInvite.acceptFailed'));
+      setError(useAuthStore.getState().error || t('Failed to accept invitation'));
       return;
     }
     if (result.orgId) await switchOrg(result.orgId);
@@ -200,10 +166,12 @@ export function AcceptInvitePage() {
   };
   if (!token) {
     return (
-      <AuthPageLayout centered maxWidth={460} title={t('auth.acceptInvite.invalidLink')}>
-        <p style={{ fontSize: 14, color: 'var(--text-muted)' }}>
-          {t('auth.acceptInvite.missingToken')}
-        </p>
+      <AuthPageLayout
+        centered
+        maxWidth={460}
+        title={t('Invitation link is invalid or has expired')}
+      >
+        <p className="text-sm text-fg-tertiary">{t('Missing invitation token')}</p>
       </AuthPageLayout>
     );
   }
@@ -218,7 +186,7 @@ export function AcceptInvitePage() {
           style={{ margin: '0 auto 14px' }}
         />
       }
-      title={t('auth.acceptInvite.title')}
+      title={t('Accept Invitation')}
     >
       {!isAuthed ? (
         <NotAuthedContent token={token} />

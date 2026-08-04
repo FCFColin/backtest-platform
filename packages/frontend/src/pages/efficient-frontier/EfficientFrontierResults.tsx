@@ -110,13 +110,13 @@ const COLOR_FG_TERTIARY = 'hsl(var(--fg-tertiary))';
 function PointStats({ p }: { p: EfficientFrontierPoint }) {
   const { t } = useTranslation();
   const stats = [
-    { key: 'expectedReturn', value: `${p.expectedReturn.toFixed(2)}%`, color: COLOR_SUCCESS },
+    { key: 'Expected Return', value: `${p.expectedReturn.toFixed(2)}%`, color: COLOR_SUCCESS },
     {
-      key: 'expectedVolatility',
+      key: 'Expected Volatility',
       value: `${p.expectedVolatility.toFixed(2)}%`,
       color: COLOR_WARNING,
     },
-    { key: 'sharpeRatio', value: p.sharpeRatio.toFixed(2), color: COLOR_BRAND },
+    { key: 'Sharpe Ratio', value: p.sharpeRatio.toFixed(2), color: COLOR_BRAND },
   ];
   return (
     <div className="flex flex-col gap-2">
@@ -124,7 +124,7 @@ function PointStats({ p }: { p: EfficientFrontierPoint }) {
         <MiniStatCard
           key={s.key}
           className="bg-elevated p-2.5"
-          label={t(`efficientFrontier.results.${s.key}`)}
+          label={t(s.key)}
           value={s.value}
           color={s.color}
         />
@@ -144,40 +144,16 @@ function SelectedPointDetail({
   return (
     <div className="mt-4 rounded-md bg-input-bg p-4">
       <div className="mb-2 flex items-center justify-between">
-        <h3 className="text-label font-semibold text-fg">
-          {t('efficientFrontier.results.selectedPoint')}
-        </h3>
+        <h3 className="text-label font-semibold text-fg">{t('Selected Portfolio Details')}</h3>
         <LoadInBacktesterButton
           onClick={() => onLoadInBacktester(selectedPoint)}
-          label={t('efficientFrontier.results.load')}
+          label={t('Load')}
           size="sm"
         />
       </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <WeightAllocation
-          weights={selectedPoint.weights}
-          title={t('efficientFrontier.results.weightAllocation')}
-        />
-        <div className="flex flex-col gap-2">
-          <MiniStatCard
-            className="bg-elevated p-2.5"
-            label={t('efficientFrontier.results.expectedReturn')}
-            value={`${selectedPoint.expectedReturn.toFixed(2)}%`}
-            color={COLOR_SUCCESS}
-          />
-          <MiniStatCard
-            className="bg-elevated p-2.5"
-            label={t('efficientFrontier.results.expectedVolatility')}
-            value={`${selectedPoint.expectedVolatility.toFixed(2)}%`}
-            color={COLOR_WARNING}
-          />
-          <MiniStatCard
-            className="bg-elevated p-2.5"
-            label={t('efficientFrontier.results.sharpeRatio')}
-            value={selectedPoint.sharpeRatio.toFixed(2)}
-            color={COLOR_BRAND}
-          />
-        </div>
+        <WeightAllocation weights={selectedPoint.weights} title={t('Weight Allocation')} />
+        <PointStats p={selectedPoint} />
       </div>
     </div>
   );
@@ -187,14 +163,9 @@ function MaxSharpeSection({ maxSharpe }: { maxSharpe: EfficientFrontierPoint | u
   if (!maxSharpe) return null;
   return (
     <div>
-      <h3 className="mb-3 mt-6 text-h3 font-semibold text-fg">
-        {t('efficientFrontier.results.maxSharpePortfolio')}
-      </h3>
+      <h3 className="mb-3 mt-6 text-h3 font-semibold text-fg">{t('Max Sharpe Portfolio')}</h3>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <WeightAllocation
-          weights={maxSharpe.weights}
-          title={t('efficientFrontier.results.weight')}
-        />
+        <WeightAllocation weights={maxSharpe.weights} title={t('Weight')} />
         <div className="flex flex-col gap-3">
           <PointStats p={maxSharpe} />
         </div>
@@ -216,12 +187,10 @@ function ParamsSummary({
   const { t } = useTranslation();
   return (
     <div>
-      <h3 className="mb-3 mt-6 text-h3 font-semibold text-fg">
-        {t('efficientFrontier.results.paramsSummary')}
-      </h3>
+      <h3 className="mb-3 mt-6 text-h3 font-semibold text-fg">{t('Parameters Summary')}</h3>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <MiniStatCard
-          label={t('efficientFrontier.results.rebalanceFreq')}
+          label={t('Rebalancing Frequency')}
           value={
             t(`efficientFrontier.rebalanceFreq.${rebalanceFrequency}`, { defaultValue: '' }) ||
             rebalanceFrequency
@@ -229,21 +198,17 @@ function ParamsSummary({
           color={COLOR_FG_SECONDARY}
         />
         <MiniStatCard
-          label={t('efficientFrontier.results.allowCash')}
-          value={allowCash ? t('efficientFrontier.results.yes') : t('efficientFrontier.results.no')}
+          label={t('Allow Cash Allocation')}
+          value={allowCash ? t('Yes') : t('No')}
           color={allowCash ? COLOR_SUCCESS : COLOR_FG_TERTIARY}
         />
         <MiniStatCard
-          label={t('efficientFrontier.results.returnObjective')}
-          value={
-            returnObjective === 'maxCagr'
-              ? t('efficientFrontier.results.maxCagrShort')
-              : t('efficientFrontier.results.minVolShort')
-          }
+          label={t('Return Objective')}
+          value={returnObjective === 'maxCagr' ? t('Max CAGR') : t('Min Vol')}
           color={COLOR_FG_SECONDARY}
         />
         <MiniStatCard
-          label={t('efficientFrontier.results.solver')}
+          label={t('Solver')}
           value={t(`efficientFrontier.solver.${solver}`, { defaultValue: solver })}
           color={COLOR_FG_SECONDARY}
         />
@@ -299,10 +264,7 @@ function FrontierResultsView({ state }: { state: FrontierState }) {
   return (
     <div className="flex flex-col gap-3">
       {state.error && (
-        <ErrorBanner
-          message={`${t('efficientFrontier.calcFailed')}: ${state.error}`}
-          variant="error"
-        />
+        <ErrorBanner message={`${t('Calculation failed')}: ${state.error}`} variant="error" />
       )}
       {state.correlationError && !state.error && (
         <ErrorBanner message={state.correlationError} variant="warning" />

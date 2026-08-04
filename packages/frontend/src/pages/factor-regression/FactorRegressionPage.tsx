@@ -115,14 +115,14 @@ function ResidualsChart({ residuals }: { residuals: number[] }) {
             className="mr-1 inline-block h-1 w-3 rounded"
             style={{ backgroundColor: 'hsl(var(--success))' }}
           />
-          {t('factorRegression.results.positiveResidual')}
+          {t('Positive residual')}
         </span>
         <span>
           <span
             className="mr-1 inline-block h-1 w-3 rounded"
             style={{ backgroundColor: 'hsl(var(--danger))' }}
           />
-          {t('factorRegression.results.negativeResidual')}
+          {t('Negative residual')}
         </span>
       </div>
     </div>
@@ -143,13 +143,13 @@ function RegressionResultTable({
           <thead>
             <tr className="border-b-2 border-border-subtle">
               <th className="px-3 py-2.5 text-left text-caption font-semibold text-fg-tertiary">
-                {t('factorRegression.results.coefficient')}
+                {t('Coefficient')}
               </th>
               <th className="px-3 py-2.5 text-right text-caption font-semibold text-fg-tertiary">
-                {t('factorRegression.results.estimate')}
+                {t('Estimate')}
               </th>
               <th className="px-3 py-2.5 text-left text-caption font-semibold text-fg-tertiary">
-                {t('factorRegression.results.meaning')}
+                {t('Meaning')}
               </th>
             </tr>
           </thead>
@@ -159,14 +159,16 @@ function RegressionResultTable({
               color={FACTOR_COLORS.alpha}
               value={fmtPct(result.alpha)}
               valueClassName={result.alpha >= 0 ? 'text-pos' : 'text-neg'}
-              desc={t('factorRegression.results.alphaDesc')}
+              desc={t(
+                "Portfolio excess return (annualized); positive means outperforming the factor model's expectation",
+              )}
             />
             <RegressionRow
               label="Beta (MKT-RF)"
               color={FACTOR_COLORS.beta}
               value={fmtNum(result.beta, 3)}
               valueClassName="text-fg"
-              desc={t('factorRegression.results.betaDesc')}
+              desc={t('Market sensitivity; 1.0 means moving in sync with the market')}
             />
             {selectedFactors.includes('smb') && (
               <RegressionRow
@@ -174,7 +176,7 @@ function RegressionResultTable({
                 color={FACTOR_COLORS.smb}
                 value={fmtNum(result.smb, 3)}
                 valueClassName="text-fg"
-                desc={t('factorRegression.results.smbDesc')}
+                desc={t('Size factor loading; positive tilts toward small-cap stocks')}
               />
             )}
             {selectedFactors.includes('hml') && (
@@ -183,7 +185,7 @@ function RegressionResultTable({
                 color={FACTOR_COLORS.hml}
                 value={fmtNum(result.hml, 3)}
                 valueClassName="text-fg"
-                desc={t('factorRegression.results.hmlDesc')}
+                desc={t('Value factor loading; positive tilts toward value stocks')}
               />
             )}
             <RegressionRow
@@ -191,7 +193,9 @@ function RegressionResultTable({
               color="transparent"
               value={fmtNum(result.rSquared, 3)}
               valueClassName="text-fg"
-              desc={t('factorRegression.results.rSquaredDesc')}
+              desc={t(
+                'Model explanatory power; closer to 1 means factors explain returns more fully',
+              )}
             />
           </tbody>
         </table>
@@ -204,12 +208,7 @@ function FactorRegressionResultsPanel({ state: s }: { state: FactorRegressionSta
   const { t } = useTranslation();
   return (
     <div className="flex flex-col gap-3">
-      {error && (
-        <ErrorBanner
-          variant="error"
-          message={`${t('factorRegression.analysisFailed')}: ${error}`}
-        />
-      )}
+      {error && <ErrorBanner variant="error" message={`${t('Analysis failed')}: ${error}`} />}
       {result && (
         <>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -226,18 +225,20 @@ function FactorRegressionResultsPanel({ state: s }: { state: FactorRegressionSta
             />
             <StatCard label="R²" value={fmtNum(result.rSquared, 3)} color="transparent" />
           </div>
-          <CollapsibleSection title={t('factorRegression.results.title')} defaultOpen>
+          <CollapsibleSection title={t('Fama-French Three-Factor Regression Results')} defaultOpen>
             <RegressionResultTable result={result} selectedFactors={selectedFactors} />
           </CollapsibleSection>
           {result.residuals.length > 0 && (
-            <CollapsibleSection title={t('factorRegression.results.residuals')} defaultOpen>
+            <CollapsibleSection title={t('Regression Residuals')} defaultOpen>
               <Card className="p-4">
                 <ResidualsChart residuals={result.residuals} />
               </Card>
             </CollapsibleSection>
           )}
           <div className="rounded-md border border-border-subtle bg-input-bg p-3 text-caption italic text-fg-tertiary">
-            {t('factorRegression.results.mockNotice')}
+            {t(
+              'Factor data sourced from Kenneth French database (simulated data). The full version will integrate real-time Fama-French factor data.',
+            )}
           </div>
         </>
       )}

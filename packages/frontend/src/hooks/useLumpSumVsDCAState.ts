@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { TFunction } from 'i18next';
 import type { Statistics } from '@backtest/shared';
-import { useAsyncAction, useListState } from './miscHooks.js';
+import { useAsyncAction, useAssetList } from './miscHooks.js';
 import { apiFetch } from '@/utils/apiClient';
 import i18n from '../i18n/index.js';
 import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
@@ -149,8 +149,8 @@ async function executeComparison(s: LumpSumVsDCAStateInner, validAssets: LumpSum
     fetchBacktest(lumpSumBody),
     fetchBacktest(dcaBody),
   ]);
-  const lumpSumFailedMsg = i18n.t('lumpSumDca.errLumpSumFailed');
-  const dcaFailedMsg = i18n.t('lumpSumDca.errDcaFailed');
+  const lumpSumFailedMsg = i18n.t('Lump sum backtest failed');
+  const dcaFailedMsg = i18n.t('DCA backtest failed');
   if (!lumpSumRes.ok) throw new Error(`${lumpSumFailedMsg}: HTTP ${lumpSumRes.status}`);
   if (!dcaRes.ok) throw new Error(`${dcaFailedMsg}: HTTP ${dcaRes.status}`);
   const lumpSumJson = await lumpSumRes.json();
@@ -159,36 +159,25 @@ async function executeComparison(s: LumpSumVsDCAStateInner, validAssets: LumpSum
   if (dcaJson.success === false) throw new Error(dcaJson.error || dcaFailedMsg);
   const lumpSumP = (lumpSumJson.data ?? lumpSumJson).portfolios?.[0];
   const dcaP = (dcaJson.data ?? dcaJson).portfolios?.[0];
-  if (!lumpSumP) throw new Error(i18n.t('lumpSumDca.errLumpSumNoResult'));
-  if (!dcaP) throw new Error(i18n.t('lumpSumDca.errDcaNoResult'));
-  s.setResults([
-    toResult(lumpSumP, i18n.t('lumpSumDca.lumpSumLabel')),
-    toResult(dcaP, i18n.t('lumpSumDca.dcaLabel')),
-  ]);
+  if (!lumpSumP) throw new Error(i18n.t('Lump sum has no result'));
+  if (!dcaP) throw new Error(i18n.t('DCA has no result'));
+  s.setResults([toResult(lumpSumP, i18n.t('Lump Sum')), toResult(dcaP, i18n.t('DCA'))]);
 }
 export function useLumpSumVsDCAState(t: TFunction) {
   const s = useLumpSumVsDCAStateInner();
-  const {
-    items: assets,
-    setItems: setAssets,
-    addItem: addAsset,
-    removeItem: removeAsset,
-    updateItem,
-  } = useListState<LumpSumAsset>(
-    [
-      { ticker: 'VTI', weight: 60 },
-      { ticker: 'BND', weight: 40 },
-    ],
-    () => ({ ticker: '', weight: 0 }),
-    0,
-  );
-  const updateAsset = (i: number, field: 'ticker' | 'weight', val: string | number) =>
-    updateItem(i, (prev) => ({ ...prev, [field]: val }));
-  const totalWeight = assets.reduce((sum, a) => sum + (a.weight || 0), 0);
+  const { assets, setAssets, addAsset, removeAsset, updateAsset, totalWeight } =
+    useAssetList<LumpSumAsset>(
+      [
+        { ticker: 'VTI', weight: 60 },
+        { ticker: 'BND', weight: 40 },
+      ],
+      () => ({ ticker: '', weight: 0 }),
+      0,
+    );
   const runComparison = () => {
     const validAssets = assets.filter((a) => a.ticker.trim() !== '');
     if (validAssets.length === 0) {
-      s.setError(t('lumpSumDca.errEmptyAssets'));
+      s.setError(t('Please add at least one ticker'));
       return;
     }
     const weightErr = validateAssetWeights(assets);

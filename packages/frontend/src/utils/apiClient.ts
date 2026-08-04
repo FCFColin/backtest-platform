@@ -105,7 +105,12 @@ async function handleResponseToast(res: Response): Promise<void> {
       const warning = body.degradedWarning;
       useToastStore
         .getState()
-        .addToast('warning', typeof warning === 'string' ? warning : i18n.t('errors.dataDegraded'));
+        .addToast(
+          'warning',
+          typeof warning === 'string'
+            ? warning
+            : i18n.t('Some data unavailable, results may be incomplete'),
+        );
     }
     // eslint-disable-next-line no-empty -- 非 JSON 响应体无法解析为 { error, degraded } 结构，跳过 Toast 处理
   } catch {}
@@ -138,7 +143,7 @@ export async function apiFetch(
 export async function apiPostJSON<T>(
   url: string,
   body: unknown,
-  errorMsg = i18n.t('errors.requestFailed'),
+  errorMsg = i18n.t('Request failed'),
 ): Promise<T> {
   const res = await apiFetch(url, {
     method: 'POST',
@@ -150,10 +155,7 @@ export async function apiPostJSON<T>(
   if (json.success === false) throw new Error(json.error || errorMsg);
   return json.data as T;
 }
-export async function apiGetJSON<T>(
-  url: string,
-  errorMsg = i18n.t('errors.requestFailed'),
-): Promise<T> {
+export async function apiGetJSON<T>(url: string, errorMsg = i18n.t('Request failed')): Promise<T> {
   const res = await apiFetch(url);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const json = await res.json();
@@ -162,7 +164,7 @@ export async function apiGetJSON<T>(
 }
 export async function apiDeleteJSON<T>(
   url: string,
-  errorMsg = i18n.t('errors.requestFailed'),
+  errorMsg = i18n.t('Request failed'),
 ): Promise<T> {
   const res = await apiFetch(url, { method: 'DELETE' });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);

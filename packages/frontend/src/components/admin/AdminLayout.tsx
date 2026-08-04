@@ -123,7 +123,7 @@ export default function AdminLayout() {
     if (item.end) return location.pathname === '/admin';
     return location.pathname.startsWith(item.to);
   });
-  const currentLabel = currentItem ? t(currentItem.labelKey) : t('adminLayout.adminConsole');
+  const currentLabel = currentItem ? t(currentItem.labelKey) : t('Admin Console');
   return (
     <div className="flex h-dvh overflow-hidden bg-app">
       {mobileOpen && (
@@ -191,9 +191,7 @@ function AdminSidebar({
       <div className="flex h-14 items-center gap-2 border-b border-border px-3">
         <BarChart3 className="h-5 w-5 shrink-0 text-brand" />
         {!collapsed && (
-          <span className="text-sm font-bold tracking-wide text-fg">
-            {t('adminLayout.adminConsole')}
-          </span>
+          <span className="text-sm font-bold tracking-wide text-fg">{t('Admin Console')}</span>
         )}
         <button
           className="ml-auto hidden rounded p-1 hover:bg-hover lg:block"
@@ -221,7 +219,7 @@ function AdminSidebar({
           className="flex items-center gap-2 rounded-md px-2 py-2 text-sm text-fg-tertiary transition-colors hover:bg-hover hover:text-fg"
         >
           <ArrowLeft className="h-4 w-4 shrink-0" />
-          {!collapsed && <span>{t('adminLayout.backToSite')}</span>}
+          {!collapsed && <span>{t('Back to Site')}</span>}
         </NavLink>
       </div>
     </aside>

@@ -65,11 +65,13 @@ function usePcaPageState() {
           endDate,
           numComponents: numComponents === '' ? undefined : numComponents,
         },
-        i18n.t('pca.errAnalyze'),
+        i18n.t('PCA analysis failed'),
       );
     },
     () =>
-      tickers.map((tk) => tk.trim()).filter(Boolean).length >= 2 ? null : t('pca.errMinTwoTickers'),
+      tickers.map((tk) => tk.trim()).filter(Boolean).length >= 2
+        ? null
+        : t('PCA analysis requires at least 2 ticker symbols'),
   );
   return {
     tickers,
@@ -110,17 +112,19 @@ function PCAParamsPanel({ state: s }: { state: PCAState }) {
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
       <div className="col-span-full">
         <Field>
-          <FieldLabel>{t('pca.asset.section')}</FieldLabel>
+          <FieldLabel>{t('Asset Selection')}</FieldLabel>
           <TickerTagInput
             tickers={s.tickers}
             onChange={handleTagChange}
             minCount={2}
-            placeholder={t('pca.asset.tickerPlaceholder')}
+            placeholder={t('Enter symbol, e.g. SPY')}
           />
-          <FieldDescription>{t('pca.asset.sectionInfo')}</FieldDescription>
+          <FieldDescription>
+            {t('Add 2 or more ticker symbols; PCA analyzes their daily returns')}
+          </FieldDescription>
         </Field>
       </div>
-      <LabeledField htmlFor="pca-start-date" label={t('pca.dateRange.startDate')}>
+      <LabeledField htmlFor="pca-start-date" label={t('Start Date')}>
         <Input
           id="pca-start-date"
           type="date"
@@ -128,7 +132,7 @@ function PCAParamsPanel({ state: s }: { state: PCAState }) {
           onChange={(e) => s.setStartDate(e.target.value)}
         />
       </LabeledField>
-      <LabeledField htmlFor="pca-end-date" label={t('pca.dateRange.endDate')}>
+      <LabeledField htmlFor="pca-end-date" label={t('End Date')}>
         <Input
           id="pca-end-date"
           type="date"
@@ -137,7 +141,7 @@ function PCAParamsPanel({ state: s }: { state: PCAState }) {
         />
       </LabeledField>
       <Field>
-        <FieldLabel htmlFor="pca-num-components">{t('pca.params.numComponents')}</FieldLabel>
+        <FieldLabel htmlFor="pca-num-components">{t('Number of Components')}</FieldLabel>
         <div className="relative">
           <Input
             id="pca-num-components"
@@ -148,23 +152,25 @@ function PCAParamsPanel({ state: s }: { state: PCAState }) {
             onChange={(e) =>
               s.setNumComponents(e.target.value === '' ? '' : Number(e.target.value))
             }
-            placeholder={t('pca.params.numComponentsPlaceholder')}
+            placeholder={t('Auto')}
           />
           <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-caption text-fg-tertiary">
             {t('pca.params.numComponentsSuffix')}
           </span>
         </div>
-        <FieldDescription>{t('pca.params.numComponentsHint')}</FieldDescription>
+        <FieldDescription>
+          {t('Leave empty to keep all components (equals the number of assets)')}
+        </FieldDescription>
       </Field>
       <div className="col-span-full">
         <LoadingButton
           isLoading={s.isLoading}
           onClick={s.runAnalysis}
-          loadingText={t('pca.analyzing')}
+          loadingText={t('Analyzing...')}
           className={buttonVariants({ variant: 'primary', size: 'lg', className: 'w-full' })}
         >
           <Play className="w-4 h-4" />
-          {t('pca.startAnalysis')}
+          {t('Run Analysis')}
         </LoadingButton>
       </div>
     </div>
@@ -181,7 +187,7 @@ function EigenvalueBarChart({ data }: { data: { component: string; eigenvalue: n
           <YAxis tick={AXIS_TICK_STYLE} tickFormatter={(v: number) => v.toFixed(2)} />
           <Tooltip
             contentStyle={CHART_TOOLTIP_STYLE}
-            formatter={(value: number) => [value.toFixed(4), t('pca.results.eigenvalue')]}
+            formatter={(value: number) => [value.toFixed(4), t('Eigenvalues')]}
           />
           <Bar dataKey="eigenvalue" fill={CHART_COLORS[0]} radius={[2, 2, 0, 0]} />
         </BarChart>
@@ -199,10 +205,7 @@ function CumulativeVarianceChart({ data }: { data: { component: string; cumulati
         height={300}
         yDomain={[0, 100]}
         yTickFormatter={(v) => `${v.toFixed(0)}%`}
-        tooltipValueFormatter={(v) => [
-          `${v.toFixed(2)}%`,
-          t('pca.results.cumulativeVarianceLabel'),
-        ]}
+        tooltipValueFormatter={(v) => [`${v.toFixed(2)}%`, t('Cumulative Variance')]}
         referenceY={90}
         showLegend={false}
         colorOffset={1}
@@ -304,23 +307,23 @@ function PCAResultsPanel({ state: s }: { state: PCAState }) {
       error={error}
       isLoading={isLoading}
       hasResults={!!results}
-      errorPrefix={t('pca.analysisFailedPrefix')}
-      loadingLabel={t('pca.analyzing')}
-      emptyTitle={t('pca.emptyHint')}
+      errorPrefix={t('Analysis failed: ')}
+      loadingLabel={t('Analyzing...')}
+      emptyTitle={t('Set parameters and click "Run Analysis" to view results')}
     >
       {results && (
         <div className="flex flex-col gap-3">
-          <CollapsibleSection title={t('pca.results.eigenvalue')} defaultOpen>
+          <CollapsibleSection title={t('Eigenvalues')} defaultOpen>
             <EigenvalueBarChart data={eigenvalueData} />
           </CollapsibleSection>
-          <CollapsibleSection title={t('pca.results.cumulativeVariance')} defaultOpen>
+          <CollapsibleSection title={t('Cumulative Variance Explained')} defaultOpen>
             <CumulativeVarianceChart data={cumulativeData} />
           </CollapsibleSection>
-          <CollapsibleSection title={t('pca.results.loadingMatrix')} defaultOpen>
+          <CollapsibleSection title={t('Loading Matrix')} defaultOpen>
             <LoadingMatrix results={results} />
           </CollapsibleSection>
           {results.scores.length > 0 && results.scores[0].length >= 2 && (
-            <CollapsibleSection title={t('pca.results.scatterTitle')} defaultOpen>
+            <CollapsibleSection title={t('Principal Component Scores (PC1 vs PC2)')} defaultOpen>
               <PCAScatterChart data={scatterData} />
             </CollapsibleSection>
           )}
