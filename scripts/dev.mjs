@@ -1,5 +1,6 @@
 import { spawn, execSync } from 'node:child_process';
 import { existsSync, mkdirSync } from 'node:fs';
+import path from 'node:path';
 import { appendFile } from 'node:fs/promises';
 import { createServer, Socket } from 'node:net';
 import { isWin, npxCmd, nodeCmd, PROJECT_ROOT, tsxLoaderUrl } from './_dev-shared.mjs';
@@ -34,13 +35,7 @@ function findFreePort(preferred) {
       const port = server.address().port;
       server.close(() => resolve(port));
     });
-    server.on('error', () => {
-      if (preferred) {
-        resolve(findFreePort(0));
-      } else {
-        resolve(0);
-      }
-    });
+    server.on('error', () => resolve(preferred ? findFreePort(0) : 0));
   });
 }
 
@@ -68,36 +63,30 @@ async function waitServiceHealthy(url, deadlineMs = 30_000) {
   return false;
 }
 
-function waitPortOpen(port, label, deadlineMs = 30_000) {
-  return new Promise((resolve) => {
-    const deadline = Date.now() + deadlineMs;
-    const check = () => {
-      const socket = new Socket();
-      socket.setTimeout(2000);
-      socket.once('connect', () => {
-        socket.destroy();
+async function waitPortOpen(port, deadlineMs = 30_000) {
+  const deadline = Date.now() + deadlineMs;
+  while (Date.now() < deadline) {
+    const open = await new Promise((resolve) => {
+      const s = new Socket();
+      s.setTimeout(2000);
+      s.once('connect', () => {
+        s.destroy();
         resolve(true);
       });
-      socket.once('error', () => {
-        socket.destroy();
-        if (Date.now() < deadline) {
-          setTimeout(check, 1000);
-        } else {
-          resolve(false);
-        }
+      s.once('error', () => {
+        s.destroy();
+        resolve(false);
       });
-      socket.once('timeout', () => {
-        socket.destroy();
-        if (Date.now() < deadline) {
-          setTimeout(check, 1000);
-        } else {
-          resolve(false);
-        }
+      s.once('timeout', () => {
+        s.destroy();
+        resolve(false);
       });
-      socket.connect(port, '127.0.0.1');
-    };
-    check();
-  });
+      s.connect(port, '127.0.0.1');
+    });
+    if (open) return true;
+    await new Promise((r) => setTimeout(r, 1000));
+  }
+  return false;
 }
 
 function spawnLocalService(cwd, args, label) {
@@ -143,8 +132,8 @@ const env = {
 };
 
 async function ensureInfrastructure() {
-  const pgOk = await waitPortOpen(PG_PORT, 'PostgreSQL', 2_000);
-  const redisOk = await waitPortOpen(REDIS_PORT, 'Redis', 2_000);
+  const pgOk = await waitPortOpen(PG_PORT, 2_000);
+  const redisOk = await waitPortOpen(REDIS_PORT, 2_000);
   if (pgOk && redisOk) {
     console.log('[dev] PostgreSQL + Redis 已就绪');
     return;
@@ -163,8 +152,8 @@ async function ensureInfrastructure() {
     process.exit(1);
   }
   const [pgReady, redisReady] = await Promise.all([
-    waitPortOpen(PG_PORT, 'PostgreSQL', 30_000),
-    waitPortOpen(REDIS_PORT, 'Redis', 30_000),
+    waitPortOpen(PG_PORT, 30_000),
+    waitPortOpen(REDIS_PORT, 30_000),
   ]);
   if (pgReady) console.log('[dev] PostgreSQL 已就绪');
   else console.warn('[dev] PostgreSQL 未就绪，部分功能可能不可用');

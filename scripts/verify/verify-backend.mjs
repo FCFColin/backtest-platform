@@ -143,15 +143,17 @@ await runCheck(results, 'C-003', async () => {
     hasSizeLimit: /maxSize|contentLength|content-length/i,
     hasDnsRebindingProtection: /resolve.*again|double.*check|resolve.*second|getaddrinfo|dnsLookup.*then.*fetch/,
   };
-  const webhookChecks = { hasIpValidation: regexes.hasIpValidation.test(webhookSrc), hasDnsResolve: regexes.hasDnsResolve.test(webhookSrc), hasPortValidation: regexes.hasPortValidation.test(webhookSrc), hasTimeout: regexes.hasTimeout.test(webhookSrc), hasSizeLimit: regexes.hasSizeLimit.test(webhookSrc), hasDnsRebindingProtection: regexes.hasDnsRebindingProtection.test(webhookSrc) };
-  const ssrfChecks = ssrfGuardExists ? { hasIpValidation: regexes.hasIpValidation.test(ssrfSrc), hasDnsResolve: regexes.hasDnsResolve.test(ssrfSrc), hasPortValidation: regexes.hasPortValidation.test(ssrfSrc), hasTimeout: regexes.hasTimeout.test(ssrfSrc), hasSizeLimit: regexes.hasSizeLimit.test(ssrfSrc), hasDnsRebindingProtection: regexes.hasDnsRebindingProtection.test(ssrfSrc) } : { hasIpValidation: false, hasDnsResolve: false, hasPortValidation: false, hasTimeout: false, hasSizeLimit: false, hasDnsRebindingProtection: false };
-  const combinedChecks = { hasIpValidation: webhookChecks.hasIpValidation || ssrfChecks.hasIpValidation, hasDnsResolve: webhookChecks.hasDnsResolve || ssrfChecks.hasDnsResolve, hasPortValidation: webhookChecks.hasPortValidation || ssrfChecks.hasPortValidation, hasTimeout: webhookChecks.hasTimeout || ssrfChecks.hasTimeout, hasSizeLimit: webhookChecks.hasSizeLimit || ssrfChecks.hasSizeLimit, hasDnsRebindingProtection: webhookChecks.hasDnsRebindingProtection || ssrfChecks.hasDnsRebindingProtection };
+  const checkAll = (src) => Object.fromEntries(Object.entries(regexes).map(([k, re]) => [k, re.test(src)]));
+  const webhookChecks = checkAll(webhookSrc);
+  const ssrfChecks = ssrfGuardExists ? checkAll(ssrfSrc) : Object.fromEntries(Object.keys(regexes).map((k) => [k, false]));
+  const combinedChecks = Object.fromEntries(Object.keys(regexes).map((k) => [k, webhookChecks[k] || ssrfChecks[k]]));
   const actualSizeLimit = /MAX_RESPONSE_BYTES|readResponseWithLimit|maxBytes/i.test(webhookSrc) || /MAX_RESPONSE_BYTES|readResponseWithLimit|maxBytes/i.test(ssrfSrc);
   const actualDnsRebinding = /dns\.resolve4|resolve4\s*\(/.test(ssrfSrc) && /for\s*\(.*addr.*\)|\.forEach|\.map/.test(ssrfSrc) && /rebind|SSRF_DNS_REBINDING/i.test(ssrfSrc);
   const actualIpValidation = /isPrivateIPv4|isPrivateIPv6|isForbiddenIp/.test(ssrfSrc);
   const importsAssertSafeUrl = /import\s+\{[^}]*assertSafeUrl[^}]*\}\s+from\s+['"][^'"]*ssrfGuard/.test(webhookSrc);
   const callsAssertSafeUrl = /assertSafeUrl\s*\(/.test(webhookSrc);
   const actualProtection = { sizeLimit: actualSizeLimit, dnsRebinding: actualDnsRebinding, ipValidation: actualIpValidation, importsAssertSafeUrl, callsAssertSafeUrl };
+  const actualProtectionMap = { hasIpValidation: actualIpValidation, hasSizeLimit: actualSizeLimit, hasDnsRebindingProtection: actualDnsRebinding };
   const specifiedTestPath = 'tests/unit/services/webhookService.ssrf.test.ts';
   const alternativeTestPaths = ['tests/unit/utils/ssrf-guard.test.ts', 'tests/unit/application/webhookService.test.ts'];
   const hasSpecifiedTestFile = fileExists(specifiedTestPath);
@@ -178,7 +180,7 @@ await runCheck(results, 'C-003', async () => {
   const createWebhookCallsSsrf = /assertSafeUrl/.test(routesSrc);
   const sendWebhookCallsSsrf = /deliverWebhook[\s\S]*?assertSafeUrl/.test(webhookSrc) || callsAssertSafeUrl;
   const additionalChecks = { isPrivateIpUtilityExists: isPrivateIpUtilHits.length > 0, isPrivateIpUtilityPath: isPrivateIpUtilHits.map((h) => h.file), isPrivateIpTestExists: isPrivateIpTestHits.length > 0, isPrivateIpTestPath: isPrivateIpTestHits.map((h) => h.file), createWebhookValidation: createWebhookCallsSsrf ? 'SSRF check via assertSafeUrl' : createWebhookHasHttpsOnly ? 'HTTPS-only (Zod refine), NO SSRF check at registration' : 'unknown', sendWebhookValidation: sendWebhookCallsSsrf ? 'SSRF check via assertSafeUrl before fetch' : 'NO SSRF check found', bothPathsValidated: createWebhookCallsSsrf && sendWebhookCallsSsrf };
-  const staticPassMap = { hasIpValidation: combinedChecks.hasIpValidation || actualProtection.ipValidation, hasDnsResolve: combinedChecks.hasDnsResolve, hasPortValidation: combinedChecks.hasPortValidation, hasTimeout: combinedChecks.hasTimeout, hasSizeLimit: combinedChecks.hasSizeLimit || actualProtection.sizeLimit, hasDnsRebindingProtection: combinedChecks.hasDnsRebindingProtection || actualProtection.dnsRebinding };
+  const staticPassMap = Object.fromEntries(Object.keys(regexes).map((k) => [k, combinedChecks[k] || actualProtectionMap[k] || false]));
   const staticAllPass = Object.values(staticPassMap).every(Boolean);
   const hasTestFile = hasSpecifiedTestFile || alternativeTestFiles.length > 0;
   const delegationValid = importsAssertSafeUrl && callsAssertSafeUrl;
@@ -193,21 +195,11 @@ await runCheck(results, 'C-003', async () => {
 
 // ── C-018: singleflight 验证 ───────────────────────────────────
 await runCheck(results, 'C-018', () => {
-  const C018_targetFile = 'packages/backend/src/application/backtest/backtestResultCache.ts';
-  if (!fileExists(C018_targetFile)) {
-    return { status: 'FAIL', summary: `${C018_targetFile} 不存在` };
-  }
-  const matches = grepInCode(/inFlight\.(set|get|delete)/, 'packages/backend/src/application/backtest', { extensions: ['.ts'] });
-  const fileMatches = matches.filter((m) => m.file.includes('backtestResultCache.ts'));
-  const operations = new Set();
-  for (const m of fileMatches) { const opMatch = m.text.match(/inFlight\.(set|get|delete)/); if (opMatch) operations.add(opMatch[1]); }
-  const hasSet = operations.has('set'), hasGet = operations.has('get'), hasDelete = operations.has('delete');
-  const allThree = hasSet && hasGet && hasDelete;
-  return {
-    status: allThree ? 'PASS' : 'FAIL',
-    summary: allThree ? `inFlight Map 三种操作齐全 (set/get/delete), 共 ${fileMatches.length} 处匹配` : `inFlight Map 操作不完整: set=${hasSet}, get=${hasGet}, delete=${hasDelete}`,
-    details: { targetFile: C018_targetFile, totalMatches: fileMatches.length, hasSet, hasGet, hasDelete, matches: fileMatches.map((m) => ({ file: m.file, line: m.line, text: m.text })) },
-  };
+  const f = 'packages/backend/src/application/backtest/backtestResultCache.ts';
+  if (!fileExists(f)) return { status: 'FAIL', summary: `${f} 不存在` };
+  const ops = new Set(grepInCode(/inFlight\.(set|get|delete)/, 'packages/backend/src/application/backtest', { extensions: ['.ts'] }).filter((m) => m.file.includes('backtestResultCache.ts')).map((m) => m.text.match(/inFlight\.(set|get|delete)/)?.[1]));
+  const ok = ops.has('set') && ops.has('get') && ops.has('delete');
+  return { status: ok ? 'PASS' : 'FAIL', summary: ok ? 'inFlight Map 三种操作齐全 (set/get/delete)' : `inFlight Map 操作不完整: ${[...ops].join('/')}`, details: { operations: [...ops] } };
 });
 
 // ── C-020: engine timeout 验证 ──────────────────────────────────
@@ -218,15 +210,9 @@ await runCheck(results, 'C-020', () => {
   }
   const content = readFileContent(C020_targetFile);
   let timeoutMs = null, matchLine = '';
-  const directMatch = content.match(/ENGINE_TIMEOUT_MS\s*[=:]\s*(\d+)/);
-  if (directMatch) { timeoutMs = parseInt(directMatch[1], 10); matchLine = directMatch[0]; }
-  if (timeoutMs === null) {
-    const parseIntMatch = content.match(/ENGINE_TIMEOUT_MS\s*:\s*parseInt\([^)]*?\|\|\s*['"](\d+)['"]/);
-    if (parseIntMatch) { timeoutMs = parseInt(parseIntMatch[1], 10); matchLine = parseIntMatch[0]; }
-  }
-  if (timeoutMs === null) {
-    const envMatch = content.match(/ENGINE_TIMEOUT_MS\s*[=:]\s*[^;]*?\|\|\s*['"](\d+)['"]/);
-    if (envMatch) { timeoutMs = parseInt(envMatch[1], 10); matchLine = envMatch[0]; }
+  for (const re of [/ENGINE_TIMEOUT_MS\s*[=:]\s*(\d+)/, /ENGINE_TIMEOUT_MS\s*:\s*parseInt\([^)]*?\|\|\s*['"](\d+)['"]/, /ENGINE_TIMEOUT_MS\s*[=:]\s*[^;]*?\|\|\s*['"](\d+)['"]/]) {
+    const m = content.match(re);
+    if (m) { timeoutMs = parseInt(m[1], 10); matchLine = m[0]; break; }
   }
   if (timeoutMs === null) {
     return { status: 'FAIL', summary: `${C020_targetFile} 中未找到 ENGINE_TIMEOUT_MS 的数值`, details: { content: content.slice(0, 2000) } };
@@ -241,18 +227,10 @@ await runCheck(results, 'C-020', () => {
 
 // ── C-021: BullMQ DLQ 验证 ──────────────────────────────────────
 await runCheck(results, 'C-021', () => {
-  const C021_targetDir = 'packages/backend/src/queues';
-  const C021_absDir = join(PROJECT_ROOT_PATH, C021_targetDir);
-  if (!existsSync(C021_absDir)) {
-    return { status: 'FAIL', summary: `${C021_targetDir} 目录不存在` };
-  }
-  const matches = grepInCode(/deadLetterQueue|dlq|DeadLetterQueue/i, C021_targetDir, { extensions: ['.ts'] });
-  const isPass = matches.length >= 1;
-  return {
-    status: isPass ? 'PASS' : 'FAIL',
-    summary: isPass ? `BullMQ DLQ 已配置 (${matches.length} 处匹配)` : `未找到 BullMQ DLQ 配置 (0 处匹配)`,
-    details: { matchCount: matches.length, matches: matches.map((m) => ({ file: m.file, line: m.line, text: m.text })) },
-  };
+  if (!existsSync(join(PROJECT_ROOT_PATH, 'packages/backend/src/queues'))) return { status: 'FAIL', summary: 'packages/backend/src/queues 目录不存在' };
+  const matches = grepInCode(/deadLetterQueue|dlq|DeadLetterQueue/i, 'packages/backend/src/queues', { extensions: ['.ts'] });
+  const ok = matches.length >= 1;
+  return { status: ok ? 'PASS' : 'FAIL', summary: ok ? `BullMQ DLQ 已配置 (${matches.length} 处匹配)` : '未找到 BullMQ DLQ 配置', details: { matchCount: matches.length, matches } };
 });
 
 // ── C-024: Webhook secret 加密验证 ──────────────────────────────

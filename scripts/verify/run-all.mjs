@@ -74,7 +74,7 @@ if (existsSync(OUTPUT_DIR)) {
       const data = JSON.parse(readFileSync(join(OUTPUT_DIR, f), 'utf-8'));
       if (data.results && typeof data.results === 'object' && !Array.isArray(data.results)) {
         for (const [subId, sub] of Object.entries(data.results)) {
-          const normalizedId = /^(C|H)d+$/.test(subId) ? subId.replace(/^(C|H)(d+)$/, '$1-$2') : subId;
+          const normalizedId = /^(C|H)\d+$/.test(subId) ? subId.replace(/^(C|H)(\d+)$/, '$1-$2') : subId;
           issueResults.push({ issueId: normalizedId, ...sub });
         }
       } else if (data.issueId) {

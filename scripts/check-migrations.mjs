@@ -35,6 +35,13 @@ function warn(msg) {
   warnings.push(msg);
 }
 
+function assertContinuous(versions, msg) {
+  const sorted = [...versions].sort((a, b) => a - b);
+  for (let v = sorted[0]; v <= sorted[sorted.length - 1]; v++) {
+    if (!sorted.includes(v)) error(msg(v));
+  }
+}
+
 if (!fs.existsSync(MIGRATIONS_DIR)) {
   console.error(`✗ 迁移目录不存在: ${MIGRATIONS_DIR}`);
   process.exit(1);
@@ -90,13 +97,7 @@ for (const f of upFiles) {
 upVersions.sort((a, b) => a - b);
 
 if (upVersions.length > 0) {
-  const min = upVersions[0];
-  const max = upVersions[upVersions.length - 1];
-  for (let v = min; v <= max; v++) {
-    if (!upVersions.includes(v)) {
-      error(`序号空隙: 缺少 ${String(v).padStart(3, '0')}_*.sql`);
-    }
-  }
+  assertContinuous(upVersions, (v) => `序号空隙: 缺少 ${String(v).padStart(3, '0')}_*.sql`);
 }
 
 // --- 检查 3: UP/DOWN 配对 ---
@@ -176,14 +177,7 @@ if (registryEntries.length > 0) {
     }
   }
 
-  const sortedReg = [...registryVersions].sort((a, b) => a - b);
-  const regMin = sortedReg[0];
-  const regMax = sortedReg[sortedReg.length - 1];
-  for (let v = regMin; v <= regMax; v++) {
-    if (!sortedReg.includes(v)) {
-      error(`注册表序号空隙: 缺少版本 ${v}`);
-    }
-  }
+  assertContinuous(registryVersions, (v) => `注册表序号空隙: 缺少版本 ${v}`);
 }
 
 // --- 输出结果 ---

@@ -12,6 +12,14 @@ const results = {
   bonusChecks: { status: 'SKIP', summary: '未执行', details: {} },
 };
 
+const setResult = (id, status, summary, details = {}) => {
+  results[id] = { status, summary, details };
+};
+const skipAll = (msg, err) => {
+  for (const id of ['C004', 'C005', 'C006', 'bonusChecks'])
+    if (results[id].status === 'SKIP') setResult(id, 'SKIP', msg, { error: String(err ?? '') });
+};
+
 const useEngineHealthRefs = grepInCode(/useEngineHealth/, 'packages/frontend/src', {
   extensions: ['.ts', '.tsx'],
 });
@@ -33,10 +41,7 @@ try {
   browser = await chromium.launch({ headless: true });
 } catch (e) {
   const msg = 'chromium 启动失败（可能未安装浏览器二进制）：' + (e?.message ?? e);
-  results.C004 = { status: 'SKIP', summary: msg, details: { error: String(e) } };
-  results.C005 = { status: 'SKIP', summary: msg, details: { error: String(e) } };
-  results.C006 = { status: 'SKIP', summary: msg, details: { error: String(e) } };
-  results.bonusChecks = { status: 'SKIP', summary: msg, details: { error: String(e) } };
+  skipAll(msg, e);
   writeAggregatedResult('C-004-005-006-019-frontend', results);
   console.error(msg);
   process.exit(2);
@@ -140,16 +145,13 @@ try {
       /login|登录|密码|password|email|邮箱/i.test(loginPageSnippet);
   }
 
-  results.C004 = {
-    status: loginPageIsValid && navChecks.loginHrefs?.some((h) => h === '/login') ? 'PASS' : 'FAIL',
-    summary:
-      loginPageIsValid && navChecks.loginHrefs?.some((h) => h === '/login')
-        ? '登录链接 href=/login，点击后进入 ' + loginPageUrl + '，无 404'
-        : '登录链接验证失败：hrefs=' +
-          JSON.stringify(navChecks.loginHrefs) +
-          ' url=' +
-          loginPageUrl,
-    details: {
+  setResult(
+    'C004',
+    loginPageIsValid && navChecks.loginHrefs?.some((h) => h === '/login') ? 'PASS' : 'FAIL',
+    loginPageIsValid && navChecks.loginHrefs?.some((h) => h === '/login')
+      ? '登录链接 href=/login，点击后进入 ' + loginPageUrl + '，无 404'
+      : '登录链接验证失败：hrefs=' + JSON.stringify(navChecks.loginHrefs) + ' url=' + loginPageUrl,
+    {
       loginLinkCount: navChecks.loginLinkCount,
       loginHrefs: navChecks.loginHrefs,
       signupLinkCount: navChecks.signupLinkCount,
@@ -158,7 +160,7 @@ try {
       loginPageIsValid,
       loginPageSnippet: loginPageSnippet?.slice(0, 200),
     },
-  };
+  );
 
   const c005Pass =
     homepageChecks.runButtonExists === true &&
@@ -166,22 +168,23 @@ try {
     homepageChecks.startingValueValid === true &&
     homepageChecks.startingValueValue !== null &&
     homepageChecks.startingValueValue !== '';
-  results.C005 = {
-    status: c005Pass ? 'PASS' : 'FAIL',
-    summary: c005Pass
+  setResult(
+    'C005',
+    c005Pass ? 'PASS' : 'FAIL',
+    c005Pass
       ? '起始资金 input 默认值=' +
-        homepageChecks.startingValueValue +
-        '，validity.valid=true，运行按钮存在且未禁用'
+          homepageChecks.startingValueValue +
+          '，validity.valid=true，运行按钮存在且未禁用'
       : '起始资金验证失败：value=' +
-        homepageChecks.startingValueValue +
-        ' valid=' +
-        homepageChecks.startingValueValid +
-        ' runBtn=' +
-        homepageChecks.runButtonExists +
-        ' disabled=' +
-        homepageChecks.runButtonDisabled,
-    details: homepageChecks,
-  };
+          homepageChecks.startingValueValue +
+          ' valid=' +
+          homepageChecks.startingValueValid +
+          ' runBtn=' +
+          homepageChecks.runButtonExists +
+          ' disabled=' +
+          homepageChecks.runButtonDisabled,
+    homepageChecks,
+  );
 
   await page.goto(BASE + '/', { waitUntil: 'load', timeout: 30000 });
   const clsValue = await page.evaluate(
@@ -204,33 +207,34 @@ try {
   );
   const cls = typeof clsValue === 'object' ? clsValue.cls : clsValue;
   const clsError = typeof clsValue === 'object' ? clsValue.error : null;
-  results.C006 = {
-    status: cls >= 0 && cls < 0.1 ? 'PASS' : 'FAIL',
-    summary:
-      cls >= 0
-        ? 'CLS 实测=' + cls + '（阈值 <0.1）' + (cls < 0.1 ? '，达标' : '，未达标')
-        : 'CLS 测量失败：' + clsError,
-    details: { clsValue: cls, threshold: 0.1, error: clsError },
-  };
+  setResult(
+    'C006',
+    cls >= 0 && cls < 0.1 ? 'PASS' : 'FAIL',
+    cls >= 0
+      ? 'CLS 实测=' + cls + '（阈值 <0.1）' + (cls < 0.1 ? '，达标' : '，未达标')
+      : 'CLS 测量失败：' + clsError,
+    { clsValue: cls, threshold: 0.1, error: clsError },
+  );
 
   const noBonusIssues =
     homepageChecks.h1Count === 1 &&
     homepageChecks.i18nLeakedCount === 0 &&
     homepageChecks.nanCount === 0 &&
     failedNavigations.length === 0;
-  results.bonusChecks = {
-    status: noBonusIssues ? 'PASS' : 'FAIL',
-    summary: noBonusIssues
+  setResult(
+    'bonusChecks',
+    noBonusIssues ? 'PASS' : 'FAIL',
+    noBonusIssues
       ? '无 bonus 问题：H1=1、无 i18n 泄露、无 NaN、无失败 navigation'
       : '存在 bonus 问题：H1=' +
-        homepageChecks.h1Count +
-        ' i18n泄露=' +
-        homepageChecks.i18nLeakedCount +
-        ' NaN=' +
-        homepageChecks.nanCount +
-        ' 失败nav=' +
-        failedNavigations.length,
-    details: {
+          homepageChecks.h1Count +
+          ' i18n泄露=' +
+          homepageChecks.i18nLeakedCount +
+          ' NaN=' +
+          homepageChecks.nanCount +
+          ' 失败nav=' +
+          failedNavigations.length,
+    {
       h1Count: homepageChecks.h1Count,
       h1Texts: homepageChecks.h1Texts,
       i18nLeakedCount: homepageChecks.i18nLeakedCount,
@@ -239,21 +243,10 @@ try {
       nanSample: homepageChecks.nanSample,
       failedNavigations,
     },
-  };
+  );
 } catch (e) {
   const msg = '动态检查异常：' + (e?.message ?? e);
-  if (results.C004.status === 'SKIP')
-    results.C004 = { status: 'SKIP', summary: msg, details: { error: String(e?.stack ?? e) } };
-  if (results.C005.status === 'SKIP')
-    results.C005 = { status: 'SKIP', summary: msg, details: { error: String(e?.stack ?? e) } };
-  if (results.C006.status === 'SKIP')
-    results.C006 = { status: 'SKIP', summary: msg, details: { error: String(e?.stack ?? e) } };
-  if (results.bonusChecks.status === 'SKIP')
-    results.bonusChecks = {
-      status: 'SKIP',
-      summary: msg,
-      details: { error: String(e?.stack ?? e) },
-    };
+  skipAll(msg, e?.stack ?? e);
 } finally {
   await browser.close();
 }

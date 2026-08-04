@@ -155,13 +155,7 @@ export function grepInCode(pattern, relativeDir, opts = {}) {
   return results;
 }
 
-export function grepCount(pattern, relativeDir, opts) {
-  return grepInCode(pattern, relativeDir, opts).length;
-}
-
-/**
- * 执行 shell 命令（跨平台，返回 stdout/exit code）
- */
+/** 执行 shell 命令（跨平台，返回 stdout/exit code）。 */
 export function runCmd(cmd, opts = {}) {
   try {
     const out = execSync(cmd, {
@@ -179,34 +173,6 @@ export function runCmd(cmd, opts = {}) {
       err: e.stderr?.toString?.() ?? e.message ?? '',
     };
   }
-}
-
-export function psqlViaDocker(sql, opts = {}) {
-  const user = opts.user ?? 'backtest';
-  const db = opts.db ?? 'backtest';
-  const container = opts.container ?? 'backtest-postgres';
-  const escaped = sql.replace(/'/g, "'\\''");
-  const cmd = `docker exec ${container} psql -U ${user} -d ${db} -t -A -F '|' -c '${escaped}'`;
-  const r = runCmd(cmd);
-  return r;
-}
-
-export function skipResult(issueId, reason, details = {}) {
-  return {
-    issueId,
-    status: 'SKIP',
-    summary: reason,
-    details,
-  };
-}
-
-export function needsManualReview(issueId, reason, details = {}) {
-  return {
-    issueId,
-    status: 'NEEDS_MANUAL_REVIEW',
-    summary: reason,
-    details,
-  };
 }
 
 /**
@@ -238,4 +204,3 @@ export function finishVerify(aggregateId, results) {
 }
 
 export const PROJECT_ROOT_PATH = PROJECT_ROOT;
-export const VERIFY_OUTPUT_DIR = OUTPUT_DIR;

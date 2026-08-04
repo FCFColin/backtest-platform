@@ -137,10 +137,8 @@ try {
     hasStats: !!stats,
     cagrInRange: stats?.cagr >= 0.03 && stats?.cagr <= 0.15,
     cagrIsSmallNumber: typeof stats?.cagr === 'number' && stats?.cagr < 1,
-    maxDrawdownInRange:
-      maxDrawdownAbs !== null && maxDrawdownAbs >= 0.05 && maxDrawdownAbs <= 0.6,
-    maxDrawdownIsDecimalRatio:
-      maxDrawdownAbs !== null && maxDrawdownAbs < 1,
+    maxDrawdownInRange: maxDrawdownAbs !== null && maxDrawdownAbs >= 0.05 && maxDrawdownAbs <= 0.6,
+    maxDrawdownIsDecimalRatio: maxDrawdownAbs !== null && maxDrawdownAbs < 1,
     endingValueInRange:
       (typeof stats?.endingValue === 'number' &&
         stats.endingValue >= 15000 &&
@@ -187,17 +185,19 @@ try {
         (Array.isArray(portfolio?.growthCurve) && portfolio.growthCurve.length > 0
           ? portfolio.growthCurve[portfolio.growthCurve.length - 1].value
           : undefined),
-      endingValueSource: typeof stats?.endingValue === 'number'
-        ? 'stats.endingValue'
-        : Array.isArray(portfolio?.growthCurve) && portfolio.growthCurve.length > 0
-          ? 'growthCurve[last].value'
-          : 'missing',
+      endingValueSource:
+        typeof stats?.endingValue === 'number'
+          ? 'stats.endingValue'
+          : Array.isArray(portfolio?.growthCurve) && portfolio.growthCurve.length > 0
+            ? 'growthCurve[last].value'
+            : 'missing',
       volatility: stats?.volatility ?? stats?.stdev,
-      volatilitySource: typeof stats?.volatility === 'number'
-        ? 'stats.volatility'
-        : typeof stats?.stdev === 'number'
-          ? 'stats.stdev'
-          : 'missing',
+      volatilitySource:
+        typeof stats?.volatility === 'number'
+          ? 'stats.volatility'
+          : typeof stats?.stdev === 'number'
+            ? 'stats.stdev'
+            : 'missing',
       drawdownEpisodeCount: episodes?.length,
       drawdownEpisodesSource:
         portfolio?.drawdownEpisodes && portfolio.drawdownEpisodes.length > 0
@@ -215,17 +215,26 @@ try {
         // 当前 API 只暴露 5 字段：peakDate, troughDate, recoveryDate, depth, totalTime
         // 本字段非阻塞，用于在 v3-final-summary 中诚实记录 P0-1-C 未完成差距
         const ep = episodes?.[0] ?? {};
-        return {
-          hasTimeToTrough: typeof ep.timeToTrough === 'number',
-          hasRecoveryTime: typeof ep.recoveryTime === 'number',
-          hasTotalTimeDurationDays: typeof ep.totalTimeDurationDays === 'number',
-          hasRecoveryFactor: typeof ep.recoveryFactor === 'number',
-          hasCagrDuring: typeof ep.cagrDuring === 'number',
-          hasUlcerDuring: typeof ep.ulcerDuring === 'number',
-          hasReturnFromPeakToTrough: typeof ep.returnFromPeakToTrough === 'number',
-          hasReturnFromTroughToRecovery:
-            typeof ep.returnFromTroughToRecovery === 'number' || ep.returnFromTroughToRecovery === undefined,
-        };
+        const fields = [
+          'timeToTrough',
+          'recoveryTime',
+          'totalTimeDurationDays',
+          'recoveryFactor',
+          'cagrDuring',
+          'ulcerDuring',
+          'returnFromPeakToTrough',
+        ];
+        return Object.fromEntries([
+          ...fields.map((k) => [
+            `has${k[0].toUpperCase() + k.slice(1)}`,
+            typeof ep[k] === 'number',
+          ]),
+          [
+            'hasReturnFromTroughToRecovery',
+            typeof ep.returnFromTroughToRecovery === 'number' ||
+              ep.returnFromTroughToRecovery === undefined,
+          ],
+        ]);
       })(),
       growthCurvePoints: portfolio?.growthCurve?.length,
       drawdownCurvePoints: portfolio?.drawdownCurve?.length,

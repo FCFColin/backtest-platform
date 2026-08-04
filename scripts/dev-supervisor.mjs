@@ -15,7 +15,7 @@
  */
 
 import { spawn } from 'node:child_process';
-import { existsSync, writeFileSync, readFileSync, unlinkSync, mkdirSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync, unlinkSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { nodeCmd, PROJECT_ROOT, tsxLoaderUrl } from './_dev-shared.mjs';
 
@@ -24,24 +24,10 @@ const LOG_DIR = path.join(ROOT, '.dev-logs');
 const PID_FILE = path.join(LOG_DIR, 'dev-bg-pids.json');
 const LOCK_FILE = path.join(LOG_DIR, 'dev-supervisor.lock');
 
-// ── 读 .env ──
-function loadEnv() {
-  const envPath = path.join(ROOT, '.env');
-  if (!existsSync(envPath)) return {};
-  const result = {};
-  const lines = readFileSync(envPath, 'utf-8').split('\n');
-  for (const raw of lines) {
-    const line = raw.trim();
-    if (!line || line.startsWith('#')) continue;
-    const eq = line.indexOf('=');
-    if (eq < 1) continue;
-    const key = line.slice(0, eq).trim();
-    let value = line.slice(eq + 1).trim();
-    if (value.startsWith('"') && value.endsWith('"')) value = value.slice(1, -1);
-    result[key] = value;
-  }
-  return result;
-}
+// ── 读 .env（Node 内置 dotenv 解析，写入 process.env）──
+try {
+  process.loadEnvFile(path.join(ROOT, '.env'));
+} catch {}
 
 // ── 日志 ──
 function log(tag, msg) {
@@ -91,7 +77,6 @@ function checkLock() {
 }
 
 // ── 主逻辑 ──
-const dotEnv = loadEnv();
 if (!tsxLoaderUrl) {
   log('supervisor', '找不到 tsx loader，退出');
   process.exit(1);
@@ -99,14 +84,13 @@ if (!tsxLoaderUrl) {
 
 const env = {
   ...process.env,
-  ...dotEnv,
   SERVE_STATIC: 'true',
   COMPUTE_RATE_LIMIT_MAX: process.env.COMPUTE_RATE_LIMIT_MAX || '200',
   ENGINE_AUTH_TOKEN: process.env.ENGINE_AUTH_TOKEN || 'dev-engine-auth-token',
   DATA_SERVICE_AUTH_TOKEN: process.env.DATA_SERVICE_AUTH_TOKEN || 'dev-data-service-auth-token',
 };
 
-const PORT = process.env.PORT || dotEnv.API_PORT || '15001';
+const PORT = process.env.PORT || process.env.API_PORT || '15001';
 
 // ── 定义要守护的服务 ──
 const SERVICES = [

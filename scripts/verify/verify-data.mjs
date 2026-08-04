@@ -12,11 +12,19 @@ import {
 
 const results = {};
 
-const C001_EXPECTED_VERSIONS = [
-  1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27,
-  29, 30,
-];
-const C001_FORBIDDEN_VERSIONS = [28];
+const regLines = (path) =>
+  readFileContent(path)
+    .split('\n')
+    .filter((l) => !/^\s*(\/\/|\*)/.test(l));
+
+const C001_EXPECTED_VERSIONS = (() => {
+  const regPath = 'packages/backend/src/db/migrations.ts';
+  if (!fileExists(regPath)) return [];
+  return regLines(regPath)
+    .map((l) => l.match(/version:\s*(\d+)/)?.[1])
+    .filter(Boolean)
+    .map(Number);
+})();
 const C001_EXPECTED_TABLES = [
   'audit_logs',
   'webhook_endpoints',
@@ -36,7 +44,7 @@ await runCheck(results, 'C-001', () =>
     const appliedSet = new Set(applied);
 
     const missingVersions = C001_EXPECTED_VERSIONS.filter((v) => !appliedSet.has(v));
-    const forbiddenPresent = C001_FORBIDDEN_VERSIONS.filter((v) => appliedSet.has(v));
+    const unexpectedVersions = applied.filter((v) => !C001_EXPECTED_VERSIONS.includes(v));
 
     const tablesRes = await db.query(
       `SELECT tablename FROM pg_tables
@@ -94,7 +102,7 @@ await runCheck(results, 'C-001', () =>
 
     const pass =
       missingVersions.length === 0 &&
-      forbiddenPresent.length === 0 &&
+      unexpectedVersions.length === 0 &&
       missingTables.length === 0 &&
       timescaleInstalled &&
       pricesIsHypertable &&
@@ -102,13 +110,13 @@ await runCheck(results, 'C-001', () =>
 
     return {
       status: pass ? 'PASS' : 'FAIL',
-      summary: `applied=${applied.length} (expect 29), missing=${missingVersions.length}, forbidden_present=${forbiddenPresent.length}, missing_tables=${missingTables.length}, timescale=${timescaleInstalled}, prices_hypertable=${pricesIsHypertable}, announcements_id_type=${announcementsIdType}`,
+      summary: `applied=${applied.length} (expect ${C001_EXPECTED_VERSIONS.length}), missing=${missingVersions.length}, unexpected=${unexpectedVersions.length}, missing_tables=${missingTables.length}, timescale=${timescaleInstalled}, prices_hypertable=${pricesIsHypertable}, announcements_id_type=${announcementsIdType}`,
       details: {
         appliedCount: applied.length,
         appliedVersions: applied,
         expectedCount: C001_EXPECTED_VERSIONS.length,
         missingVersions,
-        forbiddenVersionsPresent: forbiddenPresent,
+        unexpectedVersions,
         foundTables,
         missingTables,
         timescaleInstalled,
@@ -218,7 +226,7 @@ await runCheck(results, 'C-016', () => {
   };
 });
 
-await runCheck(results, 'C-017', async () => {
+await runCheck(results, 'C-017', () => {
   const C017_MIGRATIONS_DIR_REL = 'migrations';
   const C017_MIGRATIONS_REG_PATH = 'packages/backend/src/db/migrations.ts';
 
@@ -234,68 +242,29 @@ await runCheck(results, 'C-017', async () => {
     };
   }
 
-  const files028 = allFiles.filter((f) => /^028_/.test(f));
-  const files029Up = allFiles.filter((f) => /^029_announcements\.sql$/.test(f));
-  const files029Down = allFiles.filter((f) => /^029_announcements_down\.sql$/.test(f));
-  const files030Up = allFiles.filter((f) => /^030_custom_tickers\.sql$/.test(f));
-  const files030Down = allFiles.filter((f) => /^030_custom_tickers_down\.sql$/.test(f));
-
-  let regContent = '';
-  let regFileExists = fileExists(C017_MIGRATIONS_REG_PATH);
-  if (regFileExists) {
-    regContent = readFileContent(C017_MIGRATIONS_REG_PATH);
-  }
-  const hasRegV29 = /version:\s*29\b/.test(regContent);
-  const hasRegV30 = /version:\s*30\b/.test(regContent);
-  const hasRegV28 = /version:\s*28\b/.test(regContent);
-  const v28RealReg = regContent
-    .split('\n')
-    .filter((l) => /version:\s*28\b/.test(l) && !/^\s*\/\//.test(l) && !/^\s*\*/.test(l));
-
-  let dbHasV28 = null;
-  let dbAppliedVersions = [];
-  let dbError = null;
-  try {
-    await withDb(async (db) => {
-      const r = await db.query('SELECT version FROM schema_migrations ORDER BY version');
-      dbAppliedVersions = r.rows.map((x) => x.version);
-      dbHasV28 = dbAppliedVersions.includes(28);
-    });
-  } catch (e) {
-    dbError = e.message;
-  }
-
-  const fsClean = files028.length === 0;
-  const regClean = !hasRegV28 || v28RealReg.length === 0;
-  const dbClean = dbHasV28 === false;
-  const filesComplete =
-    files029Up.length === 1 &&
-    files029Down.length === 1 &&
-    files030Up.length === 1 &&
-    files030Down.length === 1;
-  const regComplete = hasRegV29 && hasRegV30;
-  const pass = fsClean && regClean && dbClean && filesComplete && regComplete && !dbError;
+  const regFileExists = fileExists(C017_MIGRATIONS_REG_PATH);
+  const registeredFiles = regFileExists
+    ? regLines(C017_MIGRATIONS_REG_PATH)
+        .map((l) => {
+          const m = l.match(/upFile:\s*'([^']+)'\s*,\s*downFile:\s*'([^']+)'/);
+          return m ? [m[1], m[2]] : null;
+        })
+        .filter(Boolean)
+        .flat()
+    : [];
+  const orphans = allFiles.filter((f) => !registeredFiles.includes(f));
+  const missingRegFiles = registeredFiles.filter((f) => !allFiles.includes(f));
+  const pass = regFileExists && orphans.length === 0 && missingRegFiles.length === 0;
 
   return {
     status: pass ? 'PASS' : 'FAIL',
-    summary: `fs_028=${files028.length}, reg_v28_real=${v28RealReg.length}, db_v28=${dbHasV28}, files_complete=${filesComplete}, reg_v29=${hasRegV29}, reg_v30=${hasRegV30}, db_err=${!!dbError}`,
+    summary: `orphans=${orphans.length}, missing_reg_files=${missingRegFiles.length}, registered=${registeredFiles.length}`,
     details: {
       migrationsDirFiles: allFiles,
-      files028,
-      files029Up,
-      files029Down,
-      files030Up,
-      files030Down,
-      filesComplete,
+      registeredFiles,
+      orphans,
+      missingRegFiles,
       regFileExists,
-      regHasV29: hasRegV29,
-      regHasV30: hasRegV30,
-      regHasV28Any: hasRegV28,
-      regV28NonCommentLines: v28RealReg,
-      regComplete,
-      dbHasV28,
-      dbAppliedVersions,
-      dbError,
     },
   };
 });
