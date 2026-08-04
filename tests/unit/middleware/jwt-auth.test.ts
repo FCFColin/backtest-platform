@@ -11,6 +11,7 @@ import {
   createJwtAuthMockNext,
   awaitMiddleware,
 } from '../../helpers/expressMocks.js';
+import { expectProblem } from '../../helpers/routeAssertions.js';
 import {
   mocks,
   redisMocks,
@@ -57,12 +58,10 @@ async function expectJwtAuth401(
     mw(req, res, next);
   });
   expect(next).not.toHaveBeenCalled();
-  expect(res.status).toHaveBeenCalledWith(401);
   if (code) {
-    expect(res.json).toHaveBeenCalledWith(
-      expect.objectContaining({ success: false, error: expect.objectContaining({ code }) }),
-    );
+    expectProblem(res, code, 401);
   } else {
+    expect(res.status).toHaveBeenCalledWith(401);
     expect(res.header).toHaveBeenCalledWith('Content-Type', 'application/problem+json');
   }
 }

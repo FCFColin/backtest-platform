@@ -46,6 +46,7 @@ function mockRow(overrides: Record<string, unknown> = {}) {
 }
 
 describe('portfolioRepo', () => {
+  beforeEach(() => vi.clearAllMocks());
   it('listPortfolios 应经 withTenant 并映射行', async () => {
     dbMocks.query.mockResolvedValueOnce({
       rows: [mockRow({ name: '60/40', assets: [{ ticker: 'SPY', weight: 60 }] })],

@@ -8,7 +8,8 @@ import type {
 } from '@backtest/shared';
 import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
 import { validatePortfolioCore } from '@/utils/validation';
-import { getErrorI18nKey } from '../utils/errorReporter.js';
+import { getErrorI18nKey, reportError } from '../utils/errorReporter.js';
+import { useToastStore } from './toastStore.js';
 import { PRESET_PORTFOLIOS, findPresetPortfolio } from './presetPortfolios.js';
 export function extractApiErrorDetail(json: unknown): string {
   if (!json || typeof json !== 'object') return i18n.t('backtest.runFailed');
@@ -143,5 +144,50 @@ export function validatePortfolios(portfolios: Portfolio[]): string | null {
             name: portfolios[idx].name,
             total: total.toFixed(2),
           }),
+  });
+}
+const PORTFOLIO_BODY_KEYS = [
+  'name',
+  'assets',
+  'rebalanceFrequency',
+  'rebalanceThreshold',
+  'rebalanceOffset',
+  'rebalanceBands',
+  'drag',
+  'totalReturn',
+  'isGlidepath',
+  'glidepathToWeights',
+  'glidepathYears',
+] as const;
+export function buildBacktestRequestBody(portfolios: Portfolio[], parameters: BacktestParameters) {
+  return {
+    portfolios: portfolios.map((p) =>
+      Object.fromEntries(PORTFOLIO_BODY_KEYS.map((k) => [k, p[k]])),
+    ),
+    parameters,
+  };
+}
+export function handleBacktestError(error: unknown): void {
+  reportError(error, { component: 'backtestStore', action: 'handleBacktestError' });
+  const isAbort = error instanceof DOMException && error.name === 'AbortError';
+  const msg = isAbort
+    ? i18n.t('backtest.timeout')
+    : error instanceof TypeError
+      ? i18n.t('backtest.networkError')
+      : (error instanceof Error && error.message) || i18n.t('backtest.runFailed');
+  useToastStore.getState().addToast('error', msg);
+}
+export function cancellableSleep(ms: number, signal: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal.aborted) return reject(new DOMException('Aborted', 'AbortError'));
+    const timeoutId = setTimeout(() => {
+      signal.removeEventListener('abort', onAbort);
+      resolve();
+    }, ms);
+    const onAbort = () => {
+      clearTimeout(timeoutId);
+      reject(new DOMException('Aborted', 'AbortError'));
+    };
+    signal.addEventListener('abort', onAbort, { once: true });
   });
 }

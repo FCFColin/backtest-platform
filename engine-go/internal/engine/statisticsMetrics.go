@@ -162,7 +162,7 @@ func CalcInformationRatio(alpha, trackingError float64) float64 {
 	return alpha / trackingError
 }
 func CalcCaptureRatio(pr, br []float64, upside bool) float64 {
-	return calcCaptureRatio(pr, br, func(r float64) bool { return upside == (r > 0) })
+	return calcCaptureRatio(pr, br, upsideFilter(upside))
 }
 func sortedReturnsPercentile(returns []float64) []float64 {
 	if len(returns) < 2 {
@@ -247,10 +247,10 @@ func calcCaptureRatio(portfolioReturns, benchmarkReturns []float64, filter func(
 	return portfolioGeoMean / benchmarkGeoMean
 }
 func CalcConditionalCorr(pr, br []float64, upside bool) float64 {
-	return calcConditionalCorrelation(pr, br, func(r float64) bool { return upside == (r > 0) })
+	return calcFiltered(pr, br, upsideFilter(upside), CalcCorrelation)
 }
 func CalcConditionalBeta(pr, br []float64, upside bool) float64 {
-	return calcConditionalBeta(pr, br, func(r float64) bool { return upside == (r > 0) })
+	return calcFiltered(pr, br, upsideFilter(upside), CalcBeta)
 }
 func CalcTreynor(cagr, beta float64) float64 {
 	if beta == 0 {
@@ -277,19 +277,15 @@ func filterPairedReturns(portfolioReturns, benchmarkReturns []float64, filter fu
 	}
 	return pFilt, bFilt
 }
-func calcConditionalCorrelation(portfolioReturns, benchmarkReturns []float64, filter func(float64) bool) float64 {
-	pFilt, bFilt := filterPairedReturns(portfolioReturns, benchmarkReturns, filter)
-	if len(pFilt) < 2 {
-		return 0
-	}
-	return CalcCorrelation(pFilt, bFilt)
+func upsideFilter(upside bool) func(float64) bool {
+	return func(r float64) bool { return upside == (r > 0) }
 }
-func calcConditionalBeta(portfolioReturns, benchmarkReturns []float64, filter func(float64) bool) float64 {
-	pFilt, bFilt := filterPairedReturns(portfolioReturns, benchmarkReturns, filter)
+func calcFiltered(pr, br []float64, filter func(float64) bool, calc func([]float64, []float64) float64) float64 {
+	pFilt, bFilt := filterPairedReturns(pr, br, filter)
 	if len(pFilt) < 2 {
 		return 0
 	}
-	return CalcBeta(pFilt, bFilt)
+	return calc(pFilt, bFilt)
 }
 
 type MaxDrawdownResult struct {
@@ -513,19 +509,10 @@ func rollingWindowSuccessRate(annualReturns []float64, years int, withdrawalRate
 	return float64(successes) / float64(numWindows)
 }
 func CalcPWRAllYears(annualReturns []float64) (pwr10y, swr10y, pwr20y, swr20y, pwr30y, swr30y, pwr40y, swr40y float64) {
+	slots := [8]*float64{&pwr10y, &swr10y, &pwr20y, &swr20y, &pwr30y, &swr30y, &pwr40y, &swr40y}
 	for i, y := range []int{10, 20, 30, 40} {
 		if len(annualReturns) >= y {
-			p, s := CalcPWRYears(annualReturns, y), CalcSWR(annualReturns, y, 0.95)
-			switch i {
-			case 0:
-				pwr10y, swr10y = p, s
-			case 1:
-				pwr20y, swr20y = p, s
-			case 2:
-				pwr30y, swr30y = p, s
-			case 3:
-				pwr40y, swr40y = p, s
-			}
+			*slots[i*2], *slots[i*2+1] = CalcPWRYears(annualReturns, y), CalcSWR(annualReturns, y, 0.95)
 		}
 	}
 	return

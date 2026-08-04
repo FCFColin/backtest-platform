@@ -32,7 +32,6 @@ import {
 import type {
   BestMetricsCardProps,
   ComparisonTableSectionProps,
-  ConstraintRowProps,
   GrowthComparisonChartProps,
   Objective,
   OptimizerFormState,
@@ -277,45 +276,6 @@ function FreqMultiSelect({ s }: OptimizerSectionProps) {
     </div>
   );
 }
-function RangeInputs({
-  titleKey,
-  prefix,
-  suffix,
-  step,
-  fields,
-}: {
-  titleKey: string;
-  prefix?: string;
-  suffix?: string;
-  step: string;
-  fields: Array<[string, string, (v: string) => void]>;
-}) {
-  const { t } = useTranslation();
-  return (
-    <div>
-      <div className="mb-1.5 text-caption font-medium text-fg-secondary">{t(titleKey)}</div>
-      <ParamRow>
-        {fields.map(([label, val, set]) => (
-          <ParamCard key={label} label={label}>
-            <div className="flex items-center gap-2">
-              {prefix && (
-                <span className="text-body text-fg-tertiary font-mono shrink-0">{prefix}</span>
-              )}
-              <Input
-                type="number"
-                step={step}
-                className="font-mono tabular-nums"
-                value={val}
-                onChange={(e) => set(e.target.value)}
-              />
-              {suffix && <span className="text-caption text-fg-tertiary shrink-0">{suffix}</span>}
-            </div>
-          </ParamCard>
-        ))}
-      </ParamRow>
-    </div>
-  );
-}
 function ParameterSpaceSection({ s }: OptimizerSectionProps) {
   const { t } = useTranslation();
   return (
@@ -326,55 +286,35 @@ function ParameterSpaceSection({ s }: OptimizerSectionProps) {
       <div className="flex flex-col gap-3">
         <FreqMultiSelect s={s} />
         {RANGE_DEFS.map((r) => (
-          <RangeInputs
-            key={r.titleKey}
-            titleKey={r.titleKey}
-            prefix={r.prefix}
-            suffix={r.suffix}
-            step={r.step}
-            fields={r.fields.map(
-              ([labelKey, formKey]) =>
-                [t(labelKey), s.form[formKey], (v: string) => s.patchForm({ [formKey]: v })] as [
-                  string,
-                  string,
-                  (v: string) => void,
-                ],
-            )}
-          />
+          <div key={r.titleKey}>
+            <div className="mb-1.5 text-caption font-medium text-fg-secondary">{t(r.titleKey)}</div>
+            <ParamRow>
+              {r.fields.map(([labelKey, formKey]) => (
+                <ParamCard key={labelKey} label={t(labelKey)}>
+                  <div className="flex items-center gap-2">
+                    {r.prefix && (
+                      <span className="text-body text-fg-tertiary font-mono shrink-0">
+                        {r.prefix}
+                      </span>
+                    )}
+                    <Input
+                      type="number"
+                      step={r.step}
+                      className="font-mono tabular-nums"
+                      value={s.form[formKey] as string}
+                      onChange={(e) => s.patchForm({ [formKey]: e.target.value })}
+                    />
+                    {r.suffix && (
+                      <span className="text-caption text-fg-tertiary shrink-0">{r.suffix}</span>
+                    )}
+                  </div>
+                </ParamCard>
+              ))}
+            </ParamRow>
+          </div>
         ))}
       </div>
     </ParamsSection>
-  );
-}
-function ConstraintRow({
-  enabled,
-  setEnabled,
-  label,
-  value,
-  setValue,
-  placeholder,
-}: ConstraintRowProps) {
-  return (
-    <div className="flex items-center gap-2.5">
-      <label className="flex items-center gap-2 w-[130px] mb-0 cursor-pointer">
-        <Switch checked={enabled} onCheckedChange={setEnabled} />
-        <span className="text-caption text-fg-secondary">{label}</span>
-      </label>
-      <div className="flex-1">
-        <div className="flex items-center gap-2">
-          <Input
-            type="number"
-            step="0.1"
-            className="font-mono tabular-nums"
-            value={value}
-            onChange={(e) => setValue(e.target.value)}
-            placeholder={placeholder}
-            disabled={!enabled}
-          />
-          <span className="text-caption text-fg-tertiary shrink-0">%</span>
-        </div>
-      </div>
-    </div>
   );
 }
 function ObjectiveSection({ s }: OptimizerSectionProps) {
@@ -405,15 +345,29 @@ function ObjectiveSection({ s }: OptimizerSectionProps) {
       </ParamRow>
       <div className="mt-3 flex flex-col gap-3">
         {CONSTRAINT_DEFS.map((c) => (
-          <ConstraintRow
-            key={c.enabledKey}
-            enabled={s.form[c.enabledKey]}
-            setEnabled={(v) => s.patchForm({ [c.enabledKey]: v })}
-            label={t(c.labelKey)}
-            value={s.form[c.valueKey]}
-            setValue={(v) => s.patchForm({ [c.valueKey]: v })}
-            placeholder={t(c.placeholderKey)}
-          />
+          <div key={c.enabledKey} className="flex items-center gap-2.5">
+            <label className="flex items-center gap-2 w-[130px] mb-0 cursor-pointer">
+              <Switch
+                checked={s.form[c.enabledKey]}
+                onCheckedChange={(v) => s.patchForm({ [c.enabledKey]: v })}
+              />
+              <span className="text-caption text-fg-secondary">{t(c.labelKey)}</span>
+            </label>
+            <div className="flex-1">
+              <div className="flex items-center gap-2">
+                <Input
+                  type="number"
+                  step="0.1"
+                  className="font-mono tabular-nums"
+                  value={s.form[c.valueKey]}
+                  onChange={(e) => s.patchForm({ [c.valueKey]: e.target.value })}
+                  placeholder={t(c.placeholderKey)}
+                  disabled={!s.form[c.enabledKey]}
+                />
+                <span className="text-caption text-fg-tertiary shrink-0">%</span>
+              </div>
+            </div>
+          </div>
         ))}
       </div>
     </ParamsSection>
@@ -437,7 +391,7 @@ function GrowthComparisonChart({ best, benchmarkGrowth }: GrowthComparisonChartP
         data={chartData}
         height={320}
         margin={{ left: 8, right: 20, top: 5, bottom: 5 }}
-        xTickFormatter={(d: string) => d.substring(0, 7)}
+        xTickFormatter={(d: number | string) => String(d).substring(0, 7)}
         yTickFormatter={(v: number) => `$${v.toLocaleString('en-US')}`}
         tooltipFormatter={(v: number, name: string) => [
           `$${v.toLocaleString('en-US')}`,

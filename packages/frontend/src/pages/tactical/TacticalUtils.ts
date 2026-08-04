@@ -3,17 +3,18 @@ import { useAsyncAction } from '../../hooks/miscHooks.js';
 import { apiPostJSON } from '@/utils/apiClient';
 import i18n from '../../i18n/index.js';
 import { DEFAULT_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
-import {
-  REBALANCE_FREQUENCIES,
-  type PortfolioResult,
-  type RebalanceFrequency,
-} from '@backtest/shared';
+import { type PortfolioResult, type RebalanceFrequency } from '@backtest/shared';
 import type {
   TacticalStrategy,
   TradingSignal,
   SignalCondition,
-  TechnicalIndicator,
 } from '@backtest/shared/types/tactical';
+import {
+  INDICATOR_OPTIONS,
+  OPERATOR_OPTIONS,
+  REBALANCE_OPTIONS,
+  AGGREGATION_OPTIONS,
+} from './sharedTacticalConstants.js';
 interface BacktestResponse {
   portfolio: PortfolioResult;
   benchmark: PortfolioResult;
@@ -23,41 +24,6 @@ interface BacktestResponse {
     weights: Array<{ ticker: string; weight: number }>;
   }>;
 }
-const INDICATOR_OPTIONS: Array<{
-  value: TechnicalIndicator;
-  label: string;
-  description?: string;
-}> = [
-  { value: 'sma', label: 'tactical.indicators.sma' },
-  { value: 'ema', label: 'tactical.indicators.ema' },
-  { value: 'rsi', label: 'tactical.indicators.rsi' },
-  { value: 'macd', label: 'tactical.indicators.macd' },
-  {
-    value: 'bollinger',
-    label: 'tactical.indicators.bollinger',
-    description: 'tactical.indicators.bollingerDesc',
-  },
-  { value: 'momentum', label: 'tactical.indicators.momentum' },
-];
-const OPERATOR_OPTIONS: Array<{ value: SignalCondition['operator']; label: string }> = [
-  { value: 'gt', label: 'tactical.operators.gt' },
-  { value: 'lt', label: 'tactical.operators.lt' },
-  { value: 'cross_above', label: 'tactical.operators.cross_above' },
-  { value: 'cross_below', label: 'tactical.operators.cross_below' },
-];
-const REBALANCE_OPTIONS: Array<{ value: RebalanceFrequency; label: string }> = [
-  ...REBALANCE_FREQUENCIES.map((value) => ({
-    value,
-    label: `tactical.rebalanceOptions.${value}`,
-  })),
-  { value: 'none', label: 'tactical.rebalanceOptions.none' },
-];
-const AGGREGATION_OPTIONS: Array<{ value: TacticalStrategy['aggregationMethod']; label: string }> =
-  [
-    { value: 'voting', label: 'tactical.aggregation.voting' },
-    { value: 'weighted_average', label: 'tactical.aggregation.weighted_average' },
-    { value: 'rank', label: 'tactical.aggregation.rank' },
-  ];
 const RANKING_METHOD_OPTIONS: Array<{ value: 'fixed_share' | 'risk_parity'; label: string }> = [
   { value: 'fixed_share', label: 'tactical.rankingMethod.fixed_share' },
   { value: 'risk_parity', label: 'tactical.rankingMethod.risk_parity' },

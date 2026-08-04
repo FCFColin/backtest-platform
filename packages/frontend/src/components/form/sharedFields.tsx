@@ -1,7 +1,5 @@
 import type { ReactNode, ComponentProps } from 'react';
-import { useId } from 'react';
 import { Play, Loader2 } from 'lucide-react';
-import { useTranslation } from 'react-i18next';
 import {
   Button,
   Input,
@@ -11,11 +9,9 @@ import {
   SelectTrigger,
   SelectValue,
   Switch,
-  Checkbox,
   type InputProps,
 } from '@/components/ui/uiComponents';
 import { Field, FieldLabel } from './Field.js';
-import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
 
 export function SectionHeader({
   title,
@@ -162,76 +158,5 @@ export function RunButton({
       {isLoading ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" />}
       {isLoading ? loadingLabel : label}
     </Button>
-  );
-}
-
-export function DateRangeFields({
-  startDate,
-  endDate,
-  onStartDateChange,
-  onEndDateChange,
-  showAllHistory = false,
-  allHistory,
-  onAllHistoryChange,
-  startId,
-  endId,
-}: {
-  startDate: string;
-  endDate: string;
-  onStartDateChange: (v: string) => void;
-  onEndDateChange: (v: string) => void;
-  showAllHistory?: boolean;
-  allHistory?: boolean;
-  onAllHistoryChange?: (v: boolean) => void;
-  startId?: string;
-  endId?: string;
-}) {
-  const { t } = useTranslation();
-  const autoStartId = useId();
-  const autoEndId = useId();
-  const sid = startId ?? autoStartId;
-  const eid = endId ?? autoEndId;
-  return (
-    <>
-      {showAllHistory && (
-        <Field className="col-span-full">
-          <label className="flex cursor-pointer items-center gap-2 text-label text-fg-secondary">
-            <Checkbox
-              checked={allHistory ?? false}
-              onCheckedChange={(c) => {
-                if (c === true) {
-                  onStartDateChange('');
-                  onEndDateChange('');
-                  onAllHistoryChange?.(true);
-                } else {
-                  onStartDateChange(DEFAULT_BACKTEST_START_DATE);
-                  onEndDateChange(DEFAULT_END_DATE);
-                  onAllHistoryChange?.(false);
-                }
-              }}
-            />
-            {t('optimizer.allHistory')}
-          </label>
-        </Field>
-      )}
-      <LabeledField htmlFor={sid} label={t('common.startDate')}>
-        <Input
-          id={sid}
-          type="date"
-          value={startDate}
-          disabled={allHistory}
-          onChange={(e) => onStartDateChange(e.target.value)}
-        />
-      </LabeledField>
-      <LabeledField htmlFor={eid} label={t('common.endDate')}>
-        <Input
-          id={eid}
-          type="date"
-          value={endDate}
-          disabled={allHistory}
-          onChange={(e) => onEndDateChange(e.target.value)}
-        />
-      </LabeledField>
-    </>
   );
 }

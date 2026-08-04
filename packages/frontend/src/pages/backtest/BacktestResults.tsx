@@ -308,21 +308,17 @@ interface RebalancingStatsProps {
     >
   >;
 }
-function RebalancingEmptyState() {
-  const { t } = useTranslation();
-  return (
-    <ChartCard title={t('tabs.rebalancing')}>
-      <div className="text-body text-fg-tertiary">{t('components.rebalancingStats.noData')}</div>
-    </ChartCard>
-  );
-}
 function RebalancingStats({ portfolios }: RebalancingStatsProps) {
   const { t } = useTranslation();
-  if (portfolios.length === 0) return <RebalancingEmptyState />;
-  const hasRebalanceInfo = portfolios.some(
-    (p) => p.rebalanceFrequency && p.rebalanceFrequency !== 'none',
-  );
-  if (!hasRebalanceInfo) return <RebalancingEmptyState />;
+  const hasData =
+    portfolios.length > 0 &&
+    portfolios.some((p) => p.rebalanceFrequency && p.rebalanceFrequency !== 'none');
+  if (!hasData)
+    return (
+      <ChartCard title={t('tabs.rebalancing')}>
+        <div className="text-body text-fg-tertiary">{t('components.rebalancingStats.noData')}</div>
+      </ChartCard>
+    );
   const columns: SimpleTableColumn<(typeof portfolios)[number]>[] = [
     {
       key: 'name',

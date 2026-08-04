@@ -46,7 +46,7 @@ const repo = createTenantCrudRepo<SavedConfigRecord, SavedConfigInput>({
     input.name,
     JSON.stringify(input.config),
   ],
-  toUpdate: (id, input) => [input.name, JSON.stringify(input.config)],
+  toUpdate: (_id, input) => [input.name, JSON.stringify(input.config)],
 });
 
 export const listConfigs = repo.list;

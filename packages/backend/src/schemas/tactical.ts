@@ -25,10 +25,6 @@ export const verifyEmailSchema = z.object({
   token: z.string().min(1, 'token 不能为空'),
 });
 
-export const resendVerificationSchema = z.object({
-  email: z.string().email('邮箱格式不正确').max(254).trim().toLowerCase(),
-});
-
 export const createAnnouncementSchema = z.object({
   title: z.string().min(1, 'title 不能为空').max(200),
   body: z.string().min(1, 'body 不能为空').max(10000),

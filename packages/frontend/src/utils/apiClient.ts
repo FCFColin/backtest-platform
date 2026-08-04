@@ -160,21 +160,6 @@ export async function apiGetJSON<T>(
   if (json.success === false) throw new Error(json.error || errorMsg);
   return json.data as T;
 }
-export async function apiPutJSON<T>(
-  url: string,
-  body: unknown,
-  errorMsg = i18n.t('errors.requestFailed'),
-): Promise<T> {
-  const res = await apiFetch(url, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const json = await res.json();
-  if (json.success === false) throw new Error(json.error || errorMsg);
-  return json.data as T;
-}
 export async function apiDeleteJSON<T>(
   url: string,
   errorMsg = i18n.t('errors.requestFailed'),

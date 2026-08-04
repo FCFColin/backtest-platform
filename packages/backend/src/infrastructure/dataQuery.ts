@@ -90,16 +90,12 @@ async function queryPricesFromDb(
 }> {
   if (!isDbAvailable()) return { result: {}, missing: [...validTickers], dbDegraded: true };
   try {
-    let effectiveStart = startDate;
-    let effectiveEnd = endDate;
+    let [effectiveStart, effectiveEnd] = [startDate, endDate];
     if (startDate === '' && endDate === '') {
       const range =
         (await computeCommonDateRange(validTickers, hasUnknownTickers)) ??
         (hasUnknownTickers ? { start: '2000-01-01', end: toDateStr(new Date()) } : null);
-      if (range) {
-        effectiveStart = range.start;
-        effectiveEnd = range.end;
-      }
+      if (range) [effectiveStart, effectiveEnd] = [range.start, range.end];
     }
     if (validTickers.length === 0 && hasUnknownTickers)
       return { result: {}, missing: [], dbDegraded: false };
@@ -169,17 +165,13 @@ async function fetchMissingFromGoService(
 }
 
 function validateSearchQuery(query: string, market?: string): boolean {
-  const rules = [
-    { val: query, maxLen: 100, regex: /^[\w\s\-.,\u4e00-\u9fff]+$/, tag: 'query' },
-    ...(market
-      ? [{ val: market, maxLen: 10, regex: /^[a-zA-Z\u4e00-\u9fff]+$/, tag: 'market' }]
-      : []),
-  ];
-  for (const r of rules) {
-    if (r.val.length > r.maxLen || !r.regex.test(r.val)) {
-      logger.warn(`[dataService] searchTickers: ${r.tag} 校验失败`);
-      return false;
-    }
+  if (query.length > 100 || !/^[\w\s\-.,\u4e00-\u9fff]+$/.test(query)) {
+    logger.warn('[dataService] searchTickers: query 校验失败');
+    return false;
+  }
+  if (market && (market.length > 10 || !/^[a-zA-Z\u4e00-\u9fff]+$/.test(market))) {
+    logger.warn('[dataService] searchTickers: market 校验失败');
+    return false;
   }
   return true;
 }

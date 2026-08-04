@@ -18,8 +18,8 @@ const sharedTypeAliases: Record<string, string> = {
   '@backtest/shared/types/letf': `${sharedTypesDir}/letf.ts`,
   '@backtest/shared/types/index': `${sharedTypesDir}/index.ts`,
   '@backtest/shared/types': `${sharedTypesDir}/index.ts`,
-  '@backtest/shared': `${sharedTypesDir}/index.ts`,
   '@backtest/shared/constants': path.resolve(projectRoot, 'packages/shared/constants.ts'),
+  '@backtest/shared': `${sharedTypesDir}/index.ts`,
 };
 
 // E2E 覆盖率脚本会设 VITE_COVERAGE=true

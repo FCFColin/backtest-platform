@@ -7,7 +7,7 @@ const routesSource = readFileSync(routesPath, 'utf-8');
 
 describe('C-006 Layout Stability — lazy() + fallback 预留高度', () => {
   it('BacktestPage（首屏 `/`）使用 lazy() 懒加载', () => {
-    expect(routesSource).toMatch(/lazy\s*\(\s*\(\)\s*=>\s*import\([^)]*BacktestPage/);
+    expect(routesSource).toMatch(/lazy(?:Default)?\s*\(\s*\(\)\s*=>\s*import\([^)]*BacktestPage/);
   });
 
   it('Suspense fallback 必须预留 minHeight >= 70vh 以消除布局偏移', () => {

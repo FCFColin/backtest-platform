@@ -7,8 +7,8 @@ client.collectDefaultMetrics({ register });
 
 const gauge = (name: string, help: string, labelNames: string[] = []): client.Gauge =>
   new client.Gauge({ name, help, labelNames, registers: [register] });
-const counter = (name: string, help: string, labelNames: string[] = []): client.Counter =>
-  new client.Counter({ name, help, labelNames, registers: [register] });
+const counter = (name: string, help: string, labelNames: readonly string[] = []): client.Counter =>
+  new client.Counter({ name, help, labelNames: [...labelNames], registers: [register] });
 const histogram = (
   name: string,
   help: string,
@@ -72,22 +72,12 @@ export function registerSemaphoreMetrics(
   startSampler(() => dataServiceSemaphoreAvailable.set({ name }, getAvailable()), 5_000);
 }
 
-const HTTP_REQUEST_LABELS: string[] = ['method', 'route', 'status_code'];
+const HTTP_LABELS = ['method', 'route', 'status_code'] as const;
 export const httpRequestDurationMicroseconds = histogram(
   'http_request_duration_seconds',
   'Duration of HTTP requests in seconds',
-  HTTP_REQUEST_LABELS,
+  [...HTTP_LABELS],
   [0.005, 0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.5, 0.75, 1, 2.5, 5, 10, 30],
-);
-export const httpRequestsTotal = counter(
-  'http_requests_total',
-  'Total number of HTTP requests',
-  HTTP_REQUEST_LABELS,
-);
-export const engineCallsTotal = counter(
-  'go_engine_calls_total',
-  'Total number of calls to Go engine',
-  ['result'],
 );
 export const engineCallDuration = histogram(
   'go_engine_call_duration_seconds',
@@ -95,14 +85,13 @@ export const engineCallDuration = histogram(
   ['result'],
   [0.05, 0.1, 0.25, 0.5, 1, 2, 5, 10, 30, 60, 120],
 );
-// 引擎不可用次数（ADR-031 fail-closed 语义）
-export const engineUnavailableTotal = counter(
-  'engine_unavailable_total',
-  'Total number of engine unavailable events (Go circuit breaker open/fail-closed)',
-  ['reason'],
-);
-
 const COUNTER_DEFS = {
+  http_requests_total: { help: 'Total number of HTTP requests', labels: [...HTTP_LABELS] },
+  go_engine_calls_total: { help: 'Total number of calls to Go engine', labels: ['result'] },
+  engine_unavailable_total: {
+    help: 'Total number of engine unavailable events (Go circuit breaker open/fail-closed)',
+    labels: ['reason'],
+  },
   backtest_requests: {
     help: 'Total backtest-related API requests',
     labels: ['endpoint', 'mode', 'status'],
@@ -117,32 +106,39 @@ const COUNTER_DEFS = {
     help: 'Authentication/authorization failures by endpoint and reason',
     labels: ['endpoint', 'reason'],
   },
+  auth_ip_lockout_total: {
+    help: 'Total number of IP addresses blocked due to suspicious login activity',
+    labels: [],
+  },
+  read_pool_fallback_total: {
+    help: 'Number of times read pool fell back to write pool due to connection failure',
+    labels: [],
+  },
+  quota_enforcement_failures_total: {
+    help: 'Total number of quota enforcement failures (Redis/DB unavailable, fail-closed)',
+    labels: ['quota_key', 'reason'],
+  },
 } as const;
 const ctr = Object.fromEntries(
   Object.entries(COUNTER_DEFS).map(([name, def]) => [name, counter(name, def.help, def.labels)]),
 ) as Record<keyof typeof COUNTER_DEFS, client.Counter>;
+export const httpRequestsTotal = ctr.http_requests_total;
+export const engineCallsTotal = ctr.go_engine_calls_total;
+export const engineUnavailableTotal = ctr.engine_unavailable_total;
+export const authIpLockoutCounter = ctr.auth_ip_lockout_total;
+export const readPoolFallbackCounter = ctr.read_pool_fallback_total;
+export const quotaEnforcementFailures = ctr.quota_enforcement_failures_total;
+
 export const apiKeysStaleCount = gauge(
   'api_keys_stale_count',
   'Active API keys not used within the staleness threshold (by is_platform_admin)',
   ['is_platform_admin'],
-);
-const pgPoolWaitingCount = gauge(
-  'pg_pool_waiting_count',
-  'Number of queued requests waiting for a pool connection',
-  ['pool'],
-);
-const pgPoolTotalCount = gauge(
-  'pg_pool_connection_count',
-  'Current connections in the pool (idle + in use)',
-  ['pool'],
 );
 
 function sanitizeMetricLabel(value: string, maxLength = 64, allowSlash = false): string {
   const pattern = allowSlash ? /[^a-zA-Z0-9_/-]/g : /[^a-zA-Z0-9_-]/g;
   return value.replace(pattern, '_').slice(0, maxLength);
 }
-
-// 优先 `req.baseUrl + req.route.path`，避免高基数场景将 UUID 作为标签值；
 export function getRoutePattern(req: Pick<Request, 'baseUrl' | 'route' | 'path'>): string {
   if (req.route?.path) return (req.baseUrl + req.route.path).slice(0, 128);
   const normalized = (req.path || 'unknown')
@@ -178,12 +174,21 @@ export function registerPgPoolMetrics(
   poolName: string,
   getStats: () => { waitingCount: number; totalCount: number },
 ): void {
-  const refresh = (): void => {
+  const waiting = gauge(
+    'pg_pool_waiting_count',
+    'Number of queued requests waiting for a pool connection',
+    ['pool'],
+  );
+  const total = gauge(
+    'pg_pool_connection_count',
+    'Current connections in the pool (idle + in use)',
+    ['pool'],
+  );
+  startSampler(() => {
     const stats = getStats();
-    pgPoolWaitingCount.set({ pool: poolName }, stats.waitingCount);
-    pgPoolTotalCount.set({ pool: poolName }, stats.totalCount);
-  };
-  startSampler(refresh, 5_000);
+    waiting.set({ pool: poolName }, stats.waitingCount);
+    total.set({ pool: poolName }, stats.totalCount);
+  }, 5_000);
 }
 
 export function recordEngineCall(success: boolean, _error?: string): void {
@@ -197,36 +202,24 @@ export function resetMetrics(): void {
   register.resetMetrics();
 }
 
-export const authIpLockoutCounter = counter(
-  'auth_ip_lockout_total',
-  'Total number of IP addresses blocked due to suspicious login activity (cross-account brute force)',
-);
-export const readPoolFallbackCounter = counter(
-  'read_pool_fallback_total',
-  'Number of times read pool fell back to write pool due to connection failure',
-);
-export const quotaEnforcementFailures = counter(
-  'quota_enforcement_failures_total',
-  'Total number of quota enforcement failures (Redis/DB unavailable, fail-closed)',
-  ['quota_key', 'reason'],
-);
-
-const tsGauges = {
-  chunk_total: gauge('timescaledb_chunk_count', 'Total number of chunks in prices hypertable'),
-  chunk_compressed: gauge(
-    'timescaledb_compressed_chunks',
-    'Number of compressed chunks in prices hypertable',
-  ),
-  chunk_uncompressed: gauge(
-    'timescaledb_uncompressed_chunks',
-    'Number of uncompressed chunks in prices hypertable',
-  ),
-  compression_ratio: gauge(
-    'timescaledb_compression_ratio',
-    'Compression ratio of prices hypertable (after/before, lower is better)',
-  ),
-  cagg_rows: gauge('timescaledb_cagg_rows', 'Total rows in prices_monthly continuous aggregate'),
-};
+const tsGauges = Object.fromEntries(
+  Object.entries({
+    chunk_total: ['timescaledb_chunk_count', 'Total number of chunks in prices hypertable'],
+    chunk_compressed: [
+      'timescaledb_compressed_chunks',
+      'Number of compressed chunks in prices hypertable',
+    ],
+    chunk_uncompressed: [
+      'timescaledb_uncompressed_chunks',
+      'Number of uncompressed chunks in prices hypertable',
+    ],
+    compression_ratio: [
+      'timescaledb_compression_ratio',
+      'Compression ratio of prices hypertable (after/before, lower is better)',
+    ],
+    cagg_rows: ['timescaledb_cagg_rows', 'Total rows in prices_monthly continuous aggregate'],
+  }).map(([k, [n, h]]) => [k, gauge(n as string, h as string)]),
+) as Record<string, client.Gauge>;
 
 export function registerTimescaleMetrics(
   queryFn: (sql: string) => Promise<Array<Record<string, unknown>>>,
@@ -276,7 +269,6 @@ const bullmqQueueSize = gauge(
   'Number of jobs in BullMQ queue (waiting + active + delayed)',
   ['queue'],
 );
-
 export function registerQueueMetrics(
   queues: Array<{ name: string; getJobCounts: () => Promise<Record<string, number>> }>,
 ): void {
@@ -294,54 +286,51 @@ export function registerQueueMetrics(
   startSampler(refresh, 10_000);
 }
 
-const frontendWebVital = gauge(
-  'frontend_web_vital',
-  'Web Vitals from real-user monitoring (lcp/cls/inp/fcp/ttfb)',
-  ['metric', 'route'],
-);
-const frontendApiCallDuration = histogram(
-  'frontend_api_call_duration_seconds',
-  'API call duration from frontend perspective (includes network latency)',
-  ['endpoint', 'method', 'status_code'],
-  [0.05, 0.1, 0.25, 0.5, 1, 2, 5, 10, 30],
-);
-const frontendComponentRender = histogram(
-  'frontend_component_render_duration_seconds',
-  'React component render duration from Profiler',
-  ['component', 'phase'],
-  [0.001, 0.005, 0.01, 0.016, 0.05, 0.1, 0.5, 1],
-);
-const frontendPageLoad = histogram(
-  'frontend_page_load_seconds',
-  'Page load timing from Navigation Timing API',
-  ['metric'],
-  [0.1, 0.5, 1, 2, 3, 5, 10],
-);
-
-export function recordFrontendWebVital(metric: string, value: number, route?: string): void {
-  frontendWebVital.set({ metric, route: route || 'unknown' }, value);
-}
-export function recordFrontendApiCall(
+const fe = {
+  webVital: gauge(
+    'frontend_web_vital',
+    'Web Vitals from real-user monitoring (lcp/cls/inp/fcp/ttfb)',
+    ['metric', 'route'],
+  ),
+  apiCall: histogram(
+    'frontend_api_call_duration_seconds',
+    'API call duration from frontend perspective (includes network latency)',
+    ['endpoint', 'method', 'status_code'],
+    [0.05, 0.1, 0.25, 0.5, 1, 2, 5, 10, 30],
+  ),
+  componentRender: histogram(
+    'frontend_component_render_duration_seconds',
+    'React component render duration from Profiler',
+    ['component', 'phase'],
+    [0.001, 0.005, 0.01, 0.016, 0.05, 0.1, 0.5, 1],
+  ),
+  pageLoad: histogram(
+    'frontend_page_load_seconds',
+    'Page load timing from Navigation Timing API',
+    ['metric'],
+    [0.1, 0.5, 1, 2, 3, 5, 10],
+  ),
+};
+export const recordFrontendWebVital = (metric: string, value: number, route?: string): void =>
+  fe.webVital.set({ metric, route: route || 'unknown' }, value);
+export const recordFrontendApiCall = (
   endpoint: string,
   method: string,
   statusCode: number,
   durationMs: number,
-): void {
-  frontendApiCallDuration.observe(
+): void =>
+  fe.apiCall.observe(
     { endpoint: endpoint.slice(0, 128), method, status_code: String(statusCode) },
     durationMs / 1000,
   );
-}
-export function recordFrontendComponentRender(
+export const recordFrontendComponentRender = (
   component: string,
   phase: string,
   durationMs: number,
-): void {
-  frontendComponentRender.observe({ component: component.slice(0, 128), phase }, durationMs / 1000);
-}
-export function recordFrontendPageLoad(metric: string, value: number): void {
-  frontendPageLoad.observe({ metric }, value / 1000);
-}
+): void =>
+  fe.componentRender.observe({ component: component.slice(0, 128), phase }, durationMs / 1000);
+export const recordFrontendPageLoad = (metric: string, value: number): void =>
+  fe.pageLoad.observe({ metric }, value / 1000);
 
 export function getPrometheusRegister(): client.Registry {
   return register;

@@ -23,7 +23,6 @@ resources:
   - postgres.yaml
   - pgbouncer.yaml
   - redis.yaml
-  # DEPRECATED (ADR-044): self-hosted OTel Collector 已由 SaaS 直出替代
   - canary-deployment.yaml
   - mtls-issuer.yaml
   - unleash-deployment.yaml

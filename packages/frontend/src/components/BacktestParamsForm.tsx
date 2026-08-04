@@ -240,8 +240,11 @@ export function BasicParamsRow({
           value={baseCurrency}
           onChange={(e) => onChange('baseCurrency', e.target.value as 'usd' | 'cny')}
         >
-          <option value="usd">USD ($)</option>
-          <option value="cny">CNY (¥)</option>
+          {CURRENCY_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
         </select>
       </Field>
       <div className="flex h-10 items-center gap-2">
@@ -262,28 +265,6 @@ function useParamField() {
   return { t, parameters, updateParameter };
 }
 
-function SwitchRow({
-  label,
-  description,
-  checked,
-  onCheckedChange,
-}: {
-  label: string;
-  description?: string;
-  checked: boolean | undefined;
-  onCheckedChange: (v: boolean) => void;
-}) {
-  return (
-    <div className="flex items-start gap-3 py-2">
-      <Switch checked={checked ?? false} onCheckedChange={onCheckedChange} className="mt-0.5" />
-      <div className="flex-1">
-        <div className="text-body text-fg">{label}</div>
-        {description && <div className="text-caption text-fg-tertiary mt-0.5">{description}</div>}
-      </div>
-    </div>
-  );
-}
-
 const CURRENCY_OPTIONS = [
   { value: 'usd', label: 'USD ($)' },
   { value: 'cny', label: 'CNY (¥)' },
@@ -297,22 +278,23 @@ function useBasicParamFields() {
     updateParameter('endDate', value === 'all' ? '' : DEFAULT_END_DATE);
   };
   const handleDateChange = (field: 'startDate' | 'endDate', e: ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    const otherDate = field === 'startDate' ? parameters.endDate : parameters.startDate;
-    let err: string | null = null;
-    if (value) {
-      const today = new Date().toISOString().slice(0, 10);
-      if (field === 'endDate' && value > today) err = t('params.endDateAfterToday');
-      else if (field === 'startDate' && otherDate && value > otherDate)
-        err = t('params.startDateAfterEnd');
-      else if (field === 'endDate' && otherDate && value < otherDate)
-        err = t('params.endDateBeforeStart');
-    }
+    const v = e.target.value;
+    const other = field === 'startDate' ? parameters.endDate : parameters.startDate;
+    const today = new Date().toISOString().slice(0, 10);
+    const err = !v
+      ? null
+      : field === 'endDate' && v > today
+        ? t('params.endDateAfterToday')
+        : field === 'startDate' && other && v > other
+          ? t('params.startDateAfterEnd')
+          : field === 'endDate' && other && v < other
+            ? t('params.endDateBeforeStart')
+            : null;
     if (err) {
       useToastStore.getState().addToast('warning', err);
       return;
     }
-    updateParameter(field, value);
+    updateParameter(field, v);
   };
   const handleNum = (
     key: 'startingValue' | 'rollingWindowMonths',
@@ -422,12 +404,16 @@ function AdvancedParamsSection({
       <CollapsibleContent className="mt-4">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-4 border-t border-border-subtle">
           {ADVANCED_SWITCHES.map(({ labelKey, paramKey }) => (
-            <SwitchRow
-              key={paramKey}
-              label={t(labelKey)}
-              checked={parameters[paramKey]}
-              onCheckedChange={(v) => updateParameter(paramKey, v)}
-            />
+            <div key={paramKey} className="flex items-start gap-3 py-2">
+              <Switch
+                checked={parameters[paramKey]}
+                onCheckedChange={(v) => updateParameter(paramKey, v)}
+                className="mt-0.5"
+              />
+              <div className="flex-1">
+                <div className="text-body text-fg">{t(labelKey)}</div>
+              </div>
+            </div>
           ))}
           <div className="flex items-start gap-3 py-2">
             <Switch

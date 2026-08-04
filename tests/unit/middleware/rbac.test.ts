@@ -10,6 +10,7 @@ import {
   createMockResponse,
   createMockNext,
 } from '../../helpers/expressMocks.js';
+import { expectProblem } from '../../helpers/routeAssertions.js';
 const mocks = vi.hoisted(() => ({
   getUserPermissions: vi.fn(),
   getCachedUserPermissions: vi.fn(),
@@ -148,13 +149,7 @@ describe('RBAC requirePermission', () => {
     const next = createMockNext();
     requirePermission(permission)(req, res, next);
     expect(next).not.toHaveBeenCalled();
-    expect(res.status).toHaveBeenCalledWith(status);
-    expect(res.json).toHaveBeenCalledWith(
-      expect.objectContaining({
-        success: false,
-        error: expect.objectContaining({ code }),
-      }),
-    );
+    expectProblem(res, code, status);
   });
 });
 describe('RBAC org_role 优先 + platform_admin 放行', () => {

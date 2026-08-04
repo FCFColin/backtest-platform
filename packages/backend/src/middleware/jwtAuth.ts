@@ -46,20 +46,14 @@ export interface TenantedRequest extends Request {
 export const hashUserId = (sub: string | undefined): string | undefined =>
   sub ? crypto.createHash('sha256').update(sub).digest('hex').slice(0, 16) : undefined;
 
-type LoggableRequest = AuthenticatedRequest & {
-  log?: {
-    child: (b: Record<string, unknown>) => { child: (b: Record<string, unknown>) => unknown };
-  };
-};
 export function attachAuthLogContext(req: AuthenticatedRequest): void {
   const sub = req.user?.sub;
   if (!sub) return;
-  const reqWithLog = req as LoggableRequest;
-  if (reqWithLog.log && typeof reqWithLog.log.child === 'function')
-    reqWithLog.log = reqWithLog.log.child({
-      user_id: hashUserId(sub),
-      role: req.user?.role,
-    }) as typeof reqWithLog.log;
+  const r = req as AuthenticatedRequest & {
+    log?: { child: (b: Record<string, unknown>) => unknown };
+  };
+  if (r.log?.child)
+    r.log = r.log.child({ user_id: hashUserId(sub), role: req.user?.role }) as typeof r.log;
 }
 export function requireUser(
   req: AuthenticatedRequest,
@@ -233,15 +227,6 @@ export function authFail(
   authLog('warn', middleware, req, 'JWT 认证失败', { error });
   if (failureCode) recordAuthFailure(getRoutePattern(req), failureCode);
 }
-function authSuccess(middleware: string, req: AuthenticatedRequest, next: NextFunction): void {
-  attachAuthLogContext(req);
-  authLog('info', middleware, req, 'JWT 认证通过', {
-    userId: hashUserId(req.user?.sub),
-    role: req.user?.role,
-  });
-  next();
-}
-
 function tryDevBypass(req: AuthenticatedRequest, next: NextFunction): boolean {
   const devOk =
     config.NODE_ENV === 'development' &&
@@ -266,19 +251,32 @@ async function denyIfRevokedOrDisabled(
   res: Response,
   middleware: string,
 ): Promise<boolean> {
-  if (await isAccessTokenRevokedForUser(payload.sub, payload.iat)) {
-    authLog('warn', middleware, req, '会话已全局撤销，拒绝访问', {
-      userId: hashUserId(payload.sub),
-    });
-    recordAuthFailure(getRoutePattern(req), 'session_revoked');
-    sendProblem(res, 401, 'SESSION_REVOKED');
-    return true;
-  }
-  if (!(await isUserSessionValid(payload.sub))) {
-    authLog('warn', middleware, req, '用户已停用，拒绝访问', { userId: hashUserId(payload.sub) });
-    recordAuthFailure(getRoutePattern(req), 'account_disabled');
-    sendProblem(res, 401, 'ACCOUNT_DISABLED');
-    return true;
+  const checks: Array<{
+    denied: () => Promise<boolean>;
+    metric: string;
+    code: string;
+    msg: string;
+  }> = [
+    {
+      denied: () => isAccessTokenRevokedForUser(payload.sub, payload.iat),
+      metric: 'session_revoked',
+      code: 'SESSION_REVOKED',
+      msg: '会话已全局撤销，拒绝访问',
+    },
+    {
+      denied: async () => !(await isUserSessionValid(payload.sub)),
+      metric: 'account_disabled',
+      code: 'ACCOUNT_DISABLED',
+      msg: '用户已停用，拒绝访问',
+    },
+  ];
+  for (const c of checks) {
+    if (await c.denied()) {
+      authLog('warn', middleware, req, c.msg, { userId: hashUserId(payload.sub) });
+      recordAuthFailure(getRoutePattern(req), c.metric);
+      sendProblem(res, 401, c.code);
+      return true;
+    }
   }
   return false;
 }
@@ -318,7 +316,12 @@ async function authenticateWithBearer(
     return;
   }
   req.user = payload;
-  authSuccess(middleware, req, next);
+  attachAuthLogContext(req);
+  authLog('info', middleware, req, 'JWT 认证通过', {
+    userId: hashUserId(req.user?.sub),
+    role: req.user?.role,
+  });
+  next();
 }
 async function authenticate(
   req: AuthenticatedRequest,

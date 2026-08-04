@@ -6,7 +6,7 @@ export interface TenantCrudConfig<TRecord, TInput> {
   orderBy: string;
   insertCols: string;
   updateSet: string;
-  mapRow: (row: unknown) => TRecord;
+  mapRow: (row: Record<string, unknown>) => TRecord;
   sanitizeLimit: (limit: number) => number;
   toInsert: (tenantId: string, ownerUserId: string | null, input: TInput) => unknown[];
   toUpdate: (id: string, input: TInput) => unknown[];

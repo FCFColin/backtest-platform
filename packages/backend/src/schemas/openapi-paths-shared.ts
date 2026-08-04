@@ -11,7 +11,6 @@ export const ID_ERR = [401, 403, 404];
 export const NOT_FOUND_ERR = [401, 404];
 export const AUTH_NOT_FOUND_ERR = [401, 403, 404, 500];
 export const VALIDATION_ERR = [400, 401, 403, 422, 500];
-export const VALIDATION_CONFLICT_ERR = [400, 401, 403, 422, 409, 500];
 export const UPDATE_ERR = [400, 401, 403, 404, 422, 500];
 export const BACKTEST_ERR = [400, 401, 422, 500, 503];
 export const TACTICAL_ERR = [400, 401, 422, 503];
@@ -20,20 +19,11 @@ const CRUD_UPDATE_ERR = [400, 401, 404, 422];
 export const STATUS_ERR = [401, 503];
 export const WITH_ID_PARAM = { params: idParam() } as const;
 export const WITH_USER_ID_PARAM = { params: idParam('userId') } as const;
-export const USER_ROLE_PARAM = {
-  params: z.object({ userId: z.string(), roleId: z.string() }),
-} as const;
 export const PAGINATION_QUERY = z.object({
   limit: z.number().optional(),
   offset: z.number().optional(),
 });
-export const ROLE_BODY = z.object({
-  name: z.string().min(1).max(100),
-  description: z.string().max(255).optional(),
-  permissions: z.array(z.string()),
-});
 export const KEY_BODY = z.object({ name: z.string().max(120) });
-export const TEST_EXTRA = { ...WITH_ID_PARAM, body: z.object({}) } as const;
 
 // eslint-disable-next-line max-params -- OpenAPI 路径注册 DSL，参数为注册项字段
 export function sec(

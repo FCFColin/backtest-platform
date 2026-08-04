@@ -53,6 +53,30 @@ export async function signTestToken(
   return builder.sign(key);
 }
 
+/** RSA 签发测试 token（RS256），需提供 CryptoKey。 */
+export function signRsa(payload: Record<string, unknown>, key: CryptoKey, kid?: string) {
+  return new SignJWT(payload)
+    .setProtectedHeader({ alg: 'RS256', ...(kid ? { kid } : {}) })
+    .setIssuedAt()
+    .setExpirationTime('1h')
+    .sign(key);
+}
+
+/** 默认 JWT payload 工厂。 */
+export function validPayload(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return { sub: 'user-1', role: 'admin', ...overrides };
+}
+
+/** 对象 → base64url 字符串。 */
+export function b64url(obj: unknown): string {
+  return Buffer.from(JSON.stringify(obj)).toString('base64url');
+}
+
+/** 解码 JWT payload（第二段）。 */
+export function decodePayload(token: string): Record<string, unknown> {
+  return JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString());
+}
+
 /**
  * 创建 DB 用户行 fixture（snake_case 字段，模拟 pg 返回的原始 row）
  *

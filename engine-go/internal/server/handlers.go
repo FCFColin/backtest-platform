@@ -95,20 +95,29 @@ func init() {
 		}
 	}
 }
+
 func handleHealth(c *gin.Context) {
 	goroutines := runtime.NumGoroutine()
 	var memStats runtime.MemStats
 	runtime.ReadMemStats(&memStats)
+	resp := gin.H{"engine": "go", "version": "0.1.0", "goroutines": goroutines}
 	if goroutines > maxGoroutinesForHealth {
-		c.JSON(http.StatusServiceUnavailable, gin.H{"status": "unhealthy", "engine": "go", "version": "0.1.0", "reason": "goroutine count exceeds threshold", "goroutines": goroutines, "threshold": maxGoroutinesForHealth})
+		resp["status"] = "unhealthy"
+		resp["reason"] = "goroutine count exceeds threshold"
+		resp["threshold"] = maxGoroutinesForHealth
+		c.JSON(http.StatusServiceUnavailable, resp)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"status": "ok", "engine": "go", "version": "0.1.0", "goroutines": goroutines, "heap_alloc": memStats.HeapAlloc, "heap_sys": memStats.HeapSys})
+	resp["status"] = "ok"
+	resp["heap_alloc"] = memStats.HeapAlloc
+	resp["heap_sys"] = memStats.HeapSys
+	c.JSON(http.StatusOK, resp)
 }
 func handleReady(c *gin.Context) { c.JSON(http.StatusOK, gin.H{"status": "ready", "engine": "go"}) }
+
 func handleBacktest(c *gin.Context) {
 	var req engine.BacktestRequest
-	if !bindJSON(c, "BACKTEST_BAD_REQUEST", "请求解析失败，请检查请求格式", &req) {
+	if !bindJSON(c, "BACKTEST_BAD_REQUEST", "请求解析失败", &req) {
 		return
 	}
 	if len(req.Portfolios) == 0 {
@@ -125,7 +134,7 @@ func handleBacktest(c *gin.Context) {
 }
 func handleStatistics(c *gin.Context) {
 	var req engine.StatisticsRequest
-	if !bindJSON(c, "STATISTICS_BAD_REQUEST", "请求解析失败，请检查请求格式", &req) {
+	if !bindJSON(c, "STATISTICS_BAD_REQUEST", "请求解析失败", &req) {
 		return
 	}
 	if len(req.Values) < 2 {
@@ -155,7 +164,9 @@ func handleAnalysis(c *gin.Context) {
 			return
 		}
 	}
-	withComputeHandler(c, "分析计算失败", func(ctx context.Context) (analysis.AnalysisResult, error) { return analysis.RunAnalysis(ctx, req) })
+	withComputeHandler(c, "分析计算失败", func(ctx context.Context) (analysis.AnalysisResult, error) {
+		return analysis.RunAnalysis(ctx, req)
+	})
 }
 func handlePCA(c *gin.Context) {
 	var req pca.PCARequest
@@ -196,13 +207,13 @@ func handleFactorRegression(c *gin.Context) {
 	})
 }
 func handleOptimize(c *gin.Context) {
-	bindAndCompute(c, "OPTIMIZE_BAD_REQUEST", "请求解析失败，请检查请求格式", "优化计算失败", "optimizer.optimize", optimizer.Optimize)
+	bindAndCompute(c, "OPTIMIZE_BAD_REQUEST", "请求解析失败", "优化计算失败", "optimizer.optimize", optimizer.Optimize)
 }
 func handleEfficientFrontier(c *gin.Context) {
-	bindAndCompute(c, "FRONTIER_BAD_REQUEST", "请求解析失败，请检查请求格式", "有效前沿计算失败", "", optimizer.ComputeEfficientFrontier)
+	bindAndCompute(c, "FRONTIER_BAD_REQUEST", "请求解析失败", "有效前沿计算失败", "", optimizer.ComputeEfficientFrontier)
 }
 func handleMonteCarlo(c *gin.Context) {
-	bindAndCompute(c, "MONTE_CARLO_BAD_REQUEST", "请求解析失败，请检查请求格式", "蒙特卡洛模拟失败", "montecarlo.simulate", montecarlo.RunMonteCarlo)
+	bindAndCompute(c, "MONTE_CARLO_BAD_REQUEST", "请求解析失败", "蒙特卡洛模拟失败", "montecarlo.simulate", montecarlo.RunMonteCarlo)
 }
 func handleGoalOptimize(c *gin.Context) {
 	bindAndCompute(c, "GOAL_BAD_REQUEST", "请求解析失败", "目标优化计算失败", "", func(_ context.Context, req goaloptimizer.GoalOptimizerRequest) (*goaloptimizer.GoalOptimizerResult, error) {
@@ -216,13 +227,6 @@ func handleTacticalGridSearch(c *gin.Context) {
 	bindAndCompute(c, "GRID_BAD_REQUEST", "请求解析失败", "网格搜索计算失败", "", tactical.RunGridSearch)
 }
 
-func requireParam(c *gin.Context, code, detail string, ok bool) bool {
-	if !ok {
-		newProblem(c, http.StatusBadRequest, code, "Bad Request", detail)
-	}
-	return ok
-}
-
 func handleCalculators(c *gin.Context) {
 	var req struct {
 		Type     string                              `json:"type"`
@@ -233,23 +237,30 @@ func handleCalculators(c *gin.Context) {
 	if !bindJSON(c, "CALC_BAD_REQUEST", "请求解析失败", &req) {
 		return
 	}
+	require := func(code, msg string, ok bool) bool {
+		if !ok {
+			newProblem(c, http.StatusBadRequest, code, "Bad Request", msg)
+		}
+		return ok
+	}
 	switch req.Type {
 	case "cagr":
-		if requireParam(c, "CALC_MISSING_CAGR", "cagr 类型需要 cagr 参数", req.CAGR != nil) {
+		if require("CALC_MISSING_CAGR", "cagr 类型需要 cagr 参数", req.CAGR != nil) {
 			okJSON(c, calculators.CalcCAGR(*req.CAGR))
 		}
 	case "swr":
-		if requireParam(c, "CALC_MISSING_SWR", "swr 类型需要 swr 参数", req.SWR != nil) {
+		if require("CALC_MISSING_SWR", "swr 类型需要 swr 参数", req.SWR != nil) {
 			okJSON(c, calculators.CalcSWR(*req.SWR))
 		}
 	case "frontier":
-		if requireParam(c, "CALC_MISSING_FRONTIER", "frontier 类型需要 frontier 参数", req.Frontier != nil) {
+		if require("CALC_MISSING_FRONTIER", "frontier 类型需要 frontier 参数", req.Frontier != nil) {
 			okJSON(c, calculators.CalcTwoFundFrontier(*req.Frontier))
 		}
 	default:
 		newProblem(c, http.StatusBadRequest, "CALC_INVALID_TYPE", "Bad Request", "type 必须是 cagr/swr/frontier")
 	}
 }
+
 func handleSignalAnalyze(c *gin.Context) {
 	var req struct {
 		Mode      string                        `json:"mode"`
@@ -258,51 +269,56 @@ func handleSignalAnalyze(c *gin.Context) {
 		Multi     *signal.MultiSignalConfig     `json:"multi,omitempty"`
 		PriceData map[string]map[string]float64 `json:"priceData"`
 	}
-	if !bindJSON(c, "SIGNAL_BAD_REQUEST", "请求解析失败，请检查请求格式", &req) {
+	if !bindJSON(c, "SIGNAL_BAD_REQUEST", "请求解析失败", &req) {
 		return
 	}
 	ctx, cancel := context.WithTimeout(c.Request.Context(), computeTimeout)
 	defer cancel()
-	missingTicker := func() {
-		newProblem(c, http.StatusBadRequest, "SIGNAL_TICKER_NOT_FOUND", "Bad Request", "ticker 在 priceData 中不存在")
+	bad := func(code, msg string) {
+		newProblem(c, http.StatusBadRequest, code, "Bad Request", msg)
+	}
+	missing := func() { bad("SIGNAL_TICKER_NOT_FOUND", "ticker 在 priceData 中不存在") }
+	getTd := func(ticker string) (map[string]float64, bool) {
+		td, ok := req.PriceData[ticker]
+		if !ok {
+			missing()
+		}
+		return td, ok
 	}
 	switch req.Mode {
 	case "single":
 		if req.Single == nil {
-			newProblem(c, http.StatusBadRequest, "SIGNAL_MISSING_SINGLE", "Bad Request", "single 模式需要 single 参数")
+			bad("SIGNAL_MISSING_SINGLE", "single 模式需要 single 参数")
 			return
 		}
-		tickerData, ok := req.PriceData[req.Single.Ticker]
+		td, ok := getTd(req.Single.Ticker)
 		if !ok {
-			missingTicker()
 			return
 		}
-		okJSON(c, signal.AnalyzeSignal(*req.Single, engineutil.ToPricePoints(tickerData)))
+		okJSON(c, signal.AnalyzeSignal(*req.Single, engineutil.ToPricePoints(td)))
 	case "dual":
 		if req.Dual == nil {
-			newProblem(c, http.StatusBadRequest, "SIGNAL_MISSING_DUAL", "Bad Request", "dual 模式需要 dual 参数")
+			bad("SIGNAL_MISSING_DUAL", "dual 模式需要 dual 参数")
 			return
 		}
-		td1, ok1 := req.PriceData[req.Dual.Signal1.Ticker]
-		td2, ok2 := req.PriceData[req.Dual.Signal2.Ticker]
+		td1, ok1 := getTd(req.Dual.Signal1.Ticker)
+		td2, ok2 := getTd(req.Dual.Signal2.Ticker)
 		if !ok1 || !ok2 {
-			missingTicker()
 			return
 		}
 		okJSON(c, signal.AnalyzeDualSignal(req.Dual.Signal1, req.Dual.Signal2, engineutil.ToPricePoints(td1), engineutil.ToPricePoints(td2), req.Dual.CombinationMethod))
 	case "multi":
 		if req.Multi == nil || len(req.Multi.Signals) == 0 {
-			newProblem(c, http.StatusBadRequest, "SIGNAL_MISSING_MULTI", "Bad Request", "multi 模式需要 multi.signals 参数")
+			bad("SIGNAL_MISSING_MULTI", "multi 模式需要 multi.signals 参数")
 			return
 		}
-		td, ok := req.PriceData[req.Multi.Signals[0].Ticker]
+		td, ok := getTd(req.Multi.Signals[0].Ticker)
 		if !ok {
-			missingTicker()
 			return
 		}
 		okJSON(c, signal.AnalyzeMultiSignal(ctx, req.Multi.Signals, engineutil.ToPricePoints(td), req.Multi.AggregationMethod, req.Multi.Weights))
 	default:
-		newProblem(c, http.StatusBadRequest, "SIGNAL_INVALID_MODE", "Bad Request", "mode 必须是 single/dual/multi")
+		bad("SIGNAL_INVALID_MODE", "mode 必须是 single/dual/multi")
 	}
 }
 
@@ -310,22 +326,14 @@ const computeTimeout = 90 * time.Second
 
 func SetupRouter(metricsHandler http.Handler) *gin.Engine {
 	r := gin.New()
-	r.Use(gin.Recovery())
-	r.Use(gosharedmw.SecurityHeadersMiddleware())
-	r.Use(otelgin.Middleware("engine-go"))
-	r.Use(middleware.RateLimitMiddleware(0.5, 30))
+	r.Use(gin.Recovery(), gosharedmw.SecurityHeadersMiddleware(), otelgin.Middleware("engine-go"), middleware.RateLimitMiddleware(0.5, 30))
 	r.GET("/api/engine/health", handleHealth)
 	r.GET("/api/ready", handleReady)
 	if metricsHandler != nil {
 		r.GET("/metrics", gin.WrapH(metricsHandler))
 	}
 	authed := r.Group("/")
-	authed.Use(gosharedmw.SharedTokenAuthMiddleware(
-		"X-Engine-Auth",
-		"ENGINE_AUTH_TOKEN",
-		"missing X-Engine-Auth header",
-		"no ENGINE_AUTH_TOKEN configured",
-	))
+	authed.Use(gosharedmw.SharedTokenAuthMiddleware("X-Engine-Auth", "ENGINE_AUTH_TOKEN", "missing X-Engine-Auth header", "no ENGINE_AUTH_TOKEN configured"))
 	{
 		authed.POST("/api/engine/backtest", handleBacktest)
 		authed.POST("/api/engine/analysis", handleAnalysis)

@@ -113,14 +113,6 @@ export interface ComparisonTableSectionProps {
   results: OptimizeResultItem[];
   objective: Objective;
 }
-export interface ConstraintRowProps {
-  enabled: boolean;
-  setEnabled: (v: boolean) => void;
-  label: string;
-  value: string;
-  setValue: (v: string) => void;
-  placeholder: string;
-}
 const DEFAULT_FORM: OptimizerFormState = {
   thrMin: '5',
   thrMax: '20',

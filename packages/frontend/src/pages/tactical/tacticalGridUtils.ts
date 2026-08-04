@@ -1,8 +1,4 @@
-import {
-  REBALANCE_FREQUENCIES,
-  type GridParamRange,
-  type RebalanceFrequency,
-} from '@backtest/shared';
+import { type GridParamRange } from '@backtest/shared';
 import { fmtPct, fmtNum } from '@/utils/format';
 import { interpolateHsl } from '@/lib/chart-theme';
 export type IndicatorType = 'sma' | 'ema' | 'rsi';
@@ -36,16 +32,6 @@ export interface TacticalGridResponse {
   heatmap: HeatmapData;
   bestCombination: TopCombinationResult;
 }
-export const INDICATOR_OPTIONS: Array<{ value: IndicatorType; label: string }> = [
-  { value: 'sma', label: 'tactical.indicators.sma' },
-  { value: 'ema', label: 'tactical.indicators.ema' },
-  { value: 'rsi', label: 'tactical.indicators.rsi' },
-];
-export const REBALANCE_OPTIONS: Array<{ value: RebalanceFrequency; label: string }> =
-  REBALANCE_FREQUENCIES.map((value) => ({
-    value,
-    label: `tactical.rebalanceOptions.${value}`,
-  }));
 export const OBJECTIVE_OPTIONS: Array<{ value: ObjectiveType; label: string }> = [
   { value: 'maxCAGR', label: 'tacticalGrid.objectives.maxCAGR' },
   { value: 'minDrawdown', label: 'tacticalGrid.objectives.minDrawdown' },

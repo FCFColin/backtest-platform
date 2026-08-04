@@ -102,22 +102,20 @@ export function StatisticsTable({
     if (typeof av !== 'number' || typeof bv !== 'number') return 0;
     return sortDir === 'asc' ? av - bv : bv - av;
   });
-  const renderCell = (portfolio: (typeof portfolios)[0], col: StatColumn, index: number) => {
-    if (col.key === 'name') {
-      return (
-        <div className="flex items-center gap-2">
-          <span
-            className="w-2 h-2 rounded-full flex-shrink-0"
-            style={{ background: colors[index] ?? '#888' }}
-          />
-          <span className="truncate">{portfolio.name}</span>
-        </div>
-      );
-    }
-    const value = portfolio.stats[col.key];
-    if (value === undefined || value === null) return '—';
-    return FORMAT_FN[col.format]?.(Number(value)) ?? String(value);
-  };
+  const cellContent = (p: (typeof portfolios)[0], col: StatColumn, i: number) =>
+    col.key === 'name' ? (
+      <div className="flex items-center gap-2">
+        <span
+          className="w-2 h-2 rounded-full flex-shrink-0"
+          style={{ background: colors[i] ?? '#888' }}
+        />
+        <span className="truncate">{p.name}</span>
+      </div>
+    ) : p.stats[col.key] == null ? (
+      '—'
+    ) : (
+      (FORMAT_FN[col.format]?.(Number(p.stats[col.key])) ?? String(p.stats[col.key]))
+    );
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
@@ -230,7 +228,7 @@ export function StatisticsTable({
                           col.colorize && typeof value === 'number' && getColorClass(value),
                         )}
                       >
-                        {renderCell(p, col, i)}
+                        {cellContent(p, col, i)}
                       </td>
                     );
                   })}
@@ -251,30 +249,30 @@ interface ExtendedMetricsTableProps {
     stats: Record<string, number>;
   }>;
 }
-const EXTENDED_COLUMNS = [
-  { key: 'var95', label: 'VaR 95%', format: 'percent' as const },
-  { key: 'var99', label: 'VaR 99%', format: 'percent' as const },
-  { key: 'cvar95', label: 'CVaR 95%', format: 'percent' as const },
-  { key: 'cvar99', label: 'CVaR 99%', format: 'percent' as const },
-  { key: 'sortinoBear', label: 'Sortino Bear', format: 'number' as const },
-  { key: 'sortinoBull', label: 'Sortino Bull', format: 'number' as const },
-  { key: 'sharpeBear', label: 'Sharpe Bear', format: 'number' as const },
-  { key: 'sharpeBull', label: 'Sharpe Bull', format: 'number' as const },
-  { key: 'skewness', label: 'Skewness', format: 'number' as const },
-  { key: 'kurtosis', label: 'Kurtosis', format: 'number' as const },
-  { key: 'kelly', label: 'Kelly', format: 'percent' as const },
-  { key: 'alpha', label: 'Alpha', format: 'percent' as const },
-  { key: 'r2', label: 'R²', format: 'number' as const },
-  { key: 'trackingError', label: 'Tracking Error', format: 'percent' as const },
-  { key: 'infoRatio', label: 'Info Ratio', format: 'number' as const },
-  { key: 'bestYear', label: 'Best Year', format: 'percent' as const },
-  { key: 'worstYear', label: 'Worst Year', format: 'percent' as const },
-  { key: 'bestMonth', label: 'Best Month', format: 'percent' as const },
-  { key: 'worstMonth', label: 'Worst Month', format: 'percent' as const },
-  { key: 'upCapture', label: 'Up Capture', format: 'percent' as const },
-  { key: 'downCapture', label: 'Down Capture', format: 'percent' as const },
-  { key: 'positiveMonthsPct', label: 'Positive Months %', format: 'percent' as const },
-  { key: 'negativeMonthsPct', label: 'Negative Months %', format: 'percent' as const },
+const EXTENDED_COLUMNS: StatColumn[] = [
+  { key: 'var95', label: 'VaR 95%', format: 'percent' },
+  { key: 'var99', label: 'VaR 99%', format: 'percent' },
+  { key: 'cvar95', label: 'CVaR 95%', format: 'percent' },
+  { key: 'cvar99', label: 'CVaR 99%', format: 'percent' },
+  { key: 'sortinoBear', label: 'Sortino Bear', format: 'number' },
+  { key: 'sortinoBull', label: 'Sortino Bull', format: 'number' },
+  { key: 'sharpeBear', label: 'Sharpe Bear', format: 'number' },
+  { key: 'sharpeBull', label: 'Sharpe Bull', format: 'number' },
+  { key: 'skewness', label: 'Skewness', format: 'number' },
+  { key: 'kurtosis', label: 'Kurtosis', format: 'number' },
+  { key: 'kelly', label: 'Kelly', format: 'percent' },
+  { key: 'alpha', label: 'Alpha', format: 'percent' },
+  { key: 'r2', label: 'R²', format: 'number' },
+  { key: 'trackingError', label: 'Tracking Error', format: 'percent' },
+  { key: 'infoRatio', label: 'Info Ratio', format: 'number' },
+  { key: 'bestYear', label: 'Best Year', format: 'percent' },
+  { key: 'worstYear', label: 'Worst Year', format: 'percent' },
+  { key: 'bestMonth', label: 'Best Month', format: 'percent' },
+  { key: 'worstMonth', label: 'Worst Month', format: 'percent' },
+  { key: 'upCapture', label: 'Up Capture', format: 'percent' },
+  { key: 'downCapture', label: 'Down Capture', format: 'percent' },
+  { key: 'positiveMonthsPct', label: 'Positive Months %', format: 'percent' },
+  { key: 'negativeMonthsPct', label: 'Negative Months %', format: 'percent' },
 ];
 export function ExtendedMetricsTable({ portfolios }: ExtendedMetricsTableProps) {
   const { t } = useTranslation();
@@ -286,18 +284,16 @@ export function ExtendedMetricsTable({ portfolios }: ExtendedMetricsTableProps) 
       align: 'right' as const,
       render: (p: (typeof portfolios)[number]) => {
         const value = p.stats[col.key] ?? 0;
-        return (
-          <span
-            className={
-              col.format === 'percent'
-                ? value < 0
-                  ? 'text-neg'
-                  : value > 0
-                    ? 'text-pos'
-                    : undefined
+        const cls =
+          col.format === 'percent'
+            ? value < 0
+              ? 'text-neg'
+              : value > 0
+                ? 'text-pos'
                 : undefined
-            }
-          >
+            : undefined;
+        return (
+          <span className={cls}>
             {col.format === 'percent' ? formatPercent(value) : formatNumber(value)}
           </span>
         );
@@ -333,19 +329,48 @@ interface WithdrawalRatesCardProps {
 }
 function hasWithdrawalData(portfolios: PortfolioResult[]): boolean {
   return portfolios.some((p) =>
-    RATE_ROWS.some((row) =>
-      row.keys.some((k) => {
-        const v = p.statistics[k];
-        return v != null && v !== 0;
-      }),
-    ),
+    RATE_ROWS.some((row) => row.keys.some((k) => p.statistics[k] != null && p.statistics[k] !== 0)),
   );
 }
-export // eslint-disable-next-line max-lines-per-function -- 提现率卡片多区块渲染，内聚保留
-function WithdrawalRatesCard({ portfolios }: WithdrawalRatesCardProps) {
+export function WithdrawalRatesCard({ portfolios }: WithdrawalRatesCardProps) {
   const { t } = useTranslation();
   if (!hasWithdrawalData(portfolios)) return null;
   const showName = portfolios.length > 1;
+  const columns: SimpleTableColumn<{
+    labelKey: string;
+    descKey: string;
+    keys: readonly (keyof Statistics)[];
+    portfolio: PortfolioResult;
+  }>[] = [
+    {
+      key: 'label',
+      label: '',
+      render: (row) => (
+        <span className="inline-flex items-center gap-1">
+          <span className="text-fg-secondary">{t(row.labelKey)}</span>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Info className="size-3 cursor-help text-fg-tertiary" aria-label={t(row.descKey)} />
+            </TooltipTrigger>
+            <TooltipContent className="max-w-xs rounded-md border border-border bg-elevated p-2 text-caption text-fg-secondary leading-relaxed shadow-lg whitespace-normal">
+              {t(row.descKey)}
+            </TooltipContent>
+          </Tooltip>
+        </span>
+      ),
+    },
+    ...HORIZON_LABELS.map((label, i) => ({
+      key: `h${i}`,
+      label: t(label),
+      align: 'right' as const,
+      render: (row: {
+        labelKey: string;
+        descKey: string;
+        keys: readonly (keyof Statistics)[];
+        portfolio: PortfolioResult;
+      }) => fmtPct(row.portfolio.statistics[row.keys[i]] as number),
+    })),
+  ];
   return (
     <Card data-testid="withdrawal-rates-card">
       <CardHeader className="pb-3">
@@ -356,6 +381,7 @@ function WithdrawalRatesCard({ portfolios }: WithdrawalRatesCardProps) {
       <CardContent className="space-y-4">
         {portfolios.map((p, idx) => {
           const color = CHART_COLORS[idx % CHART_COLORS.length];
+          const data = RATE_ROWS.map((row) => ({ ...row, portfolio: p }));
           return (
             <div key={p.name} className="space-y-2">
               {showName && (
@@ -367,57 +393,7 @@ function WithdrawalRatesCard({ portfolios }: WithdrawalRatesCardProps) {
                   <span className="truncate">{p.name}</span>
                 </div>
               )}
-              <div className="overflow-x-auto">
-                <table className="w-full text-caption">
-                  <thead>
-                    <tr className="border-b border-border-subtle">
-                      <th className="h-9 pr-3 text-left text-label-tiny text-fg-tertiary" />
-                      {HORIZON_LABELS.map((label) => (
-                        <th
-                          key={label}
-                          className="h-9 px-2 text-right text-label-tiny text-fg-tertiary"
-                        >
-                          {t(label)}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {RATE_ROWS.map((row) => (
-                      <tr
-                        key={row.labelKey}
-                        className="border-b border-border-subtle last:border-b-0"
-                      >
-                        <td className="py-2 pr-3 text-left">
-                          <span className="inline-flex items-center gap-1">
-                            <span className="text-fg-secondary">{t(row.labelKey)}</span>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Info
-                                  className="size-3 cursor-help text-fg-tertiary"
-                                  aria-label={t(row.descKey)}
-                                />
-                              </TooltipTrigger>
-                              <TooltipContent className="max-w-xs rounded-md border border-border bg-elevated p-2 text-caption text-fg-secondary leading-relaxed shadow-lg whitespace-normal">
-                                {t(row.descKey)}
-                              </TooltipContent>
-                            </Tooltip>
-                          </span>
-                        </td>
-                        {row.keys.map((k) => (
-                          <td
-                            key={k}
-                            data-testid={`withdrawal-rate-${k}`}
-                            className="px-2 py-2 text-right font-mono tabular-nums text-fg"
-                          >
-                            {fmtPct(p.statistics[k as keyof Statistics] as number)}
-                          </td>
-                        ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <SimpleTable columns={columns} data={data} rowKey={(r) => r.labelKey} />
             </div>
           );
         })}

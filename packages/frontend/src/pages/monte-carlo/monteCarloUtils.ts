@@ -167,22 +167,26 @@ const MC_INITIAL = {
   goal2: 'minMaxDrawdown',
   goalWeight: 50,
 };
-type McInitialState = typeof MC_INITIAL;
-type McSetterNames = {
-  [K in keyof McInitialState as `set${Capitalize<string & K>}`]: (v: McInitialState[K]) => void;
-};
-function useMcSetters(): McInitialState & McSetterNames {
+function useMcSetters(): typeof MC_INITIAL & {
+  [K in keyof typeof MC_INITIAL as `set${Capitalize<string & K>}`]: (
+    v: (typeof MC_INITIAL)[K],
+  ) => void;
+} {
   const [mc, setMc] = useState(MC_INITIAL);
   const set =
-    <K extends keyof McInitialState>(key: K) =>
-    (v: McInitialState[K]) =>
+    <K extends keyof typeof MC_INITIAL>(key: K) =>
+    (v: (typeof MC_INITIAL)[K]) =>
       setMc((prev) => ({ ...prev, [key]: v }));
   const setters = Object.fromEntries(
-    (Object.keys(MC_INITIAL) as (keyof McInitialState)[]).map((k) => [
+    Object.keys(MC_INITIAL).map((k) => [
       `set${k[0].toUpperCase()}${k.slice(1)}`,
-      set(k),
+      set(k as keyof typeof MC_INITIAL),
     ]),
-  ) as McSetterNames;
+  ) as {
+    [K in keyof typeof MC_INITIAL as `set${Capitalize<string & K>}`]: (
+      v: (typeof MC_INITIAL)[K],
+    ) => void;
+  };
   return { ...mc, ...setters };
 }
 type McSetters = ReturnType<typeof useMcSetters>;

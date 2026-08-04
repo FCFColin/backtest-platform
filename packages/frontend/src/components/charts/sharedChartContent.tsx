@@ -38,23 +38,19 @@ function MeasuredContainer({
   height: number;
   children: (dims: { width: number; height: number }) => ReactElement;
 }) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [containerWidth, setContainerWidth] = useState(0);
+  const ref = useRef<HTMLDivElement>(null);
+  const [w, setW] = useState(0);
   useEffect(() => {
-    const el = containerRef.current;
+    const el = ref.current;
     if (!el) return;
-    const ro = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        setContainerWidth(entry.contentRect.width);
-      }
-    });
+    const ro = new ResizeObserver((entries) => setW(entries[0].contentRect.width));
     ro.observe(el);
-    setContainerWidth(el.clientWidth);
+    setW(el.clientWidth);
     return () => ro.disconnect();
   }, []);
   return (
-    <div ref={containerRef} style={{ width: propWidth ?? '100%', height, overflow: 'hidden' }}>
-      {containerWidth > 0 && children({ width: containerWidth, height })}
+    <div ref={ref} style={{ width: propWidth ?? '100%', height, overflow: 'hidden' }}>
+      {w > 0 && children({ width: w, height })}
     </div>
   );
 }
@@ -75,39 +71,19 @@ interface BarChartContentProps {
   xTickInterval?: number;
 }
 export function BarChartContent({
-  data,
-  seriesNames,
-  xDataKey,
   height = 350,
   yTickFormatter = (v) => v.toFixed(0),
-  tooltipValueFormatter,
-  yLabel,
-  barRadius = 0,
-  fillOpacity = 1,
-  showLegend = true,
-  signColorSingleSeries = false,
-  xTickFontSize,
-  xTickInterval,
+  ...rest
 }: BarChartContentProps) {
   return (
     <MeasuredContainer height={height}>
       {({ width }) => (
         <SvgBarChart
-          data={data}
-          seriesNames={seriesNames}
-          xDataKey={xDataKey}
-          width={width}
-          height={height}
-          margin={CHART_MARGIN}
+          {...rest}
           yTickFormatter={yTickFormatter}
-          yLabel={yLabel}
-          barRadius={barRadius}
-          fillOpacity={fillOpacity}
-          showLegend={showLegend}
-          signColorSingleSeries={signColorSingleSeries}
-          xTickFontSize={xTickFontSize}
-          xTickInterval={xTickInterval}
-          tooltipValueFormatter={tooltipValueFormatter}
+          height={height}
+          width={width}
+          margin={CHART_MARGIN}
         />
       )}
     </MeasuredContainer>
@@ -129,41 +105,30 @@ interface ScatterChartContentProps {
   tooltipLabelFormatter?: (label: string) => string;
 }
 export function ScatterChartContent({
-  data,
-  xDataKey,
-  xName,
-  yDataKey,
-  yName,
-  xLabel,
-  yLabel,
-  nameDataKey = 'name',
   height = 450,
   margin = CHART_MARGIN,
-  tooltipFormatter,
-  tooltipLabelFormatter,
+  ...rest
 }: ScatterChartContentProps) {
-  const mergedMargin = { ...CHART_MARGIN, ...margin };
   return (
     <MeasuredContainer height={height}>
       {({ width }) => (
         <SvgScatterChart
-          data={data}
-          xDataKey={xDataKey}
-          xName={xName}
-          yDataKey={yDataKey}
-          yName={yName}
-          xLabel={xLabel}
-          yLabel={yLabel}
-          nameDataKey={nameDataKey}
-          width={width}
+          {...rest}
           height={height}
-          margin={mergedMargin}
-          tooltipFormatter={tooltipFormatter}
-          tooltipLabelFormatter={tooltipLabelFormatter}
+          width={width}
+          margin={{ ...CHART_MARGIN, ...margin }}
         />
       )}
     </MeasuredContainer>
   );
+}
+
+const LABEL_STYLE = { fill: 'var(--text-muted)', fontSize: 12 } as const;
+function axisLabel(label: unknown, angle?: number) {
+  if (typeof label !== 'string') return label as string | object | undefined;
+  return angle
+    ? { value: label, angle, position: 'insideLeft' as const, style: LABEL_STYLE }
+    : { value: label, position: 'insideBottom' as const, offset: -10, style: LABEL_STYLE };
 }
 
 interface ChartXAxisProps extends Omit<XAxisProps, 'label' | 'tick' | 'tickFormatter' | 'ref'> {
@@ -186,19 +151,7 @@ export function ChartXAxis({
   const tick = tickFontSize
     ? { fill: 'var(--text-muted)', fontSize: tickFontSize }
     : AXIS_TICK_STYLE;
-  let labelProps: XAxisProps['label'] = undefined;
-  if (label) {
-    if (typeof label === 'string') {
-      labelProps = {
-        value: label,
-        position: 'insideBottom',
-        offset: -10,
-        style: { fill: 'var(--text-muted)', fontSize: 12 },
-      };
-    } else {
-      labelProps = label;
-    }
-  }
+  const labelProps = axisLabel(label as string | object | undefined);
   return (
     <XAxis
       xAxisId={xAxisId}
@@ -231,19 +184,7 @@ export function ChartYAxis({
   yAxisId = 0,
   ...rest
 }: ChartYAxisProps) {
-  let labelProps: YAxisProps['label'] = undefined;
-  if (label) {
-    if (typeof label === 'string') {
-      labelProps = {
-        value: label,
-        angle: -90,
-        position: 'insideLeft',
-        style: { fill: 'var(--text-muted)', fontSize: 12 },
-      };
-    } else {
-      labelProps = label;
-    }
-  }
+  const labelProps = axisLabel(label, -90);
   return (
     <YAxis
       yAxisId={yAxisId}
@@ -364,16 +305,6 @@ interface SimpleChartProps {
   children?: ReactNode;
 }
 const CHART_BY_TYPE = { line: LineChart, area: AreaChart } as const;
-function yAxisLabelProp(label?: string) {
-  return label
-    ? {
-        value: label,
-        angle: -90,
-        position: 'insideLeft' as const,
-        style: { fill: 'var(--text-muted)', fontSize: 12 },
-      }
-    : undefined;
-}
 export function SimpleChart({
   type = 'line',
   data,
@@ -415,21 +346,11 @@ export function SimpleChart({
           interval={xTickInterval}
           tick={AXIS_TICK_STYLE}
         />
-        <YAxis
-          tickFormatter={yTickFormatter}
-          tick={AXIS_TICK_STYLE}
-          domain={yDomain}
-          scale={yScale}
-          label={yAxisLabelProp(yLabel)}
-        />
-        <Tooltip
-          contentStyle={CHART_TOOLTIP_STYLE}
-          formatter={wrapTooltipFormatter(tooltipFormatter)}
+        <ChartYAxis tickFormatter={yTickFormatter} domain={yDomain} scale={yScale} label={yLabel} />
+        <ChartTooltip
+          formatter={tooltipFormatter as TooltipValueFormatter}
           labelFormatter={tooltipLabelFormatter}
-          cursor={{ stroke: 'var(--border-soft)', strokeWidth: 1, strokeDasharray: '4 4' }}
-          isAnimationActive={!isLargeDataset}
-          animationDuration={isLargeDataset ? 0 : 150}
-          wrapperStyle={{ zIndex: 100, outline: 'none' }}
+          isLargeDataset={isLargeDataset}
         />
         {(showLegend ?? !isArea) && (
           <Legend wrapperStyle={LEGEND_WRAPPER_STYLE} formatter={legendFormatter} />

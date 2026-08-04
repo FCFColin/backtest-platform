@@ -19,54 +19,12 @@ import {
   defaultParameters,
   createEmptyPortfolio,
   createPortfolioFromPreset,
+  buildBacktestRequestBody,
+  handleBacktestError,
+  cancellableSleep,
 } from './backtestHelpers.js';
 import type { BacktestState, SetFn, GetFn, BacktestSeriesField } from './types.js';
 let currentRequestId = 0;
-const PORTFOLIO_BODY_KEYS = [
-  'name',
-  'assets',
-  'rebalanceFrequency',
-  'rebalanceThreshold',
-  'rebalanceOffset',
-  'rebalanceBands',
-  'drag',
-  'totalReturn',
-  'isGlidepath',
-  'glidepathToWeights',
-  'glidepathYears',
-] as const;
-function buildBacktestRequestBody(portfolios: Portfolio[], parameters: BacktestParameters) {
-  return {
-    portfolios: portfolios.map((p) =>
-      Object.fromEntries(PORTFOLIO_BODY_KEYS.map((k) => [k, p[k]])),
-    ),
-    parameters,
-  };
-}
-function handleBacktestError(error: unknown): void {
-  reportError(error, { component: 'backtestStore', action: 'handleBacktestError' });
-  const isAbort = error instanceof DOMException && error.name === 'AbortError';
-  const msg = isAbort
-    ? i18n.t('backtest.timeout')
-    : error instanceof TypeError
-      ? i18n.t('backtest.networkError')
-      : (error instanceof Error && error.message) || i18n.t('backtest.runFailed');
-  useToastStore.getState().addToast('error', msg);
-}
-function cancellableSleep(ms: number, signal: AbortSignal): Promise<void> {
-  return new Promise((resolve, reject) => {
-    if (signal.aborted) return reject(new DOMException('Aborted', 'AbortError'));
-    const timeoutId = setTimeout(() => {
-      signal.removeEventListener('abort', onAbort);
-      resolve();
-    }, ms);
-    const onAbort = () => {
-      clearTimeout(timeoutId);
-      reject(new DOMException('Aborted', 'AbortError'));
-    };
-    signal.addEventListener('abort', onAbort, { once: true });
-  });
-}
 export async function pollJobStatus(
   statusUrl: string,
   signal: AbortSignal,

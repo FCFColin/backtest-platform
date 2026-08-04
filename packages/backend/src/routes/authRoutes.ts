@@ -1,4 +1,4 @@
-import { Router, type Request, type Response } from 'express';
+import { Router, type Response } from 'express';
 import { randomBytes } from 'node:crypto';
 import { logger } from '../utils/logger.js';
 import { sendProblem } from '../utils/errors.js';
@@ -48,65 +48,35 @@ import {
   type Membership,
 } from '../application/org/membershipService.js';
 
-function getIdleTimeoutMs(role: string): number {
-  return (
-    (role === 'analyst'
-      ? authConfig.SESSION_IDLE_TIMEOUT_ANALYST_SEC
-      : authConfig.SESSION_IDLE_TIMEOUT_READONLY_SEC) * 1000
-  );
-}
-/** 客户端真实 IP（P0-05）：X-Forwarded-For 优先，回退 req.ip。 */
-function getClientIp(req: Request): string {
-  const xff = req.headers['x-forwarded-for'];
-  return typeof xff === 'string' && xff.length > 0 ? xff.split(',')[0].trim() : (req.ip ?? '');
-}
-function orgSummary(m: Membership) {
-  return {
-    orgId: m.orgId,
-    name: m.orgName,
-    slug: m.orgSlug,
-    plan: m.orgPlan,
-    status: m.orgStatus,
-    role: m.role,
-  };
-}
-
-/** 由名称生成 URL 友好且唯一的 org slug（追加随机后缀避免碰撞）。 */
-function slugify(name: string): string {
-  const base =
-    name
-      .toLowerCase()
-      .trim()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '')
-      .slice(0, 60) || 'org';
-  return `${base}-${randomBytes(3).toString('hex')}`;
-}
-
-const REFRESH_COOKIE_NAME = 'rt';
-const REFRESH_COOKIE_BASE = {
+const RT_COOKIE = 'rt';
+const RT_COOKIE_BASE = {
   httpOnly: true,
   secure: process.env.NODE_ENV === 'production',
   sameSite: 'strict' as const,
   path: '/api/v1/auth',
 };
-const REFRESH_COOKIE_OPTIONS = { ...REFRESH_COOKIE_BASE, maxAge: 7 * 24 * 60 * 60 * 1000 };
-const REFRESH_COOKIE_CLEAR_OPTIONS = { ...REFRESH_COOKIE_BASE };
+const RT_COOKIE_SET = { ...RT_COOKIE_BASE, maxAge: 604800000 };
+const RT_COOKIE_CLEAR = { ...RT_COOKIE_BASE };
 
 async function issueSession(
   res: Response,
   userId: string,
   role: Role,
-  tenant: TenantContext | undefined,
+  tenant?: TenantContext,
 ): Promise<string> {
   const accessToken = await generateToken(userId, role, tenant);
-  res.cookie(
-    REFRESH_COOKIE_NAME,
-    await generateRefreshToken(userId, role, undefined, tenant),
-    REFRESH_COOKIE_OPTIONS,
-  );
+  res.cookie(RT_COOKIE, await generateRefreshToken(userId, role, undefined, tenant), RT_COOKIE_SET);
   return accessToken;
 }
+
+const orgSummary = (m: Membership) => ({
+  orgId: m.orgId,
+  name: m.orgName,
+  slug: m.orgSlug,
+  plan: m.orgPlan,
+  status: m.orgStatus,
+  role: m.role,
+});
 
 const router = Router();
 
@@ -116,7 +86,9 @@ router.post(
   asyncRouteHandler(
     async (req, res) => {
       const { username, password } = req.body;
-      const clientIp = getClientIp(req);
+      const xff = req.headers['x-forwarded-for'];
+      const clientIp =
+        typeof xff === 'string' && xff.length > 0 ? xff.split(',')[0].trim() : (req.ip ?? '');
       const ipBlockTtl = await isIpBlocked(clientIp); // P0-05：IP 维度撞库检测（等保三级 8.1.4 b)）
       if (ipBlockTtl > 0) {
         logger.warn({ clientIp: 'hidden', ipBlockTtl }, '[auth] IP 被封锁，拒绝登录');
@@ -166,7 +138,10 @@ router.post(
           role: effectiveRole,
           userId: user.id,
           org: membership ? orgSummary(membership) : null,
-          idleTimeoutMs: getIdleTimeoutMs(effectiveRole),
+          idleTimeoutMs:
+            (effectiveRole === 'analyst'
+              ? authConfig.SESSION_IDLE_TIMEOUT_ANALYST_SEC
+              : authConfig.SESSION_IDLE_TIMEOUT_READONLY_SEC) * 1000,
         },
       });
     },
@@ -189,7 +164,14 @@ router.post('/register', validate(registerSchema), async (req, res) => {
     await client.query('BEGIN');
     const user = await createUserTx(client, username, password, email, 'admin');
     userId = user.id;
-    const slug = slugify(orgName);
+    const slugBase =
+      orgName
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .slice(0, 60) || 'org';
+    const slug = `${slugBase}-${randomBytes(3).toString('hex')}`;
     const orgRes = await client.query(
       `INSERT INTO organizations (name, slug) VALUES ($1, $2) RETURNING id`,
       [orgName, slug],
@@ -242,18 +224,18 @@ router.post(
   '/refresh',
   asyncRouteHandler(
     async (req, res) => {
-      const refreshToken = req.cookies?.[REFRESH_COOKIE_NAME];
+      const refreshToken = req.cookies?.[RT_COOKIE];
       if (!refreshToken) {
         sendProblem(res, 401, 'REFRESH_TOKEN_MISSING');
         return;
       }
       const result = await refreshAccessToken(refreshToken);
       if (!result) {
-        res.clearCookie(REFRESH_COOKIE_NAME, REFRESH_COOKIE_CLEAR_OPTIONS);
+        res.clearCookie(RT_COOKIE, RT_COOKIE_CLEAR);
         sendProblem(res, 401, 'INVALID_REFRESH_TOKEN');
         return;
       } // 无效 RT：清 Cookie，避免浏览器持有过期凭证
-      res.cookie(REFRESH_COOKIE_NAME, result.refreshToken, REFRESH_COOKIE_OPTIONS);
+      res.cookie(RT_COOKIE, result.refreshToken, RT_COOKIE_SET);
       res.json({ success: true, data: { accessToken: result.accessToken } });
     },
     { logMsg: 'Token refresh error', code: 'REFRESH_ERROR', endpoint: 'auth-refresh' },
@@ -264,12 +246,12 @@ router.delete(
   '/logout',
   asyncRouteHandler(
     async (req, res) => {
-      const refreshToken = req.cookies?.[REFRESH_COOKIE_NAME] as string | undefined;
+      const refreshToken = req.cookies?.[RT_COOKIE] as string | undefined;
       if (refreshToken) {
         await revokeRefreshToken(refreshToken);
         logger.info('[auth] Refresh Token 已撤销');
       }
-      res.clearCookie(REFRESH_COOKIE_NAME, REFRESH_COOKIE_CLEAR_OPTIONS); // 无论 RT 是否存在都清除，避免浏览器残留过期凭证
+      res.clearCookie(RT_COOKIE, RT_COOKIE_CLEAR); // 无论 RT 是否存在都清除，避免浏览器残留过期凭证
       res.json({ success: true });
     },
     { logMsg: 'Logout error', code: 'LOGOUT_ERROR', endpoint: 'auth-logout' },

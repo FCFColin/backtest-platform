@@ -1,4 +1,4 @@
-import { useState, type ReactNode, type ComponentType, type FormEvent } from 'react';
+import { useState, type ReactNode, type FormEvent, type ComponentType } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
@@ -161,25 +161,33 @@ function UpgradeContent() {
   );
 }
 const ABOUT_TABS = [
-  { key: 'about', labelKey: 'about.tabs.about', to: '/about', titleKey: 'about.title' },
-  { key: 'limits', labelKey: 'about.tabs.limits', to: '/limits', titleKey: 'about.limitsTitle' },
+  {
+    key: 'about',
+    labelKey: 'about.tabs.about',
+    to: '/about',
+    titleKey: 'about.title',
+    C: AboutContent,
+  },
+  {
+    key: 'limits',
+    labelKey: 'about.tabs.limits',
+    to: '/limits',
+    titleKey: 'about.limitsTitle',
+    C: LimitsContent,
+  },
   {
     key: 'upgrade',
     labelKey: 'about.tabs.upgrade',
     to: '/upgrade',
     titleKey: 'about.upgradeTitle',
+    C: UpgradeContent,
   },
 ] as const;
-const ABOUT_SECTIONS: Record<string, ComponentType> = {
-  about: AboutContent,
-  limits: LimitsContent,
-  upgrade: UpgradeContent,
-};
 export function AboutPage({ section }: { section?: string }) {
   const { t } = useTranslation();
   const s = section || 'about';
   const tab = ABOUT_TABS.find((x) => x.key === s) ?? ABOUT_TABS[0];
-  const Content = ABOUT_SECTIONS[s] ?? AboutContent;
+  const Content = tab.C;
   return (
     <StaticPageShell title={t(tab.titleKey)}>
       <div className="mb-6 flex gap-2 border-b-2 border-subtle pb-3">

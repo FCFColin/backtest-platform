@@ -11,7 +11,8 @@ import {
 import { Field, FieldLabel, FieldDescription } from '@/components/form/Field';
 import { LabeledField, RunButton } from '@/components/form/sharedFields';
 import { ParamSection } from './TacticalSignalEditor';
-import { INDICATOR_OPTIONS, OBJECTIVE_OPTIONS, REBALANCE_OPTIONS } from './tacticalGridUtils';
+import { INDICATOR_OPTIONS, REBALANCE_OPTIONS } from './sharedTacticalConstants';
+import { OBJECTIVE_OPTIONS } from './tacticalGridUtils';
 import type { IndicatorType, ObjectiveType, GridParamRange } from './tacticalGridUtils';
 import type { TacticalGridState } from '@/hooks/useTacticalGridState';
 function ParamRangeRow({

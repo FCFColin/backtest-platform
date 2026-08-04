@@ -1,4 +1,3 @@
-import type { CSSProperties } from 'react';
 import { useState, useMemo } from 'react';
 import i18n from '@/i18n/index.js';
 import { useNavigate } from 'react-router-dom';
@@ -17,13 +16,6 @@ export function sharpeToColor(sharpe: number, minSharpe: number, maxSharpe: numb
   const b = t < 0.5 ? 50 : Math.round(50 + (t - 0.5) * 2 * 37);
   return `rgb(${r},${g},${b})`;
 }
-export const SECTION_TITLE_STYLE: CSSProperties = {
-  fontWeight: 600,
-  fontSize: 14,
-  color: 'var(--text-strong)',
-  marginBottom: 12,
-  marginTop: 24,
-};
 function buildPortfolioData(
   p: EfficientFrontierPoint,
   rebalanceFrequency: string,

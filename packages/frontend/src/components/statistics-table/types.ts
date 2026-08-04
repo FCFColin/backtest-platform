@@ -9,10 +9,6 @@ export interface StatRow {
   higherIsBetter?: boolean;
   description?: string;
 }
-export interface StatGroup {
-  title: string;
-  rows: StatRow[];
-}
 export const STAT_KEY_TO_TESTID: Record<string, string> = {
   cagr: 'stat-cagr',
   mwrr: 'stat-mwrr',

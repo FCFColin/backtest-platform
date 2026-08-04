@@ -9,7 +9,7 @@ const { Pool } = pg;
 let pool: pg.Pool | null = null;
 let readPool: pg.Pool | null = null;
 
-export { pool as writePool, pool, readPool };
+export { pool, readPool };
 
 /** 关闭主/只读连接池（优雅关停时调用；未初始化时为空操作）。 */
 export async function closeDb(): Promise<void> {
