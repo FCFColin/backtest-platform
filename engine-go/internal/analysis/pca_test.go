@@ -1,4 +1,4 @@
-package pca
+package analysis
 
 import (
 	"math"

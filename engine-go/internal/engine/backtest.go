@@ -99,9 +99,6 @@ func computeGrowthCurve(pf PortfolioInput, priceData PriceDataMap, cpiData map[s
 	for i, d := range tradingDates {
 		dates[i] = d.Format("2006-01-02")
 	}
-	if len(dates) == 0 {
-		return nil, nil, fmt.Errorf("组合 %s 日期范围内无数据", pf.Name)
-	}
 	gp := func(ticker, date string) float64 { return getPriceWithFX(ticker, date, priceData, exchangeRates) }
 	holdings := make([]float64, n)
 	for i := range holdings {
@@ -173,14 +170,9 @@ func computeGrowthCurve(pf PortfolioInput, priceData PriceDataMap, cpiData map[s
 		cfAmount := cfMap[date] + otcMap[date]
 		if cfAmount != 0 {
 			pv += cfAmount
-			if pv <= 0 {
-				liquidated = true
-				zeroHoldings(holdings)
-				curve, vals = appendZeroDay(curve, vals, date)
-				prev = date
-				continue
+			if pv > 0 {
+				recalculateShares(holdings, &shares, lastPrices, currentWeights, pv, pf, gp, date)
 			}
-			recalculateShares(holdings, &shares, lastPrices, currentWeights, pv, pf, gp, date)
 		}
 		if pv <= 0 {
 			liquidated = true

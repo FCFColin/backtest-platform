@@ -37,8 +37,7 @@ func TestCalcMWRR(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := CalcMWRR(tc.cashflows)
-			if math.Abs(got-tc.want) > 1e-6 {
+			if got := CalcMWRR(tc.cashflows); math.Abs(got-tc.want) > 1e-6 {
 				t.Errorf("CalcMWRR() = %v, want %v", got, tc.want)
 			}
 		})

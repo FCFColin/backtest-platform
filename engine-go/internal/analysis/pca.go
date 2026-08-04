@@ -1,5 +1,4 @@
-// Package pca 提供主成分分析功能。
-package pca
+package analysis
 
 import (
 	"engine-go/internal/engineutil"

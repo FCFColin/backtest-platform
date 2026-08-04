@@ -8,160 +8,88 @@ import (
 func floatPtr(v float64) *float64 {
 	return &v
 }
-func TestShouldRebalanceDaily(t *testing.T) {
-	if !ShouldRebalance("daily", "2024-01-01", "2024-01-02", 0, nil, nil, 0, nil) {
-		t.Error("daily should always rebalance")
-	}
-}
-func TestShouldRebalanceNone(t *testing.T) {
-	if ShouldRebalance("none", "2024-01-01", "2024-01-02", 0, nil, nil, 0, nil) {
-		t.Error("none should never rebalance")
-	}
-}
-func TestShouldRebalanceWeekly(t *testing.T) {
+func TestShouldRebalancePeriods(t *testing.T) {
 	tests := []struct {
-		name string
-		prev string
-		curr string
-		want bool
+		name      string
+		frequency string
+		prev      string
+		curr      string
+		want      bool
 	}{
-		{"same week Monday-Wednesday", "2024-01-01", "2024-01-03", false},
-		{"same week Thursday-Friday", "2024-01-04", "2024-01-05", false},
-		{"different week Friday-Monday", "2024-01-05", "2024-01-08", true},
-		{"year boundary different week", "2023-12-31", "2024-01-01", true},
+		{"daily always rebalances", "daily", "2024-01-01", "2024-01-02", true},
+		{"none never rebalances", "none", "2024-01-01", "2024-01-02", false},
+		{"invalid frequency", "invalid", "2024-01-01", "2024-01-02", false},
+		{"weekly same week Monday-Wednesday", "weekly", "2024-01-01", "2024-01-03", false},
+		{"weekly same week Thursday-Friday", "weekly", "2024-01-04", "2024-01-05", false},
+		{"weekly different week Friday-Monday", "weekly", "2024-01-05", "2024-01-08", true},
+		{"weekly year boundary different week", "weekly", "2023-12-31", "2024-01-01", true},
+		{"weekly bad date", "weekly", "not-a-date", "2024-01-08", false},
+		{"monthly same month", "monthly", "2024-01-05", "2024-01-20", false},
+		{"monthly different month", "monthly", "2024-01-31", "2024-02-01", true},
+		{"monthly year boundary different month", "monthly", "2023-12-31", "2024-01-01", true},
+		{"monthly bad date", "monthly", "2024-01-01", "bad-date", false},
+		{"quarterly same quarter", "quarterly", "2024-01-15", "2024-03-20", false},
+		{"quarterly adjacent quarter", "quarterly", "2024-03-31", "2024-04-01", true},
+		{"quarterly year boundary same Q1", "quarterly", "2024-01-01", "2024-02-01", false},
+		{"annual same year", "annual", "2024-01-01", "2024-12-31", false},
+		{"annual different year", "annual", "2024-12-31", "2025-01-01", true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := ShouldRebalance("weekly", tt.prev, tt.curr, 0, nil, nil, 0, nil)
+			got := ShouldRebalance(tt.frequency, tt.prev, tt.curr, 0, nil, nil, 0, nil)
 			if got != tt.want {
-				t.Errorf("ShouldRebalance(weekly, %q, %q) = %v, want %v", tt.prev, tt.curr, got, tt.want)
-			}
-		})
-	}
-}
-func TestShouldRebalanceMonthly(t *testing.T) {
-	tests := []struct {
-		name string
-		prev string
-		curr string
-		want bool
-	}{
-		{"same month", "2024-01-05", "2024-01-20", false},
-		{"different month", "2024-01-31", "2024-02-01", true},
-		{"year boundary different month", "2023-12-31", "2024-01-01", true},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := ShouldRebalance("monthly", tt.prev, tt.curr, 0, nil, nil, 0, nil)
-			if got != tt.want {
-				t.Errorf("ShouldRebalance(monthly, %q, %q) = %v, want %v", tt.prev, tt.curr, got, tt.want)
-			}
-		})
-	}
-}
-func TestShouldRebalanceQuarterly(t *testing.T) {
-	tests := []struct {
-		name string
-		prev string
-		curr string
-		want bool
-	}{
-		{"same quarter", "2024-01-15", "2024-03-20", false},
-		{"adjacent quarter", "2024-03-31", "2024-04-01", true},
-		{"year boundary same Q1", "2024-01-01", "2024-02-01", false},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := ShouldRebalance("quarterly", tt.prev, tt.curr, 0, nil, nil, 0, nil)
-			if got != tt.want {
-				t.Errorf("ShouldRebalance(quarterly, %q, %q) = %v, want %v", tt.prev, tt.curr, got, tt.want)
-			}
-		})
-	}
-}
-func TestShouldRebalanceAnnual(t *testing.T) {
-	tests := []struct {
-		name string
-		prev string
-		curr string
-		want bool
-	}{{"same year", "2024-01-01", "2024-12-31", false}, {"different year", "2024-12-31", "2025-01-01", true}}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := ShouldRebalance("annual", tt.prev, tt.curr, 0, nil, nil, 0, nil)
-			if got != tt.want {
-				t.Errorf("ShouldRebalance(annual, %q, %q) = %v, want %v", tt.prev, tt.curr, got, tt.want)
+				t.Errorf("ShouldRebalance(%s, %q, %q) = %v, want %v", tt.frequency, tt.prev, tt.curr, got, tt.want)
 			}
 		})
 	}
 }
 func TestShouldRebalanceThreshold(t *testing.T) {
-	t.Run("below threshold no rebalance", func(t *testing.T) {
-		holdings := []float64{57, 43}
-		weights := []float64{0.60, 0.40}
-		got := ShouldRebalance("threshold", "2024-01-01", "2024-01-02", 10.0, holdings, weights, 100, nil)
-		if got {
-			t.Error("expected no rebalance when all deviations < 10%")
-		}
-	})
-	t.Run("above threshold triggers rebalance", func(t *testing.T) {
-		holdings := []float64{55, 45}
-		weights := []float64{0.60, 0.40}
-		got := ShouldRebalance("threshold", "2024-01-01", "2024-01-02", 10.0, holdings, weights, 100, nil)
-		if !got {
-			t.Error("expected rebalance when asset deviation >= 10%")
-		}
-	})
-	t.Run("zero threshold does not trigger", func(t *testing.T) {
-		holdings := []float64{80, 20}
-		weights := []float64{0.60, 0.40}
-		got := ShouldRebalance("threshold", "2024-01-01", "2024-01-02", 0, holdings, weights, 100, nil)
-		if got {
-			t.Error("expected no rebalance with threshold=0")
-		}
-	})
-	t.Run("zero pv does not trigger", func(t *testing.T) {
-		holdings := []float64{0, 0}
-		weights := []float64{0.60, 0.40}
-		got := ShouldRebalance("threshold", "2024-01-01", "2024-01-02", 10.0, holdings, weights, 0, nil)
-		if got {
-			t.Error("expected no rebalance with pv=0")
-		}
-	})
-	t.Run("zero weight asset skipped", func(t *testing.T) {
-		holdings := []float64{100, 0}
-		weights := []float64{1.0, 0}
-		got := ShouldRebalance("threshold", "2024-01-01", "2024-01-02", 5.0, holdings, weights, 100, nil)
-		if got {
-			t.Error("expected no rebalance when zero-weight asset deviates")
-		}
-	})
-	t.Run("empty holdings", func(t *testing.T) {
-		got := ShouldRebalance("threshold", "2024-01-01", "2024-01-02", 5.0, nil, nil, 0, nil)
-		if got {
-			t.Error("expected no rebalance with empty holdings")
-		}
-	})
+	tests := []struct {
+		name      string
+		threshold float64
+		holdings  []float64
+		weights   []float64
+		pv        float64
+		want      bool
+	}{
+		{"below threshold no rebalance", 10.0, []float64{57, 43}, []float64{0.60, 0.40}, 100, false},
+		{"above threshold triggers rebalance", 10.0, []float64{55, 45}, []float64{0.60, 0.40}, 100, true},
+		{"zero threshold does not trigger", 0, []float64{80, 20}, []float64{0.60, 0.40}, 100, false},
+		{"zero pv does not trigger", 10.0, []float64{0, 0}, []float64{0.60, 0.40}, 0, false},
+		{"zero weight asset skipped", 5.0, []float64{100, 0}, []float64{1.0, 0}, 100, false},
+		{"empty holdings", 5.0, nil, nil, 0, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := ShouldRebalance("threshold", "2024-01-01", "2024-01-02", tt.threshold, tt.holdings, tt.weights, tt.pv, nil)
+			if got != tt.want {
+				t.Errorf("threshold=%v holdings=%v weights=%v pv=%v => %v, want %v", tt.threshold, tt.holdings, tt.weights, tt.pv, got, tt.want)
+			}
+		})
+	}
 }
-func TestShouldRebalanceBandsAbsolute(t *testing.T) {
-	t.Run("within absolute band", func(t *testing.T) {
-		holdings := []float64{52, 48}
-		weights := []float64{0.50, 0.50}
-		bands := &RebalanceBands{AbsoluteBand: floatPtr(5.0)}
-		got := ShouldRebalance("monthly", "2024-01-01", "2024-01-15", 0, holdings, weights, 100, bands)
-		if got {
-			t.Error("expected no rebalance with 2% drift within 5% band")
-		}
-	})
-	t.Run("exceeds absolute band", func(t *testing.T) {
-		holdings := []float64{60, 40}
-		weights := []float64{0.50, 0.50}
-		bands := &RebalanceBands{AbsoluteBand: floatPtr(5.0)}
-		got := ShouldRebalance("monthly", "2024-01-01", "2024-01-15", 0, holdings, weights, 100, bands)
-		if !got {
-			t.Error("expected rebalance with 10% drift exceeding 5% band")
-		}
-	})
+func TestShouldRebalanceBands(t *testing.T) {
+	tests := []struct {
+		name     string
+		bands    *RebalanceBands
+		holdings []float64
+		weights  []float64
+		want     bool
+	}{
+		{"within absolute band", &RebalanceBands{AbsoluteBand: floatPtr(5.0)}, []float64{52, 48}, []float64{0.50, 0.50}, false},
+		{"exceeds absolute band", &RebalanceBands{AbsoluteBand: floatPtr(5.0)}, []float64{60, 40}, []float64{0.50, 0.50}, true},
+		{"within relative band", &RebalanceBands{RelativeBand: floatPtr(10.0)}, []float64{52, 48}, []float64{0.50, 0.50}, false},
+		{"exceeds relative band", &RebalanceBands{RelativeBand: floatPtr(10.0)}, []float64{60, 40}, []float64{0.50, 0.50}, true},
+		{"zero weight skipped in relative band", &RebalanceBands{RelativeBand: floatPtr(5.0)}, []float64{100, 0}, []float64{1.0, 0}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := ShouldRebalance("monthly", "2024-01-01", "2024-01-15", 0, tt.holdings, tt.weights, 100, tt.bands)
+			if got != tt.want {
+				t.Errorf("bands=%+v holdings=%v weights=%v => %v, want %v", tt.bands, tt.holdings, tt.weights, got, tt.want)
+			}
+		})
+	}
 	t.Run("frequency trigger before bands check", func(t *testing.T) {
 		holdings := []float64{51, 49}
 		weights := []float64{0.50, 0.50}
@@ -169,55 +97,6 @@ func TestShouldRebalanceBandsAbsolute(t *testing.T) {
 		got := ShouldRebalance("daily", "2024-01-01", "2024-01-02", 0, holdings, weights, 100, bands)
 		if !got {
 			t.Error("daily frequency should trigger before bands check")
-		}
-	})
-}
-func TestShouldRebalanceBandsRelative(t *testing.T) {
-	t.Run("within relative band", func(t *testing.T) {
-		holdings := []float64{52, 48}
-		weights := []float64{0.50, 0.50}
-		bands := &RebalanceBands{RelativeBand: floatPtr(10.0)}
-		got := ShouldRebalance("monthly", "2024-01-01", "2024-01-15", 0, holdings, weights, 100, bands)
-		if got {
-			t.Error("expected no rebalance with 4% relative drift within 10% band")
-		}
-	})
-	t.Run("exceeds relative band", func(t *testing.T) {
-		holdings := []float64{60, 40}
-		weights := []float64{0.50, 0.50}
-		bands := &RebalanceBands{RelativeBand: floatPtr(10.0)}
-		got := ShouldRebalance("monthly", "2024-01-01", "2024-01-15", 0, holdings, weights, 100, bands)
-		if !got {
-			t.Error("expected rebalance with 20% relative drift exceeding 10% band")
-		}
-	})
-	t.Run("zero weight skipped in relative band", func(t *testing.T) {
-		holdings := []float64{100, 0}
-		weights := []float64{1.0, 0}
-		bands := &RebalanceBands{RelativeBand: floatPtr(5.0)}
-		got := ShouldRebalance("monthly", "2024-01-01", "2024-01-15", 0, holdings, weights, 100, bands)
-		if got {
-			t.Error("expected no rebalance for zero-weight asset")
-		}
-	})
-}
-func TestShouldRebalanceInvalidFrequency(t *testing.T) {
-	got := ShouldRebalance("invalid", "2024-01-01", "2024-01-02", 0, nil, nil, 0, nil)
-	if got {
-		t.Error("invalid frequency should not rebalance")
-	}
-}
-func TestShouldRebalanceBadDate(t *testing.T) {
-	t.Run("weekly bad date", func(t *testing.T) {
-		got := ShouldRebalance("weekly", "not-a-date", "2024-01-08", 0, nil, nil, 0, nil)
-		if got {
-			t.Error("bad date should not trigger rebalance")
-		}
-	})
-	t.Run("monthly bad date", func(t *testing.T) {
-		got := ShouldRebalance("monthly", "2024-01-01", "bad-date", 0, nil, nil, 0, nil)
-		if got {
-			t.Error("bad date should not trigger rebalance")
 		}
 	})
 }

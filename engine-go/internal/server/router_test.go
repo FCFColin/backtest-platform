@@ -1,217 +1,76 @@
 package server
 
 import (
-	"encoding/json"
+	sharedhttp "github.com/backtest/go-shared/http"
 	"github.com/gin-gonic/gin"
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"strings"
 	"testing"
 )
 
-const testAuthToken = "test-engine-auth-token"
+func TestEngineBadRequestScenarios(t *testing.T) {
+	cases := []struct {
+		name, method, path, token string
+		body                      io.Reader
+	}{
+		{"backtest empty body", "POST", "/api/engine/backtest", testAuthToken, nil},
+		{"backtest empty portfolios", "POST", "/api/engine/backtest", testAuthToken, stringReader(`{"portfolios":[],"priceData":{}}`)},
+		{"backtest nil priceData", "POST", "/api/engine/backtest", testAuthToken, stringReader(`{"portfolios":[{"name":"test","assets":[{"ticker":"SPY","weight":100}],"rebalanceFrequency":"quarterly"}]}`)},
+		{"analysis empty tickers", "POST", "/api/engine/analysis", testAuthToken, stringReader(`{"tickers":[],"priceData":{}}`)},
+		{"analysis nil priceData", "POST", "/api/engine/analysis", testAuthToken, stringReader(`{"tickers":["SPY"]}`)},
+		{"analysis ticker not in priceData", "POST", "/api/engine/analysis", testAuthToken, stringReader(`{"tickers":["SPY"],"priceData":{"BND":{"2024-01-01":100}}}`)},
+		{"analysis bad JSON", "POST", "/api/engine/analysis", testAuthToken, stringReader("not-json")},
+		{"optimize bad JSON", "POST", "/api/engine/optimize", testAuthToken, stringReader("not-json")},
+		{"monte-carlo bad JSON", "POST", "/api/engine/monte-carlo", testAuthToken, stringReader("not-json")},
+		{"efficient-frontier bad JSON", "POST", "/api/engine/efficient-frontier", testAuthToken, stringReader("not-json")},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			wantStatus(t, doReq(t, c.method, c.path, c.body, c.token), http.StatusBadRequest)
+		})
+	}
+}
 
-func init() {
-	gin.SetMode(gin.TestMode)
-}
-func stringReader(s string) io.Reader {
-	return strings.NewReader(s)
-}
-func newTestRouter() *gin.Engine {
-	os.Setenv("ENGINE_AUTH_TOKEN", testAuthToken)
-	return SetupRouter(nil)
-}
-func TestHandleHealth(t *testing.T) {
-	r := newTestRouter()
-	defer os.Unsetenv("ENGINE_AUTH_TOKEN")
-	req := httptest.NewRequest("GET", "/api/engine/health", nil)
-	w := httptest.NewRecorder()
-	r.ServeHTTP(w, req)
-	if w.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d, body=%s", w.Code, w.Body.String())
+func TestAuthMiddlewareRejects(t *testing.T) {
+	cases := []struct{ name, token string }{
+		{"missing header", ""},
+		{"wrong token", "wrong-token"},
 	}
-	var resp map[string]interface{}
-	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("failed to parse health response: %v", err)
-	}
-	if resp["status"] != "ok" {
-		t.Errorf("health status = %v, want ok", resp["status"])
-	}
-	if resp["engine"] != "go" {
-		t.Errorf("health engine = %v, want go", resp["engine"])
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			wantStatus(t, doReq(t, "POST", "/api/engine/backtest", nil, c.token), http.StatusUnauthorized)
+		})
 	}
 }
-func TestHandleHealthNoAuthRequired(t *testing.T) {
-	r := newTestRouter()
-	defer os.Unsetenv("ENGINE_AUTH_TOKEN")
-	req := httptest.NewRequest("GET", "/api/engine/health", nil)
-	w := httptest.NewRecorder()
-	r.ServeHTTP(w, req)
-	if w.Code != http.StatusOK {
-		t.Errorf("expected 200 without auth, got %d", w.Code)
+
+func TestHealthAndReady(t *testing.T) {
+	cases := []struct{ name, path, status string }{
+		{"health no auth required", "/api/engine/health", "ok"},
+		{"ready no auth required", "/api/ready", "ready"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			w := doReq(t, "GET", c.path, nil, "")
+			wantStatus(t, w, http.StatusOK)
+			resp := decodeJSON[map[string]interface{}](t, w)
+			if resp["status"] != c.status {
+				t.Errorf("status = %v, want %s", resp["status"], c.status)
+			}
+			if resp["engine"] != "go" {
+				t.Errorf("engine = %v, want go", resp["engine"])
+			}
+		})
 	}
 }
-func TestHandleBacktestEmptyBody(t *testing.T) {
-	r := newTestRouter()
-	defer os.Unsetenv("ENGINE_AUTH_TOKEN")
-	req := httptest.NewRequest("POST", "/api/engine/backtest", nil)
-	req.Header.Set("X-Engine-Auth", testAuthToken)
-	w := httptest.NewRecorder()
-	r.ServeHTTP(w, req)
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("expected 400 for empty body, got %d, body=%s", w.Code, w.Body.String())
-	}
-}
-func TestHandleBacktestEmptyPortfolios(t *testing.T) {
-	r := newTestRouter()
-	defer os.Unsetenv("ENGINE_AUTH_TOKEN")
-	body := `{"portfolios":[],"priceData":{}}`
-	req := httptest.NewRequest("POST", "/api/engine/backtest", stringReader(body))
-	req.Header.Set("X-Engine-Auth", testAuthToken)
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
-	r.ServeHTTP(w, req)
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("expected 400 for empty portfolios, got %d, body=%s", w.Code, w.Body.String())
-	}
-}
-func TestHandleBacktestNilPriceData(t *testing.T) {
-	r := newTestRouter()
-	defer os.Unsetenv("ENGINE_AUTH_TOKEN")
-	body := `{"portfolios":[{"name":"test","assets":[{"ticker":"SPY","weight":100}],"rebalanceFrequency":"quarterly"}]}`
-	req := httptest.NewRequest("POST", "/api/engine/backtest", stringReader(body))
-	req.Header.Set("X-Engine-Auth", testAuthToken)
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
-	r.ServeHTTP(w, req)
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("expected 400 for nil priceData, got %d, body=%s", w.Code, w.Body.String())
-	}
-}
-func TestHandleAnalysisEmptyTickers(t *testing.T) {
-	r := newTestRouter()
-	defer os.Unsetenv("ENGINE_AUTH_TOKEN")
-	body := `{"tickers":[],"priceData":{}}`
-	req := httptest.NewRequest("POST", "/api/engine/analysis", stringReader(body))
-	req.Header.Set("X-Engine-Auth", testAuthToken)
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
-	r.ServeHTTP(w, req)
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("expected 400 for empty tickers, got %d, body=%s", w.Code, w.Body.String())
-	}
-}
-func TestHandleAnalysisNilPriceData(t *testing.T) {
-	r := newTestRouter()
-	defer os.Unsetenv("ENGINE_AUTH_TOKEN")
-	body := `{"tickers":["SPY"]}`
-	req := httptest.NewRequest("POST", "/api/engine/analysis", stringReader(body))
-	req.Header.Set("X-Engine-Auth", testAuthToken)
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
-	r.ServeHTTP(w, req)
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("expected 400 for nil priceData, got %d, body=%s", w.Code, w.Body.String())
-	}
-}
-func TestHandleAnalysisTickerNotFound(t *testing.T) {
-	r := newTestRouter()
-	defer os.Unsetenv("ENGINE_AUTH_TOKEN")
-	body := `{"tickers":["SPY"],"priceData":{"BND":{"2024-01-01":100}}}`
-	req := httptest.NewRequest("POST", "/api/engine/analysis", stringReader(body))
-	req.Header.Set("X-Engine-Auth", testAuthToken)
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
-	r.ServeHTTP(w, req)
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("expected 400 for ticker not in priceData, got %d, body=%s", w.Code, w.Body.String())
-	}
-}
-func TestHandleAnalysisBadJSON(t *testing.T) {
-	r := newTestRouter()
-	defer os.Unsetenv("ENGINE_AUTH_TOKEN")
-	req := httptest.NewRequest("POST", "/api/engine/analysis", stringReader("not-json"))
-	req.Header.Set("X-Engine-Auth", testAuthToken)
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
-	r.ServeHTTP(w, req)
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("expected 400 for bad JSON, got %d, body=%s", w.Code, w.Body.String())
-	}
-}
-func TestAuthMiddlewareBlocksMissingHeader(t *testing.T) {
-	r := newTestRouter()
-	defer os.Unsetenv("ENGINE_AUTH_TOKEN")
-	req := httptest.NewRequest("POST", "/api/engine/backtest", nil)
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
-	r.ServeHTTP(w, req)
-	if w.Code != http.StatusUnauthorized {
-		t.Errorf("expected 401 for missing auth header, got %d, body=%s", w.Code, w.Body.String())
-	}
-}
-func TestAuthMiddlewareBlocksWrongToken(t *testing.T) {
-	r := newTestRouter()
-	defer os.Unsetenv("ENGINE_AUTH_TOKEN")
-	req := httptest.NewRequest("POST", "/api/engine/backtest", nil)
-	req.Header.Set("X-Engine-Auth", "wrong-token")
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
-	r.ServeHTTP(w, req)
-	if w.Code != http.StatusUnauthorized {
-		t.Errorf("expected 401 for wrong token, got %d, body=%s", w.Code, w.Body.String())
-	}
-}
-func TestHandleOptimizeBadJSON(t *testing.T) {
-	r := newTestRouter()
-	defer os.Unsetenv("ENGINE_AUTH_TOKEN")
-	req := httptest.NewRequest("POST", "/api/engine/optimize", stringReader("not-json"))
-	req.Header.Set("X-Engine-Auth", testAuthToken)
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
-	r.ServeHTTP(w, req)
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("expected 400 for bad JSON, got %d, body=%s", w.Code, w.Body.String())
-	}
-}
-func TestHandleMonteCarloBadJSON(t *testing.T) {
-	r := newTestRouter()
-	defer os.Unsetenv("ENGINE_AUTH_TOKEN")
-	req := httptest.NewRequest("POST", "/api/engine/monte-carlo", stringReader("not-json"))
-	req.Header.Set("X-Engine-Auth", testAuthToken)
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
-	r.ServeHTTP(w, req)
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("expected 400 for bad JSON, got %d, body=%s", w.Code, w.Body.String())
-	}
-}
-func TestHandleEfficientFrontierBadJSON(t *testing.T) {
-	r := newTestRouter()
-	defer os.Unsetenv("ENGINE_AUTH_TOKEN")
-	req := httptest.NewRequest("POST", "/api/engine/efficient-frontier", stringReader("not-json"))
-	req.Header.Set("X-Engine-Auth", testAuthToken)
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
-	r.ServeHTTP(w, req)
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("expected 400 for bad JSON, got %d, body=%s", w.Code, w.Body.String())
-	}
-}
+
 func TestProblemFormat(t *testing.T) {
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
 	c.Request = httptest.NewRequest("GET", "/", nil)
-	newProblem(c, http.StatusBadRequest, "TEST_CODE", "Test Title", "test detail")
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("expected 400, got %d", w.Code)
-	}
-	var p Problem
-	if err := json.Unmarshal(w.Body.Bytes(), &p); err != nil {
-		t.Fatalf("failed to parse problem: %v", err)
-	}
+	sharedhttp.NewProblem(c, http.StatusBadRequest, "TEST_CODE", "Test Title", "test detail")
+	wantStatus(t, w, http.StatusBadRequest)
+	p := decodeJSON[sharedhttp.Problem](t, w)
 	if p.Code != "TEST_CODE" {
 		t.Errorf("problem code = %s, want TEST_CODE", p.Code)
 	}
@@ -223,35 +82,5 @@ func TestProblemFormat(t *testing.T) {
 	}
 	if p.Type != "https://backtest.platform/errors/TEST_CODE" {
 		t.Errorf("problem type = %s, want https://backtest.platform/errors/TEST_CODE", p.Type)
-	}
-}
-func TestHandleReadyReturns200(t *testing.T) {
-	r := newTestRouter()
-	defer os.Unsetenv("ENGINE_AUTH_TOKEN")
-	req := httptest.NewRequest("GET", "/api/ready", nil)
-	w := httptest.NewRecorder()
-	r.ServeHTTP(w, req)
-	if w.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d, body=%s", w.Code, w.Body.String())
-	}
-	var resp map[string]interface{}
-	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("failed to parse ready response: %v", err)
-	}
-	if resp["status"] != "ready" {
-		t.Errorf("ready status = %v, want ready", resp["status"])
-	}
-	if resp["engine"] != "go" {
-		t.Errorf("ready engine = %v, want go", resp["engine"])
-	}
-}
-func TestHandleReadyNoAuthRequired(t *testing.T) {
-	r := newTestRouter()
-	defer os.Unsetenv("ENGINE_AUTH_TOKEN")
-	req := httptest.NewRequest("GET", "/api/ready", nil)
-	w := httptest.NewRecorder()
-	r.ServeHTTP(w, req)
-	if w.Code != http.StatusOK {
-		t.Errorf("expected 200 without auth, got %d, body=%s", w.Code, w.Body.String())
 	}
 }

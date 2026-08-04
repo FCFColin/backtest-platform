@@ -210,10 +210,7 @@ func calcStatistics(signals []SignalPoint) SignalStats {
 	return SignalStats{TotalSignals: totalSignals, WinRate: winRate, AvgReturn: avgReturn}
 }
 func calcEquityCurve(signals []SignalPoint, data []PricePoint) (equityCurve []EquityPoint, maxDrawdown, sharpe float64) {
-	signalMap := make(map[string]SignalDir)
-	for _, s := range signals {
-		signalMap[s.Date] = s.Type
-	}
+	signalMap := buildSignalDirMap(signals)
 	capital := initialCapital
 	shares := 0.0
 	inPosition := false

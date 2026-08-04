@@ -17,6 +17,18 @@ type RebalanceBands struct {
 	LowerBand    *float64 `json:"lowerBand,omitempty"`
 }
 
+var periodCrossing = map[string]func(prev, curr time.Time) bool{
+	"daily": func(_, _ time.Time) bool { return true },
+	"weekly": func(p, c time.Time) bool {
+		_, pw := p.ISOWeek()
+		_, cw := c.ISOWeek()
+		return cw != pw || c.Year() != p.Year()
+	},
+	"monthly":   func(p, c time.Time) bool { return c.Month() != p.Month() || c.Year() != p.Year() },
+	"quarterly": func(p, c time.Time) bool { return (int(p.Month())-1)/3 != (int(c.Month())-1)/3 || p.Year() != c.Year() },
+	"annual":    func(p, c time.Time) bool { return p.Year() != c.Year() },
+}
+
 func ShouldRebalance(
 	frequency, prevDate, currDate string,
 	threshold float64,
@@ -24,36 +36,13 @@ func ShouldRebalance(
 	pv float64,
 	bands *RebalanceBands,
 ) bool {
-	prevTime, prevOk := time.Parse("2006-01-02", prevDate)
-	currTime, currOk := time.Parse("2006-01-02", currDate)
-	datesParsed := prevOk == nil && currOk == nil
-	freqTrigger := false
-	switch frequency {
-	case "daily":
-		freqTrigger = true
-	case "none":
+	if frequency == "none" {
 		return false
-	case "weekly":
-		if datesParsed {
-			_, pw := prevTime.ISOWeek()
-			_, cw := currTime.ISOWeek()
-			freqTrigger = cw != pw || currTime.Year() != prevTime.Year()
-		}
-	case "monthly":
-		if datesParsed {
-			freqTrigger = currTime.Month() != prevTime.Month() || currTime.Year() != prevTime.Year()
-		}
-	case "quarterly":
-		if datesParsed {
-			pq := (int(prevTime.Month()) - 1) / 3
-			cq := (int(currTime.Month()) - 1) / 3
-			freqTrigger = pq != cq || prevTime.Year() != currTime.Year()
-		}
-	case "annual":
-		if datesParsed {
-			freqTrigger = prevTime.Year() != currTime.Year()
-		}
-	case "threshold":
+	}
+	if frequency == "daily" {
+		return true
+	}
+	if frequency == "threshold" {
 		if threshold > 0 && pv > 0 {
 			for j := range holdings {
 				if weights[j] == 0 {
@@ -67,10 +56,14 @@ func ShouldRebalance(
 			}
 		}
 		return false
-	default:
+	}
+	crossing, ok := periodCrossing[frequency]
+	if !ok {
 		return false
 	}
-	if freqTrigger {
+	prevTime, prevErr := time.Parse("2006-01-02", prevDate)
+	currTime, currErr := time.Parse("2006-01-02", currDate)
+	if prevErr == nil && currErr == nil && crossing(prevTime, currTime) {
 		return true
 	}
 	if bands != nil {
@@ -128,34 +121,24 @@ func IterDrawdowns(values []float64, fn func(idx, peakIdx int, peak float64)) {
 	}
 }
 func AlignDates(tickers []string, priceData map[string]map[string]float64) []string {
-	dateSets := make([]map[string]bool, len(tickers))
-	for i, t := range tickers {
-		ds := make(map[string]bool)
-		if pd, ok := priceData[t]; ok {
-			for d := range pd {
-				ds[d] = true
-			}
-		}
-		dateSets[i] = ds
-	}
-	if len(dateSets) == 0 || len(dateSets[0]) == 0 {
+	if len(tickers) == 0 {
 		return nil
 	}
-	var commonDates []string
-	for d := range dateSets[0] {
-		all := true
-		for i := 1; i < len(dateSets); i++ {
-			if !dateSets[i][d] {
-				all = false
-				break
+	common := map[string]bool{}
+	for d := range priceData[tickers[0]] {
+		common[d] = true
+	}
+	if len(common) == 0 {
+		return nil
+	}
+	for _, t := range tickers[1:] {
+		for d := range common {
+			if _, ok := priceData[t][d]; !ok {
+				delete(common, d)
 			}
 		}
-		if all {
-			commonDates = append(commonDates, d)
-		}
 	}
-	sort.Strings(commonDates)
-	return commonDates
+	return slices.Sorted(maps.Keys(common))
 }
 func GetSortedDates(priceData map[string]map[string]float64, tickers []string) []string {
 	dateSet := make(map[string]struct{})

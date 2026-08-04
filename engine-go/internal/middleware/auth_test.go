@@ -30,48 +30,37 @@ func newTestRouter() *gin.Engine {
 	}
 	return r
 }
-func TestAuthPassesWithCorrectToken(t *testing.T) {
+func doReq(t *testing.T, method, path, token string) *httptest.ResponseRecorder {
+	t.Helper()
 	os.Setenv("ENGINE_AUTH_TOKEN", testEngineToken)
-	defer os.Unsetenv("ENGINE_AUTH_TOKEN")
-	r := newTestRouter()
-	req := httptest.NewRequest("POST", "/api/engine/echo", nil)
-	req.Header.Set("X-Engine-Auth", testEngineToken)
-	w := httptest.NewRecorder()
-	r.ServeHTTP(w, req)
-	if w.Code != http.StatusOK {
-		t.Errorf("expected 200 with correct token, got %d, body=%s", w.Code, w.Body.String())
+	req := httptest.NewRequest(method, path, nil)
+	if token != "" {
+		req.Header.Set("X-Engine-Auth", token)
 	}
-}
-func TestAuthFailsWithMissingHeader(t *testing.T) {
-	os.Setenv("ENGINE_AUTH_TOKEN", testEngineToken)
-	defer os.Unsetenv("ENGINE_AUTH_TOKEN")
-	r := newTestRouter()
-	req := httptest.NewRequest("POST", "/api/engine/echo", nil)
 	w := httptest.NewRecorder()
-	r.ServeHTTP(w, req)
-	if w.Code != http.StatusUnauthorized {
-		t.Errorf("expected 401 with missing header, got %d, body=%s", w.Code, w.Body.String())
+	newTestRouter().ServeHTTP(w, req)
+	return w
+}
+func TestAuthMiddleware(t *testing.T) {
+	cases := []struct {
+		name, token string
+		want        int
+	}{
+		{"passes with correct token", testEngineToken, http.StatusOK},
+		{"fails with missing header", "", http.StatusUnauthorized},
+		{"fails with wrong token", "wrong-token", http.StatusUnauthorized},
 	}
-}
-func TestAuthFailsWithWrongToken(t *testing.T) {
-	os.Setenv("ENGINE_AUTH_TOKEN", testEngineToken)
-	defer os.Unsetenv("ENGINE_AUTH_TOKEN")
-	r := newTestRouter()
-	req := httptest.NewRequest("POST", "/api/engine/echo", nil)
-	req.Header.Set("X-Engine-Auth", "wrong-token")
-	w := httptest.NewRecorder()
-	r.ServeHTTP(w, req)
-	if w.Code != http.StatusUnauthorized {
-		t.Errorf("expected 401 with wrong token, got %d, body=%s", w.Code, w.Body.String())
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			w := doReq(t, "POST", "/api/engine/echo", c.token)
+			if w.Code != c.want {
+				t.Errorf("expected %d, got %d, body=%s", c.want, w.Code, w.Body.String())
+			}
+		})
 	}
 }
 func TestHealthAccessibleWithoutAuth(t *testing.T) {
-	os.Setenv("ENGINE_AUTH_TOKEN", testEngineToken)
-	defer os.Unsetenv("ENGINE_AUTH_TOKEN")
-	r := newTestRouter()
-	req := httptest.NewRequest("GET", "/api/engine/health", nil)
-	w := httptest.NewRecorder()
-	r.ServeHTTP(w, req)
+	w := doReq(t, "GET", "/api/engine/health", "")
 	if w.Code != http.StatusOK {
 		t.Errorf("expected 200 on health without auth, got %d, body=%s", w.Code, w.Body.String())
 	}

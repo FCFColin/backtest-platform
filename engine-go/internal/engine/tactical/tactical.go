@@ -81,10 +81,7 @@ func aggregateRank(activeSignals []TradingSignal, allTickers []string, rc *Ranki
 		ranked[i] = ts{t, score[t]}
 	}
 	slices.SortFunc(ranked, func(a, b ts) int { return cmp.Compare(b.score, a.score) })
-	if topN > len(ranked) {
-		topN = len(ranked)
-	}
-	ranked = ranked[:topN]
+	ranked = ranked[:min(topN, len(ranked))]
 	weights := make([]float64, len(ranked))
 	if method == "risk_parity" {
 		sumInv := 0.0
@@ -145,9 +142,6 @@ func computeActiveFlags(strategy TacticalStrategy, priceData map[string]map[stri
 			}
 		}
 		priceMap := priceData[signalTicker]
-		if priceMap == nil {
-			priceMap = make(map[string]float64)
-		}
 		lastValid := 0.0
 		filledPrices := make([]float64, len(dates))
 		for i, d := range dates {

@@ -1,5 +1,4 @@
-// Package factorregression 提供 Fama-French 因子回归功能。
-package factorregression
+package analysis
 
 import (
 	"gonum.org/v1/gonum/mat"

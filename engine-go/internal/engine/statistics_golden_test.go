@@ -123,7 +123,7 @@ func TestGoldenSWR(t *testing.T) {
 	}
 	wantSWR := r * math.Pow(1+r, float64(years)) / (math.Pow(1+r, float64(years)) - 1)
 	gotSWR := CalcSWR(annualReturns, years, 0.95)
-	gotPWR := CalcPWRYears(annualReturns, years)
+	gotPWR := CalcSWR(annualReturns, years, 1.0)
 	if !approxEqual(gotSWR, wantSWR, tol) {
 		t.Errorf("SWR = %.10f, want %.10f (7%% 30y annuity boundary)", gotSWR, wantSWR)
 	}

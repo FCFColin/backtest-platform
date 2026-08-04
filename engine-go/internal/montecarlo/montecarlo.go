@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	mcTradingDays   = 252
-	mcRiskFreeRate  = 0.02
+	mcTradingDays   = int(engineutil.TradingDaysPerYear)
+	mcRiskFreeRate  = engineutil.RiskFreeRate
 	mcHistogramBins = 50
 	mcDefaultSims   = 1000
 	mcDefaultYears  = 20

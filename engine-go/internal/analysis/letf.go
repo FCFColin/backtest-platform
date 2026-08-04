@@ -1,5 +1,4 @@
-// Package letf 提供杠杆 ETF 滑点分析功能。
-package letf
+package analysis
 
 import (
 	"engine-go/internal/engineutil"

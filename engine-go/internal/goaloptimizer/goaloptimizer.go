@@ -81,13 +81,7 @@ func OptimizeGoals(req GoalOptimizerRequest) (*GoalOptimizerResult, error) {
 	annualMeanReturn := dailyMean * tradingDaysPerYear
 	numSims := 1000
 	if req.NumSimulations != nil && *req.NumSimulations > 0 {
-		numSims = *req.NumSimulations
-	}
-	if numSims > 10000 {
-		numSims = 10000
-	}
-	if numSims < 1 {
-		numSims = 1
+		numSims = max(1, min(*req.NumSimulations, 10000))
 	}
 	totalDays := int(math.Round(req.Years * tradingDaysPerYear))
 	rnd := rand.New(rand.NewSource(42)) // 确定性种子保证可复现

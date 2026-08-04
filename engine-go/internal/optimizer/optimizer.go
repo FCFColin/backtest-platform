@@ -135,14 +135,6 @@ func computeReturnCovariance(tickers []string, priceData map[string]map[string]f
 	}
 	return mu, cov, nil
 }
-func computeLagrangeCoeffs(sigmaInvOnes, sigmaInvMu, mu []float64) (a, b, cc float64) {
-	for i := range mu {
-		a += sigmaInvOnes[i]
-		b += sigmaInvMu[i]
-		cc += mu[i] * sigmaInvMu[i]
-	}
-	return
-}
 func solveFrontierPoint(mu []float64, sigma [][]float64, targetRet float64, c Constraints) []float64 {
 	n := len(mu)
 	sigmaInv, err := invertDense(sigma)
@@ -155,7 +147,12 @@ func solveFrontierPoint(mu []float64, sigma [][]float64, targetRet float64, c Co
 	}
 	sigmaInvOnes := denseMulVec(sigmaInv, ones)
 	sigmaInvMu := denseMulVec(sigmaInv, mu)
-	a, b, cc := computeLagrangeCoeffs(sigmaInvOnes, sigmaInvMu, mu)
+	a, b, cc := 0.0, 0.0, 0.0
+	for i := range mu {
+		a += sigmaInvOnes[i]
+		b += sigmaInvMu[i]
+		cc += mu[i] * sigmaInvMu[i]
+	}
 	det := a*cc - b*b
 	if math.Abs(det) < 1e-15 {
 		return randomSearch(mu, sigma, c, "minVolatility", defaultIterations)
@@ -283,17 +280,13 @@ func randomSearch(mu []float64, sigma [][]float64, c Constraints, objective stri
 	rng := rand.New(rand.NewSource(42))
 	for iter := 0; iter < numIter; iter++ {
 		w := randomWeights(n, c, rng)
-		ret, vol, sharpe := portfolioMetrics(w, mu, sigma)
+		_, vol, sharpe := portfolioMetrics(w, mu, sigma)
 		var score float64
 		switch objective {
 		case "maxSharpe":
 			score = sharpe
 		case "minVolatility":
 			score = -vol
-		case "maxReturn":
-			score = ret
-		default:
-			score = sharpe
 		}
 		if score > bestScore {
 			bestScore = score

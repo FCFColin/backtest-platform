@@ -1,4 +1,4 @@
-package factorregression
+package analysis
 
 import (
 	"math"

@@ -7,13 +7,10 @@ import (
 	"engine-go/internal/engine"
 	"engine-go/internal/engine/tactical"
 	"engine-go/internal/engineutil"
-	"engine-go/internal/factorregression"
 	"engine-go/internal/goaloptimizer"
-	"engine-go/internal/letf"
 	"engine-go/internal/middleware"
 	"engine-go/internal/montecarlo"
 	"engine-go/internal/optimizer"
-	"engine-go/internal/pca"
 	"engine-go/internal/signal"
 	sharedhttp "github.com/backtest/go-shared/http"
 	gosharedmw "github.com/backtest/go-shared/middleware"
@@ -30,11 +27,6 @@ import (
 	"time"
 )
 
-type Problem = sharedhttp.Problem
-
-func newProblem(c *gin.Context, status int, code, title, detail string) {
-	sharedhttp.NewProblem(c, status, code, title, detail)
-}
 func withComputeSpan(ctx context.Context, name string, attrs ...attribute.KeyValue) (context.Context, trace.Span) {
 	return otel.Tracer("engine-go").Start(ctx, name, trace.WithAttributes(attrs...))
 }
@@ -45,7 +37,7 @@ func withComputeHandler[T any](c *gin.Context, errMsg string, fn func(ctx contex
 	defer func() {
 		if r := recover(); r != nil {
 			slog.Error("计算处理器 panic", "path", c.Request.URL.Path, "panic", r)
-			newProblem(c, http.StatusInternalServerError, "COMPUTE_FAILED", "Computation Failed", errMsg)
+			sharedhttp.NewProblem(c, http.StatusInternalServerError, "COMPUTE_FAILED", "Computation Failed", errMsg)
 		}
 	}()
 	ctx, cancel := context.WithTimeout(c.Request.Context(), computeTimeout)
@@ -53,7 +45,7 @@ func withComputeHandler[T any](c *gin.Context, errMsg string, fn func(ctx contex
 	result, err := fn(ctx)
 	if err != nil {
 		slog.Error("计算处理器失败", "path", c.Request.URL.Path, "error", err)
-		newProblem(c, http.StatusInternalServerError, "COMPUTE_FAILED", "Computation Failed", errMsg)
+		sharedhttp.NewProblem(c, http.StatusInternalServerError, "COMPUTE_FAILED", "Computation Failed", errMsg)
 		return
 	}
 	okJSON(c, result)
@@ -68,15 +60,23 @@ func withSpannedCompute[T any](c *gin.Context, errMsg, spanName string, fn func(
 
 func bindJSON[T any](c *gin.Context, code, msg string, req *T) bool {
 	if err := c.ShouldBindJSON(req); err != nil {
-		newProblem(c, http.StatusBadRequest, code, "Bad Request", msg)
+		sharedhttp.NewProblem(c, http.StatusBadRequest, code, "Bad Request", msg)
 		return false
 	}
 	return true
 }
-func bindAndCompute[T any, R any](c *gin.Context, code, bindMsg, errMsg, spanName string, fn func(context.Context, T) (R, error)) {
+
+// bindCompute runs fn after optional validation (nil validate or empty code = validation passed).
+func bindCompute[T any, R any](c *gin.Context, code, bindMsg, errMsg, spanName string, validate func(T) (string, string), fn func(context.Context, T) (R, error)) {
 	var req T
 	if !bindJSON(c, code, bindMsg, &req) {
 		return
+	}
+	if validate != nil {
+		if vcode, vmsg := validate(req); vcode != "" {
+			sharedhttp.NewProblem(c, http.StatusBadRequest, vcode, "Bad Request", vmsg)
+			return
+		}
 	}
 	run := func(ctx context.Context) (R, error) { return fn(ctx, req) }
 	if spanName != "" {
@@ -116,70 +116,57 @@ func handleHealth(c *gin.Context) {
 func handleReady(c *gin.Context) { c.JSON(http.StatusOK, gin.H{"status": "ready", "engine": "go"}) }
 
 func handleBacktest(c *gin.Context) {
-	var req engine.BacktestRequest
-	if !bindJSON(c, "BACKTEST_BAD_REQUEST", "请求解析失败", &req) {
-		return
-	}
-	if len(req.Portfolios) == 0 {
-		newProblem(c, http.StatusBadRequest, "BACKTEST_EMPTY_PORTFOLIOS", "Bad Request", "portfolios 不能为空")
-		return
-	}
-	if req.PriceData == nil {
-		newProblem(c, http.StatusBadRequest, "BACKTEST_EMPTY_PRICE_DATA", "Bad Request", "priceData 不能为空")
-		return
-	}
-	withSpannedCompute(c, "回测计算失败", "backtest.run", func(ctx context.Context) (*engine.BacktestResult, error) {
-		return engine.RunBacktest(ctx, req)
-	})
+	bindCompute(c, "BACKTEST_BAD_REQUEST", "请求解析失败", "回测计算失败", "backtest.run",
+		func(req engine.BacktestRequest) (string, string) {
+			if len(req.Portfolios) == 0 {
+				return "BACKTEST_EMPTY_PORTFOLIOS", "portfolios 不能为空"
+			}
+			if req.PriceData == nil {
+				return "BACKTEST_EMPTY_PRICE_DATA", "priceData 不能为空"
+			}
+			return "", ""
+		}, engine.RunBacktest)
 }
 func handleStatistics(c *gin.Context) {
-	var req engine.StatisticsRequest
-	if !bindJSON(c, "STATISTICS_BAD_REQUEST", "请求解析失败", &req) {
-		return
-	}
-	if len(req.Values) < 2 {
-		newProblem(c, http.StatusBadRequest, "STATISTICS_INSUFFICIENT_DATA", "Bad Request", "values 至少需要 2 个数据点")
-		return
-	}
-	withComputeHandler(c, "统计计算失败", func(ctx context.Context) (engine.Statistics, error) {
-		return engine.CalculateStatisticsFromRequest(req), nil
-	})
+	bindCompute(c, "STATISTICS_BAD_REQUEST", "请求解析失败", "统计计算失败", "",
+		func(req engine.StatisticsRequest) (string, string) {
+			if len(req.Values) < 2 {
+				return "STATISTICS_INSUFFICIENT_DATA", "values 至少需要 2 个数据点"
+			}
+			return "", ""
+		},
+		func(_ context.Context, req engine.StatisticsRequest) (engine.Statistics, error) {
+			return engine.CalculateStatisticsFromRequest(req), nil
+		})
 }
 func handleAnalysis(c *gin.Context) {
-	var req analysis.AnalysisRequest
-	if !bindJSON(c, "ANALYSIS_BAD_REQUEST", "请求格式错误", &req) {
-		return
-	}
-	if len(req.Tickers) == 0 {
-		newProblem(c, http.StatusBadRequest, "ANALYSIS_EMPTY_TICKERS", "Bad Request", "tickers 不能为空")
-		return
-	}
-	if req.PriceData == nil {
-		newProblem(c, http.StatusBadRequest, "ANALYSIS_EMPTY_PRICE_DATA", "Bad Request", "priceData 不能为空")
-		return
-	}
-	for _, ticker := range req.Tickers {
-		if _, ok := req.PriceData[ticker]; !ok {
-			newProblem(c, http.StatusBadRequest, "ANALYSIS_TICKER_NOT_FOUND", "Bad Request", "ticker 在 priceData 中不存在")
-			return
-		}
-	}
-	withComputeHandler(c, "分析计算失败", func(ctx context.Context) (analysis.AnalysisResult, error) {
-		return analysis.RunAnalysis(ctx, req)
-	})
+	bindCompute(c, "ANALYSIS_BAD_REQUEST", "请求格式错误", "分析计算失败", "",
+		func(req analysis.AnalysisRequest) (string, string) {
+			if len(req.Tickers) == 0 {
+				return "ANALYSIS_EMPTY_TICKERS", "tickers 不能为空"
+			}
+			if req.PriceData == nil {
+				return "ANALYSIS_EMPTY_PRICE_DATA", "priceData 不能为空"
+			}
+			for _, t := range req.Tickers {
+				if _, ok := req.PriceData[t]; !ok {
+					return "ANALYSIS_TICKER_NOT_FOUND", "ticker 在 priceData 中不存在"
+				}
+			}
+			return "", ""
+		}, analysis.RunAnalysis)
 }
 func handlePCA(c *gin.Context) {
-	var req pca.PCARequest
-	if !bindJSON(c, "PCA_BAD_REQUEST", "请求解析失败", &req) {
-		return
-	}
-	if len(req.Tickers) < 2 {
-		newProblem(c, http.StatusBadRequest, "PCA_INSUFFICIENT_TICKERS", "Bad Request", "至少需要 2 个 ticker")
-		return
-	}
-	withSpannedCompute(c, "PCA 计算失败", "pca.compute", func(ctx context.Context) (*pca.PCAResult, error) {
-		return pca.PerformPCA(req)
-	})
+	bindCompute(c, "PCA_BAD_REQUEST", "请求解析失败", "PCA 计算失败", "pca.compute",
+		func(req analysis.PCARequest) (string, string) {
+			if len(req.Tickers) < 2 {
+				return "PCA_INSUFFICIENT_TICKERS", "至少需要 2 个 ticker"
+			}
+			return "", ""
+		},
+		func(_ context.Context, req analysis.PCARequest) (*analysis.PCAResult, error) {
+			return analysis.PerformPCA(req)
+		})
 }
 func handleLETFAnalyze(c *gin.Context) {
 	var req struct {
@@ -194,37 +181,37 @@ func handleLETFAnalyze(c *gin.Context) {
 	letfData, ok1 := req.PriceData[req.LETFTicker]
 	benchData, ok2 := req.PriceData[req.BenchmarkTicker]
 	if !ok1 || !ok2 {
-		newProblem(c, http.StatusBadRequest, "LETF_TICKER_NOT_FOUND", "Bad Request", "ticker 在 priceData 中不存在")
+		sharedhttp.NewProblem(c, http.StatusBadRequest, "LETF_TICKER_NOT_FOUND", "Bad Request", "ticker 在 priceData 中不存在")
 		return
 	}
-	withComputeHandler(c, "LETF 滑点分析失败", func(ctx context.Context) (*letf.LETFResult, error) {
-		return letf.AnalyzeSlippage(letf.LETFRequest{LETFSeries: engineutil.ToPricePoints(letfData), BenchSeries: engineutil.ToPricePoints(benchData), Leverage: req.Leverage})
+	withComputeHandler(c, "LETF 滑点分析失败", func(ctx context.Context) (*analysis.LETFResult, error) {
+		return analysis.AnalyzeSlippage(analysis.LETFRequest{LETFSeries: engineutil.ToPricePoints(letfData), BenchSeries: engineutil.ToPricePoints(benchData), Leverage: req.Leverage})
 	})
 }
 func handleFactorRegression(c *gin.Context) {
-	bindAndCompute(c, "FR_BAD_REQUEST", "请求解析失败", "因子回归计算失败", "", func(_ context.Context, req factorregression.FactorRegressionRequest) (*factorregression.RegressionResult, error) {
-		return factorregression.RunRegression(req)
+	bindCompute(c, "FR_BAD_REQUEST", "请求解析失败", "因子回归计算失败", "", nil, func(_ context.Context, req analysis.FactorRegressionRequest) (*analysis.RegressionResult, error) {
+		return analysis.RunRegression(req)
 	})
 }
 func handleOptimize(c *gin.Context) {
-	bindAndCompute(c, "OPTIMIZE_BAD_REQUEST", "请求解析失败", "优化计算失败", "optimizer.optimize", optimizer.Optimize)
+	bindCompute(c, "OPTIMIZE_BAD_REQUEST", "请求解析失败", "优化计算失败", "optimizer.optimize", nil, optimizer.Optimize)
 }
 func handleEfficientFrontier(c *gin.Context) {
-	bindAndCompute(c, "FRONTIER_BAD_REQUEST", "请求解析失败", "有效前沿计算失败", "", optimizer.ComputeEfficientFrontier)
+	bindCompute(c, "FRONTIER_BAD_REQUEST", "请求解析失败", "有效前沿计算失败", "", nil, optimizer.ComputeEfficientFrontier)
 }
 func handleMonteCarlo(c *gin.Context) {
-	bindAndCompute(c, "MONTE_CARLO_BAD_REQUEST", "请求解析失败", "蒙特卡洛模拟失败", "montecarlo.simulate", montecarlo.RunMonteCarlo)
+	bindCompute(c, "MONTE_CARLO_BAD_REQUEST", "请求解析失败", "蒙特卡洛模拟失败", "montecarlo.simulate", nil, montecarlo.RunMonteCarlo)
 }
 func handleGoalOptimize(c *gin.Context) {
-	bindAndCompute(c, "GOAL_BAD_REQUEST", "请求解析失败", "目标优化计算失败", "", func(_ context.Context, req goaloptimizer.GoalOptimizerRequest) (*goaloptimizer.GoalOptimizerResult, error) {
+	bindCompute(c, "GOAL_BAD_REQUEST", "请求解析失败", "目标优化计算失败", "", nil, func(_ context.Context, req goaloptimizer.GoalOptimizerRequest) (*goaloptimizer.GoalOptimizerResult, error) {
 		return goaloptimizer.OptimizeGoals(req)
 	})
 }
 func handleTacticalBacktest(c *gin.Context) {
-	bindAndCompute(c, "TACTICAL_BAD_REQUEST", "请求解析失败", "战术回测计算失败", "", tactical.RunTacticalBacktest)
+	bindCompute(c, "TACTICAL_BAD_REQUEST", "请求解析失败", "战术回测计算失败", "", nil, tactical.RunTacticalBacktest)
 }
 func handleTacticalGridSearch(c *gin.Context) {
-	bindAndCompute(c, "GRID_BAD_REQUEST", "请求解析失败", "网格搜索计算失败", "", tactical.RunGridSearch)
+	bindCompute(c, "GRID_BAD_REQUEST", "请求解析失败", "网格搜索计算失败", "", nil, tactical.RunGridSearch)
 }
 
 func handleCalculators(c *gin.Context) {
@@ -237,27 +224,27 @@ func handleCalculators(c *gin.Context) {
 	if !bindJSON(c, "CALC_BAD_REQUEST", "请求解析失败", &req) {
 		return
 	}
-	require := func(code, msg string, ok bool) bool {
-		if !ok {
-			newProblem(c, http.StatusBadRequest, code, "Bad Request", msg)
-		}
-		return ok
-	}
 	switch req.Type {
 	case "cagr":
-		if require("CALC_MISSING_CAGR", "cagr 类型需要 cagr 参数", req.CAGR != nil) {
-			okJSON(c, calculators.CalcCAGR(*req.CAGR))
+		if req.CAGR == nil {
+			sharedhttp.NewProblem(c, http.StatusBadRequest, "CALC_MISSING_CAGR", "Bad Request", "cagr 类型需要 cagr 参数")
+			return
 		}
+		okJSON(c, calculators.CalcCAGR(*req.CAGR))
 	case "swr":
-		if require("CALC_MISSING_SWR", "swr 类型需要 swr 参数", req.SWR != nil) {
-			okJSON(c, calculators.CalcSWR(*req.SWR))
+		if req.SWR == nil {
+			sharedhttp.NewProblem(c, http.StatusBadRequest, "CALC_MISSING_SWR", "Bad Request", "swr 类型需要 swr 参数")
+			return
 		}
+		okJSON(c, calculators.CalcSWR(*req.SWR))
 	case "frontier":
-		if require("CALC_MISSING_FRONTIER", "frontier 类型需要 frontier 参数", req.Frontier != nil) {
-			okJSON(c, calculators.CalcTwoFundFrontier(*req.Frontier))
+		if req.Frontier == nil {
+			sharedhttp.NewProblem(c, http.StatusBadRequest, "CALC_MISSING_FRONTIER", "Bad Request", "frontier 类型需要 frontier 参数")
+			return
 		}
+		okJSON(c, calculators.CalcTwoFundFrontier(*req.Frontier))
 	default:
-		newProblem(c, http.StatusBadRequest, "CALC_INVALID_TYPE", "Bad Request", "type 必须是 cagr/swr/frontier")
+		sharedhttp.NewProblem(c, http.StatusBadRequest, "CALC_INVALID_TYPE", "Bad Request", "type 必须是 cagr/swr/frontier")
 	}
 }
 
@@ -274,14 +261,11 @@ func handleSignalAnalyze(c *gin.Context) {
 	}
 	ctx, cancel := context.WithTimeout(c.Request.Context(), computeTimeout)
 	defer cancel()
-	bad := func(code, msg string) {
-		newProblem(c, http.StatusBadRequest, code, "Bad Request", msg)
-	}
-	missing := func() { bad("SIGNAL_TICKER_NOT_FOUND", "ticker 在 priceData 中不存在") }
+	bad := func(code, msg string) { sharedhttp.NewProblem(c, http.StatusBadRequest, code, "Bad Request", msg) }
 	getTd := func(ticker string) (map[string]float64, bool) {
 		td, ok := req.PriceData[ticker]
 		if !ok {
-			missing()
+			bad("SIGNAL_TICKER_NOT_FOUND", "ticker 在 priceData 中不存在")
 		}
 		return td, ok
 	}
