@@ -1,195 +1,101 @@
 # =============================================================================
-# Prometheus 告警规则 — P0/P1 平台告警（P1-10，本地 docker-compose 栈）
-# =============================================================================
-#
-# 与 k8s/prometheus-rules.yaml 中 backtest-platform-alerts PrometheusRule 对齐。
-# 指标来源（packages/backend/src/utils/metrics.ts + 基础设施 exporter）：
-#   circuit_breaker_state{name}              应用层 prom-client
-#   http_requests_total{method,route,status_code}  应用层 prom-client
-#   http_request_duration_seconds_bucket     应用层 prom-client（直方图）
-#   up{job=...}                              Prometheus 抓取健康
-#   pg_up / pg_replication_lag       postgres_exporter
-#   bullmq_queue_size                        bullmq-exporter（需独立部署）
-#   node_filesystem_avail_bytes / _size_bytes node_exporter
-#
-# 告警分级：
-#   P0 (severity=critical) — 立即响应，核心依赖不可用 / 熔断 / 队列堆积
-#   P1 (severity=warning)  — 30 分钟内响应，错误率 / 延迟 / 复制 / 磁盘
-#   注：RedisDown / RedisSentinelMasterDown 由 P0-05 已定义，此处不重复。
+# Prometheus 告警规则（P1-10，本地 docker-compose 栈）
+# 与 k8s/prometheus-rules.yaml 的 backtest-platform-* 组逐字段保持一致；
+# k8s 文件另含 redis-sentinel / SuspiciousLogin 告警（本地栈不抓取对应指标）。
+# 指标来源：packages/backend/src/utils/metrics.ts + 基础设施 exporter。
+# 告警分级：P0(severity=critical) 立即响应；P1(severity=warning) 30 分钟内响应。
 # =============================================================================
 
 groups:
-  # =========================================================================
-  # P0 告警：核心依赖与熔断（立即响应）
-  # =========================================================================
   - name: backtest-platform-critical
     interval: 15s
     rules:
-      # Go 回测引擎不可达（ADR-031：唯一引擎，不可用即 fail-closed 503）
       - alert: GoEngineDown
         expr: up{job="engine-go"} == 0
         for: 1m
-        labels:
-          severity: critical
-          service: engine-go
-          category: availability
+        labels: { severity: critical, service: engine-go, category: availability }
         annotations:
           summary: 'Go engine down ({{ $labels.instance }})'
-          description: 'Go 回测引擎 {{ $labels.instance }} 抓取失败已 1 分钟。ADR-031 下引擎不可用 → API fail-closed 返回 503 + Retry-After，回测/蒙特卡洛/优化全部不可用。检查 Pod 状态与 /api/engine/health。'
+          description: 'Go 回测引擎抓取失败已 1 分钟。ADR-031 下引擎不可用 → API fail-closed 503。'
           runbook_url: 'https://backtest.platform/runbooks/platform-alerts#go-engine-down'
-
-      # 熔断器打开（ADR-016：引擎/PG 依赖熔断，open 态快速失败）
-      # circuit_breaker_state: 0=closed, 1=open, 2=halfOpen
       - alert: CircuitBreakerOpen
         expr: circuit_breaker_state == 1
-        for: 0m
-        labels:
-          severity: critical
-          service: api
-          category: resilience
+        labels: { severity: critical, service: api, category: resilience }
         annotations:
           summary: 'Circuit breaker open ({{ $labels.name }})'
-          description: '熔断器 {{ $labels.name }} 处于 Open 状态，相关依赖（Go 引擎 / PostgreSQL）调用快速失败。依据 ADR-016，需立即排查后端依赖健康（state=1=open，0=closed，2=halfOpen）。'
+          description: '熔断器 Open（ADR-016），需立即排查后端依赖健康。'
           runbook_url: 'https://backtest.platform/runbooks/platform-alerts#circuit-breaker-open'
-
-      # PostgreSQL 不可用（ADR-007：主数据存储，不可用即全线降级）
       - alert: PostgresDown
         expr: pg_up == 0
         for: 30s
-        labels:
-          severity: critical
-          service: postgres
-          category: availability
+        labels: { severity: critical, service: postgres, category: availability }
         annotations:
           summary: 'PostgreSQL down ({{ $labels.instance }})'
-          description: 'postgres_exporter 报告 pg_up == 0 已 30s。PostgreSQL 为主数据存储（ADR-007），不可用时认证/回测/审计均受影响。检查 PG 进程、PgBouncer、磁盘与复制状态。'
+          description: 'pg_up == 0 已 30s。PostgreSQL 为主数据存储（ADR-007）。'
           runbook_url: 'https://backtest.platform/runbooks/platform-alerts#postgres-down'
-
-      # 回测队列堆积（ADR-011：长任务异步化，BullMQ 队列深度 >100 持续 5m）
-      # 指标需 bullmq-exporter 暴露 bullmq_queue_size
       - alert: BacktestQueueDepth
         expr: bullmq_queue_size > 100
         for: 5m
-        labels:
-          severity: critical
-          service: api
-          category: capacity
+        labels: { severity: critical, service: api, category: capacity }
         annotations:
           summary: 'Backtest queue depth high ({{ $labels.queue }})'
-          description: 'BullMQ 队列 {{ $labels.queue }} 深度 > 100 已持续 5 分钟，回测任务积压。检查 Worker 副本数 / 引擎吞吐 / 是否有卡死任务，必要时 HPA 扩容。'
+          description: 'BullMQ 队列深度 > 100 已 5 分钟。检查 Worker 副本数 / 引擎吞吐。'
           runbook_url: 'https://backtest.platform/runbooks/platform-alerts#backtest-queue-depth'
-
-  # =========================================================================
-  # P1 告警：性能与容量（30 分钟内响应）
-  # =========================================================================
+      - alert: WalgBackupStale
+        expr: time() - walg_backup_last_success_timestamp > 93600
+        for: 5m
+        labels: { severity: critical, service: postgres, category: backup }
+        annotations:
+          summary: 'WAL-G backup is stale (no backup in >26h)'
+          description: '超过 26 小时无 WAL-G 全量备份。检查 ofelia 调度器与 MinIO 连接。'
+          runbook_url: 'https://backtest.platform/docs/compliance/data-governance'
   - name: backtest-platform-warning
     interval: 30s
     rules:
-      # 5xx 错误率 > 5%（5 分钟窗口）
-      # http_requests_total 标签为 status_code（metrics.ts 实际命名）
       - alert: HighErrorRate
-        expr: |
-          (
-            sum(rate(http_requests_total{status_code=~"5.."}[5m]))
-            /
-            sum(rate(http_requests_total[5m]))
-          ) > 0.05
+        expr: (sum(rate(http_requests_total{status_code=~"5.."}[5m])) / sum(rate(http_requests_total[5m]))) > 0.05
         for: 5m
-        labels:
-          severity: warning
-          service: api
-          category: errors
+        labels: { severity: warning, service: api, category: errors }
         annotations:
           summary: 'High 5xx error rate ({{ $value | humanizePercentage }})'
-          description: '5xx 错误率 > 5% 已持续 5 分钟。按 route 拆分：sum(rate(http_requests_total{status_code=~"5.."}[5m])) by (route)。排查引擎 fail-closed 503、PG 异常、限流 429 误归 5xx。'
+          description: '5xx 错误率 > 5% 已 5 分钟。排查引擎 503、PG 异常、限流误归 5xx。'
           runbook_url: 'https://backtest.platform/runbooks/platform-alerts#high-error-rate'
-
-      # PG 复制延迟 > 5s（P1-03 读写分离，从库滞后影响读一致性）
       - alert: ReplicationLag
         expr: pg_replication_lag > 5
         for: 2m
-        labels:
-          severity: warning
-          service: postgres
-          category: replication
+        labels: { severity: warning, service: postgres, category: replication }
         annotations:
           summary: 'PostgreSQL replication lag high ({{ $value }}s)'
-          description: 'PG 复制延迟 > 5s 已持续 2 分钟，读副本数据滞后影响只读查询一致性（P1-03 读写分离）。检查从库负载、网络、长事务。pg_stat_replication 查看具体滞后。'
+          description: 'PG 复制延迟 > 5s 已 2 分钟（P1-03 读写分离）。检查从库负载。'
           runbook_url: 'https://backtest.platform/runbooks/platform-alerts#replication-lag'
-
-      # P99 延迟 > 1s（5 分钟窗口）
       - alert: HighLatency
-        expr: |
-          histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[5m])) by (le)) > 1
+        expr: histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[5m])) by (le)) > 1
         for: 5m
-        labels:
-          severity: warning
-          service: api
-          category: latency
+        labels: { severity: warning, service: api, category: latency }
         annotations:
           summary: 'High P99 latency ({{ $value }}s)'
-          description: 'HTTP 请求 P99 延迟 > 1s 已持续 5 分钟。按 route 拆分定位慢端点：histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[5m])) by (le, route))。排查 DB 慢查询、引擎计算、事件循环阻塞。'
+          description: 'HTTP P99 > 1s 已 5 分钟。排查 DB 慢查询、引擎计算、事件循环阻塞。'
           runbook_url: 'https://backtest.platform/runbooks/platform-alerts#high-latency'
-
-      # P90 延迟 > 100ms（5 分钟窗口）
       - alert: HighP90Latency
-        expr: |
-          histogram_quantile(0.90, sum(rate(http_request_duration_seconds_bucket[5m])) by (le)) > 0.1
+        expr: histogram_quantile(0.90, sum(rate(http_request_duration_seconds_bucket[5m])) by (le)) > 0.1
         for: 5m
-        labels:
-          severity: notice
-          service: api
-          category: latency
+        labels: { severity: notice, service: api, category: latency }
         annotations:
           summary: 'High P90 latency ({{ $value }}s)'
-          description: 'HTTP 请求 P90 延迟 > 100ms 已持续 5 分钟。按 route 拆分定位慢端点，优先排查缓存缺失和 DB 查询性能。'
+          description: 'HTTP P90 > 100ms 已 5 分钟。排查缓存缺失和 DB 查询性能。'
           runbook_url: 'https://backtest.platform/runbooks/platform-alerts#high-latency'
-
-      # 磁盘可用空间 < 10%（node_exporter，排除 overlay/tmpfs 等伪文件系统）
       - alert: DiskSpaceLow
-        expr: |
-          (node_filesystem_avail_bytes{fstype!~"tmpfs|overlay|squashfs|nsfs"}
-            / node_filesystem_size_bytes{fstype!~"tmpfs|overlay|squashfs|nsfs"}) < 0.10
+        expr: (node_filesystem_avail_bytes{fstype!~"tmpfs|overlay|squashfs|nsfs"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay|squashfs|nsfs"}) < 0.10
         for: 5m
-        labels:
-          severity: warning
-          service: node
-          category: capacity
+        labels: { severity: warning, service: node, category: capacity }
         annotations:
           summary: 'Disk space low ({{ $labels.mountpoint }}: {{ $value | humanizePercentage }} free)'
-          description: '挂载点 {{ $labels.mountpoint }} 可用空间 < 10% 已持续 5 分钟。PG WAL / Redis AOF / 日志可能占满磁盘导致服务不可用。清理日志、扩容卷、检查 WAL 归档。'
+          description: '可用空间 < 10% 已 5 分钟。PG WAL / Redis AOF / 日志可能占满磁盘。'
           runbook_url: 'https://backtest.platform/runbooks/platform-alerts#disk-space-low'
-
-  # =========================================================================
-  # P0 告警：WAL-G 备份监控（P0-06，等保三级 8.1.4 数据备份恢复）
-  # =========================================================================
-  - name: walg-backup-alerts
-    interval: 15s
-    rules:
-      # 超过 26 小时无成功全量备份（每日备份 + 2h 容忍窗口）
-      # walg_backup_last_success_timestamp 由 backup-status.sh textfile collector 提供
-      - alert: WalgBackupStale
-        expr: |
-          time() - walg_backup_last_success_timestamp > 93600
-        for: 5m
-        labels:
-          severity: critical
-          service: postgres
-          category: backup
-        annotations:
-          summary: 'WAL-G backup is stale (no backup in >26h)'
-          description: '超过 26 小时没有成功的 WAL-G 全量备份。ofelia 调度器可能未正常运行，或 MinIO 连接异常。检查 ofelia 容器日志与 PostgreSQL archive_command 状态。等保三级 8.1.4 要求定期备份。'
-          runbook_url: 'https://backtest.platform/docs/compliance/data-governance'
-
-      # WAL 归档失败计数增加
       - alert: WalgArchiveFailure
         expr: increase(walg_backup_failed_total[5m]) > 0
-        for: 0m
-        labels:
-          severity: warning
-          service: postgres
-          category: backup
+        labels: { severity: warning, service: postgres, category: backup }
         annotations:
           summary: 'WAL archive failures detected'
-          description: 'PostgreSQL pg_stat_archiver.failed_count 在 5 分钟内增加，WAL 归档失败。检查 MinIO 连通性、磁盘空间与 WAL-G 配置。'
+          description: 'PostgreSQL WAL 归档失败。检查 MinIO 连通性、磁盘空间与 WAL-G 配置。'
           runbook_url: 'https://backtest.platform/docs/compliance/data-governance'

@@ -12,15 +12,18 @@ const autoprefixer = frontendRequire('autoprefixer');
 const tailwindConfigPath = path.resolve(projectRoot, 'tailwind.config.cjs');
 
 const sharedTypesDir = path.resolve(projectRoot, 'packages/shared/types');
-const sharedTypeAliases: Record<string, string> = {
-  '@backtest/shared/types/tactical': `${sharedTypesDir}/tactical.ts`,
-  '@backtest/shared/types/signal': `${sharedTypesDir}/signal.ts`,
-  '@backtest/shared/types/letf': `${sharedTypesDir}/letf.ts`,
-  '@backtest/shared/types/index': `${sharedTypesDir}/index.ts`,
-  '@backtest/shared/types': `${sharedTypesDir}/index.ts`,
-  '@backtest/shared/constants': path.resolve(projectRoot, 'packages/shared/constants.ts'),
-  '@backtest/shared': `${sharedTypesDir}/index.ts`,
-};
+const sharedTypeAliases: Record<string, string> = Object.fromEntries(
+  ['tactical', 'signal', 'letf', 'index'].map((n) => [
+    `@backtest/shared/types/${n}`,
+    `${sharedTypesDir}/${n}.ts`,
+  ]),
+);
+sharedTypeAliases['@backtest/shared/types'] = `${sharedTypesDir}/index.ts`;
+sharedTypeAliases['@backtest/shared/constants'] = path.resolve(
+  projectRoot,
+  'packages/shared/constants.ts',
+);
+sharedTypeAliases['@backtest/shared'] = `${sharedTypesDir}/index.ts`;
 
 // E2E 覆盖率脚本会设 VITE_COVERAGE=true
 const enableCoverage = process.env.VITE_COVERAGE === 'true';
@@ -283,10 +286,7 @@ export default defineConfig(async ({ command }) => {
                       expiration: { maxEntries: 1, maxAgeSeconds: 1800 },
                     },
                   },
-                  {
-                    urlPattern: /^https?:\/\/.*\/api\/.*/,
-                    handler: 'NetworkOnly',
-                  },
+                  { urlPattern: /^https?:\/\/.*\/api\/.*/, handler: 'NetworkOnly' },
                 ],
               },
             }),
@@ -323,7 +323,6 @@ export default defineConfig(async ({ command }) => {
         output: {
           manualChunks(id: string) {
             if (process.env.VITE_SSR === 'true') return;
-
             if (
               id.includes('packages/frontend/src/utils/') ||
               id.includes('packages/frontend/src/hooks/')
@@ -333,15 +332,14 @@ export default defineConfig(async ({ command }) => {
             if (nmIdx === -1) return;
             const afterNm = id.slice(nmIdx + 13);
             const pkg = afterNm.startsWith('@')
-              ? afterNm.slice(1).split('/')[0] + '/' + afterNm.slice(1).split('/')[1]
+              ? afterNm.split('/').slice(0, 2).join('/')
               : afterNm.split('/')[0];
             if (pkg === 'react-dom') {
               const subPath = afterNm.split('/').slice(1).join('/');
               if (subPath.startsWith('server')) return 'react-dom-server';
               if (subPath.startsWith('client')) return 'react-dom-client';
-              return 'react-dom'; // main entry
+              return 'react-dom';
             }
-
             const CHUNKS: Record<string, string[]> = {
               'react-router': ['react-router-dom'],
               'state-vendor': ['zustand'],
@@ -357,9 +355,8 @@ export default defineConfig(async ({ command }) => {
               'form-vendor': ['react-hook-form', '@hookform'],
               'util-vendor': ['zod', 'web-vitals', '@tanstack'],
             };
-            for (const [chunk, pkgs] of Object.entries(CHUNKS)) {
+            for (const [chunk, pkgs] of Object.entries(CHUNKS))
               if (pkgs.some((p) => pkg.startsWith(p))) return chunk;
-            }
           },
         },
       },
@@ -367,9 +364,7 @@ export default defineConfig(async ({ command }) => {
     server: {
       host: true,
       port: parseInt(process.env.VITE_PORT || '15173', 10),
-      watch: {
-        ignored: ['**/coverage/**', '**/dist/**'],
-      },
+      watch: { ignored: ['**/coverage/**', '**/dist/**'] },
       proxy: {
         '/api': {
           target: `http://localhost:${process.env.API_PORT || '15001'}`,

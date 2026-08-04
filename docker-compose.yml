@@ -1,6 +1,3 @@
-# =============================================================================
-# 回测平台 - 开发环境 Docker Compose；用法：docker compose up -d [postgres|redis|...]；down 停止
-# =============================================================================
 x-base:
   timescale: &timescale
     image: timescale/timescaledb:latest-pg16
@@ -43,14 +40,16 @@ x-base:
   redis-replica: &redis-replica
     <<: *redis-img
     command:
-      - 'redis-server'
-      - '--appendonly'
-      - 'yes'
-      - '--replicaof'
-      - 'redis-master'
-      - '6379'
-      - '--replica-read-only'
-      - 'yes'
+      [
+        'redis-server',
+        '--appendonly',
+        'yes',
+        '--replicaof',
+        'redis-master',
+        '6379',
+        '--replica-read-only',
+        'yes',
+      ]
     depends_on: { redis-master: { condition: service_healthy } }
     healthcheck: *hc-redis
   redis-sentinel: &redis-sentinel
@@ -64,7 +63,6 @@ x-base:
     redis: { condition: service_healthy }
 
 services:
-  # PostgreSQL 16 - 主数据库（ADR-007）；WAL-G 备份（P0-06，等保 8.1.4）
   postgres:
     <<: *timescale
     container_name: backtest-postgres
@@ -80,25 +78,27 @@ services:
       AWS_REGION: us-east-1
       WALG_UPLOAD_CONCURRENCY: 4
     command:
-      - 'postgres'
-      - '-c'
-      - 'wal_level=replica'
-      - '-c'
-      - 'archive_mode=on'
-      - '-c'
-      - "archive_command='envdir /etc/wal-g.d/env wal-g wal-push %p'"
-      - '-c'
-      - 'archive_timeout=60'
-      - '-c'
-      - "restore_command='envdir /etc/wal-g.d/env wal-g wal-fetch %f %p'"
-      - '-c'
-      - 'max_wal_senders=3'
-      - '-c'
-      - 'wal_keep_size=64'
-      - '-c'
-      - "listen_addresses='*'"
-      - '-c'
-      - 'full_page_writes=on'
+      [
+        'postgres',
+        '-c',
+        'wal_level=replica',
+        '-c',
+        'archive_mode=on',
+        '-c',
+        "archive_command='envdir /etc/wal-g.d/env wal-g wal-push %p'",
+        '-c',
+        'archive_timeout=60',
+        '-c',
+        "restore_command='envdir /etc/wal-g.d/env wal-g wal-fetch %f %p'",
+        '-c',
+        'max_wal_senders=3',
+        '-c',
+        'wal_keep_size=64',
+        '-c',
+        "listen_addresses='*'",
+        '-c',
+        'full_page_writes=on',
+      ]
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./docker/postgres-init:/docker-entrypoint-initdb.d
@@ -106,7 +106,6 @@ services:
       - ./scripts/install-walg.sh:/docker-entrypoint-initdb.d/00-install-walg.sh:ro
     healthcheck: *hc-pg
 
-  # PostgreSQL 只读副本（ADR-007 / P1-03 读写分离，仅本地拓扑校验；生产流复制由 K8s Operator 自动化）
   postgres-replica:
     <<: *timescale
     container_name: backtest-postgres-replica
@@ -117,7 +116,6 @@ services:
       - pgdata-replica:/var/lib/postgresql/data
     healthcheck: *hc-pg
 
-  # Redis 7 - 会话/限流/缓存/任务队列（ADR-018）；下方为 Sentinel 故障转移拓扑（ADR-045 P0-05 T2）
   redis:
     <<: *redis-img
     container_name: backtest-redis
@@ -125,7 +123,6 @@ services:
     command: ['redis-server', '--save', '', '--appendonly', 'no']
     healthcheck: *hc-redis
 
-  # Unleash - 特性开关服务（P1-06）；UI http://127.0.0.1:4242（admin/unleash4all）
   unleash:
     image: unleashorg/unleash-server:5.12.5
     pull_policy: never
@@ -144,13 +141,15 @@ services:
     <<: *redis-img
     container_name: backtest-redis-master
     command:
-      - 'redis-server'
-      - '--appendonly'
-      - 'yes'
-      - '--min-slaves-to-write'
-      - '1'
-      - '--min-slaves-max-lag'
-      - '10'
+      [
+        'redis-server',
+        '--appendonly',
+        'yes',
+        '--min-slaves-to-write',
+        '1',
+        '--min-slaves-max-lag',
+        '10',
+      ]
     ports: ['127.0.0.1:6380:6379']
     healthcheck: *hc-redis
 
@@ -186,15 +185,16 @@ services:
       - redis-sentinel-3-data:/data
     ports: ['127.0.0.1:26381:26379']
 
-  # Go 引擎（T-ARCH-2.5, ADR-008）— 计算密集型 API，独立水平扩展
   engine-go:
     build: { context: ., dockerfile: engine-go/Dockerfile }
     container_name: backtest-engine-go
     ports: ['127.0.0.1:15004:5004']
     environment:
-      ENGINE_GO_PORT: '5004'
-      GIN_MODE: release
-      ENGINE_AUTH_TOKEN: '${ENGINE_AUTH_TOKEN:-dev-engine-auth-token}'
+      {
+        ENGINE_GO_PORT: '5004',
+        GIN_MODE: release,
+        ENGINE_AUTH_TOKEN: '${ENGINE_AUTH_TOKEN:-dev-engine-auth-token}',
+      }
     depends_on: { postgres: { condition: service_healthy } }
     healthcheck:
       <<: *hc-wget
@@ -213,7 +213,6 @@ services:
       start_period: 15s
     restart: unless-stopped
 
-  # BullMQ Worker（P0-1）— 消费 backtest-compute + webhook-retry 队列
   worker:
     build: { context: ., dockerfile: docker/worker/Dockerfile }
     container_name: backtest-worker
@@ -240,22 +239,22 @@ services:
       start_period: 5s
     restart: unless-stopped
 
-  # Go 数据获取服务（缺失标的最新行情/历史数据实时抓取）
   data-fetcher:
     build: { context: ., dockerfile: data-fetcher/Dockerfile }
     container_name: backtest-data-fetcher
     ports: ['127.0.0.1:15003:5003']
     environment:
-      DATA_FETCHER_PORT: '5003'
-      GIN_MODE: release
-      DATA_SERVICE_AUTH_TOKEN: '${DATA_SERVICE_AUTH_TOKEN:-dev-data-service-auth-token}'
-      DATABASE_URL: 'postgresql://backtest:backtest@postgres:5432/backtest'
+      {
+        DATA_FETCHER_PORT: '5003',
+        GIN_MODE: release,
+        DATA_SERVICE_AUTH_TOKEN: '${DATA_SERVICE_AUTH_TOKEN:-dev-data-service-auth-token}',
+        DATABASE_URL: 'postgresql://backtest:backtest@postgres:5432/backtest',
+      }
     healthcheck:
       <<: *hc-wget
       test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:5003/api/data/health']
       start_period: 10s
 
-  # Prometheus - 指标抓取与告警评估（P1-10）→ AlertManager → 飞书/钉钉
   prometheus:
     image: prom/prometheus:v2.54.0
     container_name: backtest-prometheus
@@ -265,27 +264,32 @@ services:
       - ./docker/prometheus/rules.yml:/etc/prometheus/rules.yml:ro
       - prometheus-data:/prometheus
     command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--storage.tsdb.retention.time=7d'
-      - '--web.enable-lifecycle'
+      [
+        '--config.file=/etc/prometheus/prometheus.yml',
+        '--storage.tsdb.path=/prometheus',
+        '--storage.tsdb.retention.time=7d',
+        '--web.enable-lifecycle',
+      ]
     depends_on: [alertmanager, api, engine-go, data-fetcher]
     healthcheck:
       <<: *hc-wget
       test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:9090/-/healthy']
     restart: unless-stopped
 
-  # AlertManager 配置渲染（envsubst，one-shot；未设 webhook 时回退本地 dummy URL）
   alertmanager-config:
     image: alpine:3.20
     container_name: backtest-alertmanager-config
     command:
-      - 'sh'
-      - '-c'
-      - 'apk add --no-cache gettext > /dev/null 2>&1 && envsubst < /tpl/alertmanager.yml > /rendered/alertmanager.yml && echo rendered'
+      [
+        'sh',
+        '-c',
+        'apk add --no-cache gettext > /dev/null 2>&1 && envsubst < /tpl/alertmanager.yml > /rendered/alertmanager.yml && echo rendered',
+      ]
     environment:
-      FEISHU_WEBHOOK: '${FEISHU_WEBHOOK:-http://127.0.0.1:9999/dummy}'
-      DINGTALK_WEBHOOK: '${DINGTALK_WEBHOOK:-http://127.0.0.1:9999/dummy}'
+      {
+        FEISHU_WEBHOOK: '${FEISHU_WEBHOOK:-http://127.0.0.1:9999/dummy}',
+        DINGTALK_WEBHOOK: '${DINGTALK_WEBHOOK:-http://127.0.0.1:9999/dummy}',
+      }
     restart: 'no'
     volumes:
       - ./docker/alertmanager/alertmanager.yml:/tpl/alertmanager.yml:ro
@@ -305,15 +309,16 @@ services:
       test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:9093/-/healthy']
     restart: unless-stopped
 
-  # Grafana - 仪表板可视化（P1-10）；默认 admin/admin（仅本地）
   grafana:
     image: grafana/grafana:11.3.0
     container_name: backtest-grafana
     ports: ['127.0.0.1:3000:3000']
     environment:
-      GF_SECURITY_ADMIN_USER: '${GRAFANA_ADMIN_USER:-admin}'
-      GF_SECURITY_ADMIN_PASSWORD: '${GRAFANA_ADMIN_PASSWORD:-admin}'
-      GF_USERS_ALLOW_SIGN_UP: 'false'
+      {
+        GF_SECURITY_ADMIN_USER: '${GRAFANA_ADMIN_USER:-admin}',
+        GF_SECURITY_ADMIN_PASSWORD: '${GRAFANA_ADMIN_PASSWORD:-admin}',
+        GF_USERS_ALLOW_SIGN_UP: 'false',
+      }
     volumes:
       - ./docker/grafana/provisioning:/etc/grafana/provisioning:ro
       - ./docker/grafana/dashboards:/var/lib/grafana/dashboards:ro
@@ -346,7 +351,6 @@ services:
     depends_on: { redis: { condition: service_healthy } }
     restart: unless-stopped
 
-  # WAL-G 备份调度器（P0-06，等保 8.1.4）— ofelia cron → docker exec wal-g；全量每日 02:00 CST，保留 7 份
   ofelia:
     image: mcuadros/ofelia:latest
     container_name: backtest-ofelia
@@ -364,7 +368,6 @@ services:
       ofelia.job-exec.walg-verify.command: 'wal-g wal-verify integrity'
     restart: unless-stopped
 
-  # MinIO - 不可篡改审计存储（P2-03，Object Lock WORM，默认保留 180 天）
   minio:
     image: minio/minio:latest
     container_name: backtest-minio
@@ -387,20 +390,21 @@ services:
     environment: { BASE_URL: 'http://api:8001', API_KEY: '${K6_API_KEY:-}' }
     depends_on: { api: { condition: service_healthy } }
 
-  # P3-05 CDC via Debezium（默认关闭，ADR-051）：postgres-cdc → Debezium Connect → Kafka → API
   postgres-cdc:
     <<: *timescale
     container_name: backtest-postgres-cdc
     ports: ['127.0.0.1:5433:5432']
     environment: { <<: *env-pg }
     command:
-      - 'postgres'
-      - '-c'
-      - 'wal_level=logical'
-      - '-c'
-      - 'max_replication_slots=10'
-      - '-c'
-      - 'max_wal_senders=10'
+      [
+        'postgres',
+        '-c',
+        'wal_level=logical',
+        '-c',
+        'max_replication_slots=10',
+        '-c',
+        'max_wal_senders=10',
+      ]
     volumes:
       - pgdata-cdc:/var/lib/postgresql/data
       - ./docker/postgres-init:/docker-entrypoint-initdb.d
@@ -424,13 +428,17 @@ services:
     container_name: backtest-kafka
     ports: ['127.0.0.1:9092:9092']
     environment:
-      KAFKA_BROKER_ID: 1
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,LISTENER_LOCAL:PLAINTEXT
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,LISTENER_LOCAL://localhost:9092
-      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
+      {
+        KAFKA_BROKER_ID: 1,
+        KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181,
+        KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,
+        LISTENER_LOCAL:PLAINTEXT,
+        KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,
+        LISTENER_LOCAL://localhost:9092,
+        KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT,
+        KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1,
+        KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true',
+      }
     volumes:
       - kafka-data:/var/lib/kafka/data
     depends_on: { zookeeper: { condition: service_healthy } }
@@ -441,19 +449,20 @@ services:
       retries: 6
     restart: unless-stopped
 
-  # Debezium Connect - outbox source connector 注册见 register-connectors.sh
   connect:
     image: debezium/connect:2.7
     container_name: backtest-debezium-connect
     ports: ['127.0.0.1:8083:8083']
     environment:
-      BOOTSTRAP_SERVERS: kafka:29092
-      GROUP_ID: backtest-debezium
-      CONFIG_STORAGE_TOPIC: backtest.connect.configs
-      OFFSET_STORAGE_TOPIC: backtest.connect.offsets
-      STATUS_STORAGE_TOPIC: backtest.connect.status
-      KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter
-      VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      {
+        BOOTSTRAP_SERVERS: kafka:29092,
+        GROUP_ID: backtest-debezium,
+        CONFIG_STORAGE_TOPIC: backtest.connect.configs,
+        OFFSET_STORAGE_TOPIC: backtest.connect.offsets,
+        STATUS_STORAGE_TOPIC: backtest.connect.status,
+        KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter,
+        VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter,
+      }
     depends_on:
       postgres-cdc: { condition: service_healthy }
       kafka: { condition: service_healthy }
@@ -465,7 +474,6 @@ services:
       start_period: 30s
     restart: unless-stopped
 
-  # Apache APISIX 网关（P2-01，Standalone 模式无 etcd 依赖）
   apisix:
     image: apache/apisix:3.11.0-debian
     container_name: backtest-apisix
@@ -482,18 +490,18 @@ services:
       start_period: 10s
 
 volumes:
-  pgdata: { driver: local }
-  pgdata-replica: { driver: local }
-  redis-sentinel-1-data: {}
-  redis-sentinel-2-data: {}
-  redis-sentinel-3-data: {}
-  alertmanager-data: {}
-  alertmanager-rendered: {}
-  prometheus-data: {}
-  grafana-data: {}
-  uptime-kuma-data: {}
-  minio-data: { driver: local }
-  pgdata-cdc: { driver: local }
-  zookeeper-data: { driver: local }
-  zookeeper-logs: { driver: local }
-  kafka-data: { driver: local }
+  pgdata:
+  pgdata-replica:
+  redis-sentinel-1-data:
+  redis-sentinel-2-data:
+  redis-sentinel-3-data:
+  alertmanager-data:
+  alertmanager-rendered:
+  prometheus-data:
+  grafana-data:
+  uptime-kuma-data:
+  minio-data:
+  pgdata-cdc:
+  zookeeper-data:
+  zookeeper-logs:
+  kafka-data:

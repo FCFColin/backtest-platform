@@ -15,19 +15,9 @@ spec:
         app: backtest-worker
     spec:
       terminationGracePeriodSeconds: 60
-      securityContext:
-        runAsNonRoot: true
-        runAsUser: 1000
-        runAsGroup: 1000
-        fsGroup: 1000
       containers:
         - name: worker
           image: backtest-platform/worker:v1.0.0
-          securityContext:
-            readOnlyRootFilesystem: true
-            allowPrivilegeEscalation: false
-            capabilities:
-              drop: [ALL]
           resources:
             requests: { memory: '512Mi', cpu: '0.5' }
             limits: { memory: '1Gi', cpu: '1' }
@@ -54,9 +44,3 @@ spec:
             initialDelaySeconds: 20
             periodSeconds: 30
             timeoutSeconds: 10
-          volumeMounts:
-            - name: tmp
-              mountPath: /tmp
-      volumes:
-        - name: tmp
-          emptyDir: {}

@@ -18,19 +18,9 @@ spec:
         track: canary
     spec:
       terminationGracePeriodSeconds: 35
-      securityContext:
-        runAsNonRoot: true
-        runAsUser: 1000
-        runAsGroup: 1000
-        fsGroup: 1000
       containers:
         - name: api
           image: backtest-platform/api:v1.0.0
-          securityContext:
-            allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: true
-            capabilities:
-              drop: [ALL]
           ports:
             - containerPort: 5001
           envFrom:
@@ -49,12 +39,6 @@ spec:
           resources:
             requests: { cpu: 200m, memory: 256Mi }
             limits: { cpu: 1000m, memory: 1Gi }
-          volumeMounts:
-            - name: tmp
-              mountPath: /tmp
-      volumes:
-        - name: tmp
-          emptyDir: {}
 ---
 apiVersion: networking.istio.io/v1beta1
 kind: VirtualService

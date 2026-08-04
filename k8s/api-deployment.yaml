@@ -15,19 +15,9 @@ spec:
         app: api
     spec:
       terminationGracePeriodSeconds: 35
-      securityContext:
-        runAsNonRoot: true
-        runAsUser: 1000
-        runAsGroup: 1000
-        fsGroup: 1000
       containers:
         - name: api
           image: backtest-platform/api:v1.0.0
-          securityContext:
-            readOnlyRootFilesystem: true
-            allowPrivilegeEscalation: false
-            capabilities:
-              drop: [ALL]
           ports:
             - containerPort: 5001
           resources:
@@ -54,9 +44,3 @@ spec:
                 name: postgres-secret
             - secretRef:
                 name: auth-tokens
-          volumeMounts:
-            - name: tmp
-              mountPath: /tmp
-      volumes:
-        - name: tmp
-          emptyDir: {}

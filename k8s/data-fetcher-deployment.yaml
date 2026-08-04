@@ -15,19 +15,9 @@ spec:
         app: data-fetcher
     spec:
       terminationGracePeriodSeconds: 35
-      securityContext:
-        runAsNonRoot: true
-        runAsUser: 1000
-        runAsGroup: 1000
-        fsGroup: 1000
       containers:
         - name: data-fetcher
           image: backtest-platform/data-fetcher:v1.0.0
-          securityContext:
-            readOnlyRootFilesystem: true
-            allowPrivilegeEscalation: false
-            capabilities:
-              drop: [ALL]
           ports:
             - containerPort: 5003
           resources:
@@ -47,9 +37,3 @@ spec:
             initialDelaySeconds: 5
             periodSeconds: 10
             timeoutSeconds: 3
-          volumeMounts:
-            - name: tmp
-              mountPath: /tmp
-      volumes:
-        - name: tmp
-          emptyDir: {}
