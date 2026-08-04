@@ -1,7 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { Portfolio, BacktestParameters, BacktestResult } from '@backtest/shared';
+import type { BacktestParameters, BacktestResult } from '@backtest/shared';
 import type { Warning } from '../../../packages/backend/src/application/backtest-helpers.js';
 import { createLoggerMocks } from '../../helpers/mockFactories.js';
+import {
+  mockParameters as parametersFixture,
+  mockPortfolio as portfolioFixture,
+} from '../../helpers/backtestFixtures.js';
 
 const helpersMocks = vi.hoisted(() => ({
   preparePortfolioBacktest: vi.fn(),
@@ -113,21 +117,11 @@ vi.mock('../../../packages/backend/src/application/backtest/backtestEngineUtils.
 
 import { runPortfolioBacktest } from '../../../packages/backend/src/application/backtest-service.js';
 
-const mockPortfolio: Portfolio = {
-  id: 'p1',
+const mockPortfolio = portfolioFixture({
   name: 'Test',
   assets: [{ ticker: 'AAPL', weight: 100 }],
-  rebalanceFrequency: 'monthly',
-};
-
-const mockParameters: BacktestParameters = {
-  startDate: '2020-01-02',
-  endDate: '2020-12-31',
-  startingValue: 10000,
-  adjustForInflation: false,
-  rollingWindowMonths: 12,
-  benchmarkTicker: 'SPY',
-};
+});
+const mockParameters = parametersFixture;
 
 const mockBacktestResult: BacktestResult = {
   portfolios: [

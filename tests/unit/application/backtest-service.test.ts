@@ -2,6 +2,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { Portfolio, BacktestParameters, BacktestResult } from '@backtest/shared';
 import { mockLogger } from '../../helpers/mockFactories.js';
 import {
+  mockParameters,
+  mockPortfolio as portfolioFixture,
+} from '../../helpers/backtestFixtures.js';
+import {
   preparePortfolioBacktest,
   collectInvalidTickerWarnings,
 } from '../../../packages/backend/src/application/backtest-helpers.js';
@@ -39,23 +43,7 @@ vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
 
 import { runBacktest } from '../../../packages/backend/src/application/backtest-service.js';
 
-const mockPortfolio: Portfolio = {
-  id: 'p1',
-  name: 'Test Portfolio',
-  assets: [
-    { ticker: 'AAPL', weight: 60 },
-    { ticker: 'BND', weight: 40 },
-  ],
-  rebalanceFrequency: 'monthly',
-};
-const mockParameters: BacktestParameters = {
-  startDate: '2020-01-02',
-  endDate: '2020-12-31',
-  startingValue: 10000,
-  adjustForInflation: false,
-  rollingWindowMonths: 12,
-  benchmarkTicker: 'SPY',
-};
+const mockPortfolio = portfolioFixture();
 const mockPriceData = {
   AAPL: { '2020-01-02': 100, '2020-01-03': 101 },
   BND: { '2020-01-02': 50, '2020-01-03': 51 },

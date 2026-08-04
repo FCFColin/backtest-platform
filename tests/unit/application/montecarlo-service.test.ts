@@ -1,7 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { Portfolio, BacktestParameters } from '@backtest/shared';
+import type { BacktestParameters } from '@backtest/shared';
 import type { Warning } from '../../../packages/backend/src/application/backtest-helpers.js';
 import { createLoggerMocks } from '../../helpers/mockFactories.js';
+import {
+  mockParameters,
+  mockPortfolio as portfolioFixture,
+} from '../../helpers/backtestFixtures.js';
 
 const engineMocks = vi.hoisted(() => ({
   callEngineStrict: vi.fn(),
@@ -54,24 +58,7 @@ vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
 
 import { runMonteCarlo } from '../../../packages/backend/src/application/montecarlo-service.js';
 
-const mockPortfolio: Portfolio = {
-  id: 'p1',
-  name: 'Test',
-  assets: [
-    { ticker: 'AAPL', weight: 60 },
-    { ticker: 'BND', weight: 40 },
-  ],
-  rebalanceFrequency: 'monthly',
-};
-
-const mockParameters: BacktestParameters = {
-  startDate: '2020-01-02',
-  endDate: '2020-12-31',
-  startingValue: 10000,
-  adjustForInflation: false,
-  rollingWindowMonths: 12,
-  benchmarkTicker: 'SPY',
-};
+const mockPortfolio = portfolioFixture({ name: 'Test' });
 
 // translateDomainError 在源码中被以闭包形式调用：translateDomainError(() => DomainPortfolio.fromDTO(p))
 function makeTranslateDomainError() {
