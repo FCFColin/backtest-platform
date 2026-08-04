@@ -229,15 +229,6 @@ ALTER TABLE backtest_runs FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation_backtest_runs ON backtest_runs
   USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid)
   WITH CHECK (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
-DO $$
-BEGIN
-  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'backtest_app') THEN
-    GRANT SELECT, INSERT, UPDATE, DELETE ON
-      organizations, memberships, api_keys, portfolios, saved_configs, backtest_runs
-      TO backtest_app;
-  END IF;
-END
-$$;
 
 -- 010: 自助注册与邀请（ADR-035）— email + 验证令牌 + 组织邀请
 ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR(255);
@@ -268,13 +259,6 @@ CREATE INDEX IF NOT EXISTS idx_invitations_org ON invitations(org_id);
 CREATE INDEX IF NOT EXISTS idx_invitations_email ON invitations(lower(email));
 CREATE UNIQUE INDEX IF NOT EXISTS idx_invitations_pending
   ON invitations(org_id, lower(email)) WHERE accepted_at IS NULL;
-DO $$
-BEGIN
-  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'backtest_app') THEN
-    GRANT SELECT, INSERT, UPDATE, DELETE ON email_verification_tokens, invitations TO backtest_app;
-  END IF;
-END
-$$;
 
 -- 011: Stripe 计费（ADR-036）— customer/subscription 映射
 CREATE TABLE IF NOT EXISTS stripe_customers (
@@ -295,13 +279,6 @@ CREATE TABLE IF NOT EXISTS subscriptions (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_subscriptions_org ON subscriptions(org_id);
-DO $$
-BEGIN
-  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'backtest_app') THEN
-    GRANT SELECT, INSERT, UPDATE, DELETE ON stripe_customers, subscriptions TO backtest_app;
-  END IF;
-END
-$$;
 
 -- 012: 用量计量与配额（ADR-037）— 明细事件 + 月度聚合（RLS 启用）
 CREATE TABLE IF NOT EXISTS usage_events (
@@ -336,13 +313,6 @@ BEGIN
     CREATE POLICY usage_counters_tenant_isolation ON usage_counters
       USING (org_id = current_setting('app.current_tenant_id', true)::uuid)
       WITH CHECK (org_id = current_setting('app.current_tenant_id', true)::uuid);
-  END IF;
-END
-$$;
-DO $$
-BEGIN
-  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'backtest_app') THEN
-    GRANT SELECT, INSERT, UPDATE, DELETE ON usage_events, usage_counters TO backtest_app;
   END IF;
 END
 $$;
@@ -494,13 +464,6 @@ WITH admin_role AS (
   SELECT role_id, perm FROM readonly_perms
 )
 INSERT INTO role_permissions (role_id, permission) SELECT role_id, perm FROM all_perms ON CONFLICT DO NOTHING;
-DO $$
-BEGIN
-  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'backtest_app') THEN
-    GRANT SELECT, INSERT, UPDATE, DELETE ON roles, role_permissions, user_roles TO backtest_app;
-  END IF;
-END
-$$;
 
 -- 021: Webhook 系统（P2-02）— 端点配置 + 投递历史 + HMAC 签名
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
@@ -543,13 +506,6 @@ $$ LANGUAGE plpgsql;
 DROP TRIGGER IF EXISTS set_webhook_endpoints_updated_at ON webhook_endpoints;
 CREATE TRIGGER set_webhook_endpoints_updated_at
   BEFORE UPDATE ON webhook_endpoints FOR EACH ROW EXECUTE FUNCTION trg_webhook_endpoints_updated_at();
-DO $$
-BEGIN
-  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'backtest_app') THEN
-    GRANT SELECT, INSERT, UPDATE, DELETE ON webhook_endpoints, webhook_deliveries TO backtest_app;
-  END IF;
-END
-$$;
 
 -- 022: 不可篡改审计存储（P2-03）— HMAC 签名 + MinIO WORM 导出
 -- user_id/org_id 不加 FK：审计记录须比用户/组织存活更久（合规追溯）
@@ -571,13 +527,6 @@ CREATE TABLE IF NOT EXISTS audit_logs (
 CREATE INDEX IF NOT EXISTS idx_audit_logs_created ON audit_logs(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_org_created ON audit_logs(org_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_unexported ON audit_logs(exported_at) WHERE exported_at IS NULL;
-DO $$
-BEGIN
-  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'backtest_app') THEN
-    GRANT SELECT, INSERT, UPDATE, DELETE ON audit_logs TO backtest_app;
-  END IF;
-END
-$$;
 
 -- 023: CAGG 历史回填 + 刷新策略调整（P1-01）
 DO $$
@@ -613,26 +562,21 @@ SELECT add_continuous_aggregate_policy('prices_monthly',
   schedule_interval => INTERVAL '1 day', if_not_exists => TRUE);
 
 -- 024: RLS 扩展 — webhook/audit/billing 表行级安全
-ALTER TABLE webhook_endpoints ENABLE ROW LEVEL SECURITY;
-CREATE POLICY webhook_endpoints_tenant_isolation ON webhook_endpoints FOR ALL
-  USING (org_id = current_setting('app.current_tenant_id', true)::uuid)
-  WITH CHECK (org_id = current_setting('app.current_tenant_id', true)::uuid);
+DO $$ DECLARE t TEXT;
+BEGIN
+  FOREACH t IN ARRAY ARRAY['webhook_endpoints','audit_logs','stripe_customers','subscriptions'] LOOP
+    EXECUTE format('ALTER TABLE %s ENABLE ROW LEVEL SECURITY', t);
+    IF t = 'audit_logs' THEN
+      EXECUTE format($f$CREATE POLICY %1$s_tenant_isolation ON %1$s FOR ALL USING (org_id = current_setting('app.current_tenant_id', true)::uuid OR current_setting('app.is_platform_admin', true) = 'true') WITH CHECK (org_id = current_setting('app.current_tenant_id', true)::uuid OR current_setting('app.is_platform_admin', true) = 'true')$f$, t);
+    ELSE
+      EXECUTE format($f$CREATE POLICY %1$s_tenant_isolation ON %1$s FOR ALL USING (org_id = current_setting('app.current_tenant_id', true)::uuid) WITH CHECK (org_id = current_setting('app.current_tenant_id', true)::uuid)$f$, t);
+    END IF;
+  END LOOP;
+END $$;
 ALTER TABLE webhook_deliveries ENABLE ROW LEVEL SECURITY;
 CREATE POLICY webhook_deliveries_tenant_isolation ON webhook_deliveries FOR ALL
   USING (endpoint_id IN (SELECT id FROM webhook_endpoints WHERE org_id = current_setting('app.current_tenant_id', true)::uuid))
   WITH CHECK (endpoint_id IN (SELECT id FROM webhook_endpoints WHERE org_id = current_setting('app.current_tenant_id', true)::uuid));
-ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
-CREATE POLICY audit_logs_tenant_isolation ON audit_logs FOR ALL
-  USING (org_id = current_setting('app.current_tenant_id', true)::uuid OR current_setting('app.is_platform_admin', true) = 'true')
-  WITH CHECK (org_id = current_setting('app.current_tenant_id', true)::uuid OR current_setting('app.is_platform_admin', true) = 'true');
-ALTER TABLE stripe_customers ENABLE ROW LEVEL SECURITY;
-CREATE POLICY stripe_customers_tenant_isolation ON stripe_customers FOR ALL
-  USING (org_id = current_setting('app.current_tenant_id', true)::uuid)
-  WITH CHECK (org_id = current_setting('app.current_tenant_id', true)::uuid);
-ALTER TABLE subscriptions ENABLE ROW LEVEL SECURITY;
-CREATE POLICY subscriptions_tenant_isolation ON subscriptions FOR ALL
-  USING (org_id = current_setting('app.current_tenant_id', true)::uuid)
-  WITH CHECK (org_id = current_setting('app.current_tenant_id', true)::uuid);
 
 -- 025: 审计日志链式校验 — prev_hash 列（检测整条记录被删除）
 ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS prev_hash VARCHAR(64);
@@ -663,7 +607,6 @@ CREATE POLICY tactical_configs_tenant_isolation ON tactical_configs FOR ALL
 CREATE INDEX tactical_configs_tenant_id_idx ON tactical_configs (tenant_id);
 CREATE INDEX tactical_configs_user_id_idx ON tactical_configs (user_id);
 CREATE INDEX tactical_configs_updated_at_idx ON tactical_configs (updated_at DESC);
-GRANT SELECT, INSERT, UPDATE, DELETE ON tactical_configs TO backtest_app;
 
 -- 027: 日度/周度 CAGG（加速时间范围查询）
 CREATE MATERIALIZED VIEW IF NOT EXISTS daily_aggregate
@@ -698,9 +641,6 @@ BEGIN
   END IF;
 END
 $$;
-
--- 028: 占位 no-op（填补序号空隙，CI 迁移完整性检查要求序号无空隙）
-SELECT 1;
 
 -- 029: Announcements 系统（P3-2）
 CREATE TABLE IF NOT EXISTS announcements (
@@ -750,21 +690,8 @@ CREATE POLICY custom_tickers_user_delete ON custom_tickers FOR DELETE
     USING (user_id = current_setting('app.current_user_id', true)::UUID);
 CREATE INDEX IF NOT EXISTS idx_custom_tickers_user ON custom_tickers(user_id);
 CREATE INDEX IF NOT EXISTS idx_custom_tickers_ticker ON custom_tickers(ticker);
-DO $$
-BEGIN
-  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'backtest_app') THEN
-    GRANT SELECT, INSERT, UPDATE, DELETE ON custom_tickers TO backtest_app;
-  END IF;
-END
-$$;
 
 -- 031: FORCE RLS 补齐（024 仅 ENABLE 未 FORCE）
-ALTER TABLE audit_logs FORCE ROW LEVEL SECURITY;
-ALTER TABLE custom_tickers FORCE ROW LEVEL SECURITY;
-ALTER TABLE stripe_customers FORCE ROW LEVEL SECURITY;
-ALTER TABLE subscriptions FORCE ROW LEVEL SECURITY;
-ALTER TABLE webhook_endpoints FORCE ROW LEVEL SECURITY;
-ALTER TABLE webhook_deliveries FORCE ROW LEVEL SECURITY;
 DO $$
 DECLARE tbl_name TEXT;
 BEGIN
@@ -803,68 +730,11 @@ ALTER TABLE org_memberships FORCE ROW LEVEL SECURITY;
 CREATE POLICY org_memberships_tenant_isolation ON org_memberships FOR ALL
   USING (org_id = current_setting('app.current_tenant_id', true)::uuid)
   WITH CHECK (org_id = current_setting('app.current_tenant_id', true)::uuid);
-DO $$
-BEGIN
-  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'backtest_app') THEN
-    GRANT SELECT, INSERT, UPDATE, DELETE ON org_memberships TO backtest_app;
-  END IF;
-END $$;
 
--- 033: backtest_app 全表 DML 授权 + 默认权限（C-002）
-GRANT USAGE ON SCHEMA public TO backtest_app;
-GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO backtest_app;
-GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO backtest_app;
-ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO backtest_app;
-ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO backtest_app;
-
--- 034: webhook_endpoints.secret 加密存储（C-024：text → bytea AES-256-GCM）
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
-ALTER TABLE webhook_endpoints ALTER COLUMN secret DROP NOT NULL;
-ALTER TABLE webhook_endpoints ALTER COLUMN secret TYPE bytea USING NULL;
-ALTER TABLE webhook_endpoints ALTER COLUMN secret SET NOT NULL;
-ALTER TABLE webhook_endpoints ADD COLUMN IF NOT EXISTS secret_iv bytea;
-ALTER TABLE webhook_endpoints ADD COLUMN IF NOT EXISTS secret_tag bytea;
-ALTER TABLE webhook_endpoints ADD COLUMN IF NOT EXISTS secret_kid text;
-
--- 035: prices hypertable 幂等安全网（018 已转换，此处 no-op 兜底）
-CREATE EXTENSION IF NOT EXISTS timescaledb;
-ALTER TABLE prices DROP CONSTRAINT IF EXISTS prices_pkey;
-SELECT create_hypertable('prices', 'date', chunk_time_interval => INTERVAL '3 months', migrate_data => TRUE, if_not_exists => TRUE);
-DO $$
-DECLARE is_hypertable BOOLEAN;
-BEGIN
-  SELECT EXISTS(SELECT 1 FROM timescaledb_information.hypertables WHERE hypertable_name = 'prices') INTO is_hypertable;
-  IF is_hypertable THEN RAISE NOTICE 'prices 已是 hypertable，035 为幂等 no-op';
-  ELSE RAISE WARNING 'prices 仍未转换为 hypertable，请检查 TimescaleDB 扩展与权限';
-  END IF;
-END $$;
-
--- 036: audit_logs 补齐列 + RLS 幂等校验（D8-H2）
-CREATE TABLE IF NOT EXISTS audit_logs (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  org_id UUID, user_id UUID, action TEXT, resource_type TEXT, resource_id TEXT,
-  metadata JSONB, ip_address TEXT, user_agent TEXT,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
+-- 036: audit_logs 补齐列 + GIN 索引（表定义+RLS 见 022/024）
 ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS user_agent TEXT;
 ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS metadata JSONB;
-ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
-ALTER TABLE audit_logs FORCE ROW LEVEL SECURITY;
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'audit_logs' AND policyname = 'audit_logs_tenant_isolation') THEN
-    CREATE POLICY audit_logs_tenant_isolation ON audit_logs FOR ALL
-      USING (org_id = current_setting('app.current_tenant_id', true)::uuid OR current_setting('app.is_platform_admin', true) = 'true')
-      WITH CHECK (org_id = current_setting('app.current_tenant_id', true)::uuid OR current_setting('app.is_platform_admin', true) = 'true');
-  END IF;
-END $$;
 CREATE INDEX IF NOT EXISTS idx_audit_logs_metadata_gin ON audit_logs USING GIN (metadata) WHERE metadata IS NOT NULL;
-DO $$
-BEGIN
-  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'backtest_app') THEN
-    GRANT SELECT, INSERT, UPDATE, DELETE ON audit_logs TO backtest_app;
-  END IF;
-END $$;
 
 -- 037: invitations RLS 幂等安全网（D8-H3）
 ALTER TABLE invitations ENABLE ROW LEVEL SECURITY;
@@ -921,24 +791,16 @@ CREATE INDEX IF NOT EXISTS idx_fk_invitations_invited_by ON invitations (invited
 DROP INDEX IF EXISTS idx_prices_ticker_date;
 DROP INDEX IF EXISTS idx_organizations_slug;
 
--- 042: updated_at 触发器（7 张表缺触发器导致 updated_at 停留在创建时间）
+-- 042: updated_at 触发器
 CREATE OR REPLACE FUNCTION set_updated_at() RETURNS TRIGGER AS $$
 BEGIN NEW.updated_at = NOW(); RETURN NEW; END;
 $$ LANGUAGE plpgsql;
-DROP TRIGGER IF EXISTS trg_users_updated_at ON users;
-CREATE TRIGGER trg_users_updated_at BEFORE UPDATE ON users FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-DROP TRIGGER IF EXISTS trg_tickers_updated_at ON tickers;
-CREATE TRIGGER trg_tickers_updated_at BEFORE UPDATE ON tickers FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-DROP TRIGGER IF EXISTS trg_organizations_updated_at ON organizations;
-CREATE TRIGGER trg_organizations_updated_at BEFORE UPDATE ON organizations FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-DROP TRIGGER IF EXISTS trg_portfolios_updated_at ON portfolios;
-CREATE TRIGGER trg_portfolios_updated_at BEFORE UPDATE ON portfolios FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-DROP TRIGGER IF EXISTS trg_saved_configs_updated_at ON saved_configs;
-CREATE TRIGGER trg_saved_configs_updated_at BEFORE UPDATE ON saved_configs FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-DROP TRIGGER IF EXISTS trg_subscriptions_updated_at ON subscriptions;
-CREATE TRIGGER trg_subscriptions_updated_at BEFORE UPDATE ON subscriptions FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-DROP TRIGGER IF EXISTS trg_stripe_customers_updated_at ON stripe_customers;
-CREATE TRIGGER trg_stripe_customers_updated_at BEFORE UPDATE ON stripe_customers FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+DO $$ DECLARE t TEXT;
+BEGIN
+  FOREACH t IN ARRAY ARRAY['users','tickers','organizations','portfolios','saved_configs','subscriptions','stripe_customers'] LOOP
+    EXECUTE format('DROP TRIGGER IF EXISTS trg_%1$s_updated_at ON %1$s; CREATE TRIGGER trg_%1$s_updated_at BEFORE UPDATE ON %1$s FOR EACH ROW EXECUTE FUNCTION set_updated_at()', t);
+  END LOOP;
+END $$;
 
 -- 043: api_keys 双哈希列迁移完成（D8-017：key_hash 改 nullable + CHECK 约束）
 ALTER TABLE api_keys ALTER COLUMN key_hash DROP NOT NULL;

@@ -31,6 +31,9 @@ import {
   type OptimizeResultItem,
 } from '../domain/services/optimizer-domain.js';
 
+const toEngineBody = (p: Portfolio): Record<string, unknown> =>
+  translateDomainError(() => DomainPortfolio.fromDTO(p)).toEngineBody();
+
 async function runCompute(
   path: string,
   tickers: string[],
@@ -112,9 +115,7 @@ async function runBacktestGroups(
       totalReturn: true,
     }));
     const btResult = await callEngineStrict<BacktestResult>('/api/engine/backtest', {
-      portfolios: portfolios.map((p) =>
-        translateDomainError(() => DomainPortfolio.fromDTO(p)).toEngineBody(),
-      ),
+      portfolios: portfolios.map(toEngineBody),
       priceData,
       params: buildEngineParams(buildBacktestParameters(parameters, capital)),
     });
@@ -159,9 +160,7 @@ async function computeBestResult(
     },
   ];
   const bestResult = await callEngineStrict<BacktestResult>('/api/engine/backtest', {
-    portfolios: bestPortfolios.map((p) =>
-      translateDomainError(() => DomainPortfolio.fromDTO(p)).toEngineBody(),
-    ),
+    portfolios: bestPortfolios.map(toEngineBody),
     priceData,
     params: buildEngineParams(buildBacktestParameters(parameters, bestItem.initialCapital)),
   });
@@ -183,8 +182,7 @@ export async function executeOptimization(body: Record<string, unknown>): Promis
   const { portfolio, parameterSpace, parameters, objective, constraints } = req;
   const validationError = validateOptimizeRequest(req);
   if (validationError) return { success: false, error: validationError };
-  const allTickers = new Set<string>();
-  for (const a of portfolio.assets) allTickers.add(a.ticker);
+  const allTickers = new Set(portfolio.assets.map((a) => a.ticker));
   if (parameters.benchmarkTicker) allTickers.add(parameters.benchmarkTicker);
   const warnings: Warning[] = [];
   const { priceData, degraded, degradedWarning } = await fetchPriceDataWithRange(

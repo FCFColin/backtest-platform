@@ -69,40 +69,44 @@ function recordDegraded(endpoint: string | undefined): void {
   recordDegradedResponse(endpoint, 'engine_unavailable');
 }
 
-export function asyncRouteHandler(
-  fn: (req: AuthenticatedRequest, res: Response) => Promise<void>,
+type RouteHandlerFn = (req: AuthenticatedRequest, res: Response) => Promise<void>;
+
+function baseHandler(
+  fn: RouteHandlerFn,
   errorConfig: RouteErrorConfig,
-) {
-  return async (req: Request, res: Response): Promise<void> => {
+  mode: 'translate' | 'plain',
+): RequestHandler {
+  return async (req, res): Promise<void> => {
     try {
       await fn(req as AuthenticatedRequest, res);
     } catch (error) {
-      const translated = translateError(res, error);
+      const translated = mode === 'translate' ? translateError(res, error) : null;
       if (translated) {
         if (translated === 'engine') recordDegraded(errorConfig.endpoint);
         else recordEndpointError(errorConfig.endpoint);
         return;
       }
       recordEndpointError(errorConfig.endpoint);
-      logger.error({ err: error as Error }, errorConfig.logMsg);
+      logger.error(
+        {
+          err: error as Error,
+          ...(mode === 'plain' ? { path: req.path, method: req.method } : {}),
+        },
+        errorConfig.logMsg,
+      );
       sendProblem(res, 500, errorConfig.code);
     }
   };
 }
 
-export function crudRouteHandler(
-  fn: (req: AuthenticatedRequest, res: Response) => Promise<void>,
+export const asyncRouteHandler = (
+  fn: RouteHandlerFn,
   errorConfig: RouteErrorConfig,
-): RequestHandler {
-  return async (req, res): Promise<void> => {
-    try {
-      await fn(req as AuthenticatedRequest, res);
-    } catch (err) {
-      logger.error({ err: err as Error, path: req.path, method: req.method }, errorConfig.logMsg);
-      sendProblem(res, 500, errorConfig.code);
-    }
-  };
-}
+): RequestHandler => baseHandler(fn, errorConfig, 'translate');
+export const crudRouteHandler = (
+  fn: RouteHandlerFn,
+  errorConfig: RouteErrorConfig,
+): RequestHandler => baseHandler(fn, errorConfig, 'plain');
 
 export function tenantHandler(
   logMsg: string,

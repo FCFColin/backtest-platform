@@ -80,6 +80,17 @@ const orgSummary = (m: Membership) => ({
 
 const router = Router();
 
+function slugify(s: string): string {
+  return (
+    s
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 60) || 'org'
+  );
+}
+
 router.post(
   '/login/password',
   validate(loginPasswordSchema),
@@ -164,20 +175,13 @@ router.post('/register', validate(registerSchema), async (req, res) => {
     await client.query('BEGIN');
     const user = await createUserTx(client, username, password, email, 'admin');
     userId = user.id;
-    const slugBase =
-      orgName
-        .toLowerCase()
-        .trim()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-+|-+$/g, '')
-        .slice(0, 60) || 'org';
-    const slug = `${slugBase}-${randomBytes(3).toString('hex')}`;
+    const slug = `${slugify(orgName)}-${randomBytes(3).toString('hex')}`;
     const orgRes = await client.query(
-      `INSERT INTO organizations (name, slug) VALUES ($1, $2) RETURNING id`,
+      'INSERT INTO organizations (name, slug) VALUES ($1, $2) RETURNING id',
       [orgName, slug],
     );
     const orgId = orgRes.rows[0].id as string;
-    await client.query(`INSERT INTO memberships (org_id, user_id, role) VALUES ($1, $2, 'owner')`, [
+    await client.query("INSERT INTO memberships (org_id, user_id, role) VALUES ($1, $2, 'owner')", [
       orgId,
       userId,
     ]);
@@ -197,10 +201,9 @@ router.post('/register', validate(registerSchema), async (req, res) => {
   }
 
   try {
-    const token = await issueEmailVerificationToken(userId);
-    await sendVerificationEmail(email, token);
+    await sendVerificationEmail(email, await issueEmailVerificationToken(userId));
   } catch (err) {
-    logger.warn({ err: String(err), userId }, '[auth] 验证邮件发送失败（可稍后重发）');
+    logger.warn({ err: String(err), userId }, '[auth] 验证邮件发送失败');
   }
 
   logger.info({ userId }, '[auth] 注册成功');

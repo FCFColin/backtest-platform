@@ -67,14 +67,6 @@ export function requireUser(
 }
 
 type AuthLogLevel = 'info' | 'warn' | 'error';
-export const authCtx = (
-  middleware: string,
-  req: AuthenticatedRequest,
-): Record<string, unknown> => ({
-  middleware,
-  path: req.path,
-  requestId: req.id,
-});
 function authLog(
   level: AuthLogLevel,
   middleware: string,
@@ -84,6 +76,10 @@ function authLog(
 ): void {
   logger[level]({ middleware, path: req.path, requestId: req.id, ...extra }, `[jwtAuth] ${msg}`);
 }
+export const authCtx = (_middleware: string, req: AuthenticatedRequest) => ({
+  path: req.path,
+  requestId: req.id,
+});
 
 type JoseKey = Exclude<Awaited<ReturnType<typeof importPKCS8>>, Uint8Array> | Uint8Array;
 const JWT_SECRET = config.JWT_SECRET;
@@ -105,35 +101,43 @@ function readPemFile(filePath: string): string {
   }
 }
 async function loadKey(type: 'private' | 'public'): Promise<JoseKey> {
-  const isPrivate = type === 'private';
-  const direct = isPrivate ? config.JWT_PRIVATE_KEY : config.JWT_PUBLIC_KEY;
-  const file = isPrivate ? config.JWT_PRIVATE_KEY_FILE : config.JWT_PUBLIC_KEY_FILE;
-  const importFn = isPrivate ? importPKCS8 : importSPKI;
-  if (direct) return importFn(direct, 'RS256');
-  if (file) return importFn(readPemFile(file), 'RS256');
+  const cfg =
+    type === 'private'
+      ? { direct: config.JWT_PRIVATE_KEY, file: config.JWT_PRIVATE_KEY_FILE, imp: importPKCS8 }
+      : { direct: config.JWT_PUBLIC_KEY, file: config.JWT_PUBLIC_KEY_FILE, imp: importSPKI };
+  if (cfg.direct) return cfg.imp(cfg.direct, 'RS256');
+  if (cfg.file) return cfg.imp(readPemFile(cfg.file), 'RS256');
   if (config.NODE_ENV !== 'production') {
     const pair = await generateDevKeyPair();
-    return isPrivate ? pair.privateKey : pair.publicKey;
+    return type === 'private' ? pair.privateKey : pair.publicKey;
   }
   throw new Error(
     `RS256 模式下必须配置 JWT_${type.toUpperCase()}_KEY 或 JWT_${type.toUpperCase()}_KEY_FILE`,
   );
 }
-function base64urlEncode(input: string | Buffer): string {
-  const buf = typeof input === 'string' ? Buffer.from(input, 'utf-8') : input;
-  return buf.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-}
+const base64urlEncode = (input: string) =>
+  Buffer.from(input, 'utf-8')
+    .toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
 const getHS256Key = () => importJWK({ kty: 'oct', k: base64urlEncode(JWT_SECRET) }, 'HS256');
-function memoizeKey<T>(loader: () => Promise<T>): () => Promise<T> {
-  let cached: T | null = null;
-  return async () => {
-    if (cached === null) cached = await loader();
-    return cached;
-  };
-}
-export const getOrCachePrivateKey = memoizeKey(() => loadKey('private'));
-export const getOrCachePublicKey = memoizeKey(() => loadKey('public'));
-export const getOrCacheHS256Key = memoizeKey(getHS256Key);
+// Cached key loaders (inlined memoizeKey pattern)
+let _privKey: JoseKey | null = null,
+  _pubKey: JoseKey | null = null,
+  _hs256Key: Exclude<Awaited<ReturnType<typeof importJWK>>, Uint8Array> | null = null;
+export const getOrCachePrivateKey = async (): Promise<JoseKey> => {
+  if (!_privKey) _privKey = await loadKey('private');
+  return _privKey;
+};
+export const getOrCachePublicKey = async (): Promise<JoseKey> => {
+  if (!_pubKey) _pubKey = await loadKey('public');
+  return _pubKey;
+};
+export const getOrCacheHS256Key = async () => {
+  if (!_hs256Key) _hs256Key = await getHS256Key();
+  return _hs256Key;
+};
 
 async function signConfiguredJwt(payload: JwtPayload): Promise<string> {
   const isRs256 = JWT_ALGORITHM === 'RS256';
@@ -169,49 +173,37 @@ async function validateJwtPayload(
   algorithm: string,
   span: Span,
 ): Promise<JwtPayload | null> {
-  const jwtPayload = payload as JwtPayload;
-  const ok =
-    typeof jwtPayload.sub === 'string' &&
-    jwtPayload.sub.length > 0 &&
-    VALID_JWT_ROLES.has(jwtPayload.role) &&
-    typeof jwtPayload.exp === 'number' &&
-    Number.isFinite(jwtPayload.exp);
-  if (!ok) {
+  const p = payload as JwtPayload;
+  if (!(
+    typeof p.sub === 'string' &&
+    p.sub.length > 0 &&
+    VALID_JWT_ROLES.has(p.role) &&
+    typeof p.exp === 'number' &&
+    Number.isFinite(p.exp)
+  )) {
     span.setAttribute('verify.result', 'failed_missing_claims');
     return null;
   }
-  if (await isAccessTokenRevokedForUser(jwtPayload.sub, jwtPayload.iat)) {
+  if (await isAccessTokenRevokedForUser(p.sub, p.iat)) {
     span.setAttribute('verify.result', 'failed_revoked');
     return null;
   }
   span.setAttribute('verify.algorithm', algorithm);
   span.setAttribute('verify.result', 'success');
-  return jwtPayload;
-}
-async function verifyWithAlgorithm(
-  token: string,
-  algorithm: 'RS256' | 'HS256',
-  span: Span,
-): Promise<JwtPayload | null> {
-  const key = algorithm === 'RS256' ? await getOrCachePublicKey() : await getOrCacheHS256Key();
-  const { payload } = await jwtVerify(token, key, { algorithms: [algorithm] });
-  return validateJwtPayload(payload, algorithm, span);
+  return p;
 }
 export async function verifyToken(token: string): Promise<JwtPayload | null> {
   return tracer.startActiveSpan('jwt.verifyJwt', async (span) => {
     try {
-      const algorithms: ('RS256' | 'HS256')[] = ['RS256'];
-      if (JWT_ALGORITHM === 'HS256') algorithms.push('HS256');
-      for (const alg of algorithms) {
-        try {
-          const payload = await verifyWithAlgorithm(token, alg, span);
-          if (payload) return payload;
-        } catch {
-          /* expected: try next algorithm */
-        }
+      const alg: 'RS256' | 'HS256' = JWT_ALGORITHM === 'HS256' ? 'HS256' : 'RS256';
+      const key = alg === 'RS256' ? await getOrCachePublicKey() : await getOrCacheHS256Key();
+      try {
+        const { payload } = await jwtVerify(token, key, { algorithms: [alg] });
+        return validateJwtPayload(payload, alg, span);
+      } catch {
+        span.setAttribute('verify.result', 'failed');
+        return null;
       }
-      span.setAttribute('verify.result', 'failed');
-      return null;
     } finally {
       span.end();
     }
@@ -228,11 +220,12 @@ export function authFail(
   if (failureCode) recordAuthFailure(getRoutePattern(req), failureCode);
 }
 function tryDevBypass(req: AuthenticatedRequest, next: NextFunction): boolean {
-  const devOk =
+  if (!(
     config.NODE_ENV === 'development' &&
     config.DEV_SKIP_AUTH &&
-    config.JWT_SECRET === 'dev-only-jwt-secret-change-in-production';
-  if (!devOk) return false;
+    config.JWT_SECRET === 'dev-only-jwt-secret-change-in-production'
+  ))
+    return false;
   authLog('info', 'jwtAuth', req, '开发旁路认证（readonly）');
   const now = Math.floor(Date.now() / 1000);
   req.user = {
@@ -251,32 +244,18 @@ async function denyIfRevokedOrDisabled(
   res: Response,
   middleware: string,
 ): Promise<boolean> {
-  const checks: Array<{
-    denied: () => Promise<boolean>;
-    metric: string;
-    code: string;
-    msg: string;
-  }> = [
-    {
-      denied: () => isAccessTokenRevokedForUser(payload.sub, payload.iat),
-      metric: 'session_revoked',
-      code: 'SESSION_REVOKED',
-      msg: '会话已全局撤销，拒绝访问',
-    },
-    {
-      denied: async () => !(await isUserSessionValid(payload.sub)),
-      metric: 'account_disabled',
-      code: 'ACCOUNT_DISABLED',
-      msg: '用户已停用，拒绝访问',
-    },
-  ];
-  for (const c of checks) {
-    if (await c.denied()) {
-      authLog('warn', middleware, req, c.msg, { userId: hashUserId(payload.sub) });
-      recordAuthFailure(getRoutePattern(req), c.metric);
-      sendProblem(res, 401, c.code);
-      return true;
-    }
+  const uid = hashUserId(payload.sub);
+  if (await isAccessTokenRevokedForUser(payload.sub, payload.iat)) {
+    authLog('warn', middleware, req, '会话已全局撤销，拒绝访问', { userId: uid });
+    recordAuthFailure(getRoutePattern(req), 'session_revoked');
+    sendProblem(res, 401, 'SESSION_REVOKED');
+    return true;
+  }
+  if (!(await isUserSessionValid(payload.sub))) {
+    authLog('warn', middleware, req, '用户已停用，拒绝访问', { userId: uid });
+    recordAuthFailure(getRoutePattern(req), 'account_disabled');
+    sendProblem(res, 401, 'ACCOUNT_DISABLED');
+    return true;
   }
   return false;
 }
@@ -334,14 +313,9 @@ async function authenticate(
     method: req.method,
   });
   if (!optional && tryDevBypass(req, next)) return;
-  if (req.headers.authorization?.startsWith('Bearer ')) {
-    await authenticateWithBearer(req, res, next, optional);
-    return;
-  }
-  if (optional || req.headers['x-api-key']) {
-    await authenticateWithApiKey(req, res, next, optional);
-    return;
-  }
+  if (req.headers.authorization?.startsWith('Bearer '))
+    return authenticateWithBearer(req, res, next, optional);
+  if (optional || req.headers['x-api-key']) return authenticateWithApiKey(req, res, next, optional);
   authFail(middleware, req, '缺少认证凭证', 'missing_credentials');
   sendProblem(res, 401, 'MISSING_CREDENTIALS');
 }

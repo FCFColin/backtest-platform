@@ -32,6 +32,10 @@ function moduleLog(level: LogLevel, fields: Record<string, unknown>, msg: string
   logger[level]({ module: 'outboxPublisher', ...fields }, msg);
 }
 
+function logError(err: unknown, msg: string, extra: Record<string, unknown> = {}): void {
+  moduleLog('error', { err: (err as Error)?.message, ...extra }, msg);
+}
+
 interface OutboxEventRow {
   id: string;
   event_type: string;
@@ -74,11 +78,7 @@ export class OutboxPublisher {
         );
         if (msg.channel === 'outbox_channel')
           this.handleNotification().catch((err) =>
-            moduleLog(
-              'error',
-              { err: (err as Error).message },
-              'Unhandled error in handleNotification',
-            ),
+            logError(err, 'Unhandled error in handleNotification'),
           );
       });
       this.listener.on('error', (err: Error) =>
@@ -89,11 +89,7 @@ export class OutboxPublisher {
       );
       moduleLog('info', {}, 'OutboxPublisher started, listening on outbox_channel');
     } catch (err) {
-      moduleLog(
-        'error',
-        { err: (err as Error).message },
-        'OutboxPublisher listener start failed, LISTEN disabled',
-      );
+      logError(err, 'OutboxPublisher listener start failed, LISTEN disabled');
       if (this.listener) {
         try {
           await this.listener.end();
@@ -131,11 +127,7 @@ export class OutboxPublisher {
             'Outbox event processed',
           );
         } else {
-          moduleLog(
-            'error',
-            { err: (s.reason as Error)?.message, eventId: events[i].id },
-            'Failed to process outbox event',
-          );
+          logError(s.reason, 'Failed to process outbox event', { eventId: events[i].id });
         }
       });
       if (processedIds.length > 0)
@@ -143,7 +135,7 @@ export class OutboxPublisher {
           processedIds,
         ]);
     } catch (err) {
-      moduleLog('error', { err: (err as Error).message }, 'Error in handleNotification');
+      logError(err, 'Error in handleNotification');
     }
   }
 
@@ -169,11 +161,7 @@ export class OutboxPublisher {
         moduleLog('info', {}, 'OutboxPublisher UNLISTEN issued');
         await this.listener.end();
       } catch (err) {
-        moduleLog(
-          'error',
-          { err: (err as Error).message },
-          'Error stopping OutboxPublisher listener',
-        );
+        logError(err, 'Error stopping OutboxPublisher listener');
       }
       this.listener = null;
       moduleLog('info', {}, 'OutboxPublisher stopped, pg.Client closed');
@@ -198,7 +186,7 @@ export class OutboxPublisher {
         }
         await this.cleanupProcessedOutboxEvents();
       } catch (err) {
-        moduleLog('error', { err: (err as Error).message }, 'Compensation scanner error');
+        logError(err, 'Compensation scanner error');
       }
     }, 60_000);
   }
@@ -239,11 +227,7 @@ export class OutboxPublisher {
         );
       return result.rowCount ?? 0;
     } catch (err) {
-      moduleLog(
-        'error',
-        { err: (err as Error).message },
-        'Failed to cleanup processed outbox events',
-      );
+      logError(err, 'Failed to cleanup processed outbox events');
       return 0;
     }
   }

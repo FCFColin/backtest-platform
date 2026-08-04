@@ -13,16 +13,14 @@ import {
   getBacktestResultCache,
 } from '../application/backtest/backtestResultUtils.js';
 import { searchTickers } from '../infrastructure/dataFacade.js';
-import { logger } from '../utils/logger.js';
+import { SYNTHETIC_TICKERS } from '../infrastructure/dataServices.js';
 import { sendProblem } from '../utils/errors.js';
+import { logger } from '../utils/logger.js';
 import { recordBacktestRequest } from '../utils/metrics.js';
-import { asyncRouteHandler, crudRouteHandler, ownerOf } from './routeUtils.js';
+import { asyncRouteHandler, crudRouteHandler } from './routeUtils.js';
+import { submitQueueJob, jobAccessGranted } from './jobSubmission.js';
 import type { AuthenticatedRequest } from '../middleware/jwtAuth.js';
-import {
-  backtestQueue,
-  type BacktestJobData,
-  type BacktestJobResult,
-} from '../queues/backtestQueue.js';
+import { backtestQueue, type BacktestJobResult } from '../queues/backtestQueue.js';
 import { validate } from '../middleware/miscMiddleware.js';
 import {
   portfolioBacktestSchema,
@@ -81,12 +79,12 @@ router.get(
         sendProblem(res, 422, 'MISSING_PARAMS');
         return;
       }
-      const results = await searchTickers(
-        query.trim(),
-        undefined,
-        (req as AuthenticatedRequest).tenantId,
-      );
-      res.json({ success: true, data: results.slice(0, limit) });
+      const q = query.trim().toLowerCase();
+      const results = await searchTickers(q, undefined, (req as AuthenticatedRequest).tenantId);
+      const synthetic = SYNTHETIC_TICKERS.filter(
+        (s) => s.ticker.toLowerCase().includes(q) || s.name.toLowerCase().includes(q),
+      ).map((s) => ({ ticker: s.ticker, name: s.name, market: s.category }));
+      res.json({ success: true, data: [...results, ...synthetic].slice(0, limit) });
     },
     { logMsg: 'Ticker search error', code: 'SEARCH_ERROR', endpoint: 'backtest-search' },
   ),
@@ -95,46 +93,18 @@ router.get(
 router.post(
   '/portfolio',
   validate(portfolioBacktestSchema),
-  asyncRouteHandler(
-    async (req: Request, res: Response): Promise<void> => {
-      const { portfolios, parameters } = req.body as {
-        portfolios: Portfolio[];
-        parameters: BacktestParameters;
-      };
-      const authReq = req as AuthenticatedRequest;
-      try {
-        const job = await backtestQueue.add('portfolio', {
-          type: 'portfolio',
-          payload: { portfolios, parameters },
-          userId: authReq.user?.sub,
-          tenantId: authReq.tenantId,
-          ownerUserId: ownerOf(authReq),
-        } as BacktestJobData);
-        res.status(202).json({
-          success: true,
-          data: { jobId: job.id, status: 'queued', statusUrl: `/api/v1/backtest/runs/${job.id}` },
-        });
-        recordBacktestRequest('portfolio', 'async', 'success');
-      } catch (queueError) {
-        logger.error(
-          { err: (queueError as Error).message },
-          '[backtest] BullMQ 队列不可用，fail-closed 返回 503',
-        );
-        recordBacktestRequest('portfolio', 'async', 'queue_error');
-        sendProblem(
-          res,
-          503,
-          'SERVICE_TEMPORARILY_UNAVAILABLE',
-          'Service temporarily unavailable',
-          {
-            detail: 'Compute queue temporarily unavailable. Please retry later.',
-            headers: { 'Retry-After': '30' },
-          },
-        );
-      }
-    },
-    { logMsg: 'Portfolio backtest error', code: 'BACKTEST_ERROR', endpoint: 'portfolio-backtest' },
-  ),
+  submitQueueJob({
+    type: 'portfolio',
+    statusUrl: (jobId) => `/api/v1/backtest/runs/${jobId}`,
+    jobStatus: 'queued',
+    metric: 'portfolio',
+    queueDownCode: 'SERVICE_TEMPORARILY_UNAVAILABLE',
+    retryAfter: '30',
+    detail: 'Compute queue temporarily unavailable. Please retry later.',
+    logMsg: 'Portfolio backtest error',
+    code: 'BACKTEST_ERROR',
+    endpoint: 'portfolio-backtest',
+  }),
 );
 
 function mapJobState(bullmqState: string): 'queued' | 'running' | 'completed' | 'failed' {
@@ -147,7 +117,6 @@ function mapJobState(bullmqState: string): 'queued' | 'running' | 'completed' | 
 router.get(
   '/runs/:jobId',
   crudRouteHandler(
-    // eslint-disable-next-line complexity
     async (req, res): Promise<void> => {
       const jobId = req.params.jobId;
       if (!jobId) {
@@ -159,18 +128,9 @@ router.get(
         sendProblem(res, 404, 'JOB_NOT_FOUND');
         return;
       }
-      const requester = req.user;
-      if (requester) {
-        const ownerId = job.data?.userId;
-        const jobTenant = job.data?.tenantId;
-        const hasOwnership =
-          (ownerId !== undefined && ownerId === requester.sub) || requester.role === 'admin';
-        const passesTenantCheck =
-          !jobTenant || jobTenant === req.tenantId || requester.platform_admin === true;
-        if (!hasOwnership || !passesTenantCheck) {
-          sendProblem(res, 404, 'JOB_NOT_FOUND');
-          return;
-        }
+      if (!jobAccessGranted(job, req.user, req.tenantId)) {
+        sendProblem(res, 404, 'JOB_NOT_FOUND');
+        return;
       }
       const status = mapJobState(await job.getState());
       const progress = typeof job.progress === 'number' ? job.progress : 0;

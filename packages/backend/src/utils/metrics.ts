@@ -85,6 +85,7 @@ export const engineCallDuration = histogram(
   ['result'],
   [0.05, 0.1, 0.25, 0.5, 1, 2, 5, 10, 30, 60, 120],
 );
+
 const COUNTER_DEFS = {
   http_requests_total: { help: 'Total number of HTTP requests', labels: [...HTTP_LABELS] },
   go_engine_calls_total: { help: 'Total number of calls to Go engine', labels: ['result'] },
@@ -141,34 +142,27 @@ function sanitizeMetricLabel(value: string, maxLength = 64, allowSlash = false):
 }
 export function getRoutePattern(req: Pick<Request, 'baseUrl' | 'route' | 'path'>): string {
   if (req.route?.path) return (req.baseUrl + req.route.path).slice(0, 128);
-  const normalized = (req.path || 'unknown')
+  return (req.path || 'unknown')
     .replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, ':uuid')
-    .replace(/\/\d+/g, '/:id');
-  return normalized.slice(0, 128);
+    .replace(/\/\d+/g, '/:id')
+    .slice(0, 128);
 }
 
-export function recordBacktestRequest(
+export const recordBacktestRequest = (
   endpoint: string,
   mode: 'sync' | 'async',
   status: 'success' | 'error' | 'timeout' | 'queue_error',
-): void {
-  ctr.backtest_requests.inc({ endpoint, mode, status });
-}
-export function recordDegradedResponse(endpoint: string, reason: string): void {
+): void => ctr.backtest_requests.inc({ endpoint, mode, status });
+export const recordDegradedResponse = (endpoint: string, reason: string): void =>
   ctr.degraded_responses.inc({ endpoint, reason: sanitizeMetricLabel(reason) });
-}
-export function recordCacheHit(layer: string, hit: boolean): void {
+export const recordCacheHit = (layer: string, hit: boolean): void =>
   ctr.cache_hits.inc({ layer, result: hit ? 'hit' : 'miss' });
-}
-export function recordCacheEviction(level: 'l1'): void {
-  ctr.cache_evictions.inc({ level });
-}
-export function recordAuthFailure(endpoint: string, reason: string): void {
+export const recordCacheEviction = (level: 'l1'): void => ctr.cache_evictions.inc({ level });
+export const recordAuthFailure = (endpoint: string, reason: string): void =>
   ctr.auth_failures.inc({
     endpoint: sanitizeMetricLabel(endpoint, 128, true),
     reason: sanitizeMetricLabel(reason),
   });
-}
 
 export function registerPgPoolMetrics(
   poolName: string,
@@ -185,83 +179,64 @@ export function registerPgPoolMetrics(
     ['pool'],
   );
   startSampler(() => {
-    const stats = getStats();
-    waiting.set({ pool: poolName }, stats.waitingCount);
-    total.set({ pool: poolName }, stats.totalCount);
+    const s = getStats();
+    waiting.set({ pool: poolName }, s.waitingCount);
+    total.set({ pool: poolName }, s.totalCount);
   }, 5_000);
 }
 
-export function recordEngineCall(success: boolean, _error?: string): void {
+export const recordEngineCall = (success: boolean, _error?: string): void =>
   engineCallsTotal.inc({ result: success ? 'success' : 'unavailable' });
-}
-export function recordEngineUnavailable(reason: string): void {
+export const recordEngineUnavailable = (reason: string): void =>
   engineUnavailableTotal.inc({ reason: sanitizeMetricLabel(reason) });
-}
+export const resetMetrics = (): void => register.resetMetrics();
 
-export function resetMetrics(): void {
-  register.resetMetrics();
-}
-
+const TS_GAUGE_DEFS: Record<string, [string, string]> = {
+  chunk_total: ['timescaledb_chunk_count', 'Total number of chunks in prices hypertable'],
+  chunk_compressed: [
+    'timescaledb_compressed_chunks',
+    'Number of compressed chunks in prices hypertable',
+  ],
+  chunk_uncompressed: [
+    'timescaledb_uncompressed_chunks',
+    'Number of uncompressed chunks in prices hypertable',
+  ],
+  compression_ratio: [
+    'timescaledb_compression_ratio',
+    'Compression ratio of prices hypertable (after/before, lower is better)',
+  ],
+  cagg_rows: ['timescaledb_cagg_rows', 'Total rows in prices_monthly continuous aggregate'],
+};
 const tsGauges = Object.fromEntries(
-  Object.entries({
-    chunk_total: ['timescaledb_chunk_count', 'Total number of chunks in prices hypertable'],
-    chunk_compressed: [
-      'timescaledb_compressed_chunks',
-      'Number of compressed chunks in prices hypertable',
-    ],
-    chunk_uncompressed: [
-      'timescaledb_uncompressed_chunks',
-      'Number of uncompressed chunks in prices hypertable',
-    ],
-    compression_ratio: [
-      'timescaledb_compression_ratio',
-      'Compression ratio of prices hypertable (after/before, lower is better)',
-    ],
-    cagg_rows: ['timescaledb_cagg_rows', 'Total rows in prices_monthly continuous aggregate'],
-  }).map(([k, [n, h]]) => [k, gauge(n as string, h as string)]),
+  Object.entries(TS_GAUGE_DEFS).map(([k, [n, h]]) => [k, gauge(n, h)]),
 ) as Record<string, client.Gauge>;
 
 export function registerTimescaleMetrics(
   queryFn: (sql: string) => Promise<Array<Record<string, unknown>>>,
 ): void {
   const setNum = (g: client.Gauge, v: unknown): void => g.set(Number(v ?? 0));
-  const sample = async (): Promise<void> => {
+  startSampler(async () => {
     try {
-      const chunkRows = await queryFn(`
-        SELECT
-          COUNT(*) AS total_chunks,
-          COUNT(*) FILTER (WHERE compression_status = 'Compressed') AS compressed_chunks,
-          COUNT(*) FILTER (WHERE compression_status != 'Compressed') AS uncompressed_chunks
-        FROM timescaledb_information.chunks
-        WHERE hypertable_name = 'prices'
-      `);
+      const chunkRows = await queryFn(
+        `SELECT COUNT(*) AS total_chunks, COUNT(*) FILTER (WHERE compression_status = 'Compressed') AS compressed_chunks, COUNT(*) FILTER (WHERE compression_status != 'Compressed') AS uncompressed_chunks FROM timescaledb_information.chunks WHERE hypertable_name = 'prices'`,
+      );
       const cs = chunkRows[0];
       if (cs) {
         setNum(tsGauges.chunk_total, cs.total_chunks);
         setNum(tsGauges.chunk_compressed, cs.compressed_chunks);
         setNum(tsGauges.chunk_uncompressed, cs.uncompressed_chunks);
       }
-      const ratioRows = await queryFn(`
-        SELECT
-          COALESCE(
-            SUM(after_compression_total_bytes)::FLOAT
-            / NULLIF(SUM(before_compression_total_bytes), 0),
-            1.0
-          ) AS ratio
-        FROM timescaledb_information.compressed_chunk_stats
-        WHERE hypertable_name = 'prices'
-      `);
+      const ratioRows = await queryFn(
+        `SELECT COALESCE(SUM(after_compression_total_bytes)::FLOAT / NULLIF(SUM(before_compression_total_bytes), 0), 1.0) AS ratio FROM timescaledb_information.compressed_chunk_stats WHERE hypertable_name = 'prices'`,
+      );
       const ratio = ratioRows[0]?.ratio;
-      if (ratio !== undefined && ratio !== null) {
-        tsGauges.compression_ratio.set(Number(ratio));
-      }
+      if (ratio !== undefined && ratio !== null) tsGauges.compression_ratio.set(Number(ratio));
       const caggRows = await queryFn(`SELECT COUNT(*) AS cnt FROM prices_monthly`);
       if (caggRows[0]?.cnt !== undefined) setNum(tsGauges.cagg_rows, caggRows[0].cnt);
     } catch {
       /* ignore query error */
     }
-  };
-  startSampler(sample, 60_000);
+  }, 60_000);
 }
 
 const bullmqQueueSize = gauge(
@@ -272,45 +247,51 @@ const bullmqQueueSize = gauge(
 export function registerQueueMetrics(
   queues: Array<{ name: string; getJobCounts: () => Promise<Record<string, number>> }>,
 ): void {
-  const refresh = async (): Promise<void> => {
+  startSampler(async () => {
     for (const q of queues) {
       try {
         const counts = await q.getJobCounts();
-        const depth = (counts.waiting ?? 0) + (counts.active ?? 0) + (counts.delayed ?? 0);
-        bullmqQueueSize.set({ queue: q.name }, depth);
+        bullmqQueueSize.set(
+          { queue: q.name },
+          (counts.waiting ?? 0) + (counts.active ?? 0) + (counts.delayed ?? 0),
+        );
       } catch {
-        /* ignore query error */
+        /* ignore */
       }
     }
-  };
-  startSampler(refresh, 10_000);
+  }, 10_000);
 }
 
+const FE_HIST_DEFS: Record<string, [string, string, string[], number[]]> = {
+  apiCall: [
+    'frontend_api_call_duration_seconds',
+    'API call duration from frontend perspective (includes network latency)',
+    ['endpoint', 'method', 'status_code'],
+    [0.05, 0.1, 0.25, 0.5, 1, 2, 5, 10, 30],
+  ],
+  componentRender: [
+    'frontend_component_render_duration_seconds',
+    'React component render duration from Profiler',
+    ['component', 'phase'],
+    [0.001, 0.005, 0.01, 0.016, 0.05, 0.1, 0.5, 1],
+  ],
+  pageLoad: [
+    'frontend_page_load_seconds',
+    'Page load timing from Navigation Timing API',
+    ['metric'],
+    [0.1, 0.5, 1, 2, 3, 5, 10],
+  ],
+};
 const fe = {
   webVital: gauge(
     'frontend_web_vital',
     'Web Vitals from real-user monitoring (lcp/cls/inp/fcp/ttfb)',
     ['metric', 'route'],
   ),
-  apiCall: histogram(
-    'frontend_api_call_duration_seconds',
-    'API call duration from frontend perspective (includes network latency)',
-    ['endpoint', 'method', 'status_code'],
-    [0.05, 0.1, 0.25, 0.5, 1, 2, 5, 10, 30],
+  ...Object.fromEntries(
+    Object.entries(FE_HIST_DEFS).map(([k, [n, h, l, b]]) => [k, histogram(n, h, [...l], [...b])]),
   ),
-  componentRender: histogram(
-    'frontend_component_render_duration_seconds',
-    'React component render duration from Profiler',
-    ['component', 'phase'],
-    [0.001, 0.005, 0.01, 0.016, 0.05, 0.1, 0.5, 1],
-  ),
-  pageLoad: histogram(
-    'frontend_page_load_seconds',
-    'Page load timing from Navigation Timing API',
-    ['metric'],
-    [0.1, 0.5, 1, 2, 3, 5, 10],
-  ),
-};
+} as Record<string, client.Gauge | client.Histogram>;
 export const recordFrontendWebVital = (metric: string, value: number, route?: string): void =>
   fe.webVital.set({ metric, route: route || 'unknown' }, value);
 export const recordFrontendApiCall = (
@@ -319,7 +300,7 @@ export const recordFrontendApiCall = (
   statusCode: number,
   durationMs: number,
 ): void =>
-  fe.apiCall.observe(
+  (fe.apiCall as client.Histogram).observe(
     { endpoint: endpoint.slice(0, 128), method, status_code: String(statusCode) },
     durationMs / 1000,
   );
@@ -328,9 +309,12 @@ export const recordFrontendComponentRender = (
   phase: string,
   durationMs: number,
 ): void =>
-  fe.componentRender.observe({ component: component.slice(0, 128), phase }, durationMs / 1000);
+  (fe.componentRender as client.Histogram).observe(
+    { component: component.slice(0, 128), phase },
+    durationMs / 1000,
+  );
 export const recordFrontendPageLoad = (metric: string, value: number): void =>
-  fe.pageLoad.observe({ metric }, value / 1000);
+  (fe.pageLoad as client.Histogram).observe({ metric }, value / 1000);
 
 export function getPrometheusRegister(): client.Registry {
   return register;

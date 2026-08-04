@@ -1,0 +1,105 @@
+[
+  [
+    "SPYSIM",
+    "S&P 500 Index (Total Return)",
+    "Index",
+    "S&P 500 total return index. Uses SPY adjusted close from 1993.",
+    "1993-01-29"
+  ],
+  [
+    "VTISIM",
+    "US Total Market (Total Return)",
+    "Index",
+    "VTSMX (1992-2001) spliced with VTI (2001-).",
+    "1992-11-03"
+  ],
+  [
+    "QQQSIM",
+    "Nasdaq 100 (Total Return)",
+    "Index",
+    "RYOCX (1994-1999) spliced with QQQ (1999-).",
+    "1994-03-11"
+  ],
+  [
+    "BNDSIM",
+    "US Aggregate Bond (Total Return)",
+    "Bond",
+    "VBMFX (1986-2007) spliced with BND (2007-).",
+    "1986-12-18"
+  ],
+  ["GLDSIM", "Gold (Total Return)", "Commodity", "GLD adjusted close from 2004.", "2004-11-18"],
+  [
+    "TLTSIM",
+    "Long-Term Treasury (Total Return)",
+    "Bond",
+    "TLT adjusted close from 2002.",
+    "2002-07-22"
+  ],
+  [
+    "IEFSIM",
+    "Mid-Term Treasury (Total Return)",
+    "Bond",
+    "IEF adjusted close from 2002.",
+    "2002-07-26"
+  ],
+  [
+    "SHVSIM",
+    "Short-Term Treasury (Total Return)",
+    "Bond",
+    "SHV adjusted close from 2007.",
+    "2007-01-11"
+  ],
+  [
+    "VXUSSIM",
+    "International Equity (Total Return)",
+    "Equity",
+    "EFA (2001-2011) spliced with VXUS (2011-).",
+    "2001-08-20"
+  ],
+  ["VNQSIM", "REIT (Total Return)", "RealEstate", "VNQ adjusted close from 2004.", "2004-09-29"],
+  [
+    "IWMSIM",
+    "Russell 2000 (Total Return)",
+    "Equity",
+    "IWM adjusted close from 2000.",
+    "2000-05-22"
+  ],
+  ["EFASIM", "MSCI EAFE (Total Return)", "Equity", "EFA adjusted close from 2001.", "2001-08-20"],
+  [
+    "EEMSIM",
+    "Emerging Markets (Total Return)",
+    "Equity",
+    "EEM adjusted close from 2003.",
+    "2003-04-11"
+  ],
+  ["TIPSIM", "TIPS (Total Return)", "Bond", "TIP adjusted close from 2003.", "2003-12-05"],
+  [
+    "AGGSIM",
+    "US Aggregate Bond (Total Return)",
+    "Bond",
+    "AGG adjusted close from 2003.",
+    "2003-09-29"
+  ],
+  ["SCHBSIM", "Broad Bond (Total Return)", "Bond", "SCHB adjusted close from 2010.", "2010-01-14"],
+  [
+    "VTVOXSIM",
+    "Intermediate Bond (Total Return)",
+    "Bond",
+    "BIV adjusted close from 2009.",
+    "2009-04-06"
+  ],
+  [
+    "BSVSIM",
+    "Short-Term Bond (Total Return)",
+    "Bond",
+    "BSV adjusted close from 2007.",
+    "2007-04-05"
+  ],
+  [
+    "VTESIM",
+    "Tax-Exempt Bond (Total Return)",
+    "Bond",
+    "VTEB adjusted close from 2007.",
+    "2007-12-07"
+  ]
+]

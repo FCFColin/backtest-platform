@@ -155,7 +155,7 @@ export type Statistics = {
 const ZERO_VAR: { [K in VarLevel]: number } = { 1: 0, 5: 0, 10: 0 };
 const ZERO_SKEW: HorizonStats = { daily: 0, monthly: 0, annual: 0 };
 
-const ZERO_NUM_FIELDS = [
+const NUM_FIELDS = [
   'cagr',
   'mwrr',
   'totalReturn',
@@ -246,8 +246,8 @@ const ZERO_NUM_FIELDS = [
  */
 export function createEmptyStatistics(): Statistics {
   return {
-    ...(Object.fromEntries(ZERO_NUM_FIELDS.map((k) => [k, 0])) as Record<
-      (typeof ZERO_NUM_FIELDS)[number],
+    ...(Object.fromEntries(NUM_FIELDS.map((k) => [k, 0])) as Record<
+      (typeof NUM_FIELDS)[number],
       0
     >),
     var: { daily: { ...ZERO_VAR }, monthly: { ...ZERO_VAR }, annual: { ...ZERO_VAR } },

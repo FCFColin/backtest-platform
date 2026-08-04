@@ -45,14 +45,14 @@ function collectSystemSnapshot() {
   return {
     memory: {
       rss: m.rss,
-      heapUsed: m.heapUsed,
-      heapTotal: m.heapTotal,
+      heap_total: m.heapTotal,
+      heap_used: m.heapUsed,
       external: m.external,
-      arrayBuffers: m.arrayBuffers,
-      rssMb: toMB(m.rss),
-      heapUsedMb: toMB(m.heapUsed),
-      heapTotalMb: toMB(m.heapTotal),
-      externalMb: toMB(m.external),
+      array_buffers: m.arrayBuffers,
+      rss_mb: toMB(m.rss),
+      heap_used_mb: toMB(m.heapUsed),
+      heap_total_mb: toMB(m.heapTotal),
+      external_mb: toMB(m.external),
     },
     uptimeSeconds,
     uptimeFormatted: formatUptime(uptimeSeconds),
@@ -74,6 +74,7 @@ function buildStatsResponseData({
   backtestHistory: BacktestRunRecord[];
   system: ReturnType<typeof collectSystemSnapshot>;
 }) {
+  const { rss_mb, heap_used_mb, heap_total_mb, external_mb } = system.memory;
   return {
     services: { go_engine: engineHealth, go_data_service: goHealth },
     data_stats: {
@@ -96,12 +97,7 @@ function buildStatsResponseData({
       },
     },
     system: {
-      memory: {
-        rss_mb: system.memory.rssMb,
-        heap_used_mb: system.memory.heapUsedMb,
-        heap_total_mb: system.memory.heapTotalMb,
-        external_mb: system.memory.externalMb,
-      },
+      memory: { rss_mb, heap_used_mb, heap_total_mb, external_mb },
       uptime_seconds: Math.round(system.uptimeSeconds),
       uptime_formatted: system.uptimeFormatted,
     },
@@ -203,16 +199,7 @@ router.get(
       res.json({
         success: true,
         data: {
-          memory: {
-            rss: system.memory.rss,
-            heap_total: system.memory.heapTotal,
-            heap_used: system.memory.heapUsed,
-            external: system.memory.external,
-            array_buffers: system.memory.arrayBuffers,
-            rss_mb: system.memory.rssMb,
-            heap_used_mb: system.memory.heapUsedMb,
-            heap_total_mb: system.memory.heapTotalMb,
-          },
+          memory: system.memory,
           uptime: {
             seconds: Math.round(system.uptimeSeconds),
             formatted: system.uptimeFormatted,

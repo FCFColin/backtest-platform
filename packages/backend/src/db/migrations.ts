@@ -14,9 +14,14 @@ function readMigrationFile(filename: string): string {
   return fs.readFileSync(path.join(MIGRATIONS_DIR, filename), 'utf-8');
 }
 
-/** 迁移注册表（重基线后仅 1 个版本）。 */
+/** 迁移注册表（001 为 45 个历史迁移重基线，002 为 Fama-French 因子）。 */
 const migrations: Array<{ version: number; upFile: string; downFile: string }> = [
   { version: 1, upFile: '001_initial_schema.sql', downFile: '001_initial_schema_down.sql' },
+  {
+    version: 2,
+    upFile: '002_fama_french_factors.sql',
+    downFile: '002_fama_french_factors_down.sql',
+  },
 ];
 
 /** 初始化数据库 schema（执行未应用的迁移）。 */

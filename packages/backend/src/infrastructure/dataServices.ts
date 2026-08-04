@@ -8,159 +8,41 @@ import {
   getActiveUpdateJobs,
   type DataUpdateJobData,
 } from '../queues/queueDefinitions.js';
+import syntheticRowsData from './synthetic-tickers.json' with { type: 'json' };
 
-interface SyntheticTicker {
-  ticker: string;
-  name: string;
-  category: string;
-  description: string;
-  earliestDate: string;
-  methodology: string;
-}
-const SYNTHETIC_ROWS: Array<[string, string, string, string, string]> = [
-  [
-    'SPYSIM',
-    'S&P 500 Index (Total Return)',
-    'Index',
-    'S&P 500 total return index. Uses SPY adjusted close from 1993.',
-    '1993-01-29',
-  ],
-  [
-    'VTISIM',
-    'US Total Market (Total Return)',
-    'Index',
-    'VTSMX (1992-2001) spliced with VTI (2001-).',
-    '1992-11-03',
-  ],
-  [
-    'QQQSIM',
-    'Nasdaq 100 (Total Return)',
-    'Index',
-    'RYOCX (1994-1999) spliced with QQQ (1999-).',
-    '1994-03-11',
-  ],
-  [
-    'BNDSIM',
-    'US Aggregate Bond (Total Return)',
-    'Bond',
-    'VBMFX (1986-2007) spliced with BND (2007-).',
-    '1986-12-18',
-  ],
-  ['GLDSIM', 'Gold (Total Return)', 'Commodity', 'GLD adjusted close from 2004.', '2004-11-18'],
-  [
-    'TLTSIM',
-    'Long-Term Treasury (Total Return)',
-    'Bond',
-    'TLT adjusted close from 2002.',
-    '2002-07-22',
-  ],
-  [
-    'IEFSIM',
-    'Mid-Term Treasury (Total Return)',
-    'Bond',
-    'IEF adjusted close from 2002.',
-    '2002-07-26',
-  ],
-  [
-    'SHVSIM',
-    'Short-Term Treasury (Total Return)',
-    'Bond',
-    'SHV adjusted close from 2007.',
-    '2007-01-11',
-  ],
-  [
-    'VXUSSIM',
-    'International Equity (Total Return)',
-    'Equity',
-    'EFA (2001-2011) spliced with VXUS (2011-).',
-    '2001-08-20',
-  ],
-  ['VNQSIM', 'REIT (Total Return)', 'RealEstate', 'VNQ adjusted close from 2004.', '2004-09-29'],
-  [
-    'IWMSIM',
-    'Russell 2000 (Total Return)',
-    'Equity',
-    'IWM adjusted close from 2000.',
-    '2000-05-22',
-  ],
-  ['EFASIM', 'MSCI EAFE (Total Return)', 'Equity', 'EFA adjusted close from 2001.', '2001-08-20'],
-  [
-    'EEMSIM',
-    'Emerging Markets (Total Return)',
-    'Equity',
-    'EEM adjusted close from 2003.',
-    '2003-04-11',
-  ],
-  ['TIPSIM', 'TIPS (Total Return)', 'Bond', 'TIP adjusted close from 2003.', '2003-12-05'],
-  [
-    'AGGSIM',
-    'US Aggregate Bond (Total Return)',
-    'Bond',
-    'AGG adjusted close from 2003.',
-    '2003-09-29',
-  ],
-  ['SCHBSIM', 'Broad Bond (Total Return)', 'Bond', 'SCHB adjusted close from 2010.', '2010-01-14'],
-  [
-    'VTVOXSIM',
-    'Intermediate Bond (Total Return)',
-    'Bond',
-    'BIV adjusted close from 2009.',
-    '2009-04-06',
-  ],
-  [
-    'BSVSIM',
-    'Short-Term Bond (Total Return)',
-    'Bond',
-    'BSV adjusted close from 2007.',
-    '2007-04-05',
-  ],
-  [
-    'VTESIM',
-    'Tax-Exempt Bond (Total Return)',
-    'Bond',
-    'VTEB adjusted close from 2007.',
-    '2007-12-07',
-  ],
-];
-export const SYNTHETIC_TICKERS: SyntheticTicker[] = SYNTHETIC_ROWS.map(
-  ([ticker, name, category, description, earliestDate]) => ({
-    ticker,
-    name,
-    category,
-    description,
-    earliestDate,
-    methodology: 'splice_by_return',
-  }),
-);
+export const SYNTHETIC_TICKERS = (
+  syntheticRowsData as Array<[string, string, string, string, string]>
+).map(([ticker, name, category, description, earliestDate]) => ({
+  ticker,
+  name,
+  category,
+  description,
+  earliestDate,
+  methodology: 'splice_by_return' as const,
+}));
 
-interface CpiCacheEntry {
-  map?: Record<string, number>;
-  routeData?: unknown;
-}
+const cpiCache: Record<string, { map?: Record<string, number>; routeData?: unknown }> = {};
 
-const cpiCache: Record<string, CpiCacheEntry> = {};
-
-async function fetchCpiFromGoService(country: string): Promise<unknown | null> {
+/** Fetch CPI from Go service — returns both raw route data and date→value map. */
+async function fetchCpiFromGo(
+  country: string,
+): Promise<{ raw: unknown; map: Record<string, number> }> {
   try {
     const response = await callGoDataService(`/api/data/cpi/${country}`);
     const parsed = JSON.parse(response) as { success?: boolean; data?: unknown };
-    if (parsed.success && parsed.data) return parsed.data;
-    return null;
+    if (!parsed.success || !parsed.data) return { raw: null, map: {} };
+    const raw = parsed.data;
+    if (!Array.isArray(raw)) return { raw, map: {} };
+    const map = Object.fromEntries(
+      (raw as Array<{ date: string; value: number }>)
+        .filter((item) => item && typeof item.date === 'string')
+        .map((item) => [item.date.slice(0, 10), item.value]),
+    );
+    return { raw, map };
   } catch (err) {
     logger.warn({ err: err as Error, country }, '[cpiService] Go data-fetcher CPI 调用失败');
-    return null;
+    return { raw: null, map: {} };
   }
-}
-
-async function fetchCpiMapFromGo(country: string): Promise<Record<string, number>> {
-  const data = await fetchCpiFromGoService(country);
-  if (!Array.isArray(data)) return {};
-  const map: Record<string, number> = {};
-  for (const item of data as Array<{ date: string; value: number }>) {
-    if (!item || typeof item.date !== 'string') continue;
-    map[item.date.slice(0, 10)] = item.value;
-  }
-  return map;
 }
 
 export async function loadCpiMap(country: string): Promise<Record<string, number>> {
@@ -169,7 +51,7 @@ export async function loadCpiMap(country: string): Promise<Record<string, number
   const series = await loadCpiSeriesFromDb(key);
   let cpiMap: Record<string, number> = {};
   for (const item of series) cpiMap[item.date] = item.value;
-  if (Object.keys(cpiMap).length === 0) cpiMap = await fetchCpiMapFromGo(key);
+  if (Object.keys(cpiMap).length === 0) cpiMap = (await fetchCpiFromGo(key)).map;
   if (Object.keys(cpiMap).length > 0) cpiCache[key] = { ...cpiCache[key], map: cpiMap };
   return cpiMap;
 }
@@ -184,8 +66,8 @@ interface CpiRouteResult {
 }
 
 export async function fetchCpiForRoute(country: string): Promise<CpiRouteResult> {
-  const goResult = await fetchCpiFromGoService(country);
-  if (goResult) return { data: goResult, degraded: false, notFound: false };
+  const { raw, map } = await fetchCpiFromGo(country);
+  if (raw) return { data: raw, degraded: false, notFound: false };
   if (cpiCache[country]?.routeData) {
     return {
       data: cpiCache[country]!.routeData,
@@ -204,11 +86,16 @@ export async function fetchCpiForRoute(country: string): Promise<CpiRouteResult>
       notFound: false,
     };
   }
+  if (Object.keys(map).length > 0) {
+    cpiCache[country] = { ...cpiCache[country], routeData: map };
+    return { data: map, degraded: false, notFound: false };
+  }
   return { data: null, degraded: false, notFound: true };
 }
 
-const AUDIT_BUCKET = 'audit-logs';
+// ── MinIO audit storage ──────────────────────────────────────────────────────
 
+const AUDIT_BUCKET = 'audit-logs';
 let minioClient: Client | null = null;
 
 export function isMinioConfigured(): boolean {
@@ -237,61 +124,69 @@ function getClient(): Client | null {
   return minioClient;
 }
 
-export async function ensureBucketExists(): Promise<void> {
+/** Run a MinIO operation with standard null-check + error handling. */
+async function withMinio<T>(
+  fn: (client: Client) => Promise<T>,
+  fallback: T,
+  tag: string,
+): Promise<T> {
   const client = getClient();
   if (!client) {
-    logger.warn('[minio] MinIO 未配置，跳过 bucket 初始化（审计日志仅留 DB）');
-    return;
+    logger.warn({ module: 'minioClient' }, `[minio] MinIO 未配置，跳过 ${tag}`);
+    return fallback;
   }
   try {
-    const exists = await client.bucketExists(AUDIT_BUCKET);
-    if (exists) {
-      logger.debug({ module: 'minioClient', bucket: AUDIT_BUCKET }, '[minio] bucket 已存在');
-      return;
-    }
-    await client.makeBucket(AUDIT_BUCKET, 'us-east-1', { ObjectLocking: true });
-    logger.info(
-      { module: 'minioClient', bucket: AUDIT_BUCKET },
-      '[minio] 已创建审计 bucket（Object Lock 已启用）',
-    );
+    return await fn(client);
   } catch (err) {
-    logger.error(
-      { err: (err as Error).message, bucket: AUDIT_BUCKET },
-      '[minio] bucket 初始化失败',
-    );
-    throw err;
+    logger.error({ err: (err as Error).message, tag }, `[minio] ${tag} 失败`);
+    return fallback;
   }
 }
 
-function computeRetainUntilDate(): string {
-  const retainUntil = new Date(Date.now() + config.AUDIT_RETENTION_DAYS * 24 * 60 * 60 * 1000);
-  return retainUntil.toISOString();
+export async function ensureBucketExists(): Promise<void> {
+  await withMinio(
+    async (c) => {
+      if (await c.bucketExists(AUDIT_BUCKET)) return;
+      await c.makeBucket(AUDIT_BUCKET, 'us-east-1', { ObjectLocking: true });
+      logger.info(
+        { module: 'minioClient', bucket: AUDIT_BUCKET },
+        '[minio] 已创建审计 bucket（Object Lock 已启用）',
+      );
+    },
+    undefined,
+    'bucket 初始化',
+  );
 }
 
 export async function uploadAuditObject(key: string, data: string | Buffer): Promise<boolean> {
-  const client = getClient();
-  if (!client) {
-    logger.warn({ module: 'minioClient', key }, '[minio] MinIO 未配置，跳过审计对象上传');
-    return false;
-  }
-  try {
-    const body = typeof data === 'string' ? Buffer.from(data, 'utf-8') : data;
-    const metaData = {
-      'Content-Type': 'application/x-ndjson',
-      'x-amz-object-lock-mode': 'COMPLIANCE',
-      'x-amz-object-lock-retain-until-date': computeRetainUntilDate(),
-    };
-    await client.putObject(AUDIT_BUCKET, key, body, body.length, metaData);
-    logger.info(
-      { module: 'minioClient', key, size: body.length, retentionDays: config.AUDIT_RETENTION_DAYS },
-      '[minio] 审计对象已上传（COMPLIANCE WORM）',
-    );
-    return true;
-  } catch (err) {
-    logger.error({ err: (err as Error).message, key }, '[minio] 审计对象上传失败');
-    return false;
-  }
+  return withMinio(
+    async (client) => {
+      const body = typeof data === 'string' ? Buffer.from(data, 'utf-8') : data;
+      const metaData = {
+        'Content-Type': 'application/x-ndjson',
+        'x-amz-object-lock-mode': 'COMPLIANCE',
+        'x-amz-object-lock-retain-until-date': new Date(
+          Date.now() + config.AUDIT_RETENTION_DAYS * 24 * 60 * 60 * 1000,
+        ).toISOString(),
+      };
+      await client.putObject(AUDIT_BUCKET, key, body, body.length, metaData);
+      logger.info(
+        {
+          module: 'minioClient',
+          key,
+          size: body.length,
+          retentionDays: config.AUDIT_RETENTION_DAYS,
+        },
+        '[minio] 审计对象已上传（COMPLIANCE WORM）',
+      );
+      return true;
+    },
+    false,
+    '审计对象上传',
+  );
 }
+
+// ── Data update queue operations ─────────────────────────────────────────────
 
 interface UpdateStatus {
   running: boolean;
@@ -314,12 +209,10 @@ const IDLE_STATUS: UpdateStatus = {
 export async function getUpdateStatus(): Promise<UpdateStatus> {
   const jobs = await getActiveUpdateJobs();
   if (jobs.length === 0) return { ...IDLE_STATUS };
-
   const job = jobs[0];
   const state = await job.getState();
   const data = job.data as DataUpdateJobData;
   const progress = typeof job.progress === 'number' ? job.progress : 0;
-
   return {
     running: state === 'active' || state === 'waiting' || state === 'delayed',
     mode: data.mode,
@@ -334,18 +227,13 @@ export async function startUpdate(
   mode: 'full' | 'incremental',
 ): Promise<{ success: boolean; message: string; jobId?: string }> {
   const activeJobs = await getActiveUpdateJobs();
-  if (activeJobs.length > 0) {
-    return { success: false, message: '已有更新任务正在运行' };
-  }
-
+  if (activeJobs.length > 0) return { success: false, message: '已有更新任务正在运行' };
   const job = await dataUpdateQueue.add(
     'data-update',
     { mode },
     { jobId: `data-update-${mode}-${Date.now()}` },
   );
-
   logger.info({ jobId: job.id, mode }, '[dataFetch] 数据更新任务已入队');
-
   return {
     success: true,
     message: `${mode === 'incremental' ? '增量' : '全量'}更新已启动`,
@@ -355,16 +243,11 @@ export async function startUpdate(
 
 export async function stopUpdate(): Promise<{ success: boolean; message: string }> {
   const activeJobs = await getActiveUpdateJobs();
-  if (activeJobs.length === 0) {
-    return { success: false, message: '没有正在运行的更新任务' };
-  }
-
+  if (activeJobs.length === 0) return { success: false, message: '没有正在运行的更新任务' };
   const job = activeJobs[0];
   await job.remove().catch((err: unknown) => {
     logger.warn({ err: String(err), jobId: job.id }, '[dataFetch] 移除任务失败');
   });
-
   logger.info({ jobId: job.id }, '[dataFetch] 更新任务已取消');
-
   return { success: true, message: '更新已停止' };
 }

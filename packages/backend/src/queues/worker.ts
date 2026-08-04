@@ -78,16 +78,13 @@ async function handleEngineError(
   await releaseJobClaim(jobId, type);
   if (err instanceof EngineUnavailableError) {
     logger.warn(
-      { jobId, endpoint: '/api/engine/backtest', retryAfter: err.retryAfterSeconds },
-      '[worker] Go 引擎不可用，重抛以触发 BullMQ 重试（fail-closed）',
+      { jobId, retryAfter: err.retryAfterSeconds },
+      '[worker] Go 引擎不可用，重抛触发重试',
     );
     throw err;
   }
   if (err instanceof UpstreamProblemError) {
-    logger.warn(
-      { jobId, status: err.status, code: err.code },
-      '[worker] Go 引擎返回 4xx，任务标记为永久失败（参数错误不可重试）',
-    );
+    logger.warn({ jobId, status: err.status, code: err.code }, '[worker] 引擎 4xx，永久失败');
     return { status: 'failed', error: err.detail };
   }
   const message = errorMessage(err);
@@ -127,15 +124,10 @@ async function dispatchJob(job: Job<BacktestJobData>): Promise<BacktestJobResult
 
   try {
     if (type === 'portfolio') {
-      const portfolioPayload = payload as {
-        portfolios: unknown[];
-        parameters: Record<string, unknown>;
-      };
+      const p = payload as { portfolios: unknown[]; parameters: Record<string, unknown> };
       const { result, warnings, dateRange } = await runPortfolioBacktest({
-        portfolios: portfolioPayload.portfolios as Parameters<
-          typeof runPortfolioBacktest
-        >[0]['portfolios'],
-        parameters: portfolioPayload.parameters as unknown as Parameters<
+        portfolios: p.portfolios as Parameters<typeof runPortfolioBacktest>[0]['portfolios'],
+        parameters: p.parameters as unknown as Parameters<
           typeof runPortfolioBacktest
         >[0]['parameters'],
         tenantId: job.data.tenantId,
