@@ -21,10 +21,6 @@ const cbMocks = vi.hoisted(() => ({
   opened: false,
 }));
 
-const httpMocks = vi.hoisted(() => ({
-  request: vi.fn(),
-}));
-
 const semaphoreMetrics = vi.hoisted(() => vi.fn());
 const circuitBreakerMetrics = vi.hoisted(() => vi.fn());
 
@@ -54,12 +50,6 @@ vi.mock('../../../packages/backend/src/config/index.js', () => ({
 
 vi.mock('opossum', () => ({
   default: vi.fn(() => cbMocks),
-}));
-
-vi.mock('http', () => ({
-  default: { request: httpMocks.request },
-  request: httpMocks.request,
-  Agent: vi.fn(() => ({ sockets: {}, destroy: vi.fn() })),
 }));
 
 vi.mock('../../../packages/backend/src/db/pool.js', () => ({
@@ -97,51 +87,31 @@ beforeEach(() => {
   cbMocks.fire.mockResolvedValue({ rows: [] });
 });
 
-/** 构造 http mock 响应；支持 chunkSize（分块发送）与 destroy 追踪（响应体超限场景） */
-function mockHttpResponse(opts: {
+/** 构造 fetch mock 响应；支持 chunkSize（分块发送）验证流式接收超限场景 */
+function mockFetchResponse(opts: {
   data?: string;
   statusCode?: number;
   headers?: Record<string, string>;
   chunkSize?: number;
 }) {
   const { data = '', statusCode = 200, headers = {}, chunkSize } = opts;
-  const destroyedRef = { destroyed: false };
-
-  httpMocks.request.mockImplementationOnce(
-    (_url: string, _opts: object, cb: (res: object) => void) => {
-      const res = {
-        on: vi.fn((event: string, handler: (chunk?: Buffer) => void) => {
-          if (event === 'data') {
-            if (chunkSize) {
-              for (let i = 0; i < data.length && !destroyedRef.destroyed; i += chunkSize) {
-                handler(Buffer.from(data.slice(i, i + chunkSize)));
-              }
-            } else if (data.length > 0 && !destroyedRef.destroyed) {
-              handler(Buffer.from(data));
-            }
-          }
-          if (event === 'end') {
-            if (!destroyedRef.destroyed) handler();
-          }
-        }),
-        statusCode,
-        headers,
-        destroy: vi.fn(() => {
-          destroyedRef.destroyed = true;
-        }),
-      };
-      cb(res);
-      return {
-        on: vi.fn(),
-        end: vi.fn(),
-        destroy: vi.fn(() => {
-          destroyedRef.destroyed = true;
-        }),
-      };
-    },
-  );
-
-  return destroyedRef;
+  globalThis.fetch = vi.fn().mockImplementationOnce(async () => {
+    const buf = Buffer.from(data);
+    const chunks: Buffer[] = [];
+    if (chunkSize) {
+      for (let i = 0; i < buf.length; i += chunkSize) chunks.push(buf.subarray(i, i + chunkSize));
+    } else if (buf.length > 0) {
+      chunks.push(buf);
+    }
+    return {
+      ok: statusCode >= 200 && statusCode < 300,
+      status: statusCode,
+      headers: { get: (name: string) => headers[name.toLowerCase()] ?? null },
+      body: (async function* () {
+        for (const c of chunks) yield c;
+      })(),
+    };
+  });
 }
 
 describe('isDbAvailable', () => {
@@ -215,7 +185,7 @@ describe('queryPricesFromDb', () => {
 
 describe('callGoDataService', () => {
   it('成功时应返回响应体', async () => {
-    mockHttpResponse({
+    mockFetchResponse({
       data: JSON.stringify({ success: true, data: [{ date: '2024-01-02', close: 400 }] }),
     });
     const r = await callGoDataService('/api/data/price/SPY?start=2024-01-01&end=2024-01-31');
@@ -223,7 +193,7 @@ describe('callGoDataService', () => {
   });
 
   it('非 2xx 状态码应抛出错误', async () => {
-    mockHttpResponse({ data: 'Not Found', statusCode: 404 });
+    mockFetchResponse({ data: 'Not Found', statusCode: 404 });
     await expect(callGoDataService('/api/data/price/SPY')).rejects.toThrow(
       'Go data service returned HTTP 404',
     );
@@ -245,7 +215,7 @@ describe('P0-03: callGoDataService 响应体大小限制（MAX_RESPONSE_BODY_SIZ
       headers: { 'content-length': '50' },
     },
   ])('$name', async ({ data, headers, chunkSize }) => {
-    mockHttpResponse({ data, headers, chunkSize });
+    mockFetchResponse({ data, headers, chunkSize });
     await expect(callGoDataService('/api/data/price/SPY')).rejects.toThrow(/response too large/i);
   });
 
@@ -257,7 +227,7 @@ describe('P0-03: callGoDataService 响应体大小限制（MAX_RESPONSE_BODY_SIZ
       headers: { 'content-length': '16' },
     },
   ])('$name', async ({ data, headers }) => {
-    mockHttpResponse({ data, headers });
+    mockFetchResponse({ data, headers });
     expect(await callGoDataService('/api/data/price/SPY')).toBe(data);
   });
 });
@@ -266,7 +236,7 @@ describe('fetchMissingFromGoService', () => {
   const goBody = (items: unknown[]) => JSON.stringify({ success: true, data: items });
 
   it('Go 服务返回有效数据时应写入缓存', async () => {
-    mockHttpResponse({ data: goBody([{ date: '2024-01-02', close: 400 }]) });
+    mockFetchResponse({ data: goBody([{ date: '2024-01-02', close: 400 }]) });
     const r = await fetchMissingFromGoService(['SPY'], '2024-01-01', '2024-01-31', 'test-key');
     expect(r.SPY).toBeDefined();
     expect(r.SPY['2024-01-02']).toBe(400);
@@ -274,7 +244,7 @@ describe('fetchMissingFromGoService', () => {
   });
 
   it('Go 服务返回空数据时缓存不应写入', async () => {
-    mockHttpResponse({ data: '{}' });
+    mockFetchResponse({ data: '{}' });
     const r = await fetchMissingFromGoService(['SPY'], '2024-01-01', '2024-01-31', 'test-key');
     expect(Object.keys(r)).toHaveLength(0);
     expect(cacheMocks.writeCache).not.toHaveBeenCalled();

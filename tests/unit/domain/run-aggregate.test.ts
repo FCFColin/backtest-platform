@@ -26,6 +26,10 @@ function makeHolding(ticker: string, weight: number) {
   return { ticker: Ticker.create(ticker), weight: Weight.create(weight) };
 }
 
+function createRun() {
+  return Run.create({ id: 'r1', request: {} });
+}
+
 describe('Run Aggregate', () => {
   it.each([
     [
@@ -51,7 +55,7 @@ describe('Run Aggregate', () => {
   ])(
     '%s 后进入终态并产生 %s 事件',
     async (_method, arg, status, eventType, fromStart, state, event) => {
-      const run = Run.create({ id: 'r1', request: {} });
+      const run = createRun();
       run.pullEvents();
       if (fromStart) run.start();
       (run as unknown as Record<string, (a: unknown) => void>)[_method](arg);
@@ -78,7 +82,7 @@ describe('Run Aggregate', () => {
       expect(run.isTerminal).toBe(false);
     });
     it('create 时产生 RunStarted 事件', () => {
-      const run = Run.create({ id: 'r1', request: {} });
+      const run = createRun();
       const events = run.pullEvents();
       expect(events).toHaveLength(1);
       expect(events[0].eventType).toBe('RunStarted');
@@ -112,13 +116,13 @@ describe('Run Aggregate', () => {
 
   describe('start', () => {
     it('queued → running，设置 startedAt', () => {
-      const run = Run.create({ id: 'r1', request: {} });
+      const run = createRun();
       run.start();
       expect(run.status).toBe('running');
       expect(run.startedAt).toBeInstanceOf(Date);
     });
     it('running → start 抛错（不可重复 start）', () => {
-      const run = Run.create({ id: 'r1', request: {} });
+      const run = createRun();
       run.start();
       expect(() => run.start()).toThrow(DomainValidationError);
       expect(() => run.start()).toThrow("expected 'queued'");
@@ -129,13 +133,13 @@ describe('Run Aggregate', () => {
     ['complete', (r: Run) => r.complete({}), "expected 'running'"],
     ['fail', (r: Run) => r.fail('err'), null],
   ])('queued → %s 抛错（必须先 start）', (_op, invoke, msg) => {
-    const run = Run.create({ id: 'r1', request: {} });
+    const run = createRun();
     expect(() => invoke(run)).toThrow(DomainValidationError);
     if (msg) expect(() => invoke(run)).toThrow(msg);
   });
 
   it('running → cancelled 合法', () => {
-    const run = Run.create({ id: 'r1', request: {} });
+    const run = createRun();
     run.pullEvents();
     run.start();
     run.cancel();
@@ -147,20 +151,20 @@ describe('Run Aggregate', () => {
     ['complete', (r: Run) => r.complete({})],
     ['cancel', (r: Run) => r.cancel()],
   ])('completed → %s 抛错（终态不可转换）', (_op, invoke) => {
-    const run = Run.create({ id: 'r1', request: {} });
+    const run = createRun();
     run.start();
     run.complete({});
     expect(() => invoke(run)).toThrow(DomainValidationError);
   });
   it('failed → fail 抛错（终态不可重复失败）', () => {
-    const run = Run.create({ id: 'r1', request: {} });
+    const run = createRun();
     run.start();
     run.fail('first error');
     expect(() => run.fail('second error')).toThrow(DomainValidationError);
   });
 
   it('pullEvents 取出后清空，再次调用返回空数组', () => {
-    const run = Run.create({ id: 'r1', request: {} });
+    const run = createRun();
     expect(run.pullEvents()).toHaveLength(1);
     expect(run.pullEvents()).toHaveLength(0);
   });
@@ -168,7 +172,7 @@ describe('Run Aggregate', () => {
     ['complete', 'RunCompleted'],
     ['fail', 'RunFailed'],
   ])('完整生命周期：create→start→%s 产生 RunStarted + %s', (method, eventType) => {
-    const run = Run.create({ id: 'r1', request: {} });
+    const run = createRun();
     run.start();
     (run as unknown as Record<string, (a: unknown) => void>)[method](
       method === 'complete' ? { result: 1 } : 'timeout',
@@ -266,19 +270,11 @@ function createEvent(eventType: string, aggregateId = 'portfolio-1'): DomainEven
     occurredAt: new Date('2026-01-01T00:00:00Z'),
   };
 }
-function createHandler(eventType: string, handleFn?: (event: DomainEvent) => void): EventHandler {
-  return {
-    eventType,
-    handle: vi.fn(async (event: DomainEvent) => {
-      handleFn?.(event);
-    }),
-  };
-}
-function createFailingHandler(eventType: string): EventHandler {
+function createHandler(eventType: string, fail = false): EventHandler {
   return {
     eventType,
     handle: vi.fn(async () => {
-      throw new Error('handler failure');
+      if (fail) throw new Error('handler failure');
     }),
   };
 }
@@ -307,7 +303,7 @@ describe('DomainEventDispatcher', () => {
     );
   });
   it('dispatch() 单个处理器失败时不应阻塞其他处理器', async () => {
-    const failingHandler = createFailingHandler('TestEvent');
+    const failingHandler = createHandler('TestEvent', true);
     const successHandler = createHandler('TestEvent');
     dispatcher.register(failingHandler);
     dispatcher.register(successHandler);
@@ -352,8 +348,8 @@ describe('DomainEventDispatcher', () => {
     expect(otherHandler.handle).not.toHaveBeenCalled();
   });
   it('dispatch() 所有处理器均失败时应记录警告且不抛错', async () => {
-    dispatcher.register(createFailingHandler('AllFailEvent'));
-    dispatcher.register(createFailingHandler('AllFailEvent'));
+    dispatcher.register(createHandler('AllFailEvent', true));
+    dispatcher.register(createHandler('AllFailEvent', true));
     await expect(dispatcher.dispatch(createEvent('AllFailEvent'))).resolves.toBeUndefined();
     expect(loggerMocks.error).toHaveBeenCalledTimes(2);
     expect(loggerMocks.warn).toHaveBeenCalledWith(

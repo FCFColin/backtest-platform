@@ -123,6 +123,8 @@ vi.mock('../../packages/backend/src/config/index.js', () => ({
 vi.mock('../../packages/backend/src/infrastructure/redisClient.js', () => {
   const noop = () => {};
   return {
+    isSentinelMode: false,
+    bullmqConnectionOptions: { host: 'localhost', port: 6379 },
     redisConnection: { on: noop },
     appRedis: {
       on: noop,
@@ -142,6 +144,17 @@ configureTickerHelpersMocks(m);
 
 describe('P0-01 T3 · 异步回测全链路集成测试', () => {
   let server: { url: string; close: () => Promise<void> };
+
+  const submit = (headers: Record<string, string> = {}) =>
+    fetch(`${server.url}/api/backtest/portfolio`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...headers },
+      body: JSON.stringify(createValidRequestBody()),
+    });
+  const poll = async (jobId: string) => {
+    const res = await fetch(`${server.url}/api/backtest/runs/${jobId}`);
+    return { res, json: await res.json() };
+  };
 
   beforeEach(async () => {
     jobStore.clear();
@@ -179,12 +192,7 @@ describe('P0-01 T3 · 异步回测全链路集成测试', () => {
   });
 
   it('场景1: POST /portfolio → 202 Accepted → 轮询 → completed', async () => {
-    const submitRes = await fetch(`${server.url}/api/backtest/portfolio`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(createValidRequestBody()),
-    });
-
+    const submitRes = await submit();
     expect(submitRes.status).toBe(202);
     const submitJson = await submitRes.json();
     expect(submitJson.success).toBe(true);
@@ -193,9 +201,8 @@ describe('P0-01 T3 · 异步回测全链路集成测试', () => {
 
     const jobId = submitJson.data.jobId;
 
-    const initialPoll = await fetch(`${server.url}/api/backtest/runs/${jobId}`);
-    expect(initialPoll.status).toBe(200);
-    const initialJson = await initialPoll.json();
+    const { res: initialRes, json: initialJson } = await poll(jobId);
+    expect(initialRes.status).toBe(200);
     expect(initialJson.data.status).toBe('queued');
 
     const mockResult = {
@@ -208,21 +215,15 @@ describe('P0-01 T3 · 异步回测全链路集成测试', () => {
     job.progress = 100;
     job.returnvalue = { status: 'completed', result: mockResult };
 
-    const finalPoll = await fetch(`${server.url}/api/backtest/runs/${jobId}`);
-    expect(finalPoll.status).toBe(200);
-    const finalJson = await finalPoll.json();
+    const { res: finalRes, json: finalJson } = await poll(jobId);
+    expect(finalRes.status).toBe(200);
     expect(finalJson.data.status).toBe('completed');
     expect(finalJson.data.progress).toBe(100);
     expect(finalJson.data.result).toEqual(mockResult);
   });
 
   it('场景2: POST /portfolio → 202 → Worker 超时 → failed', async () => {
-    const submitRes = await fetch(`${server.url}/api/backtest/portfolio`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(createValidRequestBody()),
-    });
-
+    const submitRes = await submit();
     expect(submitRes.status).toBe(202);
     const submitJson = await submitRes.json();
     const jobId = submitJson.data.jobId;
@@ -232,9 +233,8 @@ describe('P0-01 T3 · 异步回测全链路集成测试', () => {
     job.progress = 30;
     job.failedReason = 'Engine timeout after 90s';
 
-    const pollRes = await fetch(`${server.url}/api/backtest/runs/${jobId}`);
+    const { res: pollRes, json: pollJson } = await poll(jobId);
     expect(pollRes.status).toBe(200);
-    const pollJson = await pollRes.json();
     expect(pollJson.data.status).toBe('failed');
     expect(pollJson.data.error).toBe('Engine timeout after 90s');
   });
@@ -242,51 +242,26 @@ describe('P0-01 T3 · 异步回测全链路集成测试', () => {
   it('场景3: 幂等性 — 相同 Idempotency-Key 返回已有 jobId', async () => {
     const idempotencyKey = 'idem-key-12345';
 
-    const firstRes = await fetch(`${server.url}/api/backtest/portfolio`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Idempotency-Key': idempotencyKey,
-      },
-      body: JSON.stringify(createValidRequestBody()),
-    });
-
+    const firstRes = await submit({ 'Idempotency-Key': idempotencyKey });
     expect(firstRes.status).toBe(202);
-    const firstJson = await firstRes.json();
-    const _firstJobId = firstJson.data.jobId;
-
-    // 2. 第二次提交（相同 Idempotency-Key）
-    const secondRes = await fetch(`${server.url}/api/backtest/portfolio`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Idempotency-Key': idempotencyKey,
-      },
-      body: JSON.stringify(createValidRequestBody()),
-    });
-
+    const secondRes = await submit({ 'Idempotency-Key': idempotencyKey });
     expect(secondRes.status).toBe(202);
-    const secondJson = await secondRes.json();
 
+    const secondJson = await secondRes.json();
     expect(secondJson.data.jobId).toBeDefined();
     expect(secondJson.data.status).toBe('queued');
   });
 
   it('场景4: 任务不存在时返回 404', async () => {
-    const res = await fetch(`${server.url}/api/backtest/runs/nonexistent-job`);
+    const { res, json } = await poll('nonexistent-job');
     expect(res.status).toBe(404);
-    const json = await res.json();
     expect(json.success).toBe(false);
     expect(json.error.code).toBe('JOB_NOT_FOUND');
   });
   it('场景5: 队列不可用时 fail-closed 返回 503（ADR-031）', async () => {
     queueMocks.add.mockRejectedValue(new Error('Redis connection refused'));
 
-    const res = await fetch(`${server.url}/api/backtest/portfolio`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(createValidRequestBody()),
-    });
+    const res = await submit();
     // ADR-031: 队列不可用时 fail-closed 返回 503 + Retry-After，不再回退同步执行
     expect(res.status).toBe(503);
     expect(res.headers.get('Retry-After')).toBe('30');

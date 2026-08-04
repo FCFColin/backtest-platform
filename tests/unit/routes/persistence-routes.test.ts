@@ -1,33 +1,39 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { startExpressApp, type TestServer, type TestRequest } from '../../helpers/expressApp.js';
+import {
+  startExpressApp,
+  reqJson,
+  type TestServer,
+  type TestRequest,
+} from '../../helpers/expressApp.js';
 import { createLoggerMocks } from '../../helpers/mockFactories.js';
 
 const mocks = vi.hoisted(() => ({
-  portfolioRepo: {
-    listPortfolios: vi.fn(),
-    getPortfolio: vi.fn(),
-    createPortfolio: vi.fn(),
-    updatePortfolio: vi.fn(),
-    deletePortfolio: vi.fn(),
+  repos: {
+    portfolios: { list: vi.fn(), get: vi.fn(), create: vi.fn(), update: vi.fn(), del: vi.fn() },
+    configs: { list: vi.fn(), get: vi.fn(), create: vi.fn(), update: vi.fn(), del: vi.fn() },
+    runs: { list: vi.fn(), get: vi.fn(), create: vi.fn(), del: vi.fn() },
   },
-  savedConfigRepo: {
-    listConfigs: vi.fn(),
-    getConfig: vi.fn(),
-    createConfig: vi.fn(),
-    updateConfig: vi.fn(),
-    deleteConfig: vi.fn(),
-  },
-  backtestRunRepo: { listRuns: vi.fn(), getRun: vi.fn(), createRun: vi.fn(), deleteRun: vi.fn() },
 }));
-vi.mock('../../../packages/backend/src/repositories/portfolioRepo.js', () => mocks.portfolioRepo);
-vi.mock(
-  '../../../packages/backend/src/repositories/savedConfigRepo.js',
-  () => mocks.savedConfigRepo,
-);
-vi.mock(
-  '../../../packages/backend/src/repositories/backtestRunRepo.js',
-  () => mocks.backtestRunRepo,
-);
+vi.mock('../../../packages/backend/src/repositories/portfolioRepo.js', () => ({
+  listPortfolios: mocks.repos.portfolios.list,
+  getPortfolio: mocks.repos.portfolios.get,
+  createPortfolio: mocks.repos.portfolios.create,
+  updatePortfolio: mocks.repos.portfolios.update,
+  deletePortfolio: mocks.repos.portfolios.del,
+}));
+vi.mock('../../../packages/backend/src/repositories/savedConfigRepo.js', () => ({
+  listConfigs: mocks.repos.configs.list,
+  getConfig: mocks.repos.configs.get,
+  createConfig: mocks.repos.configs.create,
+  updateConfig: mocks.repos.configs.update,
+  deleteConfig: mocks.repos.configs.del,
+}));
+vi.mock('../../../packages/backend/src/repositories/backtestRunRepo.js', () => ({
+  listRuns: mocks.repos.runs.list,
+  getRun: mocks.repos.runs.get,
+  createRun: mocks.repos.runs.create,
+  deleteRun: mocks.repos.runs.del,
+}));
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
 
 import '../../helpers/middlewareMocks.js';
@@ -35,7 +41,6 @@ import workspaceRoutes from '../../../packages/backend/src/routes/workspaceRoute
 
 const ORG = '11111111-1111-1111-1111-111111111111';
 const ID = '22222222-2222-2222-2222-222222222222';
-const JH = { 'Content-Type': 'application/json' };
 
 async function startApp(sub = 'user-1'): Promise<TestServer> {
   return startExpressApp((app) => {
@@ -47,241 +52,174 @@ async function startApp(sub = 'user-1'): Promise<TestServer> {
     app.use('/api/v1', workspaceRoutes);
   });
 }
-async function reqJson(url: string, method: string, body?: unknown) {
-  const init: RequestInit = { method, headers: JH };
-  if (body !== undefined) init.body = JSON.stringify(body);
-  const res = await fetch(url, init);
-  return { res, body: await res.json().catch(() => null) };
+
+interface ResourceRepo {
+  list: ReturnType<typeof vi.fn>;
+  get: ReturnType<typeof vi.fn>;
+  create: ReturnType<typeof vi.fn>;
+  update?: ReturnType<typeof vi.fn>;
+  del: ReturnType<typeof vi.fn>;
+}
+interface ResourceSpec {
+  label: string;
+  path: string;
+  repo: ResourceRepo;
+  createBody: () => Record<string, unknown>;
+  putBody?: () => Record<string, unknown>;
+  owner?: boolean;
+  missingBody400?: boolean;
+  apikeyOwnerNull?: boolean;
+  apikeySub?: string;
 }
 
-describe('portfolioRoutes', () => {
+function crudSuite({
+  label,
+  path,
+  repo,
+  createBody,
+  putBody,
+  owner,
+  missingBody400,
+  apikeyOwnerNull,
+  apikeySub = 'apikey:key-123',
+}: ResourceSpec) {
+  describe(`${label} CRUD`, () => {
+    let server: TestServer;
+    beforeEach(async () => {
+      vi.clearAllMocks();
+      server = await startApp();
+    });
+    afterEach(async () => await server.close());
+    const base = () => `${server.url}/api/v1/${path}`;
+
+    it('POST / 创建成功返回 201', async () => {
+      repo.create.mockResolvedValueOnce({ id: ID });
+      const { res } = await reqJson(base(), 'POST', createBody());
+      expect(res.status).toBe(201);
+      if (owner)
+        expect(repo.create).toHaveBeenCalledWith(
+          ORG,
+          'user-1',
+          expect.objectContaining(createBody()),
+        );
+    });
+    if (missingBody400) {
+      it('POST / 缺失 body 返回 400', async () => {
+        const { res } = await reqJson(base(), 'POST', {});
+        expect(res.status).toBe(400);
+        expect(repo.create).not.toHaveBeenCalled();
+      });
+    }
+    if (apikeyOwnerNull) {
+      it('apikey 调用方 owner 应为 null', async () => {
+        await server.close();
+        server = await startApp(apikeySub);
+        repo.create.mockResolvedValueOnce({ id: ID });
+        await reqJson(base(), 'POST', createBody());
+        expect(repo.create).toHaveBeenCalledWith(ORG, null, expect.anything());
+      });
+    }
+    it('GET / 返回列表', async () => {
+      repo.list.mockResolvedValueOnce([{ id: ID }]);
+      const { res, body } = await reqJson(base(), 'GET');
+      expect(res.status).toBe(200);
+      expect(body.data).toHaveLength(1);
+    });
+    it('GET /:id 成功返回 200', async () => {
+      repo.get.mockResolvedValueOnce({ id: ID });
+      const { res } = await reqJson(`${base()}/${ID}`, 'GET');
+      expect(res.status).toBe(200);
+    });
+    it('GET /:id 不存在返回 404', async () => {
+      repo.get.mockResolvedValueOnce(null);
+      const { res } = await reqJson(`${base()}/${ID}`, 'GET');
+      expect(res.status).toBe(404);
+    });
+    const invalidRows: Array<
+      [string, ReturnType<typeof vi.fn>, (() => Record<string, unknown>) | undefined]
+    > = [
+      ['GET', repo.get, undefined],
+      ['DELETE', repo.del, undefined],
+    ];
+    if (putBody && repo.update) invalidRows.splice(1, 0, ['PUT', repo.update, putBody]);
+    it.each(invalidRows)('/:id 非法 UUID 返回 400（%s）', async (_method, repoFn, body) => {
+      const { res } = await reqJson(`${base()}/bad`, _method, body?.());
+      expect(res.status).toBe(400);
+      expect(repoFn).not.toHaveBeenCalled();
+    });
+    if (putBody && repo.update) {
+      it('PUT /:id 更新成功返回 200', async () => {
+        repo.update!.mockResolvedValueOnce({ id: ID });
+        const { res } = await reqJson(`${base()}/${ID}`, 'PUT', putBody());
+        expect(res.status).toBe(200);
+      });
+      it('PUT /:id 不存在返回 404', async () => {
+        repo.update!.mockResolvedValueOnce(null);
+        const { res } = await reqJson(`${base()}/${ID}`, 'PUT', putBody());
+        expect(res.status).toBe(404);
+      });
+    }
+    it('DELETE /:id 成功返回 200', async () => {
+      repo.del.mockResolvedValueOnce(true);
+      const { res } = await reqJson(`${base()}/${ID}`, 'DELETE');
+      expect(res.status).toBe(200);
+    });
+    it('DELETE /:id 不存在返回 404', async () => {
+      repo.del.mockResolvedValueOnce(false);
+      const { res } = await reqJson(`${base()}/${ID}`, 'DELETE');
+      expect(res.status).toBe(404);
+    });
+  });
+}
+
+crudSuite({
+  label: 'portfolios',
+  path: 'portfolios',
+  repo: mocks.repos.portfolios,
+  createBody: () => ({ name: '60/40', assets: [{ ticker: 'SPY', weight: 100 }] }),
+  putBody: () => ({
+    name: '80/20',
+    assets: [
+      { ticker: 'SPY', weight: 80 },
+      { ticker: 'BND', weight: 20 },
+    ],
+  }),
+  owner: true,
+});
+crudSuite({
+  label: 'configs',
+  path: 'configs',
+  repo: mocks.repos.configs,
+  createBody: () => ({ name: 'cfg', config: { a: 1 } }),
+  putBody: () => ({ name: 'cfg2', config: { b: 2 } }),
+  missingBody400: true,
+  apikeyOwnerNull: true,
+});
+crudSuite({
+  label: 'runs',
+  path: 'runs',
+  repo: mocks.repos.runs,
+  createBody: () => ({ request: { x: 1 } }),
+  missingBody400: true,
+  apikeyOwnerNull: true,
+  apikeySub: 'apikey:key-456',
+});
+
+describe('portfolios 特有校验', () => {
   let server: TestServer;
   beforeEach(async () => {
     vi.clearAllMocks();
     server = await startApp();
   });
   afterEach(async () => await server.close());
-  const base = () => `${server.url}/api/v1/portfolios`;
 
-  it('POST / 创建成功返回 201 并以 user sub 为 owner', async () => {
-    mocks.portfolioRepo.createPortfolio.mockResolvedValueOnce({ id: ID, name: '60/40' });
-    const { res } = await reqJson(base(), 'POST', {
-      name: '60/40',
-      assets: [{ ticker: 'SPY', weight: 100 }],
-    });
-    expect(res.status).toBe(201);
-    expect(mocks.portfolioRepo.createPortfolio).toHaveBeenCalledWith(
-      ORG,
-      'user-1',
-      expect.objectContaining({ name: '60/40' }),
-    );
-  });
   it('POST / 权重不合法（空 assets）返回 400', async () => {
-    const { res } = await reqJson(base(), 'POST', { name: 'x', assets: [] });
-    expect(res.status).toBe(400);
-    expect(mocks.portfolioRepo.createPortfolio).not.toHaveBeenCalled();
-  });
-  it('GET / 返回列表', async () => {
-    mocks.portfolioRepo.listPortfolios.mockResolvedValueOnce([{ id: ID, name: '60/40' }]);
-    const { res, body } = await reqJson(base(), 'GET');
-    expect(res.status).toBe(200);
-    expect(body.data).toHaveLength(1);
-  });
-  it('GET /:id 成功返回 200', async () => {
-    mocks.portfolioRepo.getPortfolio.mockResolvedValueOnce({ id: ID, name: '60/40' });
-    const { res, body } = await reqJson(`${base()}/${ID}`, 'GET');
-    expect(res.status).toBe(200);
-    expect(body.data.name).toBe('60/40');
-  });
-  it('GET /:id 不存在返回 404', async () => {
-    mocks.portfolioRepo.getPortfolio.mockResolvedValueOnce(null);
-    const { res } = await reqJson(`${base()}/${ID}`, 'GET');
-    expect(res.status).toBe(404);
-  });
-  it.each([
-    ['GET', 'getPortfolio'],
-    ['PUT', 'updatePortfolio'],
-    ['DELETE', 'deletePortfolio'],
-  ])('/:id 非法 UUID 返回 400（%s）', async (method, repoFn) => {
-    const { res } = await reqJson(
-      `${base()}/bad`,
-      method,
-      method === 'GET' ? undefined : { name: 'x', assets: [{ ticker: 'SPY', weight: 100 }] },
-    );
-    expect(res.status).toBe(400);
-    expect(mocks.portfolioRepo[repoFn as keyof typeof mocks.portfolioRepo]).not.toHaveBeenCalled();
-  });
-  it('PUT /:id 更新成功返回 200', async () => {
-    mocks.portfolioRepo.updatePortfolio.mockResolvedValueOnce({ id: ID, name: '80/20' });
-    const { res } = await reqJson(`${base()}/${ID}`, 'PUT', {
-      name: '80/20',
-      assets: [
-        { ticker: 'SPY', weight: 80 },
-        { ticker: 'BND', weight: 20 },
-      ],
-    });
-    expect(res.status).toBe(200);
-  });
-  it('PUT /:id 不存在返回 404', async () => {
-    mocks.portfolioRepo.updatePortfolio.mockResolvedValueOnce(null);
-    const { res } = await reqJson(`${base()}/${ID}`, 'PUT', {
+    const { res } = await reqJson(`${server.url}/api/v1/portfolios`, 'POST', {
       name: 'x',
-      assets: [{ ticker: 'SPY', weight: 100 }],
+      assets: [],
     });
-    expect(res.status).toBe(404);
-  });
-  it('DELETE /:id 成功返回 200', async () => {
-    mocks.portfolioRepo.deletePortfolio.mockResolvedValueOnce(true);
-    const { res } = await reqJson(`${base()}/${ID}`, 'DELETE');
-    expect(res.status).toBe(200);
-  });
-  it('DELETE /:id 不存在返回 404', async () => {
-    mocks.portfolioRepo.deletePortfolio.mockResolvedValueOnce(false);
-    const { res } = await reqJson(`${base()}/${ID}`, 'DELETE');
-    expect(res.status).toBe(404);
-  });
-});
-
-describe('configRoutes', () => {
-  let server: TestServer;
-  beforeEach(async () => {
-    vi.clearAllMocks();
-    server = await startApp();
-  });
-  afterEach(async () => await server.close());
-  const base = () => `${server.url}/api/v1/configs`;
-
-  it('POST / 创建配置返回 201', async () => {
-    mocks.savedConfigRepo.createConfig.mockResolvedValueOnce({ id: ID, name: 'cfg' });
-    const { res } = await reqJson(base(), 'POST', { name: 'cfg', config: { a: 1 } });
-    expect(res.status).toBe(201);
-  });
-  it('apikey 调用方 owner 应为 null', async () => {
-    await server.close();
-    server = await startApp('apikey:key-123');
-    mocks.savedConfigRepo.createConfig.mockResolvedValueOnce({ id: ID, name: 'cfg' });
-    await reqJson(base(), 'POST', { name: 'cfg', config: { a: 1 } });
-    expect(mocks.savedConfigRepo.createConfig).toHaveBeenCalledWith(ORG, null, expect.anything());
-  });
-  it('GET / 返回列表', async () => {
-    mocks.savedConfigRepo.listConfigs.mockResolvedValueOnce([{ id: ID, name: 'cfg' }]);
-    const { res, body } = await reqJson(base(), 'GET');
-    expect(res.status).toBe(200);
-    expect(body.data).toHaveLength(1);
-  });
-  it('GET /:id 成功返回 200', async () => {
-    mocks.savedConfigRepo.getConfig.mockResolvedValueOnce({ id: ID, name: 'cfg' });
-    const { res } = await reqJson(`${base()}/${ID}`, 'GET');
-    expect(res.status).toBe(200);
-  });
-  it('GET /:id 不存在返回 404', async () => {
-    mocks.savedConfigRepo.getConfig.mockResolvedValueOnce(null);
-    const { res } = await reqJson(`${base()}/${ID}`, 'GET');
-    expect(res.status).toBe(404);
-  });
-  it.each([
-    ['GET', 'getConfig'],
-    ['PUT', 'updateConfig'],
-    ['DELETE', 'deleteConfig'],
-  ])('/:id 非法 UUID 返回 400（%s）', async (method, repoFn) => {
-    const { res } = await reqJson(
-      `${base()}/bad`,
-      method,
-      method === 'GET' ? undefined : { name: 'x', config: { a: 1 } },
-    );
     expect(res.status).toBe(400);
-    expect(
-      mocks.savedConfigRepo[repoFn as keyof typeof mocks.savedConfigRepo],
-    ).not.toHaveBeenCalled();
-  });
-  it('PUT /:id 更新成功返回 200', async () => {
-    mocks.savedConfigRepo.updateConfig.mockResolvedValueOnce({ id: ID, name: 'cfg2' });
-    const { res } = await reqJson(`${base()}/${ID}`, 'PUT', { name: 'cfg2', config: { b: 2 } });
-    expect(res.status).toBe(200);
-  });
-  it('PUT /:id 不存在返回 404', async () => {
-    mocks.savedConfigRepo.updateConfig.mockResolvedValueOnce(null);
-    const { res } = await reqJson(`${base()}/${ID}`, 'PUT', { name: 'x', config: { a: 1 } });
-    expect(res.status).toBe(404);
-  });
-  it('DELETE /:id 成功返回 200', async () => {
-    mocks.savedConfigRepo.deleteConfig.mockResolvedValueOnce(true);
-    const { res } = await reqJson(`${base()}/${ID}`, 'DELETE');
-    expect(res.status).toBe(200);
-  });
-  it('DELETE /:id 不存在返回 404', async () => {
-    mocks.savedConfigRepo.deleteConfig.mockResolvedValueOnce(false);
-    const { res } = await reqJson(`${base()}/${ID}`, 'DELETE');
-    expect(res.status).toBe(404);
-  });
-  it('POST / 缺失 body 返回 400', async () => {
-    const { res } = await reqJson(base(), 'POST', {});
-    expect(res.status).toBe(400);
-    expect(mocks.savedConfigRepo.createConfig).not.toHaveBeenCalled();
-  });
-});
-
-describe('runRoutes', () => {
-  let server: TestServer;
-  beforeEach(async () => {
-    vi.clearAllMocks();
-    server = await startApp();
-  });
-  afterEach(async () => await server.close());
-  const base = () => `${server.url}/api/v1/runs`;
-
-  it('GET / 返回历史列表', async () => {
-    mocks.backtestRunRepo.listRuns.mockResolvedValueOnce([{ id: ID }]);
-    const { res, body } = await reqJson(base(), 'GET');
-    expect(res.status).toBe(200);
-    expect(body.data).toHaveLength(1);
-  });
-  it('POST / 保存运行返回 201', async () => {
-    mocks.backtestRunRepo.createRun.mockResolvedValueOnce({ id: ID });
-    const { res } = await reqJson(base(), 'POST', { request: { x: 1 } });
-    expect(res.status).toBe(201);
-  });
-  it('GET /:id 成功返回 200', async () => {
-    mocks.backtestRunRepo.getRun.mockResolvedValueOnce({ id: ID });
-    const { res } = await reqJson(`${base()}/${ID}`, 'GET');
-    expect(res.status).toBe(200);
-  });
-  it('GET /:id 不存在返回 404', async () => {
-    mocks.backtestRunRepo.getRun.mockResolvedValueOnce(null);
-    const { res } = await reqJson(`${base()}/${ID}`, 'GET');
-    expect(res.status).toBe(404);
-  });
-  it.each([
-    ['GET', 'getRun'],
-    ['DELETE', 'deleteRun'],
-  ])('/:id 非法 UUID 返回 400（%s）', async (method, repoFn) => {
-    const { res } = await reqJson(`${base()}/bad`, method);
-    expect(res.status).toBe(400);
-    expect(
-      mocks.backtestRunRepo[repoFn as keyof typeof mocks.backtestRunRepo],
-    ).not.toHaveBeenCalled();
-  });
-  it('DELETE /:id 成功返回 200', async () => {
-    mocks.backtestRunRepo.deleteRun.mockResolvedValueOnce(true);
-    const { res } = await reqJson(`${base()}/${ID}`, 'DELETE');
-    expect(res.status).toBe(200);
-  });
-  it('DELETE /:id 不存在返回 404', async () => {
-    mocks.backtestRunRepo.deleteRun.mockResolvedValueOnce(false);
-    const { res } = await reqJson(`${base()}/${ID}`, 'DELETE');
-    expect(res.status).toBe(404);
-  });
-  it('POST / 缺失 body 返回 400', async () => {
-    const { res } = await reqJson(base(), 'POST', {});
-    expect(res.status).toBe(400);
-    expect(mocks.backtestRunRepo.createRun).not.toHaveBeenCalled();
-  });
-  it('apikey 调用方 owner 应为 null', async () => {
-    await server.close();
-    server = await startApp('apikey:key-456');
-    mocks.backtestRunRepo.createRun.mockResolvedValueOnce({ id: ID });
-    await reqJson(base(), 'POST', { request: { x: 1 } });
-    expect(mocks.backtestRunRepo.createRun).toHaveBeenCalledWith(ORG, null, expect.anything());
+    expect(mocks.repos.portfolios.create).not.toHaveBeenCalled();
   });
 });
 
@@ -292,53 +230,50 @@ describe('workspace 错误与参数场景', () => {
     server = await startApp();
   });
   afterEach(async () => await server.close());
-  const bases = {
-    portfolios: () => `${server.url}/api/v1/portfolios`,
-    configs: () => `${server.url}/api/v1/configs`,
-    runs: () => `${server.url}/api/v1/runs`,
-  } as const;
-  const listFns = {
-    portfolios: mocks.portfolioRepo.listPortfolios,
-    configs: mocks.savedConfigRepo.listConfigs,
-    runs: mocks.backtestRunRepo.listRuns,
-  } as const;
-  const getFns = {
-    portfolios: mocks.portfolioRepo.getPortfolio,
-    configs: mocks.savedConfigRepo.getConfig,
-    runs: mocks.backtestRunRepo.getRun,
+  const res = {
+    portfolios: {
+      base: () => `${server.url}/api/v1/portfolios`,
+      list: mocks.repos.portfolios.list,
+      get: mocks.repos.portfolios.get,
+      del: mocks.repos.portfolios.del,
+    },
+    configs: {
+      base: () => `${server.url}/api/v1/configs`,
+      list: mocks.repos.configs.list,
+      get: mocks.repos.configs.get,
+      del: mocks.repos.configs.del,
+    },
+    runs: {
+      base: () => `${server.url}/api/v1/runs`,
+      list: mocks.repos.runs.list,
+      get: mocks.repos.runs.get,
+      del: mocks.repos.runs.del,
+    },
   } as const;
 
-  it.each(['portfolios', 'configs', 'runs'] as const)('GET /%s 服务错误返回 500', async (res) => {
-    listFns[res].mockRejectedValueOnce(new Error('db fail'));
-    const { res: r } = await reqJson(bases[res](), 'GET');
+  it.each(['portfolios', 'configs', 'runs'] as const)('GET /%s 服务错误返回 500', async (k) => {
+    res[k].list.mockRejectedValueOnce(new Error('db fail'));
+    const { res: r } = await reqJson(res[k].base(), 'GET');
     expect(r.status).toBe(500);
   });
-  it.each(['portfolios', 'configs', 'runs'] as const)(
-    'GET /%s/:id 服务错误返回 500',
-    async (res) => {
-      getFns[res].mockRejectedValueOnce(new Error('db fail'));
-      const { res: r } = await reqJson(`${bases[res]()}/${ID}`, 'GET');
-      expect(r.status).toBe(500);
-    },
-  );
+  it.each(['portfolios', 'configs', 'runs'] as const)('GET /%s/:id 服务错误返回 500', async (k) => {
+    res[k].get.mockRejectedValueOnce(new Error('db fail'));
+    const { res: r } = await reqJson(`${res[k].base()}/${ID}`, 'GET');
+    expect(r.status).toBe(500);
+  });
   it('GET /runs 应支持 limit 查询参数与 NaN 回退', async () => {
-    mocks.backtestRunRepo.listRuns.mockResolvedValueOnce([]);
-    await reqJson(`${bases.runs()}?limit=10`, 'GET');
-    expect(mocks.backtestRunRepo.listRuns).toHaveBeenCalledWith(ORG, 10, 0);
-    mocks.backtestRunRepo.listRuns.mockResolvedValueOnce([]);
-    await reqJson(`${bases.runs()}?limit=abc`, 'GET');
-    expect(mocks.backtestRunRepo.listRuns).toHaveBeenCalledWith(ORG, 50, 0);
+    mocks.repos.runs.list.mockResolvedValueOnce([]);
+    await reqJson(`${res.runs.base()}?limit=10`, 'GET');
+    expect(mocks.repos.runs.list).toHaveBeenCalledWith(ORG, 10, 0);
+    mocks.repos.runs.list.mockResolvedValueOnce([]);
+    await reqJson(`${res.runs.base()}?limit=abc`, 'GET');
+    expect(mocks.repos.runs.list).toHaveBeenCalledWith(ORG, 50, 0);
   });
   it.each(['portfolios', 'configs', 'runs'] as const)(
     'DELETE /%s/:id 成功返回删除确认',
-    async (res) => {
-      const delFns = {
-        portfolios: mocks.portfolioRepo.deletePortfolio,
-        configs: mocks.savedConfigRepo.deleteConfig,
-        runs: mocks.backtestRunRepo.deleteRun,
-      } as const;
-      delFns[res].mockResolvedValueOnce(true);
-      const { res: r, body } = await reqJson(`${bases[res]()}/${ID}`, 'DELETE');
+    async (k) => {
+      res[k].del.mockResolvedValueOnce(true);
+      const { res: r, body } = await reqJson(`${res[k].base()}/${ID}`, 'DELETE');
       expect(r.status).toBe(200);
       expect(body.data).toEqual({ id: ID, deleted: true });
     },

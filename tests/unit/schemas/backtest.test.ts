@@ -12,21 +12,7 @@ import {
   letfAnalyzeSchema,
   pcaAnalyzeSchema,
 } from '../../../packages/backend/src/schemas/analysisSchemas.js';
-
-type Mut = (d: Record<string, unknown>) => void;
-
-const set = (d: Record<string, unknown>, path: string, val: unknown) => {
-  const ks = path.split('.');
-  let cur: Record<string, unknown> = d;
-  for (let i = 0; i < ks.length - 1; i++) cur = cur[ks[i]] as Record<string, unknown>;
-  cur[ks.at(-1)!] = val;
-};
-const del = (d: Record<string, unknown>, path: string) => {
-  const ks = path.split('.');
-  let cur: Record<string, unknown> = d;
-  for (let i = 0; i < ks.length - 1; i++) cur = cur[ks[i]] as Record<string, unknown>;
-  delete cur[ks.at(-1)!];
-};
+import { set, del, mutSuite } from '../../helpers/schemaMutators.js';
 
 const validPortfolio = () => ({
   assets: [{ ticker: 'AAPL', weight: 100 }],
@@ -75,33 +61,41 @@ function makePcaInput(): Record<string, unknown> {
   return { tickers: ['AAPL', 'MSFT', 'GOOG'], startDate: '2020-01-01', endDate: '2024-12-31' };
 }
 
-describe('portfolioBacktestSchema', () => {
-  it('合法输入应通过校验', () => {
-    expect(() => portfolioBacktestSchema.parse(validBody())).not.toThrow();
+type ZodLike = { parse: (d: unknown) => unknown };
+
+function dataSuite(
+  schema: ZodLike,
+  valid: Array<[string, Record<string, unknown>]>,
+  invalid: Array<[string, Record<string, unknown>]>,
+) {
+  it.each<[string, Record<string, unknown>]>(valid)('%s 应通过校验', (_n, d) => {
+    expect(() => schema.parse(d)).not.toThrow();
   });
-  it.each<[string, Mut]>([
-    ['缺少 portfolios', (b) => del(b, 'portfolios')],
-    ['portfolios 为空数组', (b) => set(b, 'portfolios', [])],
-    ['缺少 parameters', (b) => del(b, 'parameters')],
-    ['portfolio 缺少 assets', (b) => del(b, 'portfolios.0.assets')],
-    ['portfolio assets 为空', (b) => set(b, 'portfolios.0.assets', [])],
-    ['负数 weight', (b) => set(b, 'portfolios.0.assets.0.weight', -10)],
-    ['asset 缺少 ticker', (b) => del(b, 'portfolios.0.assets.0.ticker')],
-    ['asset ticker 为空字符串', (b) => set(b, 'portfolios.0.assets.0.ticker', '')],
-    ['rebalanceFrequency 非法枚举', (b) => set(b, 'portfolios.0.rebalanceFrequency', 'invalid')],
-    ['startDate 非日期', (b) => set(b, 'parameters.startDate', 'not-a-date')],
-    ['endDate 非日期', (b) => set(b, 'parameters.endDate', '2024/12/31')],
-    ['baseCurrency 非法枚举', (b) => set(b, 'parameters.baseCurrency', 'eur')],
-    ['cashflowLeg type 非法枚举', (b) => set(b, 'parameters.cashflowLegs', [cfLeg('invalid')])],
+  it.each<[string, Record<string, unknown>]>(invalid)('%s 应抛错', (_n, d) => {
+    expect(() => schema.parse(d)).toThrow();
+  });
+}
+
+describe('portfolioBacktestSchema', () => {
+  mutSuite(portfolioBacktestSchema, validBody, [
+    ['缺少 portfolios', del('portfolios')],
+    ['portfolios 为空数组', set('portfolios', [])],
+    ['缺少 parameters', del('parameters')],
+    ['portfolio 缺少 assets', del('portfolios.0.assets')],
+    ['portfolio assets 为空', set('portfolios.0.assets', [])],
+    ['负数 weight', set('portfolios.0.assets.0.weight', -10)],
+    ['asset 缺少 ticker', del('portfolios.0.assets.0.ticker')],
+    ['asset ticker 为空字符串', set('portfolios.0.assets.0.ticker', '')],
+    ['rebalanceFrequency 非法枚举', set('portfolios.0.rebalanceFrequency', 'invalid')],
+    ['startDate 非日期', set('parameters.startDate', 'not-a-date')],
+    ['endDate 非日期', set('parameters.endDate', '2024/12/31')],
+    ['baseCurrency 非法枚举', set('parameters.baseCurrency', 'eur')],
+    ['cashflowLeg type 非法枚举', set('parameters.cashflowLegs', [cfLeg('invalid')])],
     [
       'oneTimeCashflows date 非日期',
-      (b) => set(b, 'parameters.oneTimeCashflows', [otcCF('withdrawal', 'not-a-date')]),
+      set('parameters.oneTimeCashflows', [otcCF('withdrawal', 'not-a-date')]),
     ],
-  ])('%s 应抛错', (_n, mutate) => {
-    const b = validBody();
-    mutate(b);
-    expect(() => portfolioBacktestSchema.parse(b)).toThrow();
-  });
+  ]);
   it.each<[string, Record<string, unknown>]>([
     ['startingValue', { startingValue: 10000 }],
     ['baseCurrency usd/cny', { baseCurrency: 'cny' }],
@@ -120,253 +114,203 @@ describe('portfolioBacktestSchema', () => {
 });
 
 describe('analysisSchema', () => {
-  it.each([
-    ['tickers 为数组', { tickers: ['AAPL', 'MSFT'], parameters: validParams() }],
-    ['tickers 为字符串', { tickers: 'AAPL', parameters: validParams() }],
-  ])('%s 应通过校验', (_n, data) => {
-    expect(() => analysisSchema.parse(data)).not.toThrow();
-  });
-  it.each([
-    ['tickers 为空数组', { tickers: [], parameters: validParams() }],
-    ['tickers 为空字符串', { tickers: '', parameters: validParams() }],
-    ['缺少 tickers', { parameters: validParams() }],
-  ])('%s 应抛错', (_n, data) => {
-    expect(() => analysisSchema.parse(data)).toThrow();
-  });
+  dataSuite(
+    analysisSchema,
+    [
+      ['tickers 为数组', { tickers: ['AAPL', 'MSFT'], parameters: validParams() }],
+      ['tickers 为字符串', { tickers: 'AAPL', parameters: validParams() }],
+    ],
+    [
+      ['tickers 为空数组', { tickers: [], parameters: validParams() }],
+      ['tickers 为空字符串', { tickers: '', parameters: validParams() }],
+      ['缺少 tickers', { parameters: validParams() }],
+    ],
+  );
 });
 
 describe('monteCarloSchema', () => {
-  it.each([
-    ['提供 portfolio', { portfolio: validPortfolio(), parameters: validParams() }],
-    ['提供 portfolios', { portfolios: [validPortfolio()], parameters: validParams() }],
+  dataSuite(
+    monteCarloSchema,
     [
-      'mcParams 可选字段',
-      {
-        portfolio: validPortfolio(),
-        parameters: validParams(),
-        mcParams: {
-          numSimulations: 1000,
-          blockSize: 21,
-          withReplacement: true,
-          confidenceLevel: 0.95,
-          seed: 42,
+      ['提供 portfolio', { portfolio: validPortfolio(), parameters: validParams() }],
+      ['提供 portfolios', { portfolios: [validPortfolio()], parameters: validParams() }],
+      [
+        'mcParams 可选字段',
+        {
+          portfolio: validPortfolio(),
+          parameters: validParams(),
+          mcParams: {
+            numSimulations: 1000,
+            blockSize: 21,
+            withReplacement: true,
+            confidenceLevel: 0.95,
+            seed: 42,
+          },
         },
-      },
+      ],
     ],
-  ])('%s 应通过校验', (_n, data) => {
-    expect(() => monteCarloSchema.parse(data)).not.toThrow();
-  });
-  it('portfolio 和 portfolios 都缺失时应抛错', () => {
-    expect(() => monteCarloSchema.parse({ parameters: validParams() })).toThrow();
-  });
+    [['portfolio 和 portfolios 都缺失', { parameters: validParams() }]],
+  );
 });
 
 describe('optimizeSchema', () => {
-  it('合法输入应通过校验', () => {
-    expect(() =>
-      optimizeSchema.parse({
-        tickers: ['AAPL', 'MSFT'],
-        objective: 'maxSharpe',
-        parameters: validParams(),
-      }),
-    ).not.toThrow();
-  });
-  it.each([
-    ['objective 非法枚举', { tickers: ['AAPL'], objective: 'invalid', parameters: validParams() }],
-    ['tickers 为空数组', { tickers: [], objective: 'maxSharpe', parameters: validParams() }],
-  ])('%s 应抛错', (_n, data) => {
-    expect(() => optimizeSchema.parse(data)).toThrow();
-  });
-  it('constraints 可选字段应通过校验', () => {
-    expect(() =>
-      optimizeSchema.parse({
-        tickers: ['AAPL'],
-        objective: 'minVolatility',
-        constraints: { minWeight: 0, maxWeight: 1 },
-        parameters: validParams(),
-      }),
-    ).not.toThrow();
-  });
+  dataSuite(
+    optimizeSchema,
+    [
+      [
+        '合法输入',
+        { tickers: ['AAPL', 'MSFT'], objective: 'maxSharpe', parameters: validParams() },
+      ],
+      [
+        'constraints 可选字段',
+        {
+          tickers: ['AAPL'],
+          objective: 'minVolatility',
+          constraints: { minWeight: 0, maxWeight: 1 },
+          parameters: validParams(),
+        },
+      ],
+    ],
+    [
+      [
+        'objective 非法枚举',
+        { tickers: ['AAPL'], objective: 'invalid', parameters: validParams() },
+      ],
+      ['tickers 为空数组', { tickers: [], objective: 'maxSharpe', parameters: validParams() }],
+    ],
+  );
 });
 
 describe('efficientFrontierSchema', () => {
-  it('合法输入应通过校验', () => {
-    expect(() =>
-      efficientFrontierSchema.parse({
-        tickers: ['AAPL', 'MSFT', 'GOOG'],
-        parameters: validParams(),
-      }),
-    ).not.toThrow();
-  });
-  it('tickers 为空数组应抛错', () => {
-    expect(() =>
-      efficientFrontierSchema.parse({ tickers: [], parameters: validParams() }),
-    ).toThrow();
-  });
-  it('numPoints 可选字段应通过校验', () => {
-    expect(() =>
-      efficientFrontierSchema.parse({
-        tickers: ['AAPL'],
-        parameters: validParams(),
-        numPoints: 50,
-      }),
-    ).not.toThrow();
-  });
+  dataSuite(
+    efficientFrontierSchema,
+    [
+      ['合法输入', { tickers: ['AAPL', 'MSFT', 'GOOG'], parameters: validParams() }],
+      ['numPoints 可选字段', { tickers: ['AAPL'], parameters: validParams(), numPoints: 50 }],
+    ],
+    [['tickers 为空数组', { tickers: [], parameters: validParams() }]],
+  );
 });
 
 describe('backtestOptimizerSchema', () => {
-  it('合法输入应通过校验', () => {
-    expect(() => backtestOptimizerSchema.parse(makeBacktestInput())).not.toThrow();
-  });
-  it.each<[string, Mut]>([
-    ['portfolio.assets 为空', (d) => set(d, 'portfolio.assets', [])],
-    ['asset 缺少 ticker', (d) => set(d, 'portfolio.assets', [{ weight: 100 }])],
-    ['rebalanceFrequencies 为空数组', (d) => set(d, 'parameterSpace.rebalanceFrequencies', [])],
+  mutSuite(
+    backtestOptimizerSchema,
+    makeBacktestInput,
     [
-      'rebalanceFrequencies 含非法枚举',
-      (d) => set(d, 'parameterSpace.rebalanceFrequencies', ['invalid']),
+      ['portfolio.assets 为空', set('portfolio.assets', [])],
+      ['asset 缺少 ticker', set('portfolio.assets', [{ weight: 100 }])],
+      ['rebalanceFrequencies 为空数组', set('parameterSpace.rebalanceFrequencies', [])],
+      ['rebalanceFrequencies 含非法枚举', set('parameterSpace.rebalanceFrequencies', ['invalid'])],
+      ['initialCapital.step 非正数', set('parameterSpace.initialCapital.step', 0)],
+      ['initialCapital.step 为负数', set('parameterSpace.initialCapital.step', -1)],
+      ['objective 非法枚举', set('objective', 'invalid')],
+      ['缺少 portfolio', del('portfolio')],
+      ['缺少 parameterSpace', del('parameterSpace')],
+      ['缺少 parameters', del('parameters')],
+      ['缺少 objective', del('objective')],
+      [
+        'rebalanceThreshold.step 非正数',
+        set('parameterSpace.rebalanceThreshold', { min: 1, max: 10, step: 0 }),
+      ],
+      ['parameters.startDate 为空字符串', set('parameters.startDate', '')],
+      ['parameters.baseCurrency 非法枚举', set('parameters.baseCurrency', 'eur')],
     ],
-    ['initialCapital.step 非正数', (d) => set(d, 'parameterSpace.initialCapital.step', 0)],
-    ['initialCapital.step 为负数', (d) => set(d, 'parameterSpace.initialCapital.step', -1)],
-    ['objective 非法枚举', (d) => set(d, 'objective', 'invalid')],
-    ['缺少 portfolio', (d) => del(d, 'portfolio')],
-    ['缺少 parameterSpace', (d) => del(d, 'parameterSpace')],
-    ['缺少 parameters', (d) => del(d, 'parameters')],
-    ['缺少 objective', (d) => del(d, 'objective')],
     [
-      'rebalanceThreshold.step 非正数',
-      (d) => set(d, 'parameterSpace.rebalanceThreshold', { min: 1, max: 10, step: 0 }),
+      ['objective 合法枚举 maxCagr', set('objective', 'maxCagr')],
+      ['objective 合法枚举 minMaxDrawdown', set('objective', 'minMaxDrawdown')],
+      ['objective 合法枚举 maxSortino', set('objective', 'maxSortino')],
+      [
+        'rebalanceThreshold 可选字段',
+        set('parameterSpace.rebalanceThreshold', { min: 1, max: 10, step: 1 }),
+      ],
+      ['constraints 可选字段', set('constraints', { maxDrawdown: 0.2, minCagr: 0.05 })],
+      ['parameters.baseCurrency 合法枚举', set('parameters.baseCurrency', 'usd')],
     ],
-    ['parameters.startDate 为空字符串', (d) => set(d, 'parameters.startDate', '')],
-    ['parameters.baseCurrency 非法枚举', (d) => set(d, 'parameters.baseCurrency', 'eur')],
-  ])('%s 应抛错', (_n, mutate) => {
-    const d = makeBacktestInput();
-    mutate(d);
-    expect(() => backtestOptimizerSchema.parse(d)).toThrow();
-  });
-  it.each<[string, Mut]>([
-    ['objective 合法枚举 maxCagr', (d) => set(d, 'objective', 'maxCagr')],
-    ['objective 合法枚举 minMaxDrawdown', (d) => set(d, 'objective', 'minMaxDrawdown')],
-    ['objective 合法枚举 maxSortino', (d) => set(d, 'objective', 'maxSortino')],
-    [
-      'rebalanceThreshold 可选字段',
-      (d) => set(d, 'parameterSpace.rebalanceThreshold', { min: 1, max: 10, step: 1 }),
-    ],
-    ['constraints 可选字段', (d) => set(d, 'constraints', { maxDrawdown: 0.2, minCagr: 0.05 })],
-    ['parameters.baseCurrency 合法枚举', (d) => set(d, 'parameters.baseCurrency', 'usd')],
-  ])('%s 应通过校验', (_n, mutate) => {
-    const d = makeBacktestInput();
-    mutate(d);
-    expect(() => backtestOptimizerSchema.parse(d)).not.toThrow();
-  });
+  );
 });
 
 describe('goalOptimizerSchema', () => {
-  it('合法输入应通过校验', () => {
-    expect(() => goalOptimizerSchema.parse(makeOptimizerInput())).not.toThrow();
-  });
-  it.each<[string, Mut]>([
-    ['targetAmount 为 0', (d) => set(d, 'targetAmount', 0)],
-    ['targetAmount 为负数', (d) => set(d, 'targetAmount', -100)],
-    ['initialAmount 为 0', (d) => set(d, 'initialAmount', 0)],
-    ['initialAmount 为负数', (d) => set(d, 'initialAmount', -50)],
-    ['years 为 0', (d) => set(d, 'years', 0)],
-    ['years 为负数', (d) => set(d, 'years', -5)],
-    ['assets 为空数组', (d) => set(d, 'assets', [])],
-    ['asset 缺少 ticker', (d) => set(d, 'assets', [{ weight: 100 }])],
-    ['asset ticker 为空字符串', (d) => set(d, 'assets', [{ ticker: '', weight: 100 }])],
-    ['缺少 targetAmount', (d) => del(d, 'targetAmount')],
-    ['缺少 initialAmount', (d) => del(d, 'initialAmount')],
-    ['缺少 years', (d) => del(d, 'years')],
-    ['缺少 assets', (d) => del(d, 'assets')],
-    ['targetAmount 类型错误（字符串）', (d) => set(d, 'targetAmount', '1000000')],
-    ['numSimulations 为 0', (d) => set(d, 'numSimulations', 0)],
-    ['numSimulations 为负数', (d) => set(d, 'numSimulations', -100)],
-    ['numSimulations 为小数（int 约束）', (d) => set(d, 'numSimulations', 1.5)],
-  ])('%s 应抛错', (_n, mutate) => {
-    const d = makeOptimizerInput();
-    mutate(d);
-    expect(() => goalOptimizerSchema.parse(d)).toThrow();
-  });
-  it.each<[string, Mut]>([['numSimulations 合法正整数', (d) => set(d, 'numSimulations', 1000)]])(
-    '%s 应通过校验',
-    (_n, mutate) => {
-      const d = makeOptimizerInput();
-      mutate(d);
-      expect(() => goalOptimizerSchema.parse(d)).not.toThrow();
-    },
+  mutSuite(
+    goalOptimizerSchema,
+    makeOptimizerInput,
+    [
+      ['targetAmount 为 0', set('targetAmount', 0)],
+      ['targetAmount 为负数', set('targetAmount', -100)],
+      ['initialAmount 为 0', set('initialAmount', 0)],
+      ['initialAmount 为负数', set('initialAmount', -50)],
+      ['years 为 0', set('years', 0)],
+      ['years 为负数', set('years', -5)],
+      ['assets 为空数组', set('assets', [])],
+      ['asset 缺少 ticker', set('assets', [{ weight: 100 }])],
+      ['asset ticker 为空字符串', set('assets', [{ ticker: '', weight: 100 }])],
+      ['缺少 targetAmount', del('targetAmount')],
+      ['缺少 initialAmount', del('initialAmount')],
+      ['缺少 years', del('years')],
+      ['缺少 assets', del('assets')],
+      ['targetAmount 类型错误（字符串）', set('targetAmount', '1000000')],
+      ['numSimulations 为 0', set('numSimulations', 0)],
+      ['numSimulations 为负数', set('numSimulations', -100)],
+      ['numSimulations 为小数（int 约束）', set('numSimulations', 1.5)],
+    ],
+    [['numSimulations 合法正整数', set('numSimulations', 1000)]],
   );
   it('constraints 可选字段应通过校验', () => {
     const d = makeOptimizerInput();
-    set(d, 'constraints', { maxDrawdown: 0.3, minSuccessRate: 0.9, maxVolatility: 0.2 });
+    set('constraints', { maxDrawdown: 0.3, minSuccessRate: 0.9, maxVolatility: 0.2 })(d);
     expect(() => goalOptimizerSchema.parse(d)).not.toThrow();
   });
 });
 
 describe('letfAnalyzeSchema', () => {
-  it('合法输入应通过校验', () => {
-    expect(() => letfAnalyzeSchema.parse(makeLetfInput())).not.toThrow();
-  });
-  it.each<[string, Mut]>([
-    ['缺少 letfTicker', (d) => del(d, 'letfTicker')],
-    ['letfTicker 为空字符串', (d) => set(d, 'letfTicker', '')],
-    ['缺少 benchmarkTicker', (d) => del(d, 'benchmarkTicker')],
-    ['benchmarkTicker 为空字符串', (d) => set(d, 'benchmarkTicker', '')],
-    ['缺少 leverage', (d) => del(d, 'leverage')],
-    ['leverage 为 0', (d) => set(d, 'leverage', 0)],
-    ['leverage 为负数', (d) => set(d, 'leverage', -2)],
-    ['leverage 类型错误（字符串）', (d) => set(d, 'leverage', '3')],
-    ['缺少 startDate', (d) => del(d, 'startDate')],
-    ['startDate 为空字符串', (d) => set(d, 'startDate', '')],
-    ['缺少 endDate', (d) => del(d, 'endDate')],
-    ['endDate 为空字符串', (d) => set(d, 'endDate', '')],
-  ])('%s 应抛错', (_n, mutate) => {
-    const d = makeLetfInput();
-    mutate(d);
-    expect(() => letfAnalyzeSchema.parse(d)).toThrow();
-  });
-  it.each<[string, Mut]>([
-    ['leverage 为小数（positive 约束）', (d) => set(d, 'leverage', 2.5)],
-    ['leverage=1（无杠杆基准）', (d) => set(d, 'leverage', 1)],
-  ])('%s 应通过校验', (_n, mutate) => {
-    const d = makeLetfInput();
-    mutate(d);
-    expect(() => letfAnalyzeSchema.parse(d)).not.toThrow();
-  });
+  mutSuite(
+    letfAnalyzeSchema,
+    makeLetfInput,
+    [
+      ['缺少 letfTicker', del('letfTicker')],
+      ['letfTicker 为空字符串', set('letfTicker', '')],
+      ['缺少 benchmarkTicker', del('benchmarkTicker')],
+      ['benchmarkTicker 为空字符串', set('benchmarkTicker', '')],
+      ['缺少 leverage', del('leverage')],
+      ['leverage 为 0', set('leverage', 0)],
+      ['leverage 为负数', set('leverage', -2)],
+      ['leverage 类型错误（字符串）', set('leverage', '3')],
+      ['缺少 startDate', del('startDate')],
+      ['startDate 为空字符串', set('startDate', '')],
+      ['缺少 endDate', del('endDate')],
+      ['endDate 为空字符串', set('endDate', '')],
+    ],
+    [
+      ['leverage 为小数（positive 约束）', set('leverage', 2.5)],
+      ['leverage=1（无杠杆基准）', set('leverage', 1)],
+    ],
+  );
 });
 
 describe('pcaAnalyzeSchema', () => {
-  it('合法输入应通过校验', () => {
-    expect(() => pcaAnalyzeSchema.parse(makePcaInput())).not.toThrow();
-  });
-  it.each<[string, Mut]>([
-    ['只有 1 个 ticker（min(2) 约束）', (d) => set(d, 'tickers', ['AAPL'])],
-    ['tickers 为空数组', (d) => set(d, 'tickers', [])],
-    ['缺少 tickers', (d) => del(d, 'tickers')],
-    ['缺少 startDate', (d) => del(d, 'startDate')],
-    ['startDate 为空字符串', (d) => set(d, 'startDate', '')],
-    ['缺少 endDate', (d) => del(d, 'endDate')],
-    ['endDate 为空字符串', (d) => set(d, 'endDate', '')],
-    ['numComponents 为 0', (d) => set(d, 'numComponents', 0)],
-    ['numComponents 为负数', (d) => set(d, 'numComponents', -1)],
-    ['numComponents 为小数（int 约束）', (d) => set(d, 'numComponents', 1.5)],
-    ['startDate 类型错误（数字）', (d) => set(d, 'startDate', 20200101)],
-  ])('%s 应抛错', (_n, mutate) => {
-    const d = makePcaInput();
-    mutate(d);
-    expect(() => pcaAnalyzeSchema.parse(d)).toThrow();
-  });
-  it.each<[string, Mut]>([
-    ['恰好 2 个 tickers（边界值）', (d) => set(d, 'tickers', ['AAPL', 'MSFT'])],
-    ['numComponents 合法正整数', (d) => set(d, 'numComponents', 2)],
-  ])('%s 应通过校验', (_n, mutate) => {
-    const d = makePcaInput();
-    mutate(d);
-    expect(() => pcaAnalyzeSchema.parse(d)).not.toThrow();
-  });
+  mutSuite(
+    pcaAnalyzeSchema,
+    makePcaInput,
+    [
+      ['只有 1 个 ticker（min(2) 约束）', set('tickers', ['AAPL'])],
+      ['tickers 为空数组', set('tickers', [])],
+      ['缺少 tickers', del('tickers')],
+      ['缺少 startDate', del('startDate')],
+      ['startDate 为空字符串', set('startDate', '')],
+      ['缺少 endDate', del('endDate')],
+      ['endDate 为空字符串', set('endDate', '')],
+      ['numComponents 为 0', set('numComponents', 0)],
+      ['numComponents 为负数', set('numComponents', -1)],
+      ['numComponents 为小数（int 约束）', set('numComponents', 1.5)],
+      ['startDate 类型错误（数字）', set('startDate', 20200101)],
+    ],
+    [
+      ['恰好 2 个 tickers（边界值）', set('tickers', ['AAPL', 'MSFT'])],
+      ['numComponents 合法正整数', set('numComponents', 2)],
+    ],
+  );
   it('tickers 含空字符串应通过校验（min(2) 仅约束长度）', () => {
     const d = makePcaInput();
-    set(d, 'tickers', ['', '']);
+    set('tickers', ['', ''])(d);
     expect(() => pcaAnalyzeSchema.parse(d)).not.toThrow();
   });
 });

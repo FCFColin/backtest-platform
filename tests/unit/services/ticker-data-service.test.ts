@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { dbMocks, tickerValidationMocks, loggerMocks, setupDefault } from './dataService.shared.js';
+import {
+  dbMocks,
+  tickerValidationMocks,
+  loggerMocks,
+  goDataServiceClientMocks,
+  setupDefault,
+} from './dataService.shared.js';
 
 const pgMocks = vi.hoisted(() => ({
   query: vi.fn(),
@@ -8,10 +14,6 @@ const pgMocks = vi.hoisted(() => ({
 const marketStatsMocks = vi.hoisted(() => ({
   scanMarketStatsFromDb: vi.fn(),
   getDbEngineStatus: vi.fn(),
-}));
-
-const goMocks = vi.hoisted(() => ({
-  callGoDataService: vi.fn(),
 }));
 
 const macroDbMocks = vi.hoisted(() => ({
@@ -23,10 +25,6 @@ dbMocks.getReadPool.mockReturnValue({ query: pgMocks.query } as never);
 vi.mock('../../../packages/backend/src/db/marketStats.js', () => ({
   scanMarketStatsFromDb: marketStatsMocks.scanMarketStatsFromDb,
   getDbEngineStatus: marketStatsMocks.getDbEngineStatus,
-}));
-
-vi.mock('../../../packages/backend/src/infrastructure/goDataServiceClient.js', () => ({
-  callGoDataService: goMocks.callGoDataService,
 }));
 
 vi.mock('../../../packages/backend/src/db/macroData.js', () => ({
@@ -206,13 +204,15 @@ describe('cpiService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     macroDbMocks.loadCpiSeriesFromDb.mockResolvedValue([]);
-    goMocks.callGoDataService.mockResolvedValue(JSON.stringify({ success: false, data: null }));
+    goDataServiceClientMocks.callGoDataService.mockResolvedValue(
+      JSON.stringify({ success: false, data: null }),
+    );
   });
 
   describe('fetchCpiForRoute - 三级降级', () => {
     it('Go 服务可用时返回 Go 原始数据，不标记降级', async () => {
       const goData = [{ date: '2020-01-01', value: 258.8 }];
-      goMocks.callGoDataService.mockResolvedValueOnce(
+      goDataServiceClientMocks.callGoDataService.mockResolvedValueOnce(
         JSON.stringify({ success: true, data: goData }),
       );
 
@@ -263,7 +263,7 @@ describe('cpiService', () => {
     });
 
     it('Go 服务抛异常时捕获并降级到 PG', async () => {
-      goMocks.callGoDataService.mockRejectedValueOnce(new Error('go boom'));
+      goDataServiceClientMocks.callGoDataService.mockRejectedValueOnce(new Error('go boom'));
       macroDbMocks.loadCpiSeriesFromDb.mockResolvedValueOnce([{ date: '2020-01', value: 1 }]);
 
       const result = await fetchCpiForRoute('ca');
@@ -287,7 +287,7 @@ describe('cpiService', () => {
         '2020-02-01': 259.1,
       });
       expect(macroDbMocks.loadCpiSeriesFromDb).toHaveBeenCalledWith('jp');
-      expect(goMocks.callGoDataService).not.toHaveBeenCalled();
+      expect(goDataServiceClientMocks.callGoDataService).not.toHaveBeenCalled();
     });
 
     it('缓存命中：同一 country 第二次调用不再访问 PG', async () => {
@@ -302,7 +302,7 @@ describe('cpiService', () => {
 
     it('PG 空 + Go fallback 有数据 → 扁平化为 { date: value }，date 取 slice(0,10)', async () => {
       macroDbMocks.loadCpiSeriesFromDb.mockResolvedValueOnce([]);
-      goMocks.callGoDataService.mockResolvedValueOnce(
+      goDataServiceClientMocks.callGoDataService.mockResolvedValueOnce(
         JSON.stringify({
           success: true,
           data: [
@@ -322,13 +322,17 @@ describe('cpiService', () => {
 
     it('PG 空 + Go fallback 也空 → 返回空对象且不写缓存', async () => {
       macroDbMocks.loadCpiSeriesFromDb.mockResolvedValueOnce([]);
-      goMocks.callGoDataService.mockResolvedValueOnce(JSON.stringify({ success: true, data: [] }));
+      goDataServiceClientMocks.callGoDataService.mockResolvedValueOnce(
+        JSON.stringify({ success: true, data: [] }),
+      );
 
       const map = await loadCpiMap('KR');
 
       expect(map).toEqual({});
       macroDbMocks.loadCpiSeriesFromDb.mockResolvedValueOnce([]);
-      goMocks.callGoDataService.mockResolvedValueOnce(JSON.stringify({ success: true, data: [] }));
+      goDataServiceClientMocks.callGoDataService.mockResolvedValueOnce(
+        JSON.stringify({ success: true, data: [] }),
+      );
       await loadCpiMap('KR');
       expect(macroDbMocks.loadCpiSeriesFromDb).toHaveBeenCalledTimes(2);
     });

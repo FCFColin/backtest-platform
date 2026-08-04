@@ -21,6 +21,9 @@ vi.mock('react-router-dom', () => ({
   ),
 }));
 
+const HERO_DESCRIPTION =
+  'This platform is a portfolio backtesting tool supporting ETFs, stocks, funds, synthetic tickers, and custom sequences. Compare multiple portfolios over the same historical period, test rebalancing rules, and simulate cashflow contributions or withdrawals.';
+
 beforeEach(() => {
   localStorage.clear();
 });
@@ -28,48 +31,52 @@ beforeEach(() => {
 describe('BacktestHero', () => {
   it('渲染标题', () => {
     render(<BacktestHero />);
-    expect(screen.getByText('backtest.hero.title')).toBeTruthy();
+    expect(screen.getByText('Portfolio Backtest')).toBeTruthy();
   });
 
   it('渲染副标题', () => {
     render(<BacktestHero />);
-    expect(screen.getByText('backtest.hero.subtitle')).toBeTruthy();
+    expect(
+      screen.getByText(
+        'Professional tools for backtesting portfolios, asset allocations, and retirement cashflows',
+      ),
+    ).toBeTruthy();
   });
 
   it('前 3 次访问默认展开', () => {
     localStorage.setItem('backtest-hero-visit-count', '0');
     render(<BacktestHero />);
-    expect(screen.getByText('backtest.hero.description')).toBeTruthy();
+    expect(screen.getByText(HERO_DESCRIPTION)).toBeTruthy();
   });
 
   it('第 4 次访问默认折叠', () => {
     localStorage.setItem('backtest-hero-visit-count', '3');
     render(<BacktestHero />);
-    expect(screen.queryByText('backtest.hero.description')).not.toBeTruthy();
+    expect(screen.queryByText(HERO_DESCRIPTION)).not.toBeTruthy();
   });
 
   it('点击展开按钮显示详情', () => {
     localStorage.setItem('backtest-hero-visit-count', '3');
     render(<BacktestHero />);
-    const expandBtn = screen.getByText('backtest.hero.expand');
+    const expandBtn = screen.getByText('Show Intro');
     fireEvent.click(expandBtn);
-    expect(screen.getByText('backtest.hero.description')).toBeTruthy();
+    expect(screen.getByText(HERO_DESCRIPTION)).toBeTruthy();
   });
 
   it('点击折叠按钮隐藏详情', () => {
     localStorage.setItem('backtest-hero-visit-count', '0');
     render(<BacktestHero />);
-    const collapseBtn = screen.getByText('backtest.hero.collapse');
+    const collapseBtn = screen.getByText('Hide Intro');
     fireEvent.click(collapseBtn);
-    expect(screen.queryByText('backtest.hero.description')).not.toBeTruthy();
+    expect(screen.queryByText(HERO_DESCRIPTION)).not.toBeTruthy();
   });
 
   it('展开时显示三栏能力卡片标题', () => {
     localStorage.setItem('backtest-hero-visit-count', '0');
     render(<BacktestHero />);
-    expect(screen.getByText('backtest.hero.model.title')).toBeTruthy();
-    expect(screen.getByText('backtest.hero.inspect.title')).toBeTruthy();
-    expect(screen.getByText('backtest.hero.tools.title')).toBeTruthy();
+    expect(screen.getByText('What You Can Model')).toBeTruthy();
+    expect(screen.getByText('Metrics You Can Inspect')).toBeTruthy();
+    expect(screen.getByText('Related Research Tools')).toBeTruthy();
   });
 
   it('展开时显示研究工具链接', () => {

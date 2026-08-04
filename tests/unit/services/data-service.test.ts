@@ -5,7 +5,7 @@ import {
   loggerMocks,
   redisMocks,
   circuitBreakerMocks,
-  httpMocks,
+  goDataServiceClientMocks,
   dataQueryMocks,
   dataCacheMocks,
   dateUtilsMocks,
@@ -14,10 +14,6 @@ import {
   rows,
   setupRedisDown,
 } from './dataService.shared.js';
-import {
-  setupHttpGetSuccess as makeHttpSuccess,
-  setupHttpGetError as makeHttpError,
-} from '../../helpers/dataServiceFixtures.js';
 
 import {
   fetchHistoryData,
@@ -203,7 +199,7 @@ describe('normal scenarios', () => {
     it('DB 无结果时应返回空数组（不回退 Go）', async () => {
       const result = await searchTickers('不存在的标的');
       expect(result).toEqual([]);
-      expect(httpMocks.request).not.toHaveBeenCalled();
+      expect(goDataServiceClientMocks.callGoDataService).not.toHaveBeenCalled();
     });
     it.each([
       ['恶意 SQL 注入式 query', "'; DROP TABLE tickers; --", undefined, true],
@@ -218,21 +214,19 @@ describe('normal scenarios', () => {
     });
     it('DB 失败且缓存未命中时应调用 Go 数据服务', async () => {
       circuitBreakerMocks.instance.fire.mockRejectedValue(new Error('db down'));
-      httpMocks.request.mockImplementation(
-        makeHttpSuccess(
-          JSON.stringify({
-            success: true,
-            data: [{ ticker: 'AAPL', name: 'Apple', market: '美股' }],
-          }),
-        ),
+      goDataServiceClientMocks.callGoDataService.mockResolvedValue(
+        JSON.stringify({
+          success: true,
+          data: [{ ticker: 'AAPL', name: 'Apple', market: '美股' }],
+        }),
       );
       const result = await searchTickers('AAPL');
       expect(result).toEqual([{ ticker: 'AAPL', name: 'Apple', market: '美股' }]);
-      expect(httpMocks.request).toHaveBeenCalled();
+      expect(goDataServiceClientMocks.callGoDataService).toHaveBeenCalled();
     });
     it('DB 与 Go 数据服务均失败时应返回空数组', async () => {
       circuitBreakerMocks.instance.opened = true;
-      httpMocks.request.mockImplementation(makeHttpError('connection refused'));
+      goDataServiceClientMocks.callGoDataService.mockRejectedValue(new Error('connection refused'));
       const result = await searchTickers('茅台');
       expect(result).toEqual([]);
       expect(loggerMocks.warn).toHaveBeenCalled();
@@ -320,26 +314,23 @@ describe('extended scenarios', () => {
     ])('%s', async (_n, arrangeRedis) => {
       setValid(['AAPL']);
       await arrangeRedis();
-      httpMocks.request.mockImplementation(
-        makeHttpSuccess(
-          JSON.stringify({
-            success: true,
-            data: [{ date: '2024-01-02', close: 99.0 }],
-          }),
-        ),
+      goDataServiceClientMocks.callGoDataService.mockResolvedValue(
+        JSON.stringify({
+          success: true,
+          data: [{ date: '2024-01-02', close: 99.0 }],
+        }),
       );
       const { data: result } = await fetchHistoryData(['AAPL'], '2024-01-01', '2024-01-31');
       expect(result.AAPL).toEqual({ '2024-01-02': 99.0 });
-      expect(httpMocks.request).toHaveBeenCalledWith(
+      expect(goDataServiceClientMocks.callGoDataService).toHaveBeenCalledWith(
         expect.stringContaining('/api/data/price/AAPL'),
-        expect.any(Object),
-        expect.any(Function),
+        undefined,
       );
       expect(redisMocks.set).toHaveBeenCalled();
     });
-    it('Go 数据服务 HTTP 非 2xx 时应记录 warn 并返回空', async () => {
+    it('Go 数据服务调用失败时应记录 warn 并返回空', async () => {
       setValid(['FAIL']);
-      httpMocks.request.mockImplementation(makeHttpSuccess('server error', 500));
+      goDataServiceClientMocks.callGoDataService.mockRejectedValue(new Error('server error'));
       const { data: result } = await fetchHistoryData(['FAIL'], '2024-01-01', '2024-01-31');
       expect(result).toEqual({});
       expect(loggerMocks.warn).toHaveBeenCalled();
@@ -386,7 +377,7 @@ describe('extended scenarios', () => {
       );
       const { data: result } = await fetchHistoryData(['CACHED'], '2024-01-01', '2024-01-31');
       expect(result.CACHED).toEqual({ '2024-01-02': 50.0 });
-      expect(httpMocks.request).not.toHaveBeenCalled();
+      expect(goDataServiceClientMocks.callGoDataService).not.toHaveBeenCalled();
     });
   });
   describe('dataFacade 编排（mock dataQuery/dataCache 层）', () => {
@@ -458,21 +449,6 @@ describe('extended scenarios', () => {
         { valid: ['AAPL'], result: d('AAPL', 100), dbDegraded: true },
         { data: d('AAPL', 100), degraded: true, warning: '数据库不可用，部分数据可能缺失' },
       ],
-    ])('%s', async (_n, tickers, o, e) => {
-      mockSetup(o);
-      const res = await facade.fetchHistoryData(tickers, '2024-01-02', '2024-01-03');
-      expect(res.data).toEqual(e.data);
-      if (e.degraded !== undefined) expect(res.degraded).toBe(e.degraded);
-      else expect(res.degraded).toBe(false);
-      if (e.warning !== undefined) expect(res.degradedWarning).toBe(e.warning);
-      if (e.warningUndefined) expect(res.degradedWarning).toBeUndefined();
-      if (e.noCacheRead) expect(dataCacheMocks.readCache).not.toHaveBeenCalled();
-      if (e.noGo) expect(dataQueryMocks.fetchMissingFromGoService).not.toHaveBeenCalled();
-      if (e.noDb) expect(dataQueryMocks.queryPricesFromDb).not.toHaveBeenCalled();
-      if (e.info) expect(loggerMocks.info).toHaveBeenCalledWith(expect.stringContaining(e.info));
-      if (e.warn) expect(loggerMocks.warn).toHaveBeenCalledWith(expect.stringContaining(e.warn));
-    });
-    it.each([
       [
         '缺失标的命中缓存（不调用 Go）',
         ['AAPL', 'MSFT'],
@@ -522,10 +498,16 @@ describe('extended scenarios', () => {
       );
       expect(res.data).toEqual(e.data);
       if (e.degraded !== undefined) expect(res.degraded).toBe(e.degraded);
-      if (e.noGo) expect(dataQueryMocks.fetchMissingFromGoService).not.toHaveBeenCalled();
-      if (e.cacheRead) expect(dataCacheMocks.readCache).toHaveBeenCalledWith('cache-key');
-      if (e.info) expect(loggerMocks.info).toHaveBeenCalledWith(expect.stringContaining(e.info));
+      else expect(res.degraded).toBe(false);
+      if (e.warning !== undefined) expect(res.degradedWarning).toBe(e.warning);
       if (e.warningContains) expect(res.degradedWarning).toContain(e.warningContains);
+      if (e.warningUndefined) expect(res.degradedWarning).toBeUndefined();
+      if (e.noCacheRead) expect(dataCacheMocks.readCache).not.toHaveBeenCalled();
+      if (e.cacheRead) expect(dataCacheMocks.readCache).toHaveBeenCalledWith('cache-key');
+      if (e.noGo) expect(dataQueryMocks.fetchMissingFromGoService).not.toHaveBeenCalled();
+      if (e.noDb) expect(dataQueryMocks.queryPricesFromDb).not.toHaveBeenCalled();
+      if (e.info) expect(loggerMocks.info).toHaveBeenCalledWith(expect.stringContaining(e.info));
+      if (e.warn) expect(loggerMocks.warn).toHaveBeenCalledWith(expect.stringContaining(e.warn));
       if (e.goArgs) {
         expect(dataQueryMocks.fetchMissingFromGoService).toHaveBeenCalledWith(
           expect.arrayContaining(e.goArgs),

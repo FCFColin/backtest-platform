@@ -4,14 +4,7 @@ import ErrorBoundary from '../../../packages/frontend/src/components/errorBounda
 
 vi.mock('../../../packages/frontend/src/i18n/index.js', () => ({
   default: {
-    t: (key: string) => {
-      const map: Record<string, string> = {
-        'errors.pageErrorTitle': '页面出错了',
-        'errors.pageErrorMessage': '请刷新页面重试',
-        'errors.pageRefresh': '刷新页面',
-      };
-      return map[key] ?? key;
-    },
+    t: (key: string) => key,
   },
 }));
 
@@ -48,9 +41,13 @@ describe('ErrorBoundary', () => {
         <BrokenChild shouldThrow={true} />
       </ErrorBoundary>,
     );
-    expect(screen.getByText('页面出错了')).toBeTruthy();
-    expect(screen.getByText('请刷新页面重试')).toBeTruthy();
-    expect(screen.getByText('刷新页面')).toBeTruthy();
+    expect(screen.getByText('Something went wrong')).toBeTruthy();
+    expect(
+      screen.getByText(
+        'Sorry, the page encountered an error. Please refresh. If the problem persists, contact the administrator.',
+      ),
+    ).toBeTruthy();
+    expect(screen.getByText('Refresh page')).toBeTruthy();
   });
 
   it('显示错误信息', () => {
@@ -85,7 +82,7 @@ describe('ErrorBoundary', () => {
       </ErrorBoundary>,
     );
 
-    fireEvent.click(screen.getByText('刷新页面'));
+    fireEvent.click(screen.getByText('Refresh page'));
     expect(reload).toHaveBeenCalledOnce();
   });
 });

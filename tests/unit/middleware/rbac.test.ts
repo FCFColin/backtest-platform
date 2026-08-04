@@ -48,29 +48,25 @@ describe('RBAC requirePermission', () => {
     vi.clearAllMocks();
   });
 
-  const permissionMatrix = [
-    { role: 'admin', permission: Permission.BACKTEST_RUN, allowed: true },
-    { role: 'admin', permission: Permission.DATA_MANAGE, allowed: true },
-    { role: 'admin', permission: Permission.DATA_READ, allowed: true },
-    { role: 'admin', permission: Permission.ADMIN_ACCESS, allowed: true },
-    { role: 'admin', permission: Permission.OPTIMIZER_RUN, allowed: true },
-    { role: 'admin', permission: Permission.SIGNAL_READ, allowed: true },
-    { role: 'admin', permission: Permission.STRATEGY_MANAGE, allowed: true },
-    { role: 'analyst', permission: Permission.BACKTEST_RUN, allowed: true },
-    { role: 'analyst', permission: Permission.DATA_MANAGE, allowed: true },
-    { role: 'analyst', permission: Permission.DATA_READ, allowed: true },
-    { role: 'analyst', permission: Permission.ADMIN_ACCESS, allowed: false },
-    { role: 'analyst', permission: Permission.OPTIMIZER_RUN, allowed: true },
-    { role: 'analyst', permission: Permission.SIGNAL_READ, allowed: true },
-    { role: 'analyst', permission: Permission.STRATEGY_MANAGE, allowed: true },
-    { role: 'readonly', permission: Permission.BACKTEST_RUN, allowed: false },
-    { role: 'readonly', permission: Permission.DATA_MANAGE, allowed: false },
-    { role: 'readonly', permission: Permission.DATA_READ, allowed: true },
-    { role: 'readonly', permission: Permission.ADMIN_ACCESS, allowed: false },
-    { role: 'readonly', permission: Permission.OPTIMIZER_RUN, allowed: false },
-    { role: 'readonly', permission: Permission.SIGNAL_READ, allowed: true },
-    { role: 'readonly', permission: Permission.STRATEGY_MANAGE, allowed: false },
-  ] as const;
+  const expectedRolePermissions: Record<string, Permission[]> = {
+    admin: Object.values(Permission),
+    analyst: [
+      Permission.BACKTEST_RUN,
+      Permission.DATA_MANAGE,
+      Permission.DATA_READ,
+      Permission.OPTIMIZER_RUN,
+      Permission.SIGNAL_READ,
+      Permission.STRATEGY_MANAGE,
+    ],
+    readonly: [Permission.DATA_READ, Permission.SIGNAL_READ],
+  };
+  const permissionMatrix = Object.entries(expectedRolePermissions).flatMap(([role, perms]) =>
+    Object.values(Permission).map((permission) => ({
+      role,
+      permission,
+      allowed: perms.includes(permission),
+    })),
+  );
 
   it.each(permissionMatrix)(
     '$role 应该对 $permission $allowed',

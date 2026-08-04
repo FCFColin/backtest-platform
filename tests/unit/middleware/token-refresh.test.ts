@@ -1,6 +1,5 @@
 ﻿import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { decodeJwt, jwtVerify } from 'jose';
-import type { Response } from 'express';
 import {
   createIdempotencyReqRes,
   mockLongIdempotencyKey,
@@ -8,7 +7,6 @@ import {
   XSS_KEY,
   NEWLINE_INJECTION_KEY,
 } from '../../helpers/authFixtures.js';
-import { createMockRequest, createMockResponse } from '../../helpers/expressMocks.js';
 import { RedisUnavailableError } from '../../../packages/backend/src/utils/errors.js';
 // userRepo 的 vi.mock 在 jwtAuth.shared.ts 中注册（提升执行）；本文件的
 // getUserById 静态 import 必须位于 shared import 之后，才能命中同一 mock 实例
@@ -34,6 +32,11 @@ import {
 } from '../../../packages/backend/src/middleware/jwtAuth.js';
 redisMocks.useRedisSuccess();
 
+beforeEach(() => {
+  vi.clearAllMocks();
+  redisMocks.useRedisSuccess();
+});
+
 async function expiredTokenByFakeTimers(ttlSeconds: number) {
   vi.useFakeTimers();
   const t = await generateRefreshToken('expired-user', 'admin');
@@ -50,11 +53,7 @@ async function expireStoredToken(user: string) {
 }
 
 describe('Refresh Token 生命周期与 Redis', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    redisMocks.useRedisSuccess();
-    mockUser();
-  });
+  beforeEach(() => mockUser());
   it('生成：64 位 hex、各角色、显式 familyId 与租户上下文；写入 Redis（TTL=EX + family + 集合）', async () => {
     const t = await generateRefreshToken('user-1', 'admin');
     expect(t).toMatch(/^[0-9a-f]{64}$/);
@@ -202,10 +201,6 @@ describe('Refresh Token 生命周期与 Redis', () => {
 });
 
 describe('isUserSessionValid 与 isAccessTokenRevokedForUser', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    redisMocks.useRedisSuccess();
-  });
   it('系统用户 ID（dev-user/api-key-user）应视为有效且不查 DB', async () => {
     for (const sysUser of ['dev-user', 'api-key-user'])
       expect(await isUserSessionValid(sysUser)).toBe(true);
@@ -237,7 +232,6 @@ describe('isUserSessionValid 与 isAccessTokenRevokedForUser', () => {
 
 describe('getOrCache* 密钥加载（jwtSigner）', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
     resetRsaConfig();
     mocks.config.NODE_ENV = 'test';
     mocks.config.JWT_ALGORITHM = 'RS256';
@@ -304,22 +298,6 @@ describe('getOrCache* 密钥加载（jwtSigner）', () => {
 });
 
 describe('idempotencyKey 中间件', () => {
-  function reqResNoKey(method = 'POST') {
-    const req = createMockRequest({
-      method,
-      headers: {},
-      path: '/api/test',
-      url: '/api/test',
-      ip: '127.0.0.1',
-      socket: { remoteAddress: '127.0.0.1' },
-    });
-    const res = { ...createMockResponse(), on: vi.fn() } as unknown as Response;
-    return { req, res, next: vi.fn() };
-  }
-  beforeEach(() => {
-    vi.clearAllMocks();
-    redisMocks.useRedisSuccess();
-  });
   async function passOnce(
     r: ReturnType<typeof createIdempotencyReqRes>,
     body: unknown,
@@ -336,7 +314,7 @@ describe('idempotencyKey 中间件', () => {
   ])('%s 时非 POST/无 Key 请求应直接放行', (_n, redisDown) => {
     if (redisDown) redisMocks.useMemoryFallback();
     for (const method of ['GET', 'POST']) {
-      const { req, res, next } = reqResNoKey(method);
+      const { req, res, next } = createIdempotencyReqRes(undefined, method, '/api/test', true);
       idempotencyKey(req, res, next);
       expect(next).toHaveBeenCalledTimes(1);
       expect(res.status).not.toHaveBeenCalled();

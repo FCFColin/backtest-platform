@@ -93,7 +93,7 @@ function createMockUniverseStats() {
   return { total: 500, updated_at: '2024-06-30', stats: { US: 400, CN: 100 } };
 }
 
-describe('adminRoutes - GET /api/admin/stats', () => {
+describe('adminRoutes - GET /api/admin/stats 与 /system', () => {
   let server: TestServer;
 
   beforeEach(async () => {
@@ -124,6 +124,21 @@ describe('adminRoutes - GET /api/admin/stats', () => {
     expect(body.data.backtest_history).toEqual([]);
   });
 
+  it('应返回系统资源信息', async () => {
+    const res = await fetch(`${server.url}/api/admin/system`);
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.success).toBe(true);
+    expect(body.data.memory.rss).toBeGreaterThan(0);
+    expect(body.data.memory.heap_total).toBeGreaterThan(0);
+    expect(body.data.memory.rss_mb).toBeGreaterThan(0);
+    expect(body.data.uptime.seconds).toBeGreaterThanOrEqual(0);
+    expect(body.data.uptime.formatted).toBeTruthy();
+    expect(body.data.data_directory.total_size_mb).toBe(120.5);
+    expect(body.data.data_directory.ticker_file_count).toBe(100);
+  });
+
   it('Go 引擎不可达时应返回 unhealthy', async () => {
     callServiceMock.mockRejectedValue(new Error('ECONNREFUSED'));
 
@@ -146,7 +161,7 @@ describe('adminRoutes - GET /api/admin/stats', () => {
     expect(body.data.services.go_engine.error).toBe('服务返回异常');
   });
 
-  it('scanTickersStats 返回 null 时应使用兜底空对象', async () => {
+  it('scanTickersStats 返回 null 时 stats 应使用兜底空对象', async () => {
     engineServiceMocks.scanTickersStats.mockResolvedValue(null);
 
     const res = await fetch(`${server.url}/api/admin/stats`);
@@ -157,46 +172,7 @@ describe('adminRoutes - GET /api/admin/stats', () => {
     expect(body.data.data_stats.total_tickers).toBe(0);
   });
 
-  it('scanTickersStats 抛错时应返回 500', async () => {
-    engineServiceMocks.scanTickersStats.mockRejectedValue(new Error('scan failed'));
-
-    const res = await fetch(`${server.url}/api/admin/stats`);
-    const body = await res.json();
-
-    expect(res.status).toBe(500);
-    expect(body.error.code).toBe('ADMIN_STATS_ERROR');
-  });
-});
-
-describe('adminRoutes - GET /api/admin/system', () => {
-  let server: TestServer;
-
-  beforeEach(async () => {
-    vi.clearAllMocks();
-    engineServiceMocks.scanTickersStats.mockResolvedValue(createMockTickerStats());
-    server = await startExpressApp((app) => app.use('/api/admin', adminRoutes));
-  });
-
-  afterEach(async () => {
-    await server.close();
-  });
-
-  it('应返回系统资源信息', async () => {
-    const res = await fetch(`${server.url}/api/admin/system`);
-    const body = await res.json();
-
-    expect(res.status).toBe(200);
-    expect(body.success).toBe(true);
-    expect(body.data.memory.rss).toBeGreaterThan(0);
-    expect(body.data.memory.heap_total).toBeGreaterThan(0);
-    expect(body.data.memory.rss_mb).toBeGreaterThan(0);
-    expect(body.data.uptime.seconds).toBeGreaterThanOrEqual(0);
-    expect(body.data.uptime.formatted).toBeTruthy();
-    expect(body.data.data_directory.total_size_mb).toBe(120.5);
-    expect(body.data.data_directory.ticker_file_count).toBe(100);
-  });
-
-  it('scanTickersStats 返回 null 时应使用兜底空对象', async () => {
+  it('scanTickersStats 返回 null 时 system 应使用兜底空对象', async () => {
     engineServiceMocks.scanTickersStats.mockResolvedValue(null);
 
     const res = await fetch(`${server.url}/api/admin/system`);
@@ -207,14 +183,17 @@ describe('adminRoutes - GET /api/admin/system', () => {
     expect(body.data.data_directory.ticker_file_count).toBe(0);
   });
 
-  it('scanTickersStats 抛错时应返回 500', async () => {
-    engineServiceMocks.scanTickersStats.mockRejectedValue(new Error('system scan failed'));
+  it.each([
+    ['stats', '/api/admin/stats', 'ADMIN_STATS_ERROR'],
+    ['system', '/api/admin/system', 'ADMIN_SYSTEM_ERROR'],
+  ] as const)('scanTickersStats 抛错时 %s 应返回 500', async (_n, path, code) => {
+    engineServiceMocks.scanTickersStats.mockRejectedValue(new Error('scan failed'));
 
-    const res = await fetch(`${server.url}/api/admin/system`);
+    const res = await fetch(`${server.url}${path}`);
     const body = await res.json();
 
     expect(res.status).toBe(500);
-    expect(body.error.code).toBe('ADMIN_SYSTEM_ERROR');
+    expect(body.error.code).toBe(code);
   });
 });
 
@@ -300,31 +279,39 @@ describe('apiKeyRoutes', () => {
     expect(apiKeyServiceMocks.revokeApiKey).toHaveBeenCalledWith(ORG, KEY_ID);
   });
 
-  it('POST / 服务端错误应返回 500', async () => {
-    apiKeyServiceMocks.createApiKey.mockRejectedValueOnce(new Error('DB connection failed'));
-    const res = await fetch(`${server.url}/api/v1/keys`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: 'CI key' }),
-    });
+  it.each<[string, string, Parameters<typeof fetch>[1], () => void, string]>([
+    [
+      'POST / 服务端错误应返回 500',
+      '/api/v1/keys',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: 'CI key' }),
+      },
+      () =>
+        apiKeyServiceMocks.createApiKey.mockRejectedValueOnce(new Error('DB connection failed')),
+      'API_KEY_CREATE_FAILED',
+    ],
+    [
+      'GET / 服务端错误应返回 500',
+      '/api/v1/keys',
+      {},
+      () => apiKeyServiceMocks.listApiKeys.mockRejectedValueOnce(new Error('DB connection failed')),
+      'API_KEY_LIST_FAILED',
+    ],
+    [
+      'DELETE /:id 服务端错误应返回 500',
+      `/api/v1/keys/${KEY_ID}`,
+      { method: 'DELETE' },
+      () =>
+        apiKeyServiceMocks.revokeApiKey.mockRejectedValueOnce(new Error('DB connection failed')),
+      'API_KEY_REVOKE_FAILED',
+    ],
+  ])('%s', async (_n, path, init, stub, code) => {
+    stub();
+    const res = await fetch(`${server.url}${path}`, init);
     const body = await res.json();
     expect(res.status).toBe(500);
-    expect(body.error.code).toBe('API_KEY_CREATE_FAILED');
-  });
-
-  it('GET / 服务端错误应返回 500', async () => {
-    apiKeyServiceMocks.listApiKeys.mockRejectedValueOnce(new Error('DB connection failed'));
-    const res = await fetch(`${server.url}/api/v1/keys`);
-    const body = await res.json();
-    expect(res.status).toBe(500);
-    expect(body.error.code).toBe('API_KEY_LIST_FAILED');
-  });
-
-  it('DELETE /:id 服务端错误应返回 500', async () => {
-    apiKeyServiceMocks.revokeApiKey.mockRejectedValueOnce(new Error('DB connection failed'));
-    const res = await fetch(`${server.url}/api/v1/keys/${KEY_ID}`, { method: 'DELETE' });
-    const body = await res.json();
-    expect(res.status).toBe(500);
-    expect(body.error.code).toBe('API_KEY_REVOKE_FAILED');
+    expect(body.error.code).toBe(code);
   });
 });

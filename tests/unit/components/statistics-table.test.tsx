@@ -60,7 +60,7 @@ describe('StatisticsTableHeader', () => {
       </table>,
     );
 
-    expect(screen.getByText('common.metric')).toBeTruthy();
+    expect(screen.getByText('Metric')).toBeTruthy();
     expect(screen.getByText('组合 A')).toBeTruthy();
     expect(screen.getByText('组合 B')).toBeTruthy();
     const dots = container.querySelectorAll('.rounded-full');

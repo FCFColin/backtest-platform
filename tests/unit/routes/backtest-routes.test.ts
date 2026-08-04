@@ -1,6 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { startExpressApp, type TestServer, type TestRequest } from '../../helpers/expressApp.js';
-import { m, loggerMocks, queueMocks, MockEngineUnavailableError } from './backtestRoutes.shared.js';
+import {
+  startExpressApp,
+  type TestServer,
+  type TestRequest,
+  postJson,
+} from '../../helpers/expressApp.js';
+import { m, loggerMocks, queueMocks } from './backtestRoutes.shared.js';
 import backtestRoutes from '../../../packages/backend/src/routes/backtestRoutes.js';
 import {
   createValidParameters,
@@ -10,6 +15,7 @@ import {
   setupPortfolioServer,
   clearBacktestResultCache,
   startEngineRouteServer,
+  EngineUnavailableErrorStub,
 } from '../../helpers/backtestRoutesFixtures.js';
 import {
   setBacktestResultCache,
@@ -17,16 +23,13 @@ import {
 } from '../../../packages/backend/src/application/backtest/backtestResultUtils.js';
 import { mockBacktestResult } from '../../helpers/storeFixtures.js';
 
-async function postJson(url: string, body: unknown) {
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  return { res, json: await res.json() };
-}
-type Server = { url: string; close: () => Promise<void> };
+type Server = TestServer;
 
+const get = (url: string, headers?: Record<string, string>) =>
+  fetch(url, { headers }).then(async (res) => ({
+    res,
+    json: await res.json().catch(() => null),
+  }));
 interface EngineCase {
   name: string;
   path: string;
@@ -36,9 +39,10 @@ interface EngineCase {
   result: Record<string, unknown>;
   validBody: () => Record<string, unknown>;
   invalidBodies: Array<[string, Record<string, unknown>]>;
-  specials: Array<[string, (url: string) => Promise<void> | void]>;
+  specials: Array<[string, (url: string, c: EngineCase) => Promise<void> | void]>;
 }
 
+const manyTickers = Array.from({ length: 51 }, (_, i) => `T${i}`);
 const engineCases: EngineCase[] = [
   {
     name: 'analysis',
@@ -52,24 +56,18 @@ const engineCases: EngineCase[] = [
       ['缺失 tickers（zod 校验）', { parameters: createValidParameters() }],
       [
         'ticker 数量超限（schema refine）',
-        {
-          tickers: Array.from({ length: 51 }, (_, i) => `T${i}`),
-          parameters: createValidParameters(),
-        },
+        { tickers: manyTickers, parameters: createValidParameters() },
       ],
     ],
     specials: [
       [
         'tickers 为空格分隔字符串时应正常处理',
-        async (url) => {
+        async (url, c) => {
           m.callEngineStrict.mockResolvedValue({
             tickers: [{ ticker: 'AAPL' }, { ticker: 'BND' }],
             correlations: [[1]],
           });
-          const { res } = await postJson(url, {
-            tickers: 'AAPL BND',
-            parameters: createValidParameters(),
-          });
+          const { res } = await postJson(url, { ...c.validBody(), tickers: 'AAPL BND' });
           expect(res.status).toBe(200);
           expect((m.callEngineStrict.mock.calls[0][1] as { tickers: string[] }).tickers).toEqual([
             'AAPL',
@@ -79,15 +77,12 @@ const engineCases: EngineCase[] = [
       ],
       [
         '引擎返回 assets 字段时应映射为 tickers',
-        async (url) => {
+        async (url, c) => {
           m.callEngineStrict.mockResolvedValue({
             success: true,
             data: { assets: [{ ticker: 'AAPL', cagr: 0.1 }], correlations: [[1]] },
           });
-          const { res, json } = await postJson(url, {
-            tickers: ['AAPL'],
-            parameters: createValidParameters(),
-          });
+          const { res, json } = await postJson(url, { ...c.validBody(), tickers: ['AAPL'] });
           expect(res.status).toBe(200);
           expect(json.data.tickers).toBeDefined();
           expect(json.data.correlations).toBeDefined();
@@ -95,8 +90,8 @@ const engineCases: EngineCase[] = [
       ],
       [
         '有效请求应拉取历史数据',
-        async (url) => {
-          await postJson(url, { tickers: ['AAPL', 'BND'], parameters: createValidParameters() });
+        async (url, c) => {
+          await postJson(url, c.validBody());
           expect(m.fetchHistoryData).toHaveBeenCalledTimes(1);
         },
       ],
@@ -118,12 +113,8 @@ const engineCases: EngineCase[] = [
     specials: [
       [
         'mcParams 应透传到引擎',
-        async (url) => {
-          await postJson(url, {
-            portfolio: createValidPortfolio(),
-            parameters: createValidParameters(),
-            mcParams: { numSimulations: 100, seed: 42 },
-          });
+        async (url, c) => {
+          await postJson(url, c.validBody());
           expect((m.callEngineStrict.mock.calls[0][1] as { mcParams: unknown }).mcParams).toEqual({
             numSimulations: 100,
             seed: 42,
@@ -132,7 +123,7 @@ const engineCases: EngineCase[] = [
       ],
       [
         '恶意 mcParams 键应被剥离',
-        async (url) => {
+        async (url, _c) => {
           await postJson(url, {
             portfolio: createValidPortfolio(),
             parameters: createValidParameters(),
@@ -153,7 +144,7 @@ const engineCases: EngineCase[] = [
       ],
       [
         '多组合应返回数组结果',
-        async (url) => {
+        async (url, _c) => {
           m.callEngineStrict
             .mockResolvedValueOnce({ portfolio: 0 })
             .mockResolvedValueOnce({ portfolio: 1 });
@@ -195,7 +186,7 @@ const engineCases: EngineCase[] = [
       [
         'ticker 数量超限（schema refine）',
         {
-          tickers: Array.from({ length: 51 }, (_, i) => `T${i}`),
+          tickers: manyTickers,
           objective: 'maxSharpe',
           parameters: createValidParameters(),
         },
@@ -204,11 +195,10 @@ const engineCases: EngineCase[] = [
     specials: [
       [
         'numIterations 应被正确上限截断',
-        async (url) => {
+        async (url, c) => {
           const { res } = await postJson(url, {
-            tickers: ['AAPL', 'BND'],
+            ...c.validBody(),
             objective: 'minVolatility',
-            parameters: createValidParameters(),
             numIterations: 50000,
           });
           expect(res.status).toBe(200);
@@ -237,13 +227,7 @@ const engineCases: EngineCase[] = [
     }),
     invalidBodies: [
       ['空 tickers 数组', { tickers: [], parameters: createValidParameters() }],
-      [
-        'ticker 数量超限',
-        {
-          tickers: Array.from({ length: 51 }, (_, i) => `T${i}`),
-          parameters: createValidParameters(),
-        },
-      ],
+      ['ticker 数量超限', { tickers: manyTickers, parameters: createValidParameters() }],
     ],
     specials: [],
   },
@@ -271,7 +255,7 @@ describe.each(engineCases)('backtestRoutes - POST $path', (c) => {
     if (c.logOnError) expect(loggerMocks.error).toHaveBeenCalled();
   });
   it('引擎不可用应 fail-closed 返回 503', async () => {
-    m.callEngineStrict.mockRejectedValue(new MockEngineUnavailableError());
+    m.callEngineStrict.mockRejectedValue(new EngineUnavailableErrorStub());
     const { res, json } = await postJson(`${server.url}${c.path}`, c.validBody());
     expect(res.status).toBe(503);
     expect(res.headers.get('retry-after')).toBe('30');
@@ -283,7 +267,7 @@ describe.each(engineCases)('backtestRoutes - POST $path', (c) => {
     expect(m.callEngineStrict).not.toHaveBeenCalled();
   });
   it.each(c.specials)('%s', async (_n, fn) => {
-    await fn(`${server.url}${c.path}`);
+    await fn(`${server.url}${c.path}`, c);
   });
 });
 
@@ -306,15 +290,6 @@ const mockSignalResult = {
   statistics: { totalSignals: 1, winRate: 1.0, avgReturn: 0.01, maxDrawdown: 0, sharpe: 2.0 },
   equityCurve: [{ date: '2020-01-01', value: 10000 }],
 };
-
-async function apiPost(url: string, body: unknown) {
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  return { res, body: await res.json().catch(() => null) };
-}
 
 describe.each([
   {
@@ -377,26 +352,26 @@ describe.each([
   afterEach(() => server.close());
 
   it('有效参数应返回分析结果', async () => {
-    const { res, body } = await apiPost(`${server.url}${c.path}`, c.validReq());
+    const { res, json } = await postJson(`${server.url}${c.path}`, c.validReq());
     expect(res.status).toBe(200);
-    expect(body.success).toBe(true);
-    expect(body.data.signals).toHaveLength(1);
+    expect(json.success).toBe(true);
+    expect(json.data.signals).toHaveLength(1);
     expect(m.callEngineStrict).toHaveBeenCalledTimes(1);
   });
   it.each(c.validation)('%s 应返回 400（zod 校验失败）', async (_n, getReq) => {
-    const { res } = await apiPost(`${server.url}${c.path}`, getReq());
+    const { res } = await postJson(`${server.url}${c.path}`, getReq());
     expect(res.status).toBe(400);
     expect(m.callEngineStrict).not.toHaveBeenCalled();
   });
   it('价格数据缺失时应返回 404', async () => {
     m.fetchHistoryData.mockResolvedValue({ data: { SPY: {} }, degraded: false });
-    const { res, body } = await apiPost(`${server.url}${c.path}`, c.validReq());
+    const { res, json } = await postJson(`${server.url}${c.path}`, c.validReq());
     expect(res.status).toBe(404);
-    expect(body.error.code).toBe('DATA_NOT_FOUND');
+    expect(json.error.code).toBe('DATA_NOT_FOUND');
   });
   it('引擎抛错时应返回 500', async () => {
     m.callEngineStrict.mockRejectedValueOnce(new Error('signal engine error'));
-    const { res } = await apiPost(`${server.url}${c.path}`, c.validReq());
+    const { res } = await postJson(`${server.url}${c.path}`, c.validReq());
     expect(res.status).toBe(500);
   });
 });
@@ -409,7 +384,7 @@ describe('backtestRoutes - POST /api/backtest/portfolio', () => {
     queueMocks.getJob.mockReset();
   });
   afterEach(() => server.close());
-  it('有效参数应入队并返回 202 Accepted', async () => {
+  it('有效参数应入队并返回 202（响应不含 portfolios 数据）', async () => {
     queueMocks.add.mockResolvedValue({ id: 'job-test-001' });
     const { res, json } = await postJson(
       `${server.url}/api/backtest/portfolio`,
@@ -420,17 +395,8 @@ describe('backtestRoutes - POST /api/backtest/portfolio', () => {
     expect(json.data.jobId).toBe('job-test-001');
     expect(json.data.status).toBe('queued');
     expect(json.data.statusUrl).toContain('/api/v1/backtest/runs/');
-    expect(queueMocks.add).toHaveBeenCalledTimes(1);
-  });
-  it('异步响应应仅包含 jobId/status/statusUrl（不含 portfolios 数据）', async () => {
-    queueMocks.add.mockResolvedValue({ id: 'job-test-001' });
-    const { res, json } = await postJson(
-      `${server.url}/api/backtest/portfolio`,
-      createValidRequestBody(),
-    );
-    expect(res.status).toBe(202);
     expect(json.data.portfolios).toBeUndefined();
-    expect(json.data.jobId).toBeDefined();
+    expect(queueMocks.add).toHaveBeenCalledTimes(1);
   });
   it('应以正确的 payload 入队（含 benchmarkTicker）', async () => {
     queueMocks.add.mockResolvedValue({ id: 'job-test-001' });
@@ -444,29 +410,31 @@ describe('backtestRoutes - POST /api/backtest/portfolio', () => {
     expect(jobData.payload.portfolios).toBeDefined();
     expect(jobData.payload.parameters.benchmarkTicker).toBe('SPY');
   });
-  it('无效日期格式应返回 400（zod 校验失败）', async () => {
-    const body = createValidRequestBody();
-    (body.parameters as Record<string, unknown>).startDate = 'not-a-date';
-    const { res, json } = await postJson(`${server.url}/api/backtest/portfolio`, body);
-    expect(res.status).toBe(400);
-    expect(json.error.title).toBe('VALIDATION_ERROR');
-    expect(queueMocks.add).not.toHaveBeenCalled();
-  });
   it.each([
-    ['缺少 portfolios', { parameters: { startDate: '2024-01-01', endDate: '2024-06-30' } }],
+    [
+      '无效日期格式',
+      () => {
+        const body = createValidRequestBody();
+        (body.parameters as Record<string, unknown>).startDate = 'not-a-date';
+        return body;
+      },
+    ],
+    ['缺少 portfolios', () => ({ parameters: { startDate: '2024-01-01', endDate: '2024-06-30' } })],
     [
       '缺少 parameters',
-      {
+      () => ({
         portfolios: [{ assets: [{ ticker: 'AAPL', weight: 100 }], rebalanceFrequency: 'monthly' }],
-      },
+      }),
     ],
     [
       '空 portfolios',
-      { portfolios: [], parameters: { startDate: '2024-01-01', endDate: '2024-06-30' } },
+      () => ({ portfolios: [], parameters: { startDate: '2024-01-01', endDate: '2024-06-30' } }),
     ],
-  ])('%s 应返回 400', async (_n, body) => {
-    const { res } = await postJson(`${server.url}/api/backtest/portfolio`, body);
+  ])('%s 应返回 400（zod 校验失败）且不入队', async (_n, getBody) => {
+    const { res, json } = await postJson(`${server.url}/api/backtest/portfolio`, getBody());
     expect(res.status).toBe(400);
+    expect(json.error.title).toBe('VALIDATION_ERROR');
+    expect(queueMocks.add).not.toHaveBeenCalled();
   });
   it('队列不可用时应 fail-closed 返回 503 + Retry-After（ADR-031）', async () => {
     queueMocks.add.mockRejectedValueOnce(new Error('Redis unavailable'));
@@ -534,39 +502,35 @@ describe('backtestRoutes - GET /api/backtest/search', () => {
   afterEach(() => server.close());
   it('应返回搜索结果', async () => {
     m.searchTickers.mockResolvedValue([{ ticker: 'AAPL', name: 'Apple', market: 'US' }]);
-    const res = await fetch(`${server.url}/api/backtest/search?query=aapl`);
-    const json = await res.json();
+    const { res, json } = await get(`${server.url}/api/backtest/search?query=aapl`);
     expect(res.status).toBe(200);
     expect(json.success).toBe(true);
     expect(json.data).toHaveLength(1);
     expect(json.data[0].ticker).toBe('AAPL');
   });
   it('缺少 query 参数应返回 422', async () => {
-    const res = await fetch(`${server.url}/api/backtest/search`);
+    const { res } = await get(`${server.url}/api/backtest/search`);
     expect(res.status).toBe(422);
   });
   it('搜索服务抛错时应返回 500', async () => {
     m.searchTickers.mockRejectedValue(new Error('search failed'));
-    const res = await fetch(`${server.url}/api/backtest/search?query=aapl`);
+    const { res } = await get(`${server.url}/api/backtest/search?query=aapl`);
     expect(res.status).toBe(500);
   });
 });
 
-function createMockJob(overrides: {
-  id?: string;
-  state?: string;
-  progress?: number;
-  returnvalue?: unknown;
-  failedReason?: string;
-  data?: Record<string, unknown>;
-}): Record<string, unknown> {
+function createMockJob(overrides: Record<string, unknown> = {}) {
   return {
-    id: overrides.id ?? 'job-async-001',
-    data: overrides.data ?? { type: 'portfolio', payload: {} },
-    progress: overrides.progress ?? 0,
-    returnvalue: overrides.returnvalue,
-    failedReason: overrides.failedReason,
+    id: 'job-123',
+    data: { type: 'optimizer' },
+    timestamp: 1700000000000,
+    processedOn: 1700000001000,
+    finishedOn: 1700000005000,
+    returnvalue: undefined,
+    failedReason: undefined,
+    progress: 0,
     getState: vi.fn().mockResolvedValue(overrides.state ?? 'completed'),
+    ...overrides,
   };
 }
 
@@ -621,8 +585,7 @@ describe('backtestRoutes - GET /api/backtest/runs/:jobId — 状态查询', () =
     ],
   ])('%s', async (_n, job, expected) => {
     queueMocks.getJob.mockResolvedValue(createMockJob(job));
-    const res = await fetch(`${server.url}/api/backtest/runs/${job.id}`);
-    const json = await res.json();
+    const { res, json } = await get(`${server.url}/api/backtest/runs/${job.id}`);
     expect(res.status).toBe(200);
     expect(json.success).toBe(true);
     expect(json.data.jobId).toBe(job.id);
@@ -635,8 +598,7 @@ describe('backtestRoutes - GET /api/backtest/runs/:jobId — 状态查询', () =
   });
   it('任务不存在时返回 404', async () => {
     queueMocks.getJob.mockResolvedValue(null);
-    const res = await fetch(`${server.url}/api/backtest/runs/nonexistent`);
-    const json = await res.json();
+    const { res, json } = await get(`${server.url}/api/backtest/runs/nonexistent`);
     expect(res.status).toBe(404);
     expect(json.success).toBe(false);
     expect(json.error.code).toBe('JOB_NOT_FOUND');
@@ -644,20 +606,6 @@ describe('backtestRoutes - GET /api/backtest/runs/:jobId — 状态查询', () =
 });
 
 import { jobRoutes } from '../../../packages/backend/src/routes/jobRoutes.js';
-
-function mockJob(overrides: Record<string, unknown> = {}) {
-  return {
-    id: 'job-123',
-    data: { type: 'optimizer' },
-    timestamp: 1700000000000,
-    processedOn: 1700000001000,
-    finishedOn: 1700000005000,
-    returnvalue: undefined,
-    failedReason: undefined,
-    getState: vi.fn().mockResolvedValue('completed'),
-    ...overrides,
-  };
-}
 
 describe('jobRoutes - GET /api/v1/jobs/:id', () => {
   let server: TestServer;
@@ -686,55 +634,53 @@ describe('jobRoutes - GET /api/v1/jobs/:id', () => {
 
   it('任务存在且已完成时应返回结果', async () => {
     queueMocks.getJob.mockResolvedValue(
-      mockJob({ id: 'job-123', returnvalue: { best: { cagr: 0.12 } } }),
+      createMockJob({ id: 'job-123', returnvalue: { best: { cagr: 0.12 } } }),
     );
-    const res = await fetch(`${server.url}/api/v1/jobs/job-123`);
-    const body = await res.json();
+    const { res, json } = await get(`${server.url}/api/v1/jobs/job-123`);
     expect(res.status).toBe(200);
-    expect(body.data.id).toBe('job-123');
-    expect(body.data.type).toBe('optimizer');
-    expect(body.data.state).toBe('completed');
-    expect(body.data.createdAt).toBe(1700000000000);
-    expect(body.data.processedAt).toBe(1700000001000);
-    expect(body.data.finishedAt).toBe(1700000005000);
-    expect(body.data.result).toEqual({ best: { cagr: 0.12 } });
+    expect(json.data.id).toBe('job-123');
+    expect(json.data.type).toBe('optimizer');
+    expect(json.data.state).toBe('completed');
+    expect(json.data.createdAt).toBe(1700000000000);
+    expect(json.data.processedAt).toBe(1700000001000);
+    expect(json.data.finishedAt).toBe(1700000005000);
+    expect(json.data.result).toEqual({ best: { cagr: 0.12 } });
     expect(queueMocks.getJob).toHaveBeenCalledWith('job-123');
   });
 
   it('任务存在且失败时应返回通用错误（不泄露内部 failedReason）', async () => {
     queueMocks.getJob.mockResolvedValue(
-      mockJob({
+      createMockJob({
         id: 'job-456',
         data: { type: 'grid-search' },
         failedReason: 'Engine timeout',
         getState: vi.fn().mockResolvedValue('failed'),
       }),
     );
-    const res = await fetch(`${server.url}/api/v1/jobs/job-456`);
-    const body = await res.json();
+    const { res, json } = await get(`${server.url}/api/v1/jobs/job-456`);
     expect(res.status).toBe(200);
-    expect(body.data.state).toBe('failed');
-    expect(body.data.error).toBe('Job execution failed');
-    expect(body.data.error).not.toContain('Engine timeout');
-    expect(body.data.result).toBeUndefined();
+    expect(json.data.state).toBe('failed');
+    expect(json.data.error).toBe('Job execution failed');
+    expect(json.data.error).not.toContain('Engine timeout');
+    expect(json.data.result).toBeUndefined();
   });
 
   it.each([
     [
       '越权访问他人任务应返回 404（ADR-019）',
-      mockJob({ id: 'job-owned', data: { type: 'optimizer', userId: 'owner-user' } }),
+      createMockJob({ id: 'job-owned', data: { type: 'optimizer', userId: 'owner-user' } }),
       { 'x-test-sub': 'attacker', 'x-test-role': 'analyst' },
       404,
     ],
     [
       '所有者本人可访问自己的任务',
-      mockJob({ id: 'job-mine', data: { type: 'optimizer', userId: 'owner-user' } }),
+      createMockJob({ id: 'job-mine', data: { type: 'optimizer', userId: 'owner-user' } }),
       { 'x-test-sub': 'owner-user', 'x-test-role': 'analyst' },
       200,
     ],
     [
       '跨租户访问任务应返回 404，即便是 admin（ADR-034）',
-      mockJob({
+      createMockJob({
         id: 'job-tenant-a',
         data: { type: 'optimizer', userId: 'owner-user', tenantId: 'org-a' },
       }),
@@ -743,7 +689,7 @@ describe('jobRoutes - GET /api/v1/jobs/:id', () => {
     ],
     [
       '同租户 admin 可访问租户任务',
-      mockJob({
+      createMockJob({
         id: 'job-tenant-ok',
         data: { type: 'optimizer', userId: 'someone', tenantId: 'org-a' },
       }),
@@ -752,7 +698,7 @@ describe('jobRoutes - GET /api/v1/jobs/:id', () => {
     ],
     [
       '平台管理员可跨租户访问任务（运维）',
-      mockJob({
+      createMockJob({
         id: 'job-tenant-pa',
         data: { type: 'optimizer', userId: 'someone', tenantId: 'org-a' },
       }),
@@ -766,7 +712,7 @@ describe('jobRoutes - GET /api/v1/jobs/:id', () => {
     ],
   ])('%s', async (_n, job, headers, expected) => {
     queueMocks.getJob.mockResolvedValue(job);
-    const res = await fetch(`${server.url}/api/v1/jobs/${job.id}`, { headers });
+    const { res } = await get(`${server.url}/api/v1/jobs/${job.id}`, headers);
     expect(res.status).toBe(expected);
   });
 
@@ -784,35 +730,32 @@ describe('jobRoutes - GET /api/v1/jobs/:id', () => {
 
   it('任务不存在时应返回 404', async () => {
     queueMocks.getJob.mockResolvedValue(null);
-    const res = await fetch(`${server.url}/api/v1/jobs/nonexistent`);
-    const body = await res.json();
+    const { res, json } = await get(`${server.url}/api/v1/jobs/nonexistent`);
     expect(res.status).toBe(404);
-    expect(body.error.status).toBe(404);
-    expect(body.error.title).toBe('JOB_NOT_FOUND');
+    expect(json.error.status).toBe(404);
+    expect(json.error.title).toBe('JOB_NOT_FOUND');
   });
 
   it('getJob 抛错时应返回 500', async () => {
     queueMocks.getJob.mockRejectedValue(new Error('Redis connection failed'));
-    const res = await fetch(`${server.url}/api/v1/jobs/job-err`);
-    const body = await res.json();
+    const { res, json } = await get(`${server.url}/api/v1/jobs/job-err`);
     expect(res.status).toBe(500);
-    expect(body.error.status).toBe(500);
-    expect(body.error.title).toBe('JOB_STATUS_ERROR');
+    expect(json.error.status).toBe(500);
+    expect(json.error.title).toBe('JOB_STATUS_ERROR');
   });
 
   it('任务处于 active 状态时不应包含 result 或 error', async () => {
     queueMocks.getJob.mockResolvedValue(
-      mockJob({
+      createMockJob({
         id: 'job-active',
         finishedOn: undefined,
         getState: vi.fn().mockResolvedValue('active'),
       }),
     );
-    const res = await fetch(`${server.url}/api/v1/jobs/job-active`);
-    const body = await res.json();
+    const { res, json } = await get(`${server.url}/api/v1/jobs/job-active`);
     expect(res.status).toBe(200);
-    expect(body.data.state).toBe('active');
-    expect(body.data.result).toBeUndefined();
-    expect(body.data.error).toBeUndefined();
+    expect(json.data.state).toBe('active');
+    expect(json.data.result).toBeUndefined();
+    expect(json.data.error).toBeUndefined();
   });
 });

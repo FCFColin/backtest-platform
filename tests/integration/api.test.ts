@@ -26,6 +26,16 @@ async function postPortfolio(portfolios: object[], parameters: object = BASE_PAR
   return { res, json: await res.json() };
 }
 
+const pf = (name: string, assets: object[], rebalanceFrequency = 'none' as const) => ({
+  name,
+  assets,
+  rebalanceFrequency,
+});
+const vtibnd = (weightVti = 60, weightBnd = 40) => [
+  { ticker: 'VTI', weight: weightVti },
+  { ticker: 'BND', weight: weightBnd },
+];
+
 describe('E2E - 搜索API', () => {
   skip('GET /api/backtest/search - 搜索VTI', async () => {
     const json = await (await fetch(`${API_BASE_URL}/api/backtest/search?query=VTI`)).json();
@@ -50,41 +60,23 @@ describe('E2E - 搜索API', () => {
 
 describe('E2E - 回测API正常场景', () => {
   skip('POST /api/backtest/portfolio - 正常回测VTI+BND', async () => {
-    const { json } = await postPortfolio(
-      [
-        {
-          name: 'Test',
-          assets: [
-            { ticker: 'VTI', weight: 60 },
-            { ticker: 'BND', weight: 40 },
-          ],
-          rebalanceFrequency: 'quarterly',
-        },
-      ],
-      { ...BASE_PARAMS, benchmarkTicker: 'SPY' },
-    );
+    const { json } = await postPortfolio([pf('Test', vtibnd(), 'quarterly')], {
+      ...BASE_PARAMS,
+      benchmarkTicker: 'SPY',
+    });
     expect(json.data.portfolios).toHaveLength(1);
     expect(json.data.portfolios[0].growthCurve.length).toBeGreaterThan(100);
     expect(json.data.portfolios[0].statistics.cagr).toBeGreaterThan(0);
     expect(json.data.portfolios[0].statistics.maxDrawdown).toBeGreaterThan(0); // maxDrawdown是小数，0.228=22.8%
   });
   skip('单资产SPY回测', async () => {
-    const { json } = await postPortfolio([
-      { name: 'SPY', assets: [{ ticker: 'SPY', weight: 100 }], rebalanceFrequency: 'none' },
-    ]);
+    const { json } = await postPortfolio([pf('SPY', [{ ticker: 'SPY', weight: 100 }])]);
     expect(json.data.portfolios[0].statistics.cagr).toBeGreaterThan(0.05);
   });
   skip('多组合同时回测', async () => {
     const { json } = await postPortfolio([
-      {
-        name: '保守',
-        assets: [
-          { ticker: 'VTI', weight: 20 },
-          { ticker: 'BND', weight: 80 },
-        ],
-        rebalanceFrequency: 'annual',
-      },
-      { name: '激进', assets: [{ ticker: 'VTI', weight: 100 }], rebalanceFrequency: 'annual' },
+      pf('保守', vtibnd(20, 80), 'annual'),
+      pf('激进', [{ ticker: 'VTI', weight: 100 }], 'annual'),
     ]);
     expect(json.data.portfolios).toHaveLength(2);
     expect(json.data.correlations).toHaveLength(2);
@@ -98,14 +90,10 @@ describe('E2E - 回测API做空场景', () => {
   skip('POST /api/backtest/portfolio - 做空场景不返回负值', async () => {
     const { res, json } = await postPortfolio(
       [
-        {
-          name: 'Short Test',
-          assets: [
-            { ticker: 'VTI', weight: 200 },
-            { ticker: 'NVDA', weight: -100 },
-          ],
-          rebalanceFrequency: 'none',
-        },
+        pf('Short Test', [
+          { ticker: 'VTI', weight: 200 },
+          { ticker: 'NVDA', weight: -100 },
+        ]),
       ],
       { ...BASE_PARAMS, startDate: '2023-01-01' },
     );
@@ -117,14 +105,10 @@ describe('E2E - 回测API做空场景', () => {
   skip('极端做空爆仓后CAGR=-1', async () => {
     const { json } = await postPortfolio(
       [
-        {
-          name: '爆仓',
-          assets: [
-            { ticker: 'SPY', weight: 300 },
-            { ticker: 'NVDA', weight: -200 },
-          ],
-          rebalanceFrequency: 'none',
-        },
+        pf('爆仓', [
+          { ticker: 'SPY', weight: 300 },
+          { ticker: 'NVDA', weight: -200 },
+        ]),
       ],
       { ...BASE_PARAMS, startDate: '2023-01-01' },
     );
@@ -156,31 +140,17 @@ describe('E2E - 回测API偏离调仓', () => {
 describe('E2E - 回测API错误处理', () => {
   skip('POST /api/backtest/portfolio - 无效ticker返回错误', async () => {
     const { json } = await postPortfolio(
-      [
-        {
-          name: 'Test',
-          assets: [{ ticker: 'INVALID_TICKER_XYZ', weight: 100 }],
-          rebalanceFrequency: 'none',
-        },
-      ],
+      [pf('Test', [{ ticker: 'INVALID_TICKER_XYZ', weight: 100 }])],
       { ...BASE_PARAMS, startDate: '2020-01-01' },
     );
     expect(json.success).toBe(false);
   });
   skip('POST /api/backtest/portfolio - 权重百分比正确处理', async () => {
-    const { json } = await postPortfolio(
-      [
-        {
-          name: 'Weight Test',
-          assets: [
-            { ticker: 'VTI', weight: 60 },
-            { ticker: 'BND', weight: 40 },
-          ],
-          rebalanceFrequency: 'none',
-        },
-      ],
-      { ...BASE_PARAMS, startDate: '2020-01-01', endDate: '2020-12-31' },
-    );
+    const { json } = await postPortfolio([pf('Weight Test', vtibnd())], {
+      ...BASE_PARAMS,
+      startDate: '2020-01-01',
+      endDate: '2020-12-31',
+    });
     const firstValue = json.data.portfolios[0].growthCurve[0].value;
     expect(firstValue).toBeLessThan(20000);
     expect(firstValue).toBeGreaterThan(5000);
@@ -214,19 +184,11 @@ describe('E2E - 回测API数据一致性', () => {
     );
   });
   skip('增长曲线首日价值≈startingValue', async () => {
-    const { json } = await postPortfolio(
-      [
-        {
-          name: 'Test',
-          assets: [
-            { ticker: 'VTI', weight: 60 },
-            { ticker: 'BND', weight: 40 },
-          ],
-          rebalanceFrequency: 'none',
-        },
-      ],
-      { ...BASE_PARAMS, startDate: '2020-01-01', endDate: '2020-12-31' },
-    );
+    const { json } = await postPortfolio([pf('Test', vtibnd())], {
+      ...BASE_PARAMS,
+      startDate: '2020-01-01',
+      endDate: '2020-12-31',
+    });
     expect(Math.abs(json.data.portfolios[0].growthCurve[0].value - 10000)).toBeLessThan(500); // 首日波动不大
   });
 });

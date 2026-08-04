@@ -7,6 +7,7 @@ import {
   configureOptimizationMocks,
   configurePortfolioBacktestMocks,
   configureTickerHelpersMocks,
+  EngineUnavailableErrorStub,
   type BacktestMockHandles,
 } from '../../helpers/backtestRoutesFixtures.js';
 
@@ -43,14 +44,6 @@ const internalMocks = vi.hoisted(() => ({
     existsSync: vi.fn().mockReturnValue(false),
     readFileSync: vi.fn(),
   },
-  engineUnavailable: class E extends Error {
-    readonly retryAfterSeconds = 30;
-    readonly code = 'ENGINE_UNAVAILABLE';
-    constructor(msg = '计算引擎暂不可用') {
-      super(msg);
-      this.name = 'EngineUnavailableError';
-    }
-  },
   queue: { add: vi.fn(), getJob: vi.fn() },
 }));
 
@@ -77,6 +70,18 @@ vi.mock('../../../packages/backend/src/infrastructure/dataFacade.js', () => ({
   initDb: vi.fn(),
   invalidateCache: vi.fn(),
 }));
+vi.mock('../../../packages/backend/src/infrastructure/dataServices.js', () => ({
+  SYNTHETIC_TICKERS: [
+    {
+      ticker: 'SPYSIM',
+      name: 'S&P 500 Index',
+      category: 'Index',
+      description: '',
+      earliestDate: '',
+      methodology: 'splice_by_return',
+    },
+  ],
+}));
 vi.mock('../../../packages/backend/src/application/backtest-helpers.js', () => ({
   preparePortfolioBacktest: internalMocks.m.preparePortfolioBacktest,
   collectInvalidTickerWarnings: internalMocks.m.collectInvalidTickerWarnings,
@@ -90,7 +95,7 @@ vi.mock('../../../packages/backend/src/application/backtest-helpers.js', () => (
 }));
 vi.mock('../../../packages/backend/src/utils/engineClient.js', () => ({
   callEngineStrict: internalMocks.m.callEngineStrict,
-  EngineUnavailableError: internalMocks.engineUnavailable,
+  EngineUnavailableError: EngineUnavailableErrorStub,
   resetEngineAvailability: vi.fn(),
   unwrapEngineData: <T>(r: unknown): T => ((r as { data?: T })?.data ?? r) as T,
 }));
@@ -127,5 +132,4 @@ configureTickerHelpersMocks(internalMocks.m);
 export const m = internalMocks.m;
 export { loggerMocks } from '../../helpers/middlewareMocks.js';
 export const fsMocks = internalMocks.fs;
-export const MockEngineUnavailableError = internalMocks.engineUnavailable;
 export const queueMocks = internalMocks.queue;

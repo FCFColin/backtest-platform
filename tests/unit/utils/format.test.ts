@@ -1,53 +1,16 @@
-import { describe, it, expect, afterEach } from 'vitest';
-import i18n from '../../../packages/frontend/src/i18n/index.js';
+import { describe, it, expect } from 'vitest';
 import {
-  fmtDate,
-  fmtYears,
   fmtPct,
   fmtRatio,
   fmtNum,
   fmtDollar,
   formatCurrency,
-  formatCurrencyShort,
   formatPercent,
   formatPercentSigned,
   formatNumber,
 } from '../../../packages/frontend/src/utils/format.js';
 
-describe('fmtDate', () => {
-  const originalLng = i18n.language;
-  afterEach(() => {
-    i18n.changeLanguage(originalLng);
-  });
-
-  it.each([undefined, '', null, 'not-a-date', '2024-13-45'])('无效输入 %p 应返回占位符', (v) => {
-    expect(fmtDate(v as string | undefined)).toBe('—');
-  });
-
-  it.each([
-    ['zh-CN', '2024年1月15日'],
-    ['en', 'Jan 15, 2024'],
-  ])('%s 应格式化为对应格式', (lng, expected) => {
-    i18n.changeLanguage(lng);
-    expect(fmtDate('2024-01-15')).toBe(expected);
-  });
-
-  it('应支持 Date 对象输入', () => {
-    i18n.changeLanguage('zh-CN');
-    expect(fmtDate(new Date(2024, 0, 15))).toBe('2024年1月15日');
-  });
-});
-
 describe.each([
-  [
-    'fmtYears',
-    fmtYears,
-    [
-      [0, '0天'],
-      [5.5, '5年6个月'],
-      [-1.234, '0天'],
-    ],
-  ],
   [
     'fmtPct',
     fmtPct,
@@ -104,7 +67,6 @@ describe('formatters — Infinity/极端值边界（D5-010）', () => {
     ['formatPercent', formatPercent],
     ['formatPercentSigned', formatPercentSigned],
     ['formatNumber', formatNumber],
-    ['formatCurrencyShort', formatCurrencyShort],
   ])('%s(Infinity/-Infinity/MAX_VALUE/MIN_VALUE/MAX_SAFE_INTEGER) 不应抛异常', (_n, fn) => {
     expect(() => fn(Infinity)).not.toThrow();
     expect(() => fn(-Infinity)).not.toThrow();
@@ -118,7 +80,6 @@ describe('formatters — Infinity/极端值边界（D5-010）', () => {
     ['formatPercent', formatPercent],
     ['formatPercentSigned', formatPercentSigned],
     ['formatNumber', formatNumber],
-    ['formatCurrencyShort', formatCurrencyShort],
   ])('%s(NaN/null/undefined) 应返回占位符', (_n, fn) => {
     expect(fn(NaN)).toBe('—');
     expect(fn(null as unknown as number)).toBe('—');

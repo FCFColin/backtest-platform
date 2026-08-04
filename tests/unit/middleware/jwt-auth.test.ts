@@ -1,9 +1,12 @@
 ﻿import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { SignJWT, importJWK, generateKeyPair, jwtVerify } from 'jose';
+import { generateKeyPair, jwtVerify } from 'jose';
 import {
   setupJwtAuthTestMocks,
-  base64urlEncode,
   signTestToken,
+  signRsa,
+  validPayload,
+  b64url,
+  decodePayload,
 } from '../../helpers/authFixtures.js';
 import {
   createJwtAuthMockRequest,
@@ -65,32 +68,8 @@ async function expectJwtAuth401(
     expect(res.header).toHaveBeenCalledWith('Content-Type', 'application/problem+json');
   }
 }
-async function signHS256(payload: Record<string, unknown>, setExp = true): Promise<string> {
-  const key = await importJWK({ kty: 'oct', k: base64urlEncode(mocks.config.JWT_SECRET) }, 'HS256');
-  const builder = new SignJWT(payload).setProtectedHeader({ alg: 'HS256' }).setIssuedAt();
-  if (setExp) builder.setExpirationTime('1h');
-  return builder.sign(key);
-}
-function signRsa(payload: Record<string, unknown>, key: CryptoKey, kid?: string) {
-  return new SignJWT(payload)
-    .setProtectedHeader({ alg: 'RS256', ...(kid ? { kid } : {}) })
-    .setIssuedAt()
-    .setExpirationTime('1h')
-    .sign(key);
-}
-function validPayload(overrides: Record<string, unknown> = {}): Record<string, unknown> {
-  return { sub: 'user-1', role: 'admin', ...overrides };
-}
-function setupAuthEnv() {
-  setupJwtAuthTestMocks(mocks, redisMocks);
-}
-function b64url(obj: unknown): string {
-  return Buffer.from(JSON.stringify(obj)).toString('base64url');
-}
-function decodePayload(token: string): Record<string, unknown> {
-  return JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString());
-}
 const HACKER = { sub: 'hacker', role: 'admin', iat: 0, exp: 9999999999 };
+const setupAuthEnv = () => setupJwtAuthTestMocks(mocks, redisMocks);
 
 describe('JWT 生成与验证', () => {
   beforeEach(() => setupAuthEnv());
@@ -147,7 +126,10 @@ describe('JWT 生成与验证', () => {
   });
   it.each([
     ['缺少 exp', async () => signTestToken({ sub: 'user-1', role: 'admin' }, { omitExp: true })],
-    ['exp 为 Infinity', async () => signHS256(validPayload({ exp: Infinity }), false)],
+    [
+      'exp 为 Infinity',
+      async () => signTestToken(validPayload({ exp: Infinity }), { omitExp: true }),
+    ],
   ])('%s 应被拒绝（永不过期 = 安全风险）', async (_n, build) => {
     expect(await verifyToken(await build())).toBeNull();
   });
@@ -336,7 +318,7 @@ describe('verifyToken RS256 算法边界', () => {
     mocks.config.JWT_ALGORITHM = 'RS256';
   });
   it.each([
-    ['HS256 签发（禁止算法回退）', async () => signHS256(validPayload())],
+    ['HS256 签发（禁止算法回退）', async () => signTestToken(validPayload())],
     [
       '不同 RSA 密钥对（kid 不匹配）',
       async () =>

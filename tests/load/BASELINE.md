@@ -88,15 +88,15 @@ prices 表）。建议加定时预热（如 25 分钟间隔），避免业务高
 | `/admin`       | 2-4ms      | ✅              |
 | `/*` (404)     | 2-4ms      | ✅              |
 
-## 3. 如何运行
+## 4. 如何运行
 
-### 3.1 前置条件
+### 4.1 前置条件
 
 - 目标服务已启动（默认 `http://localhost:15001`，可通过 `BASE_URL` 覆盖）
 - 已安装 k6（`brew install k6` / `choco install k6` / 见 [k6 安装文档](https://k6.io/docs/get-started/installation/)）
 - 如需鉴权，准备一个有效 API Key 并通过 `API_KEY` 环境变量传入
 
-### 3.2 运行单个场景
+### 4.2 运行单个场景
 
 ```bash
 # 回测提交
@@ -115,14 +115,14 @@ k6 run tests/load/optimizer.js
 BASE_URL=http://localhost:15001 API_KEY=bt_xxx k6 run tests/load/backtest-submit.js
 ```
 
-### 3.3 运行全部场景
+### 4.3 运行全部场景
 
 ```bash
 # 通过根 package.json 脚本（需本地安装 k6）
 pnpm load:test:all
 ```
 
-### 3.4 通过 Docker（无需本地安装 k6）
+### 4.4 通过 Docker（无需本地安装 k6）
 
 ```bash
 # 启动依赖栈 + API（k6 通过 profiles 按需运行，不会随栈常驻）
@@ -132,9 +132,9 @@ docker compose up -d postgres redis engine-go data-fetcher api
 docker compose run --rm k6 run /scripts/backtest-submit.js
 ```
 
-## 4. 如何与基线对比
+## 5. 如何与基线对比
 
-### 4.1 手动对比
+### 5.1 手动对比
 
 k6 运行结束会在终端输出每个指标的分位数与 threshold 判定结果，例如：
 
@@ -146,7 +146,7 @@ k6 运行结束会在终端输出每个指标的分位数与 threshold 判定结
 
 将 `p(99)` 与上表「实测基线」对比，若超出基线 20% 则判定为回归。
 
-### 4.2 CI 自动对比
+### 5.2 CI 自动对比
 
 夜间流水线 `.github/workflows/load-test.yml` 运行全部 3 个场景，并通过
 `enkichristopher/k6-baseline-action@v1`（或等价脚本）将本次 P95/P99 与
@@ -155,13 +155,13 @@ k6 运行结束会在终端输出每个指标的分位数与 threshold 判定结
 > 首次建立基线：运行一次完整负载测试，将实测 P50/P95/P99 填入本文档第 2 节
 > 「实测基线」列并提交，作为后续回归对比的锚点。
 
-## 5. 回归判定规则
+## 6. 回归判定规则
 
 - **通过**：所有 threshold 满足 SLA，且 P95/P99 未超出基线 20%。
 - **告警（非阻断）**：threshold 满足但 P95/P99 超出基线 20% — 夜间流水线 `continue-on-error: true`，仅记录趋势。
 - **失败**：threshold 不满足 SLA（P99 超阈值或错误率 ≥ 5%）— 需立即排查。
 
-## 6. 指标说明
+## 7. 指标说明
 
 | 指标                | 类型  | 含义                                            |
 | ------------------- | ----- | ----------------------------------------------- |

@@ -61,26 +61,19 @@ describe('createUser - 用户创建', () => {
     );
   });
   it('应支持默认 analyst 角色、指定 admin/readonly 角色与 SQL 注入用户名（参数化）', async () => {
-    await createUser('testuser', 'password123');
-    await createUser('adminuser', 'password123', 'admin');
-    await createUser('readonlyuser', 'password123', 'readonly');
-    await createUser("'; DROP TABLE users; --", 'password123');
-    expect(mocks.pool.query).toHaveBeenCalledWith(
-      expect.any(String),
-      expect.arrayContaining(['testuser', 'hashed-password', 'analyst']),
-    );
-    expect(mocks.pool.query).toHaveBeenCalledWith(
-      expect.any(String),
-      expect.arrayContaining(['adminuser', 'hashed-password', 'admin']),
-    );
-    expect(mocks.pool.query).toHaveBeenCalledWith(
-      expect.any(String),
-      expect.arrayContaining(['readonlyuser', 'hashed-password', 'readonly']),
-    );
-    expect(mocks.pool.query).toHaveBeenCalledWith(
-      expect.any(String),
-      expect.arrayContaining(["'; DROP TABLE users; --", 'hashed-password', 'analyst']),
-    );
+    const users: [string, string | undefined][] = [
+      ['testuser', undefined],
+      ['adminuser', 'admin'],
+      ['readonlyuser', 'readonly'],
+      ["'; DROP TABLE users; --", undefined],
+    ];
+    for (const [username, role] of users) await createUser(username, 'password123', role);
+    for (const [username, role] of users) {
+      expect(mocks.pool.query).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.arrayContaining([username, 'hashed-password', role ?? 'analyst']),
+      );
+    }
     expect(firstSql()).not.toContain('DROP TABLE');
   });
   it('应返回正确的用户对象', async () => {

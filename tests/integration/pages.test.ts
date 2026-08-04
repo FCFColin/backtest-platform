@@ -14,6 +14,15 @@ beforeAll(async () => {
   serverAvailable = await checkServerAvailable(`${BASE_URL}/api/health`);
 });
 
+async function post(path: string, body: object) {
+  const res = await fetch(`${BASE_URL}${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  return res.json();
+}
+
 describe('数据引擎页面', () => {
   it.skipIf(!serverAvailable)('正常加载：应显示统计数据', async () => {
     const res = await fetch(`${BASE_URL}/api/data/manage/stats`);
@@ -87,19 +96,12 @@ describe('引擎状态指示器', () => {
 
 describe('新增工具页面 API', () => {
   it.skipIf(!serverAvailable)('PCA 分析端点存在', async () => {
-    const res = await fetch(`${BASE_URL}/api/pca/analyze`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        tickers: ['VTI', 'BND'],
-        startDate: '2020-01-01',
-        endDate: '2024-12-31',
-      }),
+    const json = await post('/api/pca/analyze', {
+      tickers: ['VTI', 'BND'],
+      startDate: '2020-01-01',
+      endDate: '2024-12-31',
     });
-    const json = await res.json();
-    expect(json).toBeDefined();
     expect(json.success).toBe(true);
-    expect(json.data).toBeDefined();
     expect(json.data.eigenvalues).toBeDefined();
     expect(json.data.loadings).toBeDefined();
     expect(json.data.cumulativeVariance).toBeDefined();
@@ -107,44 +109,30 @@ describe('新增工具页面 API', () => {
   });
 
   it.skipIf(!serverAvailable)('信号分析端点存在', async () => {
-    const res = await fetch(`${BASE_URL}/api/signal/analyze`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        ticker: 'VTI',
-        indicator: 'sma',
-        period: 50,
-        threshold: 0,
-        startDate: '2020-01-01',
-        endDate: '2024-12-31',
-        signalType: 'both',
-      }),
+    const json = await post('/api/signal/analyze', {
+      ticker: 'VTI',
+      indicator: 'sma',
+      period: 50,
+      threshold: 0,
+      startDate: '2020-01-01',
+      endDate: '2024-12-31',
+      signalType: 'both',
     });
-    const json = await res.json();
-    expect(json).toBeDefined();
     expect(json.success).toBe(true);
-    expect(json.data).toBeDefined();
     expect(json.data.signals).toBeDefined();
     expect(json.data.statistics).toBeDefined();
     expect(json.data.equityCurve).toBeDefined();
   });
 
   it.skipIf(!serverAvailable)('LETF 滑点分析端点存在', async () => {
-    const res = await fetch(`${BASE_URL}/api/letf/analyze`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        letfTicker: 'SPXL',
-        benchmarkTicker: 'SPY',
-        leverage: 3,
-        startDate: '2020-01-01',
-        endDate: '2024-12-31',
-      }),
+    const json = await post('/api/letf/analyze', {
+      letfTicker: 'SPXL',
+      benchmarkTicker: 'SPY',
+      leverage: 3,
+      startDate: '2020-01-01',
+      endDate: '2024-12-31',
     });
-    const json = await res.json();
-    expect(json).toBeDefined();
     expect(json.success).toBe(true);
-    expect(json.data).toBeDefined();
     expect(json.data.slippageCurve).toBeDefined();
     expect(json.data.annualDecay).toBeDefined();
     expect(json.data.effectiveLeverage).toBeDefined();
@@ -152,54 +140,40 @@ describe('新增工具页面 API', () => {
   });
 
   it.skipIf(!serverAvailable)('战术分配端点存在', async () => {
-    const res = await fetch(`${BASE_URL}/api/tactical/backtest`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        strategy: {
-          id: 'test-strategy',
-          name: '测试策略',
-          signals: [
-            {
-              id: 'sig1',
-              name: 'SMA50',
-              conditions: [{ indicator: 'sma', period: 50, operator: 'gt', threshold: 0 }],
-              targetWeights: [{ ticker: 'VTI', weight: 100 }],
-            },
-          ],
-          aggregationMethod: 'voting',
-        },
-        startDate: '2020-01-01',
-        endDate: '2024-12-31',
-        startingValue: 10000,
-        rebalanceFrequency: 'quarterly',
-      }),
+    const json = await post('/api/tactical/backtest', {
+      strategy: {
+        id: 'test-strategy',
+        name: '测试策略',
+        signals: [
+          {
+            id: 'sig1',
+            name: 'SMA50',
+            conditions: [{ indicator: 'sma', period: 50, operator: 'gt', threshold: 0 }],
+            targetWeights: [{ ticker: 'VTI', weight: 100 }],
+          },
+        ],
+        aggregationMethod: 'voting',
+      },
+      startDate: '2020-01-01',
+      endDate: '2024-12-31',
+      startingValue: 10000,
+      rebalanceFrequency: 'quarterly',
     });
-    const json = await res.json();
-    expect(json).toBeDefined();
     expect(json.success).toBe(true);
-    expect(json.data).toBeDefined();
     expect(json.data.portfolio).toBeDefined();
     expect(json.data.benchmark).toBeDefined();
     expect(json.data.signalHistory).toBeDefined();
   });
 
   it.skipIf(!serverAvailable)('目标优化器端点存在', async () => {
-    const res = await fetch(`${BASE_URL}/api/goal-optimizer/optimize`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        targetAmount: 100000,
-        initialAmount: 10000,
-        years: 10,
-        assets: [{ ticker: 'VTI', weight: 100 }],
-        numSimulations: 100,
-      }),
+    const json = await post('/api/goal-optimizer/optimize', {
+      targetAmount: 100000,
+      initialAmount: 10000,
+      years: 10,
+      assets: [{ ticker: 'VTI', weight: 100 }],
+      numSimulations: 100,
     });
-    const json = await res.json();
-    expect(json).toBeDefined();
     expect(json.success).toBe(true);
-    expect(json.data).toBeDefined();
     expect(json.data.successProbability).toBeDefined();
     expect(json.data.probabilityCurve).toBeDefined();
     expect(json.data.optimalPath).toBeDefined();
@@ -209,23 +183,23 @@ describe('新增工具页面 API', () => {
 
 describe('布局验证', () => {
   it('导航栏包含所有工具页面入口', () => {
-    const navConfigSource = readFileSync(
+    const navSource = readFileSync(
       resolve(process.cwd(), 'packages/frontend/src/components/layout/Navbar.tsx'),
       'utf-8',
     );
-    expect(navConfigSource).toContain("to: '/'");
-    expect(navConfigSource).toContain("to: '/backtest-optimizer'");
-    expect(navConfigSource).toContain("to: '/analysis'");
-    expect(navConfigSource).toContain("to: '/pca'");
-    expect(navConfigSource).toContain("to: '/optimizer'");
-    expect(navConfigSource).toContain("to: '/monte-carlo'");
-    expect(navConfigSource).toContain("to: '/tactical'");
-    expect(navConfigSource).toContain("to: '/letf-slippage'");
-    const navbarSource = readFileSync(
-      resolve(process.cwd(), 'packages/frontend/src/components/layout/Navbar.tsx'),
-      'utf-8',
-    );
-    expect(navbarSource).toContain("to: '/data-engine'");
+    for (const to of [
+      '/',
+      '/backtest-optimizer',
+      '/analysis',
+      '/pca',
+      '/optimizer',
+      '/monte-carlo',
+      '/tactical',
+      '/letf-slippage',
+      '/data-engine',
+    ]) {
+      expect(navSource).toContain(`to: '${to}'`);
+    }
   });
 
   it('页脚包含法律链接', () => {

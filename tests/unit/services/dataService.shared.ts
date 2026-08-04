@@ -50,7 +50,7 @@ const internalMocks = vi.hoisted(() => ({
     signFile: vi.fn().mockResolvedValue(undefined),
     verifyFile: vi.fn().mockResolvedValue(true),
   },
-  http: { request: vi.fn() },
+  goDataServiceClient: { callGoDataService: vi.fn() },
   dataQuery: {
     validateTickers: vi.fn(),
     queryPricesFromDb: vi.fn(),
@@ -119,16 +119,14 @@ vi.mock('opossum', () => ({
 }));
 vi.mock('fs', () => ({ default: internalMocks.fs, ...internalMocks.fs }));
 vi.mock('fs/promises', () => ({ default: internalMocks.fsPromises, ...internalMocks.fsPromises }));
+vi.mock('../../../packages/backend/src/infrastructure/goDataServiceClient.js', () => ({
+  callGoDataService: internalMocks.goDataServiceClient.callGoDataService,
+}));
 vi.mock('../../../packages/backend/src/utils/integrity.js', () => ({
   signFileSync: internalMocks.integrity.signFileSync,
   verifyFileSync: internalMocks.integrity.verifyFileSync,
   signFile: internalMocks.integrity.signFile,
   verifyFile: internalMocks.integrity.verifyFile,
-}));
-vi.mock('http', () => ({
-  default: { request: internalMocks.http.request },
-  request: internalMocks.http.request,
-  Agent: vi.fn(() => ({ sockets: {}, destroy: vi.fn() })),
 }));
 
 export const dbMocks = internalMocks.db;
@@ -139,7 +137,7 @@ export const fsMocks = internalMocks.fs;
 export const fsPromisesMocks = internalMocks.fsPromises;
 export const circuitBreakerMocks = internalMocks.circuitBreaker;
 export const integrityMocks = internalMocks.integrity;
-export const httpMocks = internalMocks.http;
+export const goDataServiceClientMocks = internalMocks.goDataServiceClient;
 export const dataQueryMocks = internalMocks.dataQuery;
 export const dataCacheMocks = internalMocks.dataCache;
 export const dateUtilsMocks = internalMocks.dateUtils;

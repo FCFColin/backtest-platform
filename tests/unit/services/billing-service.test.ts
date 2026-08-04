@@ -379,42 +379,21 @@ describe('getMonthlyUsage', () => {
     expect(await getMonthlyUsage(ORG, 'backtest')).toBe(42);
     expect(dbMocks.withTenant).not.toHaveBeenCalled();
   });
-
-  it('Redis 未命中回退 DB 并回填', async () => {
-    redisMocks.get.mockResolvedValueOnce(null);
-    dbMocks.client.query.mockResolvedValueOnce({ rows: [{ count: 7 }] });
-    expect(await getMonthlyUsage(ORG, 'backtest')).toBe(7);
-    expect(redisMocks.set).toHaveBeenCalled();
-  });
-
-  it('DB 无记录返回 0', async () => {
-    redisMocks.get.mockResolvedValueOnce(null);
-    dbMocks.client.query.mockResolvedValueOnce({ rows: [] });
-    expect(await getMonthlyUsage(ORG, 'backtest')).toBe(0);
-  });
-
-  it('Redis get 异常应回退 DB', async () => {
-    redisMocks.get.mockRejectedValueOnce(new Error('redis get down'));
-    dbMocks.client.query.mockResolvedValueOnce({ rows: [{ count: 3 }] });
-    expect(await getMonthlyUsage(ORG, 'backtest')).toBe(3);
-  });
-
-  it('回填 Redis 失败应忽略', async () => {
-    redisMocks.get.mockResolvedValueOnce(null);
-    dbMocks.client.query.mockResolvedValueOnce({ rows: [{ count: 7 }] });
-    redisMocks.set.mockRejectedValueOnce(new Error('set failed'));
-    expect(await getMonthlyUsage(ORG, 'backtest')).toBe(7);
-  });
-
-  it('DB 查询失败应返回 0 并记录错误', async () => {
-    redisMocks.get.mockResolvedValueOnce(null);
-    dbMocks.client.query.mockRejectedValueOnce(new Error('db error'));
-    expect(await getMonthlyUsage(ORG, 'backtest')).toBe(0);
-  });
-
-  it('Redis 缓存值为非数字应回退 DB', async () => {
-    redisMocks.get.mockResolvedValueOnce('NaN');
-    dbMocks.client.query.mockResolvedValueOnce({ rows: [{ count: 5 }] });
-    expect(await getMonthlyUsage(ORG, 'backtest')).toBe(5);
+  it.each<[string, string | null | Error, unknown, number, string | Error | null]>([
+    ['Redis 未命中回退 DB 并回填', null, { rows: [{ count: 7 }] }, 7, 'OK'],
+    ['DB 无记录返回 0', null, { rows: [] }, 0, null],
+    ['Redis get 异常应回退 DB', new Error('get down'), { rows: [{ count: 3 }] }, 3, null],
+    ['回填 Redis 失败应忽略', null, { rows: [{ count: 7 }] }, 7, new Error('set failed')],
+    ['DB 查询失败应返回 0 并记录错误', null, new Error('db error'), 0, null],
+    ['Redis 缓存值为非数字应回退 DB', 'NaN', { rows: [{ count: 5 }] }, 5, null],
+  ])('%s', async (_n, redisVal, dbVal, expected, setVal) => {
+    if (redisVal instanceof Error) redisMocks.get.mockRejectedValueOnce(redisVal);
+    else redisMocks.get.mockResolvedValueOnce(redisVal);
+    if (dbVal instanceof Error) dbMocks.client.query.mockRejectedValueOnce(dbVal);
+    else dbMocks.client.query.mockResolvedValueOnce(dbVal);
+    if (setVal instanceof Error) redisMocks.set.mockRejectedValueOnce(setVal);
+    else if (setVal !== null) redisMocks.set.mockResolvedValueOnce(setVal);
+    expect(await getMonthlyUsage(ORG, 'backtest')).toBe(expected);
+    if (setVal !== null) expect(redisMocks.set).toHaveBeenCalled();
   });
 });

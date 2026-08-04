@@ -138,7 +138,6 @@ function factoryRoutesFromFile(
 }
 
 function buildImplementedPaths(): SpecPaths {
-  const mounts = extractMountPoints();
   const result: SpecPaths = new Map();
   const add = (fullPath: string, method: string): void => {
     if (!result.has(fullPath)) {
@@ -166,13 +165,21 @@ function buildImplementedPaths(): SpecPaths {
 
 const EXEMPT_PREFIXES = ['/health', '/ready', '/metrics'];
 
+const mounts = extractMountPoints();
+
+const assertCoverage = (covered: number, required: number, label: string, missing: string[]) => {
+  if (covered >= required) return;
+  throw new Error(
+    `${label} ${(covered * 100).toFixed(1)}% < ${required * 100}%，缺失:\n${missing.slice(0, 15).join('\n')}`,
+  );
+};
+
 describe('OpenAPI 契约测试 — API 实现一致性（D5-009）', () => {
   const specPathsPromise = extractSpecPaths();
   const implementedPaths = buildImplementedPaths();
 
-  it('应从 app.ts 提取 ≥15 个路由挂载点', () => {
-    const mounts = extractMountPoints();
-    expect(mounts.length).toBeGreaterThanOrEqual(15);
+  it('应从 app.ts 提取 ≥12 个路由挂载点（ADR-042 合并挂载后实际 12 个）', () => {
+    expect(mounts.length).toBeGreaterThanOrEqual(12);
   });
 
   it('应从路由文件提取 ≥40 个实现路径', () => {
@@ -182,42 +189,27 @@ describe('OpenAPI 契约测试 — API 实现一致性（D5-009）', () => {
   it('spec 中 ≥60% 的路径应在 Express 实现中存在', async () => {
     const specPaths = await specPathsPromise;
     const implemented = new Set(implementedPaths.keys());
-    let missing = 0;
-    const missingPaths: string[] = [];
-    for (const specPath of specPaths.keys()) {
-      if (!implemented.has(specPath)) {
-        missing++;
-        missingPaths.push(specPath);
-      }
-    }
-    const coverage = (specPaths.size - missing) / specPaths.size;
-    if (coverage < 0.6) {
-      throw new Error(
-        `spec 路径实现覆盖率 ${(coverage * 100).toFixed(1)}% < 60%，缺失路径:\n${missingPaths.slice(0, 15).join('\n')}`,
-      );
-    }
+    const missingPaths = [...specPaths.keys()].filter((p) => !implemented.has(p));
+    assertCoverage(
+      (specPaths.size - missingPaths.length) / specPaths.size,
+      0.6,
+      'spec 路径实现覆盖率',
+      missingPaths,
+    );
   });
 
   it('Express 实现的路径 ≥60% 应在 spec 中有记录（豁免 /health /ready /metrics）', async () => {
     const specPaths = await specPathsPromise;
-    let undocumented = 0;
-    const undocumentedPaths: string[] = [];
-    for (const implPath of implementedPaths.keys()) {
-      if (EXEMPT_PREFIXES.some((p) => implPath.startsWith(p))) continue;
-      if (!specPaths.has(implPath)) {
-        undocumented++;
-        undocumentedPaths.push(implPath);
-      }
-    }
-    const nonExempt = Array.from(implementedPaths.keys()).filter(
+    const nonExempt = [...implementedPaths.keys()].filter(
       (p) => !EXEMPT_PREFIXES.some((ep) => p.startsWith(ep)),
-    ).length;
-    const coverage = (nonExempt - undocumented) / nonExempt;
-    if (coverage < 0.6) {
-      throw new Error(
-        `实现路径 spec 覆盖率 ${(coverage * 100).toFixed(1)}% < 60%，未记录路径:\n${undocumentedPaths.slice(0, 15).join('\n')}`,
-      );
-    }
+    );
+    const undocumented = nonExempt.filter((p) => !specPaths.has(p));
+    assertCoverage(
+      (nonExempt.length - undocumented.length) / nonExempt.length,
+      0.6,
+      '实现路径 spec 覆盖率',
+      undocumented,
+    );
   });
 
   it('spec 与实现共有的路径，HTTP 方法应一致', async () => {
@@ -238,13 +230,10 @@ describe('OpenAPI 契约测试 — API 实现一致性（D5-009）', () => {
   });
 
   it('应无重复路由定义（同一路径 + 方法在单个路由文件中仅定义一次）', () => {
-    const mounts = extractMountPoints();
     const duplicates: string[] = [];
     for (const mount of mounts) {
-      const filePath = path.join(routesDir, `${mount.routeFile}.ts`);
-      const routes = extractRoutesFromFile(filePath);
       const seen = new Set<string>();
-      for (const r of routes) {
+      for (const r of extractRoutesFromFile(path.join(routesDir, `${mount.routeFile}.ts`))) {
         const key = `${r.method} ${r.path}`;
         if (seen.has(key)) {
           duplicates.push(`${mount.routeFile}: ${key}`);

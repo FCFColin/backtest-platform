@@ -31,24 +31,18 @@ vi.mock('../../../packages/backend/src/config/env.js', () => ({
   resolveJwtAlgorithm: vi.fn(),
 }));
 
+// redisClient 断言依赖模块加载期（import 时）记录的 IORedis 构造调用。
+// ADR-045 后 redisClient.ts 统一使用 (options) 单参数形式（buildRedisBaseOptions）。
 const ioredisMocks = vi.hoisted(() => {
-  const instances: Array<{
-    options: Record<string, unknown>;
-    on: ReturnType<typeof vi.fn>;
-  }> = [];
+  const instances: Array<{ options: Record<string, unknown>; on: ReturnType<typeof vi.fn> }> = [];
   return {
     instances,
-    // ioredis 支持多种构造签名：(url, options)、(options)、()。
-    // ADR-045 后 redisClient.ts 统一使用 (options) 单参数形式（buildRedisBaseOptions）。
     IORedis: vi.fn(function (this: unknown, ...args: unknown[]) {
       const opts =
         args.length >= 1 && typeof args[0] === 'object' && args[0] !== null
           ? { ...(args[0] as Record<string, unknown>) }
           : { url: args[0], ...((args[1] as Record<string, unknown>) ?? {}) };
-      const instance = {
-        options: opts,
-        on: vi.fn(),
-      };
+      const instance = { options: opts, on: vi.fn() };
       instances.push(instance);
       return instance;
     }),
@@ -71,7 +65,6 @@ import {
   appRedis,
 } from '../../../packages/backend/src/infrastructure/redisClient.js';
 
-// redisClient 断言依赖模块加载期（import 时）记录的 IORedis 构造调用，必须先于任何
 describe('redisConnection（BullMQ 专用）', () => {
   it('应导出实例并使用解析自 REDIS_URL 的 host/port 连接（单实例模式）', () => {
     expect(redisConnection).toBeDefined();
@@ -213,169 +206,132 @@ const baseRow = {
   updated_at: new Date('2026-06-01T00:00:00.000Z'),
 };
 
-describe('getPortfolio', () => {
+describe('portfolioRepo CRUD', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it('应返回完整 PortfolioRecord', async () => {
-    dbMocks.query.mockResolvedValueOnce({ rows: [baseRow] });
-    const r = await getPortfolio(TENANT, PORTFOLIO_ID);
-    expect(r).not.toBeNull();
-    expect(r!.id).toBe(PORTFOLIO_ID);
-    expect(r!.name).toBe('Test Portfolio');
-    expect(r!.assets).toHaveLength(2);
-    expect(r!.rebalanceFrequency).toBe('quarterly');
-    expect(r!.ownerUserId).toBe('u1');
-    expect(r!.createdAt).toBe('2026-01-01T00:00:00.000Z');
-    expect(r!.updatedAt).toBe('2026-06-01T00:00:00.000Z');
-    expect(dbMocks.withTenant).toHaveBeenCalledWith(TENANT);
-  });
-
-  it('不存在应返回 null', async () => {
-    dbMocks.query.mockResolvedValueOnce({ rows: [] });
-    const r = await getPortfolio(TENANT, PORTFOLIO_ID);
-    expect(r).toBeNull();
-  });
-});
-
-describe('deletePortfolio', () => {
-  beforeEach(() => vi.clearAllMocks());
-
-  it('删除成功应返回 true', async () => {
-    dbMocks.query.mockResolvedValueOnce({ rowCount: 1 });
-    const r = await deletePortfolio(TENANT, PORTFOLIO_ID);
-    expect(r).toBe(true);
-    expect(dbMocks.withTenant).toHaveBeenCalledWith(TENANT);
-    expect(dbMocks.query).toHaveBeenCalledWith('DELETE FROM portfolios WHERE id = $1', [
-      PORTFOLIO_ID,
-    ]);
-  });
-
-  it('ID 不存在应返回 false', async () => {
-    dbMocks.query.mockResolvedValueOnce({ rowCount: 0 });
-    const r = await deletePortfolio(TENANT, PORTFOLIO_ID);
-    expect(r).toBe(false);
-  });
-
-  it('rowCount 为 undefined 时应返回 false', async () => {
-    dbMocks.query.mockResolvedValueOnce({ rowCount: undefined });
-    const r = await deletePortfolio(TENANT, PORTFOLIO_ID);
-    expect(r).toBe(false);
-  });
-});
-
-describe('listPortfolios — LIMIT 与分页', () => {
-  beforeEach(() => vi.clearAllMocks());
-
-  it('应使用默认 limit 和 offset', async () => {
-    dbMocks.query.mockResolvedValueOnce({ rows: [] });
-    await listPortfolios(TENANT);
-    expect(dbMocks.query).toHaveBeenCalledWith(expect.stringContaining('SELECT'), [50, 0]);
-  });
-
-  it('应钳制 limit 上限为 200', async () => {
-    dbMocks.query.mockResolvedValueOnce({ rows: [] });
-    await listPortfolios(TENANT, 9999);
-    expect(dbMocks.query).toHaveBeenCalledWith(expect.any(String), [200, 0]);
-  });
-
-  it('应使用自定义 limit 和 offset', async () => {
-    dbMocks.query.mockResolvedValueOnce({ rows: [] });
-    await listPortfolios(TENANT, 25, 100);
-    expect(dbMocks.query).toHaveBeenCalledWith(expect.any(String), [25, 100]);
-  });
-
-  it('负 offset 应钳制为 0', async () => {
-    dbMocks.query.mockResolvedValueOnce({ rows: [] });
-    await listPortfolios(TENANT, 50, -5);
-    expect(dbMocks.query).toHaveBeenCalledWith(expect.any(String), [50, 0]);
-  });
-
-  it('limit 为 0 应传 0（不返回结果）', async () => {
-    dbMocks.query.mockResolvedValueOnce({ rows: [] });
-    await listPortfolios(TENANT, 0);
-    const [, params] = dbMocks.query.mock.calls[0];
-    expect(params[0]).toBe(0);
-  });
-
-  it('空数据库应返回空数组', async () => {
-    dbMocks.query.mockResolvedValueOnce({ rows: [] });
-    const r = await listPortfolios(TENANT);
-    expect(r).toEqual([]);
-  });
-
-  it('应返回映射后的 PortfolioRecord 数组', async () => {
-    dbMocks.query.mockResolvedValueOnce({
-      rows: [baseRow, { ...baseRow, id: 'bbbb', name: 'Portfolio 2' }],
+  describe('getPortfolio', () => {
+    it('应返回完整 PortfolioRecord', async () => {
+      dbMocks.query.mockResolvedValueOnce({ rows: [baseRow] });
+      const r = await getPortfolio(TENANT, PORTFOLIO_ID);
+      expect(r).not.toBeNull();
+      expect(r!.id).toBe(PORTFOLIO_ID);
+      expect(r!.name).toBe('Test Portfolio');
+      expect(r!.assets).toHaveLength(2);
+      expect(r!.rebalanceFrequency).toBe('quarterly');
+      expect(r!.ownerUserId).toBe('u1');
+      expect(r!.createdAt).toBe('2026-01-01T00:00:00.000Z');
+      expect(r!.updatedAt).toBe('2026-06-01T00:00:00.000Z');
+      expect(dbMocks.withTenant).toHaveBeenCalledWith(TENANT);
     });
-    const r = await listPortfolios(TENANT);
-    expect(r).toHaveLength(2);
-    expect(r[0].name).toBe('Test Portfolio');
-    expect(r[1].name).toBe('Portfolio 2');
-  });
-});
 
-describe('createPortfolio', () => {
-  beforeEach(() => vi.clearAllMocks());
-
-  it('应设置默认 rebalanceFrequency 为 none', async () => {
-    dbMocks.query.mockResolvedValueOnce({ rows: [baseRow] });
-    await createPortfolio(TENANT, 'u1', {
-      name: 'Test',
-      assets: [{ ticker: 'SPY', weight: 100 }],
+    it('不存在应返回 null', async () => {
+      dbMocks.query.mockResolvedValueOnce({ rows: [] });
+      const r = await getPortfolio(TENANT, PORTFOLIO_ID);
+      expect(r).toBeNull();
     });
-    const insertParams = dbMocks.query.mock.calls[0][1];
-    expect(insertParams[4]).toBe('none');
   });
 
-  it('应传入指定的 rebalanceFrequency', async () => {
-    dbMocks.query.mockResolvedValueOnce({ rows: [baseRow] });
-    await createPortfolio(TENANT, 'u1', {
-      name: 'Test',
-      assets: [{ ticker: 'SPY', weight: 100 }],
-      rebalanceFrequency: 'monthly',
+  describe('deletePortfolio', () => {
+    it('删除成功应返回 true，且按 tenant 隔离 DELETE', async () => {
+      dbMocks.query.mockResolvedValueOnce({ rowCount: 1 });
+      const r = await deletePortfolio(TENANT, PORTFOLIO_ID);
+      expect(r).toBe(true);
+      expect(dbMocks.withTenant).toHaveBeenCalledWith(TENANT);
+      expect(dbMocks.query).toHaveBeenCalledWith('DELETE FROM portfolios WHERE id = $1', [
+        PORTFOLIO_ID,
+      ]);
     });
-    const insertParams = dbMocks.query.mock.calls[0][1];
-    expect(insertParams[4]).toBe('monthly');
+
+    it.each([0, undefined] as const)('rowCount=%s 应返回 false', async (rowCount) => {
+      dbMocks.query.mockResolvedValueOnce({ rowCount });
+      await expect(deletePortfolio(TENANT, PORTFOLIO_ID)).resolves.toBe(false);
+    });
   });
 
-  it('空 ownerUserId 应返回 null ownerUserId 字段', async () => {
-    dbMocks.query.mockResolvedValueOnce({
-      rows: [{ ...baseRow, owner_user_id: null }],
+  describe('listPortfolios — LIMIT 与分页', () => {
+    async function callList(limit?: number, offset?: number): Promise<unknown[]> {
+      dbMocks.query.mockResolvedValueOnce({ rows: [] });
+      await listPortfolios(TENANT, limit, offset);
+      return dbMocks.query.mock.calls[0][1] as unknown[];
+    }
+
+    it.each<[string, number | undefined, number | undefined, unknown[]]>([
+      ['默认 limit 50 / offset 0', undefined, undefined, [50, 0]],
+      ['limit 上限钳制 200', 9999, undefined, [200, 0]],
+      ['自定义 limit/offset', 25, 100, [25, 100]],
+      ['负 offset 钳制为 0', 50, -5, [50, 0]],
+      ['limit 为 0 传 0', 0, undefined, [0, 0]],
+    ])('%s', async (_n, limit, offset, expected) => {
+      expect(await callList(limit, offset)).toEqual(expected);
     });
-    const r = await createPortfolio(TENANT, null, {
-      name: 'Test',
-      assets: [
-        { ticker: 'SPY', weight: 60 },
-        { ticker: 'BND', weight: 40 },
-      ],
+
+    it('空数据库应返回空数组', async () => {
+      dbMocks.query.mockResolvedValueOnce({ rows: [] });
+      const r = await listPortfolios(TENANT);
+      expect(r).toEqual([]);
     });
-    expect(r.ownerUserId).toBeNull();
+
+    it('应返回映射后的 PortfolioRecord 数组', async () => {
+      dbMocks.query.mockResolvedValueOnce({
+        rows: [baseRow, { ...baseRow, id: 'bbbb', name: 'Portfolio 2' }],
+      });
+      const r = await listPortfolios(TENANT);
+      expect(r).toHaveLength(2);
+      expect(r[0].name).toBe('Test Portfolio');
+      expect(r[1].name).toBe('Portfolio 2');
+    });
   });
-});
 
-describe('updatePortfolio', () => {
-  beforeEach(() => vi.clearAllMocks());
+  describe('createPortfolio', () => {
+    it.each([
+      ['默认 rebalanceFrequency 为 none', 'none', {}],
+      ['指定 rebalanceFrequency 为 monthly', 'monthly', { rebalanceFrequency: 'monthly' }],
+    ] as const)('%s', async (_n, expected, extra) => {
+      dbMocks.query.mockResolvedValueOnce({ rows: [baseRow] });
+      await createPortfolio(TENANT, 'u1', {
+        name: 'Test',
+        assets: [{ ticker: 'SPY', weight: 100 }],
+        ...extra,
+      });
+      const insertParams = dbMocks.query.mock.calls[0][1];
+      expect(insertParams[4]).toBe(expected);
+    });
 
-  it('应更新并返回新记录', async () => {
-    dbMocks.query.mockResolvedValueOnce({
-      rows: [{ ...baseRow, name: 'Updated', rebalance_frequency: 'annually' }],
+    it('空 ownerUserId 应返回 null ownerUserId 字段', async () => {
+      dbMocks.query.mockResolvedValueOnce({ rows: [{ ...baseRow, owner_user_id: null }] });
+      const r = await createPortfolio(TENANT, null, {
+        name: 'Test',
+        assets: [
+          { ticker: 'SPY', weight: 60 },
+          { ticker: 'BND', weight: 40 },
+        ],
+      });
+      expect(r.ownerUserId).toBeNull();
     });
-    const r = await updatePortfolio(TENANT, PORTFOLIO_ID, {
-      name: 'Updated',
-      assets: [{ ticker: 'VTI', weight: 100 }],
-      rebalanceFrequency: 'annually',
-    });
-    expect(r).not.toBeNull();
-    expect(r!.name).toBe('Updated');
-    expect(r!.rebalanceFrequency).toBe('annually');
   });
 
-  it('不存在应返回 null', async () => {
-    dbMocks.query.mockResolvedValueOnce({ rows: [] });
-    const r = await updatePortfolio(TENANT, PORTFOLIO_ID, {
-      name: 'X',
-      assets: [{ ticker: 'A', weight: 100 }],
+  describe('updatePortfolio', () => {
+    it('应更新并返回新记录', async () => {
+      dbMocks.query.mockResolvedValueOnce({
+        rows: [{ ...baseRow, name: 'Updated', rebalance_frequency: 'annually' }],
+      });
+      const r = await updatePortfolio(TENANT, PORTFOLIO_ID, {
+        name: 'Updated',
+        assets: [{ ticker: 'VTI', weight: 100 }],
+        rebalanceFrequency: 'annually',
+      });
+      expect(r).not.toBeNull();
+      expect(r!.name).toBe('Updated');
+      expect(r!.rebalanceFrequency).toBe('annually');
     });
-    expect(r).toBeNull();
+
+    it('不存在应返回 null', async () => {
+      dbMocks.query.mockResolvedValueOnce({ rows: [] });
+      const r = await updatePortfolio(TENANT, PORTFOLIO_ID, {
+        name: 'X',
+        assets: [{ ticker: 'A', weight: 100 }],
+      });
+      expect(r).toBeNull();
+    });
   });
 });

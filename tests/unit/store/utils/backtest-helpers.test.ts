@@ -1,7 +1,16 @@
 import { describe, it, expect, vi } from 'vitest';
 
 vi.mock('../../../../packages/frontend/src/i18n/index.js', () => ({
-  default: { t: (key: string, opts?: Record<string, unknown>) => (opts ? key : key) },
+  default: {
+    t: (key: string, opts?: Record<string, unknown>) => {
+      if (!opts) return key;
+      let result = key;
+      for (const [k, v] of Object.entries(opts)) {
+        result = result.replace(`{{${k}}}`, String(v));
+      }
+      return result;
+    },
+  },
 }));
 
 import {
@@ -14,8 +23,12 @@ import {
 
 describe('extractApiErrorDetail', () => {
   it('null/undefined 应返回 fallback', () => {
-    expect(extractApiErrorDetail(null)).toBe('backtest.runFailed');
-    expect(extractApiErrorDetail(undefined)).toBe('backtest.runFailed');
+    expect(extractApiErrorDetail(null)).toBe(
+      'Backtest failed. Please check ticker symbols and parameters.',
+    );
+    expect(extractApiErrorDetail(undefined)).toBe(
+      'Backtest failed. Please check ticker symbols and parameters.',
+    );
   });
 
   it('字符串 detail 应被提取', () => {
@@ -31,8 +44,12 @@ describe('extractApiErrorDetail', () => {
   });
 
   it('非对象应返回 fallback', () => {
-    expect(extractApiErrorDetail('plain string')).toBe('backtest.runFailed');
-    expect(extractApiErrorDetail(42)).toBe('backtest.runFailed');
+    expect(extractApiErrorDetail('plain string')).toBe(
+      'Backtest failed. Please check ticker symbols and parameters.',
+    );
+    expect(extractApiErrorDetail(42)).toBe(
+      'Backtest failed. Please check ticker symbols and parameters.',
+    );
   });
 });
 
@@ -84,7 +101,9 @@ describe('validatePortfolios', () => {
         totalReturn: true,
       },
     ];
-    expect(validatePortfolios(portfolios)).toBe('backtest.emptyTickerWarning');
+    expect(validatePortfolios(portfolios)).toBe(
+      'Some ticker symbols are empty. Please fill them in before running.',
+    );
   });
 
   it('权重和不等于 100 应返回警告', () => {
@@ -102,7 +121,7 @@ describe('validatePortfolios', () => {
         totalReturn: true,
       },
     ];
-    expect(validatePortfolios(portfolios)).toBe('backtest.weightSumWarning');
+    expect(validatePortfolios(portfolios)).toBe('Bad Weight weights sum to 80.00%, should be 100%');
   });
 
   it('有效的投资组合应返回 null', () => {

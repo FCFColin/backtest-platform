@@ -56,3 +56,22 @@ export async function startExpressApp(
     });
   });
 }
+
+/** 发送 JSON 请求，返回 { res, body }（body 解析失败时为 null）。 */
+export async function reqJson(
+  url: string,
+  method: string,
+  body?: unknown,
+  headers: Record<string, string> = {},
+) {
+  const init: RequestInit = { method, headers: { 'Content-Type': 'application/json', ...headers } };
+  if (body !== undefined) init.body = JSON.stringify(body);
+  const res = await fetch(url, init);
+  return { res, body: await res.json().catch(() => null) };
+}
+
+/** 发送 POST JSON 请求，返回 { res, json }。 */
+export const postJson = async (url: string, body: unknown) => {
+  const { res, body: json } = await reqJson(url, 'POST', body);
+  return { res, json };
+};

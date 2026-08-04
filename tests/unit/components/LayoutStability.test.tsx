@@ -11,9 +11,9 @@ describe('C-006 Layout Stability — lazy() + fallback 预留高度', () => {
   });
 
   it('Suspense fallback 必须预留 minHeight >= 70vh 以消除布局偏移', () => {
-    const match = routesSource.match(/minHeight\s*:\s*['"](\d+)vh['"]/);
+    const match = routesSource.match(/minHeight\s*:\s*['"](\d+)vh['"]|min-h-\[(\d+)vh\]/);
     expect(match).not.toBeNull();
-    expect(Number(match![1])).toBeGreaterThanOrEqual(70);
+    expect(Number(match![1] ?? match![2])).toBeGreaterThanOrEqual(70);
   });
 
   it('PromoBar 同步读取 dismiss 状态（不在渲染后消失导致 CLS）', () => {

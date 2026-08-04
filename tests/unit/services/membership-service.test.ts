@@ -66,6 +66,12 @@ function invRow(overrides: Record<string, unknown> = {}) {
   };
 }
 
+function mockInviteLookup(invite: Record<string, unknown> | null): void {
+  dbMocks.client.query
+    .mockResolvedValueOnce(undefined)
+    .mockResolvedValueOnce({ rows: invite ? [invite] : [] });
+}
+
 describe('orgRoleToGlobalRole', () => {
   it.each([
     ['owner 应映射为 admin', 'owner', 'admin'],
@@ -304,65 +310,25 @@ describe('acceptInvitation', () => {
   });
 
   it('令牌不存在应返回 invalid 并回滚', async () => {
-    dbMocks.client.query
-      .mockResolvedValueOnce(undefined) // BEGIN
-      .mockResolvedValueOnce({ rows: [] }); // SELECT FOR UPDATE
+    mockInviteLookup(null);
     const result = await acceptInvitation('sometoken', USER);
     expect(result).toEqual({ ok: false, reason: 'invalid' });
     expect(dbMocks.client.query).toHaveBeenCalledWith('ROLLBACK');
   });
 
   it('已接受应返回 already', async () => {
-    dbMocks.client.query
-      .mockResolvedValueOnce(undefined) // BEGIN
-      .mockResolvedValueOnce({
-        rows: [
-          {
-            id: INV_ID,
-            org_id: ORG,
-            role: 'analyst',
-            expires_at: new Date(Date.now() + 1000),
-            accepted_at: new Date(),
-          },
-        ],
-      });
+    mockInviteLookup(invRow({ accepted_at: new Date() }));
     expect(await acceptInvitation('sometoken', USER)).toEqual({ ok: false, reason: 'already' });
   });
 
   it('已过期应返回 expired', async () => {
-    dbMocks.client.query
-      .mockResolvedValueOnce(undefined) // BEGIN
-      .mockResolvedValueOnce({
-        rows: [
-          {
-            id: INV_ID,
-            org_id: ORG,
-            role: 'analyst',
-            expires_at: new Date(Date.now() - 1000),
-            accepted_at: null,
-          },
-        ],
-      });
+    mockInviteLookup(invRow({ expires_at: new Date(Date.now() - 1000) }));
     expect(await acceptInvitation('sometoken', USER)).toEqual({ ok: false, reason: 'expired' });
   });
 
   it('有效令牌应 upsert membership、标记已接受并提交', async () => {
-    dbMocks.client.query
-      .mockResolvedValueOnce(undefined) // BEGIN
-      .mockResolvedValueOnce({
-        rows: [
-          {
-            id: INV_ID,
-            org_id: ORG,
-            role: 'analyst',
-            expires_at: new Date(Date.now() + 86400000),
-            accepted_at: null,
-          },
-        ],
-      })
-      .mockResolvedValueOnce(undefined) // INSERT membership ON CONFLICT
-      .mockResolvedValueOnce(undefined) // UPDATE invitations accepted_at
-      .mockResolvedValueOnce(undefined); // COMMIT
+    mockInviteLookup(invRow());
+    dbMocks.client.query.mockResolvedValue(undefined);
     const result = await acceptInvitation('sometoken', USER);
     expect(result).toEqual({ ok: true, orgId: ORG, role: 'analyst' });
     expect(dbMocks.client.query).toHaveBeenCalledWith('COMMIT');

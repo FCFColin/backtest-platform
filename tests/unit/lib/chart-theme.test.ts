@@ -6,7 +6,6 @@ import {
   DATE_TICK_FORMATTER,
   SMART_DATE_INTERVAL,
   currencyFormatter,
-  PERCENT_TICK_FORMATTER,
   CHART_TOOLTIP_STYLE,
   CHART_MARGIN,
   CHART_GRID_PROPS,
@@ -91,20 +90,6 @@ describe('currencyFormatter', () => {
   it('支持自定义货币', () => {
     expect(currencyFormatter(1000, 'EUR')).toContain('1,000');
     expect(currencyFormatter(99.99, 'EUR', 2)).toContain('99.99');
-  });
-});
-
-describe('PERCENT_TICK_FORMATTER', () => {
-  it('默认 2 位小数', () => {
-    expect(PERCENT_TICK_FORMATTER(15.23456)).toBe('15.23%');
-  });
-
-  it('自定义小数位数', () => {
-    expect(PERCENT_TICK_FORMATTER(15.23456, 4)).toBe('15.2346%');
-  });
-
-  it('0 位小数', () => {
-    expect(PERCENT_TICK_FORMATTER(15.6, 0)).toBe('16%');
   });
 });
 

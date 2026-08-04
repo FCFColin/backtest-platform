@@ -236,6 +236,7 @@ export function createIdempotencyReqRes(
   key?: string,
   method = 'POST',
   path = '/api/test',
+  noKey = false,
 ): {
   req: ReturnType<typeof createMockRequest>;
   res: Response & { on: ReturnType<typeof vi.fn> };
@@ -244,7 +245,7 @@ export function createIdempotencyReqRes(
   const resolvedKey = key ?? `test-key-default-${Math.random().toString(16).slice(2, 10)}`;
   const req = createMockRequest({
     method,
-    headers: { 'idempotency-key': resolvedKey },
+    headers: noKey ? {} : { 'idempotency-key': resolvedKey },
     path,
     url: path,
     ip: '127.0.0.1',

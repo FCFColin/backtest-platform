@@ -75,13 +75,41 @@ const mockSignalResult = {
   ],
 };
 
-describe('strategy-application-services', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
+const signalReq: SignalAnalysisRequest = {
+  ticker: 'AAPL',
+  indicator: 'SMA',
+  period: 20,
+  threshold: 0.02,
+  startDate: '2020-01-01',
+  endDate: '2020-12-31',
+  signalType: 'both',
+};
 
-  describe('signal-application-service', () => {
-    const signalReq: SignalAnalysisRequest = {
+const dualReq: DualSignalConfig = {
+  signal1: {
+    ticker: 'AAPL',
+    indicator: 'SMA',
+    period: 20,
+    threshold: 0.02,
+    startDate: '2020-01-01',
+    endDate: '2020-12-31',
+    signalType: 'entry',
+  },
+  signal2: {
+    ticker: 'SPY',
+    indicator: 'RSI',
+    period: 14,
+    threshold: 30,
+    startDate: '2020-01-01',
+    endDate: '2020-12-31',
+    signalType: 'entry',
+  },
+  combinationMethod: 'and',
+};
+
+const multiReq: MultiSignalConfig = {
+  signals: [
+    {
       ticker: 'AAPL',
       indicator: 'SMA',
       period: 20,
@@ -89,126 +117,73 @@ describe('strategy-application-services', () => {
       startDate: '2020-01-01',
       endDate: '2020-12-31',
       signalType: 'both',
-    };
+    },
+    {
+      ticker: 'AAPL',
+      indicator: 'RSI',
+      period: 14,
+      threshold: 30,
+      startDate: '2020-01-01',
+      endDate: '2020-12-31',
+      signalType: 'both',
+    },
+  ],
+  aggregationMethod: 'voting',
+};
 
-    describe('executeSignalAnalyze', () => {
-      it('应使用正确参数调用引擎并返回结果', async () => {
-        const priceData = { AAPL: { '2020-01-02': 100 } };
-        dataMocks.fetchHistoryData.mockResolvedValue({ data: priceData, degraded: false });
-        engineMocks.callEngineStrict.mockResolvedValue(mockSignalResult);
+const signalCases = [
+  {
+    mode: 'single',
+    run: () => executeSignalAnalyze(signalReq),
+    payload: { single: signalReq },
+    history: { AAPL: { '2020-01-02': 100 } },
+    errorMsg: '未找到 AAPL 的价格数据',
+  },
+  {
+    mode: 'dual',
+    run: () => executeDualSignalAnalyze(dualReq),
+    payload: { dual: dualReq },
+    history: { AAPL: { '2020-01-02': 100 }, SPY: { '2020-01-02': 300 } },
+    errorMsg: 'Price data not found for',
+  },
+  {
+    mode: 'multi',
+    run: () => executeMultiSignalAnalyze(multiReq),
+    payload: { multi: multiReq },
+    history: { AAPL: { '2020-01-02': 100 } },
+    errorMsg: '未找到',
+  },
+];
 
-        const result = await executeSignalAnalyze(signalReq);
-
-        expect(engineMocks.callEngineStrict).toHaveBeenCalledWith('/api/engine/signal-analyze', {
-          mode: 'single',
-          single: signalReq,
-          priceData,
-        });
-        expect(result).toBe(mockSignalResult);
-      });
-
-      it('无价格数据时应抛出错误', async () => {
-        dataMocks.fetchHistoryData.mockResolvedValue({ data: {}, degraded: false });
-
-        await expect(executeSignalAnalyze(signalReq)).rejects.toThrow('未找到 AAPL 的价格数据');
-      });
-    });
-
-    describe('executeDualSignalAnalyze', () => {
-      const dualReq: DualSignalConfig = {
-        signal1: {
-          ticker: 'AAPL',
-          indicator: 'SMA',
-          period: 20,
-          threshold: 0.02,
-          startDate: '2020-01-01',
-          endDate: '2020-12-31',
-          signalType: 'entry',
-        },
-        signal2: {
-          ticker: 'SPY',
-          indicator: 'RSI',
-          period: 14,
-          threshold: 30,
-          startDate: '2020-01-01',
-          endDate: '2020-12-31',
-          signalType: 'entry',
-        },
-        combinationMethod: 'and',
-      };
-
-      it('应使用正确参数调用引擎并返回结果', async () => {
-        const history = {
-          AAPL: { '2020-01-02': 100 },
-          SPY: { '2020-01-02': 300 },
-        };
-        dataMocks.fetchHistoryData.mockResolvedValue({ data: history, degraded: false });
-        engineMocks.callEngineStrict.mockResolvedValue(mockSignalResult);
-
-        const result = await executeDualSignalAnalyze(dualReq);
-
-        expect(engineMocks.callEngineStrict).toHaveBeenCalledWith('/api/engine/signal-analyze', {
-          mode: 'dual',
-          dual: dualReq,
-          priceData: history,
-        });
-        expect(result).toBe(mockSignalResult);
-      });
-
-      it('无价格数据时应抛出错误', async () => {
-        dataMocks.fetchHistoryData.mockResolvedValue({ data: {}, degraded: false });
-
-        await expect(executeDualSignalAnalyze(dualReq)).rejects.toThrow('Price data not found for');
-      });
-    });
-
-    describe('executeMultiSignalAnalyze', () => {
-      const multiReq: MultiSignalConfig = {
-        signals: [
-          {
-            ticker: 'AAPL',
-            indicator: 'SMA',
-            period: 20,
-            threshold: 0.02,
-            startDate: '2020-01-01',
-            endDate: '2020-12-31',
-            signalType: 'both',
-          },
-          {
-            ticker: 'AAPL',
-            indicator: 'RSI',
-            period: 14,
-            threshold: 30,
-            startDate: '2020-01-01',
-            endDate: '2020-12-31',
-            signalType: 'both',
-          },
-        ],
-        aggregationMethod: 'voting',
-      };
-
-      it('应使用正确参数调用引擎并返回结果', async () => {
-        const history = { AAPL: { '2020-01-02': 100 } };
-        dataMocks.fetchHistoryData.mockResolvedValue({ data: history, degraded: false });
-        engineMocks.callEngineStrict.mockResolvedValue(mockSignalResult);
-
-        const result = await executeMultiSignalAnalyze(multiReq);
-
-        expect(engineMocks.callEngineStrict).toHaveBeenCalledWith('/api/engine/signal-analyze', {
-          mode: 'multi',
-          multi: multiReq,
-          priceData: history,
-        });
-        expect(result).toBe(mockSignalResult);
-      });
-
-      it('无价格数据时应抛出错误', async () => {
-        dataMocks.fetchHistoryData.mockResolvedValue({ data: {}, degraded: false });
-
-        await expect(executeMultiSignalAnalyze(multiReq)).rejects.toThrow('未找到');
-      });
-    });
+describe('strategy-application-services', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
   });
+
+  describe.each(signalCases)(
+    '$mode signal analyze',
+    ({ mode, run, payload, history, errorMsg }) => {
+      it('应使用正确参数调用引擎并返回结果', async () => {
+        dataMocks.fetchHistoryData.mockResolvedValue({ data: history, degraded: false });
+        engineMocks.callEngineStrict.mockResolvedValue(mockSignalResult);
+
+        const result = await run();
+
+        expect(engineMocks.callEngineStrict).toHaveBeenCalledWith('/api/engine/signal-analyze', {
+          mode,
+          ...payload,
+          priceData: history,
+        });
+        expect(result).toBe(mockSignalResult);
+      });
+
+      it('无价格数据时应抛出错误', async () => {
+        dataMocks.fetchHistoryData.mockResolvedValue({ data: {}, degraded: false });
+
+        await expect(run()).rejects.toThrow(errorMsg);
+      });
+    },
+  );
 
   describe('tactical-application-service', () => {
     const strategy: TacticalStrategy = {
@@ -224,67 +199,43 @@ describe('strategy-application-services', () => {
         },
       ],
     };
+    const backtestParams = {
+      strategy,
+      startDate: '2020-01-01',
+      endDate: '2020-01-02',
+      startingValue: 10000,
+      rebalanceFrequency: 'monthly' as const,
+    };
 
     function mockPriceData(data: Record<string, Record<string, number>>) {
       dataMocks.fetchHistoryData.mockResolvedValue({ data, degraded: false });
     }
 
+    function emptyPortfolio(name: string) {
+      return {
+        name,
+        growthCurve: [],
+        drawdownCurve: [],
+        rollingReturns: [],
+        annualReturns: [],
+        monthlyReturns: [],
+        statistics: {},
+      };
+    }
+
     it('collectTickers 从策略中提取去重 ticker', () => {
-      const tickers = collectTickers(strategy);
-      expect(tickers).toEqual(['SPY']);
+      expect(collectTickers(strategy)).toEqual(['SPY']);
     });
 
     it('executeTacticalBacktest 在有效数据下返回结果', async () => {
       mockPriceData({ SPY: { '2020-01-01': 100, '2020-01-02': 101 } });
       engineMocks.callEngineStrict
-        .mockResolvedValueOnce({
-          portfolio: {
-            name: 'tactical',
-            growthCurve: [],
-            drawdownCurve: [],
-            rollingReturns: [],
-            annualReturns: [],
-            monthlyReturns: [],
-            statistics: {},
-          },
-          signalHistory: [],
-        })
-        .mockResolvedValueOnce({
-          portfolios: [
-            {
-              name: 'bench',
-              growthCurve: [],
-              drawdownCurve: [],
-              rollingReturns: [],
-              annualReturns: [],
-              monthlyReturns: [],
-              statistics: {},
-            },
-          ],
-        });
+        .mockResolvedValueOnce({ portfolio: emptyPortfolio('tactical'), signalHistory: [] })
+        .mockResolvedValueOnce({ portfolios: [emptyPortfolio('bench')] });
 
-      const result = await executeTacticalBacktest({
-        strategy,
-        startDate: '2020-01-01',
-        endDate: '2020-01-02',
-        startingValue: 10000,
-        rebalanceFrequency: 'monthly',
-      });
+      const result = await executeTacticalBacktest(backtestParams);
       expect(result.portfolio).toBeDefined();
       expect(result.benchmark).toBeDefined();
-    });
-
-    it('无效标的应抛出错误', async () => {
-      mockPriceData({});
-      await expect(
-        executeTacticalBacktest({
-          strategy,
-          startDate: '2020-01-01',
-          endDate: '2020-01-02',
-          startingValue: 10000,
-          rebalanceFrequency: 'monthly',
-        }),
-      ).rejects.toThrow('Price data not found for');
     });
 
     it('executeTacticalWhatIf 应返回最近信号权重', async () => {
@@ -308,43 +259,33 @@ describe('strategy-application-services', () => {
     it('benchmark 回测失败时应降级为空结果', async () => {
       mockPriceData({ SPY: { '2020-01-01': 100, '2020-01-02': 101 } });
       engineMocks.callEngineStrict
-        .mockResolvedValueOnce({
-          portfolio: {
-            name: 'tactical',
-            growthCurve: [],
-            drawdownCurve: [],
-            rollingReturns: [],
-            annualReturns: [],
-            monthlyReturns: [],
-            statistics: {},
-          },
-          signalHistory: [],
-        })
+        .mockResolvedValueOnce({ portfolio: emptyPortfolio('tactical'), signalHistory: [] })
         .mockRejectedValueOnce(new Error('benchmark error'));
 
-      const result = await executeTacticalBacktest({
-        strategy,
-        startDate: '2020-01-01',
-        endDate: '2020-01-02',
-        startingValue: 10000,
-        rebalanceFrequency: 'monthly',
-      });
+      const result = await executeTacticalBacktest(backtestParams);
       expect(result.benchmark).toBeDefined();
       expect(result.benchmark.growthCurve).toEqual([]);
       expect(result.benchmark.name).toBe('等权基准');
     });
 
-    it('交易日不足 2 天时应抛出错误', async () => {
-      mockPriceData({ SPY: { '2020-01-01': 100 } });
+    it.each([
+      {
+        name: '无效标的应抛出错误',
+        data: {},
+        dates: ['2020-01-01', '2020-01-02'],
+        msg: 'Price data not found for',
+      },
+      {
+        name: '交易日不足 2 天时应抛出错误',
+        data: { SPY: { '2020-01-01': 100 } },
+        dates: ['2020-01-01', '2020-01-01'],
+        msg: '交易日',
+      },
+    ])('$name', async ({ data, dates, msg }) => {
+      mockPriceData(data);
       await expect(
-        executeTacticalBacktest({
-          strategy,
-          startDate: '2020-01-01',
-          endDate: '2020-01-01',
-          startingValue: 10000,
-          rebalanceFrequency: 'monthly',
-        }),
-      ).rejects.toThrow('交易日');
+        executeTacticalBacktest({ ...backtestParams, startDate: dates[0], endDate: dates[1] }),
+      ).rejects.toThrow(msg);
     });
   });
 

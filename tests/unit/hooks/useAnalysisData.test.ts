@@ -24,6 +24,12 @@ const mkResult = (t: ReturnType<typeof mkTicker>[] = []): AssetAnalysisResult =>
   tickers: t,
   correlations: [],
 });
+const mkSeries = (ticker: string, returns: number[], value = 100, p = 'd') =>
+  mkTicker({
+    ticker,
+    dailyReturns: returns,
+    growthCurve: dates(returns.length, p).map((d) => ({ date: d, value })),
+  });
 const run = (r: AssetAnalysisResult, w = 12, b = 60) =>
   renderHook(() => useAnalysisData(r, w, b)).result.current;
 const range = (n: number, fn: (i: number) => number) => Array.from({ length: n }, (_, i) => fn(i));
@@ -114,19 +120,15 @@ describe('useAnalysisData', () => {
 
   it('rollingCorrData 使用 correlationWindow 计算窗口大小', () => {
     const dr = range(50, (i) => Math.sin(i * 0.1));
-    const dt = dates(50, '2024-01-');
     const rcorr = run(
       mkResult([
-        mkTicker({
-          ticker: 'A',
-          dailyReturns: dr,
-          growthCurve: dt.map((d) => ({ date: d, value: 100 })),
-        }),
-        mkTicker({
-          ticker: 'B',
-          dailyReturns: dr.map((v) => -v),
-          growthCurve: dt.map((d) => ({ date: d, value: 200 })),
-        }),
+        mkSeries('A', dr, 100, '2024-01-'),
+        mkSeries(
+          'B',
+          dr.map((v) => -v),
+          200,
+          '2024-01-',
+        ),
       ]),
       1,
     ).rollingCorrData;
@@ -173,19 +175,17 @@ describe('useAnalysisData', () => {
 
   it('多资产时 rollingCorrData 返回数据', () => {
     const n = 60;
-    const dt = dates(n);
     const rcorr = run(
       mkResult([
-        mkTicker({
-          ticker: 'A',
-          dailyReturns: range(n, (i) => Math.sin(i * 0.2)),
-          growthCurve: dt.map((d) => ({ date: d, value: 100 })),
-        }),
-        mkTicker({
-          ticker: 'B',
-          dailyReturns: range(n, (i) => Math.cos(i * 0.2)),
-          growthCurve: dt.map((d) => ({ date: d, value: 200 })),
-        }),
+        mkSeries(
+          'A',
+          range(n, (i) => Math.sin(i * 0.2)),
+        ),
+        mkSeries(
+          'B',
+          range(n, (i) => Math.cos(i * 0.2)),
+          200,
+        ),
       ]),
       1,
     ).rollingCorrData;
@@ -198,22 +198,8 @@ describe('useAnalysisData', () => {
   });
 
   it('所有 dailyReturns 为常数时 rollingCorrData 全部为 0', () => {
-    const dr = Array.from({ length: 50 }, () => 0.01);
-    const dt = dates(50);
-    for (const pt of run(
-      mkResult([
-        mkTicker({
-          ticker: 'A',
-          dailyReturns: dr,
-          growthCurve: dt.map((d) => ({ date: d, value: 100 })),
-        }),
-        mkTicker({
-          ticker: 'B',
-          dailyReturns: dr,
-          growthCurve: dt.map((d) => ({ date: d, value: 100 })),
-        }),
-      ]),
-    ).rollingCorrData)
+    const dr = range(50, () => 0.01);
+    for (const pt of run(mkResult([mkSeries('A', dr), mkSeries('B', dr)])).rollingCorrData)
       expect(pt.value).toBe(0);
   });
 
@@ -268,18 +254,15 @@ describe('useAnalysisData', () => {
   });
 
   it('correlationWindow 变化时 rollingCorrData 重新计算', () => {
-    const dt = dates(60);
     const r = mkResult([
-      mkTicker({
-        ticker: 'A',
-        dailyReturns: range(60, (i) => Math.sin(i * 0.1)),
-        growthCurve: dt.map((d) => ({ date: d, value: 100 })),
-      }),
-      mkTicker({
-        ticker: 'B',
-        dailyReturns: range(60, (i) => Math.cos(i * 0.1)),
-        growthCurve: dt.map((d) => ({ date: d, value: 100 })),
-      }),
+      mkSeries(
+        'A',
+        range(60, (i) => Math.sin(i * 0.1)),
+      ),
+      mkSeries(
+        'B',
+        range(60, (i) => Math.cos(i * 0.1)),
+      ),
     ]);
     const { result, rerender } = renderHook(({ w }: { w: number }) => useAnalysisData(r, w, 60), {
       initialProps: { w: 1 },

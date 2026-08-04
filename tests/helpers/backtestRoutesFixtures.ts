@@ -21,7 +21,7 @@ type MockFn = ReturnType<(typeof import('vitest'))['fn']>;
 export class EngineUnavailableErrorStub extends Error {
   readonly retryAfterSeconds: number;
   readonly code = 'ENGINE_UNAVAILABLE';
-  constructor(endpoint: string, retryAfterSeconds = 30) {
+  constructor(endpoint = 'engine', retryAfterSeconds = 30) {
     super(`计算引擎暂不可用（${endpoint}），请稍后重试`);
     this.name = 'EngineUnavailableError';
     this.retryAfterSeconds = retryAfterSeconds;

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { Request, Response, NextFunction } from 'express';
-import { startExpressApp, type TestServer } from '../../helpers/expressApp.js';
+import { startExpressApp, reqJson, type TestServer } from '../../helpers/expressApp.js';
+import { expectError } from '../../helpers/routeAssertions.js';
 import { createLoggerMocks } from '../../helpers/mockFactories.js';
 import {
   validPasswordLoginPayload,
@@ -88,7 +89,6 @@ vi.mock('../../../packages/backend/src/utils/logger.js', () => {
 import authRoutes from '../../../packages/backend/src/routes/authRoutes.js';
 type VFn = ReturnType<typeof vi.fn>;
 const fn = (m: Record<string, unknown>, k: string): VFn => m[k] as VFn;
-const JH = { 'Content-Type': 'application/json' };
 function injectUser(sub = 'user-switch', role = 'analyst', extra: Record<string, unknown> = {}) {
   fn(mocks.jwtAuth, 'jwtAuth').mockImplementation(
     (req: Request, _r: Response, next: NextFunction) => {
@@ -118,17 +118,6 @@ function parseCookies(req: Request, _res: Response, next: NextFunction) {
       )
     : {};
   next();
-}
-async function reqJson(
-  url: string,
-  method: string,
-  body?: unknown,
-  headers: Record<string, string> = {},
-) {
-  const init: RequestInit = { method, headers: { ...JH, ...headers } };
-  if (body !== undefined) init.body = JSON.stringify(body);
-  const res = await fetch(url, init);
-  return { res, body: await res.json().catch(() => null) };
 }
 const apiPost = (u: string, b?: unknown, h: Record<string, string> = {}) =>
   reqJson(u, 'POST', b, h);
@@ -184,8 +173,7 @@ describe('authRoutes - 登录与会话端点', () => {
   ])('%s 应返回 401 INVALID_CREDENTIALS（防枚举）', async (_n, pwd) => {
     fn(mocks.userService, 'verifyUser').mockResolvedValueOnce(null);
     const { res, body } = await apiPost(loginUrl(), { username: 'testuser', password: pwd });
-    expect(res.status).toBe(401);
-    expect(body.error.code).toBe('INVALID_CREDENTIALS');
+    expectError(res, body, 401, 'INVALID_CREDENTIALS');
   });
   it.each([
     ['登录缺失用户名', '/login/password', { password: 'pass' }],
@@ -194,14 +182,12 @@ describe('authRoutes - 登录与会话端点', () => {
   ])('%s 应返回 400（zod 校验失败）', async (_n, path, payload) => {
     injectUser();
     const { res, body } = await apiPost(`${server.url}/api/v1/auth${path}`, payload);
-    expect(res.status).toBe(400);
-    expect(body.error.code).toBe('VALIDATION_ERROR');
+    expectError(res, body, 400, 'VALIDATION_ERROR');
   });
   it('账户锁定时应返回 429', async () => {
     fn(mocks.loginLockout, 'isLockedOut').mockResolvedValueOnce(120);
     const { res, body } = await apiPost(loginUrl(), { username: 'locked-user', password: 'any' });
-    expect(res.status).toBe(429);
-    expect(body.error.code).toBe('ACCOUNT_LOCKED');
+    expectError(res, body, 429, 'ACCOUNT_LOCKED');
     expect(mocks.userService.verifyUser).not.toHaveBeenCalled();
   });
   it.each<[string, Record<string, unknown> | null, string, string, string]>([
@@ -344,8 +330,7 @@ describe('authRoutes - 登录与会话端点', () => {
     injectUser();
     fn(mocks.membershipService, 'getMembership').mockResolvedValueOnce(membership);
     const { res, body } = await apiPost(switchUrl(), { orgId }, { Authorization: 'Bearer t' });
-    expect(res.status).toBe(403);
-    expect(body.error.code).toBe(code);
+    expectError(res, body, 403, code);
   });
   it('GET /orgs 应返回成员组织列表与活跃组织', async () => {
     const orgId = '66666666-6666-4666-8666-666666666666';
@@ -441,16 +426,13 @@ describe('authRegistrationRoutes', () => {
     expect(res.status).toBe(201);
     expect(mocks.logger.warn).toHaveBeenCalled();
   });
-  it.each([['verify-email 缺 token', 'verify-email']])(
-    '%s 应返回 400 VALIDATION_ERROR，不触发后续处理',
-    async (_n, ep) => {
-      const { res, body } = await apiPost(regUrl(ep), {});
-      expect(res.status).toBe(400);
-      expect(body.error.code).toBe('VALIDATION_ERROR');
-      expect(mocks.registration.verifyEmailToken).not.toHaveBeenCalled();
-      expect(mocks.registration.issueEmailVerificationToken).not.toHaveBeenCalled();
-    },
-  );
+  it('verify-email 缺 token 应返回 400 VALIDATION_ERROR，不触发后续处理', async () => {
+    const { res, body } = await apiPost(regUrl('verify-email'), {});
+    expect(res.status).toBe(400);
+    expect(body.error.code).toBe('VALIDATION_ERROR');
+    expect(mocks.registration.verifyEmailToken).not.toHaveBeenCalled();
+    expect(mocks.registration.issueEmailVerificationToken).not.toHaveBeenCalled();
+  });
   it.each([
     ['无效 token', null, 400, 'INVALID_OR_EXPIRED_TOKEN', false],
     ['有效 token', 'user-uuid-456', 200, null, true],

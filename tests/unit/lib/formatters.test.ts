@@ -3,20 +3,14 @@ import { describe, it, expect, vi } from 'vitest';
 vi.mock('@/i18n/index.js', () => ({
   default: {
     t: (key: string, options?: Record<string, unknown>) => {
-      const map: Record<string, string> = {
-        'format.durationDays': '{count}天',
-        'format.durationMonthShort': '{count}个月',
-        'format.durationYearsShort': '{count}年',
-      };
-      const template = map[key] || key;
       if (options) {
-        let result = template;
+        let result = key;
         for (const [k, v] of Object.entries(options)) {
-          result = result.replace(`{${k}}`, String(v));
+          result = result.replace(`{{${k}}}`, String(v));
         }
         return result;
       }
-      return template;
+      return key;
     },
     language: 'zh-CN',
   },
@@ -72,19 +66,19 @@ describe('formatters', () => {
 
   describe('formatDuration', () => {
     it('小于 30 天显示天', () => {
-      expect(formatDuration(15)).toBe('15天');
+      expect(formatDuration(15)).toBe('15 days');
     });
 
     it('30-365 天显示月', () => {
-      expect(formatDuration(60)).toContain('月');
+      expect(formatDuration(60)).toBe('2mo');
     });
 
     it('≥365 天显示年', () => {
-      expect(formatDuration(730)).toBe('2.0年');
+      expect(formatDuration(730)).toBe('2.0y');
     });
 
     it('刚好 365 天', () => {
-      expect(formatDuration(365)).toBe('1.0年');
+      expect(formatDuration(365)).toBe('1.0y');
     });
   });
 
