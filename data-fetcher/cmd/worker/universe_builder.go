@@ -3,12 +3,11 @@ package main
 import (
 	"bufio"
 	"context"
+	"data-fetcher/internal/httpclient"
 	"data-fetcher/internal/provider"
 	"fmt"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"io"
 	"log/slog"
-	"net/http"
 	"os"
 	"strings"
 	"time"
@@ -26,18 +25,11 @@ type TickerEntry struct {
 	Market   string
 }
 
-func downloadURL(url string) ([]byte, error) {
-	client := &http.Client{Timeout: 60 * time.Second}
-	resp, err := client.Get(url)
-	if err != nil {
-		return nil, fmt.Errorf("下载 %s 失败: %w", url, err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("下载 %s 返回状态码 %d", url, resp.StatusCode)
-	}
-	return io.ReadAll(resp.Body)
-}
+var universeClient = httpclient.New("universe", httpclient.Options{
+	ConnectTimeout: 30 * time.Second,
+	ReadTimeout:    30 * time.Second,
+})
+
 func parsePipeDelimited(data []byte, skipHeaders bool) [][]string {
 	var rows [][]string
 	scanner := bufio.NewScanner(strings.NewReader(string(data)))
@@ -193,13 +185,13 @@ func cmdFetchUniverse(cfg *WorkerConfig, filePath string) error {
 			allEntries = entries
 		} else {
 			slog.Info("从 NASDAQ/NYSE/AMEX 下载 ticker 列表...")
-			nasdaqData, err := downloadURL(nasdaqListURL)
+			nasdaqData, err := universeClient.Get(nasdaqListURL)
 			if err != nil {
 				return fmt.Errorf("获取 NASDAQ 列表失败: %w", err)
 			}
 			nasdaqEntries := parseNASDAQList(nasdaqData)
 			slog.Info("NASDAQ 列表", "count", len(nasdaqEntries))
-			otherData, err := downloadURL(otherListURL)
+			otherData, err := universeClient.Get(otherListURL)
 			if err != nil {
 				return fmt.Errorf("获取 Other 列表失败: %w", err)
 			}
@@ -224,14 +216,7 @@ func cmdFetchUniverse(cfg *WorkerConfig, filePath string) error {
 	})
 }
 
-type TickerMeta struct {
-	Ticker   string
-	Name     string
-	Market   string
-	Category string
-}
-
-var DefaultETFUniverse = []TickerMeta{
+var DefaultETFUniverse = []TickerEntry{
 	{Ticker: "SHY", Name: "1-3 Year Treasury Bond", Market: "US", Category: "Bond"},
 	{Ticker: "IEI", Name: "3-7 Year Treasury Bond", Market: "US", Category: "Bond"},
 	{Ticker: "IEF", Name: "7-10 Year Treasury Bond", Market: "US", Category: "Bond"},

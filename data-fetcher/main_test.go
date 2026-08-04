@@ -12,42 +12,6 @@ import (
 	"testing"
 )
 
-func TestHealthHandler(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	r := gin.New()
-	r.GET("/health", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"status": "ok", "engine": "go", "version": "0.1.0"})
-	})
-	req := httptest.NewRequest("GET", "/health", nil)
-	w := httptest.NewRecorder()
-	r.ServeHTTP(w, req)
-	if w.Code != http.StatusOK {
-		t.Errorf("Health handler returned %d, want 200", w.Code)
-	}
-	var resp map[string]interface{}
-	json.Unmarshal(w.Body.Bytes(), &resp)
-	if resp["status"] != "ok" {
-		t.Errorf("Health status = %v, want ok", resp["status"])
-	}
-}
-func TestSearchHandlerMissingQuery(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	r := gin.New()
-	r.GET("/search", func(c *gin.Context) {
-		query := c.Query("q")
-		if query == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "缺少查询参数 q"})
-			return
-		}
-		c.JSON(http.StatusOK, gin.H{"success": true})
-	})
-	req := httptest.NewRequest("GET", "/search", nil)
-	w := httptest.NewRecorder()
-	r.ServeHTTP(w, req)
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("Missing query should return 400, got %d", w.Code)
-	}
-}
 func TestPricePointJSON(t *testing.T) {
 	pp := store.PricePoint{Date: "2020-01-02", Open: 100.0, High: 105.0, Low: 98.0, Close: 103.0, Volume: 1000000}
 	data, err := json.Marshal(pp)

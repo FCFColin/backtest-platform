@@ -172,7 +172,7 @@ func parseBody(resp string) ([]string, bool) {
 	}
 	bodyArr := strings.Split(resp[HeaderLength:], MsgSplit)
 	if len(bodyArr) < 2 || bodyArr[0] != "0" {
-		return nil, false
+		return bodyArr, false
 	}
 	return bodyArr, true
 }
@@ -223,11 +223,8 @@ func (c *Client) parseKDataResponseDynamic(resp string, fieldNames []string) ([]
 	if len(resp) <= HeaderLength {
 		return nil, true, nil
 	}
-	bodyArr := strings.Split(resp[HeaderLength:], MsgSplit)
-	if len(bodyArr) < 2 {
-		return nil, true, nil
-	}
-	if bodyArr[0] != "0" {
+	bodyArr, ok := parseBody(resp)
+	if !ok {
 		return nil, true, fmt.Errorf("baostock错误码: %s", bodyArr[0])
 	}
 	respData := findRecordResponse(bodyArr)

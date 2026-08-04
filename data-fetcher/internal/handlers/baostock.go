@@ -4,6 +4,7 @@ import (
 	"data-fetcher/baostock"
 	"data-fetcher/internal/provider"
 	"fmt"
+	sharedhttp "github.com/backtest/go-shared/http"
 	"github.com/gin-gonic/gin"
 	"github.com/sony/gobreaker"
 	"net/http"
@@ -30,10 +31,10 @@ func withBaoStockClient(fn func(*baostock.Client, *gin.Context)) gin.HandlerFunc
 		})
 		if err != nil {
 			if err == gobreaker.ErrOpenState || err == gobreaker.ErrTooManyRequests {
-				newProblem(c, http.StatusServiceUnavailable, "BAOSTOCK_UNAVAILABLE", "BaoStock Unavailable", "baostock 服务暂时不可用（熔断器已开启），请稍后重试")
+				sharedhttp.NewProblem(c, http.StatusServiceUnavailable, "BAOSTOCK_UNAVAILABLE", "BaoStock Unavailable", "baostock 服务暂时不可用（熔断器已开启），请稍后重试")
 				return
 			}
-			newProblem(c, http.StatusInternalServerError, "BAOSTOCK_INTERNAL", "BaoStock Internal Error", "baostock 服务内部错误")
+			sharedhttp.NewProblem(c, http.StatusInternalServerError, "BAOSTOCK_INTERNAL", "BaoStock Internal Error", "baostock 服务内部错误")
 			return
 		}
 		_ = result
@@ -48,7 +49,7 @@ func HandleBaoStockTest() gin.HandlerFunc {
 		)
 		elapsed := time.Since(start).Milliseconds()
 		if err != nil {
-			newProblem(c, http.StatusInternalServerError, "BAOSTOCK_TEST_FAILED", "BaoStock Test Failed", fmt.Sprintf("baostock 测试请求失败 (elapsed_ms=%d)", elapsed))
+			sharedhttp.NewProblem(c, http.StatusInternalServerError, "BAOSTOCK_TEST_FAILED", "BaoStock Test Failed", fmt.Sprintf("baostock 测试请求失败 (elapsed_ms=%d)", elapsed))
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "count": len(data), "elapsed_ms": elapsed})
@@ -58,11 +59,11 @@ func HandleBaoStockKLine() gin.HandlerFunc {
 	return withBaoStockClient(func(client *baostock.Client, c *gin.Context) {
 		code := c.Query("code")
 		if code == "" {
-			newProblem(c, http.StatusBadRequest, "VALIDATION_ERROR", "Validation Error", "缺少code参数")
+			sharedhttp.NewProblem(c, http.StatusBadRequest, "VALIDATION_ERROR", "Validation Error", "缺少code参数")
 			return
 		}
 		if !stockCodePattern.MatchString(code) {
-			newProblem(c, http.StatusBadRequest, "INVALID_CODE", "Invalid Code", "code参数格式错误，应为 sh.XXXXXX 或 sz.XXXXXX")
+			sharedhttp.NewProblem(c, http.StatusBadRequest, "INVALID_CODE", "Invalid Code", "code参数格式错误，应为 sh.XXXXXX 或 sz.XXXXXX")
 			return
 		}
 		startDate := c.DefaultQuery("start", "2020-01-01")
@@ -72,7 +73,7 @@ func HandleBaoStockKLine() gin.HandlerFunc {
 		fields := c.DefaultQuery("fields", "date,open,high,low,close,volume,amount,turn")
 		data, err := client.QueryHistoryKDataPlus(code, fields, startDate, endDate, frequency, adjustFlag)
 		if err != nil {
-			newProblem(c, http.StatusInternalServerError, "KLINE_FETCH_FAILED", "K-Line Fetch Failed", "K线数据获取失败")
+			sharedhttp.NewProblem(c, http.StatusInternalServerError, "KLINE_FETCH_FAILED", "K-Line Fetch Failed", "K线数据获取失败")
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": data, "count": len(data)})
@@ -83,7 +84,7 @@ func HandleBaoStockAllStock() gin.HandlerFunc {
 		date := c.DefaultQuery("date", time.Now().Format("2006-01-02"))
 		stocks, err := client.QueryAllStock(date)
 		if err != nil {
-			newProblem(c, http.StatusInternalServerError, "STOCK_LIST_FAILED", "Stock List Failed", "股票列表获取失败")
+			sharedhttp.NewProblem(c, http.StatusInternalServerError, "STOCK_LIST_FAILED", "Stock List Failed", "股票列表获取失败")
 			return
 		}
 		result := make([]map[string]string, 0, len(stocks))
@@ -101,7 +102,7 @@ func HandleBaoStockTradeDates() gin.HandlerFunc {
 		endDate := c.DefaultQuery("end", time.Now().Format("2006-01-02"))
 		dates, err := client.QueryTradeDates(startDate, endDate)
 		if err != nil {
-			newProblem(c, http.StatusInternalServerError, "TRADE_DATES_FAILED", "Trade Dates Failed", "交易日数据获取失败")
+			sharedhttp.NewProblem(c, http.StatusInternalServerError, "TRADE_DATES_FAILED", "Trade Dates Failed", "交易日数据获取失败")
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": dates, "count": len(dates)})

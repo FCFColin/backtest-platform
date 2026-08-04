@@ -15,6 +15,7 @@ run:
 linters:
   enable:
     - errcheck      # Check for unchecked errors
+    - gofmt         # Enforce gofmt formatting
     - govet         # Report suspicious constructs
     - ineffassign   # Detect ineffectual assignments
     - staticcheck   # Static analysis (subsumes gosimple in v2)

@@ -27,7 +27,7 @@ func IsValidTicker(ticker string) bool {
 func validateTickers(c *gin.Context, tickers []string) bool {
 	for _, t := range tickers {
 		if !IsValidTicker(t) {
-			newProblem(c, http.StatusBadRequest, "INVALID_TICKER", "Invalid Ticker", "ticker参数格式非法: "+t)
+			sharedhttp.NewProblem(c, http.StatusBadRequest, "INVALID_TICKER", "Invalid Ticker", "ticker参数格式非法: "+t)
 			return false
 		}
 	}
@@ -37,13 +37,13 @@ func HandleSearch(ds *store.DataStore) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		query := c.Query("q")
 		if query == "" {
-			newProblem(c, http.StatusBadRequest, "VALIDATION_ERROR", "Validation Error", "缺少查询参数 q")
+			sharedhttp.NewProblem(c, http.StatusBadRequest, "VALIDATION_ERROR", "Validation Error", "缺少查询参数 q")
 			return
 		}
 		limit := 20
 		results, err := ds.SearchTickers(c.Request.Context(), query, limit)
 		if err != nil {
-			newProblem(c, http.StatusInternalServerError, "SEARCH_FAILED", "Search Failed", "搜索失败: "+err.Error())
+			sharedhttp.NewProblem(c, http.StatusInternalServerError, "SEARCH_FAILED", "Search Failed", "搜索失败: "+err.Error())
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": results})
@@ -53,19 +53,19 @@ func HandlePriceData(ds *store.DataStore) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ticker := c.Param("ticker")
 		if !IsValidTicker(ticker) {
-			newProblem(c, http.StatusBadRequest, "INVALID_TICKER", "Invalid Ticker", "ticker参数格式非法，仅允许大写字母、数字、点、下划线、连字符，长度1-20")
+			sharedhttp.NewProblem(c, http.StatusBadRequest, "INVALID_TICKER", "Invalid Ticker", "ticker参数格式非法，仅允许大写字母、数字、点、下划线、连字符，长度1-20")
 			return
 		}
 		startDate := c.Query("start")
 		endDate := c.Query("end")
 		prices, degraded, err := ds.GetPriceData(c.Request.Context(), ticker, startDate, endDate)
 		if err != nil {
-			newProblem(c, http.StatusNotFound, "DATA_NOT_FOUND", "Data Not Found", "标的数据不存在")
+			sharedhttp.NewProblem(c, http.StatusNotFound, "DATA_NOT_FOUND", "Data Not Found", "标的数据不存在")
 			return
 		}
 		if degraded {
 			c.Header("Retry-After", "30")
-			newProblem(c, http.StatusServiceUnavailable, "DEGRADED", "Degraded", "数据从实时源获取（降级模式），请稍后重试")
+			sharedhttp.NewProblem(c, http.StatusServiceUnavailable, "DEGRADED", "Degraded", "数据从实时源获取（降级模式），请稍后重试")
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": prices})
@@ -80,7 +80,7 @@ func HandleBatchPriceData(ds *store.DataStore) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req BatchRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
-			newProblem(c, http.StatusBadRequest, "VALIDATION_ERROR", "Validation Error", "请求格式错误")
+			sharedhttp.NewProblem(c, http.StatusBadRequest, "VALIDATION_ERROR", "Validation Error", "请求格式错误")
 			return
 		}
 		if !validateTickers(c, req.Tickers) {
@@ -118,7 +118,7 @@ func HandleBatchPriceData(ds *store.DataStore) gin.HandlerFunc {
 		wg.Wait()
 		if degradedCount > 0 {
 			c.Header("Retry-After", "30")
-			newProblem(c, http.StatusServiceUnavailable, "DEGRADED", "Degraded", "部分数据从实时源获取（降级模式），请稍后重试")
+			sharedhttp.NewProblem(c, http.StatusServiceUnavailable, "DEGRADED", "Degraded", "部分数据从实时源获取（降级模式），请稍后重试")
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": result})
@@ -131,7 +131,7 @@ func HandleValidateTickers(ds *store.DataStore) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req ValidateRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
-			newProblem(c, http.StatusBadRequest, "VALIDATION_ERROR", "Validation Error", "请求格式错误")
+			sharedhttp.NewProblem(c, http.StatusBadRequest, "VALIDATION_ERROR", "Validation Error", "请求格式错误")
 			return
 		}
 		if !validateTickers(c, req.Tickers) {
@@ -139,7 +139,7 @@ func HandleValidateTickers(ds *store.DataStore) gin.HandlerFunc {
 		}
 		valid, invalid, err := ds.BatchValidateTickers(c.Request.Context(), req.Tickers)
 		if err != nil {
-			newProblem(c, http.StatusInternalServerError, "VALIDATION_FAILED", "Validation Failed", "校验失败")
+			sharedhttp.NewProblem(c, http.StatusInternalServerError, "VALIDATION_FAILED", "Validation Failed", "校验失败")
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"valid": valid, "invalid": invalid}})
@@ -149,7 +149,7 @@ func HandleCPI(ds *store.DataStore) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		country := c.Param("country")
 		if country != "us" && country != "cn" {
-			newProblem(c, http.StatusBadRequest, "VALIDATION_ERROR", "Validation Error", "目前仅支持美国(us)和中国(cn)CPI数据")
+			sharedhttp.NewProblem(c, http.StatusBadRequest, "VALIDATION_ERROR", "Validation Error", "目前仅支持美国(us)和中国(cn)CPI数据")
 			return
 		}
 		rows, err := ds.Pool().Query(c.Request.Context(), `
@@ -158,7 +158,7 @@ func HandleCPI(ds *store.DataStore) gin.HandlerFunc {
 			ORDER BY date
 		`, strings.ToUpper(country))
 		if err != nil {
-			newProblem(c, http.StatusInternalServerError, "CPI_QUERY_FAILED", "CPI Query Failed", "查询CPI数据失败")
+			sharedhttp.NewProblem(c, http.StatusInternalServerError, "CPI_QUERY_FAILED", "CPI Query Failed", "查询CPI数据失败")
 			return
 		}
 		defer rows.Close()
@@ -171,14 +171,14 @@ func HandleCPI(ds *store.DataStore) gin.HandlerFunc {
 			var e cpiEntry
 			var date time.Time
 			if err := rows.Scan(&date, &e.Value); err != nil {
-				newProblem(c, http.StatusInternalServerError, "CPI_PARSE_FAILED", "CPI Parse Failed", "解析CPI数据失败")
+				sharedhttp.NewProblem(c, http.StatusInternalServerError, "CPI_PARSE_FAILED", "CPI Parse Failed", "解析CPI数据失败")
 				return
 			}
 			e.Date = date.Format("2006-01-02")
 			cpiData = append(cpiData, e)
 		}
 		if len(cpiData) == 0 {
-			newProblem(c, http.StatusNotFound, "DATA_NOT_FOUND", "Data Not Found", "CPI数据不存在: "+country)
+			sharedhttp.NewProblem(c, http.StatusNotFound, "DATA_NOT_FOUND", "Data Not Found", "CPI数据不存在: "+country)
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": cpiData})
@@ -202,12 +202,6 @@ func HandleHealth(ds *store.DataStore) gin.HandlerFunc {
 			"price_count":  priceCount,
 		})
 	}
-}
-
-type Problem = sharedhttp.Problem
-
-func newProblem(c *gin.Context, status int, code, title, detail string) {
-	sharedhttp.NewProblem(c, status, code, title, detail)
 }
 
 type Pinger interface {

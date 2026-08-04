@@ -1,28 +1,11 @@
 package yfinance
 
 import (
-	"data-fetcher/internal/httpclient"
-	"data-fetcher/internal/providerutil"
-	"strconv"
+	"data-fetcher/internal/provider"
+	testutil "data-fetcher/internal/provider/testutil"
 	"testing"
-	"time"
 )
 
-func TestDateToUnix_Valid(t *testing.T) {
-	ts, err := providerutil.DateToUnix("2024-01-01")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if ts != 1704067200 {
-		t.Errorf("DateToUnix(\"2024-01-01\") = %d, want 1704067200", ts)
-	}
-}
-func TestDateToUnix_Invalid(t *testing.T) {
-	_, err := providerutil.DateToUnix("invalid-date")
-	if err == nil {
-		t.Fatal("expected error for invalid date, got nil")
-	}
-}
 func TestNewProvider_Name(t *testing.T) {
 	p := NewProvider()
 	if p == nil {
@@ -32,188 +15,110 @@ func TestNewProvider_Name(t *testing.T) {
 		t.Errorf("Name() = %q, want yfinance", name)
 	}
 }
-func TestParseChartResponse_Success(t *testing.T) {
-	ts1 := int64(1704067200) // 2024-01-01
-	ts2 := int64(1704153600) // 2024-01-02
-	body := []byte(`{
-		"chart":{
-			"result":[{
-				"meta":{"currency":"USD","symbol":"AAPL","regularMarketPrice":185.0,"chartPreviousClose":184.0},
-				"timestamp":[` + strconv.FormatInt(ts1, 10) + `,` + strconv.FormatInt(ts2, 10) + `],
+
+func TestParseChartResponse(t *testing.T) {
+	cases := []struct {
+		name    string
+		body    string
+		want    []provider.DailyPrice
+		wantErr bool
+	}{
+		{"success", `{
+			"chart":{"result":[{
+				"timestamp":[1704067200,1704153600],
 				"indicators":{
-					"quote":[{
-						"open":[100.0, 101.0],
-						"high":[105.0, 106.0],
-						"low":[99.0, 100.0],
-						"close":[103.0, 104.0],
-						"volume":[1000000.0, 1200000.0]
-					}],
-					"adjclose":[{"adjclose":[103.0, 104.0]}]
+					"quote":[{"open":[100.0,101.0],"high":[105.0,106.0],"low":[99.0,100.0],"close":[103.0,104.0],"volume":[1000000.0,1200000.0]}],
+					"adjclose":[{"adjclose":[103.0,104.0]}]
 				}
-			}],
-			"error":null
-		}
-	}`)
-	prices, err := parseChartResponse(body)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+			}],"error":null}
+		}`, []provider.DailyPrice{
+			{Date: "2024-01-01", Open: 100, High: 105, Low: 99, Close: 103, Volume: 1000000, AdjustedClose: 103},
+			{Date: "2024-01-02", Open: 101, High: 106, Low: 100, Close: 104, Volume: 1200000, AdjustedClose: 104},
+		}, false},
+		{"empty result", `{"chart":{"result":[],"error":null}}`, nil, false},
+		{"empty timestamp", `{"chart":{"result":[{"timestamp":[],"indicators":{"quote":[]}}],"error":null}}`, nil, false},
+		{"api error", `{"chart":{"result":[],"error":{"code":"Not Found","description":"No data found"}}}`, nil, true},
+		{"malformed json", `{invalid json`, nil, true},
+		{"zero close skipped", `{
+			"chart":{"result":[{
+				"timestamp":[1704067200,1704153600],
+				"indicators":{"quote":[{"open":[100.0,101.0],"high":[105.0,106.0],"low":[99.0,100.0],"close":[0,104.0],"volume":[1000000.0,1200000.0]}]}
+			}],"error":null}
+		}`, []provider.DailyPrice{
+			{Date: "2024-01-02", Open: 101, High: 106, Low: 100, Close: 104, Volume: 1200000, AdjustedClose: 104},
+		}, false},
+		{"no adjclose falls back to close", `{
+			"chart":{"result":[{
+				"timestamp":[1704067200],
+				"indicators":{"quote":[{"open":[100.0],"high":[105.0],"low":[99.0],"close":[103.0],"volume":[1000000.0]}]}
+			}],"error":null}
+		}`, []provider.DailyPrice{
+			{Date: "2024-01-01", Open: 100, High: 105, Low: 99, Close: 103, Volume: 1000000, AdjustedClose: 103},
+		}, false},
 	}
-	if len(prices) != 2 {
-		t.Fatalf("expected 2 prices, got %d", len(prices))
-	}
-	p := prices[0]
-	if p.Date != "2024-01-01" {
-		t.Errorf("Date = %q, want 2024-01-01", p.Date)
-	}
-	if p.Open != 100.0 {
-		t.Errorf("Open = %v, want 100.0", p.Open)
-	}
-	if p.Close != 103.0 {
-		t.Errorf("Close = %v, want 103.0", p.Close)
-	}
-	if p.Volume != 1000000 {
-		t.Errorf("Volume = %d, want 1000000", p.Volume)
-	}
-	if p.AdjustedClose != 103.0 {
-		t.Errorf("AdjustedClose = %v, want 103.0", p.AdjustedClose)
-	}
-}
-func TestParseChartResponse_EmptyResult(t *testing.T) {
-	body := []byte(`{"chart":{"result":[],"error":null}}`)
-	prices, err := parseChartResponse(body)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(prices) != 0 {
-		t.Fatalf("expected 0 prices for empty result, got %d", len(prices))
-	}
-}
-func TestParseChartResponse_EmptyTimestamp(t *testing.T) {
-	body := []byte(`{"chart":{"result":[{"timestamp":[],"indicators":{"quote":[]}}],"error":null}}`)
-	prices, err := parseChartResponse(body)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(prices) != 0 {
-		t.Fatalf("expected 0 prices for empty timestamp, got %d", len(prices))
-	}
-}
-func TestParseChartResponse_APIError(t *testing.T) {
-	body := []byte(`{"chart":{"result":[],"error":{"code":"Not Found","description":"No data found"}}}`)
-	_, err := parseChartResponse(body)
-	if err == nil {
-		t.Fatal("expected error for API error response, got nil")
-	}
-}
-func TestParseChartResponse_MalformedJSON(t *testing.T) {
-	_, err := parseChartResponse([]byte(`{invalid json`))
-	if err == nil {
-		t.Fatal("expected error for malformed JSON, got nil")
-	}
-}
-func TestParseChartResponse_ZeroCloseSkipped(t *testing.T) {
-	ts1 := int64(1704067200)
-	ts2 := int64(1704153600)
-	body := []byte(`{
-		"chart":{
-			"result":[{
-				"timestamp":[` + strconv.FormatInt(ts1, 10) + `,` + strconv.FormatInt(ts2, 10) + `],
-				"indicators":{
-					"quote":[{
-						"open":[100.0, 101.0],
-						"high":[105.0, 106.0],
-						"low":[99.0, 100.0],
-						"close":[0, 104.0],
-						"volume":[1000000.0, 1200000.0]
-					}]
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			prices, err := parseChartResponse([]byte(c.body))
+			if c.wantErr {
+				if err == nil {
+					t.Fatal("expected error, got nil")
 				}
-			}],
-			"error":null
-		}
-	}`)
-	prices, err := parseChartResponse(body)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(prices) != 1 {
-		t.Fatalf("expected 1 price (skip zero close), got %d", len(prices))
-	}
-	if prices[0].Close != 104.0 {
-		t.Errorf("Close = %v, want 104.0", prices[0].Close)
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			testutil.AssertPrices(t, prices, c.want...)
+		})
 	}
 }
-func TestParseChartResponse_NoAdjClose_FallsBackToClose(t *testing.T) {
-	ts1 := int64(1704067200)
-	body := []byte(`{
-		"chart":{
-			"result":[{
-				"timestamp":[` + strconv.FormatInt(ts1, 10) + `],
-				"indicators":{ "quote":[{ "open":[100.0], "high":[105.0], "low":[99.0], "close":[103.0], "volume":[1000000.0] }] }
-			}],
-			"error":null
-		}
-	}`)
-	prices, err := parseChartResponse(body)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+
+func TestParseSearchResponse(t *testing.T) {
+	cases := []struct {
+		name    string
+		body    string
+		want    []provider.TickerInfo
+		wantErr bool
+	}{
+		{"success", `{
+			"quotes":[
+				{"symbol":"AAPL","shortname":"Apple Inc","longname":"Apple Inc.","quoteType":"EQUITY","exchange":"Nasdaq"},
+				{"symbol":"MSFT","shortname":"","longname":"Microsoft Corporation","quoteType":"EQUITY","exchange":"Nasdaq"}
+			]
+		}`, []provider.TickerInfo{
+			{Ticker: "AAPL", Name: "Apple Inc", Market: "美股"},
+			{Ticker: "MSFT", Name: "Microsoft Corporation", Market: "美股"},
+		}, false},
+		{"empty quotes", `{"quotes":[]}`, nil, false},
+		{"malformed json", `{invalid`, nil, true},
 	}
-	if len(prices) != 1 {
-		t.Fatalf("expected 1 price, got %d", len(prices))
-	}
-	if prices[0].AdjustedClose != 103.0 {
-		t.Errorf("AdjustedClose = %v, want 103.0 (fallback to close)", prices[0].AdjustedClose)
-	}
-}
-func TestParseSearchResponse_Success(t *testing.T) {
-	body := []byte(`{
-		"quotes":[
-			{"symbol":"AAPL","shortname":"Apple Inc","longname":"Apple Inc.","quoteType":"EQUITY","exchange":"Nasdaq"},
-			{"symbol":"MSFT","shortname":"","longname":"Microsoft Corporation","quoteType":"EQUITY","exchange":"Nasdaq"}
-		]
-	}`)
-	results, err := parseSearchResponse(body)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(results) != 2 {
-		t.Fatalf("expected 2 results, got %d", len(results))
-	}
-	if results[0].Ticker != "AAPL" {
-		t.Errorf("Ticker[0] = %q, want AAPL", results[0].Ticker)
-	}
-	if results[0].Name != "Apple Inc" {
-		t.Errorf("Name[0] = %q, want Apple Inc (shortname)", results[0].Name)
-	}
-	if results[1].Name != "Microsoft Corporation" {
-		t.Errorf("Name[1] = %q, want Microsoft Corporation (longname fallback)", results[1].Name)
-	}
-	if results[0].Market != "美股" {
-		t.Errorf("Market[0] = %q, want 美股", results[0].Market)
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			results, err := parseSearchResponse([]byte(c.body))
+			if c.wantErr {
+				if err == nil {
+					t.Fatal("expected error, got nil")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if len(results) != len(c.want) {
+				t.Fatalf("expected %d results, got %d", len(c.want), len(results))
+			}
+			for i, w := range c.want {
+				if results[i] != w {
+					t.Errorf("results[%d] = %+v, want %+v", i, results[i], w)
+				}
+			}
+		})
 	}
 }
-func TestParseSearchResponse_EmptyQuotes(t *testing.T) {
-	body := []byte(`{"quotes":[]}`)
-	results, err := parseSearchResponse(body)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(results) != 0 {
-		t.Fatalf("expected 0 results, got %d", len(results))
-	}
-}
-func TestParseSearchResponse_MalformedJSON(t *testing.T) {
-	_, err := parseSearchResponse([]byte(`{invalid`))
-	if err == nil {
-		t.Fatal("expected error for malformed JSON, got nil")
-	}
-}
+
 func TestFetchStockDaily_HTTPError(t *testing.T) {
-	p := NewProvider()
-	origClient := httpClient
-	defer func() { httpClient = origClient }()
-	httpClient = httpclient.New("test", httpclient.Options{RequestDelay: 1 * time.Millisecond, MaxRetries: 1})
-	_, err := p.FetchStockDaily("INVALID@@@TICKER", "2024-01-01", "2024-01-31")
-	if err == nil {
-		t.Fatal("expected error for HTTP failure, got nil")
-	}
+	orig := httpClient
+	defer func() { httpClient = orig }()
+	httpClient = testutil.FastFailClient()
+	testutil.AssertHTTPError(t, NewProvider(), "INVALID@@@TICKER", "2024-01-01", "2024-01-31")
 }

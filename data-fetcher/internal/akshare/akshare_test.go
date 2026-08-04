@@ -1,12 +1,12 @@
 package akshare
 
 import (
-	"data-fetcher/internal/httpclient"
+	"data-fetcher/internal/provider"
+	testutil "data-fetcher/internal/provider/testutil"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"time"
 )
 
 func validKline(date, open, close, high, low, vol string) string {
@@ -32,96 +32,57 @@ func buildEastMoneyJSON(klines []string, dataNil bool) []byte {
 	b, _ := json.Marshal(resp)
 	return b
 }
-func TestParseDailyPrices_Success(t *testing.T) {
-	klines := []string{
-		validKline("2024-01-02", "10.5", "10.8", "11.0", "10.3", "1000000"),
-		validKline("2024-01-03", "10.8", "11.2", "11.5", "10.7", "1200000"),
+
+func TestParseDailyPrices(t *testing.T) {
+	wantSuccess := []provider.DailyPrice{
+		{Date: "2024-01-02", Open: 10.5, High: 11, Low: 10.3, Close: 10.8, Volume: 1000000, AdjustedClose: 10.8},
+		{Date: "2024-01-03", Open: 10.8, High: 11.5, Low: 10.7, Close: 11.2, Volume: 1200000, AdjustedClose: 11.2},
 	}
-	body := buildEastMoneyJSON(klines, false)
-	prices, err := parseDailyPrices(body)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+	cases := []struct {
+		name    string
+		klines  []string
+		dataNil bool
+		want    []provider.DailyPrice
+		wantErr bool
+	}{
+		{"success", []string{
+			validKline("2024-01-02", "10.5", "10.8", "11.0", "10.3", "1000000"),
+			validKline("2024-01-03", "10.8", "11.2", "11.5", "10.7", "1200000"),
+		}, false, wantSuccess, false},
+		{"nil data", nil, true, nil, true},
+		{"empty klines", []string{}, false, nil, false},
+		{"short kline skipped", []string{
+			validKline("2024-01-02", "10.5", "10.8", "11.0", "10.3", "1000000"),
+			"2024-01-03,10.8,11.2", // 不足 11 段，应跳过
+		}, false, wantSuccess[:1], false},
+		{"empty fields", []string{"2024-01-02,,,,,1000000,100000,1.5,2.5,0.2,3.0"}, false, []provider.DailyPrice{
+			{Date: "2024-01-02", Open: 0, High: 0, Low: 0, Close: 0, Volume: 1000000, AdjustedClose: 0},
+		}, false},
 	}
-	if len(prices) != 2 {
-		t.Fatalf("expected 2 prices, got %d", len(prices))
-	}
-	p := prices[0]
-	if p.Date != "2024-01-02" {
-		t.Errorf("Date = %q, want 2024-01-02", p.Date)
-	}
-	if p.Open != 10.5 {
-		t.Errorf("Open = %v, want 10.5", p.Open)
-	}
-	if p.Close != 10.8 {
-		t.Errorf("Close = %v, want 10.8", p.Close)
-	}
-	if p.High != 11.0 {
-		t.Errorf("High = %v, want 11.0", p.High)
-	}
-	if p.Low != 10.3 {
-		t.Errorf("Low = %v, want 10.3", p.Low)
-	}
-	if p.Volume != 1000000 {
-		t.Errorf("Volume = %d, want 1000000", p.Volume)
-	}
-	if p.AdjustedClose != 10.8 {
-		t.Errorf("AdjustedClose = %v, want 10.8", p.AdjustedClose)
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			prices, err := parseDailyPrices(buildEastMoneyJSON(c.klines, c.dataNil))
+			if c.wantErr {
+				if err == nil {
+					t.Fatal("expected error, got nil")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			testutil.AssertPrices(t, prices, c.want...)
+		})
 	}
 }
-func TestParseDailyPrices_NilData(t *testing.T) {
-	body := buildEastMoneyJSON(nil, true)
-	_, err := parseDailyPrices(body)
-	if err == nil {
-		t.Fatal("expected error for nil data, got nil")
-	}
-}
+
 func TestParseDailyPrices_MalformedJSON(t *testing.T) {
 	_, err := parseDailyPrices([]byte(`{invalid json`))
 	if err == nil {
 		t.Fatal("expected error for malformed JSON, got nil")
 	}
 }
-func TestParseDailyPrices_EmptyKlines(t *testing.T) {
-	body := buildEastMoneyJSON([]string{}, false)
-	prices, err := parseDailyPrices(body)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(prices) != 0 {
-		t.Fatalf("expected 0 prices, got %d", len(prices))
-	}
-}
-func TestParseDailyPrices_ShortKlineSkipped(t *testing.T) {
-	klines := []string{
-		validKline("2024-01-02", "10.5", "10.8", "11.0", "10.3", "1000000"),
-		"2024-01-03,10.8,11.2", // 不足 11 段，应跳过
-	}
-	body := buildEastMoneyJSON(klines, false)
-	prices, err := parseDailyPrices(body)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(prices) != 1 {
-		t.Fatalf("expected 1 valid price (skip short), got %d", len(prices))
-	}
-}
-func TestParseDailyPrices_EmptyFields(t *testing.T) {
-	kline := "2024-01-02,,,,,1000000,100000,1.5,2.5,0.2,3.0"
-	body := buildEastMoneyJSON([]string{kline}, false)
-	prices, err := parseDailyPrices(body)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(prices) != 1 {
-		t.Fatalf("expected 1 price, got %d", len(prices))
-	}
-	if prices[0].Open != 0 {
-		t.Errorf("Open = %v, want 0 for empty string", prices[0].Open)
-	}
-	if prices[0].Volume != 1000000 {
-		t.Errorf("Volume = %d, want 1000000", prices[0].Volume)
-	}
-}
+
 func TestParseCodeAndMarket(t *testing.T) {
 	cases := []struct {
 		ticker     string
@@ -144,6 +105,7 @@ func TestParseCodeAndMarket(t *testing.T) {
 		}
 	}
 }
+
 func TestNewProvider_Name(t *testing.T) {
 	p := NewProvider()
 	if p == nil {
@@ -153,6 +115,7 @@ func TestNewProvider_Name(t *testing.T) {
 		t.Errorf("Name() = %q, want akshare", name)
 	}
 }
+
 func TestSearchTicker_NotImplemented(t *testing.T) {
 	p := NewProvider()
 	_, err := p.SearchTicker("test")
@@ -160,52 +123,46 @@ func TestSearchTicker_NotImplemented(t *testing.T) {
 		t.Fatal("expected error for unimplemented SearchTicker, got nil")
 	}
 }
-func TestDoWithRetry_HTTPError(t *testing.T) {
-	origClient := httpClient
-	defer func() { httpClient = origClient }()
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(`internal server error`))
-	}))
-	defer ts.Close()
-	httpClient = httpclient.New("test", httpclient.Options{RequestDelay: 1 * time.Millisecond, MaxRetries: 1})
-	_, err := doWithRetry(ts.URL + "/test")
-	if err == nil {
-		t.Fatal("expected error for HTTP 500, got nil")
+
+func TestDoWithRetry(t *testing.T) {
+	orig := httpClient
+	defer func() { httpClient = orig }()
+	httpClient = testutil.FastFailClient()
+	cases := []struct {
+		name    string
+		handler http.HandlerFunc
+		wantErr bool
+	}{
+		{"http 500", func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(`internal server error`))
+		}, true},
+		{"parse error", func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte(`{"data":null}`))
+		}, true},
+		{"success", func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.Write(buildEastMoneyJSON([]string{validKline("2024-01-02", "10.5", "10.8", "11.0", "10.3", "1000000")}, false))
+		}, false},
 	}
-}
-func TestDoWithRetry_ParseError(t *testing.T) {
-	origClient := httpClient
-	defer func() { httpClient = origClient }()
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`{"data":null}`))
-	}))
-	defer ts.Close()
-	httpClient = httpclient.New("test", httpclient.Options{RequestDelay: 1 * time.Millisecond, MaxRetries: 1})
-	_, err := doWithRetry(ts.URL + "/test")
-	if err == nil {
-		t.Fatal("expected error for nil data, got nil")
-	}
-}
-func TestDoWithRetry_Success(t *testing.T) {
-	origClient := httpClient
-	defer func() { httpClient = origClient }()
-	kline := validKline("2024-01-02", "10.5", "10.8", "11.0", "10.3", "1000000")
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.Write(buildEastMoneyJSON([]string{kline}, false))
-	}))
-	defer ts.Close()
-	httpClient = httpclient.New("test", httpclient.Options{RequestDelay: 1 * time.Millisecond, MaxRetries: 1})
-	prices, err := doWithRetry(ts.URL + "/test")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(prices) != 1 {
-		t.Fatalf("expected 1 price, got %d", len(prices))
-	}
-	if prices[0].Close != 10.8 {
-		t.Errorf("Close = %v, want 10.8", prices[0].Close)
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			ts := httptest.NewServer(c.handler)
+			defer ts.Close()
+			prices, err := doWithRetry(ts.URL + "/test")
+			if c.wantErr {
+				if err == nil {
+					t.Fatal("expected error, got nil")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if len(prices) != 1 {
+				t.Fatalf("expected 1 price, got %d", len(prices))
+			}
+		})
 	}
 }

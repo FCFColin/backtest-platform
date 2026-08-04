@@ -159,6 +159,12 @@ func fetchSegmentData(ctx context.Context, pool *pgxpool.Pool, seg *SIMSegment, 
 		return nil, fmt.Errorf("不支持的 Segment 类型: %s", seg.Type)
 	}
 }
+func scaleOHLC(p dailyPrice, ratio float64) dailyPrice {
+	return dailyPrice{
+		Date: p.Date, Open: p.Open * ratio, High: p.High * ratio,
+		Low: p.Low * ratio, Close: p.Close * ratio, Volume: p.Volume, AdjustedClose: p.AdjustedClose * ratio,
+	}
+}
 func normalizeAndMergeSegments(segments []segmentData) []dailyPrice {
 	if len(segments) == 0 {
 		return nil
@@ -174,15 +180,7 @@ func normalizeAndMergeSegments(segments []segmentData) []dailyPrice {
 			ratio := result[len(result)-1].Close / prices[0].Close
 			normalized := make([]dailyPrice, len(prices))
 			for j, p := range prices {
-				normalized[j] = dailyPrice{
-					Date:          p.Date,
-					Open:          p.Open * ratio,
-					High:          p.High * ratio,
-					Low:           p.Low * ratio,
-					Close:         p.Close * ratio,
-					Volume:        p.Volume,
-					AdjustedClose: p.AdjustedClose * ratio,
-				}
+				normalized[j] = scaleOHLC(p, ratio)
 			}
 			prices = normalized
 		}
@@ -230,15 +228,9 @@ func applyExpenseRatio(prices []dailyPrice, expenseRatio float64) []dailyPrice {
 		}
 		newClose := prevClose * (prices[i].Close / prevClose) * (1 - dailyDrag)
 		ratio := newClose / prices[i].Close
-		result[i] = dailyPrice{
-			Date:          prices[i].Date,
-			Open:          prices[i].Open * ratio,
-			High:          prices[i].High * ratio,
-			Low:           prices[i].Low * ratio,
-			Close:         newClose,
-			Volume:        prices[i].Volume,
-			AdjustedClose: newClose,
-		}
+		result[i] = scaleOHLC(prices[i], ratio)
+		result[i].Close = newClose
+		result[i].AdjustedClose = newClose
 	}
 	return result
 }

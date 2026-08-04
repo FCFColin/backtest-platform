@@ -7,298 +7,172 @@ import (
 	"testing"
 )
 
-func TestParsePipeDelimited_Basic(t *testing.T) {
-	data := []byte("AAPL|Apple Inc|Q|N|N|100|N|N\nMSFT|Microsoft|Q|N|N|100|N|N")
-	rows := parsePipeDelimited(data, true)
-	if len(rows) != 2 {
-		t.Fatalf("expected 2 rows, got %d", len(rows))
-	}
-	if rows[0][0] != "AAPL" {
-		t.Errorf("first row first field = %s, want AAPL", rows[0][0])
-	}
-}
-func TestParsePipeDelimited_SkipHeaders(t *testing.T) {
-	data := []byte("Symbol|Security Name|Market Category\nAAPL|Apple Inc|Q")
-	rows := parsePipeDelimited(data, true)
-	if len(rows) != 1 {
-		t.Fatalf("expected 1 row (header skipped), got %d", len(rows))
-	}
-}
-func TestParsePipeDelimited_NoSkipHeaders(t *testing.T) {
-	data := []byte("Symbol|Security Name\nAAPL|Apple Inc")
-	rows := parsePipeDelimited(data, false)
-	if len(rows) != 2 {
-		t.Fatalf("expected 2 rows (no skip), got %d", len(rows))
-	}
-}
-func TestParsePipeDelimited_EmptyLines(t *testing.T) {
-	data := []byte("AAPL|Apple\n\n\nMSFT|Microsoft")
-	rows := parsePipeDelimited(data, true)
-	if len(rows) != 2 {
-		t.Fatalf("expected 2 rows (empty lines skipped), got %d", len(rows))
-	}
-}
-func TestParsePipeDelimited_FileCreationLine(t *testing.T) {
-	data := []byte("AAPL|Apple\nFile Creation Time: 2024-01-01")
-	rows := parsePipeDelimited(data, true)
-	if len(rows) != 1 {
-		t.Fatalf("expected 1 row (File Creation skipped), got %d", len(rows))
-	}
-}
-func TestParsePipeDelimited_TrimsFields(t *testing.T) {
-	data := []byte("AAPL | Apple Inc | Q")
-	rows := parsePipeDelimited(data, true)
-	if rows[0][0] != "AAPL" {
-		t.Errorf("field not trimmed: %q", rows[0][0])
-	}
-}
-func TestParsePipeDelimited_EmptyInput(t *testing.T) {
-	rows := parsePipeDelimited([]byte(""), true)
-	if len(rows) != 0 {
-		t.Errorf("expected 0 rows for empty input, got %d", len(rows))
-	}
-}
-func TestParseNASDAQList_Basic(t *testing.T) {
-	data := []byte("Symbol|Security Name|Market Category|Test Issue|Financial Status|Round Lot Size|ETF|NextShares\nAAPL|Apple Inc|Q|N|N|100|N|N\nSPY|SPDR S&P 500|P|N|N|100|Y|N")
-	entries := parseNASDAQList(data)
-	if len(entries) != 2 {
-		t.Fatalf("expected 2 entries, got %d", len(entries))
-	}
-	if entries[0].Ticker != "AAPL" {
-		t.Errorf("first Ticker = %s, want AAPL", entries[0].Ticker)
-	}
-	if entries[0].Category != "US Equity" {
-		t.Errorf("first Category = %s, want US Equity", entries[0].Category)
-	}
-}
-func TestParseNASDAQList_ETF(t *testing.T) {
-	data := []byte("Symbol|Security Name|Market Category|Test Issue|Financial Status|Round Lot Size|ETF|NextShares\nSPY|SPDR S&P 500|P|N|N|100|Y|N")
-	entries := parseNASDAQList(data)
-	if len(entries) != 1 {
-		t.Fatalf("expected 1 entry, got %d", len(entries))
-	}
-	if entries[0].Category != "ETF" {
-		t.Errorf("ETF Category = %s, want ETF", entries[0].Category)
-	}
-}
-func TestParseNASDAQList_SkipsTestIssues(t *testing.T) {
-	data := []byte("Symbol|Security Name|Market Category|Test Issue|Financial Status|Round Lot Size|ETF|NextShares\nTEST|Test Stock|Q|Y|N|100|N|N\nAAPL|Apple Inc|Q|N|N|100|N|N")
-	entries := parseNASDAQList(data)
-	if len(entries) != 1 {
-		t.Fatalf("expected 1 entry (test issue skipped), got %d", len(entries))
-	}
-	if entries[0].Ticker != "AAPL" {
-		t.Errorf("Ticker = %s, want AAPL", entries[0].Ticker)
-	}
-}
-func TestParseNASDAQList_EmptySymbol(t *testing.T) {
-	data := []byte("Symbol|Security Name|Market Category|Test Issue|Financial Status|Round Lot Size|ETF|NextShares\n|Empty Stock|Q|N|N|100|N|N")
-	entries := parseNASDAQList(data)
-	if len(entries) != 0 {
-		t.Errorf("expected 0 entries (empty symbol), got %d", len(entries))
-	}
-}
-func TestParseOtherList_Basic(t *testing.T) {
-	data := []byte("BRK.A|Desc|Berkshire Hathaway|BRK.A|N|N|100|BRK.A\nVTI|Desc|Vanguard Total Market|VTI|Y|Y|100|VTI")
-	entries := parseOtherList(data)
-	if len(entries) != 2 {
-		t.Fatalf("expected 2 entries, got %d", len(entries))
-	}
-	if entries[0].Ticker != "BRK.A" {
-		t.Errorf("first Ticker = %s, want BRK.A", entries[0].Ticker)
-	}
-}
-func TestParseOtherList_ETF(t *testing.T) {
-	data := []byte("VTI|Desc|Vanguard Total Market|VTI|Y|Y|100|VTI")
-	entries := parseOtherList(data)
-	if len(entries) != 1 {
-		t.Fatalf("expected 1 entry, got %d", len(entries))
-	}
-	if entries[0].Category != "ETF" {
-		t.Errorf("ETF Category = %s, want ETF", entries[0].Category)
-	}
-}
-func TestMergeAndDedup_Basic(t *testing.T) {
-	list1 := []TickerEntry{{Ticker: "AAPL", Name: "Apple"}}
-	list2 := []TickerEntry{{Ticker: "MSFT", Name: "Microsoft"}}
-	result := mergeAndDedup(list1, list2)
-	if len(result) != 2 {
-		t.Fatalf("expected 2 entries, got %d", len(result))
-	}
-}
-func TestMergeAndDedup_RemovesDuplicates(t *testing.T) {
-	list1 := []TickerEntry{{Ticker: "AAPL", Name: "Apple"}}
-	list2 := []TickerEntry{{Ticker: "AAPL", Name: ""}} // duplicate, empty name
-	result := mergeAndDedup(list1, list2)
-	if len(result) != 1 {
-		t.Fatalf("expected 1 entry (deduped), got %d", len(result))
-	}
-}
-func TestMergeAndDedup_FillsEmptyName(t *testing.T) {
-	list1 := []TickerEntry{{Ticker: "AAPL", Name: ""}}
-	list2 := []TickerEntry{{Ticker: "AAPL", Name: "Apple"}}
-	result := mergeAndDedup(list1, list2)
-	if len(result) != 1 {
-		t.Fatalf("expected 1 entry, got %d", len(result))
-	}
-	if result[0].Name != "Apple" {
-		t.Errorf("Name should be filled from second list, got %q", result[0].Name)
-	}
-}
-func TestMergeAndDedup_CaseInsensitive(t *testing.T) {
-	list1 := []TickerEntry{{Ticker: "AAPL", Name: "Apple"}}
-	list2 := []TickerEntry{{Ticker: "aapl", Name: "Apple Lower"}}
-	result := mergeAndDedup(list1, list2)
-	if len(result) != 1 {
-		t.Fatalf("expected 1 entry (case insensitive dedup), got %d", len(result))
-	}
-}
-func TestMergeAndDedup_Empty(t *testing.T) {
-	result := mergeAndDedup()
-	if len(result) != 0 {
-		t.Errorf("expected 0 entries, got %d", len(result))
-	}
-}
-func TestLoadTickersFromFile_PipeDelimited(t *testing.T) {
-	tmpDir := t.TempDir()
-	tmpFile := filepath.Join(tmpDir, "tickers.txt")
-	os.WriteFile(tmpFile, []byte("AAPL|Apple Inc|US Equity\nMSFT|Microsoft|US Equity"), 0644)
-	entries, err := loadTickersFromFile(tmpFile)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(entries) != 2 {
-		t.Fatalf("expected 2 entries, got %d", len(entries))
-	}
-	if entries[0].Ticker != "AAPL" {
-		t.Errorf("first Ticker = %s, want AAPL", entries[0].Ticker)
-	}
-}
-func TestLoadTickersFromFile_CommaDelimited(t *testing.T) {
-	tmpDir := t.TempDir()
-	tmpFile := filepath.Join(tmpDir, "tickers.csv")
-	os.WriteFile(tmpFile, []byte("AAPL,Apple Inc,US Equity"), 0644)
-	entries, err := loadTickersFromFile(tmpFile)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(entries) != 1 {
-		t.Fatalf("expected 1 entry, got %d", len(entries))
-	}
-	if entries[0].Ticker != "AAPL" {
-		t.Errorf("Ticker = %s, want AAPL", entries[0].Ticker)
-	}
-}
-func TestLoadTickersFromFile_PlainTicker(t *testing.T) {
-	tmpDir := t.TempDir()
-	tmpFile := filepath.Join(tmpDir, "tickers.txt")
-	os.WriteFile(tmpFile, []byte("AAPL\nMSFT\nGOOG"), 0644)
-	entries, err := loadTickersFromFile(tmpFile)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(entries) != 3 {
-		t.Fatalf("expected 3 entries, got %d", len(entries))
-	}
-	for _, e := range entries {
-		if e.Category != "Custom" {
-			t.Errorf("Category = %s, want Custom", e.Category)
+func TestParsePipeDelimited(t *testing.T) {
+	for _, tc := range []struct {
+		name, input string
+		skip        bool
+		wantN       int
+		want0       string
+	}{
+		{"basic", "AAPL|Apple Inc|Q|N|N|100|N|N\nMSFT|Microsoft|Q|N|N|100|N|N", true, 2, "AAPL"},
+		{"skip headers", "Symbol|Security Name|Market Category\nAAPL|Apple Inc|Q", true, 1, "AAPL"},
+		{"no skip", "Symbol|Security Name\nAAPL|Apple Inc", false, 2, ""},
+		{"empty lines", "AAPL|Apple\n\n\nMSFT|Microsoft", true, 2, "AAPL"},
+		{"file creation line", "AAPL|Apple\nFile Creation Time: 2024-01-01", true, 1, "AAPL"},
+		{"trims fields", "AAPL | Apple Inc | Q", true, 1, "AAPL"},
+		{"empty input", "", true, 0, ""},
+	} {
+		rows := parsePipeDelimited([]byte(tc.input), tc.skip)
+		if len(rows) != tc.wantN {
+			t.Errorf("%s: len=%d want %d", tc.name, len(rows), tc.wantN)
+		}
+		if tc.want0 != "" && len(rows) > 0 && rows[0][0] != tc.want0 {
+			t.Errorf("%s: rows[0][0]=%q want %q", tc.name, rows[0][0], tc.want0)
 		}
 	}
 }
-func TestLoadTickersFromFile_SkipsComments(t *testing.T) {
-	tmpDir := t.TempDir()
-	tmpFile := filepath.Join(tmpDir, "tickers.txt")
-	os.WriteFile(tmpFile, []byte("# This is a comment\nAAPL\n# Another comment\nMSFT"), 0644)
-	entries, err := loadTickersFromFile(tmpFile)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(entries) != 2 {
-		t.Fatalf("expected 2 entries (comments skipped), got %d", len(entries))
+
+func TestParseNASDAQList(t *testing.T) {
+	header := "Symbol|Security Name|Market Category|Test Issue|Financial Status|Round Lot Size|ETF|NextShares\n"
+	for _, tc := range []struct {
+		name, input string
+		wantN       int
+		want0       string
+		wantCat     string
+	}{
+		{"basic", header + "AAPL|Apple Inc|Q|N|N|100|N|N\nSPY|SPDR S&P 500|P|N|N|100|Y|N", 2, "AAPL", "US Equity"},
+		{"etf", header + "SPY|SPDR S&P 500|P|N|N|100|Y|N", 1, "SPY", "ETF"},
+		{"skips test issues", header + "TEST|Test Stock|Q|Y|N|100|N|N\nAAPL|Apple Inc|Q|N|N|100|N|N", 1, "AAPL", ""},
+		{"empty symbol", header + "|Empty Stock|Q|N|N|100|N|N", 0, "", ""},
+	} {
+		entries := parseNASDAQList([]byte(tc.input))
+		if len(entries) != tc.wantN {
+			t.Errorf("%s: len=%d want %d", tc.name, len(entries), tc.wantN)
+		}
+		if len(entries) > 0 {
+			if tc.want0 != "" && entries[0].Ticker != tc.want0 {
+				t.Errorf("%s: Ticker=%q want %q", tc.name, entries[0].Ticker, tc.want0)
+			}
+			if tc.wantCat != "" && entries[0].Category != tc.wantCat {
+				t.Errorf("%s: Category=%q want %q", tc.name, entries[0].Category, tc.wantCat)
+			}
+		}
 	}
 }
+
+func TestParseOtherList(t *testing.T) {
+	for _, tc := range []struct {
+		name, input string
+		wantN       int
+		want0       string
+		wantCat     string
+	}{
+		{"basic", "BRK.A|Desc|Berkshire Hathaway|BRK.A|N|N|100|BRK.A\nVTI|Desc|Vanguard Total Market|VTI|Y|Y|100|VTI", 2, "BRK.A", ""},
+		{"etf", "VTI|Desc|Vanguard Total Market|VTI|Y|Y|100|VTI", 1, "VTI", "ETF"},
+	} {
+		entries := parseOtherList([]byte(tc.input))
+		if len(entries) != tc.wantN {
+			t.Errorf("%s: len=%d want %d", tc.name, len(entries), tc.wantN)
+		}
+		if len(entries) > 0 {
+			if tc.want0 != "" && entries[0].Ticker != tc.want0 {
+				t.Errorf("%s: Ticker=%q want %q", tc.name, entries[0].Ticker, tc.want0)
+			}
+			if tc.wantCat != "" && entries[0].Category != tc.wantCat {
+				t.Errorf("%s: Category=%q want %q", tc.name, entries[0].Category, tc.wantCat)
+			}
+		}
+	}
+}
+
+func TestMergeAndDedup(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		lists    [][]TickerEntry
+		wantN    int
+		wantName string
+	}{
+		{"basic", [][]TickerEntry{{{Ticker: "AAPL", Name: "Apple"}}, {{Ticker: "MSFT", Name: "Microsoft"}}}, 2, ""},
+		{"removes duplicates", [][]TickerEntry{{{Ticker: "AAPL", Name: "Apple"}}, {{Ticker: "AAPL", Name: ""}}}, 1, ""},
+		{"fills empty name", [][]TickerEntry{{{Ticker: "AAPL", Name: ""}}, {{Ticker: "AAPL", Name: "Apple"}}}, 1, "Apple"},
+		{"case insensitive", [][]TickerEntry{{{Ticker: "AAPL", Name: "Apple"}}, {{Ticker: "aapl", Name: "Apple Lower"}}}, 1, ""},
+		{"empty", nil, 0, ""},
+	} {
+		result := mergeAndDedup(tc.lists...)
+		if len(result) != tc.wantN {
+			t.Errorf("%s: len=%d want %d", tc.name, len(result), tc.wantN)
+		}
+		if tc.wantName != "" && len(result) > 0 && result[0].Name != tc.wantName {
+			t.Errorf("%s: Name=%q want %q", tc.name, result[0].Name, tc.wantName)
+		}
+	}
+}
+
+func TestLoadTickersFromFile(t *testing.T) {
+	for _, tc := range []struct {
+		name, content string
+		wantN         int
+		wantCat       string
+	}{
+		{"pipe delimited", "AAPL|Apple Inc|US Equity\nMSFT|Microsoft|US Equity", 2, ""},
+		{"comma delimited", "AAPL,Apple Inc,US Equity", 1, ""},
+		{"plain ticker", "AAPL\nMSFT\nGOOG", 3, "Custom"},
+		{"skips comments", "# This is a comment\nAAPL\n# Another comment\nMSFT", 2, ""},
+		{"empty file", "", 0, ""},
+	} {
+		tmpFile := filepath.Join(t.TempDir(), "tickers.txt")
+		if err := os.WriteFile(tmpFile, []byte(tc.content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		entries, err := loadTickersFromFile(tmpFile)
+		if err != nil {
+			t.Fatalf("%s: unexpected error: %v", tc.name, err)
+		}
+		if len(entries) != tc.wantN {
+			t.Errorf("%s: len=%d want %d", tc.name, len(entries), tc.wantN)
+		}
+		if tc.wantCat != "" {
+			for i, e := range entries {
+				if e.Category != tc.wantCat {
+					t.Errorf("%s: entries[%d].Category=%q want %q", tc.name, i, e.Category, tc.wantCat)
+				}
+			}
+		}
+	}
+}
+
 func TestLoadTickersFromFile_FileNotFound(t *testing.T) {
-	_, err := loadTickersFromFile("/nonexistent/path/tickers.txt")
-	if err == nil {
+	if _, err := loadTickersFromFile("/nonexistent/path/tickers.txt"); err == nil {
 		t.Error("expected error for non-existent file, got nil")
 	}
 }
-func TestLoadTickersFromFile_EmptyFile(t *testing.T) {
-	tmpDir := t.TempDir()
-	tmpFile := filepath.Join(tmpDir, "empty.txt")
-	os.WriteFile(tmpFile, []byte(""), 0644)
-	entries, err := loadTickersFromFile(tmpFile)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(entries) != 0 {
-		t.Errorf("expected 0 entries for empty file, got %d", len(entries))
-	}
-}
-func TestTickerEntry_Fields(t *testing.T) {
-	e := TickerEntry{Ticker: "AAPL", Name: "Apple Inc", Category: "US Equity", Market: "US"}
-	if e.Ticker != "AAPL" {
-		t.Errorf("Ticker = %s, want AAPL", e.Ticker)
-	}
-	if e.Name != "Apple Inc" {
-		t.Errorf("Name = %s, want Apple Inc", e.Name)
-	}
-	if e.Category != "US Equity" {
-		t.Errorf("Category = %s, want US Equity", e.Category)
-	}
-	if e.Market != "US" {
-		t.Errorf("Market = %s, want US", e.Market)
-	}
-}
-func TestDefaultETFUniverse_NotEmpty(t *testing.T) {
+
+func TestDefaultETFUniverse(t *testing.T) {
 	if len(DefaultETFUniverse) == 0 {
-		t.Error("DefaultETFUniverse should not be empty")
+		t.Fatal("should not be empty")
 	}
-}
-func TestDefaultETFUniverse_HasValidTickers(t *testing.T) {
+	foundSPY := false
 	for _, meta := range DefaultETFUniverse {
-		if meta.Ticker == "" {
-			t.Error("found entry with empty Ticker")
+		if meta.Ticker == "" || meta.Name == "" {
+			t.Errorf("entry has empty Ticker/Name: %+v", meta)
 		}
-		if meta.Name == "" {
-			t.Errorf("ticker %s has empty Name", meta.Ticker)
-		}
-	}
-}
-func TestDefaultETFUniverse_ContainsSPY(t *testing.T) {
-	found := false
-	for _, meta := range DefaultETFUniverse {
 		if meta.Ticker == "SPY" {
-			found = true
-			break
+			foundSPY = true
 		}
 	}
-	if !found {
-		t.Error("DefaultETFUniverse should contain SPY")
+	if !foundSPY {
+		t.Error("should contain SPY")
 	}
 }
-func TestDefaultWorkerConfig_NoEnv(t *testing.T) {
+
+func TestDefaultWorkerConfig(t *testing.T) {
 	os.Unsetenv("DATABASE_URL")
-	cfg := defaultWorkerConfig()
-	if cfg == nil {
-		t.Fatal("defaultWorkerConfig returned nil")
+	if cfg := defaultWorkerConfig(); cfg == nil || cfg.DatabaseURL != "" {
+		t.Errorf("nil=%v want empty URL", cfg == nil)
 	}
-	if cfg.DatabaseURL != "" {
-		t.Errorf("DatabaseURL = %q, want empty", cfg.DatabaseURL)
-	}
-}
-func TestDefaultWorkerConfig_WithEnv(t *testing.T) {
 	os.Setenv("DATABASE_URL", "  postgres://localhost/worker  ")
 	defer os.Unsetenv("DATABASE_URL")
-	cfg := defaultWorkerConfig()
-	if cfg.DatabaseURL != "postgres://localhost/worker" {
-		t.Errorf("DatabaseURL = %q, want trimmed URL", cfg.DatabaseURL)
-	}
-}
-func TestWorkerConfig_Fields(t *testing.T) {
-	c := &WorkerConfig{DatabaseURL: "postgres://test"}
-	if c.DatabaseURL != "postgres://test" {
-		t.Errorf("DatabaseURL = %q, want postgres://test", c.DatabaseURL)
+	if cfg := defaultWorkerConfig(); cfg == nil || cfg.DatabaseURL != "postgres://localhost/worker" {
+		t.Errorf("nil=%v want trimmed URL", cfg == nil)
 	}
 }
