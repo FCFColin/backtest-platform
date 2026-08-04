@@ -13,7 +13,7 @@
  * stripe SDK、appRedis、planLimits.currentPeriod。
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { mockLogger, createConfigMocks } from '../../helpers/mockFactories.js';
+import { createConfigMocks, createLoggerMocks } from '../../helpers/mockFactories.js';
 
 const dbMocks = vi.hoisted(() => ({
   query: vi.fn(),
@@ -33,14 +33,6 @@ const stripeMocks = vi.hoisted(() => ({
   billingPortal: { sessions: { create: vi.fn() } },
   webhooks: { constructEvent: vi.fn() },
 }));
-const loggerMocks = vi.hoisted(() => ({
-  info: vi.fn(),
-  warn: vi.fn(),
-  error: vi.fn(),
-  debug: vi.fn(),
-  child: vi.fn(() => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() })),
-}));
-
 vi.mock('../../../packages/backend/src/config/index.js', () => ({
   config: createConfigMocks({
     STRIPE_SECRET_KEY: 'sk_test_123',
@@ -84,7 +76,7 @@ vi.mock('../../../packages/backend/src/db/pool.js', () => ({
 }));
 
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
-  logger: mockLogger(loggerMocks),
+  logger: createLoggerMocks(),
 }));
 
 vi.mock('stripe', () => ({

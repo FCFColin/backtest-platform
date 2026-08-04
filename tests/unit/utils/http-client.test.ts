@@ -1,16 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { createLoggerMocks } from '../../helpers/mockFactories.js';
 
 const mocks = vi.hoisted(() => ({
   fetch: vi.fn(),
   getRequestId: vi.fn(),
   getTracePropagationHeaders: vi.fn(),
-  logger: {
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-    debug: vi.fn(),
-    child: vi.fn(),
-  },
+  logger: {},
 }));
 
 vi.mock('../../../packages/backend/src/utils/requestContext.js', () => ({
@@ -18,7 +13,7 @@ vi.mock('../../../packages/backend/src/utils/requestContext.js', () => ({
   getTracePropagationHeaders: mocks.getTracePropagationHeaders,
 }));
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
-  logger: mocks.logger,
+  logger: Object.assign(mocks.logger, createLoggerMocks()),
 }));
 
 import { callService } from '../../../packages/backend/src/utils/httpClient.js';

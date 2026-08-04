@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { Portfolio, BacktestParameters } from '@backtest/shared';
 import type { Warning } from '../../../packages/backend/src/application/backtest-helpers.js';
-import { mockLogger } from '../../helpers/mockFactories.js';
+import { createLoggerMocks } from '../../helpers/mockFactories.js';
 
 const engineMocks = vi.hoisted(() => ({
   callEngineStrict: vi.fn(),
@@ -17,15 +17,6 @@ const helpersMocks = vi.hoisted(() => ({
   collectInvalidTickerWarnings: vi.fn(),
   calculateDateRange: vi.fn(),
 }));
-
-const loggerMocks = vi.hoisted(() => ({
-  info: vi.fn(),
-  warn: vi.fn(),
-  error: vi.fn(),
-  debug: vi.fn(),
-  child: vi.fn(() => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() })),
-}));
-
 vi.mock('../../../packages/backend/src/utils/engineClient.js', () => ({
   callEngineStrict: engineMocks.callEngineStrict,
   unwrapEngineData: <T>(r: unknown) => ((r as { data?: T })?.data ?? r) as T,
@@ -58,7 +49,7 @@ vi.mock('../../../packages/backend/src/application/backtest-helpers.js', () => (
 }));
 
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
-  logger: mockLogger(loggerMocks),
+  logger: createLoggerMocks(),
 }));
 
 import { runMonteCarlo } from '../../../packages/backend/src/application/montecarlo-service.js';

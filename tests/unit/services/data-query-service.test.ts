@@ -1,18 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { createLoggerMocks } from '../../helpers/mockFactories.js';
 
 // P0-03：在模块加载前设置极小的响应体大小限制（100 字节），使测试无需创建大字符串
 vi.hoisted(() => {
   process.env.MAX_RESPONSE_BODY_SIZE = '100';
 });
-
-const loggerMocks = vi.hoisted(() => ({
-  info: vi.fn(),
-  warn: vi.fn(),
-  error: vi.fn(),
-  debug: vi.fn(),
-  child: vi.fn(() => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() })),
-}));
-
 const configMocks = vi.hoisted(() => ({
   GO_DATA_SERVICE_URL: 'http://127.0.0.1:15003',
   GO_DATA_SERVICE_TIMEOUT_MS: 5000,
@@ -53,7 +45,7 @@ const queueMocks = vi.hoisted(() => ({
 }));
 
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
-  logger: loggerMocks,
+  logger: createLoggerMocks(),
 }));
 
 vi.mock('../../../packages/backend/src/config/index.js', () => ({

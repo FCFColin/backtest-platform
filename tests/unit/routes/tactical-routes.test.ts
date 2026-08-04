@@ -1,20 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { startExpressApp, type TestServer } from '../../helpers/expressApp.js';
-import { mockLogger, createConfigMocks } from '../../helpers/mockFactories.js';
+import { createConfigMocks, createLoggerMocks } from '../../helpers/mockFactories.js';
 import { EngineUnavailableErrorStub } from '../../helpers/backtestRoutesFixtures.js';
 import { createMockPriceData } from '../../helpers/storeFixtures.js';
 
 const dataServiceMocks = vi.hoisted(() => ({ fetchHistoryData: vi.fn() }));
 const engineMocks = vi.hoisted(() => ({ callEngineStrict: vi.fn() }));
 const queueMocks = vi.hoisted(() => ({ add: vi.fn() }));
-const loggerMocks = vi.hoisted(() => ({
-  info: vi.fn(),
-  warn: vi.fn(),
-  error: vi.fn(),
-  debug: vi.fn(),
-  child: vi.fn(() => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() })),
-}));
-
 vi.hoisted(() => {
   process.env.SYNC_COMPUTE_TIMEOUT_MS = '500';
 });
@@ -37,7 +29,7 @@ vi.mock('../../../packages/backend/src/config/index.js', () => ({
 }));
 import '../../helpers/middlewareMocks.js';
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
-  logger: mockLogger(loggerMocks),
+  logger: createLoggerMocks(),
   sanitizeLog: (s: string) => s.replace(/[\n\r]/g, '').substring(0, 50),
 }));
 

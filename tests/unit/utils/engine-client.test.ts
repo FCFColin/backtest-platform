@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { mockLogger, createConfigMocks } from '../../helpers/mockFactories.js';
+import { createConfigMocks, createLoggerMocks } from '../../helpers/mockFactories.js';
 
 const cbMocks = vi.hoisted(() => {
   const goCB = {
@@ -21,15 +21,6 @@ const cbMocks = vi.hoisted(() => {
 const callServiceMocks = vi.hoisted(() => ({
   callService: vi.fn(),
 }));
-
-const loggerMocks = vi.hoisted(() => ({
-  info: vi.fn(),
-  warn: vi.fn(),
-  error: vi.fn(),
-  debug: vi.fn(),
-  child: vi.fn(() => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() })),
-}));
-
 const metricsMocks = vi.hoisted(() => ({
   recordEngineCall: vi.fn(),
   recordEngineUnavailable: vi.fn(),
@@ -46,7 +37,7 @@ vi.mock('../../../packages/backend/src/utils/httpClient.js', () => ({
 }));
 
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
-  logger: mockLogger(loggerMocks),
+  logger: createLoggerMocks(),
 }));
 
 vi.mock('../../../packages/backend/src/config/index.js', () => ({

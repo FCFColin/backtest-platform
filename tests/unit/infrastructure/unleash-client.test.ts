@@ -1,13 +1,5 @@
 ﻿import { describe, it, expect, vi } from 'vitest';
-
-const loggerMocks = vi.hoisted(() => ({
-  info: vi.fn(),
-  warn: vi.fn(),
-  error: vi.fn(),
-  debug: vi.fn(),
-  child: vi.fn(() => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() })),
-}));
-
+import { createLoggerMocks } from '../../helpers/mockFactories.js';
 const unleashMocks = vi.hoisted(() => ({
   handlers: {} as Record<string, (payload?: unknown) => void>,
   isEnabled: vi.fn(() => true),
@@ -30,7 +22,7 @@ const redisMocks = vi.hoisted(() => ({
   }),
 }));
 
-vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: loggerMocks }));
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
 vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () => ({
   redisConnection: redisMocks,
 }));

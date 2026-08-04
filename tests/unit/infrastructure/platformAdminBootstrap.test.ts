@@ -11,20 +11,17 @@
  * Mock 策略：mock logger 与 apiKeyRepo，避免真实 DB/日志依赖。
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { createLoggerMocks } from '../../helpers/mockFactories.js';
 
 const mocks = vi.hoisted(() => ({
   countActivePlatformAdminKeys: vi.fn(),
   createPlatformAdminKey: vi.fn(),
-  logger: {
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-    debug: vi.fn(),
-    child: vi.fn(),
-  },
+  logger: {},
 }));
 
-vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: mocks.logger }));
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
+  logger: Object.assign(mocks.logger, createLoggerMocks()),
+}));
 
 vi.mock('../../../packages/backend/src/repositories/apiKeyRepo.js', () => ({
   countActivePlatformAdminKeys: mocks.countActivePlatformAdminKeys,

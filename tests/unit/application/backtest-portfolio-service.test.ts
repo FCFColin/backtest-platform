@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { Portfolio, BacktestParameters, BacktestResult } from '@backtest/shared';
 import type { Warning } from '../../../packages/backend/src/application/backtest-helpers.js';
-import { mockLogger } from '../../helpers/mockFactories.js';
+import { createLoggerMocks } from '../../helpers/mockFactories.js';
 
 const helpersMocks = vi.hoisted(() => ({
   preparePortfolioBacktest: vi.fn(),
@@ -29,15 +29,6 @@ const dbMocks = vi.hoisted(() => ({
 const outboxMocks = vi.hoisted(() => ({
   writeEventInTransaction: vi.fn(async () => {}),
 }));
-
-const loggerMocks = vi.hoisted(() => ({
-  info: vi.fn(),
-  warn: vi.fn(),
-  error: vi.fn(),
-  debug: vi.fn(),
-  child: vi.fn(() => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() })),
-}));
-
 const cacheMocks = vi.hoisted(() => ({
   backtestCacheKey: vi.fn(),
   setBacktestResultCache: vi.fn(async () => {}),
@@ -98,7 +89,7 @@ vi.mock('../../../packages/backend/src/infrastructure/outboxWriter.js', () => ({
 }));
 
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
-  logger: mockLogger(loggerMocks),
+  logger: createLoggerMocks(),
 }));
 
 vi.mock('../../../packages/backend/src/application/backtest/backtestResultUtils.js', () => ({

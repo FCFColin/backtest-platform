@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { createLoggerMocks } from '../../helpers/mockFactories.js';
 
 const poolMocks = vi.hoisted(() => {
   const mockClient = {
@@ -24,12 +25,7 @@ vi.mock('../../../packages/backend/src/config/index.js', () => ({
 }));
 
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
-  logger: {
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-    child: vi.fn(() => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn() })),
-  },
+  logger: createLoggerMocks(),
 }));
 
 import {
