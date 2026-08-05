@@ -21,10 +21,8 @@ spec:
           ports:
             - containerPort: 5004
           envFrom:
-            - configMapRef:
-                name: backtest-config
-            - secretRef:
-                name: auth-tokens
+            - { configMapRef: { name: backtest-config } }
+            - { secretRef: { name: auth-tokens } }
           resources:
             requests: { memory: '512Mi', cpu: '1' }
             limits: { memory: '2Gi', cpu: '2' }

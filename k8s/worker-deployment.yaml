@@ -25,12 +25,9 @@ spec:
             - name: WORKER_CONCURRENCY
               value: '3'
           envFrom:
-            - configMapRef:
-                name: backtest-config
-            - secretRef:
-                name: postgres-secret
-            - secretRef:
-                name: auth-tokens
+            - { configMapRef: { name: backtest-config } }
+            - { secretRef: { name: postgres-secret } }
+            - { secretRef: { name: auth-tokens } }
           livenessProbe:
             exec:
               command:

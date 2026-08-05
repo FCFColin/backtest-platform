@@ -38,9 +38,6 @@ spec:
             periodSeconds: 10
             timeoutSeconds: 3
           envFrom:
-            - configMapRef:
-                name: backtest-config
-            - secretRef:
-                name: postgres-secret
-            - secretRef:
-                name: auth-tokens
+            - { configMapRef: { name: backtest-config } }
+            - { secretRef: { name: postgres-secret } }
+            - { secretRef: { name: auth-tokens } }

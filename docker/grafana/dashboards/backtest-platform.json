@@ -13,179 +13,22 @@
  "uid": "backtest-platform-overview",
  "version": 1,
  "panels": [
-  {
-   "datasource": { "type": "prometheus", "uid": "Prometheus" },
-   "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "custom": { "axisLabel": "req/s", "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2, "showPoints": "never", "spanNulls": false }, "mappings": [], "thresholds": { "mode": "absolute", "steps": [] }, "unit": "reqps" }, "overrides": [] },
-   "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
-   "id": 1,
-   "options": { "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
-   "targets": [{ "expr": "sum(rate(http_requests_total[5m])) by (route)", "legendFormat": "{{route}}", "refId": "A" }],
-   "title": "QPS（按路由）",
-   "type": "timeseries"
-  },
-  {
-   "datasource": { "type": "prometheus", "uid": "Prometheus" },
-   "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "custom": { "axisLabel": "latency (s)", "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2, "showPoints": "never", "spanNulls": false, "thresholdsStyle": { "mode": "off" } }, "mappings": [], "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 1 }] }, "unit": "s" }, "overrides": [] },
-   "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
-   "id": 2,
-   "options": { "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
-   "targets": [
-    { "expr": "histogram_quantile(0.50, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))", "legendFormat": "P50", "refId": "A" },
-    { "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))", "legendFormat": "P95", "refId": "B" },
-    { "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))", "legendFormat": "P99", "refId": "C" }
-   ],
-   "title": "延迟 P50 / P95 / P99",
-   "type": "timeseries"
-  },
-  {
-   "datasource": { "type": "prometheus", "uid": "Prometheus" },
-   "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "custom": { "axisLabel": "jobs", "drawStyle": "line", "fillOpacity": 20, "lineWidth": 2, "showPoints": "never", "spanNulls": false, "thresholdsStyle": { "mode": "line" } }, "mappings": [], "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 100 }] }, "unit": "short" }, "overrides": [] },
-   "gridPos": { "h": 8, "w": 8, "x": 0, "y": 8 },
-   "id": 3,
-   "options": { "legend": { "calcs": ["last", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
-   "targets": [{ "expr": "bullmq_queue_size", "legendFormat": "{{queue}}", "refId": "A" }],
-   "title": "回测队列深度（>100 告警）",
-   "type": "timeseries"
-  },
-  {
-   "datasource": { "type": "prometheus", "uid": "Prometheus" },
-   "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "mappings": [{ "options": { "0": { "color": "green", "text": "closed" }, "1": { "color": "red", "text": "OPEN" }, "2": { "color": "orange", "text": "halfOpen" } }, "type": "value" }], "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 1 }] }, "unit": "none" }, "overrides": [] },
-   "gridPos": { "h": 8, "w": 8, "x": 8, "y": 8 },
-   "id": 4,
-   "options": { "colorMode": "background", "graphMode": "none", "orientation": "horizontal", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
-   "targets": [{ "expr": "circuit_breaker_state", "legendFormat": "{{name}}", "refId": "A" }],
-   "title": "熔断器状态（0=closed / 1=open / 2=halfOpen）",
-   "type": "stat"
-  },
-  {
-   "datasource": { "type": "prometheus", "uid": "Prometheus" },
-   "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "mappings": [{ "options": { "0": { "color": "red", "text": "DOWN" }, "1": { "color": "green", "text": "UP" } }, "type": "value" }], "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 1 }] }, "unit": "none" }, "overrides": [] },
-   "gridPos": { "h": 8, "w": 8, "x": 16, "y": 8 },
-   "id": 5,
-   "options": { "colorMode": "background", "graphMode": "none", "orientation": "horizontal", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
-   "targets": [{ "expr": "redis_up", "legendFormat": "{{instance}}", "refId": "A" }],
-   "title": "Redis 健康",
-   "type": "stat"
-  },
-  {
-   "datasource": { "type": "prometheus", "uid": "Prometheus" },
-   "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "custom": { "axisLabel": "lag (s)", "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2, "showPoints": "never", "spanNulls": false, "thresholdsStyle": { "mode": "line" } }, "mappings": [], "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "orange", "value": 5 }, { "color": "red", "value": 10 }] }, "unit": "s" }, "overrides": [] },
-   "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
-   "id": 6,
-   "options": { "legend": { "calcs": ["last", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
-   "targets": [{ "expr": "pg_replication_lag_seconds", "legendFormat": "{{instance}}", "refId": "A" }],
-   "title": "PostgreSQL 复制延迟（>5s 告警）",
-   "type": "timeseries"
-  },
-  {
-   "datasource": { "type": "prometheus", "uid": "Prometheus" },
-   "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "custom": { "axisLabel": "5xx rate", "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2, "showPoints": "never", "spanNulls": false, "thresholdsStyle": { "mode": "line" } }, "mappings": [], "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 0.05 }] }, "unit": "percentunit" }, "overrides": [] },
-   "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
-   "id": 7,
-   "options": { "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
-   "targets": [{ "expr": "sum(rate(http_requests_total{status_code=~\"5..\"}[5m])) / sum(rate(http_requests_total[5m]))", "legendFormat": "5xx ratio", "refId": "A" }],
-   "title": "5xx 错误率（>5% 告警）",
-   "type": "timeseries"
-  },
-  {
-   "datasource": { "type": "prometheus", "uid": "prometheus" },
-   "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
-   "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
-   "id": 8,
-   "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } },
-   "targets": [{ "expr": "rate(go_engine_calls_total[5m])", "legendFormat": "", "refId": "A" }],
-   "title": "Go 引擎调用总数",
-   "type": "timeseries"
-  },
-  {
-   "datasource": { "type": "prometheus", "uid": "prometheus" },
-   "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
-   "gridPos": { "h": 8, "w": 12, "x": 0, "y": 32 },
-   "id": 9,
-   "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } },
-   "targets": [{ "expr": "histogram_quantile(0.95, rate(go_engine_call_duration_seconds_bucket[5m]))", "legendFormat": "", "refId": "A" }],
-   "title": "Go 引擎调用延迟",
-   "type": "timeseries"
-  },
-  {
-   "datasource": { "type": "prometheus", "uid": "prometheus" },
-   "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
-   "gridPos": { "h": 8, "w": 12, "x": 0, "y": 40 },
-   "id": 10,
-   "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } },
-   "targets": [{ "expr": "rate(engine_unavailable_total[5m])", "legendFormat": "", "refId": "A" }],
-   "title": "引擎不可用计数",
-   "type": "timeseries"
-  },
-  {
-   "datasource": { "type": "prometheus", "uid": "prometheus" },
-   "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
-   "gridPos": { "h": 8, "w": 6, "x": 0, "y": 48 },
-   "id": 11,
-   "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } },
-   "targets": [{ "expr": "rate(cache_hits_total[5m])", "legendFormat": "", "refId": "A" }],
-   "title": "缓存命中/淘汰",
-   "type": "timeseries"
-  },
-  {
-   "datasource": { "type": "prometheus", "uid": "prometheus" },
-   "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
-   "gridPos": { "h": 8, "w": 6, "x": 6, "y": 48 },
-   "id": 12,
-   "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } },
-   "targets": [{ "expr": "rate(cache_evictions_total[5m])", "legendFormat": "", "refId": "A" }],
-   "title": "缓存淘汰率",
-   "type": "timeseries"
-  },
-  {
-   "datasource": { "type": "prometheus", "uid": "prometheus" },
-   "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
-   "gridPos": { "h": 8, "w": 12, "x": 0, "y": 56 },
-   "id": 13,
-   "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } },
-   "targets": [{ "expr": "rate(auth_failures_total[5m])", "legendFormat": "", "refId": "A" }],
-   "title": "认证失败计数",
-   "type": "timeseries"
-  },
-  {
-   "datasource": { "type": "prometheus", "uid": "prometheus" },
-   "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
-   "gridPos": { "h": 8, "w": 12, "x": 0, "y": 64 },
-   "id": 14,
-   "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } },
-   "targets": [{ "expr": "rate(degraded_responses_total[5m])", "legendFormat": "", "refId": "A" }],
-   "title": "降级响应计数",
-   "type": "timeseries"
-  },
-  {
-   "datasource": { "type": "prometheus", "uid": "prometheus" },
-   "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
-   "gridPos": { "h": 8, "w": 12, "x": 0, "y": 72 },
-   "id": 17,
-   "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } },
-   "targets": [{ "expr": "node_eventloop_lag_seconds", "legendFormat": "", "refId": "A" }],
-   "title": "Node 事件循环延迟",
-   "type": "timeseries"
-  },
-  {
-   "datasource": { "type": "prometheus", "uid": "prometheus" },
-   "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
-   "gridPos": { "h": 8, "w": 6, "x": 0, "y": 80 },
-   "id": 18,
-   "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } },
-   "targets": [{ "expr": "data_service_semaphore_permits_available", "legendFormat": "", "refId": "A" }],
-   "title": "数据服务信号量",
-   "type": "stat"
-  },
-  {
-   "datasource": { "type": "prometheus", "uid": "prometheus" },
-   "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
-   "gridPos": { "h": 8, "w": 6, "x": 6, "y": 80 },
-   "id": 19,
-   "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } },
-   "targets": [{ "expr": "rate(quota_enforcement_failures_total[5m])", "legendFormat": "", "refId": "A" }],
-   "title": "配额执行失败",
-   "type": "timeseries"
-  }
+  {"id":1,"type":"timeseries","title":"QPS（按路由）","gridPos":{"h":8,"w":12,"x":0,"y":0},"datasource":{"type":"prometheus","uid":"Prometheus"},"fieldConfig":{"defaults":{"color":{"mode":"palette-classic"},"custom":{"axisLabel":"req/s","drawStyle":"line","fillOpacity":10,"lineWidth":2,"showPoints":"never","spanNulls":false},"mappings":[],"thresholds":{"mode":"absolute","steps":[]},"unit":"reqps"},"overrides":[]},"options":{"legend":{"calcs":["mean","max"],"displayMode":"table","placement":"bottom","showLegend":true},"tooltip":{"mode":"multi","sort":"desc"}},"targets":[{"expr":"sum(rate(http_requests_total[5m])) by (route)","legendFormat":"{{route}}","refId":"A"}]},
+  {"id":2,"type":"timeseries","title":"延迟 P50 / P95 / P99","gridPos":{"h":8,"w":12,"x":12,"y":0},"datasource":{"type":"prometheus","uid":"Prometheus"},"fieldConfig":{"defaults":{"color":{"mode":"palette-classic"},"custom":{"axisLabel":"latency (s)","drawStyle":"line","fillOpacity":10,"lineWidth":2,"showPoints":"never","spanNulls":false,"thresholdsStyle":{"mode":"off"}},"mappings":[],"thresholds":{"mode":"absolute","steps":[{"color":"green","value":null},{"color":"red","value":1}]},"unit":"s"},"overrides":[]},"options":{"legend":{"calcs":["mean","max"],"displayMode":"table","placement":"bottom","showLegend":true},"tooltip":{"mode":"multi","sort":"desc"}},"targets":[{"expr":"histogram_quantile(0.50, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))","legendFormat":"P50","refId":"A"},{"expr":"histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))","legendFormat":"P95","refId":"B"},{"expr":"histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))","legendFormat":"P99","refId":"C"}]},
+  {"id":3,"type":"timeseries","title":"回测队列深度（>100 告警）","gridPos":{"h":8,"w":8,"x":0,"y":8},"datasource":{"type":"prometheus","uid":"Prometheus"},"fieldConfig":{"defaults":{"color":{"mode":"palette-classic"},"custom":{"axisLabel":"jobs","drawStyle":"line","fillOpacity":20,"lineWidth":2,"showPoints":"never","spanNulls":false,"thresholdsStyle":{"mode":"line"}},"mappings":[],"thresholds":{"mode":"absolute","steps":[{"color":"green","value":null},{"color":"red","value":100}]},"unit":"short"},"overrides":[]},"options":{"legend":{"calcs":["last","max"],"displayMode":"table","placement":"bottom","showLegend":true},"tooltip":{"mode":"multi","sort":"desc"}},"targets":[{"expr":"bullmq_queue_size","legendFormat":"{{queue}}","refId":"A"}]},
+  {"id":4,"type":"stat","title":"熔断器状态（0=closed / 1=open / 2=halfOpen）","gridPos":{"h":8,"w":8,"x":8,"y":8},"datasource":{"type":"prometheus","uid":"Prometheus"},"fieldConfig":{"defaults":{"color":{"mode":"thresholds"},"mappings":[{"options":{"0":{"color":"green","text":"closed"},"1":{"color":"red","text":"OPEN"},"2":{"color":"orange","text":"halfOpen"}},"type":"value"}],"thresholds":{"mode":"absolute","steps":[{"color":"green","value":null},{"color":"red","value":1}]},"unit":"none"},"overrides":[]},"options":{"colorMode":"background","graphMode":"none","orientation":"horizontal","reduceOptions":{"calcs":["lastNotNull"],"fields":"","values":false},"textMode":"auto"},"targets":[{"expr":"circuit_breaker_state","legendFormat":"{{name}}","refId":"A"}]},
+  {"id":5,"type":"stat","title":"Redis 健康","gridPos":{"h":8,"w":8,"x":16,"y":8},"datasource":{"type":"prometheus","uid":"Prometheus"},"fieldConfig":{"defaults":{"color":{"mode":"thresholds"},"mappings":[{"options":{"0":{"color":"red","text":"DOWN"},"1":{"color":"green","text":"UP"}},"type":"value"}],"thresholds":{"mode":"absolute","steps":[{"color":"red","value":null},{"color":"green","value":1}]},"unit":"none"},"overrides":[]},"options":{"colorMode":"background","graphMode":"none","orientation":"horizontal","reduceOptions":{"calcs":["lastNotNull"],"fields":"","values":false},"textMode":"auto"},"targets":[{"expr":"redis_up","legendFormat":"{{instance}}","refId":"A"}]},
+  {"id":6,"type":"timeseries","title":"PostgreSQL 复制延迟（>5s 告警）","gridPos":{"h":8,"w":12,"x":0,"y":16},"datasource":{"type":"prometheus","uid":"Prometheus"},"fieldConfig":{"defaults":{"color":{"mode":"palette-classic"},"custom":{"axisLabel":"lag (s)","drawStyle":"line","fillOpacity":10,"lineWidth":2,"showPoints":"never","spanNulls":false,"thresholdsStyle":{"mode":"line"}},"mappings":[],"thresholds":{"mode":"absolute","steps":[{"color":"green","value":null},{"color":"orange","value":5},{"color":"red","value":10}]},"unit":"s"},"overrides":[]},"options":{"legend":{"calcs":["last","max"],"displayMode":"table","placement":"bottom","showLegend":true},"tooltip":{"mode":"multi","sort":"desc"}},"targets":[{"expr":"pg_replication_lag_seconds","legendFormat":"{{instance}}","refId":"A"}]},
+  {"id":7,"type":"timeseries","title":"5xx 错误率（>5% 告警）","gridPos":{"h":8,"w":12,"x":12,"y":16},"datasource":{"type":"prometheus","uid":"Prometheus"},"fieldConfig":{"defaults":{"color":{"mode":"palette-classic"},"custom":{"axisLabel":"5xx rate","drawStyle":"line","fillOpacity":10,"lineWidth":2,"showPoints":"never","spanNulls":false,"thresholdsStyle":{"mode":"line"}},"mappings":[],"thresholds":{"mode":"absolute","steps":[{"color":"green","value":null},{"color":"red","value":0.05}]},"unit":"percentunit"},"overrides":[]},"options":{"legend":{"calcs":["mean","max"],"displayMode":"table","placement":"bottom","showLegend":true},"tooltip":{"mode":"multi","sort":"desc"}},"targets":[{"expr":"sum(rate(http_requests_total{status_code=~\"5..\"}[5m])) / sum(rate(http_requests_total[5m]))","legendFormat":"5xx ratio","refId":"A"}]},
+  {"id":8,"type":"timeseries","title":"Go 引擎调用总数","gridPos":{"h":8,"w":12,"x":0,"y":24},"datasource":{"type":"prometheus","uid":"prometheus"},"fieldConfig":{"defaults":{"unit":"short"},"overrides":[]},"options":{"legend":{"displayMode":"list","placement":"bottom"},"tooltip":{"mode":"single"}},"targets":[{"expr":"rate(go_engine_calls_total[5m])","legendFormat":"","refId":"A"}]},
+  {"id":9,"type":"timeseries","title":"Go 引擎调用延迟","gridPos":{"h":8,"w":12,"x":0,"y":32},"datasource":{"type":"prometheus","uid":"prometheus"},"fieldConfig":{"defaults":{"unit":"short"},"overrides":[]},"options":{"legend":{"displayMode":"list","placement":"bottom"},"tooltip":{"mode":"single"}},"targets":[{"expr":"histogram_quantile(0.95, rate(go_engine_call_duration_seconds_bucket[5m]))","legendFormat":"","refId":"A"}]},
+  {"id":10,"type":"timeseries","title":"引擎不可用计数","gridPos":{"h":8,"w":12,"x":0,"y":40},"datasource":{"type":"prometheus","uid":"prometheus"},"fieldConfig":{"defaults":{"unit":"short"},"overrides":[]},"options":{"legend":{"displayMode":"list","placement":"bottom"},"tooltip":{"mode":"single"}},"targets":[{"expr":"rate(engine_unavailable_total[5m])","legendFormat":"","refId":"A"}]},
+  {"id":11,"type":"timeseries","title":"缓存命中/淘汰","gridPos":{"h":8,"w":6,"x":0,"y":48},"datasource":{"type":"prometheus","uid":"prometheus"},"fieldConfig":{"defaults":{"unit":"short"},"overrides":[]},"options":{"legend":{"displayMode":"list","placement":"bottom"},"tooltip":{"mode":"single"}},"targets":[{"expr":"rate(cache_hits_total[5m])","legendFormat":"","refId":"A"}]},
+  {"id":12,"type":"timeseries","title":"缓存淘汰率","gridPos":{"h":8,"w":6,"x":6,"y":48},"datasource":{"type":"prometheus","uid":"prometheus"},"fieldConfig":{"defaults":{"unit":"short"},"overrides":[]},"options":{"legend":{"displayMode":"list","placement":"bottom"},"tooltip":{"mode":"single"}},"targets":[{"expr":"rate(cache_evictions_total[5m])","legendFormat":"","refId":"A"}]},
+  {"id":13,"type":"timeseries","title":"认证失败计数","gridPos":{"h":8,"w":12,"x":0,"y":56},"datasource":{"type":"prometheus","uid":"prometheus"},"fieldConfig":{"defaults":{"unit":"short"},"overrides":[]},"options":{"legend":{"displayMode":"list","placement":"bottom"},"tooltip":{"mode":"single"}},"targets":[{"expr":"rate(auth_failures_total[5m])","legendFormat":"","refId":"A"}]},
+  {"id":14,"type":"timeseries","title":"降级响应计数","gridPos":{"h":8,"w":12,"x":0,"y":64},"datasource":{"type":"prometheus","uid":"prometheus"},"fieldConfig":{"defaults":{"unit":"short"},"overrides":[]},"options":{"legend":{"displayMode":"list","placement":"bottom"},"tooltip":{"mode":"single"}},"targets":[{"expr":"rate(degraded_responses_total[5m])","legendFormat":"","refId":"A"}]},
+  {"id":17,"type":"timeseries","title":"Node 事件循环延迟","gridPos":{"h":8,"w":12,"x":0,"y":72},"datasource":{"type":"prometheus","uid":"prometheus"},"fieldConfig":{"defaults":{"unit":"short"},"overrides":[]},"options":{"legend":{"displayMode":"list","placement":"bottom"},"tooltip":{"mode":"single"}},"targets":[{"expr":"node_eventloop_lag_seconds","legendFormat":"","refId":"A"}]},
+  {"id":18,"type":"stat","title":"数据服务信号量","gridPos":{"h":8,"w":6,"x":0,"y":80},"datasource":{"type":"prometheus","uid":"prometheus"},"fieldConfig":{"defaults":{"unit":"short"},"overrides":[]},"options":{"legend":{"displayMode":"list","placement":"bottom"},"tooltip":{"mode":"single"}},"targets":[{"expr":"data_service_semaphore_permits_available","legendFormat":"","refId":"A"}]},
+  {"id":19,"type":"timeseries","title":"配额执行失败","gridPos":{"h":8,"w":6,"x":6,"y":80},"datasource":{"type":"prometheus","uid":"prometheus"},"fieldConfig":{"defaults":{"unit":"short"},"overrides":[]},"options":{"legend":{"displayMode":"list","placement":"bottom"},"tooltip":{"mode":"single"}},"targets":[{"expr":"rate(quota_enforcement_failures_total[5m])","legendFormat":"","refId":"A"}]}
  ]
 }

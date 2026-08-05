@@ -409,13 +409,24 @@ await runCheck(results, 'C-010', () => {
 });
 
 await runCheck(results, 'C-011', () => {
-  const wrong = grepInCode(/\bstabilizationScaleDownSeconds\b/, 'k8s', { extensions: ['.yaml', '.yml'] });
-  const right = grepInCode(/\bstabilizationWindowSeconds\b/, 'k8s', { extensions: ['.yaml', '.yml'] });
+  const wrong = grepInCode(/\bstabilizationScaleDownSeconds\b/, 'k8s', {
+    extensions: ['.yaml', '.yml'],
+  });
+  const right = grepInCode(/\bstabilizationWindowSeconds\b/, 'k8s', {
+    extensions: ['.yaml', '.yml'],
+  });
   const ok = wrong.length === 0 && right.length > 0;
   return {
     status: ok ? 'PASS' : 'FAIL',
-    summary: ok ? `HPA fields OK: no stabilizationScaleDownSeconds (${right.length} uses of stabilizationWindowSeconds)` : `HPA fields wrong: wrong=${wrong.length}, right=${right.length}`,
-    details: { wrongCount: wrong.length, rightCount: right.length, wrongMatches: wrong, rightMatches: right },
+    summary: ok
+      ? `HPA fields OK: no stabilizationScaleDownSeconds (${right.length} uses of stabilizationWindowSeconds)`
+      : `HPA fields wrong: wrong=${wrong.length}, right=${right.length}`,
+    details: {
+      wrongCount: wrong.length,
+      rightCount: right.length,
+      wrongMatches: wrong,
+      rightMatches: right,
+    },
   };
 });
 

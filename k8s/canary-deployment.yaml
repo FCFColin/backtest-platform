@@ -24,10 +24,8 @@ spec:
           ports:
             - containerPort: 5001
           envFrom:
-            - configMapRef:
-                name: api-config
-            - secretRef:
-                name: api-secrets
+            - { configMapRef: { name: api-config } }
+            - { secretRef: { name: api-secrets } }
           readinessProbe:
             httpGet: { path: /api/ready, port: 5001 }
             initialDelaySeconds: 5

@@ -89,9 +89,7 @@ spec:
           command: [sh, -c]
           args:
             - apk add --no-cache gettext > /dev/null 2>&1 && envsubst < /tpl/alertmanager.yml > /rendered/alertmanager.yml && echo "rendered alertmanager.yml ($(wc -c < /rendered/alertmanager.yml) bytes)"
-          envFrom:
-            - secretRef:
-                name: alertmanager-webhooks
+          envFrom: [{ secretRef: { name: alertmanager-webhooks } }]
           volumeMounts:
             - name: config-template
               mountPath: /tpl

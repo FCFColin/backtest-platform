@@ -18,6 +18,7 @@
     "check:input-widths": "node scripts/check-input-widths.mjs",
     "lint": "turbo run lint",
     "lint:fix": "eslint . --fix",
+    "loc": "powershell -NoProfile -File scripts/count-loc.ps1",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "check:frontend": "tsc --noEmit -p tsconfig.frontend.json",

@@ -90,6 +90,19 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm deadcode
 
+  loc-stats:
+    name: Line Count Stats
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install scc
+        run: |
+          curl -sL https://github.com/boyter/scc/releases/latest/download/scc-3.7.0-x86_64-unknown-linux.zip -o scc.zip
+          unzip -q scc.zip -d /tmp/scc
+          echo "/tmp/scc" >> $GITHUB_PATH
+      - name: Count lines
+        run: scc --exclude-dir node_modules,dist,dist-ssr,.dev-logs,coverage,.git,data,report,.nyc_output,.turbo,.cache,.vite,playwright-report,test-results --no-cocomo --sort lines
+
   contract-tests:
     name: Contract Tests
     runs-on: ubuntu-latest
