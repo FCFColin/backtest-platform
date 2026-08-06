@@ -1,28 +1,6 @@
 import { vi } from 'vitest';
 import type { PoolClient } from 'pg';
 
-interface LoggerMocks {
-  info: ReturnType<typeof vi.fn>;
-  warn: ReturnType<typeof vi.fn>;
-  error: ReturnType<typeof vi.fn>;
-  debug: ReturnType<typeof vi.fn>;
-  child: ReturnType<typeof vi.fn>;
-}
-
-/** 创建 logger mock（vi.hoisted 安全）。返回值可直接用作 vi.mock 工厂中的 logger。@returns LoggerMocks */
-export function createLoggerMocks(): LoggerMocks {
-  return {
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-    debug: vi.fn(),
-    child: vi.fn(() => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() })),
-  };
-}
-
-/** @deprecated 使用 createLoggerMocks() 返回值直接作为 logger。保留向后兼容。 */
-export const mockLogger = (m: LoggerMocks) => m;
-
 const CONFIG_DEFAULTS: Record<string, unknown> = {
   NODE_ENV: 'test',
   SERVE_STATIC: false,
@@ -63,11 +41,26 @@ const CONFIG_DEFAULTS: Record<string, unknown> = {
   EMAIL_FROM: 'Backtest Platform <no-reply@backtest.local>',
 };
 
-/** 创建 config mock（vi.hoisted 安全）。@param overrides - 覆写属性 @returns 完整 config mock */
 export function createConfigMocks(
   overrides: Record<string, unknown> = {},
 ): Record<string, unknown> {
   return { ...CONFIG_DEFAULTS, ...overrides };
+}
+
+export function createMetricsMocks() {
+  return {
+    registerSemaphoreMetrics: vi.fn(),
+    registerCircuitBreakerMetrics: vi.fn(),
+    recordCacheHit: vi.fn(),
+    recordCacheMiss: vi.fn(),
+    recordCacheEviction: vi.fn(),
+    recordDataServiceCall: vi.fn(),
+    recordEngineCall: vi.fn(),
+    recordEngineUnavailable: vi.fn(),
+    engineCallDuration: { observe: vi.fn() },
+    recordBacktestRequest: vi.fn(),
+    recordDegradedResponse: vi.fn(),
+  };
 }
 
 interface RedisMocksOptions {
@@ -80,8 +73,7 @@ interface RedisMocksOptions {
   rejectWithError?: Error;
 }
 
-/** 创建 Redis 客户端 mock（appRedis）。在 vi.mock 工厂内调用，target 参数将属性写入 vi.hoisted 占位对象。 @param opts - 控制包含哪些方法 @param target - vi.hoisted 占位对象 @returns Redis mock */
-export function createRedisMocks(
+function createRedisMocks(
   opts: RedisMocksOptions = {},
   target: Record<string, unknown> = {},
 ): Record<string, unknown> {
@@ -188,7 +180,6 @@ export function createRedisMocks(
   return target;
 }
 
-/** 创建 Redis 模块完整 mock（appRedis + getRedisHealth + markRedisUnhealthy）。@param opts - RedisMocksOptions @param target - vi.hoisted 占位对象 @returns redisClient 模块 mock */
 export function createRedisModuleMock(
   opts: RedisMocksOptions = {},
   target: Record<string, unknown> = {},
@@ -209,53 +200,18 @@ export function createRedisModuleMock(
 }
 
 export type JwtAuthConfigMocks = ReturnType<typeof createConfigMocks>;
-/** 创建 jwtAuth 测试专用 config mock。@param overrides - 覆盖默认字段 */
 export function createJwtAuthConfigMocks(
   overrides: Record<string, unknown> = {},
 ): Record<string, unknown> {
   return createConfigMocks({ NODE_ENV: 'production', ...overrides });
 }
 
-/** 构造 mock pg.Pool。@returns 带 mock query 的对象 */
 export function createMockPool(): { query: ReturnType<typeof vi.fn> } {
   return {
     query: vi.fn().mockResolvedValue({ rows: [], rowCount: 0 }),
   } as unknown as { query: ReturnType<typeof vi.fn> };
 }
 
-/**
- * Reset all common backend mocks to default state in one call.
- * Replaces the repetitive beforeEach boilerplate in most test files.
- *
- * @example
- * // In test file:
- * const m = vi.hoisted(() => ({
- *   logger: createLoggerMocks(),
- *   db: { query: vi.fn() },
- * }));
- * vi.mock('../../src/utils/logger.js', () => ({ logger: mockLogger(m.logger) }));
- * // ...other vi.mock calls...
- * beforeEach(() => resetBackendMocks(m));
- */
-export function resetBackendMocks(mocks: {
-  logger: LoggerMocks;
-  db?: { query: ReturnType<typeof vi.fn> };
-  redis?: Record<string, ReturnType<typeof vi.fn>>;
-  circuitBreaker?: { instance: { fire: ReturnType<typeof vi.fn> } };
-}): void {
-  vi.clearAllMocks();
-  mocks.logger.info.mockResolvedValue(undefined);
-  mocks.logger.warn.mockResolvedValue(undefined);
-  mocks.logger.error.mockResolvedValue(undefined);
-  mocks.logger.debug.mockResolvedValue(undefined);
-  mocks.logger.child.mockReturnValue(mocks.logger);
-  if (mocks.db) mocks.db.query.mockResolvedValue({ rows: [], rowCount: 0 });
-  if (mocks.redis) for (const fn of Object.values(mocks.redis)) fn.mockResolvedValue(undefined);
-  if (mocks.circuitBreaker)
-    mocks.circuitBreaker.instance.fire.mockResolvedValue({ rows: [], rowCount: 0 });
-}
-
-/** 构造 mock PoolClient。@returns 带 mock query + release 的 PoolClient */
 export function createMockClient(): PoolClient & { query: ReturnType<typeof vi.fn> } {
   return {
     query: vi.fn().mockResolvedValue({ rows: [], rowCount: 1 }),
@@ -268,7 +224,6 @@ interface PoolDbMocks {
   withTenant?: ReturnType<typeof vi.fn>;
 }
 
-/** 构造 db/pool 模块 mock：withTenant/withTenantReadOnly 转发到 dbMocks。 @param dbMocks - vi.hoisted 创建的 query/withTenant mock @returns pool 模块 mock */
 export function createPoolModuleMock(dbMocks: PoolDbMocks) {
   const client = () => ({ query: dbMocks.query });
   const withTenant = <T>(

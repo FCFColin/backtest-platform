@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { BacktestParameters } from '@backtest/shared';
 import type { Warning } from '../../../packages/backend/src/application/backtest-helpers.js';
-import { createLoggerMocks } from '../../helpers/mockFactories.js';
+import { loggerMocks } from '../../helpers/loggerFixture.js';
 import {
   mockParameters,
   mockPortfolio as portfolioFixture,
@@ -26,34 +26,60 @@ vi.mock('../../../packages/backend/src/utils/engineClient.js', () => ({
   unwrapEngineData: <T>(r: unknown) => ((r as { data?: T })?.data ?? r) as T,
 }));
 
-vi.mock('../../../packages/backend/src/application/backtest-helpers.js', () => ({
-  collectDomainTickers: helpersMocks.collectDomainTickers,
-  fetchPriceDataWithRange: helpersMocks.fetchPriceDataWithRange,
-  filterPriceData: helpersMocks.filterPriceData,
-  loadMacroData: helpersMocks.loadMacroData,
-  sanitizeMcParams: helpersMocks.sanitizeMcParams,
-  translateDomainError: helpersMocks.translateDomainError,
-  collectInvalidTickerWarnings: helpersMocks.collectInvalidTickerWarnings,
-  calculateDateRange: helpersMocks.calculateDateRange,
-  pushDegradedWarning: (warnings: Warning[], degraded: boolean, degradedWarning?: string) => {
+vi.mock('../../../packages/backend/src/application/backtest-helpers.js', async () => {
+  const mockPushDegradedWarning = (
+    warnings: Warning[],
+    degraded: boolean,
+    degradedWarning?: string,
+  ) => {
     if (degraded)
       warnings.push({
         code: 'DATA_DEGRADED',
         message: degradedWarning || '数据服务降级，部分数据可能缺失',
       });
-  },
-  clampParametersToDataRange: (
-    parameters: Pick<BacktestParameters, 'startDate' | 'endDate'>,
-    effectiveStartDate: string,
-    effectiveEndDate: string,
-  ) =>
-    effectiveStartDate !== parameters.startDate || effectiveEndDate !== parameters.endDate
-      ? { ...parameters, startDate: effectiveStartDate, endDate: effectiveEndDate }
-      : parameters,
-}));
+  };
+  return {
+    collectDomainTickers: helpersMocks.collectDomainTickers,
+    fetchPriceDataWithRange: helpersMocks.fetchPriceDataWithRange,
+    preparePriceDataAndWarnings: async (tickers: string[], startDate: string, endDate: string) => {
+      const warnings: Warning[] = [];
+      const { priceData, effectiveStartDate, effectiveEndDate, degraded, degradedWarning } =
+        await helpersMocks.fetchPriceDataWithRange(tickers, startDate, endDate);
+      const invalidTickers = helpersMocks.collectInvalidTickerWarnings(
+        new Set(tickers),
+        priceData,
+        warnings,
+      );
+      mockPushDegradedWarning(warnings, degraded, degradedWarning);
+      return {
+        priceData,
+        warnings,
+        invalidTickers,
+        effectiveStartDate,
+        effectiveEndDate,
+        allTickers: new Set(tickers),
+      };
+    },
+    filterPriceData: helpersMocks.filterPriceData,
+    loadMacroData: helpersMocks.loadMacroData,
+    sanitizeMcParams: helpersMocks.sanitizeMcParams,
+    translateDomainError: helpersMocks.translateDomainError,
+    collectInvalidTickerWarnings: helpersMocks.collectInvalidTickerWarnings,
+    calculateDateRange: helpersMocks.calculateDateRange,
+    pushDegradedWarning: mockPushDegradedWarning,
+    clampParametersToDataRange: (
+      parameters: Pick<BacktestParameters, 'startDate' | 'endDate'>,
+      effectiveStartDate: string,
+      effectiveEndDate: string,
+    ) =>
+      effectiveStartDate !== parameters.startDate || effectiveEndDate !== parameters.endDate
+        ? { ...parameters, startDate: effectiveStartDate, endDate: effectiveEndDate }
+        : parameters,
+  };
+});
 
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
-  logger: createLoggerMocks(),
+  logger: loggerMocks,
 }));
 
 import { runMonteCarlo } from '../../../packages/backend/src/application/montecarlo-service.js';

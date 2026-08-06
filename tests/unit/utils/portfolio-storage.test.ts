@@ -260,15 +260,12 @@ describe('localStorage 不可用 - 优雅降级', () => {
 
 describe('损坏数据恢复', () => {
   it.each([
-    ['backtest-portfolios', () => loadPortfolios(), null],
-    ['backtest-params', () => loadParameters(), null],
-    ['backtest-saved-configs', () => loadNamedConfigs(), []],
-  ])('localStorage 中 %s JSON 损坏时返回默认值', (key, fn, expected) => {
-    localStorage.setItem(key, 'not valid json{{{');
+    ['backtest-portfolios', () => loadPortfolios(), null, 'not valid json{{{'],
+    ['backtest-params', () => loadParameters(), null, 'not valid json{{{'],
+    ['backtest-saved-configs', () => loadNamedConfigs(), [], 'not valid json{{{'],
+    ['backtest-portfolios 为 null 字符串', () => loadPortfolios(), null, 'null'],
+  ])('localStorage 中 %s 应返回默认值', (key, fn, expected, raw) => {
+    localStorage.setItem(key, raw);
     expect(fn()).toEqual(expected);
-  });
-  it('loadPortfolios 在数据为 null 字符串时返回 null', () => {
-    localStorage.setItem('backtest-portfolios', 'null');
-    expect(loadPortfolios()).toBeNull();
   });
 });

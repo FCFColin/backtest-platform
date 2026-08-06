@@ -1,12 +1,11 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import {
   CONTAINERS,
   disconnectContainer,
   reconnectContainer,
   getCircuitBreakerState,
   waitForHealthy,
-  setupChaosFixture,
-  type ChaosFixture,
+  setupChaosLifecycle,
 } from '../helpers/chaos.js';
 
 const API_URL = process.env.API_URL || 'http://127.0.0.1:15001';
@@ -15,19 +14,7 @@ const METRICS_URL = `${API_URL}/api/metrics`;
 
 const DB_ENDPOINT = `${API_URL}/api/v1/data/meta`;
 
-let fixture: ChaosFixture = {
-  dockerAvailable: false,
-  containerRunning: false,
-  recover: async () => {},
-};
-
-beforeAll(async () => {
-  fixture = await setupChaosFixture(CONTAINERS.postgres, reconnectContainer);
-}, 30000);
-
-afterAll(async () => {
-  await fixture.recover();
-}, 30000);
+const fixture = setupChaosLifecycle(CONTAINERS.postgres, reconnectContainer);
 
 describe('Chaos Experiment 1: Database Disconnect', () => {
   it.skipIf(!fixture.dockerAvailable)(
@@ -60,7 +47,6 @@ describe('Chaos Experiment 1: Database Disconnect', () => {
         const has500 = statusCodes.includes(500);
         expect(has500, `出现 500 内部错误，状态码: ${statusCodes}`).toBe(false);
 
-        // 断言：熔断器应进入 Open 状态（1）
         // 注意：熔断器需 volumeThreshold（默认 5 次请求）后才计算错误率，
         const breakerState = await getCircuitBreakerState('postgres', METRICS_URL);
         expect(breakerState, `postgres 熔断器状态异常: ${breakerState}`).toBeGreaterThanOrEqual(1);

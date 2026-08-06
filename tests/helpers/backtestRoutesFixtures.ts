@@ -1,9 +1,3 @@
-/**
- * 回测路由测试共享 fixtures
- * 时序：vi.hoisted（空 vi.fn）→ vi.mock 工厂（引用句柄）→ import helper →
- * configureXxxMocks（设置实现）→ 测试执行。vi.clearAllMocks 仅清理调用记录不清实现。
- */
-
 import type { Router } from 'express';
 import { startExpressApp, type TestServer } from './expressApp.js';
 import { mockBacktestResult } from './storeFixtures.js';
@@ -50,7 +44,6 @@ export interface BacktestMockHandles {
   sanitizeMcParams: MockFn;
 }
 
-/** 为 portfolio 回测相关 mock 句柄设置实现逻辑。 */
 export function configurePortfolioBacktestMocks(m: BacktestMockHandles): void {
   m.preparePortfolioBacktest.mockImplementation(
     (portfolios: { assets: { ticker: string }[] }[], parameters: { benchmarkTicker?: string }) => {
@@ -100,7 +93,6 @@ export function configurePortfolioBacktestMocks(m: BacktestMockHandles): void {
   m.collectInvalidTickerWarnings.mockImplementation(() => []);
 }
 
-/** 为 analysis 端点相关 mock 句柄设置实现逻辑。 */
 export function configureAnalysisMocks(m: BacktestMockHandles): void {
   m.runAnalysis.mockImplementation(async (tickers: string[], parameters: unknown) => {
     const params = parameters as { startDate: string; endDate: string };
@@ -114,7 +106,6 @@ export function configureAnalysisMocks(m: BacktestMockHandles): void {
   });
 }
 
-/** 为 monte-carlo 端点相关 mock 句柄设置实现逻辑。 */
 export function configureMonteCarloMocks(m: BacktestMockHandles): void {
   m.runMonteCarlo.mockImplementation(
     async (portfolioList: unknown[], _parameters: unknown, mcParams?: object) => {
@@ -148,7 +139,6 @@ export function configureMonteCarloMocks(m: BacktestMockHandles): void {
   });
 }
 
-/** 为 optimize / efficient-frontier 端点相关 mock 句柄设置实现逻辑。 */
 export function configureOptimizationMocks(m: BacktestMockHandles): void {
   const extractData = (result: unknown) =>
     (result as { data?: Record<string, unknown> })?.data ?? result;
@@ -180,7 +170,6 @@ export function configureOptimizationMocks(m: BacktestMockHandles): void {
   );
 }
 
-/** 为 backtest-helper 辅助 mock 句柄设置实现逻辑。 */
 export function configureTickerHelpersMocks(m: BacktestMockHandles): void {
   m.collectDomainTickers.mockImplementation(
     (domainPortfolios: { tickers: string[] }[], benchmarkTicker: string) => {
@@ -228,7 +217,6 @@ const DEFAULT_PRICE_DATA = {
   BND: { '2024-01-02': 72.3, '2024-01-03': 72.5 },
 };
 
-/** 在随机端口启动 Express 应用挂载 backtest 路由。 */
 export const createBacktestApp = (routes: Router): Promise<TestServer> =>
   startExpressApp((app) => app.use('/api/backtest', routes), { bodyLimit: '10mb' });
 
@@ -244,7 +232,6 @@ export const createValidPortfolio = () => ({
   rebalanceFrequency: 'monthly' as const,
 });
 
-/** 配置 portfolio 端点默认 mock 并启动测试服务器。 */
 export async function setupPortfolioServer(
   routes: Router,
   m: BacktestMockHandles,
@@ -270,7 +257,6 @@ export async function setupPortfolioServer(
   return createBacktestApp(routes);
 }
 
-/** 启动引擎路由测试服务器（analysis/monte-carlo/optimize/efficient-frontier）。 */
 export async function startEngineRouteServer(
   routes: Router,
   m: BacktestMockHandles,

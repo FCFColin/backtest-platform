@@ -1,20 +1,17 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { createLoggerMocks } from '../../helpers/mockFactories.js';
+import { loggerMocks } from '../../helpers/loggerFixture.js';
 
 const mocks = vi.hoisted(() => ({
   fetch: vi.fn(),
   getRequestId: vi.fn(),
   getTracePropagationHeaders: vi.fn(),
-  logger: {},
 }));
 
 vi.mock('../../../packages/backend/src/utils/requestContext.js', () => ({
   getRequestId: mocks.getRequestId,
   getTracePropagationHeaders: mocks.getTracePropagationHeaders,
 }));
-vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
-  logger: Object.assign(mocks.logger, createLoggerMocks()),
-}));
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: loggerMocks }));
 
 import { callService } from '../../../packages/backend/src/utils/httpClient.js';
 
@@ -110,7 +107,7 @@ describe('callService', () => {
       title: 'Bad Request',
       detail: 'portfolios is empty',
     });
-    expect(mocks.logger.warn).not.toHaveBeenCalled();
+    expect(loggerMocks.warn).not.toHaveBeenCalled();
   });
 
   it('4xx Go 旧格式 body（detail 缺失，error 字段存在）应将 error 作为 detail', async () => {
@@ -156,7 +153,7 @@ describe('callService', () => {
     const result = await callService('http://svc', '/bt');
 
     expect(result).toBeNull();
-    expect(mocks.logger.warn).toHaveBeenCalledWith(expect.stringContaining('HTTP 503'));
+    expect(loggerMocks.warn).toHaveBeenCalledWith(expect.stringContaining('HTTP 503'));
   });
 
   it('5xx 响应 resp.text() 抛错时应兜底为空字符串并返回 null', async () => {
@@ -171,7 +168,7 @@ describe('callService', () => {
     const result = await callService('http://svc', '/bt');
 
     expect(result).toBeNull();
-    expect(mocks.logger.warn).toHaveBeenCalled();
+    expect(loggerMocks.warn).toHaveBeenCalled();
   });
 
   it('AbortError（超时）应返回 null 并记录不含 endpoint 的 warn 日志', async () => {
@@ -182,7 +179,7 @@ describe('callService', () => {
     const result = await callService('http://svc', '/bt');
 
     expect(result).toBeNull();
-    expect(mocks.logger.warn).toHaveBeenCalledWith(expect.stringContaining('http://svc 不可用'));
+    expect(loggerMocks.warn).toHaveBeenCalledWith(expect.stringContaining('http://svc 不可用'));
   });
 
   it('其他网络错误应返回 null 并记录含错误消息的 warn 日志', async () => {
@@ -191,6 +188,6 @@ describe('callService', () => {
     const result = await callService('http://svc', '/bt');
 
     expect(result).toBeNull();
-    expect(mocks.logger.warn).toHaveBeenCalledWith(expect.stringContaining('ECONNREFUSED'));
+    expect(loggerMocks.warn).toHaveBeenCalledWith(expect.stringContaining('ECONNREFUSED'));
   });
 });

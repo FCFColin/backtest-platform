@@ -1,11 +1,5 @@
-/**
- * jobIdempotency 单元测试（T-37 / ADR-045）
- *
- * ADR-045：删除内存回退路径。Redis 不可用或操作失败时 requireRedis 抛出
- * RedisUnavailableError，由 Worker 捕获后经 BullMQ backoff 重试。
- */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { mockLogger } from '../../helpers/mockFactories.js';
+import { loggerMocks } from '../../helpers/loggerFixture.js';
 import { RedisUnavailableError } from '../../../packages/backend/src/utils/errors.js';
 
 const redisMocks = vi.hoisted(() => ({
@@ -16,13 +10,6 @@ const redisMocks = vi.hoisted(() => ({
   multi: vi.fn(),
   getRedisHealth: vi.fn(async () => true),
   markRedisUnhealthy: vi.fn(),
-  loggerMocks: {
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-    debug: vi.fn(),
-    child: vi.fn(() => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() })),
-  },
 }));
 
 vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () => ({
@@ -32,9 +19,7 @@ vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () => ({
   bullmqConnectionOptions: {},
 }));
 
-vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
-  logger: mockLogger(redisMocks.loggerMocks),
-}));
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: loggerMocks }));
 
 import {
   tryClaimJobProcessing,

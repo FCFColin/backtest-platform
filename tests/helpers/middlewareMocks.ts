@@ -1,13 +1,7 @@
 import { vi } from 'vitest';
-import { createLoggerMocks } from './mockFactories.js';
+import { loggerMocks as fixtureLoggerMocks } from './loggerFixture.js';
 
-/**
- * 路由测试共享的透传 mock（jwtAuth/tenantContext/rbac/quota/redisClient）。
- * 顶层 vi.mock 生效于所有 import 本模块的测试文件。
- * 导出 loggerMocks 供测试文件自行 vi.mock logger 时引用。
- * 不含 logger vi.mock——各测试文件自行 mock logger 以避免 vi.clearAllMocks 冲突。
- */
-export const loggerMocks = createLoggerMocks();
+export const loggerMocks = fixtureLoggerMocks;
 
 vi.mock('../../packages/backend/src/middleware/jwtAuth.js', () => ({
   jwtAuth: (_req: unknown, _res: unknown, next: () => void) => next(),

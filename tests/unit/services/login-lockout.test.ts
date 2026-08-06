@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createRedisModuleMock, createLoggerMocks } from '../../helpers/mockFactories.js';
+import { createRedisModuleMock } from '../../helpers/mockFactories.js';
+import { loggerMocks } from '../../helpers/loggerFixture.js';
 
 const redisMocks = vi.hoisted(() => ({}));
 const dbMocks = vi.hoisted(() => ({
@@ -18,7 +19,7 @@ vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () =>
 );
 
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
-  logger: createLoggerMocks(),
+  logger: loggerMocks,
 }));
 
 vi.mock('../../../packages/backend/src/db/pool.js', () => ({
@@ -217,14 +218,11 @@ describe('createApiKey', () => {
 });
 
 describe('verifyApiKey', () => {
-  it('非 bpk_live_ 前缀应直接拒绝（不查询 DB）', async () => {
-    const result = await verifyApiKey('not-a-valid-key');
-    expect(result).toBeNull();
-    expect(dbMocks.query).not.toHaveBeenCalled();
-  });
-
-  it('超长密钥应直接拒绝', async () => {
-    const result = await verifyApiKey('bpk_live_' + 'a'.repeat(200));
+  it.each([
+    ['非 bpk_live_ 前缀应直接拒绝（不查询 DB）', 'not-a-valid-key'],
+    ['超长密钥应直接拒绝', 'bpk_live_' + 'a'.repeat(200)],
+  ])('%s', async (_label, key) => {
+    const result = await verifyApiKey(key);
     expect(result).toBeNull();
     expect(dbMocks.query).not.toHaveBeenCalled();
   });
@@ -257,14 +255,12 @@ describe('listApiKeys', () => {
 });
 
 describe('revokeApiKey', () => {
-  it('成功吊销应返回 true', async () => {
-    dbMocks.query.mockResolvedValueOnce({ rowCount: 1 });
-    expect(await revokeApiKey(ORG, KEY_ID)).toBe(true);
-  });
-
-  it('不存在/不属于本组织/已吊销应返回 false', async () => {
-    dbMocks.query.mockResolvedValueOnce({ rowCount: 0 });
-    expect(await revokeApiKey(ORG, KEY_ID)).toBe(false);
+  it.each([
+    ['成功吊销应返回 true', 1, true],
+    ['不存在/不属于本组织/已吊销应返回 false', 0, false],
+  ])('%s', async (_label, rowCount, expected) => {
+    dbMocks.query.mockResolvedValueOnce({ rowCount });
+    expect(await revokeApiKey(ORG, KEY_ID)).toBe(expected);
   });
 
   it('吊销应以 org_id 收敛防跨租户', async () => {

@@ -96,18 +96,15 @@ describe('encodeState', () => {
 });
 
 describe('decodeState', () => {
-  it('空字符串返回 null', () => {
-    expect(decodeState('')).toBeNull();
-  });
-  it('无效 base64 返回 null', () => {
-    expect(decodeState('!!!invalid!!!')).toBeNull();
-  });
-  it('非 JSON 字符串返回 null', () => {
-    const notJson = btoa('not a json string')
-      .replace(/\+/g, '-')
-      .replace(/\//g, '_')
-      .replace(/=+$/, '');
-    expect(decodeState(notJson)).toBeNull();
+  it.each([
+    ['空字符串', ''],
+    ['无效 base64', '!!!invalid!!!'],
+    [
+      '非 JSON',
+      btoa('not a json string').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''),
+    ],
+  ])('%s 返回 null', (_label, input) => {
+    expect(decodeState(input)).toBeNull();
   });
   it.each([
     ['portfolios 为空数组', { portfolios: [], parameters: validState.parameters }],
@@ -135,20 +132,14 @@ describe('decodeState', () => {
 });
 
 describe('readStateFromURL', () => {
-  it('URL 无 ?d= 参数返回 null', () => {
-    mockWindow.location.search = '';
-    expect(readStateFromURL()).toBeNull();
-  });
-  it('URL 有 ?d= 参数返回解码状态', () => {
-    mockWindow.location.search = `?d=${encodeState(validState)}`;
-    expect(readStateFromURL()).toEqual(validState);
-  });
   it.each([
-    ['无效', '?d=invalid-base64!!!'],
-    ['空', '?d='],
-  ])('URL 有%s ?d= 参数返回 null', (_n, search) => {
+    ['URL 无 ?d= 参数返回 null', '', null],
+    ['URL 有 ?d= 参数返回解码状态', `?d=${encodeState(validState)}`, validState],
+    ['URL 有无效 ?d= 参数返回 null', '?d=invalid-base64!!!', null],
+    ['URL 有空 ?d= 参数返回 null', '?d=', null],
+  ] as const)('%s', (_n, search, expected) => {
     mockWindow.location.search = search;
-    expect(readStateFromURL()).toBeNull();
+    expect(readStateFromURL()).toEqual(expected);
   });
 });
 

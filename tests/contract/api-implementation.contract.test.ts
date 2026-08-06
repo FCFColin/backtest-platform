@@ -33,7 +33,6 @@ async function extractSpecPaths(): Promise<SpecPaths> {
   return result;
 }
 
-/** 从 app.ts 提取路由挂载点：app.use('/api/v1/xxx', ..., routeModule); */
 interface MountPoint {
   prefix: string;
   routeFile: string;
@@ -58,7 +57,6 @@ function extractMountPoints(): MountPoint[] {
   return mounts;
 }
 
-/** 解析文件内 `import xxx from '...'` 的相对模块路径。 */
 function resolveImportPath(filePath: string, localName: string): string | null {
   const content = fs.readFileSync(filePath, 'utf8');
   const importRegex = new RegExp(`import\\s+${localName}\\s+from\\s+['"]([^'"]+)['"]`);
@@ -78,7 +76,6 @@ function extractRoutesFromFile(
   const content = fs.readFileSync(filePath, 'utf8');
   const routes: Array<{ method: string; path: string }> = [];
 
-  // 匹配 router.get('/path', ...), router.post('/path', ...), 等
   const routeRegex = /\brouter\.(get|post|put|delete|patch)\(\s*['"`]([^'"`]+)['"`]/g;
   let match: RegExpExecArray | null;
   while ((match = routeRegex.exec(content)) !== null) {
@@ -111,15 +108,6 @@ function expressToOpenApiPath(exprPath: string): string {
   return normalizePath(exprPath.replace(/:(\w+)/g, '{$1}'));
 }
 
-/**
- * tenantCrudRoutes 工厂（routeUtils.ts）生成的标准租户 CRUD 路径：
- * GET /、POST /、GET /{id}、DELETE /{id}，以及（service 提供 update 时）PUT /{id}。
- * 静态扫描无法看到工厂内部 router 调用，这里按工厂契约补充。
- *
- * @param content - 路由文件内容
- * @param specPrefix - 挂载前缀（去掉 /api/v1 后）
- * @returns 工厂生成的路径
- */
 function factoryRoutesFromFile(
   content: string,
   specPrefix: string,

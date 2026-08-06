@@ -17,39 +17,20 @@ import {
   extractApiErrorDetail,
   normalizeBacktestResult,
   validatePortfolios,
-  createDefaultPortfolio,
   defaultParameters,
 } from '../../../../packages/frontend/src/store/backtestHelpers.js';
 
 describe('extractApiErrorDetail', () => {
-  it('null/undefined 应返回 fallback', () => {
-    expect(extractApiErrorDetail(null)).toBe(
-      'Backtest failed. Please check ticker symbols and parameters.',
-    );
-    expect(extractApiErrorDetail(undefined)).toBe(
-      'Backtest failed. Please check ticker symbols and parameters.',
-    );
-  });
-
-  it('字符串 detail 应被提取', () => {
-    expect(extractApiErrorDetail({ detail: '余额不足' })).toBe('余额不足');
-  });
-
-  it('字符串 error 应被提取', () => {
-    expect(extractApiErrorDetail({ error: '服务器错误' })).toBe('服务器错误');
-  });
-
-  it('嵌套 error.detail 应被提取', () => {
-    expect(extractApiErrorDetail({ error: { detail: '参数无效' } })).toBe('参数无效');
-  });
-
-  it('非对象应返回 fallback', () => {
-    expect(extractApiErrorDetail('plain string')).toBe(
-      'Backtest failed. Please check ticker symbols and parameters.',
-    );
-    expect(extractApiErrorDetail(42)).toBe(
-      'Backtest failed. Please check ticker symbols and parameters.',
-    );
+  it.each([
+    ['null', null, 'Backtest failed. Please check ticker symbols and parameters.'],
+    ['undefined', undefined, 'Backtest failed. Please check ticker symbols and parameters.'],
+    ['纯字符串', 'plain string', 'Backtest failed. Please check ticker symbols and parameters.'],
+    ['数字', 42, 'Backtest failed. Please check ticker symbols and parameters.'],
+    ['字符串 detail', { detail: '余额不足' }, '余额不足'],
+    ['字符串 error', { error: '服务器错误' }, '服务器错误'],
+    ['嵌套 error.detail', { error: { detail: '参数无效' } }, '参数无效'],
+  ])('%s 应返回 %p', (_label, input, expected) => {
+    expect(extractApiErrorDetail(input)).toBe(expected);
   });
 });
 
@@ -87,10 +68,23 @@ describe('normalizeBacktestResult', () => {
   });
 });
 
+const validPortfolio = {
+  id: 'p1',
+  name: 'Valid',
+  assets: [
+    { id: 'a1', ticker: 'VTI', weight: 60 },
+    { id: 'a2', ticker: 'BND', weight: 40 },
+  ],
+  rebalanceFrequency: 'quarterly' as const,
+  rebalanceOffset: 0,
+  drag: 0,
+  totalReturn: true,
+};
+
 describe('validatePortfolios', () => {
   it('空 ticker 应返回警告', () => {
     const portfolios = [
-      createDefaultPortfolio(1),
+      validPortfolio,
       {
         id: 'p2',
         name: 'Bad Portfolio',
@@ -125,40 +119,7 @@ describe('validatePortfolios', () => {
   });
 
   it('有效的投资组合应返回 null', () => {
-    const portfolios = [
-      {
-        id: 'p1',
-        name: 'Valid',
-        assets: [
-          { id: 'a1', ticker: 'VTI', weight: 60 },
-          { id: 'a2', ticker: 'BND', weight: 40 },
-        ],
-        rebalanceFrequency: 'quarterly' as const,
-        rebalanceOffset: 0,
-        drag: 0,
-        totalReturn: true,
-      },
-    ];
-    expect(validatePortfolios(portfolios)).toBeNull();
-  });
-});
-
-describe('createDefaultPortfolio', () => {
-  it('应创建包含 VTI/BND 组合的投资组合', () => {
-    const p = createDefaultPortfolio(1);
-    expect(p.name).toBe('Portfolio 1');
-    expect(p.assets).toHaveLength(2);
-    expect(p.assets[0].ticker).toBe('VTI');
-    expect(p.assets[0].weight).toBe(60);
-    expect(p.assets[1].ticker).toBe('BND');
-    expect(p.assets[1].weight).toBe(40);
-    expect(p.rebalanceFrequency).toBe('quarterly');
-  });
-
-  it('每次调用应生成唯一 ID', () => {
-    const p1 = createDefaultPortfolio(1);
-    const p2 = createDefaultPortfolio(2);
-    expect(p1.id).not.toBe(p2.id);
+    expect(validatePortfolios([validPortfolio])).toBeNull();
   });
 });
 

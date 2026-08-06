@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { mockLogger, createMockPool } from '../../helpers/mockFactories.js';
+import { createMockPool } from '../../helpers/mockFactories.js';
 
 const dbMocks = vi.hoisted(() => ({ getReadPool: vi.fn() }));
 const loggerMocks = vi.hoisted(() => ({
@@ -11,7 +11,7 @@ const loggerMocks = vi.hoisted(() => ({
 }));
 vi.mock('../../../packages/backend/src/db/pool.js', () => ({ getReadPool: dbMocks.getReadPool }));
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
-  logger: mockLogger(loggerMocks),
+  logger: loggerMocks,
 }));
 
 import {

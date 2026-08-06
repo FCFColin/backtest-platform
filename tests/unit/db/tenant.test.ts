@@ -4,11 +4,11 @@ import { execSync } from 'node:child_process';
 import pg from 'pg';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { createLoggerMocks } from '../../helpers/mockFactories.js';
+import { loggerMocks } from '../../helpers/loggerFixture.js';
 
 // tenant.ts 依赖 logger（仅错误日志）与 pool.ts 的 getPool。
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
-  logger: createLoggerMocks(),
+  logger: loggerMocks,
 }));
 
 const poolHolder = vi.hoisted(() => ({ pool: null as pg.Pool | null }));

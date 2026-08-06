@@ -1,13 +1,3 @@
-/**
- * useIdleTimeout hook 单元测试（P0-04）
- *
- * 测试场景：
- *   1. 用户活动时 → 不触发登出
- *   2. 超时后无活动 → 触发登出 + 跳转
- *   3. enabled=false → 不计时
- *   4. timeoutMs=0 → 禁用
- *   5. 触发后清除 localStorage 中的 refreshToken
- */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { useIdleTimeout } from '../../../packages/frontend/src/hooks/miscHooks';

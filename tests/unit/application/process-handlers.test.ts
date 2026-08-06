@@ -1,24 +1,8 @@
-/**
- * P0-01 单元测试：uncaughtException / unhandledRejection 必须终止进程
- *
- * 企业理由：未终止的 uncaughtException 会导致进程状态不一致（连接池/事件循环可能已损坏），
- * 静默继续运行会引发数据损坏。必须 log + graceful shutdown + exit(1) 让 K8s 重启 Pod。
- *
- * 测试策略：
- *   - mock 所有 server.ts 的重依赖（tracing/app/config/db/outbox/queues/events）
- *   - spy process.exit（mock 为 no-op，不真正退出测试进程）
- *   - 通过 process.emit 触发 uncaughtException / unhandledRejection
- *   - 验证 logger.error 被调用 + process.exit 被调用且退出码为 1
- *   - uncaughtException 的 exit 在异步优雅关闭回调中，需要 await 微任务
- */
-
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { createLoggerMocks, mockLogger } from '../../helpers/mockFactories.js';
-
-const loggerMocks = createLoggerMocks();
+import { loggerMocks } from '../../helpers/loggerFixture.js';
 
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
-  logger: mockLogger(loggerMocks),
+  logger: loggerMocks,
 }));
 
 vi.mock('../../../packages/backend/src/tracing.js', () => ({

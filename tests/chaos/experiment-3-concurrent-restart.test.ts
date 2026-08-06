@@ -1,11 +1,10 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import {
   CONTAINERS,
   sendSignalToContainer,
   startContainer,
   waitForHealthy,
-  setupChaosFixture,
-  type ChaosFixture,
+  setupChaosLifecycle,
 } from '../helpers/chaos.js';
 
 const API_URL = process.env.API_URL || 'http://127.0.0.1:15001';
@@ -14,26 +13,10 @@ const CONCURRENT_REQUESTS = 100;
 
 const BUSINESS_ENDPOINT = `${API_URL}/api/v1/data/meta`;
 
-let fixture: ChaosFixture = {
-  dockerAvailable: false,
-  containerRunning: false,
-  recover: async () => {},
-};
-
-beforeAll(async () => {
-  fixture = await setupChaosFixture(CONTAINERS.api);
-}, 30000);
-
-afterAll(async () => {
-  if (fixture.dockerAvailable && fixture.containerRunning) {
-    try {
-      await startContainer(CONTAINERS.api);
-      await waitForHealthy(HEALTH_URL, 30000);
-    } catch {
-      /* container may already be healthy */
-    }
-  }
-}, 60000);
+const fixture = setupChaosLifecycle(CONTAINERS.api, async (name) => {
+  await startContainer(name);
+  await waitForHealthy(HEALTH_URL, 30000);
+});
 
 describe('Chaos Experiment 3: High Concurrency + Graceful Shutdown', () => {
   it.skipIf(!fixture.dockerAvailable)(
@@ -59,7 +42,6 @@ describe('Chaos Experiment 3: High Concurrency + Graceful Shutdown', () => {
         }
       });
 
-      // Step 3: 等待请求 in-flight 后发送 SIGTERM 到 API 容器
       setTimeout(async () => {
         try {
           await sendSignalToContainer(CONTAINERS.api, 'SIGTERM');

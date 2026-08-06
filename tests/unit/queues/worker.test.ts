@@ -1,7 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach, afterAll } from 'vitest';
-import { createLoggerMocks } from '../../helpers/mockFactories.js';
+import { loggerMocks } from '../../helpers/loggerFixture.js';
+import { redisModuleMock } from '../../helpers/redisFixture.js';
+import { engineModuleMock } from '../../helpers/engineFixture.js';
 import { EngineUnavailableErrorStub } from '../../helpers/backtestRoutesFixtures.js';
-vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: loggerMocks }));
 vi.mock('../../../packages/backend/src/queues/backtestQueue.js', () => ({
   createBacktestWorker: vi.fn(() => ({ close: vi.fn().mockResolvedValue(undefined) })),
 }));
@@ -14,10 +16,7 @@ vi.mock('../../../packages/backend/src/application/grid-application-service.js',
 vi.mock('../../../packages/backend/src/application/backtest-service.js', () => ({
   runPortfolioBacktest: vi.fn(),
 }));
-vi.mock('../../../packages/backend/src/utils/engineClient.js', () => ({
-  EngineUnavailableError: EngineUnavailableErrorStub,
-  callEngineStrict: vi.fn(),
-}));
+vi.mock('../../../packages/backend/src/utils/engineClient.js', () => engineModuleMock);
 vi.mock('../../../packages/backend/src/queues/queueUtils.js', () => ({
   tryClaimJobProcessing: vi.fn().mockResolvedValue('claimed'),
   getProcessedJobResult: vi.fn().mockResolvedValue(null),
@@ -33,21 +32,7 @@ vi.mock(
   '../../../packages/backend/src/application/org/membershipService.js',
   () => membershipMocks,
 );
-const redisMocks = vi.hoisted(() => ({
-  incr: vi.fn(),
-  decr: vi.fn().mockResolvedValue(0),
-  expire: vi.fn().mockResolvedValue(1),
-  on: vi.fn(),
-  ping: vi.fn().mockResolvedValue('PONG'),
-  del: vi.fn().mockResolvedValue(1),
-  scan: vi.fn().mockResolvedValue(['0', []]),
-  set: vi.fn().mockResolvedValue('OK'),
-}));
-vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () => ({
-  appRedis: redisMocks,
-  redisConnection: {},
-  bullmqConnectionOptions: {},
-}));
+vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () => redisModuleMock);
 const signalCapture = vi.hoisted(() => {
   const captured: { SIGTERM?: () => void; SIGINT?: () => void } = {};
   const originalOn = process.on;

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createLoggerMocks } from '../../helpers/mockFactories.js';
+import { loggerMocks } from '../../helpers/loggerFixture.js';
 
 // P0-03：在模块加载前设置极小的响应体大小限制（100 字节），使测试无需创建大字符串
 vi.hoisted(() => {
@@ -41,7 +41,7 @@ const queueMocks = vi.hoisted(() => ({
 }));
 
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
-  logger: createLoggerMocks(),
+  logger: loggerMocks,
 }));
 
 vi.mock('../../../packages/backend/src/config/index.js', () => ({
@@ -75,10 +75,10 @@ import {
   isDbAvailable,
   validateSearchQuery,
   queryPricesFromDb,
-  callGoDataService,
   fetchMissingFromGoService,
   searchTickersFromDb,
 } from '../../../packages/backend/src/infrastructure/dataQuery.js';
+import { callGoDataService } from '../../../packages/backend/src/infrastructure/goDataServiceClient.js';
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -87,7 +87,6 @@ beforeEach(() => {
   cbMocks.fire.mockResolvedValue({ rows: [] });
 });
 
-/** 构造 fetch mock 响应；支持 chunkSize（分块发送）验证流式接收超限场景 */
 function mockFetchResponse(opts: {
   data?: string;
   statusCode?: number;

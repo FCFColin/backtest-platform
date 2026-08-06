@@ -1,15 +1,9 @@
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import { beforeAll, afterAll } from 'vitest';
 
 const execAsync = promisify(exec);
 
-/**
- * Docker 容器名（与 docker-compose.yml 中 container_name 一致）
- *
- * 企业理由：原脚本使用 `backtest-postgres-1`（docker-compose v1 自动后缀），
- * 实际 docker-compose.yml 显式指定 container_name: backtest-postgres，
- * 导致网络断开操作失败。此处集中维护容器名，避免硬编码散落各处。
- */
 export const CONTAINERS = {
   postgres: 'backtest-postgres',
   dataFetcher: 'backtest-data-fetcher',
@@ -45,10 +39,6 @@ async function isContainerRunning(containerName: string): Promise<boolean> {
   }
 }
 
-/**
- * 企业理由：熔断器状态是可用性关键信号，chaos 测试需断言熔断器
- * 在故障期间进入 Open 状态（快速失败），恢复后回到 Closed。
- */
 export async function getCircuitBreakerState(
   breakerName: string,
   metricsUrl: string = 'http://127.0.0.1:15001/metrics',
@@ -60,11 +50,6 @@ export async function getCircuitBreakerState(
   return match ? parseInt(match[1], 10) : -1;
 }
 
-/**
- * 企业理由：原脚本使用 PowerShell Get-Process 查找 Node.js PID，
- * 仅 Windows 可用且可能误杀其他 Node 进程。docker kill --signal
- * 通过 Docker daemon 发送信号，跨平台且精准定位容器内主进程。
- */
 export async function sendSignalToContainer(
   containerName: string,
   signal: string = 'SIGTERM',
@@ -155,6 +140,28 @@ export async function setupChaosFixture(
           /* recovery may fail, continue */
         }
       }
+    },
+  };
+}
+
+export function setupChaosLifecycle(containerName: string, recoverFn = startContainer) {
+  let current: ChaosFixture = {
+    dockerAvailable: false,
+    containerRunning: false,
+    recover: async () => {},
+  };
+  beforeAll(async () => {
+    current = await setupChaosFixture(containerName, recoverFn);
+  }, 30000);
+  afterAll(async () => {
+    await current.recover();
+  }, 30000);
+  return {
+    get dockerAvailable() {
+      return current.dockerAvailable;
+    },
+    get containerRunning() {
+      return current.containerRunning;
     },
   };
 }

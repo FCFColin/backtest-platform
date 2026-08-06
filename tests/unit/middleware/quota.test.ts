@@ -1,15 +1,4 @@
-/**
- * 配额中间件单元测试（ADR-037 / P0-04 fail-closed）
- *
- * 企业理由：配额是变现与滥用防护的执行点，必须验证：
- * 1. 无租户/平台管理员放行（本地零摩擦 + 运维豁免）
- * 2. 标的数超计划上限返回 422
- * 3. 月度用量达上限返回 402
- * 4. 正常放行并计量一次
- * 5. P0-04：Redis 不可用 / getOrg 失败时 fail-closed 返回 503（不放行）
- */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { mockLogger } from '../../helpers/mockFactories.js';
 
 const mocks = vi.hoisted(() => ({
   getOrg: vi.fn(),
@@ -64,7 +53,7 @@ vi.mock('../../../packages/backend/src/utils/metrics.js', () => ({
   getPrometheusRegister: vi.fn(() => ({ contentType: 'text/plain', metrics: vi.fn() })),
 }));
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
-  logger: mockLogger(mocks.loggerMocks),
+  logger: mocks.loggerMocks,
 }));
 
 import type { Request } from 'express';

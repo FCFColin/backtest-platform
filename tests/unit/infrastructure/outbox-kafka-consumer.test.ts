@@ -1,8 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
-import { createLoggerMocks } from '../../helpers/mockFactories.js';
+import { loggerMocks } from '../../helpers/loggerFixture.js';
 
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
-  logger: createLoggerMocks(),
+  logger: loggerMocks,
 }));
 
 vi.mock('../../../packages/backend/src/config/index.js', () => ({

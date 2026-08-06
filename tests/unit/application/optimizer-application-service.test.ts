@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createLoggerMocks } from '../../helpers/mockFactories.js';
+import { loggerMocks } from '../../helpers/loggerFixture.js';
 import { EngineUnavailableErrorStub } from '../../helpers/backtestRoutesFixtures.js';
 
 const mocks = vi.hoisted(() => ({
@@ -16,7 +16,7 @@ vi.mock('../../../packages/backend/src/infrastructure/dataFacade.js', () => ({
   fetchHistoryData: mocks.fetchHistoryData,
 }));
 
-vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: loggerMocks }));
 
 vi.mock('../../../packages/backend/src/utils/misc.js', () => ({
   withTimeout: vi.fn((promise: Promise<unknown>) => promise),

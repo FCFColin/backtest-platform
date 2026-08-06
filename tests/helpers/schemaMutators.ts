@@ -1,6 +1,6 @@
 import { it, expect } from 'vitest';
 
-export type Mutator = (d: Record<string, unknown>) => void;
+type Mutator = (d: Record<string, unknown>) => void;
 
 const path = (d: Record<string, unknown>, key: string) => {
   const ks = key.split('.');

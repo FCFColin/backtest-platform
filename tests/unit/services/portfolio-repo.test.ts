@@ -1,9 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import {
-  mockLogger,
-  createConfigMocks,
-  createPoolModuleMock,
-} from '../../helpers/mockFactories.js';
+import { createConfigMocks, createPoolModuleMock } from '../../helpers/mockFactories.js';
+import { loggerMocks } from '../../helpers/loggerFixture.js';
 
 const dbMocks = vi.hoisted(() => ({
   query: vi.fn(),
@@ -12,17 +9,7 @@ const dbMocks = vi.hoisted(() => ({
 
 vi.mock('../../../packages/backend/src/db/pool.js', () => createPoolModuleMock(dbMocks));
 
-const loggerMocks = vi.hoisted(() => ({
-  info: vi.fn(),
-  warn: vi.fn(),
-  error: vi.fn(),
-  debug: vi.fn(),
-  child: vi.fn(() => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() })),
-}));
-
-vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
-  logger: mockLogger(loggerMocks),
-}));
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: loggerMocks }));
 
 vi.mock('../../../packages/backend/src/config/env.js', () => ({
   config: createConfigMocks({ REDIS_URL: 'redis://localhost:6379' }),

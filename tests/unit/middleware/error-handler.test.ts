@@ -1,15 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { loggerMocks } from '../../helpers/loggerFixture.js';
 
 const configMocks = vi.hoisted(() => ({
   NODE_ENV: 'development',
-}));
-
-const loggerMocks = vi.hoisted(() => ({
-  info: vi.fn(),
-  warn: vi.fn(),
-  error: vi.fn(),
-  debug: vi.fn(),
-  child: vi.fn(() => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() })),
 }));
 
 vi.mock('../../../packages/backend/src/config/index.js', () => ({

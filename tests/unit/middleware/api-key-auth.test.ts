@@ -1,16 +1,6 @@
-/**
- * API Key 认证中间件单元测试（ADR-033 + P0-04 + D4-010）
- *
- * 企业理由：x-api-key 是 CLI/自动化脚本的主认证方式（按组织 DB 密钥），
- * 同时也是平台 break-glass 入口。P0-04 后两条路径统一走 DB（verifyApiKey）：
- * 1. 按组织 DB 密钥（is_platform_admin=FALSE）——注入租户上下文
- * 2. 平台 break-glass DB 密钥（is_platform_admin=TRUE）——注入 platform_admin 角色
- *
- * D4-010 / ADR-045：基础设施错误（Redis/DB）fail-closed 503，不再静默吞掉。
- */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createMockMiddleware } from '../../helpers/expressMocks.js';
-import { createLoggerMocks } from '../../helpers/mockFactories.js';
+import { loggerMocks } from '../../helpers/loggerFixture.js';
 
 const mocks = vi.hoisted(() => ({
   verifyApiKey: vi.fn(),
@@ -19,7 +9,7 @@ const mocks = vi.hoisted(() => ({
   hashUserId: vi.fn().mockReturnValue('hashed'),
 }));
 
-vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: loggerMocks }));
 vi.mock('../../../packages/backend/src/infrastructure/apiKeyVerifier.js', () => ({
   verifyApiKey: mocks.verifyApiKey,
 }));

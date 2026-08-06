@@ -6,10 +6,6 @@ export function useLocation() {
   return { pathname: '/test' };
 }
 
-export function MemoryRouter({ children }: { children: React.ReactNode }) {
-  return <>{children}</>;
-}
-
 export function useNavigate() {
   return () => {};
 }

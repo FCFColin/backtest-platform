@@ -1,11 +1,3 @@
-/**
- * validate 中间件单元测试
- *
- * 企业理由：请求体校验是API安全的第一道防线，必须确保：
- * - 无效输入返回400和RFC 7807格式错误
- * - 有效输入通过校验并替换req.body为解析后的数据
- */
-
 import { describe, it, expect } from 'vitest';
 import { z } from 'zod';
 import { validate } from '../../../packages/backend/src/middleware/miscMiddleware.js';
@@ -145,7 +137,6 @@ describe('安全攻击用例', () => {
     const res = createMockRes();
     const next = createMockNext();
 
-    // validate 应安全处理，不崩溃
     validate(testSchema)(req, res, next);
 
     expect(res.status).toHaveBeenCalledWith(400);

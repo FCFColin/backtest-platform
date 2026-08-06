@@ -27,7 +27,7 @@ const BASE_URL = __ENV.BASE_URL || 'http://host.docker.internal:15001';
 export default function () {
   // GET /api/v1/data/meta
   const metaResp = http.get(`${BASE_URL}/api/v1/data/meta`, {
-    headers: { 'Accept': 'application/json' },
+    headers: { Accept: 'application/json' },
   });
   check(metaResp, { 'meta status 200': (r) => r.status === 200 });
   errorRate.add(metaResp.status >= 400);
@@ -35,7 +35,7 @@ export default function () {
 
   // GET /api/v1/announcements
   const annResp = http.get(`${BASE_URL}/api/v1/announcements`, {
-    headers: { 'Accept': 'application/json' },
+    headers: { Accept: 'application/json' },
   });
   check(annResp, { 'announce status 200': (r) => r.status === 200 });
   errorRate.add(annResp.status >= 400);

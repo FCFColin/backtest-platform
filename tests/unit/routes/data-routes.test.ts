@@ -1,5 +1,6 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { startExpressApp, type TestServer } from '../../helpers/expressApp.js';
+import { describe, it, expect, vi } from 'vitest';
+import { startExpressApp } from '../../helpers/expressApp.js';
+import { withServer } from '../../helpers/serverLifecycle.js';
 
 const dataServiceMocks = vi.hoisted(() => ({
   fetchHistoryData: vi.fn(),
@@ -20,21 +21,15 @@ vi.mock('../../../packages/backend/src/infrastructure/dataServices.js', () => ({
   SYNTHETIC_TICKERS: [],
 }));
 
-import { createLoggerMocks } from '../../helpers/mockFactories.js';
-vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
+import { loggerMocks } from '../../helpers/loggerFixture.js';
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: loggerMocks }));
 
 import dataRoutes from '../../../packages/backend/src/routes/dataRoutes.js';
 
 describe('dataRoutes - GET /api/data/cpi/:country', () => {
-  let server: TestServer;
-
-  beforeEach(async () => {
+  const getServer = withServer(() => {
     vi.clearAllMocks();
-    server = await startExpressApp((app) => app.use('/api/data', dataRoutes));
-  });
-
-  afterEach(async () => {
-    await server.close();
+    return startExpressApp((app) => app.use('/api/data', dataRoutes));
   });
 
   it('Go 服务可用时应返回 Go CPI 数据', async () => {
@@ -44,7 +39,7 @@ describe('dataRoutes - GET /api/data/cpi/:country', () => {
       notFound: false,
     });
 
-    const res = await fetch(`${server.url}/api/data/cpi/us`);
+    const res = await fetch(`${getServer().url}/api/data/cpi/us`);
     const body = await res.json();
 
     expect(res.status).toBe(200);
@@ -61,7 +56,7 @@ describe('dataRoutes - GET /api/data/cpi/:country', () => {
       notFound: false,
     });
 
-    const res = await fetch(`${server.url}/api/data/cpi/us`);
+    const res = await fetch(`${getServer().url}/api/data/cpi/us`);
     const body = await res.json();
 
     expect(res.status).toBe(200);
@@ -72,7 +67,7 @@ describe('dataRoutes - GET /api/data/cpi/:country', () => {
   });
 
   it('无效 country 参数应返回 422', async () => {
-    const res = await fetch(`${server.url}/api/data/cpi/jp`);
+    const res = await fetch(`${getServer().url}/api/data/cpi/jp`);
     expect(res.status).toBe(422);
     expect(cpiServiceMocks.fetchCpiForRoute).not.toHaveBeenCalled();
   });
@@ -84,7 +79,7 @@ describe('dataRoutes - GET /api/data/cpi/:country', () => {
       notFound: true,
     });
 
-    const res = await fetch(`${server.url}/api/data/cpi/cn`);
+    const res = await fetch(`${getServer().url}/api/data/cpi/cn`);
     expect(res.status).toBe(404);
   });
 });

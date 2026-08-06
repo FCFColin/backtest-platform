@@ -1,16 +1,3 @@
-/**
- * logger 单元测试
- *
- * 企业理由：结构化日志是 SRE 排障的基础，logger 模块导出的 logger
- * 与 httpLogger 必须保证：
- * - logger 是 pino 实例，具备 info/warn/error/debug 方法
- * - httpLogger 是 pino-http 中间件函数
- * - 开发环境使用 debug 级别，生产环境使用 info 级别
- *
- * 权衡：不验证 OTel mixin 与 redact 行为（需集成测试），
- * 仅锁定模块导出契约。
- */
-
 import { describe, it, expect, vi, beforeAll } from 'vitest';
 import { logger, httpLogger } from '../../../packages/backend/src/utils/logger.js';
 

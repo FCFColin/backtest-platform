@@ -7,9 +7,9 @@
  */
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { EngineUnavailableErrorStub } from '../helpers/backtestRoutesFixtures.js';
-import { createLoggerMocks } from '../helpers/mockFactories.js';
+import { loggerMocks } from '../../helpers/loggerFixture.js';
 
-vi.mock('../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
+vi.mock('../../packages/backend/src/utils/logger.js', () => ({ logger: loggerMocks }));
 
 const { callEngineStrictMock, fetchHistoryDataMock, searchTickersMock } = vi.hoisted(() => ({
   callEngineStrictMock: vi.fn(),

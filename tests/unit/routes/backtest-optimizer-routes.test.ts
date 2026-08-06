@@ -1,6 +1,7 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { startExpressApp, type TestServer } from '../../helpers/expressApp.js';
-import { createLoggerMocks } from '../../helpers/mockFactories.js';
+import { describe, it, expect, vi } from 'vitest';
+import { startExpressApp } from '../../helpers/expressApp.js';
+import { withServer } from '../../helpers/serverLifecycle.js';
+import { loggerMocks } from '../../helpers/loggerFixture.js';
 
 const queueMocks = vi.hoisted(() => ({
   add: vi.fn(),
@@ -12,7 +13,7 @@ vi.mock('../../../packages/backend/src/queues/backtestQueue.js', () => ({
 }));
 
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
-  logger: createLoggerMocks(),
+  logger: loggerMocks,
 }));
 
 vi.mock('../../../packages/backend/src/config/index.js', () => ({
@@ -43,20 +44,14 @@ function createValidRequest() {
 }
 
 describe('backtestOptimizerRoutes - POST /api/backtest-optimizer/optimize', () => {
-  let server: TestServer;
-
-  beforeEach(async () => {
+  const getServer = withServer(() => {
     vi.clearAllMocks();
     queueMocks.add.mockResolvedValue({ id: 'opt-job-456' });
-    server = await startExpressApp((app) => app.use('/api/v1', jobRoutes));
-  });
-
-  afterEach(async () => {
-    await server.close();
+    return startExpressApp((app) => app.use('/api/v1', jobRoutes));
   });
 
   it('异步提交成功时应返回 202 和标准成功形状 {success, data:{jobId, statusUrl}}', async () => {
-    const res = await fetch(`${server.url}/api/v1/backtest-optimizer/optimize`, {
+    const res = await fetch(`${getServer().url}/api/v1/backtest-optimizer/optimize`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(createValidRequest()),
@@ -73,7 +68,7 @@ describe('backtestOptimizerRoutes - POST /api/backtest-optimizer/optimize', () =
   it('BullMQ 不可用时应 fail-closed 返回 503 + Retry-After（ADR-031）', async () => {
     queueMocks.add.mockRejectedValue(new Error('Redis unavailable'));
 
-    const res = await fetch(`${server.url}/api/v1/backtest-optimizer/optimize`, {
+    const res = await fetch(`${getServer().url}/api/v1/backtest-optimizer/optimize`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(createValidRequest()),
@@ -92,7 +87,7 @@ describe('backtestOptimizerRoutes - POST /api/backtest-optimizer/optimize', () =
     const req = createValidRequest();
     delete (req as Record<string, unknown>).portfolio;
 
-    const res = await fetch(`${server.url}/api/v1/backtest-optimizer/optimize`, {
+    const res = await fetch(`${getServer().url}/api/v1/backtest-optimizer/optimize`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(req),
@@ -106,7 +101,7 @@ describe('backtestOptimizerRoutes - POST /api/backtest-optimizer/optimize', () =
     const req = createValidRequest();
     req.portfolio.assets = [];
 
-    const res = await fetch(`${server.url}/api/v1/backtest-optimizer/optimize`, {
+    const res = await fetch(`${getServer().url}/api/v1/backtest-optimizer/optimize`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(req),
@@ -119,7 +114,7 @@ describe('backtestOptimizerRoutes - POST /api/backtest-optimizer/optimize', () =
     const req = createValidRequest();
     req.parameterSpace.rebalanceFrequencies = [];
 
-    const res = await fetch(`${server.url}/api/v1/backtest-optimizer/optimize`, {
+    const res = await fetch(`${getServer().url}/api/v1/backtest-optimizer/optimize`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(req),
@@ -132,7 +127,7 @@ describe('backtestOptimizerRoutes - POST /api/backtest-optimizer/optimize', () =
     const req = createValidRequest();
     delete (req as Record<string, unknown>).parameters.startDate;
 
-    const res = await fetch(`${server.url}/api/v1/backtest-optimizer/optimize`, {
+    const res = await fetch(`${getServer().url}/api/v1/backtest-optimizer/optimize`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(req),
@@ -145,7 +140,7 @@ describe('backtestOptimizerRoutes - POST /api/backtest-optimizer/optimize', () =
     const req = createValidRequest();
     (req as Record<string, unknown>).objective = 'invalid';
 
-    const res = await fetch(`${server.url}/api/v1/backtest-optimizer/optimize`, {
+    const res = await fetch(`${getServer().url}/api/v1/backtest-optimizer/optimize`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(req),
@@ -156,12 +151,10 @@ describe('backtestOptimizerRoutes - POST /api/backtest-optimizer/optimize', () =
 });
 
 describe('认证用户请求', () => {
-  let server: TestServer;
-
-  beforeEach(async () => {
+  const getServer = withServer(() => {
     vi.clearAllMocks();
     queueMocks.add.mockResolvedValue({ id: 'opt-job-auth-789' });
-    server = await startExpressApp((app) => {
+    return startExpressApp((app) => {
       app.use((req, _res, next) => {
         (req as Record<string, unknown>).user = { sub: 'user-123', role: 'admin' };
         (req as Record<string, unknown>).tenantId = 'tenant-456';
@@ -171,12 +164,8 @@ describe('认证用户请求', () => {
     });
   });
 
-  afterEach(async () => {
-    await server.close();
-  });
-
   it('应设置 ownerUserId 为实际用户 ID', async () => {
-    await fetch(`${server.url}/api/v1/backtest-optimizer/optimize`, {
+    await fetch(`${getServer().url}/api/v1/backtest-optimizer/optimize`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(createValidRequest()),

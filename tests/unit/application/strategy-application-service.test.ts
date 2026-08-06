@@ -1,10 +1,4 @@
-/**
- * 策略类应用服务（signal / tactical / grid）单元测试
- *
- * 计算逻辑已迁移到 Go 引擎（ADR-031），测试通过 mock callEngineStrict + fetchHistoryData 验证编排逻辑。
- */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { mockLogger } from '../../helpers/mockFactories.js';
 import { EngineUnavailableErrorStub } from '../../helpers/backtestRoutesFixtures.js';
 import type {
   SignalAnalysisRequest,
@@ -28,7 +22,7 @@ const loggerMocks = vi.hoisted(() => ({
 const sanitizeMocks = vi.hoisted(() => ({ sanitizeLog: vi.fn((v: string) => v) }));
 
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
-  logger: mockLogger(loggerMocks),
+  logger: loggerMocks,
   sanitizeLog: sanitizeMocks.sanitizeLog,
 }));
 

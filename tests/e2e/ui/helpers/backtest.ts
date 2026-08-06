@@ -1,4 +1,4 @@
-import { expect, type Page } from '@playwright/test';
+import { expect, type Browser, type Page } from '@playwright/test';
 
 export const PERF_BUDGET_MS = Number(process.env.E2E_BACKTEST_PERF_MS ?? 1_000);
 
@@ -10,6 +10,26 @@ export async function warmUpBacktest(page: Page): Promise<void> {
   });
   await runDefaultBacktest(page);
   await waitForSummaryStats(page, 30_000);
+}
+
+// serial 套件共享的 beforeAll 预热：独立 auth context，跑完即关
+export async function warmUpSuite(browser: Browser): Promise<void> {
+  const ctx = await browser.newContext({ storageState: '.auth/user.json' });
+  const page = await ctx.newPage();
+  await warmUpBacktest(page);
+  await ctx.close();
+}
+
+export async function readCagrPercent(page: Page): Promise<number> {
+  const headerRow = page.locator('tr').filter({ hasText: /CAGR/ }).first();
+  const headers = await headerRow.locator('th, td').allTextContents();
+  const cagrCol = headers.findIndex((h) => /CAGR/.test(h));
+  expect(cagrCol).toBeGreaterThanOrEqual(0);
+  const cells = await page.locator('tbody tr').first().locator('th, td').allTextContents();
+  const cagrText = cells[cagrCol] ?? '';
+  const cagrMatch = cagrText?.match(/([+-]?\d+\.?\d*)%/);
+  expect(cagrMatch).toBeTruthy();
+  return parseFloat(cagrMatch![1]);
 }
 
 async function fillAssetRow(

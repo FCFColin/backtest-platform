@@ -1,6 +1,8 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { startExpressApp, type TestServer } from '../../helpers/expressApp.js';
-import { createLoggerMocks, createConfigMocks } from '../../helpers/mockFactories.js';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { startExpressApp } from '../../helpers/expressApp.js';
+import { withServer } from '../../helpers/serverLifecycle.js';
+import { createConfigMocks } from '../../helpers/mockFactories.js';
+import { loggerMocks } from '../../helpers/loggerFixture.js';
 
 const originalFetch = globalThis.fetch;
 
@@ -8,7 +10,7 @@ const dbMocks = vi.hoisted(() => ({
   query: vi.fn(),
 }));
 
-vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: loggerMocks }));
 
 vi.mock('../../../packages/backend/src/config/index.js', () => ({
   config: createConfigMocks({
@@ -66,23 +68,20 @@ function createFetchMock(options: {
 }
 
 describe('healthRoutes', () => {
-  let server: TestServer;
-
-  beforeEach(async () => {
+  const getServer = withServer(() => {
     vi.clearAllMocks();
     config.METRICS_AUTH_TOKEN = '';
-    server = await startExpressApp((app) => app.use('/api', healthRoutes));
+    return startExpressApp((app) => app.use('/api', healthRoutes));
   });
 
-  afterEach(async () => {
-    await server.close();
+  afterEach(() => {
     globalThis.fetch = originalFetch;
     config.METRICS_AUTH_TOKEN = '';
   });
 
   describe('GET /api/health', () => {
     it('应返回轻量存活状态，不暴露依赖拓扑', async () => {
-      const res = await fetch(`${server.url}/api/health`);
+      const res = await fetch(`${getServer().url}/api/health`);
       const body = await res.json();
 
       expect(res.status).toBe(200);
@@ -99,7 +98,7 @@ describe('healthRoutes', () => {
       config.METRICS_AUTH_TOKEN = 'test-metrics-token';
       globalThis.fetch = createFetchMock({ goEngine: { ok: true, status: 200 } }) as typeof fetch;
 
-      const res = await fetch(`${server.url}/api/ready`, {
+      const res = await fetch(`${getServer().url}/api/ready`, {
         headers: { Authorization: 'Bearer test-metrics-token' },
       });
       const body = await res.json();
@@ -117,7 +116,7 @@ describe('healthRoutes', () => {
         goEngine: new Error('ECONNREFUSED'),
       }) as typeof fetch;
 
-      const res = await fetch(`${server.url}/api/ready`, {
+      const res = await fetch(`${getServer().url}/api/ready`, {
         headers: { Authorization: 'Bearer test-metrics-token' },
       });
       const body = await res.json();
@@ -131,7 +130,7 @@ describe('healthRoutes', () => {
   describe('GET /api/metrics', () => {
     it('应返回 Prometheus text format', async () => {
       config.METRICS_AUTH_TOKEN = 'test-metrics-token';
-      const res = await fetch(`${server.url}/api/metrics`, {
+      const res = await fetch(`${getServer().url}/api/metrics`, {
         headers: { Authorization: 'Bearer test-metrics-token' },
       });
       const text = await res.text();
@@ -143,7 +142,7 @@ describe('healthRoutes', () => {
 
     it('应包含 saturation 指标（T-P1-1）', async () => {
       config.METRICS_AUTH_TOKEN = 'test-metrics-token';
-      const res = await fetch(`${server.url}/api/metrics`, {
+      const res = await fetch(`${getServer().url}/api/metrics`, {
         headers: { Authorization: 'Bearer test-metrics-token' },
       });
       const text = await res.text();
@@ -158,7 +157,7 @@ describe('healthRoutes', () => {
     async (path) => {
       config.METRICS_AUTH_TOKEN = 'secret-metrics-token';
 
-      const res = await fetch(`${server.url}/api${path}`);
+      const res = await fetch(`${getServer().url}/api${path}`);
       expect(res.status).toBe(401);
     },
   );
@@ -168,29 +167,24 @@ describe('healthRoutes', () => {
     async (path) => {
       config.METRICS_AUTH_TOKEN = '';
 
-      const res = await fetch(`${server.url}/api${path}`);
+      const res = await fetch(`${getServer().url}/api${path}`);
       expect(res.status).toBe(403);
     },
   );
 });
 
 describe('healthRoutes (debug endpoint) - GET /api/v1/debug/health', () => {
-  let server: TestServer;
+  const getServer = withServer(() => startExpressApp((app) => app.use('/api', healthRoutes)));
   const originalToken = config.DEBUG_AUTH_TOKEN;
 
-  beforeEach(async () => {
-    server = await startExpressApp((app) => app.use('/api', healthRoutes));
-  });
-
-  afterEach(async () => {
-    await server.close();
+  afterEach(() => {
     config.DEBUG_AUTH_TOKEN = originalToken;
   });
 
   it('未配置 DEBUG_AUTH_TOKEN 时应返回 404', async () => {
     config.DEBUG_AUTH_TOKEN = '';
 
-    const res = await fetch(`${server.url}/api/v1/debug/health`);
+    const res = await fetch(`${getServer().url}/api/v1/debug/health`);
     const json = await res.json();
 
     expect(res.status).toBe(404);
@@ -200,7 +194,7 @@ describe('healthRoutes (debug endpoint) - GET /api/v1/debug/health', () => {
   it('Bearer token 错误时应返回 401', async () => {
     config.DEBUG_AUTH_TOKEN = 'correct-secret-token';
 
-    const res = await fetch(`${server.url}/api/v1/debug/health`, {
+    const res = await fetch(`${getServer().url}/api/v1/debug/health`, {
       headers: { Authorization: 'Bearer wrong-token' },
     });
     const json = await res.json();
@@ -212,7 +206,7 @@ describe('healthRoutes (debug endpoint) - GET /api/v1/debug/health', () => {
   it('有效 DEBUG_AUTH_TOKEN 时应返回 200', async () => {
     config.DEBUG_AUTH_TOKEN = 'correct-secret-token';
 
-    const res = await fetch(`${server.url}/api/v1/debug/health`, {
+    const res = await fetch(`${getServer().url}/api/v1/debug/health`, {
       headers: { Authorization: 'Bearer correct-secret-token' },
     });
     const json = await res.json();
@@ -231,7 +225,7 @@ describe('healthRoutes (debug endpoint) - GET /api/v1/debug/health', () => {
     config.DEBUG_AUTH_TOKEN = 'correct-secret-token';
     const maliciousToken = 'A'.repeat(10000);
 
-    const res = await fetch(`${server.url}/api/v1/debug/health`, {
+    const res = await fetch(`${getServer().url}/api/v1/debug/health`, {
       headers: { Authorization: `Bearer ${maliciousToken}` },
     });
     const json = await res.json();
@@ -242,13 +236,9 @@ describe('healthRoutes (debug endpoint) - GET /api/v1/debug/health', () => {
 });
 
 describe('announcementRoutes - 权限（E4）', () => {
-  let server: TestServer;
-  beforeEach(async () => {
+  const getServer = withServer(() => {
     vi.clearAllMocks();
-    server = await startExpressApp((app) => app.use('/api/v1', platformRoutes));
-  });
-  afterEach(async () => {
-    await server.close();
+    return startExpressApp((app) => app.use('/api/v1', platformRoutes));
   });
 
   it('GET / 公开可访问（无需认证）', async () => {
@@ -264,12 +254,12 @@ describe('announcementRoutes - 权限（E4）', () => {
         },
       ],
     });
-    const res = await fetch(`${server.url}/api/v1/announcements`);
+    const res = await fetch(`${getServer().url}/api/v1/announcements`);
     expect(res.status).toBe(200);
   });
 
   it('POST / 无认证时应返回 401（管理员发布）', async () => {
-    const res = await fetch(`${server.url}/api/v1/announcements`, {
+    const res = await fetch(`${getServer().url}/api/v1/announcements`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ title: 'x', body: 'y' }),

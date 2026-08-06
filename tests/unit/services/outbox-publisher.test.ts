@@ -1,15 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type pg from 'pg';
-import { mockLogger, createMockClient } from '../../helpers/mockFactories.js';
+import { createMockClient } from '../../helpers/mockFactories.js';
+import { loggerMocks } from '../../helpers/loggerFixture.js';
 
 const eventMocks = vi.hoisted(() => ({ dispatch: vi.fn(async () => {}) }));
-const loggerMocks = vi.hoisted(() => ({
-  info: vi.fn(),
-  warn: vi.fn(),
-  error: vi.fn(),
-  debug: vi.fn(),
-  child: vi.fn(() => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() })),
-}));
 const clientMock = vi.hoisted(() => ({
   connect: vi.fn().mockResolvedValue(undefined),
   query: vi.fn().mockResolvedValue({ rows: [] }),
@@ -17,9 +11,7 @@ const clientMock = vi.hoisted(() => ({
   on: vi.fn(),
 }));
 
-vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
-  logger: mockLogger(loggerMocks),
-}));
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: loggerMocks }));
 vi.mock('../../../packages/backend/src/domain/events/events.js', () => ({
   eventDispatcher: { dispatch: eventMocks.dispatch },
 }));

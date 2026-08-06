@@ -1,11 +1,11 @@
 import { vi } from 'vitest';
 import { generateKeyPair, exportPKCS8, exportSPKI } from 'jose';
 import {
-  createLoggerMocks,
   createRedisModuleMock,
   createJwtAuthConfigMocks,
   type JwtAuthConfigMocks,
 } from '../../helpers/mockFactories.js';
+import { loggerMocks } from '../../helpers/loggerFixture.js';
 import { createJwtAuthUserRepoMock } from '../../helpers/authFixtures.js';
 import { getUserById } from '../../../packages/backend/src/repositories/userRepo.js';
 
@@ -28,7 +28,7 @@ vi.mock('../../../packages/backend/src/config/index.js', () => ({
   config: Object.assign(internalMocks.configContainer.config, createJwtAuthConfigMocks()),
   validateConfig: vi.fn(),
 }));
-vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: loggerMocks }));
 vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () =>
   createRedisModuleMock(
     { withStore: true, withSets: true, withHandlers: true, withMemoryHelpers: true },

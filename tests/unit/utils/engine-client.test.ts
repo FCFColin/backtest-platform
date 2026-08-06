@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { createConfigMocks, createLoggerMocks } from '../../helpers/mockFactories.js';
+import { createConfigMocks } from '../../helpers/mockFactories.js';
+import { loggerMocks } from '../../helpers/loggerFixture.js';
 
 const cbMocks = vi.hoisted(() => {
   const goCB = {
@@ -37,7 +38,7 @@ vi.mock('../../../packages/backend/src/utils/httpClient.js', () => ({
 }));
 
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
-  logger: createLoggerMocks(),
+  logger: loggerMocks,
 }));
 
 vi.mock('../../../packages/backend/src/config/index.js', () => ({
@@ -74,7 +75,6 @@ for (const [event, handler] of cbOnMock.mock.calls) {
   cbEventHandlers[event] = handler as (...args: unknown[]) => void;
 }
 
-/** 让 promise 断言在 fake timers 下完成（catch 兜底，返回结果/错误） */
 async function settle<T>(promise: Promise<T>): Promise<T> {
   const p = promise.catch((e) => e);
   await vi.runAllTimersAsync();

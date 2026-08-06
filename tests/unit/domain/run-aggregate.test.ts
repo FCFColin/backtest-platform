@@ -29,6 +29,11 @@ function makeHolding(ticker: string, weight: number) {
 function createRun() {
   return Run.create({ id: 'r1', request: {} });
 }
+function startedRun() {
+  const run = createRun();
+  run.start();
+  return run;
+}
 
 describe('Run Aggregate', () => {
   it.each([
@@ -116,14 +121,12 @@ describe('Run Aggregate', () => {
 
   describe('start', () => {
     it('queued → running，设置 startedAt', () => {
-      const run = createRun();
-      run.start();
+      const run = startedRun();
       expect(run.status).toBe('running');
       expect(run.startedAt).toBeInstanceOf(Date);
     });
     it('running → start 抛错（不可重复 start）', () => {
-      const run = createRun();
-      run.start();
+      const run = startedRun();
       expect(() => run.start()).toThrow(DomainValidationError);
       expect(() => run.start()).toThrow("expected 'queued'");
     });
@@ -139,9 +142,8 @@ describe('Run Aggregate', () => {
   });
 
   it('running → cancelled 合法', () => {
-    const run = createRun();
+    const run = startedRun();
     run.pullEvents();
-    run.start();
     run.cancel();
     expect(run.status).toBe('cancelled');
   });
@@ -151,14 +153,12 @@ describe('Run Aggregate', () => {
     ['complete', (r: Run) => r.complete({})],
     ['cancel', (r: Run) => r.cancel()],
   ])('completed → %s 抛错（终态不可转换）', (_op, invoke) => {
-    const run = createRun();
-    run.start();
+    const run = startedRun();
     run.complete({});
     expect(() => invoke(run)).toThrow(DomainValidationError);
   });
   it('failed → fail 抛错（终态不可重复失败）', () => {
-    const run = createRun();
-    run.start();
+    const run = startedRun();
     run.fail('first error');
     expect(() => run.fail('second error')).toThrow(DomainValidationError);
   });
@@ -172,8 +172,7 @@ describe('Run Aggregate', () => {
     ['complete', 'RunCompleted'],
     ['fail', 'RunFailed'],
   ])('完整生命周期：create→start→%s 产生 RunStarted + %s', (method, eventType) => {
-    const run = createRun();
-    run.start();
+    const run = startedRun();
     (run as unknown as Record<string, (a: unknown) => void>)[method](
       method === 'complete' ? { result: 1 } : 'timeout',
     );

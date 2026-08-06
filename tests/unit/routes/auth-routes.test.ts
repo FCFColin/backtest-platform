@@ -1,8 +1,9 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import type { Request, Response, NextFunction } from 'express';
-import { startExpressApp, reqJson, type TestServer } from '../../helpers/expressApp.js';
+import { startExpressApp, reqJson } from '../../helpers/expressApp.js';
+import { withServer } from '../../helpers/serverLifecycle.js';
 import { expectError } from '../../helpers/routeAssertions.js';
-import { createLoggerMocks } from '../../helpers/mockFactories.js';
+import { loggerMocks } from '../../helpers/loggerFixture.js';
 import {
   validPasswordLoginPayload,
   createAuthRoutesConfig,
@@ -33,7 +34,6 @@ const mocks = vi.hoisted(() => ({
     verifyEmailToken: vi.fn(),
     sendVerificationEmail: vi.fn(),
   } as Record<string, unknown>,
-  logger: {} as Record<string, ReturnType<typeof vi.fn>>,
 }));
 vi.mock('../../../packages/backend/src/config/index.js', () => {
   Object.assign(mocks.config, createAuthRoutesConfig());
@@ -82,10 +82,7 @@ vi.mock('../../../packages/backend/src/db/pool.js', () => ({
 vi.mock('../../../packages/backend/src/infrastructure/mailService.js', () => ({
   sendVerificationEmail: mocks.registration.sendVerificationEmail,
 }));
-vi.mock('../../../packages/backend/src/utils/logger.js', () => {
-  Object.assign(mocks.logger, createLoggerMocks());
-  return { logger: mocks.logger };
-});
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: loggerMocks }));
 import authRoutes from '../../../packages/backend/src/routes/authRoutes.js';
 type VFn = ReturnType<typeof vi.fn>;
 const fn = (m: Record<string, unknown>, k: string): VFn => m[k] as VFn;
@@ -141,21 +138,19 @@ function mockOrg(overrides: Record<string, unknown> = {}) {
   };
 }
 describe('authRoutes - 登录与会话端点', () => {
-  let server: TestServer;
-  beforeEach(async () => {
+  const getServer = withServer(() => {
     vi.clearAllMocks();
     passthroughJwtAuth();
     mocks.config.NODE_ENV = 'production';
     fn(mocks.jwtAuth, 'generateToken').mockResolvedValue('access-token-mock');
     fn(mocks.jwtAuth, 'generateRefreshToken').mockResolvedValue('refresh-token-mock');
-    server = await startExpressApp((app) => {
+    return startExpressApp((app) => {
       app.use(parseCookies);
       app.use('/api/v1/auth', authRoutes);
     });
   });
-  afterEach(() => server.close());
-  const loginUrl = () => `${server.url}/api/v1/auth/login/password`;
-  const switchUrl = () => `${server.url}/api/v1/auth/switch-org`;
+  const loginUrl = () => `${getServer().url}/api/v1/auth/login/password`;
+  const switchUrl = () => `${getServer().url}/api/v1/auth/switch-org`;
   it('正确凭证应返回 access token 并通过 Set-Cookie 下发 refresh token', async () => {
     mockVerifyUser('user-123', 'admin');
     const { res, body } = await apiPost(loginUrl(), validPasswordLoginPayload);
@@ -181,7 +176,7 @@ describe('authRoutes - 登录与会话端点', () => {
     ['switch-org 缺少 orgId', '/switch-org', {}],
   ])('%s 应返回 400（zod 校验失败）', async (_n, path, payload) => {
     injectUser();
-    const { res, body } = await apiPost(`${server.url}/api/v1/auth${path}`, payload);
+    const { res, body } = await apiPost(`${getServer().url}/api/v1/auth${path}`, payload);
     expectError(res, body, 400, 'VALIDATION_ERROR');
   });
   it('账户锁定时应返回 429', async () => {
@@ -221,7 +216,7 @@ describe('authRoutes - 登录与会话端点', () => {
       refreshToken: 'new-refresh-token',
     });
     const { res, body } = await apiPost(
-      `${server.url}/api/v1/auth/refresh`,
+      `${getServer().url}/api/v1/auth/refresh`,
       {},
       { Cookie: 'rt=valid-refresh-token' },
     );
@@ -238,7 +233,7 @@ describe('authRoutes - 登录与会话端点', () => {
   ])('%s 应返回 401', async (_n, token, code) => {
     if (token !== undefined) fn(mocks.jwtAuth, 'refreshAccessToken').mockResolvedValueOnce(null);
     const { res, body } = await apiPost(
-      `${server.url}/api/v1/auth/refresh`,
+      `${getServer().url}/api/v1/auth/refresh`,
       {},
       token !== undefined ? { Cookie: `rt=${token}` } : {},
     );
@@ -250,7 +245,7 @@ describe('authRoutes - 登录与会话端点', () => {
     ['未携带 refresh cookie 也应返回成功', undefined, false],
   ])('logout %s', async (_n, headers, expectRevoke) => {
     if (expectRevoke) fn(mocks.jwtAuth, 'revokeRefreshToken').mockResolvedValueOnce(undefined);
-    const { res } = await apiDelete(`${server.url}/api/v1/auth/logout`, headers);
+    const { res } = await apiDelete(`${getServer().url}/api/v1/auth/logout`, headers);
     expect(res.status).toBe(200);
     if (expectRevoke) {
       expect(mocks.jwtAuth.revokeRefreshToken).toHaveBeenCalledWith('token-to-revoke');
@@ -269,14 +264,18 @@ describe('authRoutes - 登录与会话端点', () => {
       null,
     ],
   ])('%s', async (_n, path, method, body, code) => {
-    const { res, body: json } = await reqJson(`${server.url}/api/v1/auth${path}`, method, body);
+    const { res, body: json } = await reqJson(
+      `${getServer().url}/api/v1/auth${path}`,
+      method,
+      body,
+    );
     expect(res.status).toBe(401);
     if (code) expect(json.error.code).toBe(code);
   });
   it('GET /me jwtAuth 注入 user 时应返回用户信息', async () => {
     const exp = Math.floor(Date.now() / 1000) + 900;
     injectUser('user-me', 'admin', { exp });
-    const { res, body } = await apiGet(`${server.url}/api/v1/auth/me`, {
+    const { res, body } = await apiGet(`${getServer().url}/api/v1/auth/me`, {
       Authorization: 'Bearer valid-token',
     });
     expect(res.status).toBe(200);
@@ -287,7 +286,7 @@ describe('authRoutes - 登录与会话端点', () => {
   it('DELETE /me 已认证用户应撤销会话并匿名化账户', async () => {
     injectUser('user-delete-me', 'analyst');
     fn(mocks.userService, 'anonymizeUser').mockResolvedValueOnce(true);
-    const { res, body } = await apiDelete(`${server.url}/api/v1/auth/me`, {
+    const { res, body } = await apiDelete(`${getServer().url}/api/v1/auth/me`, {
       Authorization: 'Bearer valid-token',
     });
     expect(res.status).toBe(200);
@@ -338,7 +337,7 @@ describe('authRoutes - 登录与会话端点', () => {
     fn(mocks.membershipService, 'getUserMemberships').mockResolvedValueOnce([
       mockOrg({ orgId, orgName: 'Delta', orgSlug: 'delta', role: 'analyst' }),
     ]);
-    const { res, body } = await apiGet(`${server.url}/api/v1/auth/orgs`, {
+    const { res, body } = await apiGet(`${getServer().url}/api/v1/auth/orgs`, {
       Authorization: 'Bearer t',
     });
     expect(res.status).toBe(200);
@@ -348,7 +347,18 @@ describe('authRoutes - 登录与会话端点', () => {
   });
 });
 describe('authRegistrationRoutes', () => {
-  let server: TestServer;
+  const getServer = withServer(() => {
+    vi.clearAllMocks();
+    fn(mocks.registration, 'getUserByEmail').mockResolvedValue(null);
+    fn(mocks.registration, 'createUserTx').mockResolvedValue(userRecord('user-uuid-123', 'admin'));
+    fn(mocks.registration, 'getClient').mockResolvedValue(makeClient());
+    fn(mocks.registration, 'issueEmailVerificationToken').mockResolvedValue('token-abc');
+    fn(mocks.registration, 'verifyEmailToken').mockResolvedValue('user-uuid-123');
+    fn(mocks.registration, 'sendVerificationEmail').mockResolvedValue(undefined);
+    injectUser('user-123', 'admin', { iat: 1, exp: 9999999999 });
+    return startExpressApp((app) => app.use('/api/v1/auth', authRoutes));
+  });
+  const regUrl = (p: string) => `${getServer().url}/api/v1/auth/${p}`;
   function makeClient(overrides: Record<string, unknown> = {}) {
     const query = vi
       .fn()
@@ -365,19 +375,6 @@ describe('authRegistrationRoutes', () => {
     password: 'secret123',
     orgName: 'Acme',
   };
-  beforeEach(async () => {
-    vi.clearAllMocks();
-    fn(mocks.registration, 'getUserByEmail').mockResolvedValue(null);
-    fn(mocks.registration, 'createUserTx').mockResolvedValue(userRecord('user-uuid-123', 'admin'));
-    fn(mocks.registration, 'getClient').mockResolvedValue(makeClient());
-    fn(mocks.registration, 'issueEmailVerificationToken').mockResolvedValue('token-abc');
-    fn(mocks.registration, 'verifyEmailToken').mockResolvedValue('user-uuid-123');
-    fn(mocks.registration, 'sendVerificationEmail').mockResolvedValue(undefined);
-    injectUser('user-123', 'admin', { iat: 1, exp: 9999999999 });
-    server = await startExpressApp((app) => app.use('/api/v1/auth', authRoutes));
-  });
-  afterEach(() => server.close());
-  const regUrl = (p: string) => `${server.url}/api/v1/auth/${p}`;
   it('注册成功应返回 201 + userId，事务正确提交且发送验证邮件', async () => {
     const { res, body } = await apiPost(regUrl('register'), validRegisterBody);
     expect(res.status).toBe(201);
@@ -418,13 +415,13 @@ describe('authRegistrationRoutes', () => {
     expect(body.error.code).toBe(code);
     expect(client.query.mock.calls.map((c: unknown[]) => c[0])).toContain('ROLLBACK');
     expect(mocks.registration.sendVerificationEmail).not.toHaveBeenCalled();
-    if (status === 500) expect(mocks.logger.error).toHaveBeenCalled();
+    if (status === 500) expect(loggerMocks.error).toHaveBeenCalled();
   });
   it('验证邮件发送失败不应阻塞注册成功', async () => {
     fn(mocks.registration, 'sendVerificationEmail').mockRejectedValueOnce(new Error('smtp down'));
     const { res } = await apiPost(regUrl('register'), validRegisterBody);
     expect(res.status).toBe(201);
-    expect(mocks.logger.warn).toHaveBeenCalled();
+    expect(loggerMocks.warn).toHaveBeenCalled();
   });
   it('verify-email 缺 token 应返回 400 VALIDATION_ERROR，不触发后续处理', async () => {
     const { res, body } = await apiPost(regUrl('verify-email'), {});

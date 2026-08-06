@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
-import { createLoggerMocks } from '../helpers/mockFactories.js';
+import { loggerMocks } from '../../helpers/loggerFixture.js';
 
-vi.mock('../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
+vi.mock('../../packages/backend/src/utils/logger.js', () => ({ logger: loggerMocks }));
 
 vi.mock('@opentelemetry/api', () => {
   const noopSpan = {

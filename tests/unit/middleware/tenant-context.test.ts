@@ -1,14 +1,8 @@
-/**
- * 租户解析中间件单元测试（ADR-032）
- *
- * 企业理由：tenantContext 是把 JWT 租户上下文搬到请求、再交由 RLS 强制隔离的关键一环。
- * 验证：合法 tenant_id 被解析、非法/缺失时软放行、requireTenant 在无租户时 400。
- */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { Response } from 'express';
-import { createLoggerMocks } from '../../helpers/mockFactories.js';
+import { loggerMocks } from '../../helpers/loggerFixture.js';
 
-vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: loggerMocks }));
 
 import {
   resolveTenant,

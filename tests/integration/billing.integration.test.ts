@@ -5,9 +5,9 @@
  * billingService 被 mock 以覆盖计费启用/禁用两条路径，避免真实调用 Stripe。
  */
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
-import { createLoggerMocks } from '../helpers/mockFactories.js';
+import { loggerMocks } from '../../helpers/loggerFixture.js';
 
-vi.mock('../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
+vi.mock('../../packages/backend/src/utils/logger.js', () => ({ logger: loggerMocks }));
 
 const {
   billingEnabledMock,

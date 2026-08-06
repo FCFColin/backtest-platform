@@ -12,38 +12,20 @@
  *   2) 只读端点（fail-open）仍可访问；
  *   3) 登录端点（fail-closed）在 Redis 不可用时拒绝（非放行）。
  * - 恢复后：dependencies.redis 回到 true。
- *
- * 重构说明（Task 5.14/5.15）：
- * - 用 setupChaosFixture(CONTAINERS.redis) 替代内联 isDockerAvailable/
- *   isContainerRunning + afterAll startContainer 样板。
- * - it 块内的 stop/start + try/finally 改用 withContainerStopped 高阶函数。
  */
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import {
   CONTAINERS,
   withContainerStopped,
   waitForHealthy,
-  setupChaosFixture,
-  type ChaosFixture,
+  setupChaosLifecycle,
 } from '../helpers/chaos.js';
 
 const API_URL = process.env.API_URL || 'http://127.0.0.1:15001';
 const HEALTH_URL = `${API_URL}/api/ready`;
 const LOGIN_URL = `${API_URL}/api/v1/auth/login/password`;
 
-let fixture: ChaosFixture = {
-  dockerAvailable: false,
-  containerRunning: false,
-  recover: async () => {},
-};
-
-beforeAll(async () => {
-  fixture = await setupChaosFixture(CONTAINERS.redis);
-}, 30000);
-
-afterAll(async () => {
-  await fixture.recover();
-}, 30000);
+const fixture = setupChaosLifecycle(CONTAINERS.redis);
 
 async function getHealth(): Promise<{ status: number; redis?: boolean; overall?: string }> {
   try {
@@ -86,7 +68,6 @@ describe('Chaos Experiment 4: Redis 中断', () => {
           expect(down.redis, 'redis 依赖应标记为 false').toBe(false);
           expect(['ok', 'degraded']).toContain(down.overall);
 
-          // 断言 2：登录端点 fail-closed —— Redis 不可用时不放行（不返回 200 成功）。
           const loginRes = await fetch(LOGIN_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },

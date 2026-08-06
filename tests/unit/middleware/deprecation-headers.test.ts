@@ -1,11 +1,3 @@
-/**
- * 弃用响应头中间件单元测试（P1-4, ADR-046）
- *
- * 验证 `createDeprecationMiddleware` 正确设置 RFC 8594 标准的
- * Deprecation/Sunset/Link 响应头。
- *
- * 直接调用中间件函数测试，不依赖 supertest（项目未安装该依赖）。
- */
 import { describe, it, expect, vi } from 'vitest';
 import { createDeprecationMiddleware } from '../../../packages/backend/src/middleware/miscMiddleware.js';
 

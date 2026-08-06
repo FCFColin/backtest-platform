@@ -1,9 +1,3 @@
-/**
- * 配置模块单元测试（Task 11）
- *
- * 覆盖：开发/生产环境校验、默认值、CORS_ORIGINS、默认密钥启动拦截、env 解析函数。
- * 通过 snapshot/restore 隔离 config 属性与 process.env，applyValidProd 提供合法生产基线。
- */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';

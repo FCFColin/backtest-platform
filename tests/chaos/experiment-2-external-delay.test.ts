@@ -1,11 +1,10 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import {
   CONTAINERS,
   withContainerStopped,
   getCircuitBreakerState,
   waitForHealthy,
-  setupChaosFixture,
-  type ChaosFixture,
+  setupChaosLifecycle,
 } from '../helpers/chaos.js';
 
 const API_URL = process.env.API_URL || 'http://127.0.0.1:15001';
@@ -14,19 +13,7 @@ const METRICS_URL = `${API_URL}/api/metrics`;
 
 const DATA_ENDPOINT = `${API_URL}/api/v1/data/meta`;
 
-let fixture: ChaosFixture = {
-  dockerAvailable: false,
-  containerRunning: false,
-  recover: async () => {},
-};
-
-beforeAll(async () => {
-  fixture = await setupChaosFixture(CONTAINERS.dataFetcher);
-}, 30000);
-
-afterAll(async () => {
-  await fixture.recover();
-}, 30000);
+const fixture = setupChaosLifecycle(CONTAINERS.dataFetcher);
 
 describe('Chaos Experiment 2: External Service Unreachable', () => {
   it.skipIf(!fixture.dockerAvailable)(
@@ -75,7 +62,6 @@ describe('Chaos Experiment 2: External Service Unreachable', () => {
         { settleMs: 0 },
       );
 
-      // Step 5: 验证恢复——等待容器启动 + 熔断器 halfOpen 探测成功
       const recoveredHealthy = await waitForHealthy(HEALTH_URL, 30000);
       expect(recoveredHealthy).toBe(true);
     },

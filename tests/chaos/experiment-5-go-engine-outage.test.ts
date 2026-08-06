@@ -13,23 +13,14 @@
  *   3) 响应体不包含 degraded 字段（fail-closed 503，ADR-031）。
  * - 恢复后：engine.go 回到 true。
  */
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import {
-  CONTAINERS,
-  withContainerStopped,
-  setupChaosFixture,
-  type ChaosFixture,
-} from '../helpers/chaos.js';
+import { describe, it, expect } from 'vitest';
+import { CONTAINERS, withContainerStopped, setupChaosLifecycle } from '../helpers/chaos.js';
 
 const API_URL = process.env.API_URL || 'http://127.0.0.1:15001';
 const READY_URL = `${API_URL}/api/ready`;
 const BACKTEST_URL = `${API_URL}/api/v1/backtest/portfolio`;
 
-let fixture: ChaosFixture = {
-  dockerAvailable: false,
-  containerRunning: false,
-  recover: async () => {},
-};
+const fixture = setupChaosLifecycle(CONTAINERS.engineGo);
 
 const MINIMAL_BACKTEST_BODY = {
   portfolios: [
@@ -43,14 +34,6 @@ const MINIMAL_BACKTEST_BODY = {
   endDate: '2023-06-30',
   startingValue: 10000,
 };
-
-beforeAll(async () => {
-  fixture = await setupChaosFixture(CONTAINERS.engineGo);
-}, 30000);
-
-afterAll(async () => {
-  await fixture.recover();
-}, 30000);
 
 describe('Chaos Experiment 5: Go 引擎中断', () => {
   it.skipIf(!fixture.dockerAvailable)('引擎停止后 /api/ready 应报告 go=false', async () => {

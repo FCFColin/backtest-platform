@@ -1,14 +1,3 @@
-/**
- * testcontainers PostgreSQL 共享助手（RO-049）
- *
- * 企业理由：多个 SaaS 路由集成测试（portfolios/configs/runs/api-keys/orgs）需要相同的
- * testcontainers PG 启动、schema 初始化、种子数据创建与 Express mock 鉴权中间件逻辑。
- * 提取为共享助手避免 6+ 文件重复 ~50 行相同的容器管理代码，修改时只需改一处。
- *
- * 权衡：每个测试文件仍需在顶部声明 vi.mock(logger)，因 vitest 的 mock 提升是
- * 文件级作用域——helper 中的 import 在测试文件的 mock 提升之后才解析，
- * 因此 logger mock 能正确生效。
- */
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { execSync } from 'node:child_process';
 import type { Request, Response, NextFunction, Router } from 'express';
@@ -28,11 +17,6 @@ export interface SeedData {
   secondUserId: string;
 }
 
-/**
- * 检测 Docker 是否可用（docker info 是否成功）
- *
- * @returns Docker 可用返回 true，否则 false
- */
 export function isDockerAvailable(): boolean {
   // 默认 skip（避免本地 Docker Desktop 故障导致 hook 超时），仅在 CI 或显式设置
   if (process.env.RUN_TESTCONTAINERS !== '1') return false;
@@ -45,11 +29,6 @@ export function isDockerAvailable(): boolean {
   }
 }
 
-/**
- * 启动 testcontainers PostgreSQL 容器并初始化 schema
- *
- * @returns 容器上下文（container + cleanup）
- */
 export async function setupTestContainer(): Promise<TestContainerContext> {
   const container = await new PostgreSqlContainer('postgres:16-alpine')
     .withDatabase('backtest_test')
@@ -106,16 +85,6 @@ export async function seedOrgAndUser(): Promise<SeedData> {
   return { orgId, userId, secondUserId };
 }
 
-/**
- * 创建 mock 鉴权中间件，注入 tenantId 与 user 上下文
- *
- * 替代 jwtAuth → resolveTenant → requireTenant → requirePermission 链，
- * 使集成测试无需签发真实 JWT 或解析 API Key 即可调用 SaaS 路由。
- *
- * @param orgId - 活跃组织（租户）UUID
- * @param userId - 用户 UUID
- * @returns Express 中间件
- */
 export function mockAuthMiddleware(orgId: string, userId: string) {
   return (req: Request, _res: Response, next: NextFunction): void => {
     (req as unknown as { tenantId: string }).tenantId = orgId;
@@ -132,22 +101,6 @@ export function mockAuthMiddleware(orgId: string, userId: string) {
   };
 }
 
-/**
- * 启动 SaaS 集成测试服务器（mock 鉴权 + 路由挂载 + 随机端口监听）
- *
- * 替代各 SaaS 集成测试中重复的：
- *   const app = express();
- *   app.use(express.json());
- *   app.use(mockAuthMiddleware(orgId, userId));
- *   app.use('/api/v1/...', routes);
- *   await new Promise((resolve) => { const server = app.listen(0, () => {...}); });
- *
- * @param orgId - 活跃组织（租户）UUID
- * @param userId - 用户 UUID
- * @param mountPath - 路由挂载路径（如 '/api/v1/configs'）
- * @param router - Express 路由实例
- * @returns 测试服务器句柄（url + close）
- */
 export async function startSaasTestServer(
   orgId: string,
   userId: string,

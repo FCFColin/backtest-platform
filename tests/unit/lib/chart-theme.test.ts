@@ -94,12 +94,11 @@ describe('currencyFormatter', () => {
 });
 
 describe('CHART_TOOLTIP_STYLE', () => {
-  it('使用 chart-tooltip-bg CSS 变量', () => {
-    expect(CHART_TOOLTIP_STYLE.backgroundColor).toContain('chart-tooltip-bg');
-  });
-
-  it('包含 backdropFilter blur', () => {
-    expect(CHART_TOOLTIP_STYLE.backdropFilter).toContain('blur');
+  it.each([
+    ['backgroundColor 使用 chart-tooltip-bg CSS 变量', 'backgroundColor', 'chart-tooltip-bg'],
+    ['backdropFilter 包含 blur', 'backdropFilter', 'blur'],
+  ] as const)('%s', (_label, key, substring) => {
+    expect(CHART_TOOLTIP_STYLE[key]).toContain(substring);
   });
 
   it('borderRadius 为 8px', () => {
@@ -108,22 +107,20 @@ describe('CHART_TOOLTIP_STYLE', () => {
 });
 
 describe('CHART_MARGIN', () => {
-  it('left 为 80（容纳 $XX,XXX,XXX 格式）', () => {
-    expect(CHART_MARGIN.left).toBe(80);
-  });
-
-  it('right 为 40', () => {
-    expect(CHART_MARGIN.right).toBe(40);
+  it.each([
+    ['left 为 80（容纳 $XX,XXX,XXX 格式）', 'left', 80],
+    ['right 为 40', 'right', 40],
+  ] as const)('%s', (_label, key, expected) => {
+    expect(CHART_MARGIN[key]).toBe(expected);
   });
 });
 
 describe('CHART_GRID_PROPS', () => {
-  it('vertical 为 true（开启垂直网格）', () => {
-    expect(CHART_GRID_PROPS.vertical).toBe(true);
-  });
-
-  it('horizontal 为 true', () => {
-    expect(CHART_GRID_PROPS.horizontal).toBe(true);
+  it.each([
+    ['vertical 为 true（开启垂直网格）', 'vertical', true],
+    ['horizontal 为 true', 'horizontal', true],
+  ] as const)('%s', (_label, key, expected) => {
+    expect(CHART_GRID_PROPS[key]).toBe(expected);
   });
 
   it('使用 chart-grid CSS 变量', () => {
@@ -132,30 +129,25 @@ describe('CHART_GRID_PROPS', () => {
 });
 
 describe('AXIS_TICK_STYLE', () => {
+  it.each([
+    ['fontSize 为 11', 'fontSize', 11],
+    ['fontFamily 为 Geist Mono Variable', 'fontFamily', 'Geist Mono Variable'],
+  ] as const)('%s', (_label, key, expected) => {
+    expect(AXIS_TICK_STYLE[key]).toBe(expected);
+  });
+
   it('使用 fg-tertiary CSS 变量', () => {
     expect(AXIS_TICK_STYLE.fill).toContain('fg-tertiary');
-  });
-
-  it('fontSize 为 11', () => {
-    expect(AXIS_TICK_STYLE.fontSize).toBe(11);
-  });
-
-  it('fontFamily 为 Geist Mono Variable', () => {
-    expect(AXIS_TICK_STYLE.fontFamily).toBe('Geist Mono Variable');
   });
 });
 
 describe('CHART_LINE_STYLE', () => {
-  it('strokeWidth 为 2.5', () => {
-    expect(CHART_LINE_STYLE.strokeWidth).toBe(2.5);
-  });
-
-  it('dot 为 false（隐藏默认点）', () => {
-    expect(CHART_LINE_STYLE.dot).toBe(false);
-  });
-
-  it('isAnimationActive 为 false（关闭内建动画）', () => {
-    expect(CHART_LINE_STYLE.isAnimationActive).toBe(false);
+  it.each([
+    ['strokeWidth 为 2.5', 'strokeWidth', 2.5],
+    ['dot 为 false（隐藏默认点）', 'dot', false],
+    ['isAnimationActive 为 false（关闭内建动画）', 'isAnimationActive', false],
+  ] as const)('%s', (_label, key, expected) => {
+    expect(CHART_LINE_STYLE[key]).toBe(expected);
   });
 
   it('activeDot 包含 r 和 strokeWidth', () => {
@@ -164,19 +156,12 @@ describe('CHART_LINE_STYLE', () => {
 });
 
 describe('getCorrelationColor', () => {
-  it('强正相关返回绿色', () => {
-    const color = getCorrelationColor(0.9);
-    expect(color).toBe('#1a7a3a');
-  });
-
-  it('强负相关返回红色', () => {
-    const color = getCorrelationColor(-0.9);
-    expect(color).toBe('#8b2020');
-  });
-
-  it('0 返回中性色', () => {
-    const color = getCorrelationColor(0);
-    expect(color).toBe('var(--surface)');
+  it.each([
+    ['强正相关', 0.9, '#1a7a3a'],
+    ['强负相关', -0.9, '#8b2020'],
+    ['0（中性）', 0, 'var(--surface)'],
+  ] as const)('%s 应返回 %s', (_label, value, expected) => {
+    expect(getCorrelationColor(value)).toBe(expected);
   });
 });
 

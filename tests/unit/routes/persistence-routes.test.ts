@@ -5,7 +5,7 @@ import {
   type TestServer,
   type TestRequest,
 } from '../../helpers/expressApp.js';
-import { createLoggerMocks } from '../../helpers/mockFactories.js';
+import { loggerMocks } from '../../helpers/loggerFixture.js';
 
 const mocks = vi.hoisted(() => ({
   repos: {
@@ -34,7 +34,7 @@ vi.mock('../../../packages/backend/src/repositories/backtestRunRepo.js', () => (
   createRun: mocks.repos.runs.create,
   deleteRun: mocks.repos.runs.del,
 }));
-vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: loggerMocks }));
 
 import '../../helpers/middlewareMocks.js';
 import workspaceRoutes from '../../../packages/backend/src/routes/workspaceRoutes.js';
@@ -230,50 +230,31 @@ describe('workspace 错误与参数场景', () => {
     server = await startApp();
   });
   afterEach(async () => await server.close());
-  const res = {
-    portfolios: {
-      base: () => `${server.url}/api/v1/portfolios`,
-      list: mocks.repos.portfolios.list,
-      get: mocks.repos.portfolios.get,
-      del: mocks.repos.portfolios.del,
-    },
-    configs: {
-      base: () => `${server.url}/api/v1/configs`,
-      list: mocks.repos.configs.list,
-      get: mocks.repos.configs.get,
-      del: mocks.repos.configs.del,
-    },
-    runs: {
-      base: () => `${server.url}/api/v1/runs`,
-      list: mocks.repos.runs.list,
-      get: mocks.repos.runs.get,
-      del: mocks.repos.runs.del,
-    },
-  } as const;
+  const apiPath = (k: 'portfolios' | 'configs' | 'runs'): string => `${server.url}/api/v1/${k}`;
 
   it.each(['portfolios', 'configs', 'runs'] as const)('GET /%s 服务错误返回 500', async (k) => {
-    res[k].list.mockRejectedValueOnce(new Error('db fail'));
-    const { res: r } = await reqJson(res[k].base(), 'GET');
+    mocks.repos[k].list.mockRejectedValueOnce(new Error('db fail'));
+    const { res: r } = await reqJson(apiPath(k), 'GET');
     expect(r.status).toBe(500);
   });
   it.each(['portfolios', 'configs', 'runs'] as const)('GET /%s/:id 服务错误返回 500', async (k) => {
-    res[k].get.mockRejectedValueOnce(new Error('db fail'));
-    const { res: r } = await reqJson(`${res[k].base()}/${ID}`, 'GET');
+    mocks.repos[k].get.mockRejectedValueOnce(new Error('db fail'));
+    const { res: r } = await reqJson(`${apiPath(k)}/${ID}`, 'GET');
     expect(r.status).toBe(500);
   });
   it('GET /runs 应支持 limit 查询参数与 NaN 回退', async () => {
     mocks.repos.runs.list.mockResolvedValueOnce([]);
-    await reqJson(`${res.runs.base()}?limit=10`, 'GET');
+    await reqJson(`${apiPath('runs')}?limit=10`, 'GET');
     expect(mocks.repos.runs.list).toHaveBeenCalledWith(ORG, 10, 0);
     mocks.repos.runs.list.mockResolvedValueOnce([]);
-    await reqJson(`${res.runs.base()}?limit=abc`, 'GET');
+    await reqJson(`${apiPath('runs')}?limit=abc`, 'GET');
     expect(mocks.repos.runs.list).toHaveBeenCalledWith(ORG, 50, 0);
   });
   it.each(['portfolios', 'configs', 'runs'] as const)(
     'DELETE /%s/:id 成功返回删除确认',
     async (k) => {
-      res[k].del.mockResolvedValueOnce(true);
-      const { res: r, body } = await reqJson(`${res[k].base()}/${ID}`, 'DELETE');
+      mocks.repos[k].del.mockResolvedValueOnce(true);
+      const { res: r, body } = await reqJson(`${apiPath(k)}/${ID}`, 'DELETE');
       expect(r.status).toBe(200);
       expect(body.data).toEqual({ id: ID, deleted: true });
     },

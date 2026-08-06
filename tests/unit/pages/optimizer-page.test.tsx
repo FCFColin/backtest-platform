@@ -1,14 +1,3 @@
-/**
- * @vitest-environment happy-dom
- *
- * OptimizerPage 冒烟测试（P0-02 T16）。
- * 企业理由：优化器页面入口将 useOptimizerState 状态装配进 ComputeToolShell，
- * 参数/结果面板任一导入失败即整页白屏。冒烟测试验证装配链路与标题渲染。
- *
- * 策略：mock 副作用 hook 与叶子组件，保留 ComputeToolShell 真实渲染，
- * 断言标题（i18n key 透传）与参数/结果 slot stub 出现。
- * useNavigate 由 vitest workspace 全局别名（tests/mocks/react-router-dom.tsx）提供。
- */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 

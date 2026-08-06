@@ -1,16 +1,3 @@
-/**
- * P0-01 集成测试：dataCache Redis L1+L2 两级缓存。
- *
- * 三个核心场景：
- * 1. 缓存命中（L2 共享命中模拟多实例一致性 + L1 回填）
- * 2. 缓存未命中
- * 3. Redis 宕机降级（健康检查失败 + 命令抛错均不向上传播，返回 null）
- *
- * 说明：项目仅安装 `@testcontainers/postgresql`，未安装 `@testcontainers/redis`。
- * 此处使用 TTL 感知的内存 Redis stub 替代真实 Redis 容器——对上述三个场景而言
- * 行为等价，且无需 Docker、可在 CI 任意环境运行；"Redis 宕机"场景通过健康检查
- * 返回 false + 命令 throw 模拟，比 testcontainers 停容器更可控。
- */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 interface StoredEntry {
@@ -18,10 +5,6 @@ interface StoredEntry {
   expiresAt: number; // epoch ms，0 表示无过期
 }
 
-/**
- * 所有被 vi.mock 工厂引用的对象必须在 vi.hoisted 内创建，否则 vi.mock 提升后
- * 会因 TDZ 报 "Cannot access 'X' before initialization"。
- */
 const { loggerMocks, redisStub, healthMock, markUnhealthy } = vi.hoisted(() => {
   const loggerMocks = {
     info: vi.fn(),

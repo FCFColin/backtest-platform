@@ -1,10 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { Portfolio, BacktestParameters, BacktestResult } from '@backtest/shared';
-import { mockLogger } from '../../helpers/mockFactories.js';
 import {
   mockParameters,
   mockPortfolio as portfolioFixture,
 } from '../../helpers/backtestFixtures.js';
+import {
+  mockBacktestResult as mockBacktestResultFixture,
+  mockPortfolioResult,
+  mockBacktestStats,
+} from '../../helpers/storeFixtures.js';
 import {
   preparePortfolioBacktest,
   collectInvalidTickerWarnings,
@@ -38,7 +42,7 @@ vi.mock('../../../packages/backend/src/infrastructure/outbox.js', () => ({
   writeEventInTransaction: outboxMocks.writeEventInTransaction,
 }));
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
-  logger: mockLogger(loggerMocks),
+  logger: loggerMocks,
 }));
 
 import { runBacktest } from '../../../packages/backend/src/application/backtest-service.js';
@@ -51,35 +55,18 @@ const mockPriceData = {
 };
 const mockCpiData = { '2020-01-01': 258.8 };
 const mockExchangeRates = { '2020-01-01': 6.96 };
-const mockBacktestResult: BacktestResult = {
+const mockBacktestResult = mockBacktestResultFixture({
   portfolios: [
-    {
+    mockPortfolioResult({
       name: 'Test Portfolio',
       growthCurve: [
         { date: '2020-01-02', value: 10000 },
         { date: '2020-01-03', value: 10100 },
       ],
-      drawdownCurve: [],
-      rollingReturns: [],
-      annualReturns: [],
-      monthlyReturns: [],
-      statistics: {
-        cagr: 0.1,
-        mwrr: 0.1,
-        stdev: 0.15,
-        sharpe: 1.5,
-        sortino: 1.8,
-        maxDrawdown: 0.15,
-        maxDrawdownDuration: 30,
-        bestYear: 0.2,
-        worstYear: -0.1,
-        avgYear: 0.1,
-        totalReturn: 0.2,
-      },
-    },
+      statistics: mockBacktestStats,
+    }),
   ],
-  correlations: [[1]],
-};
+});
 const executeRun = () =>
   runBacktest({
     portfolios: [mockPortfolio],

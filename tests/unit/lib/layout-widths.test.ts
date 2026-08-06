@@ -32,16 +32,12 @@ describe('INPUT_WIDTHS', () => {
     }
   });
 
-  it('ticker 宽度为 220px', () => {
-    expect(INPUT_WIDTHS.ticker).toBe('w-[220px]');
-  });
-
-  it('weight 宽度为 100px', () => {
-    expect(INPUT_WIDTHS.weight).toBe('w-[100px]');
-  });
-
-  it('search 宽度为 320px', () => {
-    expect(INPUT_WIDTHS.search).toBe('w-[320px]');
+  it.each([
+    ['ticker', 'w-[220px]'],
+    ['weight', 'w-[100px]'],
+    ['search', 'w-[320px]'],
+  ])('%s 宽度为 %s', (key, cls) => {
+    expect((INPUT_WIDTHS as Record<string, string>)[key]).toBe(cls);
   });
 });
 
@@ -103,11 +99,7 @@ describe('CONTAINER_WIDTHS', () => {
     }
   });
 
-  it('page 容器最大宽度为 1440px', () => {
-    expect(CONTAINER_WIDTHS.page).toContain('max-w-[1440px]');
-  });
-
-  it('page 容器包含水平 padding', () => {
-    expect(CONTAINER_WIDTHS.page).toContain('px-6');
+  it.each(['max-w-[1440px]', 'px-6'])('page 容器应包含 %s', (cls) => {
+    expect(CONTAINER_WIDTHS.page).toContain(cls);
   });
 });

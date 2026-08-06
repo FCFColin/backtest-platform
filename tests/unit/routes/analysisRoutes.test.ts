@@ -1,8 +1,10 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { startExpressApp, reqJson, type TestServer } from '../../helpers/expressApp.js';
-import { createConfigMocks, createLoggerMocks } from '../../helpers/mockFactories.js';
+import { describe, it, expect, vi } from 'vitest';
+import { startExpressApp, reqJson } from '../../helpers/expressApp.js';
+import { withServer } from '../../helpers/serverLifecycle.js';
+import { createConfigMocks } from '../../helpers/mockFactories.js';
+import { loggerMocks } from '../../helpers/loggerFixture.js';
 import { EngineUnavailableErrorStub } from '../../helpers/backtestRoutesFixtures.js';
-import { createMockPriceData } from '../../helpers/storeFixtures.js';
+import { createMockPriceData, mockPortfolioResult } from '../../helpers/storeFixtures.js';
 
 const dataServiceMocks = vi.hoisted(() => ({ fetchHistoryData: vi.fn() }));
 const engineMocks = vi.hoisted(() => ({ callEngineStrict: vi.fn() }));
@@ -29,7 +31,7 @@ vi.mock('../../../packages/backend/src/config/index.js', () => ({
 }));
 import '../../helpers/middlewareMocks.js';
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
-  logger: createLoggerMocks(),
+  logger: loggerMocks,
   sanitizeLog: (s: string) => s.replace(/[\n\r]/g, '').substring(0, 50),
 }));
 vi.mock('../../../packages/backend/src/utils/metrics.js', async (importOriginal) => {
@@ -236,51 +238,45 @@ const ANALYSIS_CASES: AnalysisCase[] = [
 ];
 
 describe.each(ANALYSIS_CASES)('analysisRoutes - %s: POST %s', (c) => {
-  let server: TestServer;
-  beforeEach(async () => {
-    server = await setupServer(c.engineResult, c.data);
-  });
-  afterEach(async () => {
-    await server.close();
-  });
+  const getServer = withServer(() => setupServer(c.engineResult, c.data));
   it('有效参数应返回分析结果', async () => {
-    const { res, body } = await post(server, c.path, c.validBody);
+    const { res, body } = await post(getServer(), c.path, c.validBody);
     expect(res.status).toBe(200);
     expect(engineMocks.callEngineStrict).toHaveBeenCalledTimes(1);
     c.expectSuccess(body as { data: Record<string, unknown> });
   });
   if (c.tickerBody && c.expectTickerArgs) {
     it('应将 ticker 转大写并去重后调用 fetchHistoryData', async () => {
-      await post(server, c.path, c.tickerBody);
+      await post(getServer(), c.path, c.tickerBody);
       c.expectTickerArgs(dataServiceMocks.fetchHistoryData.mock.calls[0]);
     });
   }
   it.each(c.validationCases)('%s 应返回 400（zod 校验失败）', async (_n, body) => {
-    const { res } = await post(server, c.path, body);
+    const { res } = await post(getServer(), c.path, body);
     expect(res.status).toBe(400);
     expect(engineMocks.callEngineStrict).not.toHaveBeenCalled();
   });
   it.each(c.notFoundCases)('%s 应返回 404', async (_n, data) => {
     dataServiceMocks.fetchHistoryData.mockResolvedValue(data);
-    const { res, body } = await post(server, c.path, c.validBody);
+    const { res, body } = await post(getServer(), c.path, c.validBody);
     expect(res.status).toBe(404);
     expect(body.error.code).toBe('DATA_NOT_FOUND');
     if (c.strictNotFound) expect(engineMocks.callEngineStrict).not.toHaveBeenCalled();
   });
   it.each(c.extraCases)('%s', async (_n, body, status, code) => {
-    const { res, body: json } = await post(server, c.path, body);
+    const { res, body: json } = await post(getServer(), c.path, body);
     expect(res.status).toBe(status);
     expect(json.error.code).toBe(code);
   });
   it('引擎抛错时应返回 500', async () => {
     engineMocks.callEngineStrict.mockRejectedValueOnce(new Error(`${c.name} engine error`));
-    const { res } = await post(server, c.path, c.validBody);
+    const { res } = await post(getServer(), c.path, c.validBody);
     expect(res.status).toBe(500);
   });
 });
 
 describe('analysisRoutes - FactorRegression: POST /api/v1/analysis/factor-regression', () => {
-  let server: TestServer;
+  const getServer = withServer(() => setupServer({ alpha: 0.01, beta: 1.05 }));
   const validBody = {
     monthlyReturns: [0.01, -0.02, 0.015],
     ffData: [{ mktRF: 0.02, smb: 0.005, hml: -0.01 }],
@@ -289,14 +285,8 @@ describe('analysisRoutes - FactorRegression: POST /api/v1/analysis/factor-regres
     endDate: '2020-12',
   };
   const minimalBody = { monthlyReturns: [0.01], ffData: [{ mktRF: 0.02 }] };
-  beforeEach(async () => {
-    server = await setupServer({ alpha: 0.01, beta: 1.05 });
-  });
-  afterEach(async () => {
-    await server.close();
-  });
   it('完整参数应返回 200 + 引擎结果，factors/startDate/endDate 透传', async () => {
-    const { res, body } = await post(server, '/api/v1/analysis/factor-regression', validBody);
+    const { res, body } = await post(getServer(), '/api/v1/analysis/factor-regression', validBody);
     expect(res.status).toBe(200);
     expect(body.data).toEqual({ alpha: 0.01, beta: 1.05 });
     expect(engineMocks.callEngineStrict).toHaveBeenCalledWith(
@@ -305,7 +295,7 @@ describe('analysisRoutes - FactorRegression: POST /api/v1/analysis/factor-regres
     );
   });
   it('省略 factors/startDate/endDate 时使用默认值', async () => {
-    await post(server, '/api/v1/analysis/factor-regression', minimalBody);
+    await post(getServer(), '/api/v1/analysis/factor-regression', minimalBody);
     expect(engineMocks.callEngineStrict).toHaveBeenCalledWith('/api/engine/factor-regression', {
       monthlyReturns: [0.01],
       ffData: [{ mktRF: 0.02 }],
@@ -320,27 +310,29 @@ describe('analysisRoutes - FactorRegression: POST /api/v1/analysis/factor-regres
     ['monthlyReturns 为非数组', { monthlyReturns: 'not-array', ffData: [{ mktRF: 0.02 }] }],
     ['ffData 为空数组', { monthlyReturns: [0.01], ffData: [] }],
   ])('%s 应返回 400', async (_n, body) => {
-    const { res, body: resBody } = await post(server, '/api/v1/analysis/factor-regression', body);
+    const { res, body: resBody } = await post(
+      getServer(),
+      '/api/v1/analysis/factor-regression',
+      body,
+    );
     expect(res.status).toBe(400);
     expect(resBody.error.code).toBe('VALIDATION_ERROR');
     expect(engineMocks.callEngineStrict).not.toHaveBeenCalled();
   });
   it('引擎抛普通 Error 应返回 500 FR_ERROR', async () => {
     engineMocks.callEngineStrict.mockRejectedValueOnce(new Error('fr boom'));
-    const { res, body } = await post(server, '/api/v1/analysis/factor-regression', minimalBody);
+    const { res, body } = await post(
+      getServer(),
+      '/api/v1/analysis/factor-regression',
+      minimalBody,
+    );
     expect(res.status).toBe(500);
     expect(body.error.code).toBe('FR_ERROR');
   });
 });
 
 describe('analysisRoutes - Calculator: POST /api/v1/calculators/:type', () => {
-  let server: TestServer;
-  beforeEach(async () => {
-    server = await setupServer({ result: 'ok' });
-  });
-  afterEach(async () => {
-    await server.close();
-  });
+  const getServer = withServer(() => setupServer({ result: 'ok' }));
   it.each([
     [
       'cagr',
@@ -350,13 +342,13 @@ describe('analysisRoutes - Calculator: POST /api/v1/calculators/:type', () => {
     ['swr', {}, { type: 'swr' }],
     ['frontier', {}, { type: 'frontier' }],
   ])('%s 类型应返回 200 且透传 payload 到引擎', async (type, body, expected) => {
-    const { res, body: json } = await post(server, `/api/v1/calculators/${type}`, body);
+    const { res, body: json } = await post(getServer(), `/api/v1/calculators/${type}`, body);
     expect(res.status).toBe(200);
     expect(json.data).toEqual({ result: 'ok' });
     expect(engineMocks.callEngineStrict).toHaveBeenCalledWith('/api/engine/calculators', expected);
   });
   it('无效 type 应返回 422 CALC_INVALID_TYPE 且不调用引擎', async () => {
-    const { res, body } = await post(server, '/api/v1/calculators/invalid', {});
+    const { res, body } = await post(getServer(), '/api/v1/calculators/invalid', {});
     expect(res.status).toBe(422);
     expect(body.error.code).toBe('CALC_INVALID_TYPE');
     expect(engineMocks.callEngineStrict).not.toHaveBeenCalled();
@@ -365,7 +357,7 @@ describe('analysisRoutes - Calculator: POST /api/v1/calculators/:type', () => {
     engineMocks.callEngineStrict.mockRejectedValueOnce(
       new EngineUnavailableErrorStub('/api/engine/calculators'),
     );
-    const { res, body } = await post(server, '/api/v1/calculators/cagr', {});
+    const { res, body } = await post(getServer(), '/api/v1/calculators/cagr', {});
     expect(res.status).toBe(503);
     expect(res.headers.get('retry-after')).toBe('30');
     expect(body.error.code).toBe('ENGINE_UNAVAILABLE');
@@ -373,7 +365,7 @@ describe('analysisRoutes - Calculator: POST /api/v1/calculators/:type', () => {
   });
   it('引擎抛普通 Error 应返回 500 CALC_ERROR', async () => {
     engineMocks.callEngineStrict.mockRejectedValueOnce(new Error('calc boom'));
-    const { res, body } = await post(server, '/api/v1/calculators/cagr', {});
+    const { res, body } = await post(getServer(), '/api/v1/calculators/cagr', {});
     expect(res.status).toBe(500);
     expect(body.error.code).toBe('CALC_ERROR');
   });
@@ -397,27 +389,7 @@ function createValidStrategy() {
   };
 }
 function createMockPortfolioResult() {
-  return {
-    name: 'Portfolio',
-    growthCurve: [{ date: '2020-01-01', value: 10000 }],
-    drawdownCurve: [],
-    rollingReturns: [],
-    annualReturns: [],
-    monthlyReturns: [],
-    statistics: {
-      cagr: 0.1,
-      mwrr: 0.1,
-      stdev: 0.15,
-      sharpe: 1.5,
-      sortino: 1.8,
-      maxDrawdown: 0.1,
-      maxDrawdownDuration: 10,
-      bestYear: 0.2,
-      worstYear: -0.05,
-      avgYear: 0.1,
-      totalReturn: 0.2,
-    },
-  };
+  return mockPortfolioResult({ name: 'Portfolio' });
 }
 const validBacktestReq = (strategyOverride?: Record<string, unknown>) => ({
   strategy: strategyOverride ?? createValidStrategy(),
@@ -428,8 +400,7 @@ const validBacktestReq = (strategyOverride?: Record<string, unknown>) => ({
 });
 
 describe('tacticalRoutes - POST /api/tactical/backtest', () => {
-  let server: TestServer;
-  beforeEach(async () => {
+  const getServer = withServer(() => {
     vi.clearAllMocks();
     dataServiceMocks.fetchHistoryData.mockResolvedValue({
       data: createMockPriceData({ numDays: 3, startPrice: 300 }),
@@ -447,13 +418,10 @@ describe('tacticalRoutes - POST /api/tactical/backtest', () => {
         ],
       })
       .mockResolvedValueOnce({ portfolios: [createMockPortfolioResult()] });
-    server = await startExpressApp((app) => app.use('/api/v1', analysisRoutes));
-  });
-  afterEach(async () => {
-    await server.close();
+    return startExpressApp((app) => app.use('/api/v1', analysisRoutes));
   });
   it('有效参数应返回回测结果和基准', async () => {
-    const { res, body } = await post(server, '/api/v1/tactical/backtest', validBacktestReq());
+    const { res, body } = await post(getServer(), '/api/v1/tactical/backtest', validBacktestReq());
     expect(res.status).toBe(200);
     expect(body.success).toBe(true);
     expect(body.data.portfolio).toBeDefined();
@@ -463,7 +431,7 @@ describe('tacticalRoutes - POST /api/tactical/backtest', () => {
   });
   it('无效标的数据应返回 404', async () => {
     dataServiceMocks.fetchHistoryData.mockResolvedValue({ data: {}, degraded: false });
-    const { res, body } = await post(server, '/api/v1/tactical/backtest', validBacktestReq());
+    const { res, body } = await post(getServer(), '/api/v1/tactical/backtest', validBacktestReq());
     expect(res.status).toBe(404);
     expect(body.error.code).toBe('DATA_NOT_FOUND');
   });
@@ -479,14 +447,14 @@ describe('tacticalRoutes - POST /api/tactical/backtest', () => {
     ],
     ['空 signals 数组', validBacktestReq({ ...createValidStrategy(), signals: [] })],
   ])('%s 应返回 400（zod 校验失败）', async (_n, req) => {
-    const { res } = await post(server, '/api/v1/tactical/backtest', req);
+    const { res } = await post(getServer(), '/api/v1/tactical/backtest', req);
     expect(res.status).toBe(400);
   });
   it('引擎抛错时应返回 500', async () => {
     engineMocks.callEngineStrict
       .mockReset()
       .mockRejectedValueOnce(new Error('tactical engine error'));
-    const { res } = await post(server, '/api/v1/tactical/backtest', validBacktestReq());
+    const { res } = await post(getServer(), '/api/v1/tactical/backtest', validBacktestReq());
     expect(res.status).toBe(500);
   });
   it('基准回测失败时应使用空结果兜底', async () => {
@@ -503,7 +471,7 @@ describe('tacticalRoutes - POST /api/tactical/backtest', () => {
         ],
       })
       .mockRejectedValueOnce(new Error('benchmark error'));
-    const { res, body } = await post(server, '/api/v1/tactical/backtest', validBacktestReq());
+    const { res, body } = await post(getServer(), '/api/v1/tactical/backtest', validBacktestReq());
     expect(res.status).toBe(200);
     expect(body.success).toBe(true);
     expect(body.data.benchmark.growthCurve).toEqual([]);
@@ -511,8 +479,7 @@ describe('tacticalRoutes - POST /api/tactical/backtest', () => {
 });
 
 describe('tacticalRoutes - POST /api/tactical/what-if', () => {
-  let server: TestServer;
-  beforeEach(async () => {
+  const getServer = withServer(() => {
     vi.clearAllMocks();
     dataServiceMocks.fetchHistoryData.mockResolvedValue({
       data: createMockPriceData({ numDays: 3, startPrice: 300 }),
@@ -523,13 +490,10 @@ describe('tacticalRoutes - POST /api/tactical/what-if', () => {
         { date: '2020-01-03', activeSignals: ['sig-1'], weights: [{ ticker: 'SPY', weight: 100 }] },
       ],
     });
-    server = await startExpressApp((app) => app.use('/api/v1', analysisRoutes));
-  });
-  afterEach(async () => {
-    await server.close();
+    return startExpressApp((app) => app.use('/api/v1', analysisRoutes));
   });
   it('有效参数应返回信号状态', async () => {
-    const { res, body } = await post(server, '/api/v1/tactical/what-if', {
+    const { res, body } = await post(getServer(), '/api/v1/tactical/what-if', {
       tickers: ['SPY'],
       strategy: createValidStrategy(),
     });
@@ -539,12 +503,12 @@ describe('tacticalRoutes - POST /api/tactical/what-if', () => {
     expect(body.data[0].weight).toBe(100);
   });
   it('空 tickers 数组应返回 400（zod 校验失败）', async () => {
-    const { res } = await post(server, '/api/v1/tactical/what-if', { tickers: [] });
+    const { res } = await post(getServer(), '/api/v1/tactical/what-if', { tickers: [] });
     expect(res.status).toBe(400);
   });
   it('引擎抛错时应返回 500', async () => {
     engineMocks.callEngineStrict.mockRejectedValueOnce(new Error('what-if error'));
-    const { res } = await post(server, '/api/v1/tactical/what-if', {
+    const { res } = await post(getServer(), '/api/v1/tactical/what-if', {
       tickers: ['SPY'],
       strategy: createValidStrategy(),
     });
@@ -579,8 +543,7 @@ const mockGridResult = {
 };
 
 describe('tacticalGridRoutes - POST /api/tactical-grid/search', () => {
-  let server: TestServer;
-  beforeEach(async () => {
+  const getServer = withServer(() => {
     vi.clearAllMocks();
     queueMocks.add.mockResolvedValue({ id: 'grid-job-123' });
     dataServiceMocks.fetchHistoryData.mockResolvedValue({
@@ -588,13 +551,10 @@ describe('tacticalGridRoutes - POST /api/tactical-grid/search', () => {
       degraded: false,
     });
     engineMocks.callEngineStrict.mockResolvedValue(mockGridResult);
-    server = await startExpressApp((app) => app.use('/api/v1', jobRoutes));
-  });
-  afterEach(async () => {
-    await server.close();
+    return startExpressApp((app) => app.use('/api/v1', jobRoutes));
   });
   async function postGrid(body: unknown) {
-    return post(server, '/api/v1/tactical-grid/search', body);
+    return post(getServer(), '/api/v1/tactical-grid/search', body);
   }
   it('异步提交成功时应返回 202 和 jobId', async () => {
     const { res, body } = await postGrid(createValidGridRequest());
@@ -671,11 +631,10 @@ describe('tacticalGridRoutes - POST /api/tactical-grid/search', () => {
 });
 
 describe('认证用户请求', () => {
-  let server: TestServer;
-  beforeEach(async () => {
+  const getServer = withServer(() => {
     vi.clearAllMocks();
     queueMocks.add.mockResolvedValue({ id: 'grid-job-auth-789' });
-    server = await startExpressApp((app) => {
+    return startExpressApp((app) => {
       app.use((req, _res, next) => {
         (req as Record<string, unknown>).user = { sub: 'user-123', role: 'admin' };
         (req as Record<string, unknown>).tenantId = 'tenant-456';
@@ -684,11 +643,8 @@ describe('认证用户请求', () => {
       app.use('/api/v1', jobRoutes);
     });
   });
-  afterEach(async () => {
-    await server.close();
-  });
   it('应设置 ownerUserId 为实际用户 ID', async () => {
-    await post(server, '/api/v1/tactical-grid/search', createValidGridRequest());
+    await post(getServer(), '/api/v1/tactical-grid/search', createValidGridRequest());
     expect(queueMocks.add).toHaveBeenCalledWith(
       'grid-search',
       expect.objectContaining({

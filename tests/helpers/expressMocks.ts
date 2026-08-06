@@ -29,7 +29,6 @@ interface MockResponse {
   [key: string]: unknown;
 }
 
-/** 创建 mock Express Request。@param overrides - 可选属性覆盖 @returns mock Request */
 export function createMockRequest(overrides: MockRequestOverrides = {}): Request {
   return {
     method: overrides.method ?? 'GET',
@@ -45,7 +44,6 @@ export function createMockRequest(overrides: MockRequestOverrides = {}): Request
   } as Request;
 }
 
-/** 创建 mock Express Response。@returns 包含 status/json/send 等方法的 mock Response */
 export function createMockResponse(): MockResponse {
   const res: MockResponse = {
     status: vi.fn().mockReturnThis(),
@@ -61,12 +59,10 @@ export function createMockResponse(): MockResponse {
   return res;
 }
 
-/** 创建 mock Express next 函数。@returns vi.fn() 包装的 next */
 export function createMockNext(): ReturnType<typeof vi.fn> {
   return vi.fn();
 }
 
-/** 创建中间件测试三元组（req, res, next）。@param reqOverrides - Request 属性覆盖 @returns { req, res, next } */
 export function createMockMiddleware(reqOverrides?: MockRequestOverrides): {
   req: Request;
   res: MockResponse;
@@ -79,7 +75,6 @@ export function createMockMiddleware(reqOverrides?: MockRequestOverrides): {
   };
 }
 
-/** 等待中间件执行完成。@param middleware - Express 中间件 @param req - mock Request @param res - mock Response @param onNext - 可选 next 回调 @returns Promise */
 export async function awaitMiddleware(
   middleware: (req: unknown, res: unknown, next: () => void) => void,
   req: unknown,
@@ -94,25 +89,7 @@ export async function awaitMiddleware(
   });
 }
 
-export function createJwtAuthMockRequest(
-  overrides: Record<string, unknown> = {},
-): AuthenticatedRequest {
-  return {
-    headers: {},
-    path: '/test',
-    method: 'GET',
-    ...overrides,
-  } as unknown as AuthenticatedRequest;
-}
-
-export function createJwtAuthMockResponse(): Response {
-  return {
-    status: vi.fn().mockReturnThis(),
-    header: vi.fn().mockReturnThis(),
-    json: vi.fn().mockReturnThis(),
-  } as unknown as Response;
-}
-
-export function createJwtAuthMockNext(): NextFunction {
-  return vi.fn() as unknown as NextFunction;
-}
+export const createJwtAuthMockRequest = (o: Record<string, unknown> = {}) =>
+  createMockRequest(o) as unknown as AuthenticatedRequest;
+export const createJwtAuthMockResponse = () => createMockResponse() as unknown as Response;
+export const createJwtAuthMockNext = () => createMockNext() as unknown as NextFunction;

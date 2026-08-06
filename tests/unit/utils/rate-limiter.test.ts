@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest';
 import type { Request, Response, NextFunction } from 'express';
 import crypto from 'node:crypto';
-import { createLoggerMocks } from '../../helpers/mockFactories.js';
+import { loggerMocks } from '../../helpers/loggerFixture.js';
 // RedisStore 可在"成功/抛错"间切换：抛错时模拟 Redis 不可用（P0-05 fail-closed）
 const redisStoreMocks = vi.hoisted(() => ({ throwOnConstruct: false }));
 
@@ -18,7 +18,7 @@ vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () => ({
   appRedis: { call: vi.fn() },
 }));
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
-  logger: createLoggerMocks(),
+  logger: loggerMocks,
 }));
 vi.mock('../../../packages/backend/src/config/index.js', () => ({
   config: { COMPUTE_RATE_LIMIT_MAX: 10 },

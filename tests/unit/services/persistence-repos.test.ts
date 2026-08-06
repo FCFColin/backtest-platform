@@ -3,8 +3,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const dbMocks = vi.hoisted(() => ({ query: vi.fn(), withTenant: vi.fn() }));
 vi.mock('../../../packages/backend/src/db/pool.js', () => createPoolModuleMock(dbMocks));
 
-import { createLoggerMocks, createPoolModuleMock } from '../../helpers/mockFactories.js';
-vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
+import { createPoolModuleMock } from '../../helpers/mockFactories.js';
+import { loggerMocks } from '../../helpers/loggerFixture.js';
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: loggerMocks }));
 
 import {
   listPortfolios,
@@ -185,20 +186,14 @@ describe('savedConfigRepo', () => {
     dbMocks.query.mockResolvedValueOnce({ rows: [] });
     expect(await listConfigs(TENANT)).toEqual([]);
   });
-  it('listConfigs 应钳制 limit 上限为 200', async () => {
+  it.each([
+    [9999, 200, '上限钳制为 200'],
+    [undefined, 50, '默认 limit 为 50'],
+    [0, 0, 'limit 为 0 应传 0'],
+  ])('listConfigs %s', async (limit, expected) => {
     dbMocks.query.mockResolvedValueOnce({ rows: [] });
-    await listConfigs(TENANT, 9999);
-    expect(dbMocks.query.mock.calls[0][1][0]).toBe(200);
-  });
-  it('listConfigs 默认 limit 应为 50', async () => {
-    dbMocks.query.mockResolvedValueOnce({ rows: [] });
-    await listConfigs(TENANT);
-    expect(dbMocks.query.mock.calls[0][1][0]).toBe(50);
-  });
-  it('listConfigs limit 为 0 应传 0', async () => {
-    dbMocks.query.mockResolvedValueOnce({ rows: [] });
-    await listConfigs(TENANT, 0);
-    expect(dbMocks.query.mock.calls[0][1][0]).toBe(0);
+    await listConfigs(TENANT, limit);
+    expect(dbMocks.query.mock.calls[0][1][0]).toBe(expected);
   });
   it('getConfig 成功应返回映射后的记录', async () => {
     dbMocks.query.mockResolvedValueOnce({ rows: [baseRow] });
@@ -280,20 +275,14 @@ describe('backtestRunRepo', () => {
     await createRun(TENANT, null, { request: {} });
     expect(dbMocks.query.mock.calls[0][1][4]).toBeNull();
   });
-  it('listRuns 应钳制 limit 上限为 200', async () => {
-    dbMocks.query.mockResolvedValueOnce({ rows: [] });
-    await listRuns(TENANT, 9999);
-    expect(dbMocks.query.mock.calls[0][1][0]).toBe(200);
-  });
-  it('listRuns limit 下限钳制为 1', async () => {
+  it.each([
+    [9999, 200, '上限钳制为 200'],
+    [-5, 1, '负值下限钳制为 1'],
+    [0, 1, '0 应钳制为 1'],
+  ])('listRuns %s', async (limit, expected) => {
     dbMocks.query.mockResolvedValueOnce({ rows: [runRow()] });
-    await listRuns(TENANT, -5);
-    expect(dbMocks.query.mock.calls[0][1][0]).toBe(1);
-  });
-  it('listRuns limit 0 应钳制为 1', async () => {
-    dbMocks.query.mockResolvedValueOnce({ rows: [runRow()] });
-    await listRuns(TENANT, 0);
-    expect(dbMocks.query.mock.calls[0][1][0]).toBe(1);
+    await listRuns(TENANT, limit);
+    expect(dbMocks.query.mock.calls[0][1][0]).toBe(expected);
   });
   it('listRuns 应返回映射后的记录数组', async () => {
     dbMocks.query.mockResolvedValueOnce({

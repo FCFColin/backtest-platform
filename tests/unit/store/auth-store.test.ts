@@ -66,11 +66,12 @@ describe('authStore', () => {
   });
 
   describe('init', () => {
-    it('refreshTokens 返回 false 时直接标记 initialized 且不调用 fetchMe', async () => {
+    it('refreshTokens 返回 false 时应标记 initialized 且不调用 fetchMe', async () => {
       mocks.mockRefreshTokens.mockResolvedValue(false);
       await useAuthStore.getState().init();
       expect(useAuthStore.getState().initialized).toBe(true);
       expect(mocks.mockApiFetch).not.toHaveBeenCalled();
+      expect(useAuthStore.getState().user).toBeNull();
     });
     it('refreshTokens 返回 true 时应尝试 fetchMe', async () => {
       mocks.mockRefreshTokens.mockResolvedValue(true);
@@ -83,12 +84,6 @@ describe('authStore', () => {
       useAuthStore.setState({ initialized: true });
       await useAuthStore.getState().init();
       expect(mocks.mockRefreshTokens).not.toHaveBeenCalled();
-    });
-    it('refreshTokens 失败时仍应标记 initialized', async () => {
-      mocks.mockRefreshTokens.mockResolvedValue(false);
-      await useAuthStore.getState().init();
-      expect(useAuthStore.getState().initialized).toBe(true);
-      expect(useAuthStore.getState().user).toBeNull();
     });
   });
 

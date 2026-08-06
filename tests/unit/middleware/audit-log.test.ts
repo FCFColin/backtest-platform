@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createMockRequest, createMockResponse } from '../../helpers/expressMocks.js';
-import { mockLogger, createMockClient } from '../../helpers/mockFactories.js';
+import { createMockClient } from '../../helpers/mockFactories.js';
 
 const loggerMocks = vi.hoisted(() => {
   const childInfo = vi.fn();
@@ -18,7 +18,7 @@ const poolMocks = vi.hoisted(() => ({
 }));
 
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
-  logger: mockLogger(loggerMocks),
+  logger: loggerMocks,
 }));
 vi.mock('../../../packages/backend/src/db/pool.js', () => ({
   getPool: () => ({ query: poolMocks.query }),

@@ -1,14 +1,7 @@
-/**
- * 组织与成员管理集成测试（RO-049）
- *
- * 跨层验证：Express 路由 → membershipService/invitationService → PostgreSQL。
- * 覆盖组织信息、成员角色、邀请生命周期与"最后一个 owner 保护"安全约束。
- * mailService 被 mock 以避免真实发信。
- */
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
-import { createLoggerMocks } from '../helpers/mockFactories.js';
+import { loggerMocks } from '../../helpers/loggerFixture.js';
 
-vi.mock('../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
+vi.mock('../../packages/backend/src/utils/logger.js', () => ({ logger: loggerMocks }));
 
 vi.mock('../../packages/backend/src/infrastructure/mailService.js', () => ({
   sendInvitationEmail: vi.fn().mockResolvedValue(undefined),

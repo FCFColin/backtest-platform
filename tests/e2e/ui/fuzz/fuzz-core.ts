@@ -36,7 +36,7 @@ export function getSeed(): number {
   return Number.isFinite(fromEnv) && fromEnv > 0 ? fromEnv : 20260802;
 }
 
-export const TICKER_POOL = [
+const TICKER_POOL = [
   'VTI',
   'BND',
   'SPY',

@@ -11,15 +11,7 @@ export const validPasswordLoginPayload = {
   password: 'correct-pass',
 };
 
-/**
- * Base64URL 编码（无填充）
- *
- * 用于构造 JWK oct 密钥时的 k 字段编码。
- *
- * @param input - UTF-8 字符串
- * @returns Base64URL 编码字符串（无 = 填充）
- */
-export function base64urlEncode(input: string): string {
+function base64urlEncode(input: string): string {
   return Buffer.from(input, 'utf-8')
     .toString('base64')
     .replace(/\+/g, '-')
@@ -27,21 +19,11 @@ export function base64urlEncode(input: string): string {
     .replace(/=+$/, '');
 }
 
-export interface SignTestTokenOptions {
+interface SignTestTokenOptions {
   omitExp?: boolean;
   secret?: string;
 }
 
-/**
- * 使用 HS256 签发测试 token
- *
- * 集中维护"构造密钥 + 签发"模板，消除 5+ 处重复样板。
- * 默认使用 DEFAULT_JWT_SECRET，与 jwt-auth 测试 config 默认值一致。
- *
- * @param payload - JWT payload（不含 iat/exp，由本函数注入）
- * @param options - 可选配置：omitExp=true 时不设置 exp；secret 自定义密钥
- * @returns 签发后的 JWT 字符串
- */
 export async function signTestToken(
   payload: Record<string, unknown>,
   options: SignTestTokenOptions = {},
@@ -53,7 +35,6 @@ export async function signTestToken(
   return builder.sign(key);
 }
 
-/** RSA 签发测试 token（RS256），需提供 CryptoKey。 */
 export function signRsa(payload: Record<string, unknown>, key: CryptoKey, kid?: string) {
   return new SignJWT(payload)
     .setProtectedHeader({ alg: 'RS256', ...(kid ? { kid } : {}) })
@@ -67,7 +48,6 @@ export function validPayload(overrides: Record<string, unknown> = {}): Record<st
   return { sub: 'user-1', role: 'admin', ...overrides };
 }
 
-/** 对象 → base64url 字符串。 */
 export function b64url(obj: unknown): string {
   return Buffer.from(JSON.stringify(obj)).toString('base64url');
 }
@@ -77,14 +57,6 @@ export function decodePayload(token: string): Record<string, unknown> {
   return JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString());
 }
 
-/**
- * 创建 DB 用户行 fixture（snake_case 字段，模拟 pg 返回的原始 row）
- *
- * 合并自 tests/helpers/userFixtures.ts。
- *
- * @param overrides - 覆盖默认字段
- * @returns 包含 id/username/role/created_at/is_active 等字段的 DB 行
- */
 export function mockUserRecord(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     id: 'user-123',
@@ -96,12 +68,6 @@ export function mockUserRecord(overrides: Record<string, unknown> = {}): Record<
   };
 }
 
-/**
- * 创建带 password_hash 的 DB 用户行（用于 verifyUser 测试）
- *
- * @param overrides - 覆盖默认字段
- * @returns 包含 password_hash 字段的 DB 行
- */
 export function mockUserRecordWithPassword(
   overrides: Record<string, unknown> = {},
 ): Record<string, unknown> {
@@ -175,14 +141,6 @@ export function createMembershipServiceMocks(target: Record<string, unknown> = {
   return target;
 }
 
-/**
- * 创建 userRepo.getUserById 的默认 mock 实现
- *
- * 返回一个 vi.fn，模拟活跃 analyst 用户。供 jwt-auth 测试的 vi.mock 工厂使用：
- *   vi.mock('.../userRepo.js', () => ({ getUserById: createJwtAuthUserRepoMock() }));
- *
- * @returns vi.fn 实例，调用时返回 mock 用户对象
- */
 export function createJwtAuthUserRepoMock() {
   return vi.fn().mockImplementation(async (id: string) => ({
     id,
@@ -224,14 +182,6 @@ export const XSS_KEY = '<script>alert(1)</script>';
 
 export const NEWLINE_INJECTION_KEY = 'valid-key\r\nX-Evil: injected';
 
-/**
- * 创建带 idempotency-key header 的 req/res/next 三元组
- *
- * @param key - 幂等 key（默认生成 `test-key-default-<rand>`）
- * @param method - HTTP 方法（默认 POST）
- * @param path - 请求路径（默认 /api/test）
- * @returns 包含 req/res/next 的三元组（res 额外附加 on 方法）
- */
 export function createIdempotencyReqRes(
   key?: string,
   method = 'POST',

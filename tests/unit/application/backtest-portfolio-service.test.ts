@@ -1,11 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { BacktestParameters, BacktestResult } from '@backtest/shared';
+import type { BacktestParameters } from '@backtest/shared';
 import type { Warning } from '../../../packages/backend/src/application/backtest-helpers.js';
-import { createLoggerMocks } from '../../helpers/mockFactories.js';
+import { loggerMocks } from '../../helpers/loggerFixture.js';
 import {
   mockParameters as parametersFixture,
   mockPortfolio as portfolioFixture,
 } from '../../helpers/backtestFixtures.js';
+import {
+  mockBacktestResult as mockBacktestResultFixture,
+  mockPortfolioResult,
+  mockBacktestStats,
+} from '../../helpers/storeFixtures.js';
 
 const helpersMocks = vi.hoisted(() => ({
   preparePortfolioBacktest: vi.fn(),
@@ -93,7 +98,7 @@ vi.mock('../../../packages/backend/src/infrastructure/outboxWriter.js', () => ({
 }));
 
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
-  logger: createLoggerMocks(),
+  logger: loggerMocks,
 }));
 
 vi.mock('../../../packages/backend/src/application/backtest/backtestResultUtils.js', () => ({
@@ -123,32 +128,14 @@ const mockPortfolio = portfolioFixture({
 });
 const mockParameters = parametersFixture;
 
-const mockBacktestResult: BacktestResult = {
+const mockBacktestResult = mockBacktestResultFixture({
   portfolios: [
-    {
+    mockPortfolioResult({
       name: 'Test',
-      growthCurve: [{ date: '2020-01-02', value: 10000 }],
-      drawdownCurve: [],
-      rollingReturns: [],
-      annualReturns: [],
-      monthlyReturns: [],
-      statistics: {
-        cagr: 0.1,
-        mwrr: 0.1,
-        stdev: 0.15,
-        sharpe: 1.5,
-        sortino: 1.8,
-        maxDrawdown: 0.15,
-        maxDrawdownDuration: 30,
-        bestYear: 0.2,
-        worstYear: -0.1,
-        avgYear: 0.1,
-        totalReturn: 0.2,
-      },
-    },
+      statistics: mockBacktestStats,
+    }),
   ],
-  correlations: [[1]],
-};
+});
 
 const priceDataResult = (overrides: Record<string, unknown> = {}) => ({
   priceData: { AAPL: { '2020-01-02': 100 }, SPY: { '2020-01-02': 300 } },

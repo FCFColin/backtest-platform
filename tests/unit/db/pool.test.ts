@@ -36,9 +36,9 @@ const configMocks = vi.hoisted(() => ({
 
 vi.mock('../../../packages/backend/src/config/index.js', () => ({ config: configMocks }));
 
-import { createLoggerMocks } from '../../helpers/mockFactories.js';
+import { loggerMocks } from '../../helpers/loggerFixture.js';
 
-vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: loggerMocks }));
 
 vi.mock('../../../packages/backend/src/utils/metrics.js', () => ({
   registerPgPoolMetrics: vi.fn(),

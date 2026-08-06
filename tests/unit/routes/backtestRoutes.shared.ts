@@ -11,13 +11,6 @@ import {
   type BacktestMockHandles,
 } from '../../helpers/backtestRoutesFixtures.js';
 
-/**
- * backtest-routes.test.ts / backtest-async-routes.test.ts 共享的 mock 配置。
- *
- * vitest 的 vi.mock 会提升执行，且 hoisted 变量不能直接 export（参见
- * tests/helpers/dataManageRoutesFixtures.ts 既有模式），因此统一放入
- * internalMocks 容器，vi.mock 工厂与对外导出均通过属性引用获取。
- */
 const internalMocks = vi.hoisted(() => ({
   m: {
     runBacktest: vi.fn(),

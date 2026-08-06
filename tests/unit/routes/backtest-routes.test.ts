@@ -1,10 +1,6 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import {
-  startExpressApp,
-  type TestServer,
-  type TestRequest,
-  postJson,
-} from '../../helpers/expressApp.js';
+import { describe, it, expect, vi } from 'vitest';
+import { startExpressApp, type TestRequest, postJson } from '../../helpers/expressApp.js';
+import { withServer } from '../../helpers/serverLifecycle.js';
 import { m, loggerMocks, queueMocks } from './backtestRoutes.shared.js';
 import backtestRoutes from '../../../packages/backend/src/routes/backtestRoutes.js';
 import {
@@ -22,8 +18,6 @@ import {
   backtestCacheKey,
 } from '../../../packages/backend/src/application/backtest/backtestResultUtils.js';
 import { mockBacktestResult } from '../../helpers/storeFixtures.js';
-
-type Server = TestServer;
 
 const get = (url: string, headers?: Record<string, string>) =>
   fetch(url, { headers }).then(async (res) => ({
@@ -234,14 +228,12 @@ const engineCases: EngineCase[] = [
 ];
 
 describe.each(engineCases)('backtestRoutes - POST $path', (c) => {
-  let server: Server;
-  beforeEach(async () => {
-    server = await startEngineRouteServer(backtestRoutes, m);
+  const getServer = withServer(() => {
     m.callEngineStrict.mockResolvedValue(c.result);
+    return startEngineRouteServer(backtestRoutes, m);
   });
-  afterEach(() => server.close());
   it('有效参数应调用引擎并返回 200', async () => {
-    const { res, json } = await postJson(`${server.url}${c.path}`, c.validBody());
+    const { res, json } = await postJson(`${getServer().url}${c.path}`, c.validBody());
     expect(res.status).toBe(200);
     expect(json.success).toBe(true);
     expect(m.callEngineStrict).toHaveBeenCalledTimes(1);
@@ -249,25 +241,25 @@ describe.each(engineCases)('backtestRoutes - POST $path', (c) => {
   });
   it('引擎抛错应返回 500', async () => {
     m.callEngineStrict.mockRejectedValue(new Error('engine boom'));
-    const { res, json } = await postJson(`${server.url}${c.path}`, c.validBody());
+    const { res, json } = await postJson(`${getServer().url}${c.path}`, c.validBody());
     expect(res.status).toBe(500);
     expect(json.error.code).toBe(c.errorCode);
     if (c.logOnError) expect(loggerMocks.error).toHaveBeenCalled();
   });
   it('引擎不可用应 fail-closed 返回 503', async () => {
     m.callEngineStrict.mockRejectedValue(new EngineUnavailableErrorStub());
-    const { res, json } = await postJson(`${server.url}${c.path}`, c.validBody());
+    const { res, json } = await postJson(`${getServer().url}${c.path}`, c.validBody());
     expect(res.status).toBe(503);
     expect(res.headers.get('retry-after')).toBe('30');
     expect(json.error.code).toBe('ENGINE_UNAVAILABLE');
   });
   it.each(c.invalidBodies)('%s 应返回 400 且不调用引擎', async (_n, body) => {
-    const { res } = await postJson(`${server.url}${c.path}`, body);
+    const { res } = await postJson(`${getServer().url}${c.path}`, body);
     expect(res.status).toBe(400);
     expect(m.callEngineStrict).not.toHaveBeenCalled();
   });
   it.each(c.specials)('%s', async (_n, fn) => {
-    await fn(`${server.url}${c.path}`, c);
+    await fn(`${getServer().url}${c.path}`, c);
   });
 });
 
@@ -342,52 +334,48 @@ describe.each([
     ],
   },
 ])('signalRoutes - POST $path', (c) => {
-  let server: Server;
-  beforeEach(async () => {
+  const getServer = withServer(() => {
     vi.clearAllMocks();
     m.fetchHistoryData.mockResolvedValue({ data: c.data, degraded: false });
     m.callEngineStrict.mockResolvedValue(c.engineResult);
-    server = await startExpressApp((app) => app.use('/api/v1', analysisRoutes));
+    return startExpressApp((app) => app.use('/api/v1', analysisRoutes));
   });
-  afterEach(() => server.close());
 
   it('有效参数应返回分析结果', async () => {
-    const { res, json } = await postJson(`${server.url}${c.path}`, c.validReq());
+    const { res, json } = await postJson(`${getServer().url}${c.path}`, c.validReq());
     expect(res.status).toBe(200);
     expect(json.success).toBe(true);
     expect(json.data.signals).toHaveLength(1);
     expect(m.callEngineStrict).toHaveBeenCalledTimes(1);
   });
   it.each(c.validation)('%s 应返回 400（zod 校验失败）', async (_n, getReq) => {
-    const { res } = await postJson(`${server.url}${c.path}`, getReq());
+    const { res } = await postJson(`${getServer().url}${c.path}`, getReq());
     expect(res.status).toBe(400);
     expect(m.callEngineStrict).not.toHaveBeenCalled();
   });
   it('价格数据缺失时应返回 404', async () => {
     m.fetchHistoryData.mockResolvedValue({ data: { SPY: {} }, degraded: false });
-    const { res, json } = await postJson(`${server.url}${c.path}`, c.validReq());
+    const { res, json } = await postJson(`${getServer().url}${c.path}`, c.validReq());
     expect(res.status).toBe(404);
     expect(json.error.code).toBe('DATA_NOT_FOUND');
   });
   it('引擎抛错时应返回 500', async () => {
     m.callEngineStrict.mockRejectedValueOnce(new Error('signal engine error'));
-    const { res } = await postJson(`${server.url}${c.path}`, c.validReq());
+    const { res } = await postJson(`${getServer().url}${c.path}`, c.validReq());
     expect(res.status).toBe(500);
   });
 });
 
 describe('backtestRoutes - POST /api/backtest/portfolio', () => {
-  let server: Server;
-  beforeEach(async () => {
-    server = await setupPortfolioServer(backtestRoutes, m);
+  const getServer = withServer(() => {
     queueMocks.add.mockReset();
     queueMocks.getJob.mockReset();
+    return setupPortfolioServer(backtestRoutes, m);
   });
-  afterEach(() => server.close());
   it('有效参数应入队并返回 202（响应不含 portfolios 数据）', async () => {
     queueMocks.add.mockResolvedValue({ id: 'job-test-001' });
     const { res, json } = await postJson(
-      `${server.url}/api/backtest/portfolio`,
+      `${getServer().url}/api/backtest/portfolio`,
       createValidRequestBody(),
     );
     expect(res.status).toBe(202);
@@ -402,7 +390,7 @@ describe('backtestRoutes - POST /api/backtest/portfolio', () => {
     queueMocks.add.mockResolvedValue({ id: 'job-test-001' });
     const body = createValidRequestBody();
     body.parameters.benchmarkTicker = 'SPY';
-    await postJson(`${server.url}/api/backtest/portfolio`, body);
+    await postJson(`${getServer().url}/api/backtest/portfolio`, body);
     expect(queueMocks.add).toHaveBeenCalledTimes(1);
     const [jobName, jobData] = queueMocks.add.mock.calls[0];
     expect(jobName).toBe('portfolio');
@@ -431,7 +419,7 @@ describe('backtestRoutes - POST /api/backtest/portfolio', () => {
       () => ({ portfolios: [], parameters: { startDate: '2024-01-01', endDate: '2024-06-30' } }),
     ],
   ])('%s 应返回 400（zod 校验失败）且不入队', async (_n, getBody) => {
-    const { res, json } = await postJson(`${server.url}/api/backtest/portfolio`, getBody());
+    const { res, json } = await postJson(`${getServer().url}/api/backtest/portfolio`, getBody());
     expect(res.status).toBe(400);
     expect(json.error.title).toBe('VALIDATION_ERROR');
     expect(queueMocks.add).not.toHaveBeenCalled();
@@ -439,7 +427,7 @@ describe('backtestRoutes - POST /api/backtest/portfolio', () => {
   it('队列不可用时应 fail-closed 返回 503 + Retry-After（ADR-031）', async () => {
     queueMocks.add.mockRejectedValueOnce(new Error('Redis unavailable'));
     const { res, json } = await postJson(
-      `${server.url}/api/backtest/portfolio`,
+      `${getServer().url}/api/backtest/portfolio`,
       createValidRequestBody(),
     );
     expect(res.status).toBe(503);
@@ -449,7 +437,7 @@ describe('backtestRoutes - POST /api/backtest/portfolio', () => {
   });
   it('X-Backtest-Sync: true 时仍走异步路径返回 202（同步路径已移除）', async () => {
     queueMocks.add.mockResolvedValue({ id: 'job-async-002' });
-    const res = await fetch(`${server.url}/api/backtest/portfolio`, {
+    const res = await fetch(`${getServer().url}/api/backtest/portfolio`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Backtest-Sync': 'true' },
       body: JSON.stringify(createValidRequestBody()),
@@ -463,18 +451,14 @@ describe('backtestRoutes - POST /api/backtest/portfolio', () => {
 });
 
 describe('backtestRoutes - POST /api/backtest/portfolio/series', () => {
-  let server: Server;
-  beforeEach(async () => {
-    server = await setupPortfolioServer(backtestRoutes, m);
-  });
-  afterEach(() => server.close());
+  const getServer = withServer(() => setupPortfolioServer(backtestRoutes, m));
   it('缓存命中时应返回请求的序列字段', async () => {
     const body = createValidRequestBody();
     await setBacktestResultCache(
       backtestCacheKey(body.portfolios, body.parameters, undefined),
       mockBacktestResult(),
     );
-    const { res, json } = await postJson(`${server.url}/api/backtest/portfolio/series`, {
+    const { res, json } = await postJson(`${getServer().url}/api/backtest/portfolio/series`, {
       ...body,
       series: ['rollingReturns'],
     });
@@ -484,7 +468,7 @@ describe('backtestRoutes - POST /api/backtest/portfolio/series', () => {
   });
   it('缓存未命中时应返回 404', async () => {
     const body = createValidRequestBody();
-    const { res } = await postJson(`${server.url}/api/backtest/portfolio/series`, {
+    const { res } = await postJson(`${getServer().url}/api/backtest/portfolio/series`, {
       ...body,
       series: ['rollingReturns'],
     });
@@ -493,28 +477,26 @@ describe('backtestRoutes - POST /api/backtest/portfolio/series', () => {
 });
 
 describe('backtestRoutes - GET /api/backtest/search', () => {
-  let server: Server;
-  beforeEach(async () => {
+  const getServer = withServer(() => {
     vi.clearAllMocks();
     clearBacktestResultCache();
-    server = await createBacktestApp(backtestRoutes);
+    return createBacktestApp(backtestRoutes);
   });
-  afterEach(() => server.close());
   it('应返回搜索结果', async () => {
     m.searchTickers.mockResolvedValue([{ ticker: 'AAPL', name: 'Apple', market: 'US' }]);
-    const { res, json } = await get(`${server.url}/api/backtest/search?query=aapl`);
+    const { res, json } = await get(`${getServer().url}/api/backtest/search?query=aapl`);
     expect(res.status).toBe(200);
     expect(json.success).toBe(true);
     expect(json.data).toHaveLength(1);
     expect(json.data[0].ticker).toBe('AAPL');
   });
   it('缺少 query 参数应返回 422', async () => {
-    const { res } = await get(`${server.url}/api/backtest/search`);
+    const { res } = await get(`${getServer().url}/api/backtest/search`);
     expect(res.status).toBe(422);
   });
   it('搜索服务抛错时应返回 500', async () => {
     m.searchTickers.mockRejectedValue(new Error('search failed'));
-    const { res } = await get(`${server.url}/api/backtest/search?query=aapl`);
+    const { res } = await get(`${getServer().url}/api/backtest/search?query=aapl`);
     expect(res.status).toBe(500);
   });
 });
@@ -535,13 +517,11 @@ function createMockJob(overrides: Record<string, unknown> = {}) {
 }
 
 describe('backtestRoutes - GET /api/backtest/runs/:jobId — 状态查询', () => {
-  let server: Server;
-  beforeEach(async () => {
-    server = await setupPortfolioServer(backtestRoutes, m);
+  const getServer = withServer(() => {
     queueMocks.add.mockReset();
     queueMocks.getJob.mockReset();
+    return setupPortfolioServer(backtestRoutes, m);
   });
-  afterEach(() => server.close());
   const completedResult = {
     data: { portfolios: [{ name: 'Test', growthCurve: [] }] },
     warnings: [],
@@ -585,7 +565,7 @@ describe('backtestRoutes - GET /api/backtest/runs/:jobId — 状态查询', () =
     ],
   ])('%s', async (_n, job, expected) => {
     queueMocks.getJob.mockResolvedValue(createMockJob(job));
-    const { res, json } = await get(`${server.url}/api/backtest/runs/${job.id}`);
+    const { res, json } = await get(`${getServer().url}/api/backtest/runs/${job.id}`);
     expect(res.status).toBe(200);
     expect(json.success).toBe(true);
     expect(json.data.jobId).toBe(job.id);
@@ -598,7 +578,7 @@ describe('backtestRoutes - GET /api/backtest/runs/:jobId — 状态查询', () =
   });
   it('任务不存在时返回 404', async () => {
     queueMocks.getJob.mockResolvedValue(null);
-    const { res, json } = await get(`${server.url}/api/backtest/runs/nonexistent`);
+    const { res, json } = await get(`${getServer().url}/api/backtest/runs/nonexistent`);
     expect(res.status).toBe(404);
     expect(json.success).toBe(false);
     expect(json.error.code).toBe('JOB_NOT_FOUND');
@@ -608,10 +588,9 @@ describe('backtestRoutes - GET /api/backtest/runs/:jobId — 状态查询', () =
 import { jobRoutes } from '../../../packages/backend/src/routes/jobRoutes.js';
 
 describe('jobRoutes - GET /api/v1/jobs/:id', () => {
-  let server: TestServer;
-  beforeEach(async () => {
+  const getServer = withServer(() => {
     vi.clearAllMocks();
-    server = await startExpressApp((app) => {
+    return startExpressApp((app) => {
       app.use((req: TestRequest, _res, next) => {
         const sub = (req.headers['x-test-sub'] as string) || 'admin-user';
         const role = (req.headers['x-test-role'] as string) || 'admin';
@@ -628,15 +607,12 @@ describe('jobRoutes - GET /api/v1/jobs/:id', () => {
       app.use('/api/v1', jobRoutes);
     });
   });
-  afterEach(async () => {
-    await server.close();
-  });
 
   it('任务存在且已完成时应返回结果', async () => {
     queueMocks.getJob.mockResolvedValue(
       createMockJob({ id: 'job-123', returnvalue: { best: { cagr: 0.12 } } }),
     );
-    const { res, json } = await get(`${server.url}/api/v1/jobs/job-123`);
+    const { res, json } = await get(`${getServer().url}/api/v1/jobs/job-123`);
     expect(res.status).toBe(200);
     expect(json.data.id).toBe('job-123');
     expect(json.data.type).toBe('optimizer');
@@ -657,7 +633,7 @@ describe('jobRoutes - GET /api/v1/jobs/:id', () => {
         getState: vi.fn().mockResolvedValue('failed'),
       }),
     );
-    const { res, json } = await get(`${server.url}/api/v1/jobs/job-456`);
+    const { res, json } = await get(`${getServer().url}/api/v1/jobs/job-456`);
     expect(res.status).toBe(200);
     expect(json.data.state).toBe('failed');
     expect(json.data.error).toBe('Job execution failed');
@@ -712,7 +688,7 @@ describe('jobRoutes - GET /api/v1/jobs/:id', () => {
     ],
   ])('%s', async (_n, job, headers, expected) => {
     queueMocks.getJob.mockResolvedValue(job);
-    const { res } = await get(`${server.url}/api/v1/jobs/${job.id}`, headers);
+    const { res } = await get(`${getServer().url}/api/v1/jobs/${job.id}`, headers);
     expect(res.status).toBe(expected);
   });
 
@@ -730,7 +706,7 @@ describe('jobRoutes - GET /api/v1/jobs/:id', () => {
 
   it('任务不存在时应返回 404', async () => {
     queueMocks.getJob.mockResolvedValue(null);
-    const { res, json } = await get(`${server.url}/api/v1/jobs/nonexistent`);
+    const { res, json } = await get(`${getServer().url}/api/v1/jobs/nonexistent`);
     expect(res.status).toBe(404);
     expect(json.error.status).toBe(404);
     expect(json.error.title).toBe('JOB_NOT_FOUND');
@@ -738,7 +714,7 @@ describe('jobRoutes - GET /api/v1/jobs/:id', () => {
 
   it('getJob 抛错时应返回 500', async () => {
     queueMocks.getJob.mockRejectedValue(new Error('Redis connection failed'));
-    const { res, json } = await get(`${server.url}/api/v1/jobs/job-err`);
+    const { res, json } = await get(`${getServer().url}/api/v1/jobs/job-err`);
     expect(res.status).toBe(500);
     expect(json.error.status).toBe(500);
     expect(json.error.title).toBe('JOB_STATUS_ERROR');
@@ -752,7 +728,7 @@ describe('jobRoutes - GET /api/v1/jobs/:id', () => {
         getState: vi.fn().mockResolvedValue('active'),
       }),
     );
-    const { res, json } = await get(`${server.url}/api/v1/jobs/job-active`);
+    const { res, json } = await get(`${getServer().url}/api/v1/jobs/job-active`);
     expect(res.status).toBe(200);
     expect(json.data.state).toBe('active');
     expect(json.data.result).toBeUndefined();

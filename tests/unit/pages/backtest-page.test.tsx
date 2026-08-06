@@ -1,14 +1,3 @@
-/**
- * @vitest-environment happy-dom
- *
- * BacktestPage 冒烟测试（P0-02 T16）。
- * 企业理由：页面入口组件负责将 useBacktestPageState 状态装配进 ComputeToolShell，
- * 子面板（参数表单/组合编辑器/工具栏/结果区）任意一个导入失败都会导致整页白屏。
- * 冒烟测试验证页面装配链路完整、标题与各面板 slot 正确渲染，防止重构破坏页面挂载。
- *
- * 策略：mock 掉承载副作用与重依赖的 hook 及叶子组件，保留 ComputeToolShell 真实渲染，
- * 断言标题（i18n key 透传）与各 slot stub 出现。
- */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 

@@ -1,13 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { mockLogger, createConfigMocks } from '../../helpers/mockFactories.js';
-
-const loggerMocks = vi.hoisted(() => ({
-  info: vi.fn(),
-  warn: vi.fn(),
-  error: vi.fn(),
-  debug: vi.fn(),
-  child: vi.fn(() => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() })),
-}));
+import { createConfigMocks } from '../../helpers/mockFactories.js';
+import { loggerMocks } from '../../helpers/loggerFixture.js';
 
 const queueInstanceMocks = vi.hoisted(() => ({
   on: vi.fn(),
@@ -20,9 +13,7 @@ const workerInstanceMocks = vi.hoisted(() => ({
 const QueueMock = vi.hoisted(() => vi.fn(() => queueInstanceMocks));
 const WorkerMock = vi.hoisted(() => vi.fn(() => workerInstanceMocks));
 
-vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
-  logger: mockLogger(loggerMocks),
-}));
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: loggerMocks }));
 
 vi.mock('../../../packages/backend/src/config/env.js', () => ({
   config: createConfigMocks({ REDIS_URL: 'redis://localhost:6379' }),

@@ -1,13 +1,12 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
-import { createLoggerMocks } from '../helpers/mockFactories.js';
+import { loggerMocks } from '../../helpers/loggerFixture.js';
 import {
   isDockerAvailable,
   setupTestContainer,
   type TestContainerContext,
 } from '../helpers/testcontainersPg.js';
 
-// Mock logger 打破 config ↔ logger 循环依赖，
-vi.mock('../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
+vi.mock('../../packages/backend/src/utils/logger.js', () => ({ logger: loggerMocks }));
 
 import { initSchema, rollbackSchema } from '../../packages/backend/src/db/migrations.js';
 import { getPool, healthCheck } from '../../packages/backend/src/db/pool.js';

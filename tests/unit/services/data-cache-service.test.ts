@@ -1,9 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-/**
- * 所有被 vi.mock 工厂引用的对象必须在 vi.hoisted 内创建，否则 vi.mock 提升后
- * 会因 TDZ（temporal dead zone）报 "Cannot access 'X' before initialization"。
- */
 const { loggerMocks, redisStub, healthMock } = vi.hoisted(() => {
   const loggerMocks = {
     info: vi.fn(),
@@ -60,7 +56,6 @@ import {
   readCache,
   writeCache,
   deletePriceCache,
-  clearPriceCache,
   setPriceCache,
   invalidateTickerCache,
   invalidateAllCache,
@@ -196,13 +191,6 @@ describe('price cache', () => {
 
     await deletePriceCache('SPY');
     expect(redisStub.store.has(key)).toBe(false);
-  });
-
-  it('clearPriceCache 应清空 Redis 中所有 price key', async () => {
-    await setPriceCache('SPY', { '2024-01-02': 400 });
-    await setPriceCache('VTI', { '2024-01-02': 200 });
-    await clearPriceCache();
-    expect(redisStub.store.size).toBe(0);
   });
 });
 

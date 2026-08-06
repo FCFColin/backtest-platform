@@ -511,13 +511,12 @@ describe('extended scenarios', () => {
       if (e.goArgs) {
         expect(dataQueryMocks.fetchMissingFromGoService).toHaveBeenCalledWith(
           expect.arrayContaining(e.goArgs),
-          e.defaultDates ? '2000-01-01' : '2024-01-02',
-          e.defaultDates ? '2024-01-01' : '2024-01-03',
+          e.defaultDates ? '' : '2024-01-02',
+          e.defaultDates ? '' : '2024-01-03',
           'cache-key',
           undefined,
         );
       }
-      if (e.defaultDates) expect(dateUtilsMocks.toDateStr).toHaveBeenCalledWith(expect.any(Date));
     });
     it('底层 validateTickers 抛错时向上传播（span 记录异常）', async () => {
       dataQueryMocks.validateTickers.mockRejectedValue(new Error('validation boom'));

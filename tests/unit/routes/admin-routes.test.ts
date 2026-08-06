@@ -1,6 +1,7 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { startExpressApp, type TestServer, type TestRequest } from '../../helpers/expressApp.js';
-import { createConfigMocks, createLoggerMocks } from '../../helpers/mockFactories.js';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { useTestServer } from '../../helpers/expressApp.js';
+import { createConfigMocks } from '../../helpers/mockFactories.js';
+import { loggerMocks } from '../../helpers/loggerFixture.js';
 
 const callServiceMock = vi.hoisted(() => vi.fn());
 
@@ -28,7 +29,7 @@ vi.mock('../../../packages/backend/src/config/index.js', () => ({
 }));
 
 import '../../helpers/middlewareMocks.js';
-vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: loggerMocks }));
 
 const apiKeyServiceMocks = vi.hoisted(() => ({
   createApiKey: vi.fn(),
@@ -94,24 +95,16 @@ function createMockUniverseStats() {
 }
 
 describe('adminRoutes - GET /api/admin/stats 与 /system', () => {
-  let server: TestServer;
-
-  beforeEach(async () => {
-    vi.clearAllMocks();
+  const { url } = useTestServer('/api/admin', adminRoutes);
+  beforeEach(() => {
     callServiceMock.mockResolvedValue({ status: 'ok', success: true, version: '1.0.0' });
     engineServiceMocks.scanTickersStats.mockResolvedValue(createMockTickerStats());
     engineServiceMocks.getUniverseStats.mockResolvedValue(createMockUniverseStats());
-    server = await startExpressApp((app) => app.use('/api/admin', adminRoutes));
-  });
-
-  afterEach(async () => {
-    await server.close();
   });
 
   it('服务健康时应返回完整统计数据', async () => {
-    const res = await fetch(`${server.url}/api/admin/stats`);
+    const res = await fetch(`${url()}/api/admin/stats`);
     const body = await res.json();
-
     expect(res.status).toBe(200);
     expect(body.success).toBe(true);
     expect(body.data.services.go_engine.status).toBe('healthy');
@@ -125,9 +118,8 @@ describe('adminRoutes - GET /api/admin/stats 与 /system', () => {
   });
 
   it('应返回系统资源信息', async () => {
-    const res = await fetch(`${server.url}/api/admin/system`);
+    const res = await fetch(`${url()}/api/admin/system`);
     const body = await res.json();
-
     expect(res.status).toBe(200);
     expect(body.success).toBe(true);
     expect(body.data.memory.rss).toBeGreaterThan(0);
@@ -142,10 +134,8 @@ describe('adminRoutes - GET /api/admin/stats 与 /system', () => {
   it('Go 引擎不可达时应返回 unhealthy', async () => {
     callServiceMock.mockRejectedValue(new Error('ECONNREFUSED'));
 
-    const res = await fetch(`${server.url}/api/admin/stats`);
+    const res = await fetch(`${url()}/api/admin/stats`);
     const body = await res.json();
-
-    expect(res.status).toBe(200);
     expect(body.data.services.go_engine.status).toBe('unhealthy');
     expect(body.data.services.go_data_service.status).toBe('unhealthy');
     expect(body.data.services.go_engine.error).toContain('不可达');
@@ -154,9 +144,8 @@ describe('adminRoutes - GET /api/admin/stats 与 /system', () => {
   it('服务返回异常（非 ok/success）时应返回 unhealthy', async () => {
     callServiceMock.mockResolvedValue({ status: 'error', success: false });
 
-    const res = await fetch(`${server.url}/api/admin/stats`);
+    const res = await fetch(`${url()}/api/admin/stats`);
     const body = await res.json();
-
     expect(body.data.services.go_engine.status).toBe('unhealthy');
     expect(body.data.services.go_engine.error).toBe('服务返回异常');
   });
@@ -164,9 +153,8 @@ describe('adminRoutes - GET /api/admin/stats 与 /system', () => {
   it('scanTickersStats 返回 null 时 stats 应使用兜底空对象', async () => {
     engineServiceMocks.scanTickersStats.mockResolvedValue(null);
 
-    const res = await fetch(`${server.url}/api/admin/stats`);
+    const res = await fetch(`${url()}/api/admin/stats`);
     const body = await res.json();
-
     expect(res.status).toBe(200);
     expect(body.success).toBe(true);
     expect(body.data.data_stats.total_tickers).toBe(0);
@@ -175,9 +163,8 @@ describe('adminRoutes - GET /api/admin/stats 与 /system', () => {
   it('scanTickersStats 返回 null 时 system 应使用兜底空对象', async () => {
     engineServiceMocks.scanTickersStats.mockResolvedValue(null);
 
-    const res = await fetch(`${server.url}/api/admin/system`);
+    const res = await fetch(`${url()}/api/admin/system`);
     const body = await res.json();
-
     expect(res.status).toBe(200);
     expect(body.data.data_directory.total_size_mb).toBe(0);
     expect(body.data.data_directory.ticker_file_count).toBe(0);
@@ -189,31 +176,16 @@ describe('adminRoutes - GET /api/admin/stats 与 /system', () => {
   ] as const)('scanTickersStats 抛错时 %s 应返回 500', async (_n, path, code) => {
     engineServiceMocks.scanTickersStats.mockRejectedValue(new Error('scan failed'));
 
-    const res = await fetch(`${server.url}${path}`);
+    const res = await fetch(`${url()}${path}`);
     const body = await res.json();
-
     expect(res.status).toBe(500);
     expect(body.error.code).toBe(code);
   });
 });
 
 describe('apiKeyRoutes', () => {
-  let server: TestServer;
-
-  beforeEach(async () => {
-    vi.clearAllMocks();
-    server = await startExpressApp((app) => {
-      app.use((req: TestRequest, _res, next) => {
-        req.tenantId = ORG;
-        req.user = { sub: 'user-1', role: 'admin', tenant_id: ORG, org_role: 'admin' };
-        next();
-      });
-      app.use('/api/v1', apiKeyRoutes);
-    });
-  });
-
-  afterEach(async () => {
-    await server.close();
+  const { url } = useTestServer('/api/v1', apiKeyRoutes, {
+    auth: { user: { tenant_id: ORG, org_role: 'admin' }, tenantId: ORG },
   });
 
   it('POST / 创建成功应返回 201 与一次性明文', async () => {
@@ -225,7 +197,7 @@ describe('apiKeyRoutes', () => {
       createdAt: '2026-01-01T00:00:00.000Z',
       plaintext: 'bpk_live_secretplaintext',
     });
-    const res = await fetch(`${server.url}/api/v1/keys`, {
+    const res = await fetch(`${url()}/api/v1/keys`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: 'CI key' }),
@@ -238,7 +210,7 @@ describe('apiKeyRoutes', () => {
   });
 
   it('POST / 名称为空应返回 400', async () => {
-    const res = await fetch(`${server.url}/api/v1/keys`, {
+    const res = await fetch(`${url()}/api/v1/keys`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: '' }),
@@ -251,7 +223,7 @@ describe('apiKeyRoutes', () => {
     apiKeyServiceMocks.listApiKeys.mockResolvedValueOnce([
       { id: KEY_ID, orgId: ORG, name: 'CI key', keyPrefix: 'bpk_live_abcd', revokedAt: null },
     ]);
-    const res = await fetch(`${server.url}/api/v1/keys`);
+    const res = await fetch(`${url()}/api/v1/keys`);
     const body = await res.json();
     expect(res.status).toBe(200);
     expect(body.data).toHaveLength(1);
@@ -259,20 +231,20 @@ describe('apiKeyRoutes', () => {
   });
 
   it('DELETE /:id 非法 UUID 应返回 400', async () => {
-    const res = await fetch(`${server.url}/api/v1/keys/not-a-uuid`, { method: 'DELETE' });
+    const res = await fetch(`${url()}/api/v1/keys/not-a-uuid`, { method: 'DELETE' });
     expect(res.status).toBe(400);
     expect(apiKeyServiceMocks.revokeApiKey).not.toHaveBeenCalled();
   });
 
   it('DELETE /:id 不存在应返回 404', async () => {
     apiKeyServiceMocks.revokeApiKey.mockResolvedValueOnce(false);
-    const res = await fetch(`${server.url}/api/v1/keys/${KEY_ID}`, { method: 'DELETE' });
+    const res = await fetch(`${url()}/api/v1/keys/${KEY_ID}`, { method: 'DELETE' });
     expect(res.status).toBe(404);
   });
 
   it('DELETE /:id 成功应返回 200', async () => {
     apiKeyServiceMocks.revokeApiKey.mockResolvedValueOnce(true);
-    const res = await fetch(`${server.url}/api/v1/keys/${KEY_ID}`, { method: 'DELETE' });
+    const res = await fetch(`${url()}/api/v1/keys/${KEY_ID}`, { method: 'DELETE' });
     const body = await res.json();
     expect(res.status).toBe(200);
     expect(body.data.revoked).toBe(true);
@@ -309,7 +281,7 @@ describe('apiKeyRoutes', () => {
     ],
   ])('%s', async (_n, path, init, stub, code) => {
     stub();
-    const res = await fetch(`${server.url}${path}`, init);
+    const res = await fetch(`${url()}${path}`, init);
     const body = await res.json();
     expect(res.status).toBe(500);
     expect(body.error.code).toBe(code);

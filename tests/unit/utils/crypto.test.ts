@@ -12,17 +12,12 @@ describe('sha256Hex', () => {
     expect(digest).toMatch(/^[0-9a-f]{64}$/);
   });
 
-  it('应与独立计算的 SHA-256 一致（已知向量）', () => {
-    expect(sha256Hex('hello')).toBe(
-      '2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
-    );
-    expect(sha256Hex('abc')).toBe(
-      'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad',
-    );
-  });
-
-  it('空字符串应返回 SHA-256 空输入摘要', () => {
-    expect(sha256Hex('')).toBe('e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855');
+  it.each([
+    ['hello', '2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824'],
+    ['abc', 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad'],
+    ['', 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'],
+  ])('sha256Hex(%p) 应与独立计算一致', (input, expected) => {
+    expect(sha256Hex(input)).toBe(expected);
   });
 
   it('相同输入应产生相同摘要（确定性）', () => {
@@ -61,27 +56,20 @@ describe('hashApiKeyArgon2id', () => {
 });
 
 describe('verifyApiKeyArgon2id', () => {
-  it('正确密钥应校验通过', async () => {
+  it.each([
+    ['correct-plaintext', true],
+    ['wrong-plaintext', false],
+  ])('密钥 %p 校验应返回 %p', async (plaintext, expected) => {
     const hash = await hashApiKeyArgon2id('correct-plaintext');
-    expect(await verifyApiKeyArgon2id(hash, 'correct-plaintext')).toBe(true);
+    expect(await verifyApiKeyArgon2id(hash, plaintext)).toBe(expected);
   });
 
-  it('错误密钥应校验失败', async () => {
-    const hash = await hashApiKeyArgon2id('correct-plaintext');
-    expect(await verifyApiKeyArgon2id(hash, 'wrong-plaintext')).toBe(false);
-  });
-
-  it('空 encoded 应直接返回 false（不调用 argon2.verify）', async () => {
-    expect(await verifyApiKeyArgon2id('', 'anything')).toBe(false);
-  });
-
-  it('损坏的 encoded 应触发 catch 分支返回 false（不抛错）', async () => {
-    expect(await verifyApiKeyArgon2id('not-a-valid-argon2-hash', 'anything')).toBe(false);
-  });
-
-  it('格式错误的 argon2id 前缀应返回 false', async () => {
-    expect(await verifyApiKeyArgon2id('$argon2id$malformed$hash', 'anything')).toBe(false);
-  });
+  it.each(['', 'not-a-valid-argon2-hash', '$argon2id$malformed$hash'])(
+    'verifyApiKeyArgon2id(%p) 应返回 false 且不抛错',
+    async (encoded) => {
+      expect(await verifyApiKeyArgon2id(encoded, 'anything')).toBe(false);
+    },
+  );
 
   it('应与 hashApiKeyArgon2id 形成完整往返（roundtrip）', async () => {
     const plaintext = 'roundtrip-api-key-12345';

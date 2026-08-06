@@ -1,6 +1,7 @@
 import { vi } from 'vitest';
 import { startExpressApp, type TestServer, type TestRequest } from '../../helpers/expressApp.js';
-import { createConfigMocks, createLoggerMocks } from '../../helpers/mockFactories.js';
+import { createConfigMocks } from '../../helpers/mockFactories.js';
+import { loggerMocks } from '../../helpers/loggerFixture.js';
 import type { Router } from 'express';
 
 const internalMocks = vi.hoisted(() => ({
@@ -39,7 +40,7 @@ vi.mock(
   () => internalMocks.invitation,
 );
 vi.mock('../../../packages/backend/src/infrastructure/mailService.js', () => internalMocks.mail);
-vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: loggerMocks }));
 import '../../helpers/middlewareMocks.js';
 vi.mock('../../../packages/backend/src/middleware/miscMiddleware.js', () => ({
   validate: (schema: unknown) => (req: TestRequest, res: unknown, next: () => void) => {
@@ -72,8 +73,6 @@ export const mocks = internalMocks;
 export const ORG = '11111111-1111-1111-1111-111111111111';
 export const USER = '33333333-3333-3333-3333-333333333333';
 export const MEMBER = '44444444-4444-4444-4444-444444444444';
-export const ITEM_ID = '22222222-2222-2222-2222-222222222222';
-export const MOCK_ITEM = { id: ITEM_ID, name: 'Test Run', createdAt: '2024-01-01T00:00:00.000Z' };
 
 interface StartOpts {
   role?: string;

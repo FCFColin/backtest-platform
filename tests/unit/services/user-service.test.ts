@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createLoggerMocks } from '../../helpers/mockFactories.js';
+import { loggerMocks } from '../../helpers/loggerFixture.js';
 import { mockUserRecord, mockUserRecordWithPassword } from '../../helpers/authFixtures.js';
 
 const mocks = vi.hoisted(() => ({
@@ -21,7 +21,7 @@ vi.mock('crypto', () => ({
   createHash: mocks.crypto.createHash,
 }));
 vi.mock('../../../packages/backend/src/db/pool.js', () => ({ getPool: () => mocks.pool }));
-vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: loggerMocks }));
 
 import {
   createUser,

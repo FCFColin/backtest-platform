@@ -4,18 +4,13 @@ import {
   runDefaultBacktest,
   waitForSummaryStats,
   getRunButton,
-  warmUpBacktest,
+  warmUpSuite,
 } from './helpers/backtest.js';
 
 test.describe.configure({ mode: 'serial' });
 
 test.describe('回测提速回归', () => {
-  test.beforeAll(async ({ browser }) => {
-    const ctx = await browser.newContext({ storageState: '.auth/user.json' });
-    const page = await ctx.newPage();
-    await warmUpBacktest(page);
-    await ctx.close();
-  });
+  test.beforeAll(async ({ browser }) => warmUpSuite(browser));
   test.beforeEach(async ({ page }) => {
     await page.goto('/', { waitUntil: 'domcontentloaded' });
     await expect(page.getByRole('navigation')).toBeVisible({ timeout: 1_000 });

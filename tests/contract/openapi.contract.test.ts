@@ -10,7 +10,6 @@ interface OpenAPIV3Document {
   security?: Record<string, unknown>[];
 }
 
-/** 解析并验证 OpenAPI spec（运行时从 registry 生成，避免重复生成） */
 let apiDoc: OpenAPIV3Document;
 
 async function getApiDoc(): Promise<OpenAPIV3Document> {

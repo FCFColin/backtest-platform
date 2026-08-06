@@ -1,30 +1,12 @@
-/**
- * 计费 / 配额服务单元测试（ADR-036 / ADR-037）
- *
- * 企业理由：计费同步逻辑直接决定租户的计划/状态，错误会造成误收费或越权使用；用量是配额判定与
- * 计费对账的数据源。验证：
- * 1. 计划<->Price 双向映射正确；计划配额表（PLAN_LIMITS）与 currentPeriod 周期正确
- * 2. getSubscriptionSummary 映射数据库行
- * 3. webhook 同步把订阅状态写回 subscriptions + organizations（取消时回落 free）
- * 4. recordUsage 双写明细 + 月度聚合（withTenant），并递增 Redis 快路径
- * 5. getMonthlyUsage 优先 Redis，缺失时回退 DB 并回填
- *
- * Mock 策略：mock config（注入 price/secret）、db.getPool/withTenant（注入 fake client）、
- * stripe SDK、appRedis、planLimits.currentPeriod。
- */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createConfigMocks, createLoggerMocks } from '../../helpers/mockFactories.js';
+import { createConfigMocks } from '../../helpers/mockFactories.js';
+import { loggerMocks } from '../../helpers/loggerFixture.js';
+import { redisMocks, redisModuleMock } from '../../helpers/redisFixture.js';
 
 const dbMocks = vi.hoisted(() => ({
   query: vi.fn(),
   withTenant: vi.fn(),
   client: { query: vi.fn() },
-}));
-const redisMocks = vi.hoisted(() => ({
-  incrby: vi.fn(),
-  expire: vi.fn(),
-  get: vi.fn(),
-  set: vi.fn(),
 }));
 const stripeMocks = vi.hoisted(() => ({
   subscriptions: { retrieve: vi.fn() },
@@ -75,9 +57,7 @@ vi.mock('../../../packages/backend/src/db/pool.js', () => ({
     dbMocks.withTenant(tenantId, fn),
 }));
 
-vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
-  logger: createLoggerMocks(),
-}));
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: loggerMocks }));
 
 vi.mock('stripe', () => ({
   default: class {
@@ -89,9 +69,7 @@ vi.mock('stripe', () => ({
   },
 }));
 
-vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () => ({
-  appRedis: redisMocks,
-}));
+vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () => redisModuleMock);
 
 import {
   priceIdForPlan,

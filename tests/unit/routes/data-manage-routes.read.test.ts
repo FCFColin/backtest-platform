@@ -85,21 +85,18 @@ describe('dataManageRoutes - GET 读端点', () => {
     expect(body.data).toHaveLength(1);
     expect(body.data[0].ticker).toBe('AAPL');
   });
-  it('GET /search 缺少 q 参数应返回 422', async () => {
-    const { res } = await get('/search');
+  it.each([
+    ['GET /search 缺少 q 参数应返回 422', '/search'],
+    ['GET /ticker/:id 超长 ticker 格式应返回 422', '/ticker/AAAAAAAAAAAAAAAAAAAAA'],
+    ['GET /ticker/:id 小写 ticker 应返回 422（仅允许大写）', '/ticker/aapl'],
+  ])('%s', async (_label, path) => {
+    const { res } = await get(path);
     expect(res.status).toBe(422);
   });
   it('GET /ticker/:id 有效 ticker 应返回数据', async () => {
     const { res, body } = await get('/ticker/AAPL');
     expect(res.status).toBe(200);
     expect(body.data.ticker).toBe('AAPL');
-  });
-  it.each([
-    ['超长 ticker 格式应返回 422', 'AAAAAAAAAAAAAAAAAAAAA'],
-    ['小写 ticker 应返回 422（仅允许大写）', 'aapl'],
-  ])('GET /ticker/:id %s', async (_label, ticker) => {
-    const { res } = await get(`/ticker/${ticker}`);
-    expect(res.status).toBe(422);
   });
   it('GET /ticker/:id ticker 不存在时应返回 404', async () => {
     engineServiceMocks.loadTickerData.mockReturnValue(null);

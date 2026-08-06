@@ -6,9 +6,9 @@
  * 使用 testcontainers 起真实 PG。
  */
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
-import { createLoggerMocks } from '../helpers/mockFactories.js';
+import { loggerMocks } from '../../helpers/loggerFixture.js';
 
-vi.mock('../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
+vi.mock('../../packages/backend/src/utils/logger.js', () => ({ logger: loggerMocks }));
 
 import '../helpers/middlewareMocks.js';
 import apiKeyRoutes from '../../packages/backend/src/routes/apiKeyRoutes.js';
