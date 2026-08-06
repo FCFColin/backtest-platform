@@ -49,8 +49,6 @@ Node.js 20+, Go 1.26+, pnpm, PostgreSQL 14+, Redis 6+。
 
 ## 6. 已知坑点
 
-> 通用坑点（semaphore=10、单引擎 fail-closed、x-api-key、Redis 依赖、CORS_ORIGINS、RFC 7807、/api/v1、degraded 语义）见 AGENTS.md「Known Gotchas」，此处不重复。
-
 | 前端                            | 后端                          | Go 引擎                                    | 数据库                               |
 | ------------------------------- | ----------------------------- | ------------------------------------------ | ------------------------------------ |
 | 遗留 slice 死代码未清理         | API Key 路径 /api/v1/keys     | withComputeHandler 统一计算端点            | audit_logs 链式 hash（HMAC）         |
@@ -58,8 +56,3 @@ Node.js 20+, Go 1.26+, pnpm, PostgreSQL 14+, Redis 6+。
 | react-router-dom v7 兼容性      | Worker 独立进程               | 降级: data-fetcher 有 degraded, 引擎无     | FORCE RLS: backtest_app 无 BYPASSRLS |
 | authStore 不持久化              | Stripe Webhook 无 jwtAuth     | 引擎不可用 503 非 200+degraded             | PgBouncer 必须 SET LOCAL             |
 | Module Federation 预留(ADR-050) | opossum + gobreaker           |                                            | Redis: 认证 fail-closed, 缓存跳过    |
-
-## 7. Git 工作流
-
-Conventional Commits: `type(scope): description`。分支 feature/* / fix/* / refactor/* → PR → main（protected）。
-husky + lint-staged: pre-commit 运行 eslint --fix + prettier --write。

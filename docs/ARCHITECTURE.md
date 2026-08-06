@@ -100,5 +100,3 @@ JSON(ADR-002) → SQLite(ADR-006) → PostgreSQL(ADR-007)。JSON 仅用于 `pnpm
 | 2    | PG 连接池             | pg_pool_waiting_count      | PgBouncer + 读副本         |
 | 3    | 数据服务 + 外部 API   | data_service_semaphore_*   | 缓存 + gobreaker           |
 | 4    | Redis                 | 503 限流                   | Sentinel/Cluster           |
-
-详见 [ops/capacity-planning.md](./capacity-planning.md)。

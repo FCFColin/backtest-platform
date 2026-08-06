@@ -36,7 +36,7 @@ JWT / x-api-key / Idempotency-Key / break-glass 模型见 ADR-017。
 
 ## 5. 备份与恢复
 
-方案与 RTO/RPO 目标（WAL-G 每日全量+实时 WAL 保留 7 份, Redis RDB, K8s Secret）见 ADR-038；恢复流程见 runbooks/dr-runbook.md（`bash scripts/backup-restore.sh LATEST`、PITR 用 recovery_target_time、pg_verifybackup + WAL 完整性验证）。
+方案与 RTO/RPO 目标：WAL-G 每日全量+实时 WAL 保留 7 份、Redis RDB、K8s Secret；恢复流程：`bash scripts/backup-restore.sh LATEST`、PITR 用 recovery_target_time、pg_verifybackup + WAL 完整性验证。
 
 ## 6. 等保对照
 
