@@ -68,34 +68,12 @@ export type Statistics = {
   var: VaRByHorizon;
   cvar: VaRByHorizon;
 
-  var5?: number;
-  cvar5?: number;
-  varDaily1?: number;
   varDaily5?: number;
-  varDaily10?: number;
-  varMonthly1?: number;
-  varMonthly5?: number;
-  varMonthly10?: number;
-  varAnnual1?: number;
-  varAnnual5?: number;
-  varAnnual10?: number;
-  cvarDaily1?: number;
   cvarDaily5?: number;
-  cvarDaily10?: number;
-  cvarMonthly1?: number;
-  cvarMonthly5?: number;
-  cvarMonthly10?: number;
-  cvarAnnual1?: number;
-  cvarAnnual5?: number;
-  cvarAnnual10?: number;
   skewness: HorizonStats;
   skewnessDaily?: number;
-  skewnessMonthly?: number;
-  skewnessAnnual?: number;
   excessKurtosis: HorizonStats;
   excessKurtosisDaily?: number;
-  excessKurtosisMonthly?: number;
-  excessKurtosisAnnual?: number;
 
   winRate: HorizonStats;
   pctPositiveDays: number;
@@ -235,24 +213,11 @@ export function createEmptyStatistics(): Statistics {
 
 export function toStatsRecord(stats: Statistics): Record<string, number> {
   const record = stats as unknown as Record<string, number>;
-  const HORIZON_CAPS = [
-    ['daily', 'Daily'],
-    ['monthly', 'Monthly'],
-    ['annual', 'Annual'],
-  ] as const;
-  const LEVELS = [1, 5, 10] as const;
   if (stats.var) {
-    for (const [h, cap] of HORIZON_CAPS)
-      for (const l of LEVELS) {
-        record[`var${cap}${l}`] = stats.var[h]?.[l] ?? 0;
-        record[`cvar${cap}${l}`] = stats.cvar?.[h]?.[l] ?? 0;
-      }
-    record.var5 = stats.var.daily?.[5] ?? 0;
-    record.cvar5 = stats.cvar?.daily?.[5] ?? 0;
+    record.varDaily5 = stats.var.daily?.[5] ?? 0;
+    record.cvarDaily5 = stats.cvar?.daily?.[5] ?? 0;
   }
-  for (const [h, cap] of HORIZON_CAPS) {
-    if (stats.skewness) record[`skewness${cap}`] = stats.skewness[h] ?? 0;
-    if (stats.excessKurtosis) record[`excessKurtosis${cap}`] = stats.excessKurtosis[h] ?? 0;
-  }
+  if (stats.skewness) record.skewnessDaily = stats.skewness.daily ?? 0;
+  if (stats.excessKurtosis) record.excessKurtosisDaily = stats.excessKurtosis.daily ?? 0;
   return record;
 }

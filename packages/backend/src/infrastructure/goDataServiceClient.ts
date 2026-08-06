@@ -129,3 +129,11 @@ export async function callGoDataService(path: string, orgId?: string): Promise<s
     semaphore.release();
   }
 }
+
+export async function fetchGoJson(
+  path: string,
+  orgId?: string,
+): Promise<{ success: boolean; data?: unknown }> {
+  const parsed = JSON.parse(await callGoDataService(path, orgId));
+  return { success: Boolean(parsed.success), data: parsed.data };
+}
