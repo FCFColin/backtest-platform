@@ -207,7 +207,3 @@ export const backtestOptimizerSchema = z.object({
 });
 
 export type { BacktestOptimizerRequest };
-
-export type PortfolioBody = z.infer<typeof portfolioBodySchema>;
-export type SavedConfigBody = z.infer<typeof savedConfigBodySchema>;
-export type BacktestRunBody = z.infer<typeof backtestRunBodySchema>;

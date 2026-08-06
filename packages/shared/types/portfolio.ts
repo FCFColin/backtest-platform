@@ -32,3 +32,32 @@ export interface Portfolio {
   glidepathToWeights?: number[];
   tags?: string[];
 }
+
+/** 现金流频率 */
+export type CashflowFrequency = 'yearly' | 'monthly' | 'quarterly' | 'weekly';
+
+/** 现金流方向 */
+export type CashflowType = 'contribution' | 'withdrawal';
+
+/** 现金流公共字段 */
+
+export type CashflowBase = {
+  id: string;
+  amount: number;
+  type: CashflowType;
+};
+
+/** 周期性现金流腿 */
+export interface CashflowLeg extends CashflowBase {
+  frequency: CashflowFrequency;
+  offset: number;
+  until?: string;
+}
+
+/** 一次性现金流 */
+export interface OneTimeCashflow extends CashflowBase {
+  date: string;
+}
+
+/** 基础货币 */
+export type BaseCurrency = 'usd' | 'cny';

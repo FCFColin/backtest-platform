@@ -1,5 +1,3 @@
-// 杠杆 ETF 滑点（LETF Slippage）类型定义
-
 export interface LETFRequest {
   letfTicker: string;
   benchmarkTicker: string;

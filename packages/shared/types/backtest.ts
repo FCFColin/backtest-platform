@@ -5,18 +5,7 @@ export interface PriceData {
   [ticker: string]: Record<string, number>;
 }
 
-/**
- * 回测参数
- *
- * adjustForInflation：启用后使用 baseCurrency 对应的 CPI 数据将净值调整为实际购买力。
- * baseCurrency 为 'cny' 时使用中国 CPI，'usd' 时使用美国 CPI。
- *
- * rollingWindowMonths：滚动收益计算的时间窗口（月数），影响 rollingReturns 序列。
- * 典型值 12（年化滚动收益）、36（三年滚动）、60（五年滚动）。
- *
- * extendedWithdrawalStats：启用后计算 SWR/PWR 等提款统计，需要额外的模拟计算。
- * 仅在需要提款分析时开启以节省计算资源。
- */
+/** 回测参数（adjustForInflation 启用 CPI 调整；rollingWindowMonths 控制滚动收益窗口；extendedWithdrawalStats 启用 SWR/PWR 计算） */
 export interface BacktestParameters {
   startDate: string;
   endDate: string;

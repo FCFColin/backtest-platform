@@ -38,8 +38,6 @@ import {
 
 const tracer = trace.getTracer('backtest-platform', '1.0.0');
 
-export type { DateRangeInfo };
-
 /** @throws {ValidationError} 日期/标的非法; @throws {EngineUnavailableError} ADR-031 */
 export async function runPortfolioBacktest(opts: {
   portfolios: Portfolio[];

@@ -12,8 +12,8 @@
  * - 可在 Linux 容器环境正常工作
  * - 可水平扩展（多 Worker 实例由 BullMQ 自动分配任务）
  */
-import { Worker, type Job } from 'bullmq';
-import { bullmqConnectionOptions, isSentinelMode } from '../infrastructure/redisClient.js';
+import { type Job, type Worker } from 'bullmq';
+import { isSentinelMode } from '../infrastructure/redisClient.js';
 import { config } from '../config/index.js';
 import { logger } from '../utils/logger.js';
 import { getPool } from '../db/pool.js';
@@ -23,7 +23,7 @@ import {
   type DataUpdateJobData,
   type DataUpdateJobResult,
 } from './queueDefinitions.js';
-import { isFinalFailure, transferToDlq } from './queueUtils.js';
+import { createQueueWorker } from './workerFactory.js';
 
 /** 每批处理的标的数量（避免单次 HTTP 请求过大） */
 const BATCH_SIZE = 50;
@@ -173,29 +173,22 @@ export function createDataUpdateWorker(): Worker<DataUpdateJobData, DataUpdateJo
     'Creating data-update worker...',
   );
 
-  const worker = new Worker<DataUpdateJobData, DataUpdateJobResult>(
+  const worker = createQueueWorker<DataUpdateJobData, DataUpdateJobResult>(
     DATA_UPDATE_QUEUE,
     processDataUpdateJob,
     {
-      connection: bullmqConnectionOptions,
-      concurrency: 1,
+      dlq: dataUpdateDlq,
+      onCompleted: (job) => {
+        logger.info(
+          {
+            jobId: job.id,
+            durationMs: job.finishedOn ? job.finishedOn - (job.processedOn ?? 0) : 0,
+          },
+          '[dataUpdateWorker] Job completed',
+        );
+      },
     },
   );
-
-  worker.on('completed', (job) => {
-    logger.info(
-      { jobId: job.id, durationMs: job.finishedOn ? job.finishedOn - (job.processedOn ?? 0) : 0 },
-      '[dataUpdateWorker] Job completed',
-    );
-  });
-
-  worker.on('failed', (job, err) => {
-    logger.error({ jobId: job?.id, err: err.message }, '[dataUpdateWorker] Job failed');
-    // C-021: 仅在"最终失败"（重试穷尽）时转移到 DLQ，避免每次重试都重复入队。
-    if (job && isFinalFailure(job)) {
-      void transferToDlq(dataUpdateDlq, DATA_UPDATE_QUEUE, job, err);
-    }
-  });
 
   return worker;
 }

@@ -62,14 +62,13 @@ interface RouteErrorConfig {
   endpoint?: string;
 }
 
-function recordEndpointError(endpoint: string | undefined): void {
-  if (endpoint) recordBacktestRequest(endpoint, 'sync', 'error');
-}
-function recordDegraded(endpoint: string | undefined): void {
+const recordEndpointError = (endpoint?: string) =>
+  endpoint && recordBacktestRequest(endpoint, 'sync', 'error');
+const recordDegraded = (endpoint?: string) => {
   if (!endpoint) return;
   recordBacktestRequest(endpoint, 'sync', 'error');
   recordDegradedResponse(endpoint, 'engine_unavailable');
-}
+};
 
 type RouteHandlerFn = (req: AuthenticatedRequest, res: Response) => Promise<void>;
 
@@ -129,7 +128,7 @@ function buildBacktestResponse(
   return response;
 }
 
-export function syncCompute(
+function syncCompute(
   metric: string,
   code: string,
   fn: (req: AuthenticatedRequest) => Promise<unknown>,
@@ -149,12 +148,7 @@ export function syncCompute(
   );
 }
 
-export const plainCompute = (
-  metric: string,
-  code: string,
-  fn: (req: AuthenticatedRequest) => Promise<unknown>,
-  opts?: SyncComputeOpts,
-): RequestHandler => syncCompute(metric, code, fn, opts);
+export const plainCompute = syncCompute;
 
 export function computeRoute(
   metric: string,
@@ -209,7 +203,7 @@ export function jsonRoute(
   );
 }
 
-/** 租户作用域 CRUD 仓储最小接口（RLS 隔离边界） */
+/** 租户 CRUD 仓储接口 */
 interface TenantCrudRepo<T> {
   list(tenantId: string, limit?: number, offset?: number): Promise<T[]>;
   get(tenantId: string, id: string): Promise<T | null>;

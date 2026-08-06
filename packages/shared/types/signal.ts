@@ -1,5 +1,3 @@
-// 信号分析（Signal Analyzer）类型定义
-
 export type SignalType = 'entry' | 'exit' | 'both';
 
 export interface SignalAnalysisRequest {

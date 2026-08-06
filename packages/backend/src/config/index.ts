@@ -2,15 +2,7 @@ import { config } from './env.js';
 
 export { config, authConfig } from './env.js';
 
-export {
-  type PlanLimits,
-  USAGE_METRIC,
-  PLAN_LIMITS,
-  type FlagContext,
-  isEnabled,
-  logFlagAccess,
-  PLAN_LIMIT_FLAGS,
-} from './limits.js';
+export { type PlanLimits, USAGE_METRIC, PLAN_LIMITS } from './limits.js';
 
 import { logger } from '../utils/logger.js';
 

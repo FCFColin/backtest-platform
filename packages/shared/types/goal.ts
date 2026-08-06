@@ -1,5 +1,3 @@
-// 目标优化（Goal Optimizer）类型定义
-
 export interface GoalOptimizerRequest {
   targetAmount: number;
   initialAmount: number;

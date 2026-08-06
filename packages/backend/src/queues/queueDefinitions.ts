@@ -3,6 +3,7 @@ import { bullmqConnectionOptions, isSentinelMode } from '../infrastructure/redis
 import { logger } from '../utils/logger.js';
 import { exportPendingAuditLogs } from '../application/auditExporter.js';
 import { createDeadLetterQueue, SOURCE_QUEUE_FAIL_RETENTION_AGE_SECONDS } from './queueUtils.js';
+import { createQueueWorker } from './workerFactory.js';
 
 logger.info(
   { module: 'queueDefinitions', mode: isSentinelMode ? 'sentinel' : 'standalone' },
@@ -75,7 +76,7 @@ export async function scheduleAuditExportJob(): Promise<void> {
 }
 
 export function createAuditExportWorker(): Worker {
-  const worker = new Worker(
+  const worker = createQueueWorker(
     AUDIT_EXPORT_QUEUE,
     async () => {
       try {
@@ -88,11 +89,8 @@ export function createAuditExportWorker(): Worker {
         );
       }
     },
-    { connection: bullmqConnectionOptions, concurrency: 1 },
+    { concurrency: 1 },
   );
-  worker.on('error', (err) => {
-    logger.error({ module: 'auditExportQueue', err: err.message }, 'Audit export worker error');
-  });
   logger.info(
     { module: 'auditExportQueue', mode: isSentinelMode ? 'sentinel' : 'standalone' },
     'Audit export worker created',

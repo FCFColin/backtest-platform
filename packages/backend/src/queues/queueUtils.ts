@@ -7,7 +7,7 @@ export const SOURCE_QUEUE_FAIL_RETENTION_AGE_SECONDS = 86400 * 7;
 const DLQ_COMPLETED_RETENTION_AGE_SECONDS = 86400 * 30;
 const DLQ_NAME_SUFFIX = '-dlq';
 
-interface DlqJobData {
+export interface DlqJobData {
   sourceQueue: string;
   sourceJobId: string;
   sourceJobName?: string;

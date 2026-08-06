@@ -1,5 +1,3 @@
-// 战术分配（Tactical Allocation）类型定义
-
 export type TechnicalIndicator = 'sma' | 'ema' | 'rsi' | 'macd' | 'bollinger' | 'momentum';
 
 export interface GridParamRange {

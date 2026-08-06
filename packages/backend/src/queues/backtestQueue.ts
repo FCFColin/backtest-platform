@@ -1,4 +1,4 @@
-import { Queue, Worker, Job } from 'bullmq';
+import { Queue, type Job } from 'bullmq';
 import {
   bullmqConnectionOptions,
   isSentinelMode,
@@ -6,12 +6,8 @@ import {
 } from '../infrastructure/redisClient.js';
 import { config } from '../config/index.js';
 import { logger } from '../utils/logger.js';
-import {
-  createDeadLetterQueue,
-  isFinalFailure,
-  transferToDlq,
-  SOURCE_QUEUE_FAIL_RETENTION_AGE_SECONDS,
-} from './queueUtils.js';
+import { createDeadLetterQueue, SOURCE_QUEUE_FAIL_RETENTION_AGE_SECONDS } from './queueUtils.js';
+import { createQueueWorker } from './workerFactory.js';
 
 // Architecture: BullMQ任务队列，将长任务从同步改为异步
 // 企业为何需要：同步执行长任务阻塞Node.js事件循环，所有其他请求被挂起
@@ -83,63 +79,50 @@ export function createBacktestWorker(
   const concurrency = Math.max(1, config.WORKER_CONCURRENCY);
   logger.info({ module: 'backtestQueue', concurrency }, 'Creating BullMQ worker...');
 
-  const worker = new Worker<BacktestJobData, BacktestJobResult>(QUEUE_NAME, processFn, {
-    connection: bullmqConnectionOptions,
+  const worker = createQueueWorker<BacktestJobData, BacktestJobResult>(QUEUE_NAME, processFn, {
     concurrency,
-  });
-
-  worker.on('completed', (job) => {
-    logger.info(
-      {
-        module: 'backtestQueue',
-        jobId: job.id,
-        type: job.data.type,
-        durationMs: job.finishedOn ? job.finishedOn - job.processedOn! : undefined,
-      },
-      'Backtest job completed',
-    );
-    const jobId = String(job.id);
-    const rv = job.returnvalue as BacktestJobResult | undefined;
-    publishBacktestProgress(jobId, {
-      jobId,
-      status: 'completed',
-      progressPct: 100,
-      result: rv?.result,
-    });
-  });
-
-  worker.on('failed', (job, err) => {
-    logger.error(
-      {
-        module: 'backtestQueue',
-        jobId: job?.id,
-        type: job?.data?.type,
-        error: err.message,
-        attemptsMade: job?.attemptsMade,
-      },
-      'Backtest job failed',
-    );
-    // C-021: 仅在"最终失败"（重试穷尽）时转移到 DLQ，避免每次重试都重复入队。
-    if (job && isFinalFailure(job)) {
-      void transferToDlq(backtestDlq, QUEUE_NAME, job, err);
-    }
-    const jobId = job?.id ? String(job.id) : '';
-    if (!jobId) return;
-    publishBacktestProgress(jobId, { jobId, status: 'failed', error: err.message });
-  });
-
-  worker.on('error', (err) => {
-    logger.error({ module: 'backtestQueue', err: err.message }, 'BullMQ Worker connection error');
+    dlq: backtestDlq,
+    onCompleted: (job) => {
+      logger.info(
+        {
+          module: 'backtestQueue',
+          jobId: job.id,
+          type: job.data.type,
+          durationMs: job.finishedOn ? job.finishedOn - job.processedOn! : undefined,
+        },
+        'Backtest job completed',
+      );
+      const jobId = String(job.id);
+      const rv = job.returnvalue as BacktestJobResult | undefined;
+      publishBacktestProgress(jobId, {
+        jobId,
+        status: 'completed',
+        progressPct: 100,
+        result: rv?.result,
+      });
+    },
+    onFailed: (job, err) => {
+      logger.error(
+        {
+          module: 'backtestQueue',
+          jobId: job?.id,
+          type: job?.data?.type,
+          error: err.message,
+          attemptsMade: job?.attemptsMade,
+        },
+        'Backtest job failed',
+      );
+      const jobId = job?.id ? String(job.id) : '';
+      if (jobId) publishBacktestProgress(jobId, { jobId, status: 'failed', error: err.message });
+    },
+    // P1-04: Redis Pub/Sub 实时进度推送（多 Pod 广播，ADR-045）
+    onProgress: (job, progress) => {
+      const jobId = String(job.id);
+      const progressPct = typeof progress === 'number' ? progress : undefined;
+      publishBacktestProgress(jobId, { jobId, status: 'running', progressPct });
+    },
   });
 
   logger.info({ module: 'backtestQueue' }, 'BullMQ worker created');
-
-  // P1-04: Redis Pub/Sub 实时进度推送（多 Pod 广播，ADR-045）
-  worker.on('progress', (job, progress) => {
-    const jobId = String(job.id);
-    const progressPct = typeof progress === 'number' ? progress : undefined;
-    publishBacktestProgress(jobId, { jobId, status: 'running', progressPct });
-  });
-
   return worker;
 }

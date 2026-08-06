@@ -41,15 +41,16 @@ export function submitQueueJob(cfg: SubmitQueueJobConfig): RequestHandler {
           tenantId: authReq.tenantId,
           ownerUserId: ownerOf(authReq),
         } as BacktestJobData);
+        const jobId = job.id!;
         if (cfg.respond202) {
-          cfg.respond202(res, job.id);
+          cfg.respond202(res, jobId);
         } else {
           res.status(202).json({
             success: true,
             data: {
-              jobId: job.id,
+              jobId,
               ...(cfg.jobStatus ? { status: cfg.jobStatus } : {}),
-              statusUrl: statusUrl!(job.id),
+              statusUrl: statusUrl!(jobId),
             },
           });
         }

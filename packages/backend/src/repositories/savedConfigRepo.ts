@@ -30,7 +30,7 @@ const repo = createTenantCrudRepo<SavedConfigRecord, SavedConfigInput>({
   orderBy: 'updated_at DESC',
   sanitizeLimit: (limit) => Math.min(limit, 200),
   insertCols: 'tenant_id, owner_user_id, name, config',
-  updateSet: 'name = $2, config = $3::jsonb, updated_at = NOW()',
+  updateSet: () => 'name = $2, config = $3::jsonb, updated_at = NOW()',
   mapRow,
   toInsert: (tenantId, ownerUserId, input) => [
     tenantId,

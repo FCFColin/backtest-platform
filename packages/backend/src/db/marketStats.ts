@@ -8,14 +8,7 @@ import { getReadPool } from './pool.js';
 import { logger } from '../utils/logger.js';
 import { createTtlCache } from '../utils/ttlCache.js';
 
-export type {
-  DbMarketStats,
-  TickerAggRow,
-  TickerRowState,
-  ProcessTickerRowOpts,
-  MarketStatsAccumulators,
-  DbEngineStatusResult,
-} from './marketStatsTypes.js';
+export type { DbMarketStats } from './marketStatsTypes.js';
 export { bytesToMb, inferMarket, deriveExchangeFromTicker } from './marketStatsHelpers.js';
 
 import type { DbMarketStats, TickerAggRow, DbEngineStatusResult } from './marketStatsTypes.js';

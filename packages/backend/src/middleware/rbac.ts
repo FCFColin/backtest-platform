@@ -6,7 +6,7 @@ import { recordAuthFailure, getRoutePattern } from '../utils/metrics.js';
 import { getUserPermissions } from '../repositories/rbacRepo.js';
 import { getCachedUserPermissions, setCachedUserPermissions } from '../infrastructure/rbacCache.js';
 
-export enum Role {
+enum Role {
   ADMIN = 'admin',
   ANALYST = 'analyst',
   READONLY = 'readonly',

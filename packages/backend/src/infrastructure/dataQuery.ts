@@ -21,7 +21,7 @@ function defaultDateRange(): [string, string] {
   return [DEFAULT_START_DATE, toDateStr(new Date())];
 }
 
-export interface TickerSearchResult {
+interface TickerSearchResult {
   ticker: string;
   name: string;
   market: string;

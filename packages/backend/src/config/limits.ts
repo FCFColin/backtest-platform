@@ -47,7 +47,7 @@ export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
   },
 };
 
-export interface FlagContext {
+interface FlagContext {
   userId?: string;
   orgId?: string;
   plan?: string;

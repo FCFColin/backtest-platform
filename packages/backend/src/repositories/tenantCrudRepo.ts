@@ -1,11 +1,11 @@
 import { withTenant, withTenantReadOnly } from '../db/pool.js';
 
-export interface TenantCrudConfig<TRecord, TInput> {
+interface TenantCrudConfig<TRecord, TInput> {
   table: string;
   selectCols: string;
   orderBy: string;
   insertCols: string;
-  updateSet: string;
+  updateSet: string | ((input: TInput) => string);
   mapRow: (row: Record<string, unknown>) => TRecord;
   sanitizeLimit: (limit: number) => number;
   toInsert: (tenantId: string, ownerUserId: string | null, input: TInput) => unknown[];
@@ -24,6 +24,11 @@ export function createTenantCrudRepo<TRecord, TInput>(cfg: TenantCrudConfig<TRec
     toInsert,
     toUpdate,
   } = cfg;
+  const get = async (tenantId: string, id: string): Promise<TRecord | null> =>
+    withTenantReadOnly(tenantId, async (client) => {
+      const { rows } = await client.query(`SELECT ${selectCols} FROM ${table} WHERE id = $1`, [id]);
+      return rows.length > 0 ? mapRow(rows[0]) : null;
+    });
   return {
     list: async (tenantId: string, limit = 50, offset = 0): Promise<TRecord[]> =>
       withTenantReadOnly(tenantId, async (client) => {
@@ -33,13 +38,7 @@ export function createTenantCrudRepo<TRecord, TInput>(cfg: TenantCrudConfig<TRec
         );
         return rows.map(mapRow);
       }),
-    get: async (tenantId: string, id: string): Promise<TRecord | null> =>
-      withTenantReadOnly(tenantId, async (client) => {
-        const { rows } = await client.query(`SELECT ${selectCols} FROM ${table} WHERE id = $1`, [
-          id,
-        ]);
-        return rows.length > 0 ? mapRow(rows[0]) : null;
-      }),
+    get,
     create: async (tenantId: string, ownerUserId: string | null, input: TInput): Promise<TRecord> =>
       withTenant(tenantId, async (client) => {
         const values = toInsert(tenantId, ownerUserId, input);
@@ -52,8 +51,10 @@ export function createTenantCrudRepo<TRecord, TInput>(cfg: TenantCrudConfig<TRec
       }),
     update: async (tenantId: string, id: string, input: TInput): Promise<TRecord | null> =>
       withTenant(tenantId, async (client) => {
+        const set = typeof updateSet === 'string' ? updateSet : updateSet(input);
+        if (!set) return get(tenantId, id);
         const { rows } = await client.query(
-          `UPDATE ${table} SET ${updateSet} WHERE id = $1 RETURNING ${selectCols}`,
+          `UPDATE ${table} SET ${set} WHERE id = $1 RETURNING ${selectCols}`,
           [id, ...toUpdate(id, input)],
         );
         return rows.length > 0 ? mapRow(rows[0]) : null;
