@@ -1,11 +1,7 @@
-/**
- * dev 系列脚本共享工具（dev.mjs / dev-supervisor.mjs）
- */
 import { existsSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 
-/** 项目根目录 */
 export const PROJECT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 export const isWin = process.platform === 'win32';

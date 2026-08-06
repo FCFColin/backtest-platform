@@ -1,13 +1,4 @@
 #!/usr/bin/env node
-/**
- * verify-i18n.mjs — i18n 双语同步验证脚本 (P0-0-2)
- *
- * 检查 zh-CN / en 两个语言目录（各命名空间 JSON 合并）之间 key 是否对齐，
- * 以及前端源代码中使用的 t('xxx') key 是否全部已定义。
- *
- * 用法：node scripts/verify-i18n.mjs
- * 退出码：0=PASS，1=FAIL
- */
 import { readFileSync, readdirSync, statSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';

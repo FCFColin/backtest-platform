@@ -10,12 +10,6 @@ const OUTPUT_DIR = join(PROJECT_ROOT, 'docs', 'audit', 'verify');
 mkdirSync(OUTPUT_DIR, { recursive: true });
 mkdirSync(join(OUTPUT_DIR, 'screenshots'), { recursive: true });
 
-/**
- * 写入单个 issue 的验证结果到 docs/audit/verify/{issueId}-reverify.json
- * @param {string} issueId - 问题 ID（如 C-001）
- * @param {{status: 'PASS'|'FAIL'|'SKIP'|'NEEDS_MANUAL_REVIEW', summary: string, details?: object, error?: string}} result
- * @returns {boolean} 是否 PASS
- */
 export function writeResult(issueId, result) {
   const timestamp = new Date().toISOString();
   const output = { issueId, timestamp, ...result };
@@ -26,11 +20,6 @@ export function writeResult(issueId, result) {
   return result.status === 'PASS';
 }
 
-/**
- * 写入合并的多 issue 结果（一份 JSON 包含多个子项）
- * @param {string} aggregateId - 聚合 ID（如 C-004-006-019）
- * @param {Record<string, {status: string, summary: string, details?: object}>} results
- */
 export function writeAggregatedResult(aggregateId, results) {
   const timestamp = new Date().toISOString();
   const allPass = Object.values(results).every((r) => r.status === 'PASS');
@@ -47,10 +36,6 @@ export function writeAggregatedResult(aggregateId, results) {
   return allPass;
 }
 
-/**
- * 获取 PG 客户端（基于 DATABASE_URL 或 APP_DATABASE_URL）
- * @param {{useAppRole?: boolean}} [opts] - useAppRole=true 用 backtest_app 角色
- */
 export async function withDb(fn, opts = {}) {
   const { default: pg } = await import('pg');
   const url = opts.useAppRole
@@ -79,13 +64,6 @@ export function readFileContent(relativePath) {
   return readFileSync(join(PROJECT_ROOT, relativePath), 'utf-8');
 }
 
-/**
- * 跨平台 grep：扫描指定目录下文件内容，返回匹配行
- * @param {RegExp} pattern - 正则
- * @param {string} relativeDir - 相对项目根的目录
- * @param {{extensions?: string[], ignoreDirs?: string[], maxResults?: number}} [opts]
- * @returns {{file: string, line: number, text: string}[]}
- */
 export function grepInCode(pattern, relativeDir, opts = {}) {
   const extensions = opts.extensions ?? [
     '.ts',
@@ -155,7 +133,6 @@ export function grepInCode(pattern, relativeDir, opts = {}) {
   return results;
 }
 
-/** 执行 shell 命令（跨平台，返回 stdout/exit code）。 */
 export function runCmd(cmd, opts = {}) {
   try {
     const out = execSync(cmd, {
@@ -175,12 +152,6 @@ export function runCmd(cmd, opts = {}) {
   }
 }
 
-/**
- * 执行单个验证项：统一 try/catch 包装，异常时记为 FAIL
- * @param {Record<string, object>} results - 聚合结果容器
- * @param {string} issueId - 验证项 ID（如 C-002）
- * @param {() => (object | Promise<object>)} fn - 验证逻辑，返回 {status, summary, details}
- */
 export async function runCheck(results, issueId, fn) {
   try {
     results[issueId] = await fn();
@@ -193,11 +164,6 @@ export async function runCheck(results, issueId, fn) {
   }
 }
 
-/**
- * 输出聚合结果并以 0 退出（verify 脚本统一收尾）
- * @param {string} aggregateId - 聚合 ID（如 verify-backend）
- * @param {Record<string, object>} results - 子项结果
- */
 export function finishVerify(aggregateId, results) {
   writeAggregatedResult(aggregateId, results);
   process.exit(0);

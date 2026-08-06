@@ -1,15 +1,4 @@
 #!/usr/bin/env node
-/**
- * audit-page-dom.mjs — DOM 健康度检查脚本 (P0-0-4)
- *
- * 使用 Playwright 打开 20+ 页面，对每个页面执行标准化健康度检查：
- * H1 数量、i18n key 泄露、NaN 文本、大片空白、Card 双层嵌套。
- * 每个页面截图存到 docs/audit/screenshots/。
- *
- * 用法：node scripts/audit-page-dom.mjs
- * 退出码：0=所有页面成功访问，1=有页面出错
- * 环境变量：BASE_URL（默认 http://localhost:15173）
- */
 import { chromium } from '@playwright/test';
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';

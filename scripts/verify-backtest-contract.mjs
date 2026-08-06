@@ -1,23 +1,4 @@
 #!/usr/bin/env node
-/**
- * verify-backtest-contract.mjs — 后端回测数据契约验证脚本 (P0-0-3)
- *
- * 调用 /api/v1/backtest/portfolio，用 VTI 60% + BND 40% 从 2010-01-01 到 2024-12-31 的经典组合，
- * 验证返回值在合理范围（CAGR/maxDrawdown/volatility 为小数比率，drawdownEpisodes 字段完整）。
- *
- * 单位约定（与 engine-go/internal/engine/types.go UNIT 注释一致）：
- *   - CAGR / volatility / avgDrawdown / mwrr：小数比率（0.05 = 5%）
- *   - maxDrawdown：小数比率，可为负值（-0.2278）或正值幅度（0.2278），脚本两种都接受
- *   - depth（DrawdownEpisode）：正值幅度（0.2278 = 22.78% 回撤深度）
- *   - timeToTrough / totalTimeDurationDays：天数（int）
- *
- * 首屏 sync 响应通过 compressBacktestResult 压缩 drawdownEpisodes 等大字段以提升性能，
- * 本脚本在缺失时通过 POST /api/v1/backtest/portfolio/series 补全。
- *
- * 用法：node scripts/verify-backtest-contract.mjs
- * 退出码：0=PASS，1=FAIL
- * 环境变量：API_URL（默认 http://localhost:15001）
- */
 const API = process.env.API_URL ?? 'http://localhost:15001';
 
 const body = {

@@ -1,18 +1,3 @@
-/**
- * dev-supervisor.mjs
- *
- * 后台 supervisor：守护 API + Worker 进程，崩溃自动重启，graceful shutdown。
- * 由 schtasks 创建的计划任务调用，完全脱离终端。
- *
- * 架构：schtasks → node dev-supervisor.mjs → spawn API + Worker（windowsHide:true）
- *
- * 功能：
- * - 读 .env 加载环境变量
- * - spawn API + Worker（windowsHide:true, detached:true）→ 零控制台窗口
- * - 进程崩溃自动重启（指数退避，最大 30s）
- * - SIGINT/SIGTERM → 优雅关闭所有子进程
- * - PID 文件 → .dev-logs/dev-bg-pids.json（供 dev-stop 使用）
- */
 
 import { spawn } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync, unlinkSync, mkdirSync } from 'node:fs';
