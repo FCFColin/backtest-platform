@@ -13,7 +13,3 @@ docs
 .husky
 k8s
 scripts
-# 企业理由（ADR-008）：engine-rs 和 api/python 已弃用，
-# 排除以减少 Docker 构建上下文大小，加速构建。
-engine-rs
-api/python

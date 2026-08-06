@@ -1,7 +1,3 @@
-# Enterprise Rationale: A shared .editorconfig eliminates editor-specific
-# formatting inconsistencies across a polyglot codebase (TypeScript, Go, Rust,
-# Python), reducing diff noise and preventing "format wars" in code review.
-
 root = true
 
 [*]
@@ -16,14 +12,6 @@ indent_size = 2
 
 [*.go]
 indent_style = tab
-
-[*.{rs,toml}]
-indent_style = space
-indent_size = 4
-
-[*.py]
-indent_style = space
-indent_size = 4
 
 [*.{md,yml,yaml,json}]
 indent_style = space
