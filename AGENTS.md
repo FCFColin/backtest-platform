@@ -1,5 +1,9 @@
 # Agent Guide — 回测平台 (Backtest Platform)
 
+## 决策原则（MUST）
+
+- **遵循一般大型企业级 SaaS 实践**：可复现构建（lockfile 提交）、供应链安全、可审计、最小惊讶。本地权宜与行业标准冲突时，按行业标准做。
+
 ## 缩减原则（MUST — 所有智能体必须遵守，放在最前面强调）
 
 ### 行数 MANDATE
@@ -107,7 +111,7 @@
 
 - Vitest（unit/integration/contract/chaos/property）+ Playwright E2E；测试文件在顶层 `tests/` 按目录分型（见 scripts）
 - 命令：`pnpm test:unit` / `test:integration` / `test:contract` / `test:chaos` / `test:property` / `test:e2e:ui` / `test:docker`
-- 覆盖率：行/函数/语句 ≥80%、分支 ≥70%（以 `scripts/check-coverage.mjs` 为权威源）
+- 覆盖率：行/函数/语句/分支 ≥80%（以 `scripts/check-coverage.mjs` 为权威源）
 
 ### Git
 

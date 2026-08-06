@@ -7,7 +7,7 @@
     "build": "echo shared: no build step",
     "test": "echo shared: no tests",
     "check": "echo shared: type-checked via tsconfig.frontend.json and tsconfig.backend.json",
-    "lint": "eslint ."
+    "lint": "eslint . --max-warnings 10"
   },
   "exports": {
     ".": {

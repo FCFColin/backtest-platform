@@ -1,4 +1,4 @@
-# k6 负载测试性能基线 (BASELINE)
+﻿# k6 负载测试性能基线 (BASELINE)
 
 > P2-06 — 回测平台 k6 负载测试基线文档。
 > 本文件定义各场景的预期延迟分位数（P50/P95/P99）、SLA 目标、运行方式与回归判定规则。
@@ -56,7 +56,7 @@ POST `/api/v1/optimizer/portfolio` — 异步入队路径（202 Accepted）。
 **关注点**：入队延迟不含实际优化计算（异步 worker 执行）。P99 上升通常因
 `backtestOptimizerSchema` 校验开销或 BullMQ 连接竞争。
 
-### 2.4 Express 元数据端点 (`express-meta.js`)
+### 2.4 Express 元数据端点
 
 GET `/api/v1/announcements` + `/api/v1/data/meta` — 缓存热读路径。
 

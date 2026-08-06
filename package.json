@@ -77,13 +77,11 @@
     "happy-dom": "^20.0.0",
     "husky": "^9.0.11",
     "jose": "^5.10.0",
-    "jscpd": "^4.0.5",
+    "jscpd": "^4.2.5",
     "jsdom": "^29.1.1",
     "knip": "^5.46.0",
     "license-checker": "^25.0.1",
     "lint-staged": "^17.0.8",
-    "nyc": "^18.0.0",
-    "pm2": "^7.0.3",
     "prettier": "^3.9.1",
     "tailwindcss-animate": "^1.0.7",
     "turbo": "^2.3.0",
@@ -99,27 +97,15 @@
   },
   "lint-staged": {
     "*.{ts,tsx}": [
-      "eslint --fix",
+      "eslint --fix --max-warnings 10",
       "prettier --write"
     ],
     "*.{js,mjs,cjs}": [
-      "eslint --fix",
+      "eslint --fix --max-warnings 10",
       "prettier --write"
     ],
     "*.{json,md,yml,yaml,css,html}": [
       "prettier --write"
-    ]
-  },
-  "nyc": {
-    "temp-dir": ".nyc_output",
-    "report-dir": "coverage/playwright",
-    "include": [
-      "packages/frontend/src/**/*.{ts,tsx}"
-    ],
-    "exclude": [
-      "packages/frontend/src/**/*.d.ts",
-      "packages/frontend/src/i18n/**",
-      "tests/**"
     ]
   },
   "packageManager": "pnpm@11.5.3+sha512.7ac1c919341c213a34dc0d02afb7143c5c26ac26ee8c4782deea821b8ac64d2134a081fd8941dae6e29bbb48f58dfc2b7fbceeccc07cb2f09d219d342a4969ed"

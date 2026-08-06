@@ -11,10 +11,9 @@ node_modules/
 data/
 .cache/
 
-# Go / Rust engine directories (non-JS code)
+# Go engine directories (non-JS code)
 data-fetcher/
 engine-go/
-engine-rs/
 
 # Playwright
 playwright-report/
@@ -43,8 +42,9 @@ simple-check.txt
 
 # Knip deadcode analysis artifacts (tool-generated baselines and config)
 knip*.json
+jscpd_out/
+scc_temp*.json
 
-# Machine-consumed contract/data (compact form, not human-formatted)
-docs/openapi.yaml
+# Machine-consumed data (compact form, not human-formatted)
 docker/grafana/dashboards/backtest-platform.json
 

@@ -143,6 +143,13 @@ await runCheck(results, 'C-014', () => {
       summary: `go test 失败 (exit ${testR.code})`,
       details: { outputTail: (testR.out + testR.err).slice(-2000) },
     };
+  const dfR = runCmd('cd data-fetcher && go test ./...', { timeout: 300000 });
+  if (dfR.code !== 0)
+    return {
+      status: 'FAIL',
+      summary: `data-fetcher go test 失败 (exit ${dfR.code})`,
+      details: { outputTail: (dfR.out + dfR.err).slice(-2000) },
+    };
   const coverR = runCmd('cd engine-go && go tool cover -func=coverage.out');
   if (coverR.code !== 0 || !coverR.out.trim())
     return { status: 'FAIL', summary: `go tool cover 失败` };

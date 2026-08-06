@@ -42,7 +42,7 @@ export default tseslint.config(
     files: ['tests/**/*.ts'],
     languageOptions: { globals: { ...globals.node, ...globals.browser } },
   },
-  // 圈复杂度门控（仅 backend：React 组件天然长分支，前端改由 sonarjs 缺省规则约束）
+  // 圈复杂度门控仅用于 backend：React 组件天然长分支，前端豁免
   {
     files: ['packages/backend/src/**/*.ts'],
     plugins: { sonarjs },

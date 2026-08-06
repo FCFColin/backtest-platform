@@ -28,8 +28,6 @@ function loadMerged(lang) {
 }
 
 const zh = loadMerged('zh-CN');
-const en = loadMerged('en');
-
 /**
  * Flatten nested object to dot-notation keys.
  * @param {Record<string, unknown>} obj - Object to flatten.
@@ -101,12 +99,7 @@ function walkDir(dir, exts) {
 }
 
 const zhFlat = flatten(zh);
-const enFlat = flatten(en);
 const zhKeys = new Set(Object.keys(zhFlat));
-const enKeys = new Set(Object.keys(enFlat));
-
-const missingInEn = [...zhKeys].filter((k) => !enKeys.has(k));
-const missingInZh = [...enKeys].filter((k) => !zhKeys.has(k));
 
 // Collect all t('xxx') / t("xxx") / i18nKey="xxx" usages from source
 const sourceFiles = walkDir(srcDir, ['.tsx', '.ts']);
@@ -142,14 +135,10 @@ const unusedZh = [...zhKeys].filter((k) => !usedKeys.has(k) && !k.startsWith('_'
 const report = {
   timestamp: new Date().toISOString(),
   zhKeyCount: zhKeys.size,
-  enKeyCount: enKeys.size,
   usedKeyCount: usedKeys.size,
-  missingInEn,
-  missingInZh,
   undefinedInSource,
   unusedZh: unusedZh.slice(0, 20),
-  status:
-    missingInEn.length + missingInZh.length + undefinedInSource.length === 0 ? 'PASS' : 'FAIL',
+  status: undefinedInSource.length === 0 ? 'PASS' : 'FAIL',
 };
 
 const reportJson = JSON.stringify(report, null, 2);

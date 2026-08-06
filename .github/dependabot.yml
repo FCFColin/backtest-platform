@@ -1,6 +1,6 @@
 # 企业理由：依赖漏洞持续披露，无自动化更新机制意味着版本固化。
 # Dependabot 自动检测依赖更新并创建 PR，团队 review 后合并即可。
-# 多生态配置确保 npm/Go/Cargo/Docker 四个依赖源都有自动更新。
+# 多生态配置确保 npm/Go/Docker 三个依赖源都有自动更新。
 # 权衡：PR 噪音（每周可能产生多个更新 PR）vs 安全自动化。
 # 可通过 commit-message prefix 和 label 过滤管理噪音。
 version: 2

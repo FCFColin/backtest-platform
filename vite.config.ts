@@ -351,8 +351,7 @@ export default defineConfig(async ({ command }) => {
               ],
               'icon-vendor': ['lucide-react'],
               'i18n-vendor': ['i18next', 'i18next-browser-languagedetector', 'react-i18next'],
-              'form-vendor': ['react-hook-form', '@hookform'],
-              'util-vendor': ['zod', 'web-vitals', '@tanstack'],
+              'util-vendor': ['zod', 'web-vitals'],
             };
             for (const [chunk, pkgs] of Object.entries(CHUNKS))
               if (pkgs.some((p) => pkg.startsWith(p))) return chunk;

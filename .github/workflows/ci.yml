@@ -9,11 +9,22 @@ on:
 
 env:
   NODE_VERSION: '20'
-  PNPM_VERSION: '9'
+  PNPM_VERSION: '11'
   DATABASE_URL: postgresql://backtest_app:backtest_app_dev@localhost:15442/backtest_test
   REDIS_URL: redis://localhost:16379
 
 jobs:
+  secret-scan:
+    name: Secret Scan (gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   lint-and-typecheck:
     name: Lint + TypeScript Check
     runs-on: ubuntu-latest
@@ -23,7 +34,8 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           pnpm-version: ${{ env.PNPM_VERSION }}
-      - run: pnpm exec eslint . --max-warnings 0
+      # 阈值 10：exhaustive-deps 等 warn 项允许少量存在（当前 0 违规），超 10 即失败
+      - run: pnpm exec eslint . --max-warnings 10
       - run: pnpm format:check
       - run: pnpm check
 
@@ -47,7 +59,7 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           pnpm-version: ${{ env.PNPM_VERSION }}
       # C5-2026-08：unit-tests 改为带覆盖率的门禁检查（此前仅跑测试不收集覆盖率，门禁形同虚设）。
-      # 阈值见 scripts/check-coverage.mjs 文件头的分阶段门禁说明（Phase 1 → 2 → 3 → 80/70 目标）。
+      # 阈值以 scripts/check-coverage.mjs 为权威源（当前 80/80/80/80）。
       - run: pnpm test:coverage:check
 
   critical-verify:

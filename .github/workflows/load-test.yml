@@ -73,17 +73,6 @@ jobs:
           BASE_URL: http://localhost:8001
           API_KEY: ${{ secrets.K6_API_KEY }}
 
-      # 回归判定：将本次 P95/P99 与 BASELINE.md 实测基线对比，
-      # 任一场景超出基线 20% 时输出告警（不阻断流水线）。
-      - name: Compare against baseline (>20% regression alert)
-        if: always()
-        run: |
-          echo "::group::k6 baseline comparison"
-          echo "Baseline values are defined in tests/load/BASELINE.md (section 2)."
-          echo "Compare the P95/P99 printed above against the recorded baseline."
-          echo "Regression threshold: 20%."
-          echo "::endgroup::"
-
       - name: Upload k6 results
         if: always()
         uses: actions/upload-artifact@v4

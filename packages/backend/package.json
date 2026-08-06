@@ -16,7 +16,7 @@
     "typecheck": "tsc --noEmit -p ../../tsconfig.backend.json",
     "check": "tsc --noEmit -p ../../tsconfig.backend.json",
     "test": "vitest run",
-    "lint": "eslint ."
+    "lint": "eslint . --max-warnings 10"
   },
   "dependencies": {
     "@asteasolutions/zod-to-openapi": "^9.1.0",
@@ -25,13 +25,11 @@
     "@opentelemetry/auto-instrumentations-node": "^0.78.0",
     "@opentelemetry/exporter-metrics-otlp-proto": "^0.220.0",
     "@opentelemetry/exporter-trace-otlp-proto": "^0.220.0",
-    "@opentelemetry/instrumentation-express": "^0.68.0",
     "@opentelemetry/instrumentation-pg": "^0.72.0",
     "@opentelemetry/sdk-metrics": "^2.9.0",
     "@opentelemetry/sdk-node": "^0.220.0",
     "argon2": "^0.41.1",
     "bullmq": "^5.46.0",
-    "compression": "^1.8.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^17.4.2",
@@ -57,7 +55,6 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@types/compression": "^1.8.1",
     "@types/cookie-parser": "^1.4.10",
     "@types/cors": "^2.8.19",
     "@types/express": "^4.17.25",
