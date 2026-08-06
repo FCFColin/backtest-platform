@@ -1,13 +1,13 @@
 import { describe, it, expect, vi } from 'vitest';
-import { startExpressApp, reqJson } from '../../helpers/expressApp.js';
+import { startExpressApp, reqJson, useTestServer } from '../../helpers/expressApp.js';
 import { withServer } from '../../helpers/serverLifecycle.js';
-import { createConfigMocks } from '../../helpers/mockFactories.js';
+import { mockBacktestQueue, mockConfigModule } from '../../helpers/mockFactories.js';
 import { loggerMocks } from '../../helpers/loggerFixture.js';
+import { engineModuleMock, engineMocks } from '../../helpers/engineFixture.js';
 import { EngineUnavailableErrorStub } from '../../helpers/backtestRoutesFixtures.js';
 import { createMockPriceData, mockPortfolioResult } from '../../helpers/storeFixtures.js';
 
 const dataServiceMocks = vi.hoisted(() => ({ fetchHistoryData: vi.fn() }));
-const engineMocks = vi.hoisted(() => ({ callEngineStrict: vi.fn() }));
 const queueMocks = vi.hoisted(() => ({ add: vi.fn() }));
 vi.hoisted(() => {
   process.env.SYNC_COMPUTE_TIMEOUT_MS = '500';
@@ -16,19 +16,13 @@ vi.hoisted(() => {
 vi.mock('../../../packages/backend/src/infrastructure/dataFacade.js', () => ({
   fetchHistoryData: dataServiceMocks.fetchHistoryData,
 }));
-vi.mock('../../../packages/backend/src/queues/backtestQueue.js', () => ({
-  backtestQueue: { add: queueMocks.add },
-}));
-vi.mock('../../../packages/backend/src/utils/engineClient.js', () => ({
-  callEngineStrict: engineMocks.callEngineStrict,
-  EngineUnavailableError: EngineUnavailableErrorStub,
-  unwrapEngineData: <T>(r: unknown): T => ((r as { data?: T })?.data ?? r) as T,
-}));
-vi.mock('../../../packages/backend/src/config/index.js', () => ({
-  config: createConfigMocks({ NODE_ENV: 'test', SYNC_COMPUTE_TIMEOUT_MS: 500 }),
-  validateConfig: vi.fn(),
-  USAGE_METRIC: { BACKTEST: 'backtest' },
-}));
+vi.mock('../../../packages/backend/src/queues/backtestQueue.js', () =>
+  mockBacktestQueue(queueMocks.add),
+);
+vi.mock('../../../packages/backend/src/utils/engineClient.js', () => engineModuleMock);
+vi.mock('../../../packages/backend/src/config/index.js', () =>
+  mockConfigModule({ NODE_ENV: 'test', SYNC_COMPUTE_TIMEOUT_MS: 500 }),
+);
 import '../../helpers/middlewareMocks.js';
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
   logger: loggerMocks,
@@ -59,6 +53,13 @@ const mockOptimizeResult = {
   optimalPath: [],
   requiredContribution: 20000,
 };
+const signalHistory = [
+  {
+    date: '2020-01-01',
+    activeSignals: ['sig-1'],
+    weights: [{ ticker: 'SPY', weight: 100 }],
+  },
+];
 
 const post = (server: TestServer, path: string, body: unknown) =>
   reqJson(`${server.url}${path}`, 'POST', body);
@@ -409,13 +410,7 @@ describe('tacticalRoutes - POST /api/tactical/backtest', () => {
     engineMocks.callEngineStrict
       .mockResolvedValueOnce({
         portfolio: createMockPortfolioResult(),
-        signalHistory: [
-          {
-            date: '2020-01-01',
-            activeSignals: ['sig-1'],
-            weights: [{ ticker: 'SPY', weight: 100 }],
-          },
-        ],
+        signalHistory,
       })
       .mockResolvedValueOnce({ portfolios: [createMockPortfolioResult()] });
     return startExpressApp((app) => app.use('/api/v1', analysisRoutes));
@@ -462,13 +457,7 @@ describe('tacticalRoutes - POST /api/tactical/backtest', () => {
       .mockReset()
       .mockResolvedValueOnce({
         portfolio: createMockPortfolioResult(),
-        signalHistory: [
-          {
-            date: '2020-01-01',
-            activeSignals: ['sig-1'],
-            weights: [{ ticker: 'SPY', weight: 100 }],
-          },
-        ],
+        signalHistory,
       })
       .mockRejectedValueOnce(new Error('benchmark error'));
     const { res, body } = await post(getServer(), '/api/v1/tactical/backtest', validBacktestReq());
@@ -631,20 +620,15 @@ describe('tacticalGridRoutes - POST /api/tactical-grid/search', () => {
 });
 
 describe('认证用户请求', () => {
-  const getServer = withServer(() => {
-    vi.clearAllMocks();
-    queueMocks.add.mockResolvedValue({ id: 'grid-job-auth-789' });
-    return startExpressApp((app) => {
-      app.use((req, _res, next) => {
-        (req as Record<string, unknown>).user = { sub: 'user-123', role: 'admin' };
-        (req as Record<string, unknown>).tenantId = 'tenant-456';
-        next();
-      });
-      app.use('/api/v1', jobRoutes);
-    });
+  const server = useTestServer('/api/v1', jobRoutes, {
+    clearMocks: true,
+    auth: { user: { sub: 'user-123', role: 'admin' }, tenantId: 'tenant-456' },
+    configure: () => {
+      queueMocks.add.mockResolvedValue({ id: 'grid-job-auth-789' });
+    },
   });
   it('应设置 ownerUserId 为实际用户 ID', async () => {
-    await post(getServer(), '/api/v1/tactical-grid/search', createValidGridRequest());
+    await server.post('/tactical-grid/search', createValidGridRequest());
     expect(queueMocks.add).toHaveBeenCalledWith(
       'grid-search',
       expect.objectContaining({

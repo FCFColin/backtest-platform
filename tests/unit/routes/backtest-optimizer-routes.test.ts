@@ -1,29 +1,27 @@
 import { describe, it, expect, vi } from 'vitest';
-import { startExpressApp } from '../../helpers/expressApp.js';
-import { withServer } from '../../helpers/serverLifecycle.js';
+import { useTestServer } from '../../helpers/expressApp.js';
 import { loggerMocks } from '../../helpers/loggerFixture.js';
+import { mockConfigModule, mockBacktestQueue } from '../../helpers/mockFactories.js';
 
 const queueMocks = vi.hoisted(() => ({
   add: vi.fn(),
 }));
-vi.mock('../../../packages/backend/src/queues/backtestQueue.js', () => ({
-  backtestQueue: {
-    add: queueMocks.add,
-  },
-}));
+vi.mock('../../../packages/backend/src/queues/backtestQueue.js', () =>
+  mockBacktestQueue(queueMocks.add),
+);
 
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
   logger: loggerMocks,
 }));
 
-vi.mock('../../../packages/backend/src/config/index.js', () => ({
-  config: { SYNC_COMPUTE_TIMEOUT_MS: 500 },
-  validateConfig: vi.fn(),
-  USAGE_METRIC: { BACKTEST: 'backtest' },
-}));
+vi.mock('../../../packages/backend/src/config/index.js', () =>
+  mockConfigModule({ SYNC_COMPUTE_TIMEOUT_MS: 500 }),
+);
 
 import '../../helpers/middlewareMocks.js';
 import { jobRoutes } from '../../../packages/backend/src/routes/jobRoutes.js';
+
+const OPTIMIZE_PATH = '/backtest-optimizer/optimize';
 
 function createValidRequest() {
   return {
@@ -43,20 +41,39 @@ function createValidRequest() {
   };
 }
 
+const invalidRequests: Array<[string, (r: Record<string, unknown>) => void]> = [
+  ['缺少 portfolio', (r) => delete r.portfolio],
+  [
+    '空 assets 数组',
+    (r) => {
+      (r.portfolio as { assets: unknown[] }).assets = [];
+    },
+  ],
+  [
+    '空 rebalanceFrequencies',
+    (r) => {
+      (r.parameterSpace as { rebalanceFrequencies: unknown[] }).rebalanceFrequencies = [];
+    },
+  ],
+  ['缺少 startDate', (r) => delete (r.parameters as Record<string, unknown>).startDate],
+  [
+    '无效 objective',
+    (r) => {
+      r.objective = 'invalid';
+    },
+  ],
+];
+
 describe('backtestOptimizerRoutes - POST /api/backtest-optimizer/optimize', () => {
-  const getServer = withServer(() => {
-    vi.clearAllMocks();
-    queueMocks.add.mockResolvedValue({ id: 'opt-job-456' });
-    return startExpressApp((app) => app.use('/api/v1', jobRoutes));
+  const server = useTestServer('/api/v1', jobRoutes, {
+    clearMocks: true,
+    configure: () => {
+      queueMocks.add.mockResolvedValue({ id: 'opt-job-456' });
+    },
   });
 
   it('异步提交成功时应返回 202 和标准成功形状 {success, data:{jobId, statusUrl}}', async () => {
-    const res = await fetch(`${getServer().url}/api/v1/backtest-optimizer/optimize`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(createValidRequest()),
-    });
-    const body = await res.json();
+    const { res, body } = await server.post(OPTIMIZE_PATH, createValidRequest());
 
     expect(res.status).toBe(202);
     expect(body.success).toBe(true);
@@ -68,12 +85,7 @@ describe('backtestOptimizerRoutes - POST /api/backtest-optimizer/optimize', () =
   it('BullMQ 不可用时应 fail-closed 返回 503 + Retry-After（ADR-031）', async () => {
     queueMocks.add.mockRejectedValue(new Error('Redis unavailable'));
 
-    const res = await fetch(`${getServer().url}/api/v1/backtest-optimizer/optimize`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(createValidRequest()),
-    });
-    const body = await res.json();
+    const { res, body } = await server.post(OPTIMIZE_PATH, createValidRequest());
 
     expect(res.status).toBe(503);
     expect(res.headers.get('retry-after')).toBe('60');
@@ -83,93 +95,28 @@ describe('backtestOptimizerRoutes - POST /api/backtest-optimizer/optimize', () =
     expect(body.data).toBeUndefined();
   });
 
-  it('缺少 portfolio 应返回 400（zod 校验失败）', async () => {
-    const req = createValidRequest();
-    delete (req as Record<string, unknown>).portfolio;
+  it.each(invalidRequests)('%s 应返回 400（zod 校验失败）', async (_name, mutate) => {
+    const req = createValidRequest() as unknown as Record<string, unknown>;
+    mutate(req);
 
-    const res = await fetch(`${getServer().url}/api/v1/backtest-optimizer/optimize`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(req),
-    });
+    const { res } = await server.post(OPTIMIZE_PATH, req);
 
     expect(res.status).toBe(400);
     expect(queueMocks.add).not.toHaveBeenCalled();
   });
-
-  it('空 assets 数组应返回 400（zod 校验失败）', async () => {
-    const req = createValidRequest();
-    req.portfolio.assets = [];
-
-    const res = await fetch(`${getServer().url}/api/v1/backtest-optimizer/optimize`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(req),
-    });
-
-    expect(res.status).toBe(400);
-  });
-
-  it('空 rebalanceFrequencies 应返回 400（zod 校验失败）', async () => {
-    const req = createValidRequest();
-    req.parameterSpace.rebalanceFrequencies = [];
-
-    const res = await fetch(`${getServer().url}/api/v1/backtest-optimizer/optimize`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(req),
-    });
-
-    expect(res.status).toBe(400);
-  });
-
-  it('缺少 startDate 应返回 400（zod 校验失败）', async () => {
-    const req = createValidRequest();
-    delete (req as Record<string, unknown>).parameters.startDate;
-
-    const res = await fetch(`${getServer().url}/api/v1/backtest-optimizer/optimize`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(req),
-    });
-
-    expect(res.status).toBe(400);
-  });
-
-  it('无效 objective 应返回 400（zod 校验失败）', async () => {
-    const req = createValidRequest();
-    (req as Record<string, unknown>).objective = 'invalid';
-
-    const res = await fetch(`${getServer().url}/api/v1/backtest-optimizer/optimize`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(req),
-    });
-
-    expect(res.status).toBe(400);
-  });
 });
 
 describe('认证用户请求', () => {
-  const getServer = withServer(() => {
-    vi.clearAllMocks();
-    queueMocks.add.mockResolvedValue({ id: 'opt-job-auth-789' });
-    return startExpressApp((app) => {
-      app.use((req, _res, next) => {
-        (req as Record<string, unknown>).user = { sub: 'user-123', role: 'admin' };
-        (req as Record<string, unknown>).tenantId = 'tenant-456';
-        next();
-      });
-      app.use('/api/v1', jobRoutes);
-    });
+  const server = useTestServer('/api/v1', jobRoutes, {
+    clearMocks: true,
+    auth: { user: { sub: 'user-123', role: 'admin' }, tenantId: 'tenant-456' },
+    configure: () => {
+      queueMocks.add.mockResolvedValue({ id: 'opt-job-auth-789' });
+    },
   });
 
   it('应设置 ownerUserId 为实际用户 ID', async () => {
-    await fetch(`${getServer().url}/api/v1/backtest-optimizer/optimize`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(createValidRequest()),
-    });
+    await server.post(OPTIMIZE_PATH, createValidRequest());
 
     expect(queueMocks.add).toHaveBeenCalledWith(
       'optimizer',

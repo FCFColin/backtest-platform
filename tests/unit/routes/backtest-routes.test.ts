@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { startExpressApp, type TestRequest, postJson } from '../../helpers/expressApp.js';
+import { startExpressApp, type TestRequest, postJson, reqJson } from '../../helpers/expressApp.js';
 import { withServer } from '../../helpers/serverLifecycle.js';
 import { m, loggerMocks, queueMocks } from './backtestRoutes.shared.js';
 import backtestRoutes from '../../../packages/backend/src/routes/backtestRoutes.js';
@@ -20,10 +20,13 @@ import {
 import { mockBacktestResult } from '../../helpers/storeFixtures.js';
 
 const get = (url: string, headers?: Record<string, string>) =>
-  fetch(url, { headers }).then(async (res) => ({
-    res,
-    json: await res.json().catch(() => null),
-  }));
+  reqJson(url, 'GET', undefined, headers).then(({ res, body }) => ({ res, json: body }));
+
+const portfolioJobServer = () => {
+  queueMocks.add.mockReset();
+  queueMocks.getJob.mockReset();
+  return setupPortfolioServer(backtestRoutes, m);
+};
 interface EngineCase {
   name: string;
   path: string;
@@ -367,11 +370,7 @@ describe.each([
 });
 
 describe('backtestRoutes - POST /api/backtest/portfolio', () => {
-  const getServer = withServer(() => {
-    queueMocks.add.mockReset();
-    queueMocks.getJob.mockReset();
-    return setupPortfolioServer(backtestRoutes, m);
-  });
+  const getServer = withServer(portfolioJobServer);
   it('有效参数应入队并返回 202（响应不含 portfolios 数据）', async () => {
     queueMocks.add.mockResolvedValue({ id: 'job-test-001' });
     const { res, json } = await postJson(
@@ -517,11 +516,7 @@ function createMockJob(overrides: Record<string, unknown> = {}) {
 }
 
 describe('backtestRoutes - GET /api/backtest/runs/:jobId — 状态查询', () => {
-  const getServer = withServer(() => {
-    queueMocks.add.mockReset();
-    queueMocks.getJob.mockReset();
-    return setupPortfolioServer(backtestRoutes, m);
-  });
+  const getServer = withServer(portfolioJobServer);
   const completedResult = {
     data: { portfolios: [{ name: 'Test', growthCurve: [] }] },
     warnings: [],

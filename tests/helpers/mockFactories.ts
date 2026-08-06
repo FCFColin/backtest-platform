@@ -47,6 +47,21 @@ export function createConfigMocks(
   return { ...CONFIG_DEFAULTS, ...overrides };
 }
 
+export function mockConfigModule(overrides: Record<string, unknown> = {}) {
+  return {
+    config: createConfigMocks(overrides),
+    validateConfig: vi.fn(),
+    USAGE_METRIC: { BACKTEST: 'backtest' },
+  };
+}
+
+export function mockBacktestQueue(
+  add: ReturnType<typeof vi.fn>,
+  getJob?: ReturnType<typeof vi.fn>,
+) {
+  return { backtestQueue: { add, ...(getJob ? { getJob } : {}) } };
+}
+
 export function createMetricsMocks() {
   return {
     registerSemaphoreMetrics: vi.fn(),

@@ -1,5 +1,5 @@
 import { vi } from 'vitest';
-import { createConfigMocks } from '../../helpers/mockFactories.js';
+import { mockBacktestQueue, mockConfigModule } from '../../helpers/mockFactories.js';
 import { loggerMocks } from '../../helpers/middlewareMocks.js';
 import {
   configureAnalysisMocks,
@@ -102,14 +102,10 @@ vi.mock(
     return { ...actual, buildEngineParams: internalMocks.m.buildEngineParams };
   },
 );
-vi.mock('../../../packages/backend/src/queues/backtestQueue.js', () => ({
-  backtestQueue: { add: internalMocks.queue.add, getJob: internalMocks.queue.getJob },
-}));
-vi.mock('../../../packages/backend/src/config/index.js', () => ({
-  config: createConfigMocks(),
-  validateConfig: vi.fn(),
-  USAGE_METRIC: { BACKTEST: 'backtest' },
-}));
+vi.mock('../../../packages/backend/src/queues/backtestQueue.js', () =>
+  mockBacktestQueue(internalMocks.queue.add, internalMocks.queue.getJob),
+);
+vi.mock('../../../packages/backend/src/config/index.js', () => mockConfigModule());
 vi.mock('fs', () => ({
   default: internalMocks.fs,
   existsSync: internalMocks.fs.existsSync,
@@ -124,5 +120,4 @@ configureTickerHelpersMocks(internalMocks.m);
 
 export const m = internalMocks.m;
 export { loggerMocks } from '../../helpers/middlewareMocks.js';
-export const fsMocks = internalMocks.fs;
 export const queueMocks = internalMocks.queue;
