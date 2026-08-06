@@ -6,84 +6,38 @@ import (
 	"testing"
 )
 
-func TestFilterPricePointsByDate_Empty(t *testing.T) {
-	result := filterPricePointsByDate(nil, "2024-01-01", "2024-12-31")
-	if len(result) != 0 {
-		t.Errorf("expected 0 results for nil input, got %d", len(result))
+func TestFilterPricePointsByDate(t *testing.T) {
+	cases := []struct {
+		name      string
+		prices    []PricePoint
+		start     string
+		end       string
+		wantLen   int
+		wantFirst string
+		wantLast  string
+	}{
+		{"nil input", nil, "2024-01-01", "2024-12-31", 0, "", ""},
+		{"empty input", []PricePoint{}, "2024-01-01", "2024-12-31", 0, "", ""},
+		{"all in range", []PricePoint{{Date: "2024-01-01", Close: 100}, {Date: "2024-06-15", Close: 110}, {Date: "2024-12-31", Close: 120}}, "2024-01-01", "2024-12-31", 3, "", ""},
+		{"boundary dates inclusive", []PricePoint{{Date: "2023-12-31", Close: 90}, {Date: "2024-01-01", Close: 100}, {Date: "2024-06-15", Close: 110}, {Date: "2024-12-31", Close: 120}, {Date: "2025-01-01", Close: 130}}, "2024-01-01", "2024-12-31", 3, "2024-01-01", "2024-12-31"},
+		{"start only", []PricePoint{{Date: "2023-12-31", Close: 90}, {Date: "2024-01-01", Close: 100}, {Date: "2024-06-15", Close: 110}}, "2024-01-01", "", 2, "", ""},
+		{"end only", []PricePoint{{Date: "2024-01-01", Close: 100}, {Date: "2024-06-15", Close: 110}, {Date: "2025-01-01", Close: 130}}, "", "2024-12-31", 2, "", ""},
+		{"no bounds", []PricePoint{{Date: "2020-01-01", Close: 50}, {Date: "2024-06-15", Close: 110}, {Date: "2025-01-01", Close: 130}}, "", "", 3, "", ""},
+		{"all out of range", []PricePoint{{Date: "2020-01-01", Close: 50}, {Date: "2020-06-15", Close: 60}}, "2024-01-01", "2024-12-31", 0, "", ""},
 	}
-	result = filterPricePointsByDate([]PricePoint{}, "2024-01-01", "2024-12-31")
-	if len(result) != 0 {
-		t.Errorf("expected 0 results for empty input, got %d", len(result))
-	}
-}
-func TestFilterPricePointsByDate_AllInRange(t *testing.T) {
-	prices := []PricePoint{
-		{Date: "2024-01-01", Close: 100},
-		{Date: "2024-06-15", Close: 110},
-		{Date: "2024-12-31", Close: 120},
-	}
-	result := filterPricePointsByDate(prices, "2024-01-01", "2024-12-31")
-	if len(result) != 3 {
-		t.Fatalf("expected 3 results, got %d", len(result))
-	}
-}
-func TestFilterPricePointsByDate_BoundaryDates(t *testing.T) {
-	prices := []PricePoint{
-		{Date: "2023-12-31", Close: 90},
-		{Date: "2024-01-01", Close: 100},
-		{Date: "2024-06-15", Close: 110},
-		{Date: "2024-12-31", Close: 120},
-		{Date: "2025-01-01", Close: 130},
-	}
-	result := filterPricePointsByDate(prices, "2024-01-01", "2024-12-31")
-	if len(result) != 3 {
-		t.Fatalf("expected 3 results (boundaries inclusive), got %d", len(result))
-	}
-	if result[0].Date != "2024-01-01" {
-		t.Errorf("first result date = %s, want 2024-01-01", result[0].Date)
-	}
-	if result[2].Date != "2024-12-31" {
-		t.Errorf("last result date = %s, want 2024-12-31", result[2].Date)
-	}
-}
-func TestFilterPricePointsByDate_StartOnly(t *testing.T) {
-	prices := []PricePoint{
-		{Date: "2023-12-31", Close: 90},
-		{Date: "2024-01-01", Close: 100},
-		{Date: "2024-06-15", Close: 110},
-	}
-	result := filterPricePointsByDate(prices, "2024-01-01", "")
-	if len(result) != 2 {
-		t.Fatalf("expected 2 results (start only), got %d", len(result))
-	}
-}
-func TestFilterPricePointsByDate_EndOnly(t *testing.T) {
-	prices := []PricePoint{
-		{Date: "2024-01-01", Close: 100},
-		{Date: "2024-06-15", Close: 110},
-		{Date: "2025-01-01", Close: 130},
-	}
-	result := filterPricePointsByDate(prices, "", "2024-12-31")
-	if len(result) != 2 {
-		t.Fatalf("expected 2 results (end only), got %d", len(result))
-	}
-}
-func TestFilterPricePointsByDate_NoBounds(t *testing.T) {
-	prices := []PricePoint{
-		{Date: "2020-01-01", Close: 50},
-		{Date: "2024-06-15", Close: 110},
-		{Date: "2025-01-01", Close: 130},
-	}
-	result := filterPricePointsByDate(prices, "", "")
-	if len(result) != 3 {
-		t.Fatalf("expected 3 results (no bounds), got %d", len(result))
-	}
-}
-func TestFilterPricePointsByDate_AllOutOfRange(t *testing.T) {
-	prices := []PricePoint{{Date: "2020-01-01", Close: 50}, {Date: "2020-06-15", Close: 60}}
-	result := filterPricePointsByDate(prices, "2024-01-01", "2024-12-31")
-	if len(result) != 0 {
-		t.Errorf("expected 0 results (all out of range), got %d", len(result))
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			result := filterPricePointsByDate(c.prices, c.start, c.end)
+			if len(result) != c.wantLen {
+				t.Fatalf("got %d results, want %d", len(result), c.wantLen)
+			}
+			if c.wantFirst != "" && result[0].Date != c.wantFirst {
+				t.Errorf("first date = %s, want %s", result[0].Date, c.wantFirst)
+			}
+			if c.wantLast != "" && result[len(result)-1].Date != c.wantLast {
+				t.Errorf("last date = %s, want %s", result[len(result)-1].Date, c.wantLast)
+			}
+		})
 	}
 }
 func TestPricePoint_Fields(t *testing.T) {

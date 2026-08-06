@@ -9,41 +9,21 @@ import (
 	"time"
 )
 
-var userAgents = []string{
-	"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
-	"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-	"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
-	"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Safari/605.1.15",
-	"Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:126.0) Gecko/20100101 Firefox/126.0",
-	"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
-	"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36 Edg/125.0.0.0",
-	"Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1",
-}
-var (
-	breaker    = provider.NewProviderBreaker("yfinance", 3)
-	httpClient *httpclient.Client
-)
+var base = provider.NewBaseProvider("yfinance", httpclient.Options{
+	RequestDelay: 800 * time.Millisecond,
+	UserAgents:   httpclient.DefaultUserAgents,
+	ExtraHeaders: map[string]string{
+		"Accept":          "text/html,application/json,application/xml,*/*",
+		"Accept-Language": "en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7",
+		"Origin":          "https://finance.yahoo.com",
+		"Referer":         "https://finance.yahoo.com/",
+	},
+})
 
-func init() {
-	httpClient = httpclient.New("yfinance", httpclient.Options{
-		RequestDelay: 800 * time.Millisecond,
-		UserAgents:   userAgents,
-		ExtraHeaders: map[string]string{
-			"Accept":          "text/html,application/json,application/xml,*/*",
-			"Accept-Language": "en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7",
-			"Origin":          "https://finance.yahoo.com",
-			"Referer":         "https://finance.yahoo.com/",
-		},
-	})
-}
-
-type yahooProvider struct{}
+type yahooProvider struct{ *provider.BaseProvider }
 
 func NewProvider() provider.Provider {
-	return &yahooProvider{}
-}
-func (p *yahooProvider) Name() string {
-	return "yfinance"
+	return &yahooProvider{&base}
 }
 func (p *yahooProvider) FetchStockDaily(ticker, startDate, endDate string) ([]provider.DailyPrice, error) {
 	startUnix, err := providerutil.DateToUnix(startDate)
@@ -56,7 +36,7 @@ func (p *yahooProvider) FetchStockDaily(ticker, startDate, endDate string) ([]pr
 	}
 	url := fmt.Sprintf("https://query1.finance.yahoo.com/v8/finance/chart/%s?period1=%d&period2=%d&interval=1d",
 		ticker, startUnix, endUnix)
-	prices, err := httpclient.DoGetWithBreaker(breaker, httpClient, url, parseChartResponse)
+	prices, err := httpclient.DoGetWithBreaker(base.Breaker, base.HTTPClient, url, parseChartResponse)
 	if err != nil {
 		return nil, fmt.Errorf("yfinance FetchStockDaily 失败: %w", err)
 	}
@@ -64,7 +44,7 @@ func (p *yahooProvider) FetchStockDaily(ticker, startDate, endDate string) ([]pr
 }
 func (p *yahooProvider) SearchTicker(query string) ([]provider.TickerInfo, error) {
 	url := fmt.Sprintf("https://query1.finance.yahoo.com/v1/finance/search?q=%s&quotesCount=20&newsCount=0", query)
-	results, err := httpclient.DoGetWithBreaker(breaker, httpClient, url, parseSearchResponse)
+	results, err := httpclient.DoGetWithBreaker(base.Breaker, base.HTTPClient, url, parseSearchResponse)
 	if err != nil {
 		return nil, fmt.Errorf("yfinance SearchTicker 失败: %w", err)
 	}

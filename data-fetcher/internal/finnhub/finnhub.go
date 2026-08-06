@@ -13,16 +13,10 @@ import (
 
 const baseURL = "https://finnhub.io/api/v1"
 
-var (
-	httpClient *httpclient.Client
-	breaker    = provider.NewProviderBreaker("finnhub", 3)
-)
-
-func init() {
-	httpClient = httpclient.New("finnhub", httpclient.Options{RequestDelay: 1100 * time.Millisecond})
-}
+var base = provider.NewBaseProvider("finnhub", httpclient.Options{RequestDelay: 1100 * time.Millisecond})
 
 type finnhubProvider struct {
+	*provider.BaseProvider
 	apiKey string
 }
 
@@ -32,21 +26,18 @@ func NewProvider() provider.Provider {
 		slog.Warn("FINNHUB_API_KEY 未设置，finnhub 数据源不可用")
 		return nil
 	}
-	return &finnhubProvider{apiKey: key}
-}
-func (p *finnhubProvider) Name() string {
-	return "finnhub"
+	return &finnhubProvider{BaseProvider: &base, apiKey: key}
 }
 func (p *finnhubProvider) FetchStockDaily(ticker, startDate, endDate string) ([]provider.DailyPrice, error) {
 	startUnix, _ := providerutil.DateToUnix(startDate)
 	endUnix, _ := providerutil.DateToUnix(endDate)
 	url := fmt.Sprintf("%s/stock/candle?symbol=%s&resolution=D&from=%d&to=%d&token=%s",
 		baseURL, ticker, startUnix, endUnix, p.apiKey)
-	return httpclient.DoGetWithBreaker(breaker, httpClient, url, parseCandleResponse)
+	return httpclient.DoGetWithBreaker(base.Breaker, base.HTTPClient, url, parseCandleResponse)
 }
 func (p *finnhubProvider) SearchTicker(query string) ([]provider.TickerInfo, error) {
 	url := fmt.Sprintf("%s/search?q=%s&token=%s", baseURL, query, p.apiKey)
-	return httpclient.DoGetWithBreaker(breaker, httpClient, url, parseSearchResponse)
+	return httpclient.DoGetWithBreaker(base.Breaker, base.HTTPClient, url, parseSearchResponse)
 }
 
 type candleResponse struct {

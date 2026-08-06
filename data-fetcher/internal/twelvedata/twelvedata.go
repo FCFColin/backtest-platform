@@ -13,16 +13,10 @@ import (
 
 const baseURL = "https://api.twelvedata.com"
 
-var (
-	httpClient *httpclient.Client
-	breaker    = provider.NewProviderBreaker("twelvedata", 3)
-)
-
-func init() {
-	httpClient = httpclient.New("twelvedata", httpclient.Options{RequestDelay: 7600 * time.Millisecond})
-}
+var base = provider.NewBaseProvider("twelvedata", httpclient.Options{RequestDelay: 7600 * time.Millisecond})
 
 type twelveDataProvider struct {
+	*provider.BaseProvider
 	apiKey string
 }
 
@@ -32,15 +26,12 @@ func NewProvider() provider.Provider {
 		slog.Warn("TWELVE_DATA_API_KEY 未设置，twelvedata 数据源不可用")
 		return nil
 	}
-	return &twelveDataProvider{apiKey: key}
-}
-func (p *twelveDataProvider) Name() string {
-	return "twelvedata"
+	return &twelveDataProvider{BaseProvider: &base, apiKey: key}
 }
 func (p *twelveDataProvider) FetchStockDaily(ticker, startDate, endDate string) ([]provider.DailyPrice, error) {
 	url := fmt.Sprintf("%s/time_series?symbol=%s&interval=1day&outputsize=5000&apikey=%s",
 		baseURL, ticker, p.apiKey)
-	return httpclient.DoGetWithBreaker(breaker, httpClient, url, func(body []byte) ([]provider.DailyPrice, error) {
+	return httpclient.DoGetWithBreaker(base.Breaker, base.HTTPClient, url, func(body []byte) ([]provider.DailyPrice, error) {
 		return parseTimeSeries(body, startDate, endDate)
 	})
 }

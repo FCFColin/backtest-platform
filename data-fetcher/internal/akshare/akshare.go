@@ -10,34 +10,19 @@ import (
 	"time"
 )
 
-var userAgents = []string{
-	"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
-	"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-	"Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:126.0) Gecko/20100101 Firefox/126.0",
-}
-var (
-	breaker    = provider.NewProviderBreaker("akshare", 3)
-	httpClient *httpclient.Client
-)
+var base = provider.NewBaseProvider("akshare", httpclient.Options{
+	RequestDelay: 600 * time.Millisecond,
+	UserAgents:   httpclient.DefaultUserAgents,
+	ExtraHeaders: map[string]string{
+		"Accept":          "application/json,text/plain,*/*",
+		"Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+	},
+})
 
-func init() {
-	httpClient = httpclient.New("akshare", httpclient.Options{
-		RequestDelay: 600 * time.Millisecond,
-		UserAgents:   userAgents,
-		ExtraHeaders: map[string]string{
-			"Accept":          "application/json,text/plain,*/*",
-			"Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
-		},
-	})
-}
-
-type akshareProvider struct{}
+type akshareProvider struct{ *provider.BaseProvider }
 
 func NewProvider() provider.Provider {
-	return &akshareProvider{}
-}
-func (p *akshareProvider) Name() string {
-	return "akshare"
+	return &akshareProvider{&base}
 }
 func (p *akshareProvider) FetchStockDaily(ticker, startDate, endDate string) ([]provider.DailyPrice, error) {
 	code, market := parseCodeAndMarket(ticker)
@@ -55,7 +40,7 @@ func (p *akshareProvider) FetchStockDaily(ticker, startDate, endDate string) ([]
 	return prices, nil
 }
 func doWithRetry(url string) ([]provider.DailyPrice, error) {
-	return httpclient.DoGetWithBreaker(breaker, httpClient, url, parseDailyPrices)
+	return httpclient.DoGetWithBreaker(base.Breaker, base.HTTPClient, url, parseDailyPrices)
 }
 func (p *akshareProvider) SearchTicker(query string) ([]provider.TickerInfo, error) {
 	return nil, fmt.Errorf("akshare SearchTicker 未实现（需要使用东方财富搜索接口）")

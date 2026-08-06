@@ -12,9 +12,7 @@ import (
 type SIMSegmentType string
 
 const (
-	SegmentYahoo     SIMSegmentType = "yahoo"
-	SegmentCSV       SIMSegmentType = "csv"
-	SegmentKenFrench SIMSegmentType = "kenfrench"
+	SegmentYahoo SIMSegmentType = "yahoo"
 )
 
 type SIMSegment struct {
@@ -36,7 +34,7 @@ type SIMTickerDefinition struct {
 const simEndDate = "2099-12-31"
 
 func simSeg(source, start string, expense float64) SIMSegment {
-	return SIMSegment{Type: SegmentYahoo, Source: source, StartDate: start, EndDate: simEndDate, ExpenseRatio: expense}
+	return simSegRange(source, start, simEndDate, expense)
 }
 func simSegRange(source, start, end string, expense float64) SIMSegment {
 	return SIMSegment{Type: SegmentYahoo, Source: source, StartDate: start, EndDate: end, ExpenseRatio: expense}
@@ -84,34 +82,6 @@ func GetAllSIMTickers() []string {
 	}
 	sort.Strings(tickers)
 	return tickers
-}
-func GetSIMSourceTickers(ticker string) []string {
-	def, ok := simDefinitions[ticker]
-	if !ok {
-		return nil
-	}
-	seen := make(map[string]bool)
-	var result []string
-	for _, seg := range def.Segments {
-		if seg.Type == SegmentYahoo && !seen[seg.Source] {
-			seen[seg.Source] = true
-			result = append(result, seg.Source)
-		}
-	}
-	return result
-}
-func GetEarliestStartDate(ticker string) string {
-	def, ok := simDefinitions[ticker]
-	if !ok || len(def.Segments) == 0 {
-		return ""
-	}
-	earliest := def.Segments[0].StartDate
-	for _, seg := range def.Segments[1:] {
-		if seg.StartDate < earliest {
-			earliest = seg.StartDate
-		}
-	}
-	return earliest
 }
 
 type segmentData struct {

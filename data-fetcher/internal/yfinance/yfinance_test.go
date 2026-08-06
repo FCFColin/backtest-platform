@@ -17,13 +17,8 @@ func TestNewProvider_Name(t *testing.T) {
 }
 
 func TestParseChartResponse(t *testing.T) {
-	cases := []struct {
-		name    string
-		body    string
-		want    []provider.DailyPrice
-		wantErr bool
-	}{
-		{"success", `{
+	cases := []testutil.ParseCase[string, []provider.DailyPrice]{
+		{Name: "success", In: `{
 			"chart":{"result":[{
 				"timestamp":[1704067200,1704153600],
 				"indicators":{
@@ -31,94 +26,58 @@ func TestParseChartResponse(t *testing.T) {
 					"adjclose":[{"adjclose":[103.0,104.0]}]
 				}
 			}],"error":null}
-		}`, []provider.DailyPrice{
+		}`, Want: []provider.DailyPrice{
 			{Date: "2024-01-01", Open: 100, High: 105, Low: 99, Close: 103, Volume: 1000000, AdjustedClose: 103},
 			{Date: "2024-01-02", Open: 101, High: 106, Low: 100, Close: 104, Volume: 1200000, AdjustedClose: 104},
-		}, false},
-		{"empty result", `{"chart":{"result":[],"error":null}}`, nil, false},
-		{"empty timestamp", `{"chart":{"result":[{"timestamp":[],"indicators":{"quote":[]}}],"error":null}}`, nil, false},
-		{"api error", `{"chart":{"result":[],"error":{"code":"Not Found","description":"No data found"}}}`, nil, true},
-		{"malformed json", `{invalid json`, nil, true},
-		{"zero close skipped", `{
+		}},
+		{Name: "empty result", In: `{"chart":{"result":[],"error":null}}`, Want: nil},
+		{Name: "empty timestamp", In: `{"chart":{"result":[{"timestamp":[],"indicators":{"quote":[]}}],"error":null}}`, Want: nil},
+		{Name: "api error", In: `{"chart":{"result":[],"error":{"code":"Not Found","description":"No data found"}}}`, Want: nil, WantErr: true},
+		{Name: "malformed json", In: `{invalid json`, Want: nil, WantErr: true},
+		{Name: "zero close skipped", In: `{
 			"chart":{"result":[{
 				"timestamp":[1704067200,1704153600],
 				"indicators":{"quote":[{"open":[100.0,101.0],"high":[105.0,106.0],"low":[99.0,100.0],"close":[0,104.0],"volume":[1000000.0,1200000.0]}]}
 			}],"error":null}
-		}`, []provider.DailyPrice{
+		}`, Want: []provider.DailyPrice{
 			{Date: "2024-01-02", Open: 101, High: 106, Low: 100, Close: 104, Volume: 1200000, AdjustedClose: 104},
-		}, false},
-		{"no adjclose falls back to close", `{
+		}},
+		{Name: "no adjclose falls back to close", In: `{
 			"chart":{"result":[{
 				"timestamp":[1704067200],
 				"indicators":{"quote":[{"open":[100.0],"high":[105.0],"low":[99.0],"close":[103.0],"volume":[1000000.0]}]}
 			}],"error":null}
-		}`, []provider.DailyPrice{
+		}`, Want: []provider.DailyPrice{
 			{Date: "2024-01-01", Open: 100, High: 105, Low: 99, Close: 103, Volume: 1000000, AdjustedClose: 103},
-		}, false},
+		}},
 	}
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			prices, err := parseChartResponse([]byte(c.body))
-			if c.wantErr {
-				if err == nil {
-					t.Fatal("expected error, got nil")
-				}
-				return
-			}
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-			testutil.AssertPrices(t, prices, c.want...)
-		})
-	}
+	testutil.RunParse(t, cases, func(body string) ([]provider.DailyPrice, error) {
+		return parseChartResponse([]byte(body))
+	}, testutil.AssertPricesEqual)
 }
 
 func TestParseSearchResponse(t *testing.T) {
-	cases := []struct {
-		name    string
-		body    string
-		want    []provider.TickerInfo
-		wantErr bool
-	}{
-		{"success", `{
+	cases := []testutil.ParseCase[string, []provider.TickerInfo]{
+		{Name: "success", In: `{
 			"quotes":[
 				{"symbol":"AAPL","shortname":"Apple Inc","longname":"Apple Inc.","quoteType":"EQUITY","exchange":"Nasdaq"},
 				{"symbol":"MSFT","shortname":"","longname":"Microsoft Corporation","quoteType":"EQUITY","exchange":"Nasdaq"}
 			]
-		}`, []provider.TickerInfo{
+		}`, Want: []provider.TickerInfo{
 			{Ticker: "AAPL", Name: "Apple Inc", Market: "美股"},
 			{Ticker: "MSFT", Name: "Microsoft Corporation", Market: "美股"},
-		}, false},
-		{"empty quotes", `{"quotes":[]}`, nil, false},
-		{"malformed json", `{invalid`, nil, true},
+		}},
+		{Name: "empty quotes", In: `{"quotes":[]}`, Want: nil},
+		{Name: "malformed json", In: `{invalid`, Want: nil, WantErr: true},
 	}
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			results, err := parseSearchResponse([]byte(c.body))
-			if c.wantErr {
-				if err == nil {
-					t.Fatal("expected error, got nil")
-				}
-				return
-			}
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-			if len(results) != len(c.want) {
-				t.Fatalf("expected %d results, got %d", len(c.want), len(results))
-			}
-			for i, w := range c.want {
-				if results[i] != w {
-					t.Errorf("results[%d] = %+v, want %+v", i, results[i], w)
-				}
-			}
-		})
-	}
+	testutil.RunParse(t, cases, func(body string) ([]provider.TickerInfo, error) {
+		return parseSearchResponse([]byte(body))
+	}, testutil.AssertEqual[provider.TickerInfo])
 }
 
 func TestFetchStockDaily_HTTPError(t *testing.T) {
-	orig := httpClient
-	defer func() { httpClient = orig }()
-	httpClient = testutil.FastFailClient()
+	orig := base.HTTPClient
+	defer func() { base.HTTPClient = orig }()
+	base.HTTPClient = testutil.FastFailClient()
 	testutil.AssertHTTPError(t, NewProvider(), "INVALID@@@TICKER", "2024-01-01", "2024-01-31")
 }

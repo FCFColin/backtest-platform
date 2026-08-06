@@ -10,6 +10,53 @@ import (
 	"data-fetcher/internal/provider"
 )
 
+// ParseCase 描述一个解析函数表驱动用例。
+type ParseCase[In, Out any] struct {
+	Name    string
+	In      In
+	Want    Out
+	WantErr bool
+}
+
+// RunParse 执行解析类表驱动测试：WantErr 用例断言返回错误，其余断言解析结果。
+func RunParse[In, Out any](t *testing.T, cases []ParseCase[In, Out], parse func(In) (Out, error), assert func(*testing.T, Out, Out)) {
+	t.Helper()
+	for _, c := range cases {
+		t.Run(c.Name, func(t *testing.T) {
+			got, err := parse(c.In)
+			if c.WantErr {
+				if err == nil {
+					t.Fatal("expected error, got nil")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			assert(t, got, c.Want)
+		})
+	}
+}
+
+// AssertPricesEqual 适配 AssertPrices 为 RunParse 的 assert 签名。
+func AssertPricesEqual(t *testing.T, got, want []provider.DailyPrice) {
+	t.Helper()
+	AssertPrices(t, got, want...)
+}
+
+// AssertEqual 按元素比较可比较切片（TickerInfo 等）。
+func AssertEqual[T comparable](t *testing.T, got, want []T) {
+	t.Helper()
+	if len(got) != len(want) {
+		t.Fatalf("expected %d results, got %d", len(want), len(got))
+	}
+	for i, w := range want {
+		if got[i] != w {
+			t.Errorf("results[%d] = %+v, want %+v", i, got[i], w)
+		}
+	}
+}
+
 // AssertPrices 逐字段断言解析结果与期望一致（浮点容差 1e-6）。
 func AssertPrices(t *testing.T, got []provider.DailyPrice, want ...provider.DailyPrice) {
 	t.Helper()

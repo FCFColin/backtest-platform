@@ -2,6 +2,7 @@
 package provider
 
 import (
+	"data-fetcher/internal/httpclient"
 	"fmt"
 	"github.com/sony/gobreaker"
 	"log/slog"
@@ -99,6 +100,23 @@ func DeriveExchange(ticker string) string {
 	}
 	return "US"
 }
+
+type BaseProvider struct {
+	NameStr    string
+	Breaker    *gobreaker.CircuitBreaker
+	HTTPClient *httpclient.Client
+}
+
+func NewBaseProvider(name string, opts httpclient.Options) BaseProvider {
+	return BaseProvider{
+		NameStr:    name,
+		Breaker:    NewProviderBreaker(name, 3),
+		HTTPClient: httpclient.New(name, opts),
+	}
+}
+
+func (b BaseProvider) Name() string { return b.NameStr }
+
 func NewProviderBreaker(name string, maxRequests uint32) *gobreaker.CircuitBreaker {
 	return gobreaker.NewCircuitBreaker(gobreaker.Settings{
 		Name:        name,

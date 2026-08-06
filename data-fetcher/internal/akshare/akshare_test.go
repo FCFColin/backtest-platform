@@ -1,12 +1,14 @@
 package akshare
 
 import (
+	"data-fetcher/internal/httpclient"
 	"data-fetcher/internal/provider"
 	testutil "data-fetcher/internal/provider/testutil"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 )
 
 func validKline(date, open, close, high, low, vol string) string {
@@ -33,47 +35,34 @@ func buildEastMoneyJSON(klines []string, dataNil bool) []byte {
 	return b
 }
 
+type parseDailyInput struct {
+	klines  []string
+	dataNil bool
+}
+
 func TestParseDailyPrices(t *testing.T) {
 	wantSuccess := []provider.DailyPrice{
 		{Date: "2024-01-02", Open: 10.5, High: 11, Low: 10.3, Close: 10.8, Volume: 1000000, AdjustedClose: 10.8},
 		{Date: "2024-01-03", Open: 10.8, High: 11.5, Low: 10.7, Close: 11.2, Volume: 1200000, AdjustedClose: 11.2},
 	}
-	cases := []struct {
-		name    string
-		klines  []string
-		dataNil bool
-		want    []provider.DailyPrice
-		wantErr bool
-	}{
-		{"success", []string{
+	cases := []testutil.ParseCase[parseDailyInput, []provider.DailyPrice]{
+		{Name: "success", In: parseDailyInput{klines: []string{
 			validKline("2024-01-02", "10.5", "10.8", "11.0", "10.3", "1000000"),
 			validKline("2024-01-03", "10.8", "11.2", "11.5", "10.7", "1200000"),
-		}, false, wantSuccess, false},
-		{"nil data", nil, true, nil, true},
-		{"empty klines", []string{}, false, nil, false},
-		{"short kline skipped", []string{
+		}}, Want: wantSuccess},
+		{Name: "nil data", In: parseDailyInput{dataNil: true}, Want: nil, WantErr: true},
+		{Name: "empty klines", In: parseDailyInput{}, Want: nil},
+		{Name: "short kline skipped", In: parseDailyInput{klines: []string{
 			validKline("2024-01-02", "10.5", "10.8", "11.0", "10.3", "1000000"),
 			"2024-01-03,10.8,11.2", // 不足 11 段，应跳过
-		}, false, wantSuccess[:1], false},
-		{"empty fields", []string{"2024-01-02,,,,,1000000,100000,1.5,2.5,0.2,3.0"}, false, []provider.DailyPrice{
+		}}, Want: wantSuccess[:1]},
+		{Name: "empty fields", In: parseDailyInput{klines: []string{"2024-01-02,,,,,1000000,100000,1.5,2.5,0.2,3.0"}}, Want: []provider.DailyPrice{
 			{Date: "2024-01-02", Open: 0, High: 0, Low: 0, Close: 0, Volume: 1000000, AdjustedClose: 0},
-		}, false},
+		}},
 	}
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			prices, err := parseDailyPrices(buildEastMoneyJSON(c.klines, c.dataNil))
-			if c.wantErr {
-				if err == nil {
-					t.Fatal("expected error, got nil")
-				}
-				return
-			}
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-			testutil.AssertPrices(t, prices, c.want...)
-		})
-	}
+	testutil.RunParse(t, cases, func(in parseDailyInput) ([]provider.DailyPrice, error) {
+		return parseDailyPrices(buildEastMoneyJSON(in.klines, in.dataNil))
+	}, testutil.AssertPricesEqual)
 }
 
 func TestParseDailyPrices_MalformedJSON(t *testing.T) {
@@ -125,9 +114,9 @@ func TestSearchTicker_NotImplemented(t *testing.T) {
 }
 
 func TestDoWithRetry(t *testing.T) {
-	orig := httpClient
-	defer func() { httpClient = orig }()
-	httpClient = testutil.FastFailClient()
+	orig := base.HTTPClient
+	defer func() { base.HTTPClient = orig }()
+	base.HTTPClient = httpclient.New("test", httpclient.Options{RequestDelay: 1 * time.Millisecond, MaxRetries: 1})
 	cases := []struct {
 		name    string
 		handler http.HandlerFunc

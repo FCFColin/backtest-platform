@@ -66,71 +66,61 @@ func TestIsValidTicker_BoundaryLength(t *testing.T) {
 		t.Errorf("IsValidTicker(21 chars) = true, want false")
 	}
 }
-func runHandler(method, path string, body string, handler gin.HandlerFunc) *httptest.ResponseRecorder {
+func runHandler(method, route, reqPath, body string, handler gin.HandlerFunc) *httptest.ResponseRecorder {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	r.Handle(method, path, handler)
+	r.Handle(method, route, handler)
 	var req *http.Request
 	if body != "" {
-		req = httptest.NewRequest(method, path, strings.NewReader(body))
+		req = httptest.NewRequest(method, reqPath, strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
 	} else {
-		req = httptest.NewRequest(method, path, nil)
+		req = httptest.NewRequest(method, reqPath, nil)
 	}
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 	return w
 }
 func TestHandleSearch_EmptyQuery(t *testing.T) {
-	w := runHandler("GET", "/api/data/search", "", HandleSearch(nil))
+	w := runHandler("GET", "/api/data/search", "/api/data/search", "", HandleSearch(nil))
 	if w.Code != http.StatusBadRequest {
 		t.Errorf("HandleSearch empty query = %d, want 400", w.Code)
 	}
 }
 func TestHandlePriceData_InvalidTicker(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	r := gin.New()
-	r.GET("/api/data/price/:ticker", HandlePriceData(nil))
-	req := httptest.NewRequest("GET", "/api/data/price/aapl", nil)
-	w := httptest.NewRecorder()
-	r.ServeHTTP(w, req)
+	w := runHandler("GET", "/api/data/price/:ticker", "/api/data/price/aapl", "", HandlePriceData(nil))
 	if w.Code != http.StatusBadRequest {
 		t.Errorf("HandlePriceData invalid ticker = %d, want 400", w.Code)
 	}
 }
 func TestHandleValidateTickers_BadJSON(t *testing.T) {
-	w := runHandler("POST", "/api/data/validate", "{invalid", HandleValidateTickers(nil))
+	w := runHandler("POST", "/api/data/validate", "/api/data/validate", "{invalid", HandleValidateTickers(nil))
 	if w.Code != http.StatusBadRequest {
 		t.Errorf("HandleValidateTickers bad JSON = %d, want 400", w.Code)
 	}
 }
 func TestHandleValidateTickers_InvalidTicker(t *testing.T) {
 	body := `{"tickers":["AAPL","../../etc/passwd"]}`
-	w := runHandler("POST", "/api/data/validate", body, HandleValidateTickers(nil))
+	w := runHandler("POST", "/api/data/validate", "/api/data/validate", body, HandleValidateTickers(nil))
 	if w.Code != http.StatusBadRequest {
 		t.Errorf("HandleValidateTickers invalid ticker = %d, want 400", w.Code)
 	}
 }
 func TestHandleCPI_InvalidCountry(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	r := gin.New()
-	r.GET("/api/data/cpi/:country", HandleCPI(nil))
-	req := httptest.NewRequest("GET", "/api/data/cpi/jp", nil)
-	w := httptest.NewRecorder()
-	r.ServeHTTP(w, req)
+	w := runHandler("GET", "/api/data/cpi/:country", "/api/data/cpi/jp", "", HandleCPI(nil))
 	if w.Code != http.StatusBadRequest {
 		t.Errorf("HandleCPI invalid country = %d, want 400", w.Code)
 	}
 }
 func TestHandleBatchPriceData_BadJSON(t *testing.T) {
-	w := runHandler("POST", "/api/data/price/batch", "{invalid", HandleBatchPriceData(nil))
+	w := runHandler("POST", "/api/data/price/batch", "/api/data/price/batch", "{invalid", HandleBatchPriceData(nil))
 	if w.Code != http.StatusBadRequest {
 		t.Errorf("HandleBatchPriceData bad JSON = %d, want 400", w.Code)
 	}
 }
 func TestHandleBatchPriceData_InvalidTicker(t *testing.T) {
 	body := `{"tickers":["AAPL","bad/ticker"],"startDate":"2020-01-01","endDate":"2020-12-31"}`
-	w := runHandler("POST", "/api/data/price/batch", body, HandleBatchPriceData(nil))
+	w := runHandler("POST", "/api/data/price/batch", "/api/data/price/batch", body, HandleBatchPriceData(nil))
 	if w.Code != http.StatusBadRequest {
 		t.Errorf("HandleBatchPriceData invalid ticker = %d, want 400", w.Code)
 	}
@@ -143,39 +133,29 @@ type fakePinger struct {
 func (f fakePinger) Ping(_ context.Context) error {
 	return f.err
 }
-func TestHandleReadyReturns200WhenDBHealthy(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	r := gin.New()
-	r.GET("/api/ready", HandleReady(fakePinger{err: nil}))
-	req := httptest.NewRequest("GET", "/api/ready", nil)
-	w := httptest.NewRecorder()
-	r.ServeHTTP(w, req)
-	if w.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d, body=%s", w.Code, w.Body.String())
+func TestHandleReady(t *testing.T) {
+	cases := []struct {
+		name   string
+		pinger fakePinger
+		want   int
+		status string
+	}{
+		{"db healthy", fakePinger{err: nil}, http.StatusOK, "ready"},
+		{"db unhealthy", fakePinger{err: errors.New("db connection refused")}, http.StatusServiceUnavailable, "unavailable"},
 	}
-	var resp map[string]interface{}
-	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("failed to parse ready response: %v", err)
-	}
-	if resp["status"] != "ready" {
-		t.Errorf("ready status = %v, want ready", resp["status"])
-	}
-}
-func TestHandleReadyReturns503WhenDBUnhealthy(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	r := gin.New()
-	r.GET("/api/ready", HandleReady(fakePinger{err: errors.New("db connection refused")}))
-	req := httptest.NewRequest("GET", "/api/ready", nil)
-	w := httptest.NewRecorder()
-	r.ServeHTTP(w, req)
-	if w.Code != http.StatusServiceUnavailable {
-		t.Fatalf("expected 503, got %d, body=%s", w.Code, w.Body.String())
-	}
-	var resp map[string]interface{}
-	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("failed to parse ready response: %v", err)
-	}
-	if resp["status"] != "unavailable" {
-		t.Errorf("ready status = %v, want unavailable", resp["status"])
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			w := runHandler("GET", "/api/ready", "/api/ready", "", HandleReady(c.pinger))
+			if w.Code != c.want {
+				t.Fatalf("expected %d, got %d, body=%s", c.want, w.Code, w.Body.String())
+			}
+			var resp map[string]interface{}
+			if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+				t.Fatalf("failed to parse ready response: %v", err)
+			}
+			if resp["status"] != c.status {
+				t.Errorf("ready status = %v, want %s", resp["status"], c.status)
+			}
+		})
 	}
 }

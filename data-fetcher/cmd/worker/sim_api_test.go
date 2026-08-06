@@ -41,66 +41,6 @@ func TestGetAllSIMTickers_ContainsKnownSIM(t *testing.T) {
 		t.Error("expected at least one *SIM ticker")
 	}
 }
-func TestGetSIMSourceTickers_InvalidTicker(t *testing.T) {
-	result := GetSIMSourceTickers("NONEXISTENT_TICKER")
-	if result != nil {
-		t.Errorf("GetSIMSourceTickers(invalid) = %v, want nil", result)
-	}
-}
-func TestGetSIMSourceTickers_ValidTicker(t *testing.T) {
-	tickers := GetAllSIMTickers()
-	if len(tickers) == 0 {
-		t.Skip("no SIM tickers available")
-	}
-	_ = GetSIMSourceTickers(tickers[0])
-}
-func TestGetSIMSourceTickers_NoDuplicates(t *testing.T) {
-	tickers := GetAllSIMTickers()
-	if len(tickers) == 0 {
-		t.Skip("no SIM tickers available")
-	}
-	for _, ticker := range tickers {
-		result := GetSIMSourceTickers(ticker)
-		seen := make(map[string]bool)
-		for _, s := range result {
-			if seen[s] {
-				t.Errorf("duplicate source ticker %s in SIM %s", s, ticker)
-			}
-			seen[s] = true
-		}
-	}
-}
-func TestGetEarliestStartDate_InvalidTicker(t *testing.T) {
-	result := GetEarliestStartDate("NONEXISTENT_TICKER")
-	if result != "" {
-		t.Errorf("GetEarliestStartDate(invalid) = %q, want empty", result)
-	}
-}
-func TestGetEarliestStartDate_ValidTicker(t *testing.T) {
-	tickers := GetAllSIMTickers()
-	if len(tickers) == 0 {
-		t.Skip("no SIM tickers available")
-	}
-	result := GetEarliestStartDate(tickers[0])
-	if result == "" {
-		t.Errorf("GetEarliestStartDate(%q) = empty, want non-empty date", tickers[0])
-	}
-}
-func TestGetEarliestStartDate_ReturnsEarliest(t *testing.T) {
-	tickers := GetAllSIMTickers()
-	if len(tickers) == 0 {
-		t.Skip("no SIM tickers available")
-	}
-	for _, ticker := range tickers {
-		result := GetEarliestStartDate(ticker)
-		if result == "" {
-			continue
-		}
-		if len(result) != 10 {
-			t.Errorf("GetEarliestStartDate(%q) = %q, want YYYY-MM-DD format", ticker, result)
-		}
-	}
-}
 func TestIsSIMTicker_Empty(t *testing.T) {
 	if IsSIMTicker("") {
 		t.Error("IsSIMTicker(empty) = true, want false")
