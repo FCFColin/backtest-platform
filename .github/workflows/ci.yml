@@ -98,7 +98,7 @@ jobs:
           unzip -q scc.zip -d /tmp/scc
           echo "/tmp/scc" >> $GITHUB_PATH
       - name: Count lines
-        run: scc --exclude-dir node_modules,dist,dist-ssr,.dev-logs,coverage,.git,data,report,.nyc_output,.turbo,.cache,.vite,playwright-report,test-results --no-cocomo --sort lines
+        run: scc --exclude-dir node_modules,dist,dist-ssr,.dev-logs,coverage,.git,data,report,.turbo,.cache,.vite,playwright-report,test-results --no-cocomo --sort lines
 
   contract-tests:
     name: Contract Tests

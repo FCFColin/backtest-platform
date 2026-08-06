@@ -4,17 +4,14 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "echo shared: no build step",
     "test": "echo shared: no tests",
     "check": "echo shared: type-checked via tsconfig.frontend.json and tsconfig.backend.json",
     "lint": "eslint . --max-warnings 10"
   },
   "exports": {
-    ".": {
-      "types": "./types/index.ts",
-      "default": "./types/index.ts"
-    },
-    "./*": "./*",
-    "./constants": "./constants.ts"
+    ".": "./types/index.ts",
+    "./constants": "./constants.ts",
+    "./types": "./types/index.ts",
+    "./*": "./*.ts"
   }
 }
