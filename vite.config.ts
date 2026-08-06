@@ -32,7 +32,7 @@ const feNm = (p: string) => path.resolve(projectRoot, 'packages/frontend/node_mo
 const FE_PACKAGES = [
   'react',
   'react-dom',
-  'react-router-dom',
+  'react-router',
   'recharts',
   'lucide-react',
   'i18next',
@@ -105,7 +105,7 @@ export default defineConfig(async ({ command }) => {
     resolve: {
       preserveSymlinks: false,
       alias: frontendAlias,
-      dedupe: ['react', 'react-dom', 'react-router-dom', 'recharts', 'zustand'],
+      dedupe: ['react', 'react-dom', 'react-router', 'recharts', 'zustand'],
     },
     test: {
       projects: [
@@ -183,7 +183,7 @@ export default defineConfig(async ({ command }) => {
               zustand: feNm('zustand'),
               '@testing-library/react': feNm('@testing-library/react'),
               '@': path.resolve(projectRoot, './packages/frontend/src'),
-              'react-router-dom': path.resolve(projectRoot, 'tests/mocks/react-router-dom.tsx'),
+              'react-router': path.resolve(projectRoot, 'tests/mocks/react-router.tsx'),
             },
           },
         },
@@ -245,14 +245,7 @@ export default defineConfig(async ({ command }) => {
                 './SignalAnalyzerPage':
                   './packages/frontend/src/pages/signal/SignalAnalyzerPage.tsx',
               },
-              shared: [
-                'react',
-                'react-dom',
-                'react-router-dom',
-                'zustand',
-                'i18next',
-                'react-i18next',
-              ],
+              shared: ['react', 'react-dom', 'react-router', 'zustand', 'i18next', 'react-i18next'],
             }),
           ]
         : []),
@@ -340,7 +333,7 @@ export default defineConfig(async ({ command }) => {
               return 'react-dom';
             }
             const CHUNKS: Record<string, string[]> = {
-              'react-router': ['react-router-dom'],
+              'react-router': ['react-router'],
               'state-vendor': ['zustand'],
               'ui-vendor': [
                 '@radix-ui',

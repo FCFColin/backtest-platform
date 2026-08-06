@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'react-router';
 import { BarChart3, ChevronDown } from '@/icons/icons.js';
 import { Menu } from 'lucide-react';
 import { useTranslation } from 'react-i18next';

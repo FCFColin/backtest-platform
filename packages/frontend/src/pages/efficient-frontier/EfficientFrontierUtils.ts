@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import i18n from '@/i18n/index.js';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import {
   useAsyncAction,
   useListState,

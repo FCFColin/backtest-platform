@@ -6,7 +6,7 @@ const { apiFetchMock, authStoreMock } = vi.hoisted(() => ({
   authStoreMock: { logout: vi.fn().mockResolvedValue(undefined) },
 }));
 
-vi.mock('react-router-dom', () => ({ useNavigate: vi.fn() }));
+vi.mock('react-router', () => ({ useNavigate: vi.fn() }));
 vi.mock('../../../packages/frontend/src/store/authStore', () => ({
   useAuthStore: (selector: (s: { logout: () => Promise<void> }) => unknown) =>
     selector(authStoreMock),

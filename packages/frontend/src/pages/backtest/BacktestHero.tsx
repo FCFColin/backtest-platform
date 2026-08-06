@@ -2,7 +2,7 @@ import { useState, useEffect, memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { BarChart3, ChevronDown } from '@/icons/icons.js';
 import { Settings, Rocket, ChevronUp, ArrowRight, FlaskConical } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 import { Button, Card } from '@/components/ui/uiComponents';
 import { CONTAINER_WIDTHS, CARD_GRID_CLASSES } from '@/utils/constants';
 import { cn } from '@/lib/utils';

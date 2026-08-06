@@ -7,7 +7,7 @@ import {
   type ReactNode,
   type ComponentType,
 } from 'react';
-import { Route, Routes, useLocation } from 'react-router-dom';
+import { Route, Routes, useLocation } from 'react-router';
 import { RouteErrorBoundary } from '@/components/errorBoundaries';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { Spinner } from '@/components/ui/uiComponents';

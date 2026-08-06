@@ -1,7 +1,7 @@
 /* eslint-disable react-refresh/only-export-components -- 认证表单 schema 与组件同文件，拆分独立文件则重复 import */
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate, Link, useLocation, useSearchParams } from 'react-router-dom';
+import { useNavigate, Link, useLocation, useSearchParams } from 'react-router';
 import { LogIn, UserPlus, MailCheck } from 'lucide-react';
 import { z } from 'zod';
 import { useAuthStore } from '@/store/authStore';

@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 import { BarChart3 } from '@/icons/icons.js';
 import { Github, Twitter } from 'lucide-react';
 import { useTranslation } from 'react-i18next';

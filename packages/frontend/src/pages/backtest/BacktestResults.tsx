@@ -1,6 +1,6 @@
 import { useEffect, lazy, Suspense, type ReactNode } from 'react';
 import { useTranslation, Trans } from 'react-i18next';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 import { Download, Loader2 } from 'lucide-react';
 import { useBacktestStore } from '@/store/backtestStore';
 import { Card, Button } from '@/components/ui/uiComponents';

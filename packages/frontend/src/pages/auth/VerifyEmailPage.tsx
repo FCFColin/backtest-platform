@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, useSearchParams, useNavigate } from 'react-router-dom';
+import { Link, useSearchParams, useNavigate } from 'react-router';
 import { Loader2, CheckCircle2, XCircle, UserPlus, LogIn } from 'lucide-react';
 import { apiFetch } from '@/utils/apiClient';
 import AuthPageLayout from '@/components/auth/formFields';
