@@ -1,10 +1,5 @@
-# =============================================================================
-# Prometheus 告警规则（P1-10，本地 docker-compose 栈）
-# 与 k8s/prometheus-rules.yaml 的 backtest-platform-* 组逐字段保持一致；
-# k8s 文件另含 redis-sentinel / SuspiciousLogin 告警（本地栈不抓取对应指标）。
-# 指标来源：packages/backend/src/utils/metrics.ts + 基础设施 exporter。
-# 告警分级：P0(severity=critical) 立即响应；P1(severity=warning) 30 分钟内响应。
-# =============================================================================
+# Local docker-compose alerts — mirrors k8s/prometheus-rules.yaml backtest-platform-* groups.
+# k8s file additionally has redis-sentinel / SuspiciousLogin (not scraped locally).
 
 groups:
   - name: backtest-platform-critical
@@ -16,14 +11,14 @@ groups:
         labels: { severity: critical, service: engine-go, category: availability }
         annotations:
           summary: 'Go engine down ({{ $labels.instance }})'
-          description: 'Go 回测引擎抓取失败已 1 分钟。ADR-031 下引擎不可用 → API fail-closed 503。'
+          description: 'ADR-031: API fail-closed 503 when engine unreachable.'
           runbook_url: 'https://backtest.platform/runbooks/platform-alerts#go-engine-down'
       - alert: CircuitBreakerOpen
         expr: circuit_breaker_state == 1
         labels: { severity: critical, service: api, category: resilience }
         annotations:
           summary: 'Circuit breaker open ({{ $labels.name }})'
-          description: '熔断器 Open（ADR-016），需立即排查后端依赖健康。'
+          description: 'ADR-016: check downstream dependency health.'
           runbook_url: 'https://backtest.platform/runbooks/platform-alerts#circuit-breaker-open'
       - alert: PostgresDown
         expr: pg_up == 0
@@ -31,7 +26,7 @@ groups:
         labels: { severity: critical, service: postgres, category: availability }
         annotations:
           summary: 'PostgreSQL down ({{ $labels.instance }})'
-          description: 'pg_up == 0 已 30s。PostgreSQL 为主数据存储（ADR-007）。'
+          description: 'ADR-007: PostgreSQL is primary data store.'
           runbook_url: 'https://backtest.platform/runbooks/platform-alerts#postgres-down'
       - alert: BacktestQueueDepth
         expr: bullmq_queue_size > 100
@@ -39,7 +34,7 @@ groups:
         labels: { severity: critical, service: api, category: capacity }
         annotations:
           summary: 'Backtest queue depth high ({{ $labels.queue }})'
-          description: 'BullMQ 队列深度 > 100 已 5 分钟。检查 Worker 副本数 / 引擎吞吐。'
+          description: 'Queue > 100 for 5m. Check worker replicas / engine throughput.'
           runbook_url: 'https://backtest.platform/runbooks/platform-alerts#backtest-queue-depth'
       - alert: WalgBackupStale
         expr: time() - walg_backup_last_success_timestamp > 93600
@@ -47,7 +42,7 @@ groups:
         labels: { severity: critical, service: postgres, category: backup }
         annotations:
           summary: 'WAL-G backup is stale (no backup in >26h)'
-          description: '超过 26 小时无 WAL-G 全量备份。检查 ofelia 调度器与 MinIO 连接。'
+          description: 'Check ofelia scheduler and MinIO connectivity.'
           runbook_url: 'https://backtest.platform/docs/compliance/data-governance'
   - name: backtest-platform-warning
     interval: 30s
@@ -58,7 +53,7 @@ groups:
         labels: { severity: warning, service: api, category: errors }
         annotations:
           summary: 'High 5xx error rate ({{ $value | humanizePercentage }})'
-          description: '5xx 错误率 > 5% 已 5 分钟。排查引擎 503、PG 异常、限流误归 5xx。'
+          description: '5xx > 5% for 5m. Check engine 503, PG, rate limiter misclassification.'
           runbook_url: 'https://backtest.platform/runbooks/platform-alerts#high-error-rate'
       - alert: ReplicationLag
         expr: pg_replication_lag > 5
@@ -66,7 +61,7 @@ groups:
         labels: { severity: warning, service: postgres, category: replication }
         annotations:
           summary: 'PostgreSQL replication lag high ({{ $value }}s)'
-          description: 'PG 复制延迟 > 5s 已 2 分钟（P1-03 读写分离）。检查从库负载。'
+          description: 'PG replication lag > 5s for 2m. Check replica load.'
           runbook_url: 'https://backtest.platform/runbooks/platform-alerts#replication-lag'
       - alert: HighLatency
         expr: histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[5m])) by (le)) > 1
@@ -74,7 +69,7 @@ groups:
         labels: { severity: warning, service: api, category: latency }
         annotations:
           summary: 'High P99 latency ({{ $value }}s)'
-          description: 'HTTP P99 > 1s 已 5 分钟。排查 DB 慢查询、引擎计算、事件循环阻塞。'
+          description: 'HTTP P99 > 1s for 5m. Check DB slow queries, engine compute, event loop.'
           runbook_url: 'https://backtest.platform/runbooks/platform-alerts#high-latency'
       - alert: HighP90Latency
         expr: histogram_quantile(0.90, sum(rate(http_request_duration_seconds_bucket[5m])) by (le)) > 0.1
@@ -82,7 +77,7 @@ groups:
         labels: { severity: notice, service: api, category: latency }
         annotations:
           summary: 'High P90 latency ({{ $value }}s)'
-          description: 'HTTP P90 > 100ms 已 5 分钟。排查缓存缺失和 DB 查询性能。'
+          description: 'HTTP P90 > 100ms for 5m. Check cache misses and DB query perf.'
           runbook_url: 'https://backtest.platform/runbooks/platform-alerts#high-latency'
       - alert: DiskSpaceLow
         expr: (node_filesystem_avail_bytes{fstype!~"tmpfs|overlay|squashfs|nsfs"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay|squashfs|nsfs"}) < 0.10
@@ -90,12 +85,12 @@ groups:
         labels: { severity: warning, service: node, category: capacity }
         annotations:
           summary: 'Disk space low ({{ $labels.mountpoint }}: {{ $value | humanizePercentage }} free)'
-          description: '可用空间 < 10% 已 5 分钟。PG WAL / Redis AOF / 日志可能占满磁盘。'
+          description: 'Free space < 10% for 5m. PG WAL / Redis AOF / logs may fill disk.'
           runbook_url: 'https://backtest.platform/runbooks/platform-alerts#disk-space-low'
       - alert: WalgArchiveFailure
         expr: increase(walg_backup_failed_total[5m]) > 0
         labels: { severity: warning, service: postgres, category: backup }
         annotations:
           summary: 'WAL archive failures detected'
-          description: 'PostgreSQL WAL 归档失败。检查 MinIO 连通性、磁盘空间与 WAL-G 配置。'
+          description: 'Check MinIO connectivity, disk space, WAL-G config.'
           runbook_url: 'https://backtest.platform/docs/compliance/data-governance'

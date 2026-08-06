@@ -19,14 +19,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: ${{ env.PNPM_VERSION }}
-      - uses: actions/setup-node@v4
+      - uses: ./.github/actions/pnpm-setup
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'pnpm'
-      - run: pnpm install --frozen-lockfile
+          pnpm-version: ${{ env.PNPM_VERSION }}
       - run: pnpm lint
       - run: pnpm check
 
@@ -45,14 +41,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: ${{ env.PNPM_VERSION }}
-      - uses: actions/setup-node@v4
+      - uses: ./.github/actions/pnpm-setup
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'pnpm'
-      - run: pnpm install --frozen-lockfile
+          pnpm-version: ${{ env.PNPM_VERSION }}
       # C5-2026-08：unit-tests 改为带覆盖率的门禁检查（此前仅跑测试不收集覆盖率，门禁形同虚设）。
       # 阈值见 scripts/check-coverage.mjs 文件头的分阶段门禁说明（Phase 1 → 2 → 3 → 80/70 目标）。
       - run: pnpm test:coverage:check
@@ -62,14 +54,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: ${{ env.PNPM_VERSION }}
-      - uses: actions/setup-node@v4
+      - uses: ./.github/actions/pnpm-setup
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'pnpm'
-      - run: pnpm install --frozen-lockfile
+          pnpm-version: ${{ env.PNPM_VERSION }}
       - name: Run static verification scripts
         run: pnpm verify:critical --skip-db --skip-frontend
       - name: Run Zod coverage verification
@@ -80,14 +68,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: ${{ env.PNPM_VERSION }}
-      - uses: actions/setup-node@v4
+      - uses: ./.github/actions/pnpm-setup
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'pnpm'
-      - run: pnpm install --frozen-lockfile
+          pnpm-version: ${{ env.PNPM_VERSION }}
       - run: pnpm deadcode
 
   loc-stats:
@@ -108,12 +92,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: ${{ env.PNPM_VERSION }}
-      - uses: actions/setup-node@v4
+      - uses: ./.github/actions/pnpm-setup
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'pnpm'
-      - run: pnpm install --frozen-lockfile
+          pnpm-version: ${{ env.PNPM_VERSION }}
       - run: pnpm test:contract

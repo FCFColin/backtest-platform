@@ -23,17 +23,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - uses: ./.github/actions/pnpm-setup
         with:
           node-version: lts/*
-          cache: 'pnpm'
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
 
       - name: Type check
         run: npx tsc --noEmit -p packages/api-client/tsconfig.json

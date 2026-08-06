@@ -1,58 +1,39 @@
-# =============================================================================
-# AlertManager 配置 — 告警路由 / 抑制 / 飞书+钉钉通知（P1-10）
-# =============================================================================
-#
-# 企业理由：Prometheus 指标只读不告警等于"只有仪表盘没有报警器"。
-# AlertManager 负责告警去重、分组、抑制与分级路由：
-#   - P0 (severity=critical) → 飞书 + 钉钉，立即触达 oncall（group_wait 0s）
-#   - P1 (severity=warning)  → 飞书，异步汇总（repeat_interval 1h）
-#   - P2 (severity=info)     → 飞书，仅记录（repeat_interval 4h）
-#
-# 告警抑制（inhibition）：上游 P0 故障触发时，抑制同范围下游 P1 告警，
-# 避免告警风暴（如 RedisDown 时抑制 RedisReplicationLagHigh）。
-#
-# 环境变量替换：AlertManager 原生不支持 ${VAR} 插值，容器启动时通过
-# envsubst 渲染本模板（见 docker-compose.yml alertmanager 服务 command）。
-#   FEISHU_WEBHOOK   — 飞书自定义机器人 webhook URL
-#   DINGTALK_WEBHOOK — 钉钉自定义机器人 webhook URL
-# 未设置时回退到空字符串（receiver 静默，不发送），便于本地无 webhook 验证。
-# 参考：https://prometheus.io/docs/alerting/latest/configuration/
-# =============================================================================
+# AlertManager config — P0 critical → feishu+dingtalk, P1 warning → feishu, P2 info → feishu.
+# Inhibition: P0 suppresses same-scope P1 to avoid alert storms.
+# envsubst renders ${FEISHU_WEBHOOK}/${DINGTALK_WEBHOOK} at container startup.
 
 global:
   resolve_timeout: 5m
 
-# ── 告警抑制规则：P0 (critical) 抑制同范围 P1 (warning) ──
 inhibit_rules:
-  # 通用：同 service 的 critical 告警抑制 warning 告警（避免告警风暴）
+  # critical suppresses same-service warning
   - source_matchers:
       - severity = "critical"
     target_matchers:
       - severity = "warning"
     equal: ['service']
 
-  # Redis 全局不可用 → 抑制 Redis 复制延迟/从节点告警（必然结果，无信息增量）
+  # RedisDown → suppress replication/slave alerts
   - source_matchers:
       - alertname = "RedisDown"
     target_matchers:
       - alertname =~ "RedisReplicationLagHigh|RedisNoSlavesConnected"
     equal: ['instance']
 
-  # 引擎不可用 → 抑制降级率告警（降级是引擎不可用的必然结果）
+  # GoEngineDown → suppress error rate alerts
   - source_matchers:
       - alertname = "GoEngineDown"
     target_matchers:
       - alertname =~ "HighErrorRate|DegradedResponseRateHigh"
     equal: ['service']
 
-  # PostgreSQL 不可用 → 抑制连接池等待 / 复制延迟告警
+  # PostgresDown → suppress pool/replication alerts
   - source_matchers:
       - alertname = "PostgresDown"
     target_matchers:
       - alertname =~ "PgPoolWaiting|ReplicationLag"
     equal: ['service']
 
-# ── 路由树：按 severity 分级分发 ──
 route:
   group_by: ['alertname', 'severity', 'service']
   group_wait: 0s
@@ -61,7 +42,7 @@ route:
   receiver: 'feishu-info'
 
   routes:
-    # P0 告警：critical → 飞书 + 钉钉，立即触达
+    # P0: critical → feishu + dingtalk
     - matchers:
         - severity = "critical"
       receiver: 'p0-feishu-dingtalk'
@@ -69,7 +50,7 @@ route:
       repeat_interval: 30m
       continue: false
 
-    # P1 告警：warning → 飞书，每小时汇总一次
+    # P1: warning → feishu
     - matchers:
         - severity = "warning"
       receiver: 'p1-feishu'
@@ -77,7 +58,7 @@ route:
       repeat_interval: 1h
       continue: false
 
-    # P2 告警：info → 飞书，4 小时汇总一次
+    # P2: info → feishu
     - matchers:
         - severity = "info"
       receiver: 'feishu-info'
@@ -85,28 +66,25 @@ route:
       repeat_interval: 4h
       continue: false
 
-# ── 接收器定义 ──
 receivers:
-  # P0：飞书 + 钉钉双通道（立即触达 oncall）
+  # P0: feishu + dingtalk dual channel
   - name: 'p0-feishu-dingtalk'
     webhook_configs:
-      # 飞书自定义机器人：接收 AlertManager JSON，由飞书机器人 / 中转服务解析
       - url: '${FEISHU_WEBHOOK}'
         send_resolved: true
         max_alerts: 0
-      # 钉钉自定义机器人：同上
       - url: '${DINGTALK_WEBHOOK}'
         send_resolved: true
         max_alerts: 0
 
-  # P1：仅飞书（异步汇总）
+  # P1: feishu only
   - name: 'p1-feishu'
     webhook_configs:
       - url: '${FEISHU_WEBHOOK}'
         send_resolved: true
         max_alerts: 0
 
-  # P2 / 默认：仅飞书（记录）
+  # P2 / default: feishu only
   - name: 'feishu-info'
     webhook_configs:
       - url: '${FEISHU_WEBHOOK}'

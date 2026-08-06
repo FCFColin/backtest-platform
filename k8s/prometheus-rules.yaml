@@ -23,7 +23,7 @@ spec:
           labels: *critical-redis-ha
           annotations:
             summary: 'Redis Sentinel failover in progress ({{ $labels.master }})'
-            description: 'Failover > 30s, exceeding failover-timeout. Manual intervention may be required.'
+            description: 'Failover > 30s, exceeding failover-timeout.'
             runbook_url: 'https://backtest.platform/runbooks/redis-sentinel#failover-stuck'
         - alert: RedisDown
           expr: redis_up == 0
@@ -31,7 +31,7 @@ spec:
           labels: *critical-redis-ha
           annotations:
             summary: 'Redis instance down'
-            description: 'redis_up == 0 for > 30s. All pods unreachable in Sentinel mode.'
+            description: 'redis_up == 0 for > 30s.'
             runbook_url: 'https://backtest.platform/runbooks/redis-sentinel#redis-down'
         - alert: RedisRefusedWrites
           expr: max(redis_rejected_connections_total) by (addr) > 0 or max(rate(redis_errors_total{type="rejected"}[1m])) by (addr) > 0
@@ -39,7 +39,7 @@ spec:
           labels: *critical-redis-ha
           annotations:
             summary: 'Redis rejecting writes ({{ $labels.addr }})'
-            description: 'min-slaves-to-write=1 triggered. Check slave replication.'
+            description: 'min-slaves-to-write=1 triggered.'
             runbook_url: 'https://backtest.platform/runbooks/redis-sentinel#rejected-writes'
     - name: redis-sentinel-warning
       rules:
@@ -51,7 +51,7 @@ spec:
             category: redis-ha
           annotations:
             summary: 'Redis Sentinel quorum at risk'
-            description: 'Fewer than 2 Sentinel pods reachable. Quorum cannot be achieved if another fails.'
+            description: 'Fewer than 2 Sentinel pods reachable.'
             runbook_url: 'https://backtest.platform/runbooks/redis-sentinel#quorum-loss'
         - alert: RedisNoSlavesConnected
           expr: max(redis_connected_slaves) by (addr) < 1
@@ -67,14 +67,14 @@ spec:
           labels: *warning-redis-ha
           annotations:
             summary: 'Redis replication lag high ({{ $labels.addr }})'
-            description: 'Replication lag > 5s for > 2m. min-slaves-max-lag=10 will trigger write rejection soon.'
+            description: 'Replication lag > 5s for > 2m.'
             runbook_url: 'https://backtest.platform/runbooks/redis-sentinel#replication-lag'
         - alert: RedisSentinelPodRestart
           expr: increase(kube_pod_container_status_restarts_total{container=~"sentinel"}[15m]) > 0
           labels: *warning-redis-ha
           annotations:
             summary: 'Redis Sentinel pod restarted'
-            description: 'Sentinel container restarted. Verify quorum is still healthy.'
+            description: 'Verify quorum is still healthy.'
             runbook_url: 'https://backtest.platform/runbooks/redis-sentinel#pod-restart'
     - name: backtest-platform-critical
       interval: 15s
@@ -85,14 +85,14 @@ spec:
           labels: { severity: critical, service: engine-go, category: availability }
           annotations:
             summary: 'Go engine down ({{ $labels.instance }})'
-            description: 'Go 回测引擎抓取失败已 1 分钟。ADR-031 下引擎不可用 → API fail-closed 503。'
+            description: 'ADR-031: API fail-closed 503 when engine unreachable.'
             runbook_url: 'https://backtest.platform/runbooks/platform-alerts#go-engine-down'
         - alert: CircuitBreakerOpen
           expr: circuit_breaker_state == 1
           labels: { severity: critical, service: api, category: resilience }
           annotations:
             summary: 'Circuit breaker open ({{ $labels.name }})'
-            description: '熔断器 Open（ADR-016），需立即排查后端依赖健康。'
+            description: 'ADR-016: check downstream dependency health.'
             runbook_url: 'https://backtest.platform/runbooks/platform-alerts#circuit-breaker-open'
         - alert: PostgresDown
           expr: pg_up == 0
@@ -100,7 +100,7 @@ spec:
           labels: { severity: critical, service: postgres, category: availability }
           annotations:
             summary: 'PostgreSQL down ({{ $labels.instance }})'
-            description: 'pg_up == 0 已 30s。PostgreSQL 为主数据存储（ADR-007）。'
+            description: 'ADR-007: PostgreSQL is primary data store.'
             runbook_url: 'https://backtest.platform/runbooks/platform-alerts#postgres-down'
         - alert: BacktestQueueDepth
           expr: bullmq_queue_size > 100
@@ -108,14 +108,14 @@ spec:
           labels: { severity: critical, service: api, category: capacity }
           annotations:
             summary: 'Backtest queue depth high ({{ $labels.queue }})'
-            description: 'BullMQ 队列深度 > 100 已 5 分钟。检查 Worker 副本数 / 引擎吞吐。'
+            description: 'Queue > 100 for 5m. Check worker replicas / engine throughput.'
             runbook_url: 'https://backtest.platform/runbooks/platform-alerts#backtest-queue-depth'
         - alert: SuspiciousLoginActivity
           expr: increase(auth_ip_lockout_total[5m]) > 3
           labels: { severity: critical, service: api, category: security }
           annotations:
-            summary: '异常登录检测：{{ $value }} 个 IP 在 5 分钟内被封锁'
-            description: '5 分钟内超 3 个 IP 被封锁，可能撞库攻击。检查 SUSPICIOUS_LOGIN_IP 事件。'
+            summary: 'Suspicious login: {{ $value }} IPs blocked in 5m'
+            description: 'Possible credential stuffing. Check SUSPICIOUS_LOGIN_IP events.'
             runbook_url: 'https://backtest.platform/runbooks/suspicious-login'
         - alert: WalgBackupStale
           expr: time() - walg_backup_last_success_timestamp > 93600
@@ -123,7 +123,7 @@ spec:
           labels: { severity: critical, service: postgres, category: backup }
           annotations:
             summary: 'WAL-G backup is stale (no backup in >26h)'
-            description: '超过 26 小时无 WAL-G 全量备份。检查 ofelia 调度器与 MinIO 连接。'
+            description: 'Check ofelia scheduler and MinIO connectivity.'
             runbook_url: 'https://backtest.platform/docs/compliance/data-governance'
     - name: backtest-platform-warning
       interval: 30s
@@ -134,7 +134,7 @@ spec:
           labels: { severity: warning, service: api, category: errors }
           annotations:
             summary: 'High 5xx error rate ({{ $value | humanizePercentage }})'
-            description: '5xx 错误率 > 5% 已 5 分钟。排查引擎 503、PG 异常、限流误归 5xx。'
+            description: '5xx > 5% for 5m. Check engine 503, PG, rate limiter misclassification.'
             runbook_url: 'https://backtest.platform/runbooks/platform-alerts#high-error-rate'
         - alert: ReplicationLag
           expr: pg_replication_lag > 5
@@ -142,7 +142,7 @@ spec:
           labels: { severity: warning, service: postgres, category: replication }
           annotations:
             summary: 'PostgreSQL replication lag high ({{ $value }}s)'
-            description: 'PG 复制延迟 > 5s 已 2 分钟（P1-03 读写分离）。检查从库负载。'
+            description: 'PG replication lag > 5s for 2m. Check replica load.'
             runbook_url: 'https://backtest.platform/runbooks/platform-alerts#replication-lag'
         - alert: HighLatency
           expr: histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[5m])) by (le)) > 1
@@ -150,7 +150,7 @@ spec:
           labels: { severity: warning, service: api, category: latency }
           annotations:
             summary: 'High P99 latency ({{ $value }}s)'
-            description: 'HTTP P99 > 1s 已 5 分钟。排查 DB 慢查询、引擎计算、事件循环阻塞。'
+            description: 'HTTP P99 > 1s for 5m. Check DB slow queries, engine compute, event loop.'
             runbook_url: 'https://backtest.platform/runbooks/platform-alerts#high-latency'
         - alert: HighP90Latency
           expr: histogram_quantile(0.90, sum(rate(http_request_duration_seconds_bucket[5m])) by (le)) > 0.1
@@ -158,7 +158,7 @@ spec:
           labels: { severity: notice, service: api, category: latency }
           annotations:
             summary: 'High P90 latency ({{ $value }}s)'
-            description: 'HTTP P90 > 100ms 已 5 分钟。排查缓存缺失和 DB 查询性能。'
+            description: 'HTTP P90 > 100ms for 5m. Check cache misses and DB query perf.'
             runbook_url: 'https://backtest.platform/runbooks/platform-alerts#high-latency'
         - alert: DiskSpaceLow
           expr: (node_filesystem_avail_bytes{fstype!~"tmpfs|overlay|squashfs|nsfs"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay|squashfs|nsfs"}) < 0.10
@@ -166,12 +166,12 @@ spec:
           labels: { severity: warning, service: node, category: capacity }
           annotations:
             summary: 'Disk space low ({{ $labels.mountpoint }}: {{ $value | humanizePercentage }} free)'
-            description: '可用空间 < 10% 已 5 分钟。PG WAL / Redis AOF / 日志可能占满磁盘。'
+            description: 'Free space < 10% for 5m. PG WAL / Redis AOF / logs may fill disk.'
             runbook_url: 'https://backtest.platform/runbooks/platform-alerts#disk-space-low'
         - alert: WalgArchiveFailure
           expr: increase(walg_backup_failed_total[5m]) > 0
           labels: { severity: warning, service: postgres, category: backup }
           annotations:
             summary: 'WAL archive failures detected'
-            description: 'PostgreSQL WAL 归档失败。检查 MinIO 连通性、磁盘空间与 WAL-G 配置。'
+            description: 'Check MinIO connectivity, disk space, WAL-G config.'
             runbook_url: 'https://backtest.platform/docs/compliance/data-governance'

@@ -6,10 +6,8 @@ spec:
   minReplicas: 2
   maxReplicas: 10
   metrics:
-    - {
-        type: Resource,
-        resource: { name: cpu, target: { type: Utilization, averageUtilization: 70 } },
-      }
+    - type: Resource
+      resource: { name: cpu, target: { type: Utilization, averageUtilization: 70 } }
   behavior:
     scaleDown:
       {
@@ -30,10 +28,8 @@ spec:
   minReplicas: 2
   maxReplicas: 10
   metrics:
-    - {
-        type: Resource,
-        resource: { name: cpu, target: { type: Utilization, averageUtilization: 70 } },
-      }
+    - type: Resource
+      resource: { name: cpu, target: { type: Utilization, averageUtilization: 70 } }
   behavior:
     scaleUp:
       {
@@ -54,10 +50,8 @@ spec:
   minReplicas: 2
   maxReplicas: 6
   metrics:
-    - {
-        type: Resource,
-        resource: { name: cpu, target: { type: Utilization, averageUtilization: 70 } },
-      }
+    - type: Resource
+      resource: { name: cpu, target: { type: Utilization, averageUtilization: 70 } }
   behavior:
     scaleDown:
       {
@@ -78,10 +72,8 @@ spec:
   minReplicas: 2
   maxReplicas: 5
   metrics:
-    - {
-        type: Resource,
-        resource: { name: cpu, target: { type: Utilization, averageUtilization: 70 } },
-      }
+    - type: Resource
+      resource: { name: cpu, target: { type: Utilization, averageUtilization: 70 } }
   behavior:
     scaleDown:
       {

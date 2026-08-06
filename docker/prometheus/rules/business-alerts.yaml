@@ -1,13 +1,7 @@
-# =============================================================================
-# P2-02: 业务指标告警规则
-# =============================================================================
-# 企业理由：业务指标异常直接影响用户体验和收入，需要在问题扩散前告警。
-# 7 条告警覆盖核心业务路径的异常状态。
-# ==============================================================================
+# Business metric alerts — 7 rules covering core business path anomalies.
 groups:
   - name: business
     rules:
-      # 告警 1：回测错误率过高
       - alert: BacktestHighErrorRate
         expr: |
           rate(backtest_requests_total{status="error"}[5m])
@@ -16,60 +10,54 @@ groups:
         labels:
           severity: critical
         annotations:
-          summary: "Backtest error rate > 10%"
-          description: "Error rate is {{ $value | humanizePercentage }}. Check engine-go health and DB connectivity."
+          summary: 'Backtest error rate > 10%'
+          description: 'Error rate is {{ $value | humanizePercentage }}. Check engine-go health and DB connectivity.'
 
-      # 告警 2：引擎熔断器打开
       - alert: EngineCircuitBreakerOpen
         expr: engine_circuit_breaker_state == 1
         for: 1m
         labels:
           severity: critical
         annotations:
-          summary: "Engine circuit breaker is OPEN"
-          description: "Go engine circuit breaker has been open for >1min. All compute endpoints returning 503."
+          summary: 'Engine circuit breaker is OPEN'
+          description: 'Go engine circuit breaker has been open for >1min. All compute endpoints returning 503.'
 
-      # 告警 3：队列积压
       - alert: BacktestQueueBacklog
         expr: engine_queue_depth > 50
         for: 5m
         labels:
           severity: warning
         annotations:
-          summary: "Backtest queue depth > 50"
-          description: "{{ $value }} jobs waiting. Check worker capacity and engine-go response time."
+          summary: 'Backtest queue depth > 50'
+          description: '{{ $value }} jobs waiting. Check worker capacity and engine-go response time.'
 
-      # 告警 4：配额接近上限
       - alert: QuotaApproachingLimit
         expr: quota_usage_ratio > 0.9
         for: 10m
         labels:
           severity: warning
         annotations:
-          summary: "Quota usage > 90%"
-          description: "Organization is approaching plan quota limit. Consider upgrade notification."
+          summary: 'Quota usage > 90%'
+          description: 'Organization is approaching plan quota limit. Consider upgrade notification.'
 
-      # 告警 5：PostgreSQL 连接池耗尽
       - alert: PgPoolExhausted
         expr: pg_pool_waiting_count > 10
         for: 2m
         labels:
           severity: critical
         annotations:
-          summary: "PostgreSQL connection pool waiting count > 10"
-          description: "Pool exhaustion detected. Check for long-running queries or increase pool size."
+          summary: 'PostgreSQL connection pool waiting count > 10'
+          description: 'Pool exhaustion detected. Check for long-running queries or increase pool size.'
 
-      # 告警 6：Redis 不可用
       - alert: RedisUnavailable
         expr: rate_limiter_redis_unavailable_total > 0
         for: 1m
         labels:
           severity: critical
         annotations:
-          summary: "Redis unavailable - rate limiter fail-closed"
-          description: "Redis is unavailable, all rate limiters are returning 503. Check Redis Sentinel health."
+          summary: 'Redis unavailable - rate limiter fail-closed'
+          description: 'Redis is unavailable, all rate limiters are returning 503. Check Redis Sentinel health.'
 
-      # 告警 7：TLS 证书即将过期
       - alert: TlsCertificateExpiringSoon
         expr: |
           probe_ssl_earliest_cert_expiry{job="blackbox"} < 7 * 24 * 3600
@@ -77,5 +65,5 @@ groups:
         labels:
           severity: warning
         annotations:
-          summary: "TLS certificate expiring within 7 days"
-          description: "Certificate will expire in {{ $value | humanizeDuration }}. Renew before expiry."
+          summary: 'TLS certificate expiring within 7 days'
+          description: 'Certificate will expire in {{ $value | humanizeDuration }}. Renew before expiry.'

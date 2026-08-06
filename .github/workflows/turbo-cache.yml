@@ -11,10 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: ./.github/actions/pnpm-setup
         with:
           node-version: '22'
-          cache: 'pnpm'
-      - run: pnpm install --frozen-lockfile
       - run: pnpm exec turbo run build test check lint --concurrency=4
