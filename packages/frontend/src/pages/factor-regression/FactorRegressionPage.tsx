@@ -3,7 +3,7 @@ import { fmtPct, fmtNum } from '@/utils/format';
 import { cn } from '@/lib/utils';
 import { Card } from '@/components/ui/uiComponents';
 import { CollapsibleSection } from '@/components/cards.js';
-import { ErrorBanner } from '@/components/stateDisplay.js';
+import { ResultsShell } from '@/components/resultsShell.js';
 import { FACTOR_COLORS } from './factorRegressionUtils.js';
 import type { FactorRegressionResult } from './factorRegressionUtils.js';
 import { ComputeToolShell, type ComputeToolConfig } from '../../components/shells/index.js';
@@ -204,13 +204,17 @@ function RegressionResultTable({
   );
 }
 function FactorRegressionResultsPanel({ state: s }: { state: FactorRegressionState }) {
-  const { result, error, selectedFactors } = s;
+  const { result, error, selectedFactors, isLoading } = s;
   const { t } = useTranslation();
   return (
-    <div className="flex flex-col gap-3">
-      {error && <ErrorBanner variant="error" message={`${t('Analysis failed')}: ${error}`} />}
+    <ResultsShell
+      error={error}
+      errorPrefix={`${t('Analysis failed')}: `}
+      isLoading={isLoading}
+      hasResults={!!result}
+    >
       {result && (
-        <>
+        <div className="flex flex-col gap-3">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <StatCard
               label="Alpha"
@@ -240,9 +244,9 @@ function FactorRegressionResultsPanel({ state: s }: { state: FactorRegressionSta
               'Factor data sourced from Kenneth French database (simulated data). The full version will integrate real-time Fama-French factor data.',
             )}
           </div>
-        </>
+        </div>
       )}
-    </div>
+    </ResultsShell>
   );
 }
 const config: ComputeToolConfig<FactorRegressionState> = {

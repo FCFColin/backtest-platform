@@ -177,7 +177,6 @@ function useBillingState(isAuthed: boolean) {
     if (isAuthed) void load();
     else setLoading(false);
   }, [isAuthed, load]);
-  /** POST 后重定向到返回的 URL，否则抛错 */
   const postRedirect = async (url: string, body: Record<string, unknown>, failKey: string) => {
     setBusy(true);
     setError(null);

@@ -1,12 +1,9 @@
 import { useTranslation } from 'react-i18next';
 import {
-  Bar,
-  BarChart,
   CartesianGrid,
   Legend,
   Line,
   LineChart,
-  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -14,8 +11,9 @@ import {
 } from 'recharts';
 import { Card } from '@/components/ui/uiComponents';
 import { CHART_COLORS, type MonteCarloResult } from '@backtest/shared';
-import { AXIS_TICK_STYLE, CHART_GRID_PROPS, CHART_TOOLTIP_STYLE } from '@/lib/chart-theme.js';
+import { CHART_GRID_PROPS, CHART_TOOLTIP_STYLE } from '@/lib/chart-theme.js';
 import { fmtDollar } from '@/utils/format';
+import { HistogramChart, NoDataCard } from './HistogramChart.js';
 import {
   buildFanChartData,
   buildSuccessData,
@@ -39,7 +37,7 @@ function FanChart({ data }: { data: FanDataPoint[] }) {
     />
   );
 }
-export function MonteCarloTerminalHistogram({
+function MonteCarloTerminalHistogram({
   r,
   startingValue,
 }: {
@@ -57,75 +55,36 @@ export function MonteCarloTerminalHistogram({
       <h4 className="mb-3 text-heading text-fg-secondary tabular-nums">
         {t('Terminal Value Distribution')}
       </h4>
-      <ResponsiveContainer width="100%" height={300}>
-        <BarChart data={data}>
-          <CartesianGrid {...CHART_GRID_PROPS} stroke="hsl(var(--border-subtle))" />
-          <XAxis
-            dataKey="range"
-            tick={{ fill: 'hsl(var(--fg-tertiary))', fontSize: 10 }}
-            interval={3}
-          />
-          <YAxis tick={AXIS_TICK_STYLE} />
-          <Tooltip
-            contentStyle={CHART_TOOLTIP_STYLE}
-            isAnimationActive={false}
-            formatter={(value: number) => [String(value), t('Frequency')]}
-          />
-          <Bar
-            dataKey="count"
-            fill={CHART_COLORS[0]}
-            fillOpacity={0.7}
-            name={t('Frequency')}
-            radius={[2, 2, 0, 0]}
-          />
-          {[
-            {
-              label: p5Label,
-              color: CHART_COLORS[3],
-              val: fmtDollar(p5Val),
-              key: 'monteCarlo.histogram.p5',
-            },
-            {
-              label: p50Label,
-              color: CHART_COLORS[2],
-              val: fmtDollar(p50Val),
-              key: 'monteCarlo.histogram.median',
-            },
-            {
-              label: p95Label,
-              color: CHART_COLORS[4],
-              val: fmtDollar(p95Val),
-              key: 'monteCarlo.histogram.p95',
-            },
-          ].map((rl) => (
-            <ReferenceLine
-              key={rl.label}
-              x={rl.label}
-              stroke={rl.color}
-              strokeDasharray="4 2"
-              label={{
-                value: t(rl.key, { value: rl.val }),
-                position: 'top',
-                fontSize: 11,
-                fill: rl.color,
-              }}
-            />
-          ))}
-        </BarChart>
-      </ResponsiveContainer>
+      <HistogramChart
+        data={data}
+        height={300}
+        disableTooltipAnimation
+        tooltipFormatter={(value: number) => [String(value), t('Frequency')]}
+        referenceLines={[
+          {
+            label: p5Label,
+            color: CHART_COLORS[3],
+            value: t('monteCarlo.histogram.p5', { value: fmtDollar(p5Val) }),
+          },
+          {
+            label: p50Label,
+            color: CHART_COLORS[2],
+            value: t('monteCarlo.histogram.median', { value: fmtDollar(p50Val) }),
+          },
+          {
+            label: p95Label,
+            color: CHART_COLORS[4],
+            value: t('monteCarlo.histogram.p95', { value: fmtDollar(p95Val) }),
+          },
+        ]}
+      />
     </Card>
   );
 }
 export function MonteCarloSuccessTab({ r }: { r: MonteCarloResult }) {
   const { t } = useTranslation();
   const data = buildSuccessData(r);
-  if (data.length === 0) {
-    return (
-      <Card className="p-5">
-        <div className="py-6 text-center text-caption text-fg-tertiary">{t('No data')}</div>
-      </Card>
-    );
-  }
+  if (data.length === 0) return <NoDataCard />;
   const isLargeDataset = data.length >= 100;
   const seriesAnimationActive = !isLargeDataset;
   const successLines = [
@@ -187,13 +146,7 @@ export function MonteCarloRangeTab({
 }) {
   const { t } = useTranslation();
   const data = buildFanChartData(r, startingValue);
-  if (data.length === 0) {
-    return (
-      <Card className="p-5">
-        <div className="py-6 text-center text-caption text-fg-tertiary">{t('No data')}</div>
-      </Card>
-    );
-  }
+  if (data.length === 0) return <NoDataCard />;
   return (
     <div className="flex flex-col gap-4">
       <Card className="p-5">

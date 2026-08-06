@@ -1,8 +1,11 @@
-import { useState } from 'react';
 import i18n from '@/i18n/index.js';
 import type { RebalanceFrequency } from '@backtest/shared';
-import { useAssetList } from '../../hooks/miscHooks.js';
-import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
+import { useAssetList, useSetterState } from '../../hooks/miscHooks.js';
+import {
+  DEFAULT_BACKTEST_START_DATE,
+  DEFAULT_END_DATE,
+  DEFAULT_60_40_ASSETS,
+} from '@/utils/constants';
 import { validateAssetWeights } from '@/utils/validation';
 import {
   FREQ_ORDER,
@@ -54,57 +57,23 @@ export interface RebalancingState {
   runOffsetScan: (freq: RebalanceFrequency) => Promise<void>;
 }
 function useRebalSetters() {
-  const [startDate, setStartDate] = useState(DEFAULT_BACKTEST_START_DATE);
-  const [endDate, setEndDate] = useState(DEFAULT_END_DATE);
-  const [adjustForInflation, setAdjustForInflation] = useState(false);
-  const [baseCurrency, setBaseCurrency] = useState<'usd' | 'cny'>('usd');
-  const [startingValue, setStartingValue] = useState(10000);
-  const [selectedFreqs, setSelectedFreqs] = useState<RebalanceFrequency[]>([
-    'monthly',
-    'quarterly',
-    'annual',
-  ]);
-  const [absoluteBand, setAbsoluteBand] = useState<number | ''>('');
-  const [relativeBand, setRelativeBand] = useState<number | ''>('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [results, setResults] = useState<FreqResult[]>([]);
-  const [activeTab, setActiveTab] = useState('scatter');
-  const [offsetFreq, setOffsetFreq] = useState<RebalanceFrequency>('monthly');
-  const [offsetResults, setOffsetResults] = useState<Array<{ offset: number; cagr: number }>>([]);
-  const [isLoadingOffset, setIsLoadingOffset] = useState(false);
-  return {
-    startDate,
-    setStartDate,
-    endDate,
-    setEndDate,
-    adjustForInflation,
-    setAdjustForInflation,
-    baseCurrency,
-    setBaseCurrency,
-    startingValue,
-    setStartingValue,
-    selectedFreqs,
-    setSelectedFreqs,
-    absoluteBand,
-    setAbsoluteBand,
-    relativeBand,
-    setRelativeBand,
-    isLoading,
-    setIsLoading,
-    error,
-    setError,
-    results,
-    setResults,
-    activeTab,
-    setActiveTab,
-    offsetFreq,
-    setOffsetFreq,
-    offsetResults,
-    setOffsetResults,
-    isLoadingOffset,
-    setIsLoadingOffset,
-  };
+  return useSetterState({
+    startDate: DEFAULT_BACKTEST_START_DATE,
+    endDate: DEFAULT_END_DATE,
+    adjustForInflation: false,
+    baseCurrency: 'usd' as 'usd' | 'cny',
+    startingValue: 10000,
+    selectedFreqs: ['monthly', 'quarterly', 'annual'] as RebalanceFrequency[],
+    absoluteBand: '' as number | '',
+    relativeBand: '' as number | '',
+    isLoading: false,
+    error: null as string | null,
+    results: [] as FreqResult[],
+    activeTab: 'scatter',
+    offsetFreq: 'monthly' as RebalanceFrequency,
+    offsetResults: [] as Array<{ offset: number; cagr: number }>,
+    isLoadingOffset: false,
+  });
 }
 function createRebalancingRunners(
   s: ReturnType<typeof useRebalSetters>,
@@ -177,20 +146,15 @@ function createRebalancingRunners(
 export function useRebalancingState(): RebalancingState {
   const s = useRebalSetters();
   const toggleFreq = (freq: RebalanceFrequency) =>
-    s.setSelectedFreqs((prev) =>
-      prev.includes(freq) ? prev.filter((f) => f !== freq) : [...prev, freq],
+    s.setSelectedFreqs(
+      s.selectedFreqs.includes(freq)
+        ? s.selectedFreqs.filter((f) => f !== freq)
+        : [...s.selectedFreqs, freq],
     );
   const { assets, addAsset, removeAsset, updateAsset, totalWeight } = useAssetList<{
     ticker: string;
     weight: number;
-  }>(
-    [
-      { ticker: 'VTI', weight: 60 },
-      { ticker: 'BND', weight: 40 },
-    ],
-    () => ({ ticker: '', weight: 0 }),
-    0,
-  );
+  }>([...DEFAULT_60_40_ASSETS], () => ({ ticker: '', weight: 0 }), 0);
   const params = {
     startDate: s.startDate,
     endDate: s.endDate,

@@ -38,6 +38,21 @@ export function useListState<T>(initial: T[], makeDefault: () => T, minLength = 
   return { items, setItems, addItem, removeItem, updateItem };
 }
 
+type SetterState<T> = T & {
+  [K in keyof T as `set${Capitalize<string & K>}`]: (v: T[K]) => void;
+};
+export function useSetterState<T extends Record<string, unknown>>(initial: T): SetterState<T> {
+  const [state, setState] = useState(initial);
+  const set =
+    <K extends keyof T>(key: K) =>
+    (v: T[K]) =>
+      setState((prev) => ({ ...prev, [key]: v }));
+  const setters = Object.fromEntries(
+    Object.keys(initial).map((k) => [`set${k[0].toUpperCase()}${k.slice(1)}`, set(k as keyof T)]),
+  ) as SetterState<T>;
+  return { ...state, ...setters } as SetterState<T>;
+}
+
 export function useAssetList<T extends { ticker: string; weight: number | string }>(
   defaults: T[],
   factory: () => T,
@@ -128,23 +143,13 @@ export function useComputeTool<TResult>(
 }
 
 export function useOptimizerLikeState<TResults>() {
-  const [state, setState] = useState({
+  return useSetterState({
     startDate: DEFAULT_BACKTEST_START_DATE,
     endDate: DEFAULT_END_DATE,
     isLoading: false,
     error: null as string | null,
     results: null as TResults | null,
   });
-  const patch = <K extends keyof typeof state>(key: K, value: (typeof state)[K]) =>
-    setState((prev) => ({ ...prev, [key]: value }));
-  return {
-    ...state,
-    setStartDate: (v: string) => patch('startDate', v),
-    setEndDate: (v: string) => patch('endDate', v),
-    setIsLoading: (v: boolean) => patch('isLoading', v),
-    setError: (v: string | null) => patch('error', v),
-    setResults: (v: TResults | null) => patch('results', v),
-  };
 }
 
 interface TickerMeta {
@@ -209,12 +214,12 @@ function useCachedResource<T>(cache: ResourceCache<T>): T | null {
           cache.time = Date.now();
           return d;
         })
-        .catch(() => null)
+        .catch(() => null as T)
         .finally(() => {
           cache.pending = null;
         });
     }
-    cache.pending.then(setData);
+    cache.pending!.then(setData);
   }, []);
   return data;
 }

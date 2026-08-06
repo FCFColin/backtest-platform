@@ -1,4 +1,4 @@
-import { Play, Loader2, Plus, X } from 'lucide-react';
+import { Play, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Line } from 'recharts';
 import { CHART_COLORS } from '@backtest/shared';
@@ -10,7 +10,6 @@ import {
 } from '../../components/params/paramsLayout.js';
 import {
   Button,
-  Card,
   Input,
   Select,
   SelectContent,
@@ -19,7 +18,9 @@ import {
   SelectValue,
   Switch,
 } from '@/components/ui/uiComponents';
+import SinglePortfolioEditor from '@/components/PortfolioEditor.js';
 import { StatCard } from '@/components/cards.js';
+import { ResultsShell } from '@/components/resultsShell.js';
 import { SortableTable } from '../../components/tables.js';
 import { SimpleChart } from '@/components/charts/sharedChartContent.js';
 import {
@@ -171,78 +172,42 @@ export function OptimizerParams({ s }: OptimizerSectionProps) {
 }
 export function OptimizerResults({ s }: OptimizerSectionProps) {
   const { t } = useTranslation();
-  if (s.result.error) {
-    return (
-      <Card className="flex items-center justify-center p-6 text-center text-danger">
-        {t('Optimization failed: ')}
-        {s.result.error}
-      </Card>
-    );
-  }
-  if (!s.result.results) {
-    return (
-      <Card className="flex items-center justify-center p-12 text-center text-fg-tertiary">
-        {t('Configure parameters on the left and click "Start Optimization" to see results')}
-      </Card>
-    );
-  }
   return (
-    <div className="flex flex-col gap-4">
-      <BestMetricsCard best={s.result.best} totalCombos={s.result.totalCombos} />
-      <GrowthComparisonChart best={s.result.best} benchmarkGrowth={s.result.benchmarkGrowth} />
-      <ComparisonTableSection results={s.result.results} objective={s.form.objective} />
-    </div>
+    <ResultsShell
+      error={s.result.error}
+      errorPrefix={t('Optimization failed: ')}
+      isLoading={s.result.isLoading}
+      hasResults={!!s.result.results}
+      loadingLabel={t('Optimizing...')}
+      emptyTitle={t(
+        'Configure parameters on the left and click "Start Optimization" to see results',
+      )}
+    >
+      <div className="flex flex-col gap-4">
+        <BestMetricsCard best={s.result.best} totalCombos={s.result.totalCombos} />
+        <GrowthComparisonChart best={s.result.best} benchmarkGrowth={s.result.benchmarkGrowth} />
+        <ComparisonTableSection results={s.result.results ?? []} objective={s.form.objective} />
+      </div>
+    </ResultsShell>
   );
 }
 function PortfolioConfigSection({ s }: OptimizerSectionProps) {
   const { t } = useTranslation();
+  const totalWeight = s.assets.reduce((sum, a) => sum + (Number(a.weight) || 0), 0);
   return (
     <ParamsSection
       title={t('Portfolio Configuration')}
       info={t('Add tickers and weights for optimization')}
     >
-      <div className="flex flex-col gap-2">
-        {s.assets.map((a, i) => (
-          <div key={i} className="flex items-center gap-1.5">
-            <Input
-              type="text"
-              value={a.ticker}
-              onChange={(e) => s.updateAsset(i, 'ticker', e.target.value)}
-              placeholder={t('Enter ticker, e.g. VTI')}
-              className="flex-1"
-            />
-            <div className="flex items-center gap-1 w-[110px]">
-              <Input
-                type="number"
-                className="font-mono tabular-nums"
-                value={a.weight}
-                onChange={(e) => s.updateAsset(i, 'weight', e.target.value)}
-                placeholder={t('Enter weight, e.g. 30')}
-                min={0}
-                max={100}
-              />
-              <span className="text-caption text-fg-tertiary shrink-0">%</span>
-            </div>
-            {s.assets.length > 1 && (
-              <Button
-                variant="destructive"
-                size="icon"
-                onClick={() => s.removeAsset(i)}
-                title={t('Delete')}
-                aria-label={t('Delete')}
-              >
-                <X />
-              </Button>
-            )}
-          </div>
-        ))}
-      </div>
-      <div className="mt-2">
-        <Button variant="ghost" size="sm" onClick={s.addAsset}>
-          <Plus />
-          {t('Add Ticker')}
-        </Button>
-      </div>
+      <SinglePortfolioEditor
+        singleMode
+        assets={s.assets.map(({ ticker, weight }) => ({ ticker, weight: Number(weight) || 0 }))}
+        totalWeight={totalWeight}
+        onAdd={s.addAsset}
+        onRemove={s.removeAsset}
+        onUpdate={(i, field, val) => s.updateAsset(i, field, String(val))}
+        wrapInSection={false}
+      />
     </ParamsSection>
   );
 }

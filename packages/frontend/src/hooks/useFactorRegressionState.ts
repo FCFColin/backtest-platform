@@ -1,9 +1,12 @@
-import { useState } from 'react';
 import type { TFunction } from 'i18next';
-import { useAsyncAction, useAssetList } from './miscHooks.js';
+import { useAsyncAction, useAssetList, useSetterState } from './miscHooks.js';
 import { useToastStore } from '@/store/toastStore';
 import { fetchRegression } from '../pages/factor-regression/factorRegressionUtils.js';
-import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
+import {
+  DEFAULT_BACKTEST_START_DATE,
+  DEFAULT_END_DATE,
+  DEFAULT_60_40_ASSETS,
+} from '@/utils/constants';
 import { validateAssetWeights } from '@/utils/validation';
 import type {
   AssetItem,
@@ -51,43 +54,44 @@ function validateRegressionParams(
   return { validAssets };
 }
 export function useFactorRegressionState(t: TFunction): FactorRegressionState {
-  const [startDate, setStartDate] = useState(DEFAULT_BACKTEST_START_DATE);
-  const [endDate, setEndDate] = useState(DEFAULT_END_DATE);
-  const [returnFrequency, setReturnFrequency] = useState<ReturnFrequency>('monthly');
-  const [rfSource, setRfSource] = useState('us-3m');
-  const [selectedFactors, setSelectedFactors] = useState<string[]>(['mktRF', 'smb', 'hml']);
+  const s = useSetterState({
+    startDate: DEFAULT_BACKTEST_START_DATE,
+    endDate: DEFAULT_END_DATE,
+    returnFrequency: 'monthly' as ReturnFrequency,
+    rfSource: 'us-3m',
+    selectedFactors: ['mktRF', 'smb', 'hml'] as string[],
+    result: null as FactorRegressionResult | null,
+  });
   const { assets, addAsset, removeAsset, updateAsset, totalWeight } = useAssetList<AssetItem>(
-    [
-      { ticker: 'VTI', weight: 60 },
-      { ticker: 'BND', weight: 40 },
-    ],
+    [...DEFAULT_60_40_ASSETS],
     () => ({ ticker: '', weight: 0 }),
     0,
   );
   const { isLoading, error, run, setError } = useAsyncAction();
-  const [result, setResult] = useState<FactorRegressionResult | null>(null);
   const toggleFactor = (key: string) =>
-    setSelectedFactors((prev) =>
-      prev.includes(key) ? prev.filter((f) => f !== key) : [...prev, key],
+    s.setSelectedFactors(
+      s.selectedFactors.includes(key)
+        ? s.selectedFactors.filter((f) => f !== key)
+        : [...s.selectedFactors, key],
     );
   const runRegression = () => {
-    const validation = validateRegressionParams(assets, selectedFactors, t);
+    const validation = validateRegressionParams(assets, s.selectedFactors, t);
     if ('error' in validation) {
       setError(validation.error);
       return;
     }
-    setResult(null);
+    s.setResult(null);
     run(async () => {
       try {
         const r = await fetchRegression({
           validAssets: validation.validAssets,
-          startDate,
-          endDate,
-          selectedFactors,
-          returnFrequency,
-          rfSource,
+          startDate: s.startDate,
+          endDate: s.endDate,
+          selectedFactors: s.selectedFactors,
+          returnFrequency: s.returnFrequency,
+          rfSource: s.rfSource,
         });
-        setResult(r);
+        s.setResult(r);
       } catch (e) {
         const msg = e instanceof Error ? e.message : t('Regression computation failed');
         setError(msg);
@@ -96,21 +100,12 @@ export function useFactorRegressionState(t: TFunction): FactorRegressionState {
     });
   };
   return {
-    startDate,
-    endDate,
-    returnFrequency,
-    rfSource,
-    selectedFactors,
+    ...s,
     assets,
     totalWeight,
     isLoading,
     error,
-    result,
     runRegression,
-    setStartDate,
-    setEndDate,
-    setReturnFrequency,
-    setRfSource,
     toggleFactor,
     addAsset,
     removeAsset,

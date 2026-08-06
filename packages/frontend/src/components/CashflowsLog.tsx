@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import type { BacktestParameters } from '@backtest/shared';
 import ChartCard from './ChartCard.js';
-import { cn } from '@/lib/utils';
+import { SimpleTable, type SimpleTableColumn } from './tables.js';
 interface CashflowsLogProps {
   parameters: BacktestParameters;
 }
@@ -15,58 +15,53 @@ const TYPE_LABELS: Record<string, string> = {
   contribution: 'params.contribution',
   withdrawal: 'params.withdrawal',
 };
-const TH_BASE =
-  'py-2.5 px-3 text-caption font-semibold uppercase tracking-wide text-fg-tertiary border-b border-border-subtle whitespace-nowrap';
-const TD_BASE = 'py-2 px-3 text-body border-b border-border-subtle whitespace-nowrap';
+const muted = 'text-fg-secondary';
+const amountSpan = (type: string, sign: string, amount: number) => (
+  <span className={type === 'contribution' ? 'text-pos' : 'text-neg'}>
+    {sign}
+    {amount.toLocaleString()}
+  </span>
+);
 function PeriodicCashflowsTable({
   legs,
 }: {
   legs: NonNullable<BacktestParameters['cashflowLegs']>;
 }) {
   const { t } = useTranslation();
-  return (
-    <div className="overflow-x-auto">
-      <table className="w-full border-collapse text-body">
-        <thead>
-          <tr className="bg-elevated">
-            <th className={cn(TH_BASE, 'text-left')}>{t('Frequency')}</th>
-            <th className={cn(TH_BASE, 'text-right')}>{t('Amount')}</th>
-            <th className={cn(TH_BASE, 'text-left')}>{t('Type')}</th>
-            <th className={cn(TH_BASE, 'text-right')}>{t('Offset Days')}</th>
-            <th className={cn(TH_BASE, 'text-left')}>{t('End Date')}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {legs.map((leg, idx) => (
-            <tr key={leg.id} className={idx % 2 === 1 ? 'bg-elevated/40' : 'bg-transparent'}>
-              <td className={cn(TD_BASE, 'text-left text-fg-secondary')}>
-                {FREQ_LABELS[leg.frequency] || leg.frequency}
-              </td>
-              <td
-                className={cn(
-                  TD_BASE,
-                  'text-right font-mono tabular-nums',
-                  leg.type === 'contribution' ? 'text-pos' : 'text-neg',
-                )}
-              >
-                {leg.type === 'withdrawal' ? '-' : '+'}
-                {leg.amount.toLocaleString()}
-              </td>
-              <td className={cn(TD_BASE, 'text-left text-fg-secondary')}>
-                {TYPE_LABELS[leg.type] || leg.type}
-              </td>
-              <td className={cn(TD_BASE, 'text-right font-mono tabular-nums text-fg-secondary')}>
-                {leg.offset}
-              </td>
-              <td className={cn(TD_BASE, 'text-left font-mono tabular-nums text-fg-secondary')}>
-                {leg.until || t('Until End of Backtest')}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
+  const columns: SimpleTableColumn<(typeof legs)[number]>[] = [
+    {
+      key: 'frequency',
+      label: t('Frequency'),
+      render: (leg) => <span className={muted}>{FREQ_LABELS[leg.frequency] || leg.frequency}</span>,
+    },
+    {
+      key: 'amount',
+      label: t('Amount'),
+      align: 'right',
+      render: (leg) => amountSpan(leg.type, leg.type === 'withdrawal' ? '-' : '+', leg.amount),
+    },
+    {
+      key: 'type',
+      label: t('Type'),
+      render: (leg) => <span className={muted}>{TYPE_LABELS[leg.type] || leg.type}</span>,
+    },
+    {
+      key: 'offset',
+      label: t('Offset Days'),
+      align: 'right',
+      render: (leg) => <span className={muted}>{leg.offset}</span>,
+    },
+    {
+      key: 'until',
+      label: t('End Date'),
+      render: (leg) => (
+        <span className={`font-mono tabular-nums ${muted}`}>
+          {leg.until || t('Until End of Backtest')}
+        </span>
+      ),
+    },
+  ];
+  return <SimpleTable columns={columns} data={legs} rowKey={(l) => l.id} />;
 }
 function OneTimeCashflowsTable({
   cashflows,
@@ -74,41 +69,25 @@ function OneTimeCashflowsTable({
   cashflows: NonNullable<BacktestParameters['oneTimeCashflows']>;
 }) {
   const { t } = useTranslation();
-  return (
-    <div className="overflow-x-auto">
-      <table className="w-full border-collapse text-body">
-        <thead>
-          <tr className="bg-elevated">
-            <th className={cn(TH_BASE, 'text-left')}>{t('Date')}</th>
-            <th className={cn(TH_BASE, 'text-right')}>{t('Amount')}</th>
-            <th className={cn(TH_BASE, 'text-left')}>{t('Type')}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {cashflows.map((cf, idx) => (
-            <tr key={cf.id} className={idx % 2 === 1 ? 'bg-elevated/40' : 'bg-transparent'}>
-              <td className={cn(TD_BASE, 'text-left font-mono tabular-nums text-fg-secondary')}>
-                {cf.date}
-              </td>
-              <td
-                className={cn(
-                  TD_BASE,
-                  'text-right font-mono tabular-nums',
-                  cf.type === 'contribution' ? 'text-pos' : 'text-neg',
-                )}
-              >
-                {cf.type === 'withdrawal' ? '-' : '+'}
-                {cf.amount.toLocaleString()}
-              </td>
-              <td className={cn(TD_BASE, 'text-left text-fg-secondary')}>
-                {TYPE_LABELS[cf.type] || cf.type}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
+  const columns: SimpleTableColumn<(typeof cashflows)[number]>[] = [
+    {
+      key: 'date',
+      label: t('Date'),
+      render: (cf) => <span className={`font-mono tabular-nums ${muted}`}>{cf.date}</span>,
+    },
+    {
+      key: 'amount',
+      label: t('Amount'),
+      align: 'right',
+      render: (cf) => amountSpan(cf.type, cf.type === 'withdrawal' ? '-' : '+', cf.amount),
+    },
+    {
+      key: 'type',
+      label: t('Type'),
+      render: (cf) => <span className={muted}>{TYPE_LABELS[cf.type] || cf.type}</span>,
+    },
+  ];
+  return <SimpleTable columns={columns} data={cashflows} rowKey={(c) => c.id} />;
 }
 export default function CashflowsLog({ parameters }: CashflowsLogProps) {
   const { t } = useTranslation();

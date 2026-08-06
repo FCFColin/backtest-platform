@@ -1,5 +1,12 @@
 import { useTranslation } from 'react-i18next';
-import { lazy, Suspense, useEffect, type ReactNode, type ComponentType } from 'react';
+import {
+  lazy,
+  Suspense,
+  useEffect,
+  createElement,
+  type ReactNode,
+  type ComponentType,
+} from 'react';
 import { Route, Routes, useLocation } from 'react-router-dom';
 import { RouteErrorBoundary } from '@/components/errorBoundaries';
 import ProtectedRoute from '@/components/ProtectedRoute';
@@ -8,6 +15,7 @@ import { onNavEnd } from '../utils/performanceReporter.js';
 import { PlaceholderPage } from '@/pages/errors/ErrorPages';
 import NotFoundPage from '@/pages/errors/ErrorPages';
 import { loadNamespace } from '../i18n/index.js';
+import { PAGE_LOADERS, type PageName } from './pageLoaders.js';
 
 function NsBoundary({ ns, children }: { ns: string; children: ReactNode }) {
   useEffect(() => {
@@ -22,30 +30,12 @@ const lazyNamed = <T,>(imp: () => Promise<T>, name: keyof T) =>
     imp().then((m) => ({ default: m[name] as unknown as ComponentType<Record<string, unknown>> })),
   );
 
-const BacktestPage = lazyDefault(() => import('@/pages/backtest/BacktestPage'));
-const MonteCarloPage = lazyDefault(() => import('@/pages/monte-carlo/MonteCarloResults'));
-const OptimizerPage = lazyDefault(() => import('@/pages/optimizer/OptimizerPage'));
+const page = (name: PageName) => createElement(PAGE_LOADERS[name]);
 const LoginPage = lazyDefault(() => import('@/pages/auth/LoginPage'));
 const SignupPage = lazyNamed(() => import('@/pages/auth/LoginPage'), 'SignupPage');
 const PricingPage = lazyDefault(() => import('@/pages/account/PricingPage'));
 const AccountPage = lazyDefault(() => import('@/pages/account/AccountPage'));
-const AnalysisPage = lazyDefault(() => import('@/pages/analysis/AnalysisResults'));
-const EfficientFrontierPage = lazyDefault(
-  () => import('@/pages/efficient-frontier/EfficientFrontierResults'),
-);
 const DataEnginePage = lazyDefault(() => import('@/pages/data-engine/DataEnginePage'));
-const RebalancingSensitivityPage = lazyDefault(
-  () => import('@/pages/rebalancing-sensitivity/RebalancingSensitivityPage'),
-);
-const LumpSumVsDCAPage = lazyDefault(() => import('@/pages/lump-sum-dca/LumpSumVsDCAPage'));
-const FactorRegressionPage = lazyDefault(
-  () => import('@/pages/factor-regression/FactorRegressionPage'),
-);
-const CalculatorsPage = lazyDefault(() => import('@/pages/calculators/BaseCalculatorUI'));
-const TacticalPage = lazyDefault(() => import('@/pages/tactical/TacticalPage'));
-const BacktestOptimizerPage = lazyDefault(() => import('@/pages/backtest/BacktestOptimizerPage'));
-const PCAPage = lazyDefault(() => import('@/pages/pca/PCAPage'));
-const SignalAnalyzerPage = lazyDefault(() => import('@/pages/signal/SignalAnalyzerPage'));
 const DualSignalPage = lazyNamed(
   () => import('@/pages/signal/SignalAnalyzerPage'),
   'DualSignalPage',
@@ -54,12 +44,10 @@ const MultiSignalPage = lazyNamed(
   () => import('@/pages/signal/SignalAnalyzerPage'),
   'MultiSignalPage',
 );
-const LETFSlippagePage = lazyDefault(() => import('@/pages/letf/LETFSlippagePage'));
 const TacticalGridPage = lazyNamed(
   () => import('@/pages/tactical/TacticalPage'),
   'TacticalGridPage',
 );
-const GoalOptimizerPage = lazyDefault(() => import('@/pages/goal-optimizer/GoalOptimizerResults'));
 const AboutPage = lazyNamed(() => import('@/pages/staticPages'), 'AboutPage');
 const ContactPage = lazyNamed(() => import('@/pages/staticPages'), 'ContactPage');
 const HelpPage = lazyDefault(() => import('@/pages/HelpPage'));
@@ -153,28 +141,28 @@ interface RouteDef {
   name: string;
 }
 const TOOL_ROUTES: RouteDef[] = [
-  { path: '/analysis', element: <AnalysisPage />, name: 'analysis' },
-  { path: '/monte-carlo', element: <MonteCarloPage />, name: 'monte-carlo' },
-  { path: '/optimizer', element: <OptimizerPage />, name: 'optimizer' },
-  { path: '/efficient-frontier', element: <EfficientFrontierPage />, name: 'efficient-frontier' },
+  { path: '/analysis', element: page('analysis'), name: 'analysis' },
+  { path: '/monte-carlo', element: page('monte-carlo'), name: 'monte-carlo' },
+  { path: '/optimizer', element: page('optimizer'), name: 'optimizer' },
+  { path: '/efficient-frontier', element: page('efficient-frontier'), name: 'efficient-frontier' },
   { path: '/data-engine', element: <DataEnginePage />, name: 'data-engine' },
   {
     path: '/rebalancing-sensitivity',
-    element: <RebalancingSensitivityPage />,
+    element: page('rebalancing-sensitivity'),
     name: 'rebalancing-sensitivity',
   },
-  { path: '/lumpsum-vs-dca', element: <LumpSumVsDCAPage />, name: 'lumpsum-vs-dca' },
-  { path: '/factor-regression', element: <FactorRegressionPage />, name: 'factor-regression' },
-  { path: '/calculators', element: <CalculatorsPage />, name: 'calculators' },
-  { path: '/tactical', element: <TacticalPage />, name: 'tactical' },
+  { path: '/lumpsum-vs-dca', element: page('lumpsum-vs-dca'), name: 'lumpsum-vs-dca' },
+  { path: '/factor-regression', element: page('factor-regression'), name: 'factor-regression' },
+  { path: '/calculators', element: page('calculators'), name: 'calculators' },
+  { path: '/tactical', element: page('tactical'), name: 'tactical' },
   { path: '/tactical-grid', element: <TacticalGridPage />, name: 'tactical-grid' },
-  { path: '/backtest-optimizer', element: <BacktestOptimizerPage />, name: 'backtest-optimizer' },
-  { path: '/pca', element: <PCAPage />, name: 'pca' },
-  { path: '/signal-analyzer', element: <SignalAnalyzerPage />, name: 'signal-analyzer' },
+  { path: '/backtest-optimizer', element: page('backtest-optimizer'), name: 'backtest-optimizer' },
+  { path: '/pca', element: page('pca'), name: 'pca' },
+  { path: '/signal-analyzer', element: page('signal-analyzer'), name: 'signal-analyzer' },
   { path: '/dual-signal', element: <DualSignalPage />, name: 'dual-signal' },
   { path: '/multi-signal', element: <MultiSignalPage />, name: 'multi-signal' },
-  { path: '/letf-slippage', element: <LETFSlippagePage />, name: 'letf-slippage' },
-  { path: '/goal-optimizer', element: <GoalOptimizerPage />, name: 'goal-optimizer' },
+  { path: '/letf-slippage', element: page('letf-slippage'), name: 'letf-slippage' },
+  { path: '/goal-optimizer', element: page('goal-optimizer'), name: 'goal-optimizer' },
   {
     path: '/portfolio-comparison',
     element: (
@@ -235,7 +223,7 @@ export function AppRoutes() {
   return (
     <Suspense fallback={fallback}>
       <Routes>
-        <Route path="/" element={withBoundary(<BacktestPage />, 'backtest')} />
+        <Route path="/" element={withBoundary(page('backtest'), 'backtest')} />
         {renderRoutes(TOOL_ROUTES)}
         {renderRoutes(PUBLIC_ROUTES)}
         {renderRoutes(AUTH_ROUTES)}

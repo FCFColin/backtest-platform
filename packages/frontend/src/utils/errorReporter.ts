@@ -2,10 +2,10 @@ import type { ReactNode } from 'react';
 import { useToastStore } from '../store/toastStore.js';
 import i18n from '../i18n/index.js';
 
-export type ReportType =
+type ReportType =
   'error' | 'vital' | 'api_timing' | 'component_render' | 'page_timing' | 'navigation';
 
-export interface ErrorContext {
+interface ErrorContext {
   component?: string;
   action?: string;
   jobId?: string;

@@ -2,7 +2,6 @@
 import { Checkbox } from '@/components/ui/uiComponents';
 import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
 
-/** TickerTagInput 的 diff 处理器：新增→onAdd、删除→onRemove、修改→onUpdate */
 export function useTagDiff(
   tickers: string[],
   onAdd: () => void,
@@ -28,7 +27,13 @@ export function useTagDiff(
   };
 }
 
-/** "全历史"复选框：勾选清空日期，取消恢复默认区间 */
+export function useEmptyRowTagChange(tickers: string[], setTickers: (v: string[]) => void) {
+  return (next: string[]) => {
+    const emptyRows = tickers.length - tickers.filter(Boolean).length;
+    setTickers([...next, ...Array(emptyRows).fill('')]);
+  };
+}
+
 export function AllHistoryCheckbox({
   startDate,
   endDate,

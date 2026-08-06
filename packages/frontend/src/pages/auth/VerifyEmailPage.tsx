@@ -8,6 +8,11 @@ import { BrandIconBadge } from '@/components/auth/formFields';
 import { useAuthStore } from '@/store/authStore';
 import { ErrorBanner } from '@/components/stateDisplay';
 type Status = 'pending' | 'success' | 'error';
+const STATUS_ICONS = {
+  pending: <Loader2 className="w-10 h-10 animate-spin text-brand" />,
+  success: <CheckCircle2 className="w-10 h-10 text-success" />,
+  error: <XCircle className="w-10 h-10 text-danger" />,
+};
 export default function VerifyEmailPage() {
   const { t } = useTranslation();
   const [params] = useSearchParams();
@@ -44,19 +49,11 @@ export default function VerifyEmailPage() {
       }
     })();
   }, [token, t]);
-  const statusIcon =
-    status === 'pending' ? (
-      <Loader2 className="w-10 h-10 animate-spin text-brand" />
-    ) : status === 'success' ? (
-      <CheckCircle2 className="w-10 h-10 text-success" />
-    ) : (
-      <XCircle className="w-10 h-10 text-danger" />
-    );
   return (
     <AuthPageLayout
       centered
       maxWidth={460}
-      icon={<div className="mx-auto mb-3">{statusIcon}</div>}
+      icon={<div className="mx-auto mb-3">{STATUS_ICONS[status]}</div>}
       title={t('Email Verification')}
     >
       <p className="text-sm text-fg-tertiary leading-relaxed">{message}</p>

@@ -8,6 +8,11 @@ import { INDICATOR_OPTIONS, REBALANCE_OPTIONS } from './sharedTacticalConstants'
 import { OBJECTIVE_OPTIONS } from './tacticalGridUtils';
 import type { IndicatorType, ObjectiveType, GridParamRange } from './tacticalGridUtils';
 import type { TacticalGridState } from '@/hooks/useTacticalGridState';
+const RANGE_FIELDS: { key: keyof GridParamRange; label: string; min?: number; step?: number }[] = [
+  { key: 'min', label: 'Min' },
+  { key: 'max', label: 'Max' },
+  { key: 'step', label: 'Step', min: 0.1, step: 0.5 },
+];
 function ParamRangeRow({
   range,
   onChange,
@@ -20,40 +25,20 @@ function ParamRangeRow({
   const { t } = useTranslation();
   return (
     <div className="grid grid-cols-3 gap-2">
-      <Field>
-        <FieldLabel>{t('Min')}</FieldLabel>
-        <Input
-          type="number"
-          aria-label={t('Min')}
-          className="font-mono tabular-nums"
-          value={range.min}
-          min={inputMin}
-          onChange={(e) => onChange({ ...range, min: Number(e.target.value) })}
-        />
-      </Field>
-      <Field>
-        <FieldLabel>{t('Max')}</FieldLabel>
-        <Input
-          type="number"
-          aria-label={t('Max')}
-          className="font-mono tabular-nums"
-          value={range.max}
-          min={inputMin}
-          onChange={(e) => onChange({ ...range, max: Number(e.target.value) })}
-        />
-      </Field>
-      <Field>
-        <FieldLabel>{t('Step')}</FieldLabel>
-        <Input
-          type="number"
-          aria-label={t('Step')}
-          className="font-mono tabular-nums"
-          value={range.step}
-          min={0.1}
-          step={0.5}
-          onChange={(e) => onChange({ ...range, step: Number(e.target.value) })}
-        />
-      </Field>
+      {RANGE_FIELDS.map((f) => (
+        <Field key={f.key}>
+          <FieldLabel>{t(f.label)}</FieldLabel>
+          <Input
+            type="number"
+            aria-label={t(f.label)}
+            className="font-mono tabular-nums"
+            value={range[f.key]}
+            min={f.min ?? inputMin}
+            step={f.step}
+            onChange={(e) => onChange({ ...range, [f.key]: Number(e.target.value) })}
+          />
+        </Field>
+      ))}
     </div>
   );
 }

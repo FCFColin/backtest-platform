@@ -9,13 +9,17 @@ import {
   TabsList,
   TabsTrigger,
 } from '@/components/ui/uiComponents';
-import { ComputeToolShell, type ComputeToolConfig } from '../../components/shells/index.js';
+import {
+  ComputeToolShell,
+  TabFallback,
+  type ComputeToolConfig,
+} from '../../components/shells/index.js';
 import { MiniStatCard } from '../../components/cards.js';
-import { Loader2 } from '@/icons/icons.js';
 import { fmtDollar } from '@/utils/format';
 import { SimpleTable, type SimpleTableColumn } from '@/components/tables.js';
 import { McParamsPanel } from './MonteCarloParams.js';
 import type { DistMetric, McState, PortfolioMode, ResultTab } from './monteCarloUtils.js';
+import { NoDataCard } from './HistogramChart.js';
 import {
   RESULT_TABS,
   SUMMARY_STATS,
@@ -69,30 +73,14 @@ export function StatsGrid({
     </div>
   );
 }
-export function PortfolioLabel({ label, colorIdx }: { label: string; colorIdx: number }) {
+function PortfolioLabel({ label, colorIdx }: { label: string; colorIdx: number }) {
   return (
     <div className="mb-3 mt-2 text-h3 font-semibold" style={{ color: CHART_COLORS[colorIdx] }}>
       {label}
     </div>
   );
 }
-export function McErrorState({ error }: { error: string }) {
-  const { t } = useTranslation();
-  return (
-    <div className="p-6 text-center text-danger">
-      {t('Simulation failed')}: {error}
-    </div>
-  );
-}
-export function McEmptyState() {
-  const { t } = useTranslation();
-  return (
-    <div className="p-12 text-center text-fg-tertiary">
-      {t('Configure parameters on the left and click "Start Simulation" to see results')}
-    </div>
-  );
-}
-export function MonteCarloSummaryTab({
+function MonteCarloSummaryTab({
   r,
   startingValue,
 }: {
@@ -101,13 +89,7 @@ export function MonteCarloSummaryTab({
 }) {
   const { t } = useTranslation();
   const rows = buildSummaryData(r, startingValue, t);
-  if (!rows) {
-    return (
-      <Card className="p-5">
-        <div className="py-6 text-center text-caption text-fg-tertiary">{t('No data')}</div>
-      </Card>
-    );
-  }
+  if (!rows) return <NoDataCard />;
   const columns: SimpleTableColumn<(typeof rows)[number]>[] = [
     { key: 'metric', label: t('Metric'), render: (row) => row.metric },
     ...SUMMARY_STATS.map((s) => ({
@@ -163,17 +145,17 @@ function ResultsDisplay({
             <MonteCarloSummaryTab r={r} startingValue={startingValue} />
           </TabsContent>
           <TabsContent value="range">
-            <Suspense fallback={<LazyFallback />}>
+            <Suspense fallback={<TabFallback />}>
               <MonteCarloRangeTab r={r} startingValue={startingValue} />
             </Suspense>
           </TabsContent>
           <TabsContent value="success">
-            <Suspense fallback={<LazyFallback />}>
+            <Suspense fallback={<TabFallback />}>
               <MonteCarloSuccessTab r={r} />
             </Suspense>
           </TabsContent>
           <TabsContent value="distributions">
-            <Suspense fallback={<LazyFallback />}>
+            <Suspense fallback={<TabFallback />}>
               <MonteCarloDistributionsTab
                 r={r}
                 distMetric={distMetric}
@@ -183,7 +165,7 @@ function ResultsDisplay({
             </Suspense>
           </TabsContent>
           <TabsContent value="scenarios">
-            <Suspense fallback={<LazyFallback />}>
+            <Suspense fallback={<TabFallback />}>
               <MonteCarloScenariosTab r={r} startingValue={startingValue} />
             </Suspense>
           </TabsContent>
@@ -192,7 +174,7 @@ function ResultsDisplay({
     </div>
   );
 }
-export function MonteCarloResultsPanel({ s }: { s: McState }) {
+function MonteCarloResultsPanel({ s }: { s: McState }) {
   const {
     error,
     results1,
@@ -206,8 +188,21 @@ export function MonteCarloResultsPanel({ s }: { s: McState }) {
     distMetric,
     setDistMetric,
   } = s;
-  if (error) return <McErrorState error={error} />;
-  if (!results1 && !results2) return <McEmptyState />;
+  const { t } = useTranslation();
+  if (error) {
+    return (
+      <div className="p-6 text-center text-danger">
+        {t('Simulation failed')}: {error}
+      </div>
+    );
+  }
+  if (!results1 && !results2) {
+    return (
+      <div className="p-12 text-center text-fg-tertiary">
+        {t('Configure parameters on the left and click "Start Simulation" to see results')}
+      </div>
+    );
+  }
   return (
     <div className="flex flex-col gap-6">
       {results1 && (
@@ -244,11 +239,6 @@ export function MonteCarloResultsPanel({ s }: { s: McState }) {
     </div>
   );
 }
-const LazyFallback = () => (
-  <div className="flex justify-center py-12">
-    <Loader2 className="h-6 w-6 animate-spin text-brand" />
-  </div>
-);
 const config: ComputeToolConfig<McState> = {
   titleKey: 'monteCarlo.title',
   seoDescKey: 'monteCarlo.seoDesc',

@@ -14,7 +14,7 @@ import { LabeledField, SectionHeader, RunButton } from '@/components/form/shared
 import type { SignalCfg, UseDualSignalStateResult } from './useDualSignalState.js';
 import type { UseSignalAnalyzerStateResult } from './useSignalAnalyzerState.js';
 
-export const INDICATORS = ['SMA', 'EMA', 'RSI', 'MACD', 'Bollinger'] as const;
+const INDICATORS = ['SMA', 'EMA', 'RSI', 'MACD', 'Bollinger'] as const;
 
 interface TickerFieldProps {
   value: string;
@@ -37,18 +37,20 @@ export function TickerField({ value, onChange, placeholder }: TickerFieldProps) 
   );
 }
 
-function IndicatorSelect({
+export function IndicatorSelect({
   value,
   onChange,
   id,
+  triggerClassName,
 }: {
   value: string;
   onChange: (v: string) => void;
-  id: string;
+  id?: string;
+  triggerClassName?: string;
 }) {
   return (
     <Select value={value} onValueChange={onChange}>
-      <SelectTrigger id={id}>
+      <SelectTrigger id={id} className={triggerClassName}>
         <SelectValue />
       </SelectTrigger>
       <SelectContent>

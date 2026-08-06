@@ -6,7 +6,7 @@ import {
 } from '@backtest/shared';
 import i18n from '@/i18n/index.js';
 import { apiFetch } from '@/utils/apiClient';
-import { buildBacktestParameters } from '@/utils/constants';
+import { buildBacktestParameters, buildSinglePortfolioBody } from '@/utils/constants';
 export const REBALANCE_OPTIONS: { value: RebalanceFrequency; label: string; color: string }[] =
   REBALANCE_FREQUENCIES.map((value) => ({
     value,
@@ -24,15 +24,9 @@ export interface FreqResult {
   sortino: number;
   growthCurve?: Array<{ date: string; value: number }>;
 }
-export const FREQ_ORDER: Record<string, number> = {
-  daily: 0,
-  weekly: 1,
-  monthly: 2,
-  quarterly: 3,
-  annual: 4,
-};
+export const FREQ_ORDER = Object.fromEntries(REBALANCE_FREQUENCIES.map((f, i) => [f, i]));
 export const OFFSETS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20];
-export function buildBacktestBody(
+function buildBacktestBody(
   label: string,
   assets: Array<{ ticker: string; weight: number }>,
   freq: RebalanceFrequency,
@@ -45,25 +39,18 @@ export function buildBacktestBody(
     adjustForInflation: boolean;
   },
 ) {
-  return {
-    portfolios: [
-      {
-        name: label,
-        assets,
-        rebalanceFrequency: freq,
-        rebalanceOffset: offset,
-        drag: 0,
-        totalReturn: true,
-      },
-    ],
-    parameters: buildBacktestParameters(params.startDate, params.endDate, {
+  return buildSinglePortfolioBody(
+    label,
+    assets,
+    { rebalanceFrequency: freq, rebalanceOffset: offset },
+    buildBacktestParameters(params.startDate, params.endDate, {
       startingValue: params.startingValue,
       baseCurrency: params.baseCurrency,
       adjustForInflation: params.adjustForInflation,
     }),
-  };
+  );
 }
-export function applyRebalanceBands(
+function applyRebalanceBands(
   portfolios: Array<Record<string, unknown>>,
   absoluteBand: number | '',
   relativeBand: number | '',
@@ -75,7 +62,7 @@ export function applyRebalanceBands(
     relativeBand: relativeBand !== '' ? Number(relativeBand) : undefined,
   };
 }
-export function extractFreqResult(
+function extractFreqResult(
   json: unknown,
   freq: RebalanceFrequency,
   label: string,

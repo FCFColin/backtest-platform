@@ -1,11 +1,11 @@
 import { useMemo } from 'react';
-import { ScatterChart, Scatter, CartesianGrid, ResponsiveContainer, ReferenceLine } from 'recharts';
+import { Scatter, ReferenceLine } from 'recharts';
 import { useTranslation } from 'react-i18next';
 import { CHART_COLORS, type PortfolioResult } from '@backtest/shared';
 import ChartCard from '../ChartCard.js';
-import { CHART_GRID_PROPS, CHART_MARGIN } from '@/lib/chart-theme.js';
+import { CHART_MARGIN } from '@/lib/chart-theme.js';
 import { downsample, DOWNSAMPLE_THRESHOLD, DOWNSAMPLE_TARGET } from '../../utils/format.js';
-import { ChartXAxis, ChartYAxis, ChartTooltip } from './sharedChartContent.js';
+import { XYScatterChart } from './sharedChartContent.js';
 import { TimeSeriesLineChart } from './TimeSeriesLineChart.js';
 import { SimpleTable } from '../tables.js';
 import type { SimpleTableColumn } from '../tables.js';
@@ -83,50 +83,41 @@ function RegressionScatterChart({
   const { t } = useTranslation();
   return (
     <div style={{ flex: '1 1 300px', minWidth: 0 }}>
-      <ResponsiveContainer width="100%" height={400}>
-        <ScatterChart margin={CHART_MARGIN}>
-          <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--bg-subtle)" />
-          <ChartXAxis
-            type="number"
-            dataKey="x"
-            name={t('Benchmark Daily Return')}
-            label={t('{{name}} Daily Return', { name: baseName })}
-            tickFormatter={(v: number | string) => `${Number(v).toFixed(2)}%`}
-          />
-          <ChartYAxis
-            type="number"
-            dataKey="y"
-            name={t('Target Daily Return')}
-            label={t('{{name}} Daily Return', { name: reg.name })}
-            tickFormatter={(v: number | string) => `${Number(v).toFixed(2)}%`}
-          />
-          <ChartTooltip
-            cursor={false}
-            formatter={(value: number, name: string) => {
-              if (name === 'x') return [`${value.toFixed(4)}%`, t('Benchmark Daily Return')];
-              if (name === 'y') return [`${value.toFixed(4)}%`, t('Target Daily Return')];
-              return [String(value), name];
-            }}
-            labelFormatter={() => ''}
-          />
-          <ReferenceLine
-            segment={[
-              { x: reg.linePoints[0].x, y: reg.linePoints[0].y },
-              { x: reg.linePoints[1].x, y: reg.linePoints[1].y },
-            ]}
-            stroke={color}
-            strokeDasharray="6 3"
-            strokeWidth={2}
-          />
-          <Scatter
-            data={scatterPoints}
-            fill={color}
-            fillOpacity={0.4}
-            r={2}
-            {...({ activeDot: { r: 4, stroke: 'var(--bg-elevated)', strokeWidth: 2 } } as object)}
-          />
-        </ScatterChart>
-      </ResponsiveContainer>
+      <XYScatterChart
+        xKey="x"
+        yKey="y"
+        xName={t('Benchmark Daily Return')}
+        yName={t('Target Daily Return')}
+        xLabel={t('{{name}} Daily Return', { name: baseName })}
+        yLabel={t('{{name}} Daily Return', { name: reg.name })}
+        margin={CHART_MARGIN}
+        height={400}
+        cursor={false}
+        xTickFormatter={(v: number) => `${Number(v).toFixed(2)}%`}
+        yTickFormatter={(v: number) => `${Number(v).toFixed(2)}%`}
+        tooltipFormatter={(value, name) => {
+          if (name === 'x') return [`${Number(value).toFixed(4)}%`, t('Benchmark Daily Return')];
+          if (name === 'y') return [`${Number(value).toFixed(4)}%`, t('Target Daily Return')];
+          return [String(value), name];
+        }}
+      >
+        <ReferenceLine
+          segment={[
+            { x: reg.linePoints[0].x, y: reg.linePoints[0].y },
+            { x: reg.linePoints[1].x, y: reg.linePoints[1].y },
+          ]}
+          stroke={color}
+          strokeDasharray="6 3"
+          strokeWidth={2}
+        />
+        <Scatter
+          data={scatterPoints}
+          fill={color}
+          fillOpacity={0.4}
+          r={2}
+          {...({ activeDot: { r: 4, stroke: 'var(--bg-elevated)', strokeWidth: 2 } } as object)}
+        />
+      </XYScatterChart>
     </div>
   );
 }

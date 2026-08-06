@@ -14,6 +14,15 @@ function asyncFail(error: unknown): Partial<AsyncSlice> {
 function asyncSuccess(): Partial<AsyncSlice> {
   return { loading: false, error: null };
 }
+async function withAsync<T>(set: SetFn, onFail: T, fn: () => Promise<T>): Promise<T> {
+  set(asyncStart());
+  try {
+    return await fn();
+  } catch (e) {
+    set(asyncFail(e));
+    return onFail;
+  }
+}
 interface OrgSummary {
   orgId: string;
   name: string;
@@ -67,14 +76,13 @@ async function fetchMe(): Promise<AuthUser | null> {
     platformAdmin: d.platformAdmin === true,
   };
 }
-async function loginPasswordAction(
+function loginPasswordAction(
   set: SetFn,
   get: GetFn,
   username: string,
   password: string,
 ): Promise<boolean> {
-  set(asyncStart());
-  try {
+  return withAsync(set, false, async () => {
     const res = await fetch('/api/v1/auth/login/password', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -96,17 +104,13 @@ async function loginPasswordAction(
     });
     await get().loadOrgs();
     return true;
-  } catch (e) {
-    set(asyncFail(e));
-    return false;
-  }
+  });
 }
-async function registerAction(
+function registerAction(
   set: SetFn,
   input: { username: string; password: string; email: string; orgName: string },
 ): Promise<boolean> {
-  set(asyncStart());
-  try {
+  return withAsync(set, false, async () => {
     const res = await fetch('/api/v1/auth/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -119,18 +123,14 @@ async function registerAction(
     }
     set(asyncSuccess());
     return true;
-  } catch (e) {
-    set(asyncFail(e));
-    return false;
-  }
+  });
 }
-async function acceptInviteAction(
+function acceptInviteAction(
   set: SetFn,
   get: GetFn,
   token: string,
 ): Promise<{ ok: boolean; orgId?: string }> {
-  set(asyncStart());
-  try {
+  return withAsync(set, { ok: false }, async () => {
     const res = await apiFetch('/api/v1/orgs/invitations/accept', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -144,10 +144,7 @@ async function acceptInviteAction(
     set(asyncSuccess());
     await get().loadOrgs();
     return { ok: true, orgId: body?.data?.orgId };
-  } catch (e) {
-    set(asyncFail(e));
-    return { ok: false };
-  }
+  });
 }
 async function logoutAction(set: SetFn): Promise<void> {
   try {
@@ -160,9 +157,8 @@ async function logoutAction(set: SetFn): Promise<void> {
   clearTokens();
   set({ user: null, org: null, orgs: [], idleTimeoutMs: 0 });
 }
-async function switchOrgAction(set: SetFn, orgId: string): Promise<boolean> {
-  set(asyncStart());
-  try {
+function switchOrgAction(set: SetFn, orgId: string): Promise<boolean> {
+  return withAsync(set, false, async () => {
     const res = await apiFetch('/api/v1/auth/switch-org', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -177,10 +173,7 @@ async function switchOrgAction(set: SetFn, orgId: string): Promise<boolean> {
     const user = await fetchMe();
     set({ user, org: body.data.org ?? null, ...asyncSuccess() });
     return true;
-  } catch (e) {
-    set(asyncFail(e));
-    return false;
-  }
+  });
 }
 async function loadOrgsAction(set: SetFn): Promise<void> {
   try {

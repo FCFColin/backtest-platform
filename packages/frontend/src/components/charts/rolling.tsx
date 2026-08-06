@@ -2,7 +2,7 @@ import { memo, useState, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { AssetAnalysisResult, PortfolioResult } from '@backtest/shared';
 import { TRADING_DAYS_PER_YEAR } from '@backtest/shared/constants';
-import { Spinner } from '@/components/ui/uiComponents';
+import { MiniSelect, Spinner } from '@/components/ui/uiComponents';
 import { TimeSeriesLineChart } from './TimeSeriesLineChart.js';
 import { useChartCalcWorker, type WorkerTask } from '../../hooks/miscHooks.js';
 import {
@@ -30,37 +30,26 @@ export const RollingCorrelationChart = memo(function RollingCorrelationChart({
     [seriesName]: +d.value.toFixed(3),
   }));
   return (
-    <div className="chart-card">
-      <div className="flex items-center gap-4 mb-3">
-        <div className="chart-card-title mb-0">{t('Rolling Correlation')}</div>
+    <ChartCard
+      title={t('Rolling Correlation')}
+      headerExtra={
         <div className="flex items-center gap-2">
-          <select
-            className="bg-input-bg text-fg border border-border-subtle rounded font-medium cursor-pointer"
-            style={{ width: 100, fontSize: 12, padding: '4px 8px' }}
+          <MiniSelect
             value={rollingPair[0]}
-            onChange={(e) => setRollingPair([Number(e.target.value), rollingPair[1]])}
-          >
-            {tickers.map((tk, i) => (
-              <option key={tk} value={i}>
-                {tk}
-              </option>
-            ))}
-          </select>
+            onChange={(v) => setRollingPair([v, rollingPair[1]])}
+            options={tickers.map((tk, i) => ({ value: i, label: tk }))}
+            width={100}
+          />
           <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>vs</span>
-          <select
-            className="bg-input-bg text-fg border border-border-subtle rounded font-medium cursor-pointer"
-            style={{ width: 100, fontSize: 12, padding: '4px 8px' }}
+          <MiniSelect
             value={rollingPair[1]}
-            onChange={(e) => setRollingPair([rollingPair[0], Number(e.target.value)])}
-          >
-            {tickers.map((tk, i) => (
-              <option key={tk} value={i}>
-                {tk}
-              </option>
-            ))}
-          </select>
+            onChange={(v) => setRollingPair([rollingPair[0], v])}
+            options={tickers.map((tk, i) => ({ value: i, label: tk }))}
+            width={100}
+          />
         </div>
-      </div>
+      }
+    >
       <TimeSeriesLineChart
         data={data}
         series={[seriesName]}
@@ -72,7 +61,7 @@ export const RollingCorrelationChart = memo(function RollingCorrelationChart({
         referenceY={0}
         showLegend={false}
       />
-    </div>
+    </ChartCard>
   );
 });
 const ROLLING_METRICS = [
@@ -83,32 +72,6 @@ const ROLLING_METRICS = [
   { key: 'kurtosis' as const, labelKey: 'analysis.rollingKurtosis' },
   { key: 'kelly' as const, labelKey: 'analysis.rollingKelly' },
 ];
-function RollingMetricSelector({
-  metrics,
-  selected,
-  onChange,
-  t,
-}: {
-  metrics: typeof ROLLING_METRICS;
-  selected: string;
-  onChange: (v: string) => void;
-  t: (k: string) => string;
-}) {
-  return (
-    <select
-      className="bg-input-bg text-fg border border-border-subtle rounded font-medium cursor-pointer"
-      style={{ width: 150, fontSize: 12, padding: '4px 8px' }}
-      value={selected}
-      onChange={(e) => onChange(e.target.value)}
-    >
-      {metrics.map((m) => (
-        <option key={m.key} value={m.key}>
-          {t(m.labelKey)}
-        </option>
-      ))}
-    </select>
-  );
-}
 function RollingLineChart({
   chartData,
   isPct,
@@ -172,17 +135,20 @@ export const RollingMetricsChart = memo(function RollingMetricsChart({
   const displayData = chartData ?? prevDataRef.current;
   const isPct = metric === 'cagr' || metric === 'volatility' || metric === 'excess';
   return (
-    <div className="chart-card">
-      <div className="flex items-center gap-4 mb-3">
-        <div className="chart-card-title mb-0">{metrics.find((m) => m.key === metric)?.label}</div>
-        <RollingMetricSelector
-          metrics={ROLLING_METRICS}
-          selected={metric}
-          onChange={setMetric}
-          t={t}
-        />
-        {isPending && <Spinner size={4} />}
-      </div>
+    <ChartCard
+      title={metrics.find((m) => m.key === metric)?.label}
+      headerExtra={
+        <>
+          <MiniSelect
+            value={metric}
+            onChange={setMetric}
+            options={ROLLING_METRICS.map((m) => ({ value: m.key as string, label: t(m.labelKey) }))}
+            width={150}
+          />
+          {isPending && <Spinner size={4} />}
+        </>
+      }
+    >
       {displayData ? (
         <RollingLineChart
           chartData={displayData}
@@ -196,7 +162,7 @@ export const RollingMetricsChart = memo(function RollingMetricsChart({
           {t('Loading...')}
         </div>
       )}
-    </div>
+    </ChartCard>
   );
 });
 interface RollingReturnChartProps {

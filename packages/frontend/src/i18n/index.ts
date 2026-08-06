@@ -2,16 +2,7 @@ import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
 
-const NS = [
-  'common',
-  'account',
-  'admin',
-  'analysis',
-  'auth',
-  'backtest',
-  'legal',
-  'pages',
-] as const;
+const NS = ['common', 'backtest'] as const;
 const LANGS = ['zh-CN'] as const;
 
 const modules = import.meta.glob('./locales/*/*.json', { eager: true }) as Record<

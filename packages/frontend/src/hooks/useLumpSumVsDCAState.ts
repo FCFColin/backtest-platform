@@ -1,10 +1,13 @@
-import { useState } from 'react';
 import type { TFunction } from 'i18next';
 import type { Statistics } from '@backtest/shared';
-import { useAsyncAction, useAssetList } from './miscHooks.js';
+import { useAsyncAction, useAssetList, useSetterState } from './miscHooks.js';
 import { apiFetch } from '@/utils/apiClient';
 import i18n from '../i18n/index.js';
-import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
+import {
+  DEFAULT_BACKTEST_START_DATE,
+  DEFAULT_END_DATE,
+  DEFAULT_60_40_ASSETS,
+} from '@/utils/constants';
 import { validateAssetWeights } from '@/utils/validation';
 export type DcaFrequency = 'monthly' | 'quarterly';
 export interface CompareResult {
@@ -66,40 +69,19 @@ async function fetchBacktest(body: unknown) {
   return res;
 }
 function useLumpSumVsDCAStateInner() {
-  const [startDate, setStartDate] = useState(DEFAULT_BACKTEST_START_DATE);
-  const [endDate, setEndDate] = useState(DEFAULT_END_DATE);
-  const [startingValue, setStartingValue] = useState(120000);
-  const [baseCurrency, setBaseCurrency] = useState<'usd' | 'cny'>('usd');
-  const [adjustForInflation, setAdjustForInflation] = useState(false);
-  const [dcaFrequency, setDcaFrequency] = useState<DcaFrequency>('monthly');
-  const [dcaPeriods, setDcaPeriods] = useState(12);
-  const [investTbill, setInvestTbill] = useState(false);
+  const s = useSetterState({
+    startDate: DEFAULT_BACKTEST_START_DATE,
+    endDate: DEFAULT_END_DATE,
+    startingValue: 120000,
+    baseCurrency: 'usd' as 'usd' | 'cny',
+    adjustForInflation: false,
+    dcaFrequency: 'monthly' as DcaFrequency,
+    dcaPeriods: 12,
+    investTbill: false,
+    results: [] as CompareResult[],
+  });
   const { isLoading, error, run, setError } = useAsyncAction();
-  const [results, setResults] = useState<CompareResult[]>([]);
-  return {
-    startDate,
-    setStartDate,
-    endDate,
-    setEndDate,
-    startingValue,
-    setStartingValue,
-    baseCurrency,
-    setBaseCurrency,
-    adjustForInflation,
-    setAdjustForInflation,
-    dcaFrequency,
-    setDcaFrequency,
-    dcaPeriods,
-    setDcaPeriods,
-    investTbill,
-    setInvestTbill,
-    isLoading,
-    error,
-    run,
-    setError,
-    results,
-    setResults,
-  };
+  return { ...s, isLoading, error, run, setError };
 }
 type LumpSumVsDCAStateInner = ReturnType<typeof useLumpSumVsDCAStateInner>;
 type LumpSumAsset = { ticker: string; weight: number };
@@ -166,14 +148,7 @@ async function executeComparison(s: LumpSumVsDCAStateInner, validAssets: LumpSum
 export function useLumpSumVsDCAState(t: TFunction) {
   const s = useLumpSumVsDCAStateInner();
   const { assets, setAssets, addAsset, removeAsset, updateAsset, totalWeight } =
-    useAssetList<LumpSumAsset>(
-      [
-        { ticker: 'VTI', weight: 60 },
-        { ticker: 'BND', weight: 40 },
-      ],
-      () => ({ ticker: '', weight: 0 }),
-      0,
-    );
+    useAssetList<LumpSumAsset>([...DEFAULT_60_40_ASSETS], () => ({ ticker: '', weight: 0 }), 0);
   const runComparison = () => {
     const validAssets = assets.filter((a) => a.ticker.trim() !== '');
     if (validAssets.length === 0) {

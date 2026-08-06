@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { CHART_COLORS, type GoalOptimizerResult } from '@backtest/shared';
 import { fmtPct, fmtDollar } from '@/utils/format';
-import { useGoalOptimizerState } from '@/hooks/useGoalOptimizerState.js';
+import { useGoalOptimizerState, type GoalOptimizerState } from '@/hooks/useGoalOptimizerState.js';
 import { GoalOptimizerParamsPanel } from './GoalOptimizerParams.js';
 import { ComputeToolShell, type ComputeToolConfig } from '../../components/shells/index.js';
 import {
@@ -9,37 +9,18 @@ import {
   Area,
   LineChart,
   Line,
-  XAxis,
-  YAxis,
   CartesianGrid,
-  Tooltip,
   ResponsiveContainer,
   Legend,
   ReferenceLine,
 } from 'recharts';
-import {
-  CHART_TOOLTIP_STYLE,
-  CHART_GRID_PROPS,
-  AXIS_TICK_STYLE,
-  LEGEND_WRAPPER_STYLE,
-} from '@/lib/chart-theme.js';
+import { CHART_GRID_PROPS, LEGEND_WRAPPER_STYLE } from '@/lib/chart-theme.js';
+import { ChartTooltip, ChartXAxis, ChartYAxis } from '@/components/charts/sharedChartContent.js';
 import ChartCard from '@/components/ChartCard.js';
 import { Card, Progress } from '@/components/ui/uiComponents';
 import { ResultsShell } from '@/components/resultsShell.js';
+import { BorderStatCard } from '@/components/cards.js';
 import { getProbColor } from './goalOptimizerUtils.js';
-function StatCard({ label, value, color }: { label: string; value: string; color?: string }) {
-  return (
-    <div className="rounded-lg border border-border bg-elevated px-3 py-3">
-      <div className="text-caption text-fg-tertiary">{label}</div>
-      <div
-        className="mt-1 font-mono tabular-nums text-h3 font-semibold"
-        style={color ? { color } : undefined}
-      >
-        {value}
-      </div>
-    </div>
-  );
-}
 function ProbabilityDistributionChart({
   data,
   targetAmount,
@@ -53,18 +34,16 @@ function ProbabilityDistributionChart({
       <ResponsiveContainer width="100%" height={300}>
         <AreaChart data={data} margin={{ top: 10, right: 20, bottom: 5, left: 10 }}>
           <CartesianGrid {...CHART_GRID_PROPS} />
-          <XAxis
+          <ChartXAxis
             dataKey="amount"
             type="number"
             domain={['dataMin', 'dataMax']}
-            tick={AXIS_TICK_STYLE}
-            tickFormatter={(v: number) => `$${(v / 1000).toFixed(0)}k`}
+            tickFormatter={(v: number | string) => `$${(Number(v) / 1000).toFixed(0)}k`}
           />
-          <YAxis tick={AXIS_TICK_STYLE} tickFormatter={(v: number) => `${(v * 100).toFixed(1)}%`} />
-          <Tooltip
-            contentStyle={CHART_TOOLTIP_STYLE}
+          <ChartYAxis tickFormatter={(v: number) => `${(v * 100).toFixed(1)}%`} />
+          <ChartTooltip
             formatter={(v: number) => [`${(v * 100).toFixed(2)}%`, t('Probability')]}
-            labelFormatter={(v: number) => fmtDollar(v)}
+            labelFormatter={(v: number | string) => fmtDollar(Number(v))}
           />
           <ReferenceLine
             x={targetAmount}
@@ -103,15 +82,11 @@ function OptimalPathChart({
       <ResponsiveContainer width="100%" height={350}>
         <LineChart data={data} margin={{ top: 10, right: 20, bottom: 5, left: 10 }}>
           <CartesianGrid {...CHART_GRID_PROPS} />
-          <XAxis dataKey="year" tick={AXIS_TICK_STYLE} tickFormatter={(v: number) => `${v}y`} />
-          <YAxis
-            tick={AXIS_TICK_STYLE}
-            tickFormatter={(v: number) => `$${(v / 1000).toFixed(0)}k`}
-          />
-          <Tooltip
-            contentStyle={CHART_TOOLTIP_STYLE}
+          <ChartXAxis dataKey="year" tickFormatter={(v: number | string) => `${v}y`} />
+          <ChartYAxis tickFormatter={(v: number) => `$${(v / 1000).toFixed(0)}k`} />
+          <ChartTooltip
             formatter={(v: number) => fmtDollar(v)}
-            labelFormatter={(v: number) => t('Year {{year}}', { year: v })}
+            labelFormatter={(v: number | string) => t('Year {{year}}', { year: v })}
           />
           <Legend wrapperStyle={LEGEND_WRAPPER_STYLE} />
           <ReferenceLine
@@ -165,15 +140,15 @@ function RecommendationCards({
   return (
     <ChartCard title={t('Recommended Configuration')}>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <StatCard
+        <BorderStatCard
           label={t('Expected Annual Return')}
           value={fmtPct(recommendation.expectedReturn)}
         />
-        <StatCard
+        <BorderStatCard
           label={t('Required Annual Contribution')}
           value={fmtDollar(recommendation.requiredContribution)}
         />
-        <StatCard
+        <BorderStatCard
           label={t('Success Rate')}
           value={fmtPct(recommendation.successRate)}
           color={probColor}
@@ -182,29 +157,15 @@ function RecommendationCards({
     </ChartCard>
   );
 }
-export function GoalOptimizerResultsPanel({
-  results,
-  error,
-  isLoading,
-  targetAmount,
-  initialAmount,
-  years,
-}: {
-  results: GoalOptimizerResult | null;
-  error: string | null;
-  isLoading: boolean;
-  targetAmount: number;
-  initialAmount: number;
-  years: number;
-}) {
+function GoalOptimizerResultsPanel({ state }: { state: GoalOptimizerState }) {
   const { t } = useTranslation();
-  const r = results!;
+  const r = state.results!;
   const probColor = r ? getProbColor(r.successProbability) : '';
   return (
     <ResultsShell
-      error={error ? `${t('Optimization failed')}: ${error}` : null}
-      isLoading={isLoading}
-      hasResults={!!results}
+      error={state.error ? `${t('Optimization failed')}: ${state.error}` : null}
+      isLoading={state.isLoading}
+      hasResults={!!state.results}
       loadingLabel={t('Optimizing...')}
       emptyTitle={t(
         'Set your goal and asset allocation, then click "Start Optimization" to see results',
@@ -222,60 +183,20 @@ export function GoalOptimizerResultsPanel({
           <Progress value={r.successProbability * 100} className="mt-4 h-2 w-full max-w-xs" />
           <div className="mt-3 text-caption text-fg-tertiary">
             {t('Target {{target}} · Initial {{initial}} · {{years}} years', {
-              target: fmtDollar(targetAmount),
-              initial: fmtDollar(initialAmount),
-              years,
+              target: fmtDollar(state.targetAmount),
+              initial: fmtDollar(state.initialAmount),
+              years: state.years,
             })}
           </div>
         </Card>
-        <ProbabilityDistributionChart data={r.probabilityCurve} targetAmount={targetAmount} />
-        <OptimalPathChart data={r.optimalPath} targetAmount={targetAmount} />
+        <ProbabilityDistributionChart data={r.probabilityCurve} targetAmount={state.targetAmount} />
+        <OptimalPathChart data={r.optimalPath} targetAmount={state.targetAmount} />
         <RecommendationCards recommendation={r.recommendation} probColor={probColor} />
       </div>
     </ResultsShell>
   );
 }
-type GOState = ReturnType<typeof useGoalOptimizerState>;
-function GOParamsWrapper({ state }: { state: GOState }) {
-  return (
-    <GoalOptimizerParamsPanel
-      targetAmount={state.targetAmount}
-      initialAmount={state.initialAmount}
-      years={state.years}
-      assets={state.assets}
-      maxDrawdown={state.maxDrawdown}
-      minSuccessRate={state.minSuccessRate}
-      maxVolatility={state.maxVolatility}
-      numSimulations={state.numSimulations}
-      totalWeight={state.totalWeight}
-      isLoading={state.isLoading}
-      onTargetAmountChange={state.setTargetAmount}
-      onInitialAmountChange={state.setInitialAmount}
-      onYearsChange={state.setYears}
-      onAddAsset={state.addAsset}
-      onRemoveAsset={state.removeAsset}
-      onUpdateAsset={state.updateAsset}
-      onMaxDrawdownChange={state.setMaxDrawdown}
-      onMinSuccessRateChange={state.setMinSuccessRate}
-      onMaxVolatilityChange={state.setMaxVolatility}
-      onNumSimulationsChange={state.setNumSimulations}
-      onRun={state.runOptimize}
-    />
-  );
-}
-function GOResultsWrapper({ state }: { state: GOState }) {
-  return (
-    <GoalOptimizerResultsPanel
-      results={state.results}
-      error={state.error}
-      isLoading={state.isLoading}
-      targetAmount={state.targetAmount}
-      initialAmount={state.initialAmount}
-      years={state.years}
-    />
-  );
-}
-const config: ComputeToolConfig<GOState> = {
+const config: ComputeToolConfig<GoalOptimizerState> = {
   titleKey: 'goalOptimizer.title',
   seoDescKey: 'goalOptimizer.seo.desc',
   seoFeatures: [
@@ -288,8 +209,8 @@ const config: ComputeToolConfig<GOState> = {
     { titleKey: 'nav.efficientFrontier', href: '/efficient-frontier' },
   ],
   hideParamsTitle: true,
-  params: GOParamsWrapper,
-  results: GOResultsWrapper,
+  params: GoalOptimizerParamsPanel,
+  results: GoalOptimizerResultsPanel,
 };
 export default function GoalOptimizerPage() {
   const { t } = useTranslation();

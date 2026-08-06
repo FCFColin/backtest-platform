@@ -2,15 +2,23 @@ import type { ReactElement, ReactNode, ComponentType } from 'react';
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ToolSeoCard, ToolPageLayout } from '../layout/ToolPageLayout.js';
-export interface PresetButtonProps {
+import { Loader2 } from '@/icons/icons.js';
+export function TabFallback() {
+  return (
+    <div className="flex justify-center py-12">
+      <Loader2 className="h-6 w-6 animate-spin text-brand" />
+    </div>
+  );
+}
+interface PresetButtonProps {
   label: string;
   onClick: () => void;
 }
-export interface SeoFeature {
+interface SeoFeature {
   titleKey: string;
   descKey: string;
 }
-export interface RelatedTool {
+interface RelatedTool {
   titleKey: string;
   href: string;
 }
@@ -28,10 +36,9 @@ export interface ComputeToolConfig<S> {
   hideParamsTitle?: boolean;
   paramsTitleKey?: string;
   paramsTitle?: string;
-  /** 当页面已有自己的 Hero（如 BacktestHero）时，隐藏 ComputeToolShell 内部的 h1 标题以避免 H1 重复 */
   hidePageTitle?: boolean;
 }
-export interface StandardPageConfig {
+interface StandardPageConfig {
   titleKey: string;
   breadcrumbs?: { label: string; href?: string }[];
   headerExtra?: ReactNode;

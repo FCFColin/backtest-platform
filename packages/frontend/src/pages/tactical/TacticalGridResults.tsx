@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { Grid3x3 } from 'lucide-react';
 import { fmtPct, fmtNum } from '@/utils/format';
 import { Card } from '@/components/ui/uiComponents';
-import { EmptyState, ErrorBanner } from '@/components/stateDisplay';
+import { ResultsShell } from '@/components/resultsShell';
 import { SortableTable, type Column } from '@/components/tables';
 import { TimeSeriesLineChart } from '@/components/charts/TimeSeriesLineChart';
 import {
@@ -17,24 +17,11 @@ import type { TacticalGridState } from '@/hooks/useTacticalGridState';
 type StatTone = 'brand' | 'success' | 'default';
 const HEATMAP_TH =
   'sticky top-0 z-10 min-w-[56px] border-b-2 border-r border-border-subtle bg-elevated px-2 py-1.5 text-caption font-semibold text-fg-tertiary';
-function StatCard({
-  label,
-  value,
-  tone = 'default',
-}: {
-  label: string;
-  value: string | number;
-  tone?: StatTone;
-}) {
-  const toneClass =
-    tone === 'brand' ? 'text-brand' : tone === 'success' ? 'text-success' : 'text-fg';
-  return (
-    <div className="rounded-lg border border-border-subtle bg-input-bg/30 px-3 py-2.5">
-      <div className="text-caption text-fg-tertiary">{label}</div>
-      <div className={`mt-0.5 font-mono text-h2 tabular-nums ${toneClass}`}>{value}</div>
-    </div>
-  );
-}
+const TONE_CLASS: Record<StatTone, string> = {
+  brand: 'text-brand',
+  success: 'text-success',
+  default: 'text-fg',
+};
 function ResultsSummary({
   results,
   paramLabels,
@@ -46,23 +33,25 @@ function ResultsSummary({
   const { bestCombination: best } = results;
   const stats: Array<{ label: string; value: string | number; tone?: StatTone }> = [
     { label: t('Combinations'), value: results.totalCombinations },
-    {
-      label: t('Best {{label}}', { label: paramLabels.p1 }),
-      value: best.param1,
-      tone: 'brand',
-    },
-    {
-      label: t('Best {{label}}', { label: paramLabels.p2 }),
-      value: best.param2,
-      tone: 'brand',
-    },
+    { label: t('Best {{label}}', { label: paramLabels.p1 }), value: best.param1, tone: 'brand' },
+    { label: t('Best {{label}}', { label: paramLabels.p2 }), value: best.param2, tone: 'brand' },
     { label: t('Best CAGR'), value: fmtPct(best.cagr), tone: 'success' },
     { label: t('Best Sharpe'), value: fmtNum(best.sharpe, 3), tone: 'success' },
   ];
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
       {stats.map((s) => (
-        <StatCard key={s.label} label={s.label} value={s.value} tone={s.tone} />
+        <div
+          key={s.label}
+          className="rounded-lg border border-border-subtle bg-input-bg/30 px-3 py-2.5"
+        >
+          <div className="text-caption text-fg-tertiary">{s.label}</div>
+          <div
+            className={`mt-0.5 font-mono text-h2 tabular-nums ${TONE_CLASS[s.tone ?? 'default']}`}
+          >
+            {s.value}
+          </div>
+        </div>
       ))}
     </div>
   );
@@ -260,10 +249,16 @@ export function GridResultsPanel({ state }: { state: TacticalGridState }) {
   const { t } = useTranslation();
   const { error, results, isLoading, paramLabels } = state;
   return (
-    <div className="flex flex-col gap-3">
-      {error && <ErrorBanner message={`${t('Search failed')}：${error}`} />}
+    <ResultsShell
+      error={error}
+      errorPrefix={`${t('Search failed')}：`}
+      isLoading={isLoading}
+      hasResults={!!results}
+      emptyTitle={t('Set parameters on the left and click "Start Grid Search" to see results')}
+      emptyIcon={Grid3x3}
+    >
       {results && (
-        <>
+        <div className="flex flex-col gap-3">
           <ResultsSummary results={results} paramLabels={paramLabels} />
           {results.heatmap.matrix.length > 0 && (
             <Card className="p-4">
@@ -278,15 +273,8 @@ export function GridResultsPanel({ state }: { state: TacticalGridState }) {
           )}
           <TopCombinationsTable results={results} paramLabels={paramLabels} />
           <BestGrowthChart results={results} paramLabels={paramLabels} />
-        </>
+        </div>
       )}
-      {!results && !error && !isLoading && (
-        <EmptyState
-          icon={Grid3x3}
-          title={t('Set parameters on the left and click "Start Grid Search" to see results')}
-          className="py-16"
-        />
-      )}
-    </div>
+    </ResultsShell>
   );
 }

@@ -3,26 +3,13 @@ import { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import { CHART_COLORS } from '@backtest/shared';
 import type { FanDataPoint } from './monteCarloUtils.js';
 import { monthFormatter, dollarKFormatter } from './monteCarloUtils.js';
+import { computeTicks } from '@/components/charts/svg/svgChartParts.js';
 const MARGIN = { top: 10, right: 30, left: 60, bottom: 40 };
 interface SvgFanChartProps {
   data: FanDataPoint[];
   band5_95Name: string;
   band25_75Name: string;
   medianName: string;
-}
-function computeNiceTicks(min: number, max: number, count: number = 5): number[] {
-  if (max - min < 1) max = min + 1;
-  const range = max - min;
-  const step = range / (count - 1);
-  const mag = Math.pow(10, Math.floor(Math.log10(step)));
-  const residual = step / mag;
-  const niceStep =
-    residual <= 1.5 ? mag : residual <= 3.5 ? 2 * mag : residual <= 7.5 ? 5 * mag : 10 * mag;
-  const niceMin = Math.floor(min / niceStep) * niceStep;
-  const niceMax = Math.ceil(max / niceStep) * niceStep;
-  const ticks: number[] = [];
-  for (let t = niceMin; t <= niceMax + niceStep * 0.5; t += niceStep) ticks.push(t);
-  return ticks;
 }
 export default function SvgFanChart({
   data,
@@ -61,7 +48,7 @@ export default function SvgFanChart({
       MARGIN.left + ((month - minMonth) / (maxMonth - minMonth || 1)) * innerW;
     const yScaleFn = (val: number) =>
       MARGIN.top + innerH - ((val - (yMin - yPad)) / (yMax - yMin + 2 * yPad)) * innerH;
-    const yTicks = computeNiceTicks(yMin - yPad, yMax + yPad);
+    const yTicks = computeTicks(yMin - yPad, yMax + yPad);
     const xTicks = months.filter(
       (m) => m % 12 === 0 || m === months[0] || m === months[months.length - 1],
     );

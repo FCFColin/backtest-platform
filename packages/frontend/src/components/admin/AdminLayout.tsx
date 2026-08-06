@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { Card, CardHeader, CardContent, Badge, type BadgeProps } from '../ui/uiComponents.js';
 import { cn } from '../../lib/utils.js';
+import type { ServiceHealthView } from '../../utils/adminStats.js';
 type KpiColor = 'blue' | 'green' | 'purple' | 'orange' | 'red';
 interface KpiCardProps {
   label: string;
@@ -47,7 +48,7 @@ export function KpiCard({ label, value, icon, color = 'blue', subtitle }: KpiCar
     </Card>
   );
 }
-type ServiceStatus = 'healthy' | 'degraded' | 'down';
+type ServiceStatus = 'healthy' | 'degraded' | 'down' | 'unknown';
 type BadgeVariant = NonNullable<BadgeProps['variant']>;
 interface ServiceStatusBadgeProps {
   status: ServiceStatus;
@@ -79,6 +80,12 @@ const STATUS_CONFIG: Record<
     badgeVariant: 'danger',
     labelKey: 'adminPage.dataManagement.statusInactive',
   },
+  unknown: {
+    icon: AlertCircle,
+    badgeVariant: 'secondary',
+    overrideClassName: 'bg-elevated text-fg-tertiary',
+    labelKey: 'adminPage.dataManagement.statusUnknown',
+  },
 };
 export function ServiceStatusBadge({
   status,
@@ -105,6 +112,30 @@ export function ServiceStatusBadge({
       <Icon className={iconSize} />
       <span>{t(config.labelKey)}</span>
     </Badge>
+  );
+}
+export function ServiceStatusTable({ services }: { services: ServiceHealthView[] }) {
+  const { t } = useTranslation();
+  return (
+    <div className="space-y-3">
+      {services.map((service) => (
+        <div
+          key={service.name}
+          className="flex items-center justify-between rounded-lg border border-border-subtle p-3"
+        >
+          <div>
+            <p className="text-sm font-medium text-fg-secondary">{t(service.name)}</p>
+            <p className="text-xs text-fg-tertiary">{service.url}</p>
+          </div>
+          <div className="flex items-center gap-3">
+            {service.version && (
+              <span className="text-xs text-fg-tertiary">v{service.version}</span>
+            )}
+            <ServiceStatusBadge status={service.status} />
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }
 const SIDEBAR_ITEMS = [

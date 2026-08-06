@@ -8,7 +8,7 @@ interface ChartExporterProps {
   filename?: string;
   label?: string;
 }
-export function ChartExporter({ data, filename = 'chart-data', label }: ChartExporterProps) {
+function ChartExporter({ data, filename = 'chart-data', label }: ChartExporterProps) {
   const { t } = useTranslation();
   const handleExport = () => downloadCSV(data, filename);
   const disabled = data.length === 0;
@@ -41,25 +41,20 @@ export default function ChartCard({
   const showExporter = data !== undefined && csvFilename !== undefined;
   const hasHeaderExtra = headerExtra != null;
   const hasRightContent = showExporter || hasHeaderExtra;
-  if (!hasTitle) {
-    return (
-      <Card className={className} style={style}>
-        <CardContent className="p-4 pt-4">{children}</CardContent>
-      </Card>
-    );
-  }
   return (
     <Card className={className} style={style}>
-      <CardHeader className="flex-row items-center justify-between space-y-0 px-4 pt-4 pb-3">
-        <div className="text-h3 font-semibold text-fg">{title}</div>
-        {hasRightContent && (
-          <div className="flex items-center gap-2">
-            {hasHeaderExtra && headerExtra}
-            {showExporter && <ChartExporter data={data} filename={csvFilename} />}
-          </div>
-        )}
-      </CardHeader>
-      <CardContent className="px-4 pb-4 pt-0">{children}</CardContent>
+      {hasTitle && (
+        <CardHeader className="flex-row items-center justify-between space-y-0 px-4 pt-4 pb-3">
+          <div className="text-h3 font-semibold text-fg">{title}</div>
+          {hasRightContent && (
+            <div className="flex items-center gap-2">
+              {hasHeaderExtra && headerExtra}
+              {showExporter && <ChartExporter data={data} filename={csvFilename} />}
+            </div>
+          )}
+        </CardHeader>
+      )}
+      <CardContent className={hasTitle ? 'px-4 pb-4 pt-0' : 'p-4 pt-4'}>{children}</CardContent>
     </Card>
   );
 }

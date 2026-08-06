@@ -100,7 +100,7 @@ export function mergePortfolioSeries<T, P extends Pick<PortfolioResult, 'name'>>
     .map(([, value]) => value);
 }
 
-export function toCSV(data: Array<Record<string, string | number | undefined | null>>): string {
+function toCSV(data: Array<Record<string, string | number | undefined | null>>): string {
   if (data.length === 0) return '';
   const headers = Object.keys(data[0]);
   const escapeCell = (val: string | number | undefined | null): string => {

@@ -1,21 +1,46 @@
 import { useMemo, useState, type CSSProperties, type ReactNode } from 'react';
 import { ChevronUp, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
-export interface SimpleTableColumn<T> {
-  key: string;
+
+const TH_BORDER: CSSProperties = { borderBottom: '2px solid hsl(var(--border-subtle))' };
+const TD_BORDER: CSSProperties = { borderBottom: '1px solid hsl(var(--border-subtle))' };
+const TH_BASE =
+  'text-caption text-fg-tertiary uppercase tracking-wide font-semibold py-2.5 px-3 whitespace-nowrap';
+const TD_BASE = 'py-2 px-3 text-body text-fg';
+const rowClass = (idx: number) => cn(idx % 2 === 1 && 'bg-elevated/40');
+
+export interface TableColumn<T> {
+  key: keyof T | string;
   label: ReactNode;
   align?: 'left' | 'right';
-  /** 单元格渲染函数（必填，避免与 row[key] 取值约定混淆） */
-  render: (row: T, rowIdx: number) => ReactNode;
+  render?: (row: T, rowIdx: number) => ReactNode;
+  sortValue?: (row: T) => number | string;
   style?: CSSProperties;
 }
-interface SimpleTableProps<T> {
-  columns: SimpleTableColumn<T>[];
+export type SimpleTableColumn<T> = TableColumn<T>;
+export type Column<T> = TableColumn<T>;
+
+interface TableProps<T> {
+  columns: TableColumn<T>[];
   data: T[];
   maxWidth?: number;
   rowKey?: (row: T, idx: number) => string;
+  nowrap?: boolean;
+  sortKey?: string;
+  sortDir?: 'asc' | 'desc';
+  onSort?: (key: string) => void;
 }
-export function SimpleTable<T>({ columns, data, maxWidth, rowKey }: SimpleTableProps<T>) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- 泛型约束需要 any 以兼容无索引签名的具体接口
+function BaseTable<T extends Record<string, any>>({
+  columns,
+  data,
+  maxWidth,
+  rowKey,
+  nowrap = true,
+  sortKey,
+  sortDir,
+  onSort,
+}: TableProps<T>) {
   return (
     <div className="overflow-x-auto">
       <table
@@ -24,41 +49,56 @@ export function SimpleTable<T>({ columns, data, maxWidth, rowKey }: SimpleTableP
       >
         <thead>
           <tr className="bg-elevated">
-            {columns.map((col) => (
-              <th
-                key={col.key}
-                className={cn(
-                  'text-caption text-fg-tertiary uppercase tracking-wide font-semibold py-2.5 px-3 whitespace-nowrap',
-                  col.align === 'right' ? 'text-right' : 'text-left',
-                )}
-                style={{ borderBottom: '2px solid hsl(var(--border-subtle))' }}
-              >
-                {col.label}
-              </th>
-            ))}
+            {columns.map((col) => {
+              const colKey = String(col.key);
+              const isSorted = sortKey === colKey;
+              return (
+                <th
+                  key={colKey}
+                  onClick={onSort ? () => onSort(colKey) : undefined}
+                  className={cn(
+                    TH_BASE,
+                    onSort &&
+                      'cursor-pointer text-left hover:text-fg transition-colors duration-150',
+                    col.align === 'right' ? 'text-right' : 'text-left',
+                  )}
+                  style={TH_BORDER}
+                >
+                  {onSort ? (
+                    <span className="inline-flex items-center gap-1">
+                      {col.label}
+                      {isSorted &&
+                        (sortDir === 'asc' ? (
+                          <ChevronUp className="size-3 text-brand" />
+                        ) : (
+                          <ChevronDown className="size-3 text-brand" />
+                        ))}
+                    </span>
+                  ) : (
+                    col.label
+                  )}
+                </th>
+              );
+            })}
           </tr>
         </thead>
         <tbody>
           {data.map((row, idx) => (
-            <tr
-              key={rowKey ? rowKey(row, idx) : idx}
-              className={cn(idx % 2 === 1 && 'bg-elevated/40')}
-            >
+            <tr key={rowKey ? rowKey(row, idx) : idx} className={rowClass(idx)}>
               {columns.map((col) => {
+                const colKey = String(col.key);
                 const isRight = col.align === 'right';
                 return (
                   <td
-                    key={col.key}
+                    key={colKey}
                     className={cn(
-                      'py-2 px-3 whitespace-nowrap text-body text-fg',
+                      TD_BASE,
+                      nowrap && 'whitespace-nowrap',
                       isRight && 'text-right font-mono tabular-nums font-medium',
                     )}
-                    style={{
-                      borderBottom: '1px solid hsl(var(--border-subtle))',
-                      ...col.style,
-                    }}
+                    style={{ ...TD_BORDER, ...col.style }}
                   >
-                    {col.render(row, idx)}
+                    {col.render ? col.render(row, idx) : String(row[colKey] ?? '')}
                   </td>
                 );
               })}
@@ -69,14 +109,23 @@ export function SimpleTable<T>({ columns, data, maxWidth, rowKey }: SimpleTableP
     </div>
   );
 }
-export interface Column<T> {
-  key: keyof T | string;
-  label: string;
-  render?: (row: T) => ReactNode;
-  sortValue?: (row: T) => number | string;
+interface SimpleTableProps<T> {
+  columns: TableColumn<T>[];
+  data: T[];
+  maxWidth?: number;
+  rowKey?: (row: T, idx: number) => string;
+}
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- 泛型约束需要 any 以兼容无索引签名的具体接口
+export function SimpleTable<T extends Record<string, any>>({
+  columns,
+  data,
+  maxWidth,
+  rowKey,
+}: SimpleTableProps<T>) {
+  return <BaseTable columns={columns} data={data} maxWidth={maxWidth} rowKey={rowKey} />;
 }
 interface SortableTableProps<T> {
-  columns: Column<T>[];
+  columns: TableColumn<T>[];
   data: T[];
   initialSortKey?: string;
   initialSortDir?: 'asc' | 'desc';
@@ -87,7 +136,7 @@ function sortRows<T extends Record<string, any>>(
   b: T,
   sortKey: string | undefined,
   sortDir: 'asc' | 'desc',
-  columns: Column<T>[],
+  columns: TableColumn<T>[],
 ): number {
   if (!sortKey) return 0;
   const col = columns.find((c) => String(c.key) === sortKey);
@@ -95,8 +144,7 @@ function sortRows<T extends Record<string, any>>(
   const av = col.sortValue ? col.sortValue(a) : a[sortKey];
   const bv = col.sortValue ? col.sortValue(b) : b[sortKey];
   if (av === bv) return 0;
-  if (av < bv) return sortDir === 'asc' ? -1 : 1;
-  return sortDir === 'asc' ? 1 : -1;
+  return sortDir === 'asc' ? (av < bv ? -1 : 1) : av < bv ? 1 : -1;
 }
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 泛型约束需要 any 以兼容无索引签名的具体接口
 export function SortableTable<T extends Record<string, any>>({
@@ -107,11 +155,9 @@ export function SortableTable<T extends Record<string, any>>({
 }: SortableTableProps<T>) {
   const [sortKey, setSortKey] = useState<string | undefined>(initialSortKey);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>(initialSortDir);
-  const handleSort = (col: Column<T>) => {
-    const colKey = String(col.key);
-    if (sortKey === colKey) {
-      setSortDir((prev) => (prev === 'asc' ? 'desc' : 'asc'));
-    } else {
+  const handleSort = (colKey: string) => {
+    if (sortKey === colKey) setSortDir((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+    else {
       setSortKey(colKey);
       setSortDir('desc');
     }
@@ -121,53 +167,13 @@ export function SortableTable<T extends Record<string, any>>({
     [data, sortKey, sortDir, columns],
   );
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full border-collapse text-body">
-        <thead>
-          <tr className="bg-elevated">
-            {columns.map((col) => {
-              const colKey = String(col.key);
-              const isSorted = sortKey === colKey;
-              return (
-                <th
-                  key={colKey}
-                  onClick={() => handleSort(col)}
-                  className="cursor-pointer text-caption text-fg-tertiary uppercase tracking-wide font-semibold text-left py-2.5 px-3 whitespace-nowrap hover:text-fg transition-colors duration-150"
-                  style={{ borderBottom: '2px solid hsl(var(--border-subtle))' }}
-                >
-                  <span className="inline-flex items-center gap-1">
-                    {col.label}
-                    {isSorted &&
-                      (sortDir === 'asc' ? (
-                        <ChevronUp className="size-3 text-brand" />
-                      ) : (
-                        <ChevronDown className="size-3 text-brand" />
-                      ))}
-                  </span>
-                </th>
-              );
-            })}
-          </tr>
-        </thead>
-        <tbody>
-          {sortedData.map((row, idx) => (
-            <tr key={idx} className={cn(idx % 2 === 1 && 'bg-elevated/40')}>
-              {columns.map((col) => {
-                const colKey = String(col.key);
-                return (
-                  <td
-                    key={colKey}
-                    className="py-2 px-3 text-body text-fg"
-                    style={{ borderBottom: '1px solid hsl(var(--border-subtle))' }}
-                  >
-                    {col.render ? col.render(row) : String(row[colKey] ?? '')}
-                  </td>
-                );
-              })}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <BaseTable
+      columns={columns}
+      data={sortedData}
+      nowrap={false}
+      sortKey={sortKey}
+      sortDir={sortDir}
+      onSort={handleSort}
+    />
   );
 }

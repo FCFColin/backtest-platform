@@ -1,5 +1,5 @@
 /* eslint-disable react-refresh/only-export-components -- 认证表单 schema 与组件同文件，拆分独立文件则重复 import */
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, Link, useLocation, useSearchParams } from 'react-router-dom';
 import { LogIn, UserPlus, MailCheck } from 'lucide-react';
@@ -12,7 +12,7 @@ export const loginSchema = z.object({
   username: z.string().min(1, 'auth.login.usernameRequired'),
   password: z.string().min(1, 'auth.login.passwordRequired'),
 });
-export const signupSchema = z.object({
+const signupSchema = z.object({
   username: z
     .string()
     .min(3, 'auth.signup.usernameMinLength')
@@ -25,7 +25,7 @@ export const signupSchema = z.object({
     .max(100, 'auth.signup.orgNameMaxLength'),
   termsAccepted: z.boolean().refine((v) => v === true, 'auth.signup.termsError'),
 });
-export function firstZodErrorKey<T>(result: ReturnType<z.ZodType<T>['safeParse']>): string | null {
+function firstZodErrorKey<T>(result: ReturnType<z.ZodType<T>['safeParse']>): string | null {
   if (result.success) return null;
   const firstIssue = result.error.issues[0];
   return firstIssue ? (firstIssue.message as string) : null;
@@ -42,11 +42,9 @@ export default function LoginPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [searchParams] = useSearchParams();
   const sessionExpired = searchParams.get('reason') === 'session_expired';
-  const sessionMessage = useMemo(
-    () =>
-      sessionExpired ? t('Your session has expired due to inactivity. Please log in again.') : null,
-    [sessionExpired, t],
-  );
+  const sessionMessage = sessionExpired
+    ? t('Your session has expired due to inactivity. Please log in again.')
+    : null;
   const redirectTo = (location.state as { from?: string } | null)?.from ?? '/';
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

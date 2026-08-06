@@ -11,7 +11,7 @@ import {
   LabelList,
   ResponsiveContainer,
 } from 'recharts';
-import { Card } from '@/components/ui/uiComponents';
+import { Card, Progress } from '@/components/ui/uiComponents';
 import type { Stats, UniverseStats } from './dataEngine.js';
 
 export const fmt = (n?: number | null) => (n ?? 0).toLocaleString();
@@ -44,16 +44,6 @@ function sortDecadeEntries(entries: [string, number][]): [string, number][] {
     return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
   });
 }
-function MiniBar({ pct }: { pct: number }) {
-  return (
-    <div className="h-1 overflow-hidden rounded bg-input-bg">
-      <div
-        className="h-full rounded bg-brand transition-[width] duration-400"
-        style={{ width: `${pct}%` }}
-      />
-    </div>
-  );
-}
 function DistributionRow({
   label,
   count,
@@ -72,7 +62,7 @@ function DistributionRow({
         <span className={`text-fg-secondary ${bold ? 'font-semibold' : ''}`}>{label}</span>
         <span className="font-mono tabular-nums text-fg-tertiary">{fmt(count)}</span>
       </div>
-      <MiniBar pct={barPct} />
+      <Progress value={barPct} />
     </div>
   );
 }
@@ -97,7 +87,7 @@ export function MarketDistributionCard({
             <span className="font-semibold text-fg-secondary">{labelOf(market)}</span>
             <span className="font-mono tabular-nums text-fg-tertiary">{fmt(data.count)}</span>
           </div>
-          <MiniBar pct={maxCount > 0 ? (data.count / maxCount) * 100 : 0} />
+          <Progress value={maxCount > 0 ? (data.count / maxCount) * 100 : 0} />
           <div className="mt-[3px] flex gap-3 text-caption text-fg-tertiary">
             <span>
               {t('Stock')} {data.stocks}

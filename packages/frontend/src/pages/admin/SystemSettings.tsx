@@ -6,53 +6,19 @@ import { useToastStore } from '../../store/toastStore.js';
 import { reportError } from '../../utils/errorReporter.js';
 import { Button, Card } from '../../components/ui/uiComponents.js';
 import { Field, FieldLabel } from '../../components/form/Field.js';
-interface ServiceConfig {
-  name: string;
-  url: string;
-  status: 'healthy' | 'down';
-  version?: string;
-}
+import { buildServiceHealths, type ServiceHealthView } from '../../utils/adminStats.js';
+import { ServiceStatusTable } from '../../components/admin/AdminLayout.js';
 interface AppConfig {
-  services: ServiceConfig[];
+  services: ServiceHealthView[];
   nodeEnv: string;
   nodeVersion: string;
-  platform: string;
-  pid: number;
 }
 const DEFAULT_CONFIG: AppConfig = {
-  services: [
-    { name: 'adminPage.dashboard.goEngine', url: 'http://127.0.0.1:15004', status: 'down' },
-    { name: 'adminPage.dashboard.goDataService', url: 'http://127.0.0.1:3003', status: 'down' },
-    { name: 'adminPage.dashboard.nodeService', url: 'http://127.0.0.1:3001', status: 'down' },
-  ],
+  services: buildServiceHealths({}),
   nodeEnv: 'development',
   nodeVersion: '-',
-  platform: '-',
-  pid: 0,
 };
-function buildServicesFromApi(d: Record<string, unknown>): ServiceConfig[] {
-  const svc = d.services as Record<string, { status?: string; version?: string }> | undefined;
-  return [
-    {
-      name: 'adminPage.dashboard.goEngine',
-      url: 'http://127.0.0.1:15004',
-      status: svc?.go_engine?.status === 'healthy' ? 'healthy' : 'down',
-      version: svc?.go_engine?.version,
-    },
-    {
-      name: 'adminPage.dashboard.goDataService',
-      url: 'http://127.0.0.1:3003',
-      status: svc?.goDataService?.status === 'healthy' ? 'healthy' : 'down',
-      version: svc?.goDataService?.version,
-    },
-    {
-      name: 'adminPage.dashboard.nodeService',
-      url: 'http://127.0.0.1:3001',
-      status: svc?.nodeServer?.status === 'healthy' ? 'healthy' : 'down',
-    },
-  ];
-}
-function ServiceConfigSection({ services }: { services: ServiceConfig[] }) {
+function ServiceConfigSection({ services }: { services: ServiceHealthView[] }) {
   const { t } = useTranslation();
   return (
     <Card className="p-4">
@@ -60,29 +26,7 @@ function ServiceConfigSection({ services }: { services: ServiceConfig[] }) {
         <Server className="h-4 w-4 text-fg-tertiary" />
         <h2 className="text-sm font-semibold text-fg">{t('Service Configuration')}</h2>
       </div>
-      <div className="space-y-3">
-        {services.map((service) => (
-          <div
-            key={service.name}
-            className="flex items-center justify-between rounded-lg border border-border-subtle p-3"
-          >
-            <div>
-              <p className="text-sm font-medium text-fg-secondary">{t(service.name)}</p>
-              <p className="text-xs text-fg-tertiary">{service.url}</p>
-            </div>
-            <div className="flex items-center gap-3">
-              {service.version && (
-                <span className="text-xs text-fg-tertiary">v{service.version}</span>
-              )}
-              <span
-                className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${service.status === 'healthy' ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger'}`}
-              >
-                {service.status === 'healthy' ? t('Online') : t('Inactive')}
-              </span>
-            </div>
-          </div>
-        ))}
-      </div>
+      <ServiceStatusTable services={services} />
     </Card>
   );
 }
@@ -187,7 +131,7 @@ export default function SystemSettings() {
       if (res.ok) {
         const json = await res.json();
         if (json.success && json.data) {
-          setConfig((prev) => ({ ...prev, services: buildServicesFromApi(json.data) }));
+          setConfig((prev) => ({ ...prev, services: buildServiceHealths(json.data) }));
         }
       }
     } catch (e) {

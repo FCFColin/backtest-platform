@@ -18,6 +18,7 @@ import { useBacktestStore } from '@/store/backtestStore';
 import { useToastStore } from '@/store/toastStore.js';
 import { writeStateToURL } from '@/utils/portfolioStorage.js';
 import { PRESET_PORTFOLIOS, findPresetPortfolio } from '@/store/presetPortfolios.js';
+import { toAssetsWithIds } from '@/store/backtestHelpers.js';
 import {
   GlidepathConfig,
   AssetWeightRow,
@@ -194,12 +195,6 @@ interface PortfolioMetaEditorProps {
   portfolio: StorePortfolio;
   onUpdate: (id: string, patch: Partial<Portfolio>) => void;
 }
-const toAssetsWithIds = (presetAssets: { ticker: string; weight: number }[]): Asset[] =>
-  presetAssets.map((a, idx) => ({
-    id: `asset-${Date.now()}-${idx}`,
-    ticker: a.ticker,
-    weight: a.weight,
-  }));
 const sharePortfolioState = (t: TFunc): void => {
   const url = writeStateToURL(useBacktestStore.getState().getShareableState());
   navigator.clipboard

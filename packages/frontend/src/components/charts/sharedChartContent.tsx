@@ -8,6 +8,8 @@ import {
   ResponsiveContainer,
   AreaChart,
   LineChart,
+  ScatterChart,
+  ZAxis,
 } from 'recharts';
 import type { XAxisProps, YAxisProps } from 'recharts';
 import { BarChart3 } from 'lucide-react';
@@ -382,3 +384,81 @@ export const SimpleAreaChart = (p: Omit<SimpleChartProps, 'type'>) => (
 export const SimpleLineChart = (p: Omit<SimpleChartProps, 'type'>) => (
   <SimpleChart type="line" {...p} />
 );
+interface XYScatterChartProps {
+  xKey: string;
+  yKey: string;
+  xName: string;
+  yName: string;
+  height?: number;
+  margin?: { top: number; right: number; bottom: number; left: number };
+  zRange?: [number, number];
+  zDataKey?: string;
+  xTickFormatter?: (v: number) => string;
+  yTickFormatter?: (v: number) => string;
+  tooltipFormatter?: TooltipValueFormatter;
+  labelFormatter?: (label: string) => string;
+  cursor?: boolean | { stroke?: string; strokeWidth?: number; strokeDasharray?: string };
+  xLabel?: string;
+  yLabel?: string;
+  children: ReactNode;
+}
+export function XYScatterChart({
+  xKey,
+  yKey,
+  xName,
+  yName,
+  height = 300,
+  margin = { top: 20, right: 20, bottom: 20, left: 10 },
+  zRange = [36, 36],
+  zDataKey,
+  xTickFormatter,
+  yTickFormatter,
+  tooltipFormatter,
+  labelFormatter,
+  cursor,
+  xLabel,
+  yLabel,
+  children,
+}: XYScatterChartProps) {
+  return (
+    <ResponsiveContainer width="100%" height={height}>
+      <ScatterChart margin={margin}>
+        <CartesianGrid {...CHART_GRID_PROPS} />
+        <XAxis
+          type="number"
+          dataKey={xKey}
+          name={xName}
+          tick={AXIS_TICK_STYLE}
+          tickFormatter={xTickFormatter}
+          label={{
+            value: xLabel ?? xName,
+            position: 'insideBottom',
+            offset: -5,
+            style: { fill: 'var(--fg-tertiary)', fontSize: 12 },
+          }}
+        />
+        <YAxis
+          type="number"
+          dataKey={yKey}
+          name={yName}
+          tick={AXIS_TICK_STYLE}
+          tickFormatter={yTickFormatter}
+          label={{
+            value: yLabel ?? yName,
+            angle: -90,
+            position: 'insideLeft',
+            style: { fill: 'var(--fg-tertiary)', fontSize: 12 },
+          }}
+        />
+        <ZAxis type="number" dataKey={zDataKey} range={zRange} />
+        <Tooltip
+          contentStyle={CHART_TOOLTIP_STYLE}
+          formatter={tooltipFormatter}
+          labelFormatter={labelFormatter}
+          cursor={cursor}
+        />
+        {children}
+      </ScatterChart>
+    </ResponsiveContainer>
+  );
+}

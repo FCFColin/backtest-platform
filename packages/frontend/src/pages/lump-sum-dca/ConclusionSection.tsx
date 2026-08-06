@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { AlertTriangle, TrendingDown, TrendingUp } from 'lucide-react';
 import { CHART_COLORS } from '@backtest/shared';
 import { Card } from '@/components/ui/uiComponents';
+import { SimpleTable, type SimpleTableColumn } from '@/components/tables.js';
 import type { CompareResult, LumpSumVsDCAState } from '../../hooks/useLumpSumVsDCAState.js';
 function GrowthCurveChart({ results }: { results: CompareResult[] }) {
   return (
@@ -62,30 +63,6 @@ type FmtFns = {
   fmtNum: (v: number) => string;
   fmtMoney: (v: number) => string;
 };
-function StatsTableHead({ results }: { results: CompareResult[] }) {
-  const { t } = useTranslation();
-  return (
-    <thead>
-      <tr className="bg-input-bg">
-        <th className="border-b-2 border-subtle px-3 py-2.5 text-left text-caption font-semibold text-fg-tertiary">
-          {t('Metric')}
-        </th>
-        {results.map((r, idx) => (
-          <th
-            key={r.label}
-            className="border-b-2 border-subtle px-3 py-2.5 text-right text-caption font-semibold text-fg-tertiary"
-          >
-            <span
-              className="mr-1.5 inline-block size-2.5 rounded-full align-middle"
-              style={{ backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] }}
-            />
-            {r.label}
-          </th>
-        ))}
-      </tr>
-    </thead>
-  );
-}
 function StatsTable({ results, fmtPct, fmtNum, fmtMoney }: FmtFns & { results: CompareResult[] }) {
   const { t } = useTranslation();
   const fmtVal = (key: string, v: number) => {
@@ -94,37 +71,32 @@ function StatsTable({ results, fmtPct, fmtNum, fmtMoney }: FmtFns & { results: C
     if (['cagr', 'stdev', 'maxDrawdown'].includes(key)) return fmtPct(v);
     return fmtNum(v);
   };
-  return (
-    <div className="overflow-x-auto">
-      <table className="w-full border-collapse">
-        <StatsTableHead results={results} />
-        <tbody>
-          {STATS_ROWS.map((row, rowIdx) => {
-            const hasAnyValue = results.some((r) => r[row.key] != null);
-            if (!hasAnyValue && !REQUIRED_KEYS.has(row.key)) return null;
-            return (
-              <tr key={row.key} className={rowIdx % 2 === 1 ? 'bg-input-bg' : ''}>
-                <td className="border-b border-subtle px-3 py-2 text-label text-fg-secondary">
-                  {t(row.label)}
-                </td>
-                {results.map((r) => {
-                  const val = r[row.key];
-                  return (
-                    <td
-                      key={r.label}
-                      className="border-b border-subtle px-3 py-2 text-right font-mono text-label font-medium text-fg"
-                    >
-                      {val != null ? fmtVal(row.key, val as number) : '\u2014'}
-                    </td>
-                  );
-                })}
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
+  const columns: SimpleTableColumn<(typeof STATS_ROWS)[number]>[] = [
+    {
+      key: 'metric',
+      label: t('Metric'),
+      render: (row) => <span className="text-fg-secondary">{t(row.label)}</span>,
+    },
+    ...results.map((r, idx) => ({
+      key: r.label,
+      label: (
+        <>
+          <span
+            className="mr-1.5 inline-block size-2.5 rounded-full align-middle"
+            style={{ backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] }}
+          />
+          {r.label}
+        </>
+      ),
+      align: 'right' as const,
+      render: (row: (typeof STATS_ROWS)[number]) =>
+        r[row.key] != null ? fmtVal(row.key, r[row.key] as number) : '\u2014',
+    })),
+  ];
+  const data = STATS_ROWS.filter(
+    (row) => results.some((res) => res[row.key] != null) || REQUIRED_KEYS.has(row.key),
   );
+  return <SimpleTable columns={columns} data={data} rowKey={(row) => row.key} />;
 }
 function ConclStatCard({
   title,

@@ -1,10 +1,15 @@
-import { useState, useMemo } from 'react';
+import { useMemo } from 'react';
 import i18n from '@/i18n/index.js';
 import { useNavigate } from 'react-router-dom';
-import { useAsyncAction, useListState, useOptimizerLikeState } from '../../hooks/miscHooks.js';
-import { apiFetch } from '@/utils/apiClient';
+import {
+  useAsyncAction,
+  useListState,
+  useOptimizerLikeState,
+  useSetterState,
+} from '../../hooks/miscHooks.js';
+import { apiFetch, apiPostJSON } from '@/utils/apiClient';
 import type { EfficientFrontierResult, EfficientFrontierPoint } from '@backtest/shared';
-import { buildBacktestParameters } from '@/utils/constants';
+import { buildBacktestParameters, buildSinglePortfolioBody } from '@/utils/constants';
 export type SolveSpeed = 'ultrafast' | 'fast' | 'medium' | 'slow';
 export type FrontierSolver = 'markowitz' | 'nsga2';
 export type ReturnObjective = 'maxCagr' | 'minVolatility';
@@ -22,23 +27,18 @@ function buildPortfolioData(
   startDate: string,
   endDate: string,
 ) {
-  return {
-    portfolios: [
-      {
-        id: `portfolio-${Date.now()}-1`,
-        name: i18n.t('Portfolio'),
-        assets: Object.entries(p.weights).map(([ticker, weight]) => ({
-          ticker,
-          weight: Math.round(weight * 10000) / 100,
-        })),
-        rebalanceFrequency: rebalanceFrequency || 'quarterly',
-        rebalanceOffset: 0,
-        drag: 0,
-        totalReturn: true,
-      },
-    ],
-    parameters: buildBacktestParameters(startDate, endDate),
-  };
+  return buildSinglePortfolioBody(
+    i18n.t('Portfolio'),
+    Object.entries(p.weights).map(([ticker, weight]) => ({
+      ticker,
+      weight: Math.round(weight * 10000) / 100,
+    })),
+    {
+      id: `portfolio-${Date.now()}-1`,
+      rebalanceFrequency: rebalanceFrequency || 'quarterly',
+    },
+    buildBacktestParameters(startDate, endDate),
+  );
 }
 interface FetchFrontierParams {
   validTickers: string[];
@@ -53,10 +53,9 @@ interface FetchFrontierParams {
   endDate: string;
 }
 async function fetchFrontier(params: FetchFrontierParams): Promise<EfficientFrontierResult> {
-  const res = await apiFetch('/api/v1/backtest/efficient-frontier', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
+  return apiPostJSON<EfficientFrontierResult>(
+    '/api/v1/backtest/efficient-frontier',
+    {
       tickers: params.validTickers,
       numPoints: params.numPoints,
       solveSpeed: params.solveSpeed,
@@ -66,34 +65,24 @@ async function fetchFrontier(params: FetchFrontierParams): Promise<EfficientFron
       returnObjective: params.returnObjective,
       solver: params.solver,
       parameters: buildBacktestParameters(params.startDate, params.endDate),
-    }),
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const json = await res.json();
-  if (json.success === false) throw new Error(json.error || i18n.t('Computation failed'));
-  return json.data ?? json;
+    },
+    i18n.t('Computation failed'),
+  );
 }
 async function fetchCorrelations(
   validTickers: string[],
   startDate: string,
   endDate: string,
 ): Promise<{ tickers: string[]; matrix: number[][] } | null> {
-  const btBody = {
-    portfolios: [
-      {
-        name: 'temp',
-        assets: validTickers.map((t) => ({
-          ticker: t,
-          weight: Math.round((100 / validTickers.length) * 100) / 100,
-        })),
-        rebalanceFrequency: 'yearly',
-        rebalanceOffset: 0,
-        drag: 0,
-        totalReturn: true,
-      },
-    ],
-    parameters: buildBacktestParameters(startDate, endDate),
-  };
+  const btBody = buildSinglePortfolioBody(
+    'temp',
+    validTickers.map((t) => ({
+      ticker: t,
+      weight: Math.round((100 / validTickers.length) * 100) / 100,
+    })),
+    { rebalanceFrequency: 'yearly' },
+    buildBacktestParameters(startDate, endDate),
+  );
   const btRes = await apiFetch('/api/v1/backtest/portfolio', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -150,20 +139,19 @@ function useEfficientFrontierStateInner() {
   } = useListState(['VTI', 'VXUS', 'BND', 'TLT'], () => '', 2);
   const { startDate, setStartDate, endDate, setEndDate, results, setResults } =
     useOptimizerLikeState<EfficientFrontierResult>();
-  const [numPoints, setNumPoints] = useState(20);
-  const [solveSpeed, setSolveSpeed] = useState<SolveSpeed>('fast');
-  const [minInclusionWeight, setMinInclusionWeight] = useState(0);
+  const s = useSetterState({
+    numPoints: 20,
+    solveSpeed: 'fast' as SolveSpeed,
+    minInclusionWeight: 0,
+    selectedPoint: null as EfficientFrontierPoint | null,
+    correlations: null as { tickers: string[]; matrix: number[][] } | null,
+    correlationError: null as string | null,
+    rebalanceFrequency: 'yearly',
+    allowCash: false,
+    returnObjective: 'maxCagr' as ReturnObjective,
+    solver: 'markowitz' as FrontierSolver,
+  });
   const { isLoading, error, run, setError } = useAsyncAction();
-  const [selectedPoint, setSelectedPoint] = useState<EfficientFrontierPoint | null>(null);
-  const [correlations, setCorrelations] = useState<{
-    tickers: string[];
-    matrix: number[][];
-  } | null>(null);
-  const [correlationError, setCorrelationError] = useState<string | null>(null);
-  const [rebalanceFrequency, setRebalanceFrequency] = useState<string>('yearly');
-  const [allowCash, setAllowCash] = useState(false);
-  const [returnObjective, setReturnObjective] = useState<ReturnObjective>('maxCagr');
-  const [solver, setSolver] = useState<FrontierSolver>('markowitz');
   return {
     navigate,
     tickers,
@@ -175,32 +163,13 @@ function useEfficientFrontierStateInner() {
     setStartDate,
     endDate,
     setEndDate,
-    numPoints,
-    setNumPoints,
-    solveSpeed,
-    setSolveSpeed,
-    minInclusionWeight,
-    setMinInclusionWeight,
     isLoading,
     error,
     run,
     setError,
     results,
     setResults,
-    selectedPoint,
-    setSelectedPoint,
-    correlations,
-    setCorrelations,
-    correlationError,
-    setCorrelationError,
-    rebalanceFrequency,
-    setRebalanceFrequency,
-    allowCash,
-    setAllowCash,
-    returnObjective,
-    setReturnObjective,
-    solver,
-    setSolver,
+    ...s,
   };
 }
 function useEfficientFrontierState() {

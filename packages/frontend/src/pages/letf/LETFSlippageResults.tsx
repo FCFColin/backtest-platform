@@ -83,7 +83,7 @@ function LETFKpiCards({ results }: { results: LETFResult }) {
     </div>
   );
 }
-export function SlippageCurveChart({ data }: { data: SlippageCurveDataPoint[] }) {
+function SlippageCurveChart({ data }: { data: SlippageCurveDataPoint[] }) {
   const { t } = useTranslation();
   const isLargeDataset = data.length >= 100;
   const seriesAnimationActive = !isLargeDataset;
@@ -129,7 +129,7 @@ export function SlippageCurveChart({ data }: { data: SlippageCurveDataPoint[] })
     </ChartCard>
   );
 }
-export function LeverageComparisonChart({
+function LeverageComparisonChart({
   data,
   leverage,
 }: {
@@ -211,7 +211,7 @@ function buildStatRows(results: LETFResult): StatRow[] {
     { metric: 'letf.stats.annualDecay', value: results.annualDecay },
   ];
 }
-export function LETFStatsTable({ results }: { results: LETFResult }) {
+function LETFStatsTable({ results }: { results: LETFResult }) {
   const { t } = useTranslation();
   const columns = buildStatColumns(t);
   const rows = buildStatRows(results);

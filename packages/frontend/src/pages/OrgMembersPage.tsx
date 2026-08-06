@@ -32,8 +32,6 @@ export default function OrgMembersPage() {
   const org = useAuthStore((s) => s.org);
   const orgRole = useAuthStore((s) => s.user?.orgRole ?? null);
   const isAdmin = orgRole === 'owner' || orgRole === 'admin';
-  const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteRole, setInviteRole] = useState<Role>('analyst');
   const {
     members,
     invitations,
@@ -50,10 +48,6 @@ export default function OrgMembersPage() {
     if (isAuthed) void load();
   }, [isAuthed, load]);
   if (!isAuthed) return <UnauthedMembers />;
-  const handleSubmitInvite = (e: FormEvent) => {
-    e.preventDefault();
-    void sendInvite(inviteEmail, inviteRole).then(() => setInviteEmail(''));
-  };
   return (
     <StandardPageShell
       config={{
@@ -83,12 +77,8 @@ export default function OrgMembersPage() {
             {isAdmin && (
               <InviteDialog
                 invitations={invitations}
-                inviteEmail={inviteEmail}
-                inviteRole={inviteRole}
                 busy={busy}
-                onInviteEmailChange={setInviteEmail}
-                onInviteRoleChange={setInviteRole}
-                onSendInvite={handleSubmitInvite}
+                sendInvite={sendInvite}
                 onRevokeInvite={revokeInvite}
               />
             )}
@@ -178,86 +168,55 @@ function MemberTable({ members, isAdmin, busy, onChangeRole, onRemoveMember }: M
     </div>
   );
 }
-interface InviteDialogProps {
-  invitations: Invitation[];
-  inviteEmail: string;
-  inviteRole: Role;
-  busy: boolean;
-  onInviteEmailChange: (v: string) => void;
-  onInviteRoleChange: (r: Role) => void;
-  onSendInvite: (e: FormEvent) => void;
-  onRevokeInvite: (id: string) => void;
-}
 function InviteDialog({
   invitations,
-  inviteEmail,
-  inviteRole,
   busy,
-  onInviteEmailChange,
-  onInviteRoleChange,
-  onSendInvite,
+  sendInvite,
   onRevokeInvite,
-}: InviteDialogProps) {
+}: {
+  invitations: Invitation[];
+  busy: boolean;
+  sendInvite: (email: string, role: Role) => Promise<void>;
+  onRevokeInvite: (id: string) => void;
+}) {
   const { t } = useTranslation();
+  const [email, setEmail] = useState('');
+  const [role, setRole] = useState<Role>('analyst');
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
+    void sendInvite(email, role).then(() => setEmail(''));
+  };
   return (
     <div>
       <h2 className="text-[15px] font-bold text-[var(--text-strong)] flex items-center gap-2 mb-3">
         <Mail className="w-4 h-4" /> {t('Invite Member')}
       </h2>
-      <InviteForm
-        inviteEmail={inviteEmail}
-        inviteRole={inviteRole}
-        busy={busy}
-        onInviteEmailChange={onInviteEmailChange}
-        onInviteRoleChange={onInviteRoleChange}
-        onSendInvite={onSendInvite}
-      />
+      <form onSubmit={submit} className="flex gap-2 mb-4 flex-wrap">
+        <input
+          type="email"
+          required
+          placeholder={t('Invite email')}
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="bg-input-bg text-fg border border-border-subtle rounded font-medium h-[38px] flex-[1_1_220px]"
+        />
+        <RoleSelect
+          value={role}
+          onChange={setRole}
+          className="bg-input-bg text-fg border border-border-subtle rounded font-medium h-[38px]"
+        />
+        <button
+          type="submit"
+          disabled={busy}
+          className="main-action-btn h-[38px] px-4 inline-flex items-center gap-1.5"
+        >
+          <Send className="w-4 h-4" /> {t('Send Invitation')}
+        </button>
+      </form>
       {invitations.length > 0 && (
         <InvitationTable invitations={invitations} busy={busy} onRevokeInvite={onRevokeInvite} />
       )}
     </div>
-  );
-}
-interface InviteFormProps {
-  inviteEmail: string;
-  inviteRole: Role;
-  busy: boolean;
-  onInviteEmailChange: (v: string) => void;
-  onInviteRoleChange: (r: Role) => void;
-  onSendInvite: (e: FormEvent) => void;
-}
-function InviteForm({
-  inviteEmail,
-  inviteRole,
-  busy,
-  onInviteEmailChange,
-  onInviteRoleChange,
-  onSendInvite,
-}: InviteFormProps) {
-  const { t } = useTranslation();
-  return (
-    <form onSubmit={(e) => void onSendInvite(e)} className="flex gap-2 mb-4 flex-wrap">
-      <input
-        type="email"
-        required
-        placeholder={t('Invite email')}
-        value={inviteEmail}
-        onChange={(e) => onInviteEmailChange(e.target.value)}
-        className="bg-input-bg text-fg border border-border-subtle rounded font-medium h-[38px] flex-[1_1_220px]"
-      />
-      <RoleSelect
-        value={inviteRole}
-        onChange={onInviteRoleChange}
-        className="bg-input-bg text-fg border border-border-subtle rounded font-medium h-[38px]"
-      />
-      <button
-        type="submit"
-        disabled={busy}
-        className="main-action-btn h-[38px] px-4 inline-flex items-center gap-1.5"
-      >
-        <Send className="w-4 h-4" /> {t('Send Invitation')}
-      </button>
-    </form>
   );
 }
 interface InvitationTableProps {

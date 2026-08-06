@@ -1,6 +1,7 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import i18n from '../i18n/index.js';
 import { reportError } from '../utils/errorReporter.js';
+import { Button } from './ui/uiComponents.js';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -20,9 +21,6 @@ const ERROR_CONTAINER_STYLE: React.CSSProperties = {
   color: 'var(--text-strong)',
   textAlign: 'center',
 };
-const STYLE_TAG = (
-  <style>{`.error-refresh-btn:hover { background-color: var(--brand-hover) !important; }`}</style>
-);
 const ERROR_DETAIL_STYLE: React.CSSProperties = {
   fontSize: '12px',
   color: 'var(--text-muted)',
@@ -31,17 +29,54 @@ const ERROR_DETAIL_STYLE: React.CSSProperties = {
   wordBreak: 'break-word',
   fontFamily: 'monospace',
 };
-const REFRESH_BTN_STYLE: React.CSSProperties = {
-  padding: '10px 24px',
-  fontSize: '14px',
-  fontWeight: 500,
-  color: 'var(--bg-elevated)',
-  backgroundColor: 'var(--brand)',
-  border: 'none',
-  borderRadius: '6px',
-  cursor: 'pointer',
-  transition: 'background-color 0.2s',
-};
+export function ErrorFallback({
+  title,
+  description,
+  error,
+  actionLabel,
+  onAction,
+  headingSize,
+  containerStyle,
+}: {
+  title: string;
+  description: string;
+  error: Error | null;
+  actionLabel: string;
+  onAction: () => void;
+  headingSize: number;
+  containerStyle: React.CSSProperties;
+}) {
+  return (
+    <div style={containerStyle} role="alert">
+      <div
+        style={{ fontSize: `${headingSize * 2}px`, marginBottom: '12px' }}
+        role="img"
+        aria-hidden="true"
+      >
+        ⚠️
+      </div>
+      <h2 style={{ fontSize: `${headingSize}px`, fontWeight: 600, margin: '0 0 8px' }}>{title}</h2>
+      <p
+        style={{
+          fontSize: '14px',
+          color: 'var(--text-muted)',
+          margin: '0 0 16px',
+          maxWidth: '420px',
+        }}
+      >
+        {description}
+      </p>
+      {error && (
+        <p style={ERROR_DETAIL_STYLE}>
+          {error.message?.slice(0, 200) || String(error).slice(0, 200)}
+        </p>
+      )}
+      <Button variant="primary" onClick={onAction}>
+        {actionLabel}
+      </Button>
+    </div>
+  );
+}
 export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   constructor(props: ErrorBoundaryProps) {
     super(props);
@@ -66,46 +101,17 @@ export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
   }
   private renderErrorUI(): ReactNode {
     return (
-      <>
-        {STYLE_TAG}
-        <div style={ERROR_CONTAINER_STYLE}>
-          <div
-            style={{ fontSize: '48px', marginBottom: '16px' }}
-            role="img"
-            aria-label={i18n.t('Error')}
-          >
-            ⚠️
-          </div>
-          <h1 style={{ fontSize: '24px', fontWeight: 600, margin: '0 0 8px' }}>
-            {i18n.t('Something went wrong')}
-          </h1>
-          <p
-            style={{
-              fontSize: '14px',
-              color: 'var(--text-muted)',
-              margin: '0 0 24px',
-              maxWidth: '400px',
-            }}
-          >
-            {i18n.t(
-              'Sorry, the page encountered an error. Please refresh. If the problem persists, contact the administrator.',
-            )}
-          </p>
-          {this.state.error && (
-            <p style={ERROR_DETAIL_STYLE}>
-              {this.state.error.message?.slice(0, 200) || String(this.state.error).slice(0, 200)}
-            </p>
-          )}
-          <button
-            type="button"
-            onClick={this.handleRefresh}
-            style={REFRESH_BTN_STYLE}
-            className="error-refresh-btn"
-          >
-            {i18n.t('Refresh page')}
-          </button>
-        </div>
-      </>
+      <ErrorFallback
+        containerStyle={ERROR_CONTAINER_STYLE}
+        title={i18n.t('Something went wrong')}
+        description={i18n.t(
+          'Sorry, the page encountered an error. Please refresh. If the problem persists, contact the administrator.',
+        )}
+        error={this.state.error}
+        actionLabel={i18n.t('Refresh page')}
+        onAction={this.handleRefresh}
+        headingSize={24}
+      />
     );
   }
 }
@@ -135,24 +141,6 @@ const ROUTE_ERROR_STYLE: React.CSSProperties = {
   border: '1px solid var(--border-soft)',
   borderRadius: '12px',
   boxShadow: 'var(--shadow-card)',
-};
-const ROUTE_RETRY_BTN_STYLE: React.CSSProperties = {
-  padding: '8px 20px',
-  fontSize: '14px',
-  fontWeight: 500,
-  color: 'var(--brand-fg)',
-  backgroundColor: 'hsl(var(--brand))',
-  border: 'none',
-  borderRadius: '6px',
-  cursor: 'pointer',
-};
-const ROUTE_ERROR_DETAIL_STYLE: React.CSSProperties = {
-  fontSize: '12px',
-  color: 'hsl(var(--fg-tertiary))',
-  margin: '8px 0 16px',
-  maxWidth: '500px',
-  wordBreak: 'break-word',
-  fontFamily: 'monospace',
 };
 export class RouteErrorBoundary extends Component<
   RouteErrorBoundaryProps,
@@ -186,32 +174,17 @@ export class RouteErrorBoundary extends Component<
       ? i18n.t('This section could not load ({{route}})', { route: routeName })
       : i18n.t('Something went wrong');
     return (
-      <div style={ROUTE_ERROR_STYLE} role="alert" aria-live="assertive">
-        <div style={{ fontSize: '36px', marginBottom: '12px' }} role="img" aria-hidden="true">
-          ⚠️
-        </div>
-        <h2 style={{ fontSize: '18px', fontWeight: 600, margin: '0 0 8px' }}>{title}</h2>
-        <p
-          style={{
-            fontSize: '14px',
-            color: 'hsl(var(--fg-secondary))',
-            margin: '0 0 12px',
-            maxWidth: '420px',
-          }}
-        >
-          {i18n.t(
-            'Something went wrong while rendering this page. You can retry without reloading the whole app.',
-          )}
-        </p>
-        {this.state.error && (
-          <p style={ROUTE_ERROR_DETAIL_STYLE}>
-            {this.state.error.message?.slice(0, 200) || String(this.state.error).slice(0, 200)}
-          </p>
+      <ErrorFallback
+        containerStyle={ROUTE_ERROR_STYLE}
+        title={title}
+        description={i18n.t(
+          'Something went wrong while rendering this page. You can retry without reloading the whole app.',
         )}
-        <button type="button" onClick={this.handleRetry} style={ROUTE_RETRY_BTN_STYLE}>
-          {i18n.t('Retry')}
-        </button>
-      </div>
+        error={this.state.error}
+        actionLabel={i18n.t('Retry')}
+        onAction={this.handleRetry}
+        headingSize={18}
+      />
     );
   }
 }

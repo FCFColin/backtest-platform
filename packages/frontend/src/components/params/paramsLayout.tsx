@@ -3,7 +3,7 @@ import type { ReactNode, CSSProperties } from 'react';
 import { ChevronDown, ChevronRight, Info } from 'lucide-react';
 import { Card } from '@/components/ui/uiComponents';
 import { cn } from '@/lib/utils';
-export interface ParamRowProps {
+interface ParamRowProps {
   children: ReactNode;
   style?: CSSProperties;
   className?: string;
@@ -15,7 +15,7 @@ export function ParamRow({ children, style, className }: ParamRowProps) {
     </div>
   );
 }
-export interface ParamCardProps {
+interface ParamCardProps {
   label: string;
   children: ReactNode;
   fullWidth?: boolean;
@@ -30,7 +30,7 @@ export function ParamCard({ label, children, fullWidth, style, className }: Para
     </div>
   );
 }
-export interface ParamGroupProps {
+interface ParamGroupProps {
   title: string;
   children: ReactNode;
   defaultExpanded?: boolean;

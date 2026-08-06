@@ -16,7 +16,7 @@ export function formatValue(v: number | undefined, fmt: FmtType): string {
   if (fmt === 'duration') return `${Math.round(v)}d`;
   return v.toString();
 }
-export interface StatisticsTableHeaderProps {
+interface StatisticsTableHeaderProps {
   portfolios: PortfolioResult[];
   minWidth?: string;
 }
@@ -48,7 +48,7 @@ export function StatisticsTableHeader({
     </tr>
   );
 }
-export interface MetricsRowsProps {
+interface MetricsRowsProps {
   rows: StatRow[];
   portfolios: PortfolioResult[];
 }

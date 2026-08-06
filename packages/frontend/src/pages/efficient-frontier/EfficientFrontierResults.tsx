@@ -6,6 +6,7 @@ import {
   type EfficientFrontierResult,
 } from '@backtest/shared';
 import { ErrorBanner } from '@/components/stateDisplay';
+import { ResultsShell } from '@/components/resultsShell';
 import { Button } from '@/components/ui/uiComponents';
 import {
   CorrelationMatrixView,
@@ -39,15 +40,7 @@ export interface FrontierResultsProps {
   onSelectPoint: (p: EfficientFrontierPoint) => void;
   onLoadInBacktester: (p?: EfficientFrontierPoint) => void;
 }
-export function WeightBar({
-  ticker,
-  weight,
-  color,
-}: {
-  ticker: string;
-  weight: number;
-  color: string;
-}) {
+function WeightBar({ ticker, weight, color }: { ticker: string; weight: number; color: string }) {
   return (
     <div className="flex items-center gap-2">
       <span className="w-[60px] shrink-0 text-label font-medium text-fg">{ticker}</span>
@@ -63,13 +56,7 @@ export function WeightBar({
     </div>
   );
 }
-export function WeightAllocation({
-  weights,
-  title,
-}: {
-  weights: Record<string, number>;
-  title: string;
-}) {
+function WeightAllocation({ weights, title }: { weights: Record<string, number>; title: string }) {
   return (
     <div>
       <div className="mb-2 text-caption text-fg-tertiary">{title}</div>
@@ -216,7 +203,7 @@ function ParamsSummary({
     </div>
   );
 }
-export function FrontierResults({ state }: { state: FrontierState }) {
+function FrontierResults({ state }: { state: FrontierState }) {
   const {
     results: r,
     scatterData,
@@ -262,15 +249,19 @@ export function FrontierResults({ state }: { state: FrontierState }) {
 function FrontierResultsView({ state }: { state: FrontierState }) {
   const { t } = useTranslation();
   return (
-    <div className="flex flex-col gap-3">
-      {state.error && (
-        <ErrorBanner message={`${t('Calculation failed')}: ${state.error}`} variant="error" />
-      )}
-      {state.correlationError && !state.error && (
-        <ErrorBanner message={state.correlationError} variant="warning" />
-      )}
-      {state.results && state.results.frontier.length > 0 && <FrontierResults state={state} />}
-    </div>
+    <ResultsShell
+      error={state.error}
+      errorPrefix={`${t('Calculation failed')}: `}
+      isLoading={state.isLoading}
+      hasResults={!!state.results && state.results.frontier.length > 0}
+    >
+      <div className="flex flex-col gap-3">
+        {state.correlationError && !state.error && (
+          <ErrorBanner message={state.correlationError} variant="warning" />
+        )}
+        {state.results && state.results.frontier.length > 0 && <FrontierResults state={state} />}
+      </div>
+    </ResultsShell>
   );
 }
 const config: ComputeToolConfig<FrontierState> = {

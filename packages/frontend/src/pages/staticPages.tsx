@@ -223,6 +223,7 @@ export function AboutPage({ section }: { section?: string }) {
 }
 
 type ChangeType = 'added' | 'improved' | 'fixed';
+
 const CHANGE_META: Record<
   ChangeType,
   { labelKey: string; variant: 'success' | 'asset' | 'secondary'; icon: ReactNode }

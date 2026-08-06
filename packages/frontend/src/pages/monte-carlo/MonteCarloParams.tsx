@@ -9,6 +9,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  AffixInput,
 } from '@/components/ui/uiComponents';
 import { Field, FieldLabel } from '@/components/form/Field';
 import { SectionHeader, SelectField, RunButton } from '@/components/form/sharedFields';
@@ -140,25 +141,14 @@ function BasicField({ t, cfg }: { t: TFunction; cfg: FieldConfig }) {
   return (
     <Field>
       <FieldLabel>{t(cfg.labelKey)}</FieldLabel>
-      <div className={cfg.prefix || cfg.suffixKey ? 'relative' : undefined}>
-        {cfg.prefix && (
-          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-caption text-fg-tertiary">
-            {cfg.prefix}
-          </span>
-        )}
-        <Input
-          type={cfg.type ?? 'text'}
-          value={cfg.value}
-          onChange={(e) => cfg.onChange(e.target.value)}
-          placeholder={cfg.placeholder}
-          className={cfg.prefix ? 'pl-7' : cfg.suffixKey ? 'pr-10' : undefined}
-        />
-        {cfg.suffixKey && (
-          <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-caption text-fg-tertiary">
-            {t(cfg.suffixKey)}
-          </span>
-        )}
-      </div>
+      <AffixInput
+        type={cfg.type ?? 'text'}
+        value={cfg.value}
+        onChange={(e) => cfg.onChange(e.target.value)}
+        placeholder={cfg.placeholder}
+        prefix={cfg.prefix}
+        suffix={cfg.suffixKey ? t(cfg.suffixKey) : undefined}
+      />
     </Field>
   );
 }

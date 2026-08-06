@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { CHART_COLORS, type PortfolioResult } from '@backtest/shared';
 import { SortableTable, type Column } from './tables.js';
@@ -44,6 +44,9 @@ function buildTurnoverColumns(
   portfolios: PortfolioResult[],
   t: (key: string) => string,
 ): Column<TurnoverRow>[] {
+  const rightCell = (children: ReactNode, cls?: string) => (
+    <span className={cn('font-mono tabular-nums text-right block', cls)}>{children}</span>
+  );
   return [
     {
       key: 'name',
@@ -65,46 +68,27 @@ function buildTurnoverColumns(
     {
       key: 'turnover',
       label: t('Annual Turnover'),
-      render: (row) => (
-        <span className="font-mono tabular-nums text-right block text-fg">
-          {fmtPct(row.turnover)}
-        </span>
-      ),
+      render: (row) => rightCell(fmtPct(row.turnover), 'text-fg'),
       sortValue: (row) => row.turnover ?? -1,
     },
     {
       key: 'taxDrag',
       label: t('Tax Drag'),
-      render: (row) => (
-        <span
-          className={cn(
-            'font-mono tabular-nums text-right block',
-            row.taxDrag != null ? 'text-neg' : 'text-fg-tertiary',
-          )}
-        >
-          {fmtPct(row.taxDrag)}
-        </span>
-      ),
+      render: (row) =>
+        rightCell(fmtPct(row.taxDrag), row.taxDrag != null ? 'text-neg' : 'text-fg-tertiary'),
       sortValue: (row) => row.taxDrag ?? -1,
     },
     {
       key: 'observations',
       label: t('Observations'),
-      render: (row) => (
-        <span className="font-mono tabular-nums text-right block text-fg-secondary">
-          {row.observations}
-        </span>
-      ),
+      render: (row) => rightCell(row.observations, 'text-fg-secondary'),
       sortValue: (row) => row.observations,
     },
     {
       key: 'years',
       label: t('Years'),
-      render: (row) => (
-        <span className="font-mono tabular-nums text-right block text-fg-secondary">
-          {row.years > 0 ? row.years.toFixed(1) : '\u2014'}
-        </span>
-      ),
+      render: (row) =>
+        rightCell(row.years > 0 ? row.years.toFixed(1) : '\u2014', 'text-fg-secondary'),
       sortValue: (row) => row.years,
     },
   ];

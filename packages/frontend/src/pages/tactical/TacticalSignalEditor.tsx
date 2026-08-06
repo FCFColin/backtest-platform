@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { Plus, X, Info } from 'lucide-react';
 import {
+  AffixInput,
   Button,
   Input,
   Select,
@@ -124,18 +125,14 @@ function ConditionRow({
           </TooltipContent>
         </Tooltip>
       )}
-      <div className="relative">
-        <Input
-          type="number"
-          aria-label={t('Period')}
-          className="h-8 w-[88px] pr-14 text-caption"
-          value={cond.period}
-          onChange={(e) => onUpdate(ci, { period: Number(e.target.value) })}
-        />
-        <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-caption text-fg-tertiary">
-          {t('Period')}
-        </span>
-      </div>
+      <AffixInput
+        type="number"
+        aria-label={t('Period')}
+        className="h-8 w-[88px] pr-14 text-caption"
+        value={cond.period}
+        suffix={t('Period')}
+        onChange={(e) => onUpdate(ci, { period: Number(e.target.value) })}
+      />
       <CompactSelect
         value={cond.operator}
         onChange={(v) => onUpdate(ci, { operator: v as SignalCondition['operator'] })}
@@ -144,19 +141,15 @@ function ConditionRow({
         className="w-[110px]"
         label={t('tactical.params.operator')}
       />
-      <div className="relative">
-        <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-caption text-fg-tertiary">
-          {t('Threshold')}
-        </span>
-        <Input
-          type="number"
-          step="0.01"
-          aria-label={t('Threshold')}
-          className="h-8 w-[96px] pl-16 text-caption"
-          value={cond.threshold}
-          onChange={(e) => onUpdate(ci, { threshold: Number(e.target.value) })}
-        />
-      </div>
+      <AffixInput
+        type="number"
+        step="0.01"
+        aria-label={t('Threshold')}
+        className="h-8 w-[96px] pl-16 text-caption"
+        value={cond.threshold}
+        prefix={t('Threshold')}
+        onChange={(e) => onUpdate(ci, { threshold: Number(e.target.value) })}
+      />
       {canRemove && <RemoveBtn onClick={() => onRemove(ci)} title={t('Delete condition')} />}
     </div>
   );
@@ -184,18 +177,14 @@ function WeightRow({
         onChange={(e) => onUpdate(wi, { ticker: e.target.value.toUpperCase() })}
         placeholder={t('Ticker')}
       />
-      <div className="relative">
-        <Input
-          type="number"
-          aria-label={t('tactical.params.weight')}
-          className="h-8 w-[104px] pr-6 text-caption"
-          value={weight.weight}
-          onChange={(e) => onUpdate(wi, { weight: Number(e.target.value) })}
-        />
-        <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-caption text-fg-tertiary">
-          %
-        </span>
-      </div>
+      <AffixInput
+        type="number"
+        aria-label={t('tactical.params.weight')}
+        className="h-8 w-[104px] pr-6 text-caption"
+        value={weight.weight}
+        suffix="%"
+        onChange={(e) => onUpdate(wi, { weight: Number(e.target.value) })}
+      />
       {canRemove && <RemoveBtn onClick={() => onRemove(wi)} title={t('Delete')} />}
     </div>
   );

@@ -4,6 +4,7 @@ import { Button, Input, Switch } from '@/components/ui/uiComponents';
 import { Field, FieldLabel } from '@/components/form/Field.js';
 import { CollapsibleSection } from '@/components/cards.js';
 import { TickerTagInput } from '@/components/form/TickerTagInput.js';
+import { useEmptyRowTagChange } from '@/components/params/toolFields.js';
 import {
   SectionHeader,
   LabeledField,
@@ -26,10 +27,7 @@ const SOLVERS = [
 
 function TickerEditor({ s }: { s: EfficientFrontierState }) {
   const { t } = useTranslation();
-  const handleTagChange = (newTickers: string[]) => {
-    const emptyRows = s.tickers.length - s.tickers.filter(Boolean).length;
-    s.setTickers([...newTickers, ...Array(emptyRows).fill('')]);
-  };
+  const handleTagChange = useEmptyRowTagChange(s.tickers, s.setTickers);
   return (
     <section className="flex flex-col gap-3">
       <SectionHeader
@@ -266,26 +264,15 @@ function AdvancedConstraints({ s }: { s: EfficientFrontierState }) {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {fields.map((f) => (
           <LabeledField key={f.labelKey} label={t(f.labelKey)}>
-            {f.percent ? (
-              <PercentInput
-                step={f.step}
-                min={f.min}
-                max={f.max}
-                value={f.value}
-                placeholder="-"
-                onChange={(e) => f.setter(e.target.value)}
-              />
-            ) : (
-              <Input
-                type="number"
-                step={f.step}
-                min={f.min}
-                max={f.max}
-                value={f.value}
-                placeholder="-"
-                onChange={(e) => f.setter(e.target.value)}
-              />
-            )}
+            <PercentInput
+              showPercent={f.percent}
+              step={f.step}
+              min={f.min}
+              max={f.max}
+              value={f.value}
+              placeholder="-"
+              onChange={(e) => f.setter(e.target.value)}
+            />
           </LabeledField>
         ))}
       </div>

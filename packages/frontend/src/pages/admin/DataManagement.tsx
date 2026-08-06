@@ -10,14 +10,12 @@ import {
   BarChart3,
   Globe,
   FileSpreadsheet,
-  CheckCircle,
-  AlertCircle,
 } from 'lucide-react';
 import { apiFetch } from '../../utils/apiClient.js';
 import { useToastStore } from '../../store/toastStore.js';
 import { reportError } from '../../utils/errorReporter.js';
 import { parseMarketBreakdown } from '../../utils/adminStats.js';
-import { KpiCard } from '../../components/admin/AdminLayout.js';
+import { KpiCard, ServiceStatusBadge } from '../../components/admin/AdminLayout.js';
 import { Button, Card } from '../../components/ui/uiComponents.js';
 
 interface DataSource {
@@ -56,23 +54,6 @@ const defaultDataStats: DataStats = {
   totalSizeMB: 0,
   marketBreakdown: {},
 };
-const STATUS_CONFIG = {
-  active: {
-    icon: CheckCircle,
-    labelKey: `${DK}statusActive`,
-    className: 'bg-success/10 text-success',
-  },
-  inactive: {
-    icon: AlertCircle,
-    labelKey: `${DK}statusInactive`,
-    className: 'bg-danger/10 text-danger',
-  },
-  unknown: {
-    icon: AlertCircle,
-    labelKey: `${DK}statusUnknown`,
-    className: 'bg-elevated text-fg-tertiary',
-  },
-} as const;
 const TABLE_COLS = [
   `${DK}dataSource`,
   `${DK}type`,
@@ -182,8 +163,12 @@ function DataSourceTable({ sources }: { sources: DataSource[] }) {
           </thead>
           <tbody>
             {sources.map((source) => {
-              const cfg = STATUS_CONFIG[source.status];
-              const StatusIcon = cfg.icon;
+              const status =
+                source.status === 'active'
+                  ? 'healthy'
+                  : source.status === 'inactive'
+                    ? 'down'
+                    : 'unknown';
               const last =
                 typeof source.lastUpdated === 'string' && source.lastUpdated.includes('T')
                   ? source.lastUpdated.replace('T', ' ').slice(0, 19)
@@ -206,12 +191,7 @@ function DataSourceTable({ sources }: { sources: DataSource[] }) {
                     </span>
                   </td>
                   <td className="py-2.5">
-                    <span
-                      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${cfg.className}`}
-                    >
-                      <StatusIcon className="h-3 w-3" />
-                      {t(cfg.labelKey)}
-                    </span>
+                    <ServiceStatusBadge status={status} />
                   </td>
                   <td className="py-2.5 text-fg-tertiary">
                     {source.recordCount > 0 ? source.recordCount.toLocaleString() : '-'}

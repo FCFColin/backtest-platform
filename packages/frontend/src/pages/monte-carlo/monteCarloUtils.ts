@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useSetterState } from '@/hooks/miscHooks.js';
 import type { TFunction } from 'i18next';
 import {
   CHART_COLORS,
@@ -172,22 +172,7 @@ function useMcSetters(): typeof MC_INITIAL & {
     v: (typeof MC_INITIAL)[K],
   ) => void;
 } {
-  const [mc, setMc] = useState(MC_INITIAL);
-  const set =
-    <K extends keyof typeof MC_INITIAL>(key: K) =>
-    (v: (typeof MC_INITIAL)[K]) =>
-      setMc((prev) => ({ ...prev, [key]: v }));
-  const setters = Object.fromEntries(
-    Object.keys(MC_INITIAL).map((k) => [
-      `set${k[0].toUpperCase()}${k.slice(1)}`,
-      set(k as keyof typeof MC_INITIAL),
-    ]),
-  ) as {
-    [K in keyof typeof MC_INITIAL as `set${Capitalize<string & K>}`]: (
-      v: (typeof MC_INITIAL)[K],
-    ) => void;
-  };
-  return { ...mc, ...setters };
+  return useSetterState(MC_INITIAL);
 }
 type McSetters = ReturnType<typeof useMcSetters>;
 type PortfolioOps = ReturnType<typeof usePortfolioOperations>;
@@ -303,7 +288,6 @@ const BIN_FORMATTERS: Record<DistMetric, (v: number) => string> = {
   sharpe: fmtNum,
   sortino: fmtNum,
 };
-const binLabel = (metric: DistMetric) => BIN_FORMATTERS[metric];
 const metricValues = (metrics: PerPathMetrics[], metric: DistMetric, startingValue: number) =>
   metric === 'finalValue'
     ? metrics.map((m) => m.finalValue * startingValue)
@@ -344,7 +328,7 @@ export function buildDistHistogram(
 ) {
   const vals = metricValues(metrics, metric, startingValue);
   if (vals.length === 0) return { data: [], medianLabel: '', meanLabel: '' };
-  const { bins, labelFor } = buildBinData(vals, 40, binLabel(metric));
+  const { bins, labelFor } = buildBinData(vals, 40, BIN_FORMATTERS[metric]);
   const medianVal = percentile(vals, 0.5);
   const meanVal = mean(vals);
   return {

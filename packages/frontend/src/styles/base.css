@@ -1,10 +1,8 @@
-/* base.css — reset + component common styles + stat tables (merged from 3 files) */
-/* Theme variables in tokens.css; imported by main.tsx */
-
 * {
   box-sizing: border-box;
 }
-html {
+html,
+body {
   overflow-x: hidden;
 }
 html,
@@ -21,7 +19,6 @@ body,
 body {
   font-size: 14px;
   line-height: 1.5;
-  overflow-x: hidden;
 }
 h1,
 h2,
@@ -40,7 +37,6 @@ textarea {
   font-family: inherit;
 }
 
-/* --- cards --- */
 .card,
 .chart-card {
   background: var(--bg-elevated);
@@ -60,13 +56,11 @@ textarea {
   color: var(--text-strong);
   margin-bottom: 6px;
 }
-
 select option {
   background-color: var(--bg-elevated);
   color: var(--text-body);
 }
 
-/* --- scrollbar --- */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -82,7 +76,6 @@ select option {
   background: var(--text-muted);
 }
 
-/* --- recharts --- */
 .recharts-cartesian-grid-horizontal line,
 .recharts-cartesian-grid-vertical line {
   stroke: var(--border-soft) !important;
@@ -123,7 +116,6 @@ input[type='date']::-webkit-calendar-picker-indicator {
   cursor: pointer;
 }
 
-/* --- links --- */
 a {
   color: hsl(var(--brand));
 }
@@ -131,7 +123,6 @@ a:hover {
   text-decoration: underline;
 }
 
-/* --- page layout --- */
 .bt-page {
   max-width: 1440px;
   margin: 0 auto;
@@ -214,7 +205,6 @@ a:hover {
   }
 }
 
-/* --- params controls --- */
 .mini-tabs {
   display: inline-flex;
   background: var(--bg-subtle);
@@ -222,17 +212,20 @@ a:hover {
   padding: 2px;
   gap: 2px;
 }
+.mini-tab,
+.preset-chip {
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+  border-radius: 4px;
+  transition: all 0.15s;
+}
 .mini-tab {
   padding: 5px 14px;
-  font-size: 12px;
   background: transparent;
   border: none;
   color: var(--text-muted);
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: 500;
-  font-family: inherit;
-  transition: all 0.15s;
 }
 .mini-tab:hover {
   color: var(--text-body);
@@ -262,20 +255,13 @@ a:hover {
   background: hsl(var(--input-bg));
   color: var(--text-body);
   border: 1px solid var(--border-soft);
-  border-radius: 4px;
-  font-size: 12px;
-  font-weight: 500;
-  cursor: pointer;
-  font-family: inherit;
   white-space: nowrap;
-  transition: all 0.15s;
 }
 .preset-chip:hover {
   border-color: hsl(var(--brand));
   color: hsl(var(--brand));
 }
 
-/* --- stat tables --- */
 .stat-table {
   width: 100%;
   border-collapse: collapse;
@@ -308,13 +294,6 @@ a:hover {
   color: var(--text-strong);
   font-weight: 500;
 }
-.stat-table-group-row td {
-  background-color: var(--bg-subtle);
-  padding: 8px 12px;
-  font-weight: 700;
-  color: var(--text-strong);
-  letter-spacing: 0.01em;
-}
 .stat-table-data-row td {
   border-bottom: 1px solid color-mix(in srgb, var(--border-soft) 30%, transparent);
 }
@@ -331,7 +310,6 @@ a:hover {
   color: hsl(var(--danger));
 }
 
-/* row density variants via CSS custom properties */
 .stat-row-primary {
   --rp: 10px 16px;
   --rfs: 14px;
@@ -362,32 +340,4 @@ a:hover {
   font-size: var(--rfs);
   font-weight: var(--rfw);
   color: var(--rc, var(--text-strong));
-}
-
-.stat-toggle-row td {
-  padding: 12px 16px 8px;
-  text-align: center;
-  border-bottom: none;
-}
-.stat-toggle-button {
-  background: none;
-  border: none;
-  color: var(--text-muted);
-  font-size: 12px;
-  cursor: pointer;
-  padding: 4px 12px;
-  border-radius: 4px;
-  transition:
-    color 0.15s ease,
-    background-color 0.15s ease;
-}
-.stat-toggle-button:hover {
-  color: var(--text-body);
-  background-color: color-mix(in srgb, var(--bg-subtle) 60%, transparent);
-}
-.stat-toggle-arrow {
-  display: inline-block;
-  margin-right: 4px;
-  font-size: 10px;
-  transition: transform 0.15s ease;
 }

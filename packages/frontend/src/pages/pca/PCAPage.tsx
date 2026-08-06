@@ -8,14 +8,18 @@ import {
   ReferenceLine,
   ResponsiveContainer,
   Scatter,
-  ScatterChart,
   Tooltip,
   XAxis,
   YAxis,
-  ZAxis,
 } from 'recharts';
 import { CHART_COLORS, type PCAResult } from '@backtest/shared';
-import { Card, buttonVariants, Input, LoadingButton } from '@/components/ui/uiComponents';
+import {
+  Card,
+  buttonVariants,
+  Input,
+  LoadingButton,
+  AffixInput,
+} from '@/components/ui/uiComponents';
 import { CollapsibleSection } from '@/components/cards.js';
 import { ResultsShell } from '@/components/resultsShell.js';
 import { useComputeTool, useListState } from '../../hooks/miscHooks.js';
@@ -37,6 +41,7 @@ import { LabeledField } from '../../components/form/sharedFields.js';
 import { TickerTagInput } from '../../components/form/TickerTagInput.js';
 import { ComputeToolShell, type ComputeToolConfig } from '../../components/shells/index.js';
 import { useTagDiff } from '@/components/params/toolFields.js';
+import { XYScatterChart } from '@/components/charts/sharedChartContent.js';
 function usePcaPageState() {
   const { t } = useTranslation();
   const {
@@ -142,22 +147,15 @@ function PCAParamsPanel({ state: s }: { state: PCAState }) {
       </LabeledField>
       <Field>
         <FieldLabel htmlFor="pca-num-components">{t('Number of Components')}</FieldLabel>
-        <div className="relative">
-          <Input
-            id="pca-num-components"
-            type="number"
-            min={1}
-            className="pr-12"
-            value={s.numComponents}
-            onChange={(e) =>
-              s.setNumComponents(e.target.value === '' ? '' : Number(e.target.value))
-            }
-            placeholder={t('Auto')}
-          />
-          <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-caption text-fg-tertiary">
-            {t('pca.params.numComponentsSuffix')}
-          </span>
-        </div>
+        <AffixInput
+          id="pca-num-components"
+          type="number"
+          min={1}
+          value={s.numComponents}
+          onChange={(e) => s.setNumComponents(e.target.value === '' ? '' : Number(e.target.value))}
+          placeholder={t('Auto')}
+          suffix={t('pca.params.numComponentsSuffix')}
+        />
         <FieldDescription>
           {t('Leave empty to keep all components (equals the number of assets)')}
         </FieldDescription>
@@ -233,44 +231,19 @@ function LoadingMatrix({ results }: { results: PCAResult }) {
 function PCAScatterChart({ data }: { data: { pc1: number; pc2: number }[] }) {
   return (
     <Card className="p-4">
-      <ResponsiveContainer width="100%" height={450}>
-        <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 10 }}>
-          <CartesianGrid {...CHART_GRID_PROPS} />
-          <XAxis
-            type="number"
-            dataKey="pc1"
-            name="PC1"
-            tick={AXIS_TICK_STYLE}
-            label={{
-              value: 'PC1',
-              position: 'insideBottom',
-              offset: -10,
-              style: { fill: 'var(--fg-tertiary)', fontSize: 12 },
-            }}
-          />
-          <YAxis
-            type="number"
-            dataKey="pc2"
-            name="PC2"
-            tick={AXIS_TICK_STYLE}
-            label={{
-              value: 'PC2',
-              angle: -90,
-              position: 'insideLeft',
-              style: { fill: 'var(--fg-tertiary)', fontSize: 12 },
-            }}
-          />
-          <ZAxis range={[20, 20]} />
-          <Tooltip
-            contentStyle={CHART_TOOLTIP_STYLE}
-            formatter={(value: number, name: string) => [value.toFixed(4), name]}
-            labelFormatter={() => ''}
-          />
-          <Scatter data={data} fill={CHART_COLORS[2]} fillOpacity={0.5} />
-          <ReferenceLine y={0} stroke="var(--fg-tertiary)" strokeDasharray="4 4" />
-          <ReferenceLine x={0} stroke="var(--fg-tertiary)" strokeDasharray="4 4" />
-        </ScatterChart>
-      </ResponsiveContainer>
+      <XYScatterChart
+        xKey="pc1"
+        yKey="pc2"
+        xName="PC1"
+        yName="PC2"
+        height={450}
+        zRange={[20, 20]}
+        tooltipFormatter={(v: number, n: string) => [v.toFixed(4), n]}
+      >
+        <Scatter data={data} fill={CHART_COLORS[2]} fillOpacity={0.5} />
+        <ReferenceLine y={0} stroke="var(--fg-tertiary)" strokeDasharray="4 4" />
+        <ReferenceLine x={0} stroke="var(--fg-tertiary)" strokeDasharray="4 4" />
+      </XYScatterChart>
     </Card>
   );
 }

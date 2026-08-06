@@ -4,19 +4,20 @@ export interface ServiceHealth {
   version?: string;
   message?: string;
 }
-export interface ServiceHealthGroup {
+export type ServiceStatus = ServiceHealth['status'];
+interface ServiceHealthGroup {
   goEngine: ServiceHealth;
   goDataService: ServiceHealth;
   nodeServer: ServiceHealth;
 }
-export interface ParsedDataStats {
+interface ParsedDataStats {
   totalTickers: number;
   totalSizeMB: number;
   earliestDate: string;
   latestDate: string;
   marketBreakdown: Record<string, number>;
 }
-export interface ParsedSystemInfo {
+interface ParsedSystemInfo {
   memoryMB: number;
   uptime: string;
 }
@@ -99,4 +100,54 @@ export function parseAdminStats(raw: unknown): ParsedAdminStats {
     dataStats: parseDataStats(d.data_stats as Record<string, unknown> | undefined),
     system: parseSystemInfo(d.system as Record<string, unknown> | undefined),
   };
+}
+interface ServiceDef {
+  name: string;
+  url: string;
+  apiKey: string;
+  defaultStatus: ServiceStatus;
+}
+const SERVICE_DEFS: readonly ServiceDef[] = [
+  {
+    name: 'adminPage.dashboard.goEngine',
+    url: 'http://127.0.0.1:15004',
+    apiKey: 'go_engine',
+    defaultStatus: 'down',
+  },
+  {
+    name: 'adminPage.dashboard.goDataService',
+    url: 'http://127.0.0.1:3003',
+    apiKey: 'go_data_service',
+    defaultStatus: 'down',
+  },
+  {
+    name: 'adminPage.dashboard.nodeService',
+    url: 'http://127.0.0.1:3001',
+    apiKey: 'nodeServer',
+    defaultStatus: 'healthy',
+  },
+];
+export interface ServiceHealthView {
+  name: string;
+  url: string;
+  status: ServiceStatus;
+  latency: number;
+  version?: string;
+  message?: string;
+}
+export function buildServiceHealths(d: Record<string, unknown>): ServiceHealthView[] {
+  const svc = d.services as Record<string, Record<string, unknown>> | undefined;
+  return SERVICE_DEFS.map((def) => {
+    const raw = svc?.[def.apiKey];
+    return raw
+      ? {
+          name: def.name,
+          url: def.url,
+          status: mapServiceStatus(raw.status),
+          latency: (raw.latency_ms as number) || 0,
+          version: raw.version as string | undefined,
+          message: raw.error as string | undefined,
+        }
+      : { name: def.name, url: def.url, status: def.defaultStatus, latency: 0 };
+  });
 }

@@ -9,9 +9,7 @@ import {
   Tooltip,
   ResponsiveContainer,
   Cell,
-  ScatterChart,
   Scatter,
-  ZAxis,
 } from 'recharts';
 import { CHART_COLORS, type Statistics } from '@backtest/shared';
 import type { EfficientFrontierState, OptimizerResultExt } from './OptimizerUtils.js';
@@ -20,7 +18,9 @@ import { SimpleTable, type SimpleTableColumn } from '@/components/tables.js';
 import ChartCard from '@/components/ChartCard.js';
 import { Button } from '@/components/ui/uiComponents';
 import { ResultsShell } from '@/components/resultsShell.js';
+import { BorderStatCard } from '@/components/cards.js';
 import { fmtPct, fmtNum } from '@/utils/format';
+import { XYScatterChart } from '@/components/charts/sharedChartContent.js';
 const METRICS_ROWS: { key: keyof Statistics; label: string; fmt: 'pct' | 'num' }[] = [
   { key: 'cagr', label: 'CAGR', fmt: 'pct' },
   { key: 'stdev', label: 'Volatility', fmt: 'pct' },
@@ -32,22 +32,13 @@ const METRICS_ROWS: { key: keyof Statistics; label: string; fmt: 'pct' | 'num' }
   { key: 'ulcerIndex', label: 'Ulcer Index', fmt: 'num' },
   { key: 'ulcerPerformanceIndex', label: 'UPI', fmt: 'num' },
 ];
-function StatCard({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-lg border border-border bg-elevated px-3 py-2.5">
-      <div className="text-caption text-fg-tertiary">{label}</div>
-      <div className="mt-1 font-mono tabular-nums text-body font-semibold text-fg">{value}</div>
-    </div>
-  );
-}
 function ConstraintsSummary({ s }: { s: EfficientFrontierState }) {
   const { t } = useTranslation();
-  const cards: Array<{ show: boolean; label: string; value: string }> = [
-    { show: true, label: t('Min Weight'), value: `${s.minWeight}%` },
-    { show: true, label: t('Max Weight'), value: `${s.maxWeight}%` },
-    { show: true, label: t('T-Bill Rate'), value: `${s.tbillRate}%` },
+  const cards: Array<{ show?: boolean; label: string; value: string }> = [
+    { label: t('Min Weight'), value: `${s.minWeight}%` },
+    { label: t('Max Weight'), value: `${s.maxWeight}%` },
+    { label: t('T-Bill Rate'), value: `${s.tbillRate}%` },
     {
-      show: true,
       label: t('Allow Short Selling'),
       value: s.allowShort ? t('Yes') : t('No'),
     },
@@ -76,7 +67,6 @@ function ConstraintsSummary({ s }: { s: EfficientFrontierState }) {
       value: `${s.minWeightToInclude}%`,
     },
     {
-      show: true,
       label: t('Solver'),
       value: s.solver === 'markowitz' ? 'Markowitz' : 'GA',
     },
@@ -84,9 +74,9 @@ function ConstraintsSummary({ s }: { s: EfficientFrontierState }) {
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
       {cards
-        .filter((c) => c.show)
+        .filter((c) => c.show !== false)
         .map((c, i) => (
-          <StatCard key={i} label={c.label} value={c.value} />
+          <BorderStatCard key={i} label={c.label} value={c.value} />
         ))}
     </div>
   );
@@ -154,53 +144,33 @@ function FrontierChart({
   const { t } = useTranslation();
   if (data.length === 0) return null;
   return (
-    <ResponsiveContainer width="100%" height={300}>
-      <ScatterChart>
-        <CartesianGrid {...CHART_GRID_PROPS} />
-        <XAxis
-          dataKey="expectedVolatility"
-          tick={AXIS_TICK_STYLE}
-          label={{
-            value: t('Volatility (%)'),
-            position: 'insideBottom',
-            offset: -5,
-            fontSize: 12,
-            fill: 'var(--fg-tertiary)',
-          }}
-        />
-        <YAxis
-          dataKey="expectedReturn"
-          tick={AXIS_TICK_STYLE}
-          label={{
-            value: t('Return (%)'),
-            angle: -90,
-            position: 'insideLeft',
-            fontSize: 12,
-            fill: 'var(--fg-tertiary)',
-          }}
-        />
-        <ZAxis range={[36, 36]} />
-        <Tooltip formatter={(v: number) => `${v.toFixed(2)}%`} contentStyle={CHART_TOOLTIP_STYLE} />
-        <Scatter
-          data={data.map((p) => ({
-            expectedVolatility: p.expectedVolatility,
-            expectedReturn: p.expectedReturn,
-          }))}
-          fill={CHART_COLORS[0]}
-          fillOpacity={0.6}
-        />
-        <Scatter
-          data={[
-            {
-              expectedVolatility: results.expectedVolatility,
-              expectedReturn: results.expectedReturn,
-            },
-          ]}
-          fill={CHART_COLORS[3]}
-          shape="star"
-        />
-      </ScatterChart>
-    </ResponsiveContainer>
+    <XYScatterChart
+      xKey="expectedVolatility"
+      yKey="expectedReturn"
+      xName={t('Volatility (%)')}
+      yName={t('Return (%)')}
+      height={300}
+      tooltipFormatter={(v: number) => `${v.toFixed(2)}%`}
+    >
+      <Scatter
+        data={data.map((p) => ({
+          expectedVolatility: p.expectedVolatility,
+          expectedReturn: p.expectedReturn,
+        }))}
+        fill={CHART_COLORS[0]}
+        fillOpacity={0.6}
+      />
+      <Scatter
+        data={[
+          {
+            expectedVolatility: results.expectedVolatility,
+            expectedReturn: results.expectedReturn,
+          },
+        ]}
+        fill={CHART_COLORS[3]}
+        shape="star"
+      />
+    </XYScatterChart>
   );
 }
 export function OptimizerResults({ s }: { s: EfficientFrontierState }) {

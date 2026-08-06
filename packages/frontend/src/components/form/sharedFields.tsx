@@ -3,6 +3,7 @@ import { Play, Loader2 } from 'lucide-react';
 import {
   Button,
   Input,
+  AffixInput,
   Select,
   SelectContent,
   SelectItem,
@@ -86,27 +87,15 @@ export function PercentInput({
   showPercent = true,
   ...props
 }: InputProps & { showPercent?: boolean }) {
-  return (
-    <div className="relative">
-      <Input type="number" className={showPercent ? 'pr-8' : undefined} {...props} />
-      {showPercent && (
-        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-caption text-fg-tertiary">
-          %
-        </span>
-      )}
-    </div>
+  return showPercent ? (
+    <AffixInput type="number" suffix="%" {...props} />
+  ) : (
+    <Input type="number" {...props} />
   );
 }
 
 export function DollarInput(props: InputProps) {
-  return (
-    <div className="relative">
-      <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-caption text-fg-tertiary">
-        $
-      </span>
-      <Input type="number" className="pl-7" {...props} />
-    </div>
-  );
+  return <AffixInput type="number" prefix="$" {...props} />;
 }
 
 export function SwitchField({

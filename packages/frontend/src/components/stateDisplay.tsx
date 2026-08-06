@@ -56,6 +56,10 @@ export function EmptyState({
   );
 }
 
+export function TableEmpty({ message }: { message: string }) {
+  return <div className="py-6 text-center text-body text-fg-tertiary">{message}</div>;
+}
+
 export function LoadingState({
   label,
   size = 32,

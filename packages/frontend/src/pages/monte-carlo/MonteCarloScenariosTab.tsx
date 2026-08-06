@@ -1,12 +1,9 @@
 import { useTranslation } from 'react-i18next';
 import {
-  Bar,
-  BarChart,
   CartesianGrid,
   Legend,
   Line,
   LineChart,
-  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -17,6 +14,7 @@ import { CHART_COLORS, type MonteCarloResult } from '@backtest/shared';
 import { AXIS_TICK_STYLE, CHART_GRID_PROPS, CHART_TOOLTIP_STYLE } from '@/lib/chart-theme.js';
 import { cn } from '@/lib/utils';
 import { fmtDollar } from '@/utils/format';
+import { HistogramChart, NoDataCard } from './HistogramChart.js';
 import {
   METRIC_FORMAT,
   buildDistHistogram,
@@ -58,60 +56,40 @@ function DistMetricSelector({
 }
 function DistHistogramChart({
   data,
+  distMetric,
   medianLabel,
   meanLabel,
   medianVal,
   meanVal,
-  distMetric,
 }: {
   data: { range: string; count: number }[];
+  distMetric: DistMetric;
   medianLabel: string;
   meanLabel: string;
   medianVal?: number;
   meanVal?: number;
-  distMetric: DistMetric;
 }) {
   const { t } = useTranslation();
-  if (data.length === 0) return null;
   return (
-    <ResponsiveContainer width="100%" height={350}>
-      <BarChart data={data}>
-        <CartesianGrid {...CHART_GRID_PROPS} stroke="hsl(var(--border-subtle))" />
-        <XAxis
-          dataKey="range"
-          tick={{ fill: 'hsl(var(--fg-tertiary))', fontSize: 10 }}
-          interval={3}
-        />
-        <YAxis tick={AXIS_TICK_STYLE} />
-        <Tooltip contentStyle={CHART_TOOLTIP_STYLE} />
-        <Bar
-          dataKey="count"
-          fill={CHART_COLORS[0]}
-          fillOpacity={0.7}
-          name={t('Frequency')}
-          radius={[2, 2, 0, 0]}
-        />
-        {[medianLabel, meanLabel].map((label, i) => {
-          const val = [medianVal, meanVal][i];
-          const color = [CHART_COLORS[2], CHART_COLORS[1]][i];
-          const key = ['monteCarlo.results.medianLabel', 'monteCarlo.results.meanLabel'][i];
-          return (
-            <ReferenceLine
-              key={label}
-              x={label}
-              stroke={color}
-              strokeDasharray="4 2"
-              label={{
-                value: t(key, { value: val !== undefined ? METRIC_FORMAT[distMetric](val) : '' }),
-                position: 'top',
-                fontSize: 11,
-                fill: color,
-              }}
-            />
-          );
-        })}
-      </BarChart>
-    </ResponsiveContainer>
+    <HistogramChart
+      data={data}
+      referenceLines={[
+        {
+          label: medianLabel,
+          color: CHART_COLORS[2],
+          value: t('monteCarlo.results.medianLabel', {
+            value: medianVal !== undefined ? METRIC_FORMAT[distMetric](medianVal) : '',
+          }),
+        },
+        {
+          label: meanLabel,
+          color: CHART_COLORS[1],
+          value: t('monteCarlo.results.meanLabel', {
+            value: meanVal !== undefined ? METRIC_FORMAT[distMetric](meanVal) : '',
+          }),
+        },
+      ]}
+    />
   );
 }
 export function MonteCarloDistributionsTab({
@@ -125,14 +103,7 @@ export function MonteCarloDistributionsTab({
   setDistMetric: (m: DistMetric) => void;
   startingValue: number;
 }) {
-  const { t } = useTranslation();
-  if (!r.perPathMetrics || r.perPathMetrics.length === 0) {
-    return (
-      <Card className="p-5">
-        <div className="py-6 text-center text-caption text-fg-tertiary">{t('No data')}</div>
-      </Card>
-    );
-  }
+  if (!r.perPathMetrics || r.perPathMetrics.length === 0) return <NoDataCard />;
   const { data, medianLabel, meanLabel, medianVal, meanVal } = buildDistHistogram(
     r.perPathMetrics,
     distMetric,
@@ -186,13 +157,7 @@ export function MonteCarloScenariosTab({
 }) {
   const { t } = useTranslation();
   const { data } = buildScenarioData(r, startingValue);
-  if (data.length === 0) {
-    return (
-      <Card className="p-5">
-        <div className="py-6 text-center text-caption text-fg-tertiary">{t('No data')}</div>
-      </Card>
-    );
-  }
+  if (data.length === 0) return <NoDataCard />;
   const isLargeDataset = data.length >= 100;
   return (
     <Card className="p-5">

@@ -1,16 +1,7 @@
 import { useMemo, useState } from 'react';
-import {
-  LineChart,
-  Line,
-  CartesianGrid,
-  ResponsiveContainer,
-  ReferenceLine,
-  Brush,
-} from 'recharts';
 import { useTranslation } from 'react-i18next';
 import { Spinner } from '@/components/ui/uiComponents';
-import { CHART_MARGIN, CHART_GRID_PROPS, DATE_TICK_FORMATTER } from '@/lib/chart-theme.js';
-import { ChartXAxis, ChartYAxis, ChartTooltip, ChartLegend } from './sharedChartContent.js';
+import { TimeSeriesLineChart } from './TimeSeriesLineChart.js';
 import { CorrelationMatrixTable } from './tables.js';
 import { SimpleTable, type SimpleTableColumn } from '../tables.js';
 import { type RollingCorrelationPoint, type BetaRow } from './chartUtils.js';
@@ -34,15 +25,6 @@ const selectStyle: React.CSSProperties = {
   background: 'var(--bg-elevated)',
 };
 const ROLLING_WINDOWS = [20, 60, 120, 252];
-function NoDataCard({ message }: { message: string }) {
-  return (
-    <div className="chart-card">
-      <div className="text-label" style={{ color: 'var(--text-muted)' }}>
-        {message}
-      </div>
-    </div>
-  );
-}
 
 function BetaTable({ betaData, baseName }: { betaData: BetaRow[]; baseName: string }) {
   const { t } = useTranslation();
@@ -162,43 +144,18 @@ function RollingCorrelationLineChart({
 }) {
   const { t } = useTranslation();
   const chartData = data.length > DOWNSAMPLE_THRESHOLD ? downsample(data, DOWNSAMPLE_TARGET) : data;
-  const isLargeDataset = chartData.length >= 100;
   return (
-    <ResponsiveContainer width="100%" height={300}>
-      <LineChart data={chartData} margin={CHART_MARGIN}>
-        <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--bg-subtle)" />
-        <ChartXAxis tickFontSize={10} interval="preserveStartEnd" />
-        <ChartYAxis domain={[-1, 1]} tickFormatter={(v: number) => v.toFixed(1)} />
-        <ChartTooltip
-          formatter={(value: number, name: string) => [value.toFixed(4), name || t('Correlation')]}
-          labelFormatter={(label: string) => t('Date: {{label}}', { label })}
-          isLargeDataset={isLargeDataset}
-        />
-        <ReferenceLine y={0} stroke="var(--text-muted)" strokeDasharray="3 3" />
-        <ReferenceLine y={1} stroke="var(--border-soft)" strokeDasharray="1 3" />
-        <ReferenceLine y={-1} stroke="var(--border-soft)" strokeDasharray="1 3" />
-        <Line
-          type="monotone"
-          dataKey="correlation"
-          stroke={CHART_COLORS[0]}
-          strokeWidth={1.5}
-          dot={false}
-          activeDot={{ r: 5, stroke: 'var(--bg-elevated)', strokeWidth: 2 }}
-          name={pairName}
-          isAnimationActive={!isLargeDataset}
-        />
-        <ChartLegend />
-        {chartData.length > 100 && (
-          <Brush
-            dataKey="date"
-            height={20}
-            stroke="var(--brand)"
-            travellerWidth={8}
-            tickFormatter={DATE_TICK_FORMATTER}
-          />
-        )}
-      </LineChart>
-    </ResponsiveContainer>
+    <TimeSeriesLineChart
+      data={chartData}
+      series={[{ dataKey: 'correlation', legendName: pairName, strokeWidth: 1.5 }]}
+      height={300}
+      yTickFormatter={(v: number) => v.toFixed(1)}
+      tooltipValueFormatter={(v, name) => [v.toFixed(4), name || t('Correlation')]}
+      tooltipLabelFormatter={(label) => t('Date: {{label}}', { label })}
+      yDomain={[-1, 1]}
+      referenceY={0}
+      showBrush
+    />
   );
 }
 function EmptyState({ message }: { message: string }) {
@@ -285,7 +242,11 @@ export default function CorrelationWithBeta({
     assetTickers && assetTickers.length >= 2 && assetCorrelations && assetCorrelations.length >= 2;
   const hasPortfolioCorrelation = portfolios.length >= 2;
   if (!hasAssetCorrelation && !hasPortfolioCorrelation) {
-    return <NoDataCard message={t('At least 2 assets required')} />;
+    return (
+      <div className="chart-card">
+        <EmptyState message={t('At least 2 assets required')} />
+      </div>
+    );
   }
   return (
     <div>

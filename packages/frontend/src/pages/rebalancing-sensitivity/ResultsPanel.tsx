@@ -1,15 +1,13 @@
-import { Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
+import { Loader2 } from 'lucide-react';
 import {
-  ScatterChart,
   Scatter,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  ZAxis,
   Cell,
   BarChart,
   Bar,
@@ -33,7 +31,9 @@ import {
   CHART_TOOLTIP_STYLE,
 } from '@/lib/chart-theme.js';
 import { Card } from '@/components/ui/uiComponents';
+import { ResultsShell } from '@/components/resultsShell.js';
 import { fmtPct } from '@/utils/format';
+import { XYScatterChart } from '@/components/charts/sharedChartContent.js';
 const selectClassName =
   'flex h-9 w-32 rounded-md border border-border bg-input-bg px-3 text-body text-fg transition-colors hover:border-border-strong focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/15';
 function ScatterTab({ results }: { results: FreqResult[] }) {
@@ -48,48 +48,25 @@ function ScatterTab({ results }: { results: FreqResult[] }) {
     sortino: r.sortino,
   }));
   return (
-    <ResponsiveContainer width="100%" height={400}>
-      <ScatterChart margin={{ top: 20, right: 30, bottom: 30, left: 10 }}>
-        <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--bg-subtle)" />
-        <XAxis
-          type="number"
-          dataKey="volatility"
-          name={t('Volatility')}
-          tick={AXIS_TICK_STYLE}
-          tickFormatter={(v: number) => `${v.toFixed(1)}%`}
-          label={{
-            value: t('Volatility (%)'),
-            position: 'insideBottom',
-            offset: -15,
-            style: { fill: 'var(--text-muted)', fontSize: 12 },
-          }}
-        />
-        <YAxis
-          type="number"
-          dataKey="cagr"
-          name="CAGR"
-          tick={AXIS_TICK_STYLE}
-          tickFormatter={(v: number) => `${v.toFixed(1)}%`}
-          label={{
-            value: t('CAGR (%)'),
-            angle: -90,
-            position: 'insideLeft',
-            style: { fill: 'var(--text-muted)', fontSize: 12 },
-          }}
-        />
-        <ZAxis type="number" dataKey="sharpe" range={[60, 200]} />
-        <Tooltip
-          cursor={{ strokeDasharray: '3 3' }}
-          contentStyle={CHART_TOOLTIP_STYLE}
-          formatter={(v: number, name: string) =>
-            name === 'sharpe' || name === 'sortino' ? v.toFixed(2) : `${v.toFixed(2)}%`
-          }
-        />
-        {data.map((p) => (
-          <Scatter key={p.label} data={[p]} fill={p.color} />
-        ))}
-      </ScatterChart>
-    </ResponsiveContainer>
+    <XYScatterChart
+      xKey="volatility"
+      yKey="cagr"
+      xName={t('Volatility')}
+      yName="CAGR"
+      height={400}
+      margin={{ top: 20, right: 30, bottom: 30, left: 10 }}
+      zDataKey="sharpe"
+      zRange={[60, 200]}
+      xTickFormatter={(v: number) => `${v.toFixed(1)}%`}
+      yTickFormatter={(v: number) => `${v.toFixed(1)}%`}
+      tooltipFormatter={(v: number, name: string) =>
+        name === 'sharpe' || name === 'sortino' ? v.toFixed(2) : `${v.toFixed(2)}%`
+      }
+    >
+      {data.map((p) => (
+        <Scatter key={p.label} data={[p]} fill={p.color} />
+      ))}
+    </XYScatterChart>
   );
 }
 function DistributionTab({ results }: { results: FreqResult[] }) {
@@ -266,42 +243,33 @@ function ResultsTable({ results }: { results: FreqResult[] }) {
 }
 export function ResultsPanel({ s }: { s: RebalancingState }) {
   const { t } = useTranslation();
-  if (s.error)
-    return (
-      <Card className="p-6 text-center text-danger">
-        {t('Analysis failed')}: {s.error}
-      </Card>
-    );
-  if (s.results.length === 0 && !s.isLoading)
-    return (
-      <Card className="p-12 text-center text-fg-tertiary">
-        {t('Select rebalancing frequencies and click "Start Analysis"')}
-      </Card>
-    );
-  if (s.isLoading)
-    return (
-      <Card className="p-10 text-center">
-        <Loader2 className="inline-block size-6 animate-spin text-fg-tertiary" />
-      </Card>
-    );
   return (
-    <Card className="p-5">
-      <div className="mb-4 flex gap-2 border-b-2 border-subtle pb-3">
-        {TABS.map((tab) => (
-          <button
-            key={tab.key}
-            type="button"
-            onClick={() => s.setActiveTab(tab.key)}
-            className={`rounded-lg px-3 py-1.5 text-caption font-semibold transition-colors ${s.activeTab === tab.key ? 'bg-brand/10 text-brand' : 'text-fg-tertiary hover:text-fg-secondary'}`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
-      {s.activeTab === 'scatter' && <ScatterTab results={s.results} />}
-      {s.activeTab === 'distributions' && <DistributionTab results={s.results} />}
-      {s.activeTab === 'offset' && <OffsetTab s={s} />}
-      {s.activeTab === 'table' && <ResultsTable results={s.results} />}
-    </Card>
+    <ResultsShell
+      error={s.error}
+      errorPrefix={`${t('Analysis failed')}：`}
+      isLoading={s.isLoading}
+      hasResults={s.results.length > 0}
+      loadingLabel={t('Analyzing...')}
+      emptyTitle={t('Select rebalancing frequencies and click "Start Analysis"')}
+    >
+      <Card className="p-5">
+        <div className="mb-4 flex gap-2 border-b-2 border-subtle pb-3">
+          {TABS.map((tab) => (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => s.setActiveTab(tab.key)}
+              className={`rounded-lg px-3 py-1.5 text-caption font-semibold transition-colors ${s.activeTab === tab.key ? 'bg-brand/10 text-brand' : 'text-fg-tertiary hover:text-fg-secondary'}`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+        {s.activeTab === 'scatter' && <ScatterTab results={s.results} />}
+        {s.activeTab === 'distributions' && <DistributionTab results={s.results} />}
+        {s.activeTab === 'offset' && <OffsetTab s={s} />}
+        {s.activeTab === 'table' && <ResultsTable results={s.results} />}
+      </Card>
+    </ResultsShell>
   );
 }

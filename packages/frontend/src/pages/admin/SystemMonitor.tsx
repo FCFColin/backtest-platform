@@ -7,13 +7,7 @@ import { useToastStore } from '../../store/toastStore.js';
 import { reportError } from '../../utils/errorReporter.js';
 import { KpiCard, ServiceStatusBadge } from '../../components/admin/AdminLayout.js';
 import { Button, Card, Progress } from '../../components/ui/uiComponents.js';
-interface ServiceHealth {
-  name: string;
-  status: 'healthy' | 'degraded' | 'down';
-  latency: number;
-  version?: string;
-  message?: string;
-}
+import { buildServiceHealths, type ServiceHealthView } from '../../utils/adminStats.js';
 interface SystemResource {
   memoryMB: number;
   heapUsedMB: number;
@@ -26,47 +20,16 @@ interface DataDirectory {
   totalDataPoints: number;
 }
 interface MonitorData {
-  services: ServiceHealth[];
+  services: ServiceHealthView[];
   system: SystemResource;
   dataDir: DataDirectory;
 }
 const defaultMonitorData: MonitorData = {
-  services: [
-    { name: 'adminPage.dashboard.goEngine', status: 'down', latency: 0 },
-    { name: 'adminPage.dashboard.goDataService', status: 'down', latency: 0 },
-    { name: 'adminPage.dashboard.nodeService', status: 'down', latency: 0 },
-  ],
+  services: buildServiceHealths({}),
   system: { memoryMB: 0, heapUsedMB: 0, uptime: '-', uptimeSeconds: 0 },
   dataDir: { totalSizeMB: 0, tickerCount: 0, totalDataPoints: 0 },
 };
-function buildServiceHealth(
-  name: string,
-  raw: { status?: string; latency_ms?: number; version?: string; error?: string } | undefined,
-  fallbackDown = true,
-): ServiceHealth {
-  return raw
-    ? {
-        name,
-        status: raw.status === 'healthy' ? 'healthy' : 'down',
-        latency: raw.latency_ms || 0,
-        version: raw.version,
-        message: raw.error,
-      }
-    : { name, status: fallbackDown ? 'down' : 'healthy', latency: 0 };
-}
-async function fetchServices(): Promise<ServiceHealth[]> {
-  const res = await apiFetch('/api/v1/admin/stats');
-  if (!res.ok) return defaultMonitorData.services;
-  const json = await res.json();
-  if (!json.success || !json.data) return defaultMonitorData.services;
-  const s = json.data.services;
-  return [
-    buildServiceHealth('adminPage.dashboard.goEngine', s?.go_engine),
-    buildServiceHealth('adminPage.dashboard.goDataService', s?.go_data_service),
-    buildServiceHealth('adminPage.dashboard.nodeService', undefined, false),
-  ];
-}
-function buildMonitorData(d: Record<string, unknown>, services: ServiceHealth[]): MonitorData {
+function buildMonitorData(d: Record<string, unknown>, services: ServiceHealthView[]): MonitorData {
   const mem = d.memory as Record<string, number> | undefined;
   const up = d.uptime as Record<string, unknown> | undefined;
   const dd = d.data_directory as Record<string, number> | undefined;
@@ -99,7 +62,7 @@ export default function SystemMonitor() {
       if (!res.ok) return;
       const json = await res.json();
       if (!json.success || !json.data) return;
-      setData(buildMonitorData(json.data, await fetchServices()));
+      setData(buildMonitorData(json.data, buildServiceHealths(json.data)));
     } catch (error) {
       reportError(error, { component: 'SystemMonitor', action: 'fetchMonitorData' });
       useToastStore.getState().addToast('error', t('Load failed'));

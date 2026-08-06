@@ -89,7 +89,6 @@ function ssrLocalesCopy(): Plugin {
   };
 }
 
-// https://vite.dev/config/
 export default defineConfig(async ({ command }) => {
   // ADR-050: Module Federation，包未安装时降级跳过
   let federation: ((opts: unknown) => Plugin) | null = null;

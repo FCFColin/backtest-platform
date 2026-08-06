@@ -1,66 +1,38 @@
 import { useTranslation } from 'react-i18next';
-import {
-  ScatterChart,
-  Scatter,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  ZAxis,
-  Cell,
-  AreaChart,
-  Area,
-} from 'recharts';
+import { Scatter, Cell, Area } from 'recharts';
 import { CHART_COLORS, type EfficientFrontierPoint } from '@backtest/shared';
-import { CHART_TOOLTIP_STYLE, CHART_GRID_PROPS, getCorrelationColor } from '@/lib/chart-theme.js';
+import { getCorrelationColor } from '@/lib/chart-theme.js';
 import { getCorrelationTextColor } from '@/components/charts/chartUtils.js';
 import { MatrixHeatmap } from '@/components/charts/tables.js';
+import { SimpleChart, XYScatterChart } from '@/components/charts/sharedChartContent.js';
 import { sharpeToColor } from './EfficientFrontierUtils.js';
 import { LoadInBacktesterButton, type FrontierResultsProps } from './EfficientFrontierResults.js';
-const TICK_STYLE = { fill: 'hsl(var(--fg-tertiary))', fontSize: 12 } as const;
-const LABEL_FILL = 'hsl(var(--fg-tertiary))';
 function FrontierScatterChartInner({
   scatterData,
   sharpeRange,
   maxSharpe,
   frontier,
   onSelectPoint,
+  height,
 }: {
   scatterData: FrontierResultsProps['scatterData'];
   sharpeRange: { min: number; max: number };
   maxSharpe: EfficientFrontierPoint | undefined;
   frontier: EfficientFrontierPoint[];
   onSelectPoint: (p: EfficientFrontierPoint) => void;
+  height: number;
 }) {
   const { t } = useTranslation();
   return (
-    <ScatterChart>
-      <CartesianGrid {...CHART_GRID_PROPS} stroke="hsl(var(--border-subtle))" />
-      <XAxis
-        dataKey="expectedVolatility"
-        tick={TICK_STYLE}
-        label={{
-          value: t('Volatility (%)'),
-          position: 'insideBottom',
-          offset: -5,
-          fontSize: 12,
-          fill: LABEL_FILL,
-        }}
-      />
-      <YAxis
-        dataKey="expectedReturn"
-        tick={TICK_STYLE}
-        label={{
-          value: t('Return (%)'),
-          angle: -90,
-          position: 'insideLeft',
-          fontSize: 12,
-          fill: LABEL_FILL,
-        }}
-      />
-      <ZAxis range={[60, 60]} />
-      <Tooltip formatter={(v: number) => `${v.toFixed(2)}%`} contentStyle={CHART_TOOLTIP_STYLE} />
+    <XYScatterChart
+      xKey="expectedVolatility"
+      yKey="expectedReturn"
+      xName={t('Volatility (%)')}
+      yName={t('Return (%)')}
+      zRange={[60, 60]}
+      height={height}
+      tooltipFormatter={(v: number) => `${v.toFixed(2)}%`}
+    >
       <Scatter
         data={scatterData}
         onClick={(data: { idx?: number }) => {
@@ -86,7 +58,7 @@ function FrontierScatterChartInner({
           shape="star"
         />
       )}
-    </ScatterChart>
+    </XYScatterChart>
   );
 }
 export function FrontierScatterChart({
@@ -111,15 +83,14 @@ export function FrontierScatterChart({
         <h3 className="text-h3 font-semibold text-fg">{t('Efficient Frontier')}</h3>
         <LoadInBacktesterButton onClick={onLoadInBacktester} label={t('Load in backtester')} />
       </div>
-      <ResponsiveContainer width="100%" height={400}>
-        <FrontierScatterChartInner
-          scatterData={scatterData}
-          sharpeRange={sharpeRange}
-          maxSharpe={maxSharpe}
-          frontier={frontier}
-          onSelectPoint={onSelectPoint}
-        />
-      </ResponsiveContainer>
+      <FrontierScatterChartInner
+        scatterData={scatterData}
+        sharpeRange={sharpeRange}
+        maxSharpe={maxSharpe}
+        frontier={frontier}
+        onSelectPoint={onSelectPoint}
+        height={400}
+      />
     </div>
   );
 }
@@ -135,35 +106,29 @@ export function FrontierAllocations({
   return (
     <div>
       <h3 className="mb-3 mt-6 text-h3 font-semibold text-fg">{t('Frontier Allocations')}</h3>
-      <ResponsiveContainer width="100%" height={300}>
-        <AreaChart data={allocationData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-          <CartesianGrid {...CHART_GRID_PROPS} stroke="hsl(var(--border-subtle))" />
-          <XAxis
-            dataKey="point"
-            tick={TICK_STYLE}
-            label={{
-              value: t('Frontier Point'),
-              position: 'insideBottom',
-              offset: -5,
-              fontSize: 11,
-              fill: LABEL_FILL,
-            }}
+      <SimpleChart
+        type="area"
+        data={allocationData}
+        xDataKey="point"
+        height={300}
+        xLabel={t('Frontier Point')}
+        yTickFormatter={(v: number) => `${v}%`}
+        yDomain={[0, 100]}
+        tooltipFormatter={(v: number) => `${v}%`}
+        showLegend={false}
+      >
+        {allAssetTickers.map((ticker, i) => (
+          <Area
+            key={ticker}
+            type="monotone"
+            dataKey={ticker}
+            stackId="1"
+            stroke={CHART_COLORS[i % CHART_COLORS.length]}
+            fill={CHART_COLORS[i % CHART_COLORS.length]}
+            fillOpacity={0.8}
           />
-          <YAxis tick={TICK_STYLE} tickFormatter={(v: number) => `${v}%`} domain={[0, 100]} />
-          <Tooltip formatter={(v: number) => `${v}%`} contentStyle={CHART_TOOLTIP_STYLE} />
-          {allAssetTickers.map((ticker, i) => (
-            <Area
-              key={ticker}
-              type="monotone"
-              dataKey={ticker}
-              stackId="1"
-              stroke={CHART_COLORS[i % CHART_COLORS.length]}
-              fill={CHART_COLORS[i % CHART_COLORS.length]}
-              fillOpacity={0.8}
-            />
-          ))}
-        </AreaChart>
-      </ResponsiveContainer>
+        ))}
+      </SimpleChart>
       <div className="mt-2 flex flex-wrap justify-center gap-4">
         {allAssetTickers.map((ticker, i) => (
           <div key={ticker} className="flex items-center gap-1 text-caption">

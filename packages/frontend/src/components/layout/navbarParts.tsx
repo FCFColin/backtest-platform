@@ -60,7 +60,7 @@ const SheetTitle = ({ className, children }: { className?: string; children: Rea
 );
 export { Sheet, SheetTrigger, SheetContent, SheetTitle };
 
-export function NotificationBell() {
+function NotificationBell() {
   const { t } = useTranslation();
   const { announcements, unreadCount, markAllRead } = useAnnouncements();
   const [open, setOpen] = useState(false);
@@ -189,7 +189,7 @@ export function NavbarActions() {
   );
 }
 
-export type PlanTier = 'free' | 'pro' | 'pro-plus' | 'public';
+type PlanTier = 'free' | 'pro' | 'pro-plus' | 'public';
 const PLAN_BADGES: Record<PlanTier, { label: string; className: string }> = {
   free: { label: 'FREE', className: 'border-brand/40 bg-brand-subtle/8 text-brand' },
   pro: { label: 'PRO', className: 'border-warning/40 bg-warning-subtle/8 text-warning' },

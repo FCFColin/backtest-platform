@@ -1,9 +1,10 @@
 import { useTranslation } from 'react-i18next';
-import { Input } from '@/components/ui/uiComponents.js';
+import { Input, AffixInput } from '@/components/ui/uiComponents.js';
 import { Field } from '@/components/form/Field';
 import { buttonVariants } from '@/components/ui/uiComponents';
 import { LabeledField, SwitchField, DollarInput, RunButton } from '@/components/form/sharedFields';
 import { TickerTagInput } from '@/components/form/TickerTagInput.js';
+import { AllHistoryCheckbox, useEmptyRowTagChange } from '@/components/params/toolFields.js';
 import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
 import { cn } from '@/lib/utils';
 import type { TFunction } from 'i18next';
@@ -42,18 +43,14 @@ function MonthWindowField({
 }) {
   return (
     <LabeledField htmlFor={id} label={label}>
-      <div className="relative">
-        <Input
-          id={id}
-          type="number"
-          className="pr-14"
-          value={value}
-          onChange={(e) => onChange(Number(e.target.value))}
-        />
-        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-caption text-fg-tertiary">
-          {t('months')}
-        </span>
-      </div>
+      <AffixInput
+        id={id}
+        type="number"
+        className="pr-14"
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        suffix={t('months')}
+      />
     </LabeledField>
   );
 }
@@ -86,33 +83,26 @@ function DateField({
   );
 }
 
-function handleTagChange(props: AnalysisParamsPanelProps, newTickers: string[]) {
-  const emptyRows = props.tickers.length - props.tickers.filter(Boolean).length;
-  props.setTickers([...newTickers, ...Array(emptyRows).fill('')]);
-}
-function toggleAllHistory(props: AnalysisParamsPanelProps, checked: boolean) {
-  props.setStartDate(checked ? '' : DEFAULT_BACKTEST_START_DATE);
-  props.setEndDate(checked ? '' : DEFAULT_END_DATE);
-}
-
 export function AnalysisParamsPanel(props: AnalysisParamsPanelProps) {
   const { t } = useTranslation();
   const allHistory = props.startDate === '' && props.endDate === '';
+  const handleTagChange = useEmptyRowTagChange(props.tickers, props.setTickers);
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 items-end">
       <Field className="sm:col-span-2 lg:col-span-3">
         <TickerTagInput
           tickers={props.tickers.filter(Boolean)}
-          onChange={(v) => handleTagChange(props, v)}
+          onChange={handleTagChange}
           minCount={1}
           placeholder={t('Enter ticker, e.g. SPY')}
         />
       </Field>
-      <SwitchField
-        id="analysis-all-history"
+      <AllHistoryCheckbox
+        startDate={props.startDate}
+        endDate={props.endDate}
+        onStartDateChange={props.setStartDate}
+        onEndDateChange={props.setEndDate}
         label={t('All History')}
-        checked={allHistory}
-        onCheckedChange={(c) => toggleAllHistory(props, c)}
       />
       <DateField
         id="analysis-start-date"

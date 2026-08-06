@@ -1,10 +1,10 @@
 import type { RebalanceFrequency } from '@backtest/shared';
 
-export interface PresetAsset {
+interface PresetAsset {
   ticker: string;
   weight: number;
 }
-export interface PresetPortfolio {
+interface PresetPortfolio {
   id: string;
   nameKey: string;
   descriptionKey: string;

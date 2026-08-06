@@ -75,7 +75,6 @@ function SaveInputRow({
         }}
         placeholder={t('Enter scheme name')}
         className="flex-1"
-        // Focuses save-config input on open to allow immediate typing (form UX, not navigation)
         // eslint-disable-next-line jsx-a11y/no-autofocus -- intentional: form input focus on modal open
         autoFocus
       />

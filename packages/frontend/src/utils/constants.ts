@@ -46,8 +46,12 @@ export const CONTAINER_WIDTHS = {
 export const DEFAULT_START_DATE = '2015-01-01';
 export const DEFAULT_END_DATE = '2024-12-31';
 export const DEFAULT_BACKTEST_START_DATE = '2010-01-01';
+export const DEFAULT_60_40_ASSETS: { ticker: string; weight: number }[] = [
+  { ticker: 'VTI', weight: 60 },
+  { ticker: 'BND', weight: 40 },
+];
 
-export interface BuildBacktestParametersOptions {
+interface BuildBacktestParametersOptions {
   startingValue?: number;
   adjustForInflation?: boolean;
   baseCurrency?: BaseCurrency;
@@ -77,6 +81,33 @@ export function buildBacktestParameters(
     cashflowLegs: [],
     oneTimeCashflows: [],
     ...options,
+  };
+}
+
+export interface SinglePortfolioBodyOptions {
+  rebalanceFrequency?: RebalanceFrequency | string;
+  rebalanceOffset?: number;
+  id?: string;
+}
+export function buildSinglePortfolioBody(
+  name: string,
+  assets: Array<{ ticker: string; weight: number }>,
+  options: SinglePortfolioBodyOptions = {},
+  parameters: BacktestParameters = buildBacktestParameters('', ''),
+) {
+  return {
+    portfolios: [
+      {
+        ...(options.id ? { id: options.id } : {}),
+        name,
+        assets,
+        rebalanceFrequency: options.rebalanceFrequency ?? 'quarterly',
+        rebalanceOffset: options.rebalanceOffset ?? 0,
+        drag: 0,
+        totalReturn: true,
+      },
+    ],
+    parameters,
   };
 }
 

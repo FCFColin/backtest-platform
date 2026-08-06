@@ -1,20 +1,9 @@
 import { useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus, X } from 'lucide-react';
-import {
-  Button,
-  Input,
-  Label,
-  RadioGroup,
-  RadioGroupItem,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/uiComponents';
+import { Button, Input, Label, RadioGroup, RadioGroupItem } from '@/components/ui/uiComponents';
 import { Field, FieldLabel, FieldDescription } from '@/components/form/Field';
-import { INDICATORS, RunAnalysisButton, TickerField } from './SignalParamsPanel.js';
+import { IndicatorSelect, RunAnalysisButton, TickerField } from './SignalParamsPanel.js';
 import type { UseMultiSignalStateResult } from './hooks/useMultiSignalState.js';
 import type { AggregationMethod, SignalItem } from './signalTypes.js';
 const AGGREGATION_METHODS: { value: AggregationMethod; label: string }[] = [
@@ -50,18 +39,11 @@ function SignalRow({
   const { t } = useTranslation();
   return (
     <div className="flex flex-wrap items-center gap-2 rounded-md bg-input-bg/50 p-3 hover:bg-hover">
-      <Select value={s.indicator} onValueChange={(v) => onUpdateSignal(s.id, { indicator: v })}>
-        <SelectTrigger className="h-9 w-[120px]">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {INDICATORS.map((ind) => (
-            <SelectItem key={ind} value={ind}>
-              {ind}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <IndicatorSelect
+        value={s.indicator}
+        onChange={(v) => onUpdateSignal(s.id, { indicator: v })}
+        triggerClassName="h-9 w-[120px]"
+      />
       <Input
         type="number"
         className={ROW_INPUT_CLS}

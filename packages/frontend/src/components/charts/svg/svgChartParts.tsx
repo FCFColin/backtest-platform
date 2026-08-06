@@ -7,7 +7,7 @@ type Orientation = 'bottom' | 'left';
 interface SvgAxisProps {
   orientation: Orientation;
   range: number;
-  ticks: Array<{ value: number; label: string }>;
+  ticks: Array<{ value: number; label: string; show?: boolean }>;
   label?: { value: string } | string;
   gridLines?: boolean;
   gridColor?: string;
@@ -16,7 +16,6 @@ interface SvgAxisProps {
   offset: number;
   hideLine?: boolean;
 }
-export const TICK_STYLE = AXIS_TICK_STYLE;
 type Line4 = [number, number, number, number];
 const axisLine = (o: Orientation, range: number, offset: number): Line4 =>
   o === 'bottom' ? [0, offset, range, offset] : [offset, 0, offset, range];
@@ -40,7 +39,7 @@ export function SvgAxis({
   gridLines = false,
   gridColor = 'var(--chart-grid)',
   tickLine = { length: 5 },
-  tickStyle = TICK_STYLE,
+  tickStyle = AXIS_TICK_STYLE,
   offset,
   hideLine = false,
 }: SvgAxisProps) {
@@ -60,7 +59,9 @@ export function SvgAxis({
         />
       )}
       {ticks.map((t, i) => {
+        if (t.show === false) return null;
         const g = tickGeom(orientation, t.value, range, offset, len);
+        const lbl = t.label;
         return (
           <g key={`tick-${i}`}>
             {gridLines && (
@@ -84,7 +85,7 @@ export function SvgAxis({
               textAnchor={g.text.textAnchor}
               style={tickStyle as Record<string, string | number>}
             >
-              {t.label}
+              {lbl}
             </text>
           </g>
         );
@@ -177,48 +178,6 @@ function SvgLegend({ series, onToggle }: SvgLegendProps) {
         </div>
       ))}
     </div>
-  );
-}
-
-export function XAxisTicks({
-  ticks,
-  plotBottom,
-  maxLabelLen,
-  style = TICK_STYLE,
-}: {
-  ticks: Array<{ value: number; label: string; show?: boolean }>;
-  plotBottom: number;
-  maxLabelLen?: number;
-  style?: CSSProperties;
-}) {
-  return (
-    <>
-      {ticks.map((t, i) => {
-        if (t.show === false) return null;
-        const label =
-          maxLabelLen && t.label.length > maxLabelLen + 3 ? t.label.slice(0, maxLabelLen) : t.label;
-        return (
-          <g key={`xtick-${i}`}>
-            <line
-              x1={t.value}
-              y1={plotBottom}
-              x2={t.value}
-              y2={plotBottom + 5}
-              stroke="var(--border-soft)"
-              strokeWidth={1}
-            />
-            <text
-              x={t.value}
-              y={plotBottom + 16}
-              textAnchor="middle"
-              style={style as Record<string, string | number>}
-            >
-              {label}
-            </text>
-          </g>
-        );
-      })}
-    </>
   );
 }
 

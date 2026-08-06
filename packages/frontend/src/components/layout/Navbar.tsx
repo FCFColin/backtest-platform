@@ -11,6 +11,7 @@ import {
   DropdownMenuItem,
 } from '@/components/ui/uiComponents';
 import { cn } from '@/lib/utils';
+import { preloadPage } from '@/routes/pageLoaders.js';
 import {
   Sheet,
   SheetTrigger,
@@ -27,7 +28,7 @@ const DIRECT_LINKS = [
   { to: '/about', key: 'docs' },
   { to: '/pricing', key: 'pricing' },
 ] as const;
-export const NAV_GROUP_KEYS = [
+const NAV_GROUP_KEYS = [
   {
     key: 'backtest',
     items: [
@@ -64,26 +65,8 @@ export const NAV_GROUP_KEYS = [
   },
 ] as const;
 
-const NAV_PRELOADS: Record<string, () => Promise<unknown>> = {
-  portfolioBacktest: () => import('@/pages/backtest/BacktestPage'),
-  backtestOptimizer: () => import('@/pages/backtest/BacktestOptimizerPage'),
-  rebalancingSensitivity: () =>
-    import('@/pages/rebalancing-sensitivity/RebalancingSensitivityPage'),
-  lumpSumDca: () => import('@/pages/lump-sum-dca/LumpSumVsDCAPage'),
-  assetAnalysis: () => import('@/pages/analysis/AnalysisResults'),
-  factorRegression: () => import('@/pages/factor-regression/FactorRegressionPage'),
-  pca: () => import('@/pages/pca/PCAPage'),
-  portfolioOptimize: () => import('@/pages/optimizer/OptimizerPage'),
-  efficientFrontier: () => import('@/pages/efficient-frontier/EfficientFrontierResults'),
-  monteCarlo: () => import('@/pages/monte-carlo/MonteCarloResults'),
-  goalOptimizer: () => import('@/pages/goal-optimizer/GoalOptimizerResults'),
-  tacticalAllocation: () => import('@/pages/tactical/TacticalPage'),
-  signalAnalyzer: () => import('@/pages/signal/SignalAnalyzerPage'),
-  letfAnalysis: () => import('@/pages/letf/LETFSlippagePage'),
-  calculators: () => import('@/pages/calculators/BaseCalculatorUI'),
-};
 function preloadGroup(group: (typeof NAV_GROUP_KEYS)[number]): void {
-  for (const item of group.items) NAV_PRELOADS[item.key]?.().catch(() => {});
+  for (const item of group.items) preloadPage(item.to === '/' ? 'backtest' : item.to.slice(1));
 }
 
 function NavGroup({

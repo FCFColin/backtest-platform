@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { Card } from '@/components/ui/uiComponents';
-export interface LegalSection {
+interface LegalSection {
   title: string;
   body: string[];
 }
@@ -38,7 +38,6 @@ function LegalPageLayout({ title, lastUpdated, intro, sections, children }: Lega
   );
 }
 
-/** 法律页共享骨架（SMALL3 合并：Terms/Privacy/Disclaimer 三页同构，仅 section 键与 i18n 前缀不同） */
 function LegalPage({
   prefix,
   sectionKeys,

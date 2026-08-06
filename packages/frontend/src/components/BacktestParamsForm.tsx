@@ -111,8 +111,6 @@ export const FloatingField = forwardRef<HTMLInputElement, FloatingFieldProps>(
   },
 );
 FloatingField.displayName = 'FloatingField';
-export const FloatingLabelInput = FloatingField;
-
 type FieldControlProps = Omit<
   FloatingFieldProps,
   'containerClassName' | 'error' | 'hint' | 'id'
@@ -182,10 +180,6 @@ function FieldControl({
     </>
   );
 }
-
-export const FloatingLabelSelect = (props: Omit<FloatingFieldProps, 'type'> & { type?: never }) => (
-  <FloatingField {...props} type="select" />
-);
 
 type BasicParamsField =
   'startDate' | 'endDate' | 'startingValue' | 'baseCurrency' | 'adjustForInflation';

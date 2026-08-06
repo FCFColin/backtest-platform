@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { RefreshCw, Play, Zap, Database, BarChart3, Clock, HardDrive } from 'lucide-react';
-import { Card, Button } from '@/components/ui/uiComponents';
+import { Card, Button, Progress, Skeleton } from '@/components/ui/uiComponents';
 import { apiFetch } from '../../utils/apiClient.js';
 import { useAuthStore } from '@/store/authStore';
 import { fmt, Panel } from './dataEngineDistribution.js';
@@ -52,12 +52,7 @@ function ProgressBar({ label, current, total }: { label: string; current: number
           {(current ?? 0).toLocaleString()} / {(total ?? 0).toLocaleString()} ({pctVal.toFixed(1)}%)
         </span>
       </div>
-      <div className="h-2 overflow-hidden rounded bg-input-bg">
-        <div
-          className="h-full rounded bg-brand transition-[width] duration-500"
-          style={{ width: `${pctVal}%` }}
-        />
-      </div>
+      <Progress value={pctVal} />
     </div>
   );
 }
@@ -257,7 +252,7 @@ export function RecentUpdatesCard() {
       {loading ? (
         <div className="space-y-2">
           {[1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className="h-8 bg-input-bg animate-pulse rounded" />
+            <Skeleton key={i} className="h-8" />
           ))}
         </div>
       ) : updates.length === 0 ? (

@@ -1,6 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { Plus, X } from 'lucide-react';
-import { Button, Input } from '@/components/ui/uiComponents';
+import { Input, AffixInput } from '@/components/ui/uiComponents';
 import { Field, FieldLabel } from '@/components/form/Field.js';
 import { CollapsibleSection } from '@/components/cards.js';
 import {
@@ -9,45 +8,18 @@ import {
   DollarInput,
   RunButton,
 } from '@/components/form/sharedFields';
-import type { GoalAsset } from './goalOptimizerUtils.js';
-interface GoalParamsProps {
-  targetAmount: number;
-  initialAmount: number;
-  years: number;
-  assets: GoalAsset[];
-  totalWeight: number;
-  isLoading: boolean;
-  maxDrawdown: number | '';
-  minSuccessRate: number | '';
-  maxVolatility: number | '';
-  numSimulations: number;
-  onTargetAmountChange: (v: number) => void;
-  onInitialAmountChange: (v: number) => void;
-  onYearsChange: (v: number) => void;
-  onAddAsset: () => void;
-  onRemoveAsset: (idx: number) => void;
-  onUpdateAsset: (idx: number, field: 'ticker' | 'weight', val: string | number) => void;
-  onMaxDrawdownChange: (v: number | '') => void;
-  onMinSuccessRateChange: (v: number | '') => void;
-  onMaxVolatilityChange: (v: number | '') => void;
-  onNumSimulationsChange: (v: number) => void;
-  onRun: () => void;
-}
+import type { GoalOptimizerState } from '@/hooks/useGoalOptimizerState.js';
+import SinglePortfolioEditor from '@/components/PortfolioEditor.js';
 function GoalSettingsSection({
   targetAmount,
   initialAmount,
   years,
-  onTargetAmountChange,
-  onInitialAmountChange,
-  onYearsChange,
+  setTargetAmount,
+  setInitialAmount,
+  setYears,
 }: Pick<
-  GoalParamsProps,
-  | 'targetAmount'
-  | 'initialAmount'
-  | 'years'
-  | 'onTargetAmountChange'
-  | 'onInitialAmountChange'
-  | 'onYearsChange'
+  GoalOptimizerState,
+  'targetAmount' | 'initialAmount' | 'years' | 'setTargetAmount' | 'setInitialAmount' | 'setYears'
 >) {
   const { t } = useTranslation();
   const dollarFields = [
@@ -55,13 +27,13 @@ function GoalSettingsSection({
       id: 'go-target',
       label: t('Target Amount'),
       value: targetAmount,
-      onChange: onTargetAmountChange,
+      onChange: setTargetAmount,
     },
     {
       id: 'go-initial',
       label: t('Initial Amount'),
       value: initialAmount,
-      onChange: onInitialAmountChange,
+      onChange: setInitialAmount,
     },
   ];
   return (
@@ -87,120 +59,59 @@ function GoalSettingsSection({
         ))}
         <Field>
           <FieldLabel htmlFor="go-years">{t('Time Horizon')}</FieldLabel>
-          <div className="relative">
-            <Input
-              id="go-years"
-              type="number"
-              min={1}
-              className="pr-14"
-              value={years}
-              onChange={(e) => onYearsChange(Number(e.target.value))}
-            />
-            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-caption text-fg-tertiary">
-              {t('years')}
-            </span>
-          </div>
+          <AffixInput
+            id="go-years"
+            type="number"
+            min={1}
+            value={years}
+            onChange={(e) => setYears(Number(e.target.value))}
+            suffix={t('years')}
+          />
         </Field>
       </div>
     </section>
   );
 }
-type AssetProps = Pick<
-  GoalParamsProps,
-  'assets' | 'totalWeight' | 'onAddAsset' | 'onRemoveAsset' | 'onUpdateAsset'
->;
-function AssetConfigSection({
-  assets,
-  totalWeight,
-  onAddAsset,
-  onRemoveAsset,
-  onUpdateAsset,
-}: AssetProps) {
+function AssetConfigSection({ state }: { state: GoalOptimizerState }) {
   const { t } = useTranslation();
-  const isComplete = Math.abs(totalWeight - 100) <= 0.01;
   return (
     <section className="flex flex-col gap-3">
       <SectionHeader
         title={t('Asset Allocation')}
         info={t('Add tickers and weights; total weight must equal 100%')}
       />
-      <div className="flex flex-col gap-2">
-        {assets.map((a, idx) => (
-          <div key={idx} className="flex items-center gap-2">
-            <Input
-              type="text"
-              className="flex-1 uppercase"
-              value={a.ticker}
-              placeholder={t('Enter ticker, e.g. VTI')}
-              onChange={(e) => onUpdateAsset(idx, 'ticker', e.target.value)}
-            />
-            <div className="relative w-28 shrink-0">
-              <Input
-                type="number"
-                className="pr-7"
-                min={0}
-                max={100}
-                placeholder="%"
-                value={a.weight || ''}
-                onChange={(e) => onUpdateAsset(idx, 'weight', Number(e.target.value))}
-              />
-              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-caption text-fg-tertiary">
-                %
-              </span>
-            </div>
-            {assets.length > 1 && (
-              <Button
-                variant="destructive"
-                size="icon"
-                onClick={() => onRemoveAsset(idx)}
-                title={t('Delete')}
-                aria-label={t('Delete')}
-              >
-                <X />
-              </Button>
-            )}
-          </div>
-        ))}
-      </div>
-      <div className="flex items-center justify-between">
-        <Button variant="ghost" size="sm" onClick={onAddAsset}>
-          <Plus />
-          {t('Add Ticker')}
-        </Button>
-        <div className="text-caption">
-          <span className="text-fg-tertiary">{t('Total')}</span>{' '}
-          <span
-            className={
-              isComplete ? 'font-mono tabular-nums text-pos' : 'font-mono tabular-nums text-danger'
-            }
-          >
-            {totalWeight}%
-          </span>
-        </div>
-      </div>
+      <SinglePortfolioEditor
+        singleMode
+        assets={state.assets}
+        totalWeight={state.totalWeight}
+        onAdd={state.addAsset}
+        onRemove={state.removeAsset}
+        onUpdate={state.updateAsset}
+        wrapInSection={false}
+      />
     </section>
   );
 }
 type ConstraintProps = Pick<
-  GoalParamsProps,
+  GoalOptimizerState,
   | 'maxDrawdown'
   | 'minSuccessRate'
   | 'maxVolatility'
   | 'numSimulations'
-  | 'onMaxDrawdownChange'
-  | 'onMinSuccessRateChange'
-  | 'onMaxVolatilityChange'
-  | 'onNumSimulationsChange'
+  | 'setMaxDrawdown'
+  | 'setMinSuccessRate'
+  | 'setMaxVolatility'
+  | 'setNumSimulations'
 >;
 function ConstraintsAndSimulation({
   maxDrawdown,
   minSuccessRate,
   maxVolatility,
   numSimulations,
-  onMaxDrawdownChange,
-  onMinSuccessRateChange,
-  onMaxVolatilityChange,
-  onNumSimulationsChange,
+  setMaxDrawdown,
+  setMinSuccessRate,
+  setMaxVolatility,
+  setNumSimulations,
 }: ConstraintProps) {
   const { t } = useTranslation();
   const numOrEmpty = (v: string) => (v === '' ? '' : Number(v));
@@ -209,19 +120,19 @@ function ConstraintsAndSimulation({
       id: 'go-maxdd',
       label: t('Max Drawdown Limit'),
       value: maxDrawdown,
-      onChange: onMaxDrawdownChange,
+      onChange: setMaxDrawdown,
     },
     {
       id: 'go-minsr',
       label: t('Min Success Rate'),
       value: minSuccessRate,
-      onChange: onMinSuccessRateChange,
+      onChange: setMinSuccessRate,
     },
     {
       id: 'go-maxvol',
       label: t('Max Volatility'),
       value: maxVolatility,
-      onChange: onMaxVolatilityChange,
+      onChange: setMaxVolatility,
     },
   ];
   return (
@@ -264,7 +175,7 @@ function ConstraintsAndSimulation({
               min={100}
               max={10000}
               value={numSimulations}
-              onChange={(e) => onNumSimulationsChange(Number(e.target.value))}
+              onChange={(e) => setNumSimulations(Number(e.target.value))}
             />
           </Field>
         </div>
@@ -272,16 +183,16 @@ function ConstraintsAndSimulation({
     </>
   );
 }
-export function GoalOptimizerParamsPanel(props: GoalParamsProps) {
+export function GoalOptimizerParamsPanel({ state }: { state: GoalOptimizerState }) {
   const { t } = useTranslation();
   return (
     <div className="flex flex-col gap-5">
-      <GoalSettingsSection {...props} />
-      <AssetConfigSection {...props} />
-      <ConstraintsAndSimulation {...props} />
+      <GoalSettingsSection {...state} />
+      <AssetConfigSection state={state} />
+      <ConstraintsAndSimulation {...state} />
       <RunButton
-        isLoading={props.isLoading}
-        onClick={props.onRun}
+        isLoading={state.isLoading}
+        onClick={state.runOptimize}
         label={t('Start Optimization')}
         loadingLabel={t('Optimizing...')}
         size="lg"

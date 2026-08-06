@@ -78,7 +78,7 @@ export interface OptimizerFormState {
   endDate: string;
   benchmarkTicker: string;
 }
-export interface OptimizerResultState {
+interface OptimizerResultState {
   isLoading: boolean;
   error: string | null;
   results: OptimizeResultItem[] | null;

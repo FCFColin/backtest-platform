@@ -62,62 +62,32 @@ function buildRollingCorrelationData(
   );
 }
 
+const HANDLERS: Record<string, (payload: unknown[]) => unknown> = {
+  computeRollingMetric: ([a, b, c, d]) =>
+    computeRollingMetric(a as number[], b as string[], c as number, d as RollingMetricKey),
+  computeRollingExcessReturn: ([a, b, c, d]) =>
+    computeRollingExcessReturn(a as number[], b as number[], c as string[], d as number),
+  computeBeta: ([a, b]) => computeBeta(a as number[], b as number[]),
+  computeRollingCorrelation: ([a, b, c, d]) =>
+    computeRollingCorrelation(a as number[], b as number[], c as string[], d as number),
+  computeDailyReturns: ([a]) => computeDailyReturns(a as Point[]),
+  buildRollingChartData: ([a, b, c]) =>
+    buildRollingChartData(a as TickerData[], b as string, c as number),
+  buildBetaData: ([a]) => buildBetaData(a as Parameters<typeof buildBetaData>[0]),
+  buildRollingCorrelationData: ([a, b, c]) =>
+    buildRollingCorrelationData(
+      a as Parameters<typeof buildRollingCorrelationData>[0],
+      b as Parameters<typeof buildRollingCorrelationData>[1],
+      c as number,
+    ),
+};
+
 self.onmessage = (e: MessageEvent<{ id: number; type: string; payload: unknown[] }>) => {
   const { id, type, payload } = e.data;
   try {
-    let result: unknown;
-    switch (type) {
-      case 'computeRollingMetric':
-        result = computeRollingMetric(
-          payload[0] as number[],
-          payload[1] as string[],
-          payload[2] as number,
-          payload[3] as RollingMetricKey,
-        );
-        break;
-      case 'computeRollingExcessReturn':
-        result = computeRollingExcessReturn(
-          payload[0] as number[],
-          payload[1] as number[],
-          payload[2] as string[],
-          payload[3] as number,
-        );
-        break;
-      case 'computeBeta':
-        result = computeBeta(payload[0] as number[], payload[1] as number[]);
-        break;
-      case 'computeRollingCorrelation':
-        result = computeRollingCorrelation(
-          payload[0] as number[],
-          payload[1] as number[],
-          payload[2] as string[],
-          payload[3] as number,
-        );
-        break;
-      case 'computeDailyReturns':
-        result = computeDailyReturns(payload[0] as Point[]);
-        break;
-      case 'buildRollingChartData':
-        result = buildRollingChartData(
-          payload[0] as TickerData[],
-          payload[1] as string,
-          payload[2] as number,
-        );
-        break;
-      case 'buildBetaData':
-        result = buildBetaData(payload[0] as Parameters<typeof buildBetaData>[0]);
-        break;
-      case 'buildRollingCorrelationData':
-        result = buildRollingCorrelationData(
-          payload[0] as Parameters<typeof buildRollingCorrelationData>[0],
-          payload[1] as Parameters<typeof buildRollingCorrelationData>[1],
-          payload[2] as number,
-        );
-        break;
-      default:
-        throw new Error(`Unknown worker task: ${type}`);
-    }
-    self.postMessage({ id, result });
+    const handler = HANDLERS[type];
+    if (!handler) throw new Error(`Unknown worker task: ${type}`);
+    self.postMessage({ id, result: handler(payload) });
   } catch (err) {
     self.postMessage({ id, error: (err as Error).message });
   }

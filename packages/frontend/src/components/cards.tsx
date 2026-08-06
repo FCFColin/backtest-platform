@@ -119,13 +119,43 @@ interface MiniStatCardProps {
   value: string;
   color?: string;
   className?: string;
+  valueClassName?: string;
 }
-export function MiniStatCard({ label, value, color, className }: MiniStatCardProps) {
+export function MiniStatCard({
+  label,
+  value,
+  color,
+  className,
+  valueClassName,
+}: MiniStatCardProps) {
   return (
     <div className={cn('rounded-md bg-input-bg p-3.5 text-center', className)}>
       <div className="mb-1 text-caption text-fg-tertiary">{label}</div>
       <div
-        className="font-mono text-h3 font-semibold tabular-nums text-fg"
+        className={cn('font-mono text-h3 font-semibold tabular-nums text-fg', valueClassName)}
+        style={color ? { color } : undefined}
+      >
+        {value}
+      </div>
+    </div>
+  );
+}
+export function BorderStatCard({
+  label,
+  value,
+  color,
+  className,
+}: {
+  label: string;
+  value: string;
+  color?: string;
+  className?: string;
+}) {
+  return (
+    <div className={cn('rounded-lg border border-border bg-elevated px-3 py-3', className)}>
+      <div className="text-caption text-fg-tertiary">{label}</div>
+      <div
+        className="mt-1 font-mono tabular-nums text-h3 font-semibold"
         style={color ? { color } : undefined}
       >
         {value}

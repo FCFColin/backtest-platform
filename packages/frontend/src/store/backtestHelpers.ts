@@ -2,6 +2,7 @@ import i18n from '../i18n/index.js';
 import type {
   BacktestResult,
   Portfolio,
+  Asset,
   BacktestParameters,
   Statistics,
   RebalanceFrequency,
@@ -60,20 +61,6 @@ export const defaultParameters: BacktestParameters = {
   cashflowLegs: [],
   oneTimeCashflows: [],
 };
-export const createDefaultPortfolio = (counter: number): Portfolio => {
-  return {
-    id: `portfolio-${Date.now()}-${counter}`,
-    name: `Portfolio ${counter}`,
-    assets: [
-      { id: `asset-${Date.now()}-1`, ticker: 'VTI', weight: 60 },
-      { id: `asset-${Date.now()}-2`, ticker: 'BND', weight: 40 },
-    ],
-    rebalanceFrequency: 'quarterly',
-    rebalanceOffset: 0,
-    drag: 0,
-    totalReturn: true,
-  };
-};
 export const createEmptyPortfolio = (counter: number): Portfolio => {
   const now = Date.now();
   return {
@@ -90,11 +77,11 @@ export const createEmptyPortfolio = (counter: number): Portfolio => {
     totalReturn: true,
   };
 };
-export interface PortfolioPresetAsset {
+interface PortfolioPresetAsset {
   ticker: string;
   weight: number;
 }
-export interface PortfolioPreset {
+interface PortfolioPreset {
   id: string;
   labelKey: string;
   descriptionKey: string;
@@ -110,6 +97,11 @@ export const PORTFOLIO_PRESETS: readonly PortfolioPreset[] = PRESET_PORTFOLIOS.m
   assets: p.assets,
   rebalanceFrequency: p.rebalanceFrequency ?? 'quarterly',
 }));
+export const toAssetsWithIds = (
+  assets: { ticker: string; weight: number }[],
+  now = Date.now(),
+): Asset[] =>
+  assets.map((a, idx) => ({ id: `asset-${now}-${idx}`, ticker: a.ticker, weight: a.weight }));
 export const createPortfolioFromPreset = (presetId: string, counter: number): Portfolio => {
   const preset = findPresetPortfolio(presetId);
   if (!preset) {
@@ -119,11 +111,7 @@ export const createPortfolioFromPreset = (presetId: string, counter: number): Po
   return {
     id: `portfolio-${now}-${counter}`,
     name: i18n.t(preset.nameKey),
-    assets: preset.assets.map((a, idx) => ({
-      id: `asset-${now}-${idx}`,
-      ticker: a.ticker,
-      weight: a.weight,
-    })),
+    assets: toAssetsWithIds(preset.assets, now),
     rebalanceFrequency: preset.rebalanceFrequency ?? 'quarterly',
     rebalanceOffset: 0,
     drag: 0,

@@ -1,4 +1,4 @@
-import { useState, memo, lazy, Suspense } from 'react';
+import { useState, memo, lazy, Suspense, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LineChart } from 'lucide-react';
 import { CHART_COLORS, type AssetAnalysisResult, type Statistics } from '@backtest/shared';
@@ -7,13 +7,16 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/uiComp
 import { useAnalysisData } from '../../hooks/useAnalysisData.js';
 import { TABS, fetchAnalysisResult } from './analysisUtils.js';
 import { AnalysisParamsPanel } from './AnalysisParams.js';
-import { ComputeToolShell, type ComputeToolConfig } from '../../components/shells/index.js';
-import { useComputeTool, useListState } from '../../hooks/miscHooks.js';
+import {
+  ComputeToolShell,
+  TabFallback,
+  type ComputeToolConfig,
+} from '../../components/shells/index.js';
+import { useComputeTool, useListState, useSetterState } from '../../hooks/miscHooks.js';
 import { fmtPct } from '@/utils/format';
-import { cn } from '@/lib/utils';
+import { SimpleTable, type SimpleTableColumn } from '@/components/tables.js';
 import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
 import { lazyNamed } from '@/utils/lazyImport';
-import { Loader2 } from '@/icons/icons.js';
 function useAnalysisPageState() {
   const { t } = useTranslation();
   const {
@@ -24,13 +27,15 @@ function useAnalysisPageState() {
     updateItem,
   } = useListState<string>(['SPY', 'TLT', 'GLD'], () => '', 1);
   const updateTicker = (idx: number, val: string) => updateItem(idx, () => val);
-  const [startDate, setStartDate] = useState(DEFAULT_BACKTEST_START_DATE);
-  const [endDate, setEndDate] = useState(DEFAULT_END_DATE);
-  const [startingValue, setStartingValue] = useState(10000);
-  const [rollingWindow, setRollingWindow] = useState(12);
-  const [correlationWindow, setCorrelationWindow] = useState(12);
-  const [adjustForInflation, setAdjustForInflation] = useState(false);
-  const [activeTab, setActiveTab] = useState('summary');
+  const s = useSetterState({
+    startDate: DEFAULT_BACKTEST_START_DATE,
+    endDate: DEFAULT_END_DATE,
+    startingValue: 10000,
+    rollingWindow: 12,
+    correlationWindow: 12,
+    adjustForInflation: false,
+    activeTab: 'summary',
+  });
   const {
     isLoading,
     error,
@@ -43,12 +48,12 @@ function useAnalysisPageState() {
       return fetchAnalysisResult(
         validTickers,
         {
-          startDate,
-          endDate,
-          startingValue,
-          adjustForInflation,
-          rollingWindow,
-          correlationWindow,
+          startDate: s.startDate,
+          endDate: s.endDate,
+          startingValue: s.startingValue,
+          adjustForInflation: s.adjustForInflation,
+          rollingWindow: s.rollingWindow,
+          correlationWindow: s.correlationWindow,
         },
         t,
       );
@@ -58,24 +63,11 @@ function useAnalysisPageState() {
   );
   return {
     tickers,
-    startDate,
-    endDate,
-    startingValue,
-    rollingWindow,
-    correlationWindow,
-    adjustForInflation,
-    activeTab,
+    ...s,
     isLoading,
     error,
     results,
     setTickers,
-    setStartDate,
-    setEndDate,
-    setStartingValue,
-    setRollingWindow,
-    setCorrelationWindow,
-    setAdjustForInflation,
-    setActiveTab,
     setResults,
     addTicker,
     removeTicker,
@@ -116,13 +108,6 @@ const RiskReturnChart = lazyNamed(
   'RiskReturnChart',
 );
 const AnnualReturnChart = lazy(() => import('../../components/charts/AnnualReturnChart.js'));
-function TabFallback() {
-  return (
-    <div className="flex justify-center py-12">
-      <Loader2 className="h-6 w-6 animate-spin text-brand" />
-    </div>
-  );
-}
 function CorrelationsBetaTab({
   results,
   correlationWindow,
@@ -159,6 +144,19 @@ const AnalysisResultsPanel = memo(function AnalysisResultsPanel({
   const { error, results, activeTab, setActiveTab, isLoading, correlationWindow, rollingWindow } =
     s;
   const { t } = useTranslation();
+  const renderTab: Record<(typeof TABS)[number]['key'], (r: AssetAnalysisResult) => ReactNode> = {
+    summary: (r) => <OverviewCharts results={r} StatsTable={StatsTable} />,
+    telltale: (r) => <TelltaleChart results={r} />,
+    correlations: (r) => <CorrelationsBetaTab results={r} correlationWindow={correlationWindow} />,
+    rolling: (r) => <RollingMetricsChart results={r} rollingWindow={rollingWindow} />,
+    'risk-return': (r) => <RiskReturnChart results={r} />,
+    returns: (r) => (
+      <div className="space-y-6">
+        <AnnualReturnChart results={r} />
+        <MonthlyHeatmap results={r} />
+      </div>
+    ),
+  };
   return (
     <ResultsShell
       error={error}
@@ -178,39 +176,11 @@ const AnalysisResultsPanel = memo(function AnalysisResultsPanel({
               </TabsTrigger>
             ))}
           </TabsList>
-          <TabsContent value="summary" className="pt-4">
-            <Suspense fallback={<TabFallback />}>
-              <OverviewCharts results={results} StatsTable={StatsTable} />
-            </Suspense>
-          </TabsContent>
-          <TabsContent value="telltale" className="pt-4">
-            <Suspense fallback={<TabFallback />}>
-              <TelltaleChart results={results} />
-            </Suspense>
-          </TabsContent>
-          <TabsContent value="correlations" className="pt-4">
-            <Suspense fallback={<TabFallback />}>
-              <CorrelationsBetaTab results={results} correlationWindow={correlationWindow} />
-            </Suspense>
-          </TabsContent>
-          <TabsContent value="rolling" className="pt-4">
-            <Suspense fallback={<TabFallback />}>
-              <RollingMetricsChart results={results} rollingWindow={rollingWindow} />
-            </Suspense>
-          </TabsContent>
-          <TabsContent value="risk-return" className="pt-4">
-            <Suspense fallback={<TabFallback />}>
-              <RiskReturnChart results={results} />
-            </Suspense>
-          </TabsContent>
-          <TabsContent value="returns" className="pt-4">
-            <Suspense fallback={<TabFallback />}>
-              <div className="space-y-6">
-                <AnnualReturnChart results={results} />
-                <MonthlyHeatmap results={results} />
-              </div>
-            </Suspense>
-          </TabsContent>
+          {TABS.map((tab) => (
+            <TabsContent key={tab.key} value={tab.key} className="pt-4">
+              <Suspense fallback={<TabFallback />}>{renderTab[tab.key](results)}</Suspense>
+            </TabsContent>
+          ))}
         </Tabs>
       )}
     </ResultsShell>
@@ -237,11 +207,8 @@ export default function AnalysisPage() {
   const s = useAnalysisPageState();
   return <ComputeToolShell config={config} state={s} />;
 }
-const STATS_COLUMNS: {
-  key: keyof Statistics;
-  labelKey: string;
-  fmt: 'pct' | 'ratio' | 'duration';
-}[] = [
+type StatCol = { key: keyof Statistics; labelKey: string; fmt: 'pct' | 'ratio' | 'duration' };
+const STATS_COLUMNS: StatCol[] = [
   { key: 'cagr', labelKey: 'CAGR', fmt: 'pct' },
   { key: 'maxDrawdown', labelKey: 'backtest.maxDrawdown', fmt: 'pct' },
   { key: 'avgDrawdown', labelKey: 'analysis.avgDrawdown', fmt: 'pct' },
@@ -254,73 +221,35 @@ const STATS_COLUMNS: {
   { key: 'ulcerPerformanceIndex', labelKey: 'UPI', fmt: 'ratio' },
   { key: 'beta', labelKey: 'Beta', fmt: 'ratio' },
 ];
-const TH_BASE =
-  'py-2 px-3 text-caption font-semibold uppercase tracking-wide text-fg-tertiary border-b border-border-subtle';
-function StatsTableHeader({
-  tickers,
-  metricLabel,
-}: {
-  tickers: AssetAnalysisResult['tickers'];
-  metricLabel: string;
-}) {
-  return (
-    <thead>
-      <tr className="bg-elevated">
-        <th className={cn(TH_BASE, 'text-left')}>{metricLabel}</th>
-        {tickers.map((tk, idx) => (
-          <th key={tk.ticker} className={cn(TH_BASE, 'text-right whitespace-nowrap')}>
-            <span
-              className="mr-1.5 inline-block size-2.5 rounded-full align-middle"
-              style={{ backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] }}
-            />
-            {tk.ticker}
-          </th>
-        ))}
-      </tr>
-    </thead>
-  );
-}
 export const StatsTable = memo(function StatsTable({
   tickers,
 }: {
   tickers: AssetAnalysisResult['tickers'];
 }) {
   const { t } = useTranslation();
-  const cols = STATS_COLUMNS.map((c) => ({
-    ...c,
-    label: c.labelKey.includes('.') ? t(c.labelKey) : c.labelKey,
-  }));
-  const fmt = (v: number | undefined, f: 'pct' | 'ratio' | 'duration') => {
-    if (v === undefined || v === null) return '-';
-    if (f === 'pct') return fmtPct(v);
-    if (f === 'ratio') return v.toFixed(2);
-    return `${v} ${t('days')}`;
-  };
-  return (
-    <div className="overflow-x-auto">
-      <table className="w-full border-collapse text-body">
-        <StatsTableHeader tickers={tickers} metricLabel={t('Metric')} />
-        <tbody>
-          {cols.map((col, ri) => {
-            if (!tickers.some((tk) => tk.statistics[col.key] != null)) return null;
-            return (
-              <tr key={col.key} className={ri % 2 === 1 ? 'bg-elevated' : 'bg-transparent'}>
-                <td className="py-2 px-3 text-fg-secondary border-b border-border-subtle">
-                  {col.label}
-                </td>
-                {tickers.map((tk) => (
-                  <td
-                    key={tk.ticker}
-                    className="py-2 px-3 text-right font-mono tabular-nums font-medium text-fg border-b border-border-subtle whitespace-nowrap"
-                  >
-                    {fmt(tk.statistics[col.key] as number | undefined, col.fmt)}
-                  </td>
-                ))}
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
-  );
+  const fmt = (v: number | undefined, f: 'pct' | 'ratio' | 'duration') =>
+    v == null ? '-' : f === 'pct' ? fmtPct(v) : f === 'ratio' ? v.toFixed(2) : `${v} ${t('days')}`;
+  const rows = STATS_COLUMNS.filter((c) => tickers.some((tk) => tk.statistics[c.key] != null));
+  const columns: SimpleTableColumn<StatCol>[] = [
+    {
+      key: 'metric',
+      label: t('Metric'),
+      render: (c) => (c.labelKey.includes('.') ? t(c.labelKey) : c.labelKey),
+    },
+    ...tickers.map((tk, idx) => ({
+      key: tk.ticker,
+      label: (
+        <span className="inline-flex items-center gap-1.5">
+          <span
+            className="inline-block size-2.5 rounded-full"
+            style={{ backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] }}
+          />
+          {tk.ticker}
+        </span>
+      ),
+      align: 'right' as const,
+      render: (c: StatCol) => fmt(tk.statistics[c.key] as number | undefined, c.fmt),
+    })),
+  ];
+  return <SimpleTable columns={columns} data={rows} rowKey={(c) => c.key} />;
 });

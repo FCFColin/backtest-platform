@@ -111,7 +111,6 @@ function computeTelltaleData(
       title,
       emptyMessage: t('At least 2 assets required to display telltale chart'),
     };
-  // Build telltale ratios vs benchmark
   const benchMap = new Map<string, number>();
   for (const { date, value } of benchmark.growthCurve) benchMap.set(date, value);
   const dateMap = buildDateMap(benchMap, comparisons);

@@ -8,6 +8,7 @@ import { CollapsibleSection } from '@/components/cards';
 import { SortableTable, type Column } from '../../components/tables.js';
 import { TimeSeriesLineChart } from '@/components/charts/TimeSeriesLineChart.js';
 import { ResultsShell } from '@/components/resultsShell.js';
+import { TableEmpty } from '@/components/stateDisplay.js';
 interface SignalRow {
   date: string;
   type: 'buy' | 'sell';
@@ -64,11 +65,7 @@ function SignalListSection({ results, signalColumns }: SignalListSectionProps) {
       />
     );
   }
-  return (
-    <div className="py-6 text-center text-body text-fg-tertiary">
-      {t('No signals generated for the current parameters')}
-    </div>
-  );
+  return <TableEmpty message={t('No signals generated for the current parameters')} />;
 }
 interface EquityCurveSectionProps {
   equityCurve: SignalAnalysisResult['equityCurve'];
@@ -230,9 +227,7 @@ export function MultiSignalResultsPanel({
               initialSortDir="desc"
             />
           ) : (
-            <div className="py-6 text-center text-body text-fg-tertiary">
-              {t('No contribution data')}
-            </div>
+            <TableEmpty message={t('No contribution data')} />
           )}
         </CollapsibleSection>
         <CollapsibleSection

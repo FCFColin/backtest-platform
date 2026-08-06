@@ -10,15 +10,6 @@ import {
 } from '@/components/ui/uiComponents.js';
 import { PlanBadge } from '@/components/layout/Navbar.js';
 import { cn } from '@/lib/utils.js';
-interface ResultsActionBarProps {
-  timeRange: { start: string; end: string; years: number };
-  onRefresh?: () => void;
-  onShare?: () => void;
-  onSaveBacktest?: () => void;
-  onEmailAlerts?: () => void;
-  onSavePortfolio?: () => void;
-  onExport?: (format: 'csv' | 'json' | 'png' | 'pdf') => void;
-}
 interface ActionBarActionsProps {
   onRefresh?: () => void;
   onShare?: () => void;
@@ -26,6 +17,9 @@ interface ActionBarActionsProps {
   onEmailAlerts?: () => void;
   onSavePortfolio?: () => void;
   onExport?: (format: 'csv' | 'json' | 'png' | 'pdf') => void;
+}
+interface ResultsActionBarProps extends ActionBarActionsProps {
+  timeRange: { start: string; end: string; years: number };
 }
 function ActionBarActions({
   onRefresh,
@@ -118,14 +112,7 @@ export function ResultsActionBar(props: ResultsActionBarProps) {
             </Button>
           </div>
           <div className="flex-1" />
-          <ActionBarActions
-            onRefresh={props.onRefresh}
-            onShare={props.onShare}
-            onSaveBacktest={props.onSaveBacktest}
-            onEmailAlerts={props.onEmailAlerts}
-            onSavePortfolio={props.onSavePortfolio}
-            onExport={props.onExport}
-          />
+          <ActionBarActions {...props} />
         </div>
       </div>
     </>

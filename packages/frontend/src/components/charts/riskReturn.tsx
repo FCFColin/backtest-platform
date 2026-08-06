@@ -1,53 +1,16 @@
 import { useState, useMemo, memo } from 'react';
-import {
-  ScatterChart,
-  Scatter,
-  CartesianGrid,
-  ResponsiveContainer,
-  ZAxis,
-  LabelList,
-} from 'recharts';
+import { Scatter, LabelList } from 'recharts';
 import { useTranslation } from 'react-i18next';
 import { CHART_COLORS, type AssetAnalysisResult, type PortfolioResult } from '@backtest/shared';
-import { CHART_MARGIN, CHART_GRID_PROPS } from '@/lib/chart-theme.js';
-import {
-  ChartXAxis,
-  ChartYAxis,
-  ChartTooltip,
-  ChartEmptyState,
-  ScatterChartContent,
-} from './sharedChartContent.js';
+import { ChartEmptyState, ScatterChartContent, XYScatterChart } from './sharedChartContent.js';
 import { type RiskMetricKey } from './chartUtils.js';
 import ChartCard from '../ChartCard.js';
+import { MiniSelect } from '@/components/ui/uiComponents';
 interface ScatterPoint {
   name: string;
   risk: number;
   cagr: number;
   [key: string]: string | number;
-}
-function RiskMetricSelector({
-  metrics,
-  selected,
-  onChange,
-}: {
-  metrics: Array<{ key: RiskMetricKey; label: string }>;
-  selected: RiskMetricKey;
-  onChange: (v: RiskMetricKey) => void;
-}) {
-  return (
-    <select
-      className="bg-input-bg text-fg border border-border-subtle rounded font-medium cursor-pointer"
-      style={{ width: 130, fontSize: 12, padding: '4px 8px' }}
-      value={selected}
-      onChange={(e) => onChange(e.target.value as RiskMetricKey)}
-    >
-      {metrics.map((m) => (
-        <option key={m.key} value={m.key}>
-          {m.label}
-        </option>
-      ))}
-    </select>
-  );
 }
 function RiskScatterChart({ data, riskLabel }: { data: ScatterPoint[]; riskLabel: string }) {
   return (
@@ -95,13 +58,19 @@ export const RiskReturnChart = memo(function RiskReturnChart({
   );
   const riskLabel = riskMetrics.find((m) => m.key === riskMetric)?.label ?? t('Risk');
   return (
-    <div className="chart-card">
-      <div className="flex items-center gap-4 mb-3">
-        <div className="chart-card-title mb-0">{t('Risk vs Return')}</div>
-        <RiskMetricSelector metrics={riskMetrics} selected={riskMetric} onChange={setRiskMetric} />
-      </div>
+    <ChartCard
+      title={t('Risk vs Return')}
+      headerExtra={
+        <MiniSelect
+          value={riskMetric}
+          onChange={setRiskMetric}
+          options={riskMetrics.map((m) => ({ value: m.key, label: m.label }))}
+          width={130}
+        />
+      }
+    >
       <RiskScatterChart data={scatterData} riskLabel={riskLabel} />
-    </div>
+    </ChartCard>
   );
 });
 interface RiskReturnScatterProps {
@@ -143,55 +112,34 @@ export function RiskReturnScatter({ portfolios }: RiskReturnScatterProps) {
       }))}
       csvFilename="risk-return"
     >
-      <ResponsiveContainer width="100%" height={400}>
-        <ScatterChart margin={CHART_MARGIN}>
-          <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--bg-subtle)" />
-          <ChartXAxis
-            type="number"
-            dataKey="stdev"
-            name={volLabel}
-            label={{
-              value: t('Volatility (%)'),
-              position: 'insideBottom',
-              offset: -10,
-              style: { fill: 'var(--text-muted)', fontSize: 12 },
-            }}
-            tickFormatter={(v: number | string) => `${Number(v).toFixed(1)}%`}
-          />
-          <ChartYAxis
-            type="number"
-            dataKey="cagr"
-            name={retLabel}
-            label={{
-              value: t('Return (%)'),
-              angle: -90,
-              position: 'insideLeft',
-              style: { fill: 'var(--text-muted)', fontSize: 12 },
-            }}
-            tickFormatter={(v: number) => `${v.toFixed(1)}%`}
-          />
-          <ZAxis range={[80, 80]} />
-          <ChartTooltip
-            formatter={(value: number, name: string) =>
-              name === 'stdev'
-                ? [`${value.toFixed(2)}%`, volLabel]
-                : name === 'cagr'
-                  ? [`${value.toFixed(2)}%`, retLabel]
-                  : [String(value), name]
-            }
-            labelFormatter={() => ''}
-          />
-          {data.map((point, idx) => (
-            <Scatter key={point.name} data={[point]} fill={CHART_COLORS[idx % CHART_COLORS.length]}>
-              <LabelList
-                dataKey="name"
-                position="right"
-                style={{ fill: 'var(--text-muted)', fontSize: 11 }}
-              />
-            </Scatter>
-          ))}
-        </ScatterChart>
-      </ResponsiveContainer>
+      <XYScatterChart
+        xKey="stdev"
+        yKey="cagr"
+        xName={volLabel}
+        yName={retLabel}
+        height={400}
+        zRange={[80, 80]}
+        xTickFormatter={(v) => `${v.toFixed(1)}%`}
+        yTickFormatter={(v) => `${v.toFixed(1)}%`}
+        labelFormatter={() => ''}
+        tooltipFormatter={(value: number, name: string) =>
+          name === 'stdev'
+            ? [`${value.toFixed(2)}%`, volLabel]
+            : name === 'cagr'
+              ? [`${value.toFixed(2)}%`, retLabel]
+              : [String(value), name]
+        }
+      >
+        {data.map((point, idx) => (
+          <Scatter key={point.name} data={[point]} fill={CHART_COLORS[idx % CHART_COLORS.length]}>
+            <LabelList
+              dataKey="name"
+              position="right"
+              style={{ fill: 'var(--text-muted)', fontSize: 11 }}
+            />
+          </Scatter>
+        ))}
+      </XYScatterChart>
     </ChartCard>
   );
 }

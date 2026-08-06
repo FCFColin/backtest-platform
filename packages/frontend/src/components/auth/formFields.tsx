@@ -18,7 +18,7 @@ export default function AuthPageLayout({
   maxWidth = 420,
   centered = false,
 }: AuthPageLayoutProps) {
-  const cardStyle = centered
+  const cardStyle: CSSProperties = centered
     ? { padding: 28, marginTop: 40, textAlign: 'center' }
     : { padding: 28, marginTop: 40 };
   return (

@@ -36,7 +36,6 @@ export async function pollJobStatus(
     if (signal.aborted || (requestId !== null && requestId !== currentRequestId))
       throw new DOMException('Aborted', 'AbortError');
     const pollResponse = await apiFetch(statusUrl, {
-      headers: { 'Content-Type': 'application/json' },
       cache: 'no-store', // 禁用缓存避免 ETag 304 无 body
       signal,
     });

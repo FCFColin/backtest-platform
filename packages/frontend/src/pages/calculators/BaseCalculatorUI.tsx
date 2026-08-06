@@ -133,7 +133,7 @@ export function CollapsibleCard({
     </Card>
   );
 }
-export function TwoFundChart({ data }: { data: Array<{ wA: number; cagr: number; vol: number }> }) {
+function TwoFundChart({ data }: { data: Array<{ wA: number; cagr: number; vol: number }> }) {
   const { t } = useTranslation();
   return (
     <div className="mt-3">
@@ -184,7 +184,7 @@ export function SWRChart({ data }: { data: Array<{ year: number; ratio: number }
     </div>
   );
 }
-export function TwoFundPortfolioCalculator() {
+function TwoFundPortfolioCalculator() {
   const { t } = useTranslation();
   const [cagrA, setCagrA] = useState(8);
   const [volA, setVolA] = useState(15);

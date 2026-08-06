@@ -1,8 +1,7 @@
 /* eslint-disable max-lines-per-function -- 图表组件库，渲染分支多 */
 import { useMemo, useCallback, type CSSProperties } from 'react';
 import {
-  XAxisTicks,
-  TICK_STYLE,
+  SvgAxis,
   ChartShell,
   LeftAxis,
   useChartScaffold,
@@ -14,6 +13,7 @@ import {
   type ChartMargin,
   type ChartPoint,
 } from './svgChartParts.js';
+import { AXIS_TICK_STYLE } from '@/lib/chart-theme';
 export { SvgScatterChart } from './svgChartScatter.js';
 
 const barFill = (val: number, idx: number, signColor: boolean) =>
@@ -113,7 +113,7 @@ export function SvgBarChart({
         fontSize: xTickFontSize,
         fontFamily: 'Geist Mono Variable',
       }
-    : TICK_STYLE;
+    : AXIS_TICK_STYLE;
   return (
     <ChartShell
       width={width}
@@ -128,7 +128,14 @@ export function SvgBarChart({
       }
     >
       <LeftAxis range={plotHeight} ticks={yTickPixels} label={yLabel} offset={plotLeft} hideLine />
-      <XAxisTicks ticks={xTickPixels} plotBottom={plotBottom} style={xTickStyle} />
+      <SvgAxis
+        orientation="bottom"
+        range={0}
+        ticks={xTickPixels}
+        offset={plotBottom}
+        tickStyle={xTickStyle}
+        hideLine
+      />
       {data.map((point, dataIdx) => {
         const startX =
           plotLeft + dataIdx * groupWidth + groupWidth / 2 - (visibleSeries.length * barWidth) / 2;

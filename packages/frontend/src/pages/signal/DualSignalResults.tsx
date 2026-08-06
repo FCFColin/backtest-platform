@@ -14,6 +14,7 @@ import {
 } from '../../components/tables.js';
 import { TimeSeriesLineChart } from '@/components/charts/TimeSeriesLineChart.js';
 import { ResultsShell } from '@/components/resultsShell.js';
+import { TableEmpty } from '@/components/stateDisplay.js';
 import type { DualSignalResponse, SignalDir } from './signalTypes.js';
 interface DualSignalResultsProps {
   results: DualSignalResponse | null;
@@ -173,9 +174,7 @@ function DualSignalResultsBody({
             />
           </>
         ) : (
-          <div className="py-6 text-center text-body text-fg-tertiary">
-            {t('No signals generated for the current parameters')}
-          </div>
+          <TableEmpty message={t('No signals generated for the current parameters')} />
         )}
       </CollapsibleSection>
       <CollapsibleSection

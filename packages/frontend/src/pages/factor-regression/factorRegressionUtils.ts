@@ -1,5 +1,5 @@
 import { CHART_COLORS } from '@backtest/shared';
-import { apiFetch, apiGetJSON } from '../../utils/apiClient.js';
+import { apiPostJSON, apiGetJSON } from '../../utils/apiClient.js';
 import i18n from '../../i18n/index.js';
 interface FFDataPoint {
   date: string;
@@ -120,9 +120,11 @@ export async function fetchRegression(
   const errFetchData = i18n.t('Failed to fetch market data');
   const errRegCompute = i18n.t('Factor regression computation failed');
   const tickers = validAssets.map((a) => a.ticker);
-  const analysisRes = await apiFetch('/api/v1/backtest/analysis', {
-    method: 'POST',
-    body: JSON.stringify({
+  const analysisData = await apiPostJSON<{
+    tickers?: Parameters<typeof extractTickerReturns>[0];
+  }>(
+    '/api/v1/backtest/analysis',
+    {
       tickers,
       parameters: {
         startDate,
@@ -136,12 +138,9 @@ export async function fetchRegression(
         cashflowLegs: [],
         oneTimeCashflows: [],
       },
-    }),
-  });
-  if (!analysisRes.ok) throw new Error(errFetchData);
-  const analysisJson = await analysisRes.json();
-  if (analysisJson.success === false) throw new Error(analysisJson.error || errFetchData);
-  const analysisData = analysisJson.data ?? analysisJson;
+    },
+    errFetchData,
+  );
   const tickerReturns = extractTickerReturns(analysisData.tickers ?? []);
   if (tickerReturns.length === 0) throw new Error(i18n.t('Insufficient price data available'));
   const totalW = validAssets.reduce((s, a) => s + (a.weight || 0), 0);
@@ -150,18 +149,15 @@ export async function fetchRegression(
   if (monthlyReturns.length < 3)
     throw new Error(i18n.t('Insufficient data points (at least 3 months required)'));
   const ffData = await loadFamaFrenchData();
-  const regRes = await apiFetch('/api/v1/analysis/factor-regression', {
-    method: 'POST',
-    body: JSON.stringify({
+  return apiPostJSON<FactorRegressionResult>(
+    '/api/v1/analysis/factor-regression',
+    {
       monthlyReturns,
       ffData,
       factors: selectedFactors,
       startDate,
       endDate,
-    }),
-  });
-  if (!regRes.ok) throw new Error(errRegCompute);
-  const regJson = await regRes.json();
-  if (regJson.success === false) throw new Error(regJson.error?.detail || errRegCompute);
-  return regJson.data as FactorRegressionResult;
+    },
+    errRegCompute,
+  );
 }

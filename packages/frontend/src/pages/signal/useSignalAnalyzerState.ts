@@ -1,11 +1,10 @@
-import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type {
   SignalAnalysisRequest,
   SignalAnalysisResult,
   SignalType,
 } from '@backtest/shared/types/signal';
-import { useComputeTool } from '../../hooks/miscHooks.js';
+import { useComputeTool, useSetterState } from '../../hooks/miscHooks.js';
 import { apiPostJSON } from '@/utils/apiClient';
 import { DEFAULT_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
 import i18n from '../../i18n/index.js';
@@ -31,13 +30,15 @@ export interface UseSignalAnalyzerStateResult {
 }
 export function useSignalAnalyzerState(): UseSignalAnalyzerStateResult {
   const { t } = useTranslation();
-  const [ticker, setTicker] = useState('SPY');
-  const [indicator, setIndicator] = useState<string>('SMA');
-  const [period, setPeriod] = useState(20);
-  const [threshold, setThreshold] = useState(30);
-  const [signalType, setSignalType] = useState<SignalType>('both');
-  const [startDate, setStartDate] = useState(DEFAULT_START_DATE);
-  const [endDate, setEndDate] = useState(DEFAULT_END_DATE);
+  const s = useSetterState({
+    ticker: 'SPY',
+    indicator: 'SMA',
+    period: 20,
+    threshold: 30,
+    signalType: 'both' as SignalType,
+    startDate: DEFAULT_START_DATE,
+    endDate: DEFAULT_END_DATE,
+  });
   const {
     isLoading,
     error,
@@ -46,13 +47,13 @@ export function useSignalAnalyzerState(): UseSignalAnalyzerStateResult {
   } = useComputeTool<SignalAnalysisResult>(
     async () => {
       const reqBody: SignalAnalysisRequest = {
-        ticker: ticker.trim().toUpperCase(),
-        indicator,
-        period,
-        threshold,
-        startDate,
-        endDate,
-        signalType,
+        ticker: s.ticker.trim().toUpperCase(),
+        indicator: s.indicator,
+        period: s.period,
+        threshold: s.threshold,
+        startDate: s.startDate,
+        endDate: s.endDate,
+        signalType: s.signalType,
       };
       return apiPostJSON<SignalAnalysisResult>(
         '/api/v1/signal/analyze',
@@ -60,26 +61,7 @@ export function useSignalAnalyzerState(): UseSignalAnalyzerStateResult {
         i18n.t('Analysis failed'),
       );
     },
-    () => (ticker.trim() ? null : t('Please enter a ticker symbol')),
+    () => (s.ticker.trim() ? null : t('Please enter a ticker symbol')),
   );
-  return {
-    ticker,
-    setTicker,
-    indicator,
-    setIndicator,
-    period,
-    setPeriod,
-    threshold,
-    setThreshold,
-    signalType,
-    setSignalType,
-    startDate,
-    setStartDate,
-    endDate,
-    setEndDate,
-    isLoading,
-    error,
-    results,
-    runAnalysis,
-  };
+  return { ...s, isLoading, error, results, runAnalysis };
 }

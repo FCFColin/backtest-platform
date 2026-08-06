@@ -4,7 +4,7 @@ import { interpolateHsl } from '@/lib/chart-theme';
 export type IndicatorType = 'sma' | 'ema' | 'rsi';
 export type ObjectiveType = 'maxCAGR' | 'minDrawdown' | 'maxSharpe';
 export type { GridParamRange };
-export interface GridCombinationMetrics {
+interface GridCombinationMetrics {
   param1: number;
   param2: number;
   cagr: number;
@@ -89,9 +89,7 @@ export function validateGridParams(
   if (param1.step <= 0 || param2.step <= 0) return 'tacticalGrid.validateErrors.invalidStep';
   if (param1.min > param1.max || param2.min > param2.max)
     return 'tacticalGrid.validateErrors.minGtMax';
-  const total =
-    Math.floor((param1.max - param1.min) / param1.step + 1) *
-    Math.floor((param2.max - param2.min) / param2.step + 1);
+  const total = countCombinations(param1, param2);
   if (total > 500) return 'tacticalGrid.validateErrors.tooManyCombinations';
   return null;
 }
