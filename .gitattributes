@@ -1,0 +1,2 @@
+# 统一文本 LF 行尾（与 .prettierrc.json / .editorconfig 一致，避免 Windows autocrlf 产生 CRLF 漂移）
+* text=auto eol=lf
