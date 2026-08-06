@@ -101,7 +101,7 @@ describe('tailwind.config.cjs P0-1 fontSize 阶梯', () => {
     ['label-tiny 11px', /'label-tiny':\s*\['11px'/],
     ['label-tiny letterSpacing 0.06em', /letterSpacing:\s*'0.06em'/],
     ['micro 10px', /micro:\s*\['10px'/],
-    ['spacing 15 60px', /'15':\s*'3\.75rem'/],
+    ['spacing 15 60px', /(?:'15'|15)\s*:\s*'3\.75rem'/],
     ['display 字重 700', /display:\s*\['32px'[^}]*fontWeight:\s*'700'/],
     ['h1 字重 700', /h1:\s*\['24px'[^}]*fontWeight:\s*'700'/],
   ])('%s', (_name, re) => {

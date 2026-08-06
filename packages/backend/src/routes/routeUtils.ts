@@ -1,4 +1,6 @@
-import type { Response, RequestHandler } from 'express';
+import { Router } from 'express';
+import type { Response, Request, RequestHandler } from 'express';
+import type { ZodSchema } from 'zod';
 import { sendProblem, UpstreamProblemError, ApplicationError } from '../utils/errors.js';
 import { EngineUnavailableError } from '../utils/engineClient.js';
 import { TimeoutError, isUuid } from '../utils/misc.js';
@@ -6,6 +8,7 @@ import { logger } from '../utils/logger.js';
 import { recordBacktestRequest, recordDegradedResponse } from '../utils/metrics.js';
 import type { AuthenticatedRequest } from '../middleware/jwtAuth.js';
 import { hasTenant } from '../middleware/tenantContext.js';
+import { validate } from '../middleware/miscMiddleware.js';
 import type { Warning } from '../application/backtest-helpers.js';
 
 type BacktestResult = { data: unknown; warnings?: (Warning | string)[]; dateRange?: unknown };
@@ -204,4 +207,82 @@ export function jsonRoute(
     },
     { logMsg, code },
   );
+}
+
+/** 租户作用域 CRUD 仓储最小接口（RLS 隔离边界） */
+interface TenantCrudRepo<T> {
+  list(tenantId: string, limit?: number, offset?: number): Promise<T[]>;
+  get(tenantId: string, id: string): Promise<T | null>;
+  create(tenantId: string, ownerUserId: string | null, input: unknown): Promise<T>;
+  update?(tenantId: string, id: string, input: unknown): Promise<T | null>;
+  remove(tenantId: string, id: string): Promise<boolean>;
+}
+
+interface TenantCrudConfig {
+  resource: string;
+  codePrefix: string;
+  notFoundCode: string;
+  createSchema?: ZodSchema;
+  updateSchema?: ZodSchema;
+  metricPrefix?: string;
+  beforeCreate?: (req: AuthenticatedRequest, res: Response) => Promise<boolean>;
+}
+
+export function tenantCrudRoutes<T>(service: TenantCrudRepo<T>, cfg: TenantCrudConfig): Router {
+  const router = Router();
+  const handler = cfg.metricPrefix ? asyncRouteHandler : crudRouteHandler;
+  const h = (action: string, fn: (req: Request, res: Response) => Promise<void>): RequestHandler =>
+    handler(fn as RouteHandlerFn, {
+      logMsg: `[${cfg.resource}] ${action}失败`,
+      code: `${cfg.codePrefix}_${action.toUpperCase()}_FAILED`,
+      ...(cfg.metricPrefix ? { endpoint: `${cfg.metricPrefix}-${action}` } : {}),
+    });
+  const tenantOf = (req: Request, res: Response): string | null =>
+    requireTenantId(req as AuthenticatedRequest, res);
+
+  const list = h('list', async (req, res) => {
+    const tenantId = tenantOf(req, res);
+    if (!tenantId) return;
+    const limit = Math.max(1, Math.min(Number(req.query.limit) || 50, 200));
+    const offset = Math.max(Number(req.query.offset) || 0, 0);
+    sendData(res, await service.list(tenantId, limit, offset));
+  });
+  const get = h('get', async (req, res) => {
+    const tenantId = tenantOf(req, res);
+    if (!tenantId || !requireUuidParam(res, req.params.id)) return;
+    const item = await service.get(tenantId, req.params.id);
+    if (!item) return sendProblem(res, 404, cfg.notFoundCode);
+    sendData(res, item);
+  });
+  const create = h('create', async (req, res) => {
+    const tenantId = tenantOf(req, res);
+    if (!tenantId) return;
+    if (cfg.beforeCreate && !(await cfg.beforeCreate(req as AuthenticatedRequest, res))) return;
+    res.status(201).json({
+      success: true,
+      data: await service.create(tenantId, ownerOf(req as AuthenticatedRequest), req.body),
+    });
+  });
+  const update = h('update', async (req, res) => {
+    const tenantId = tenantOf(req, res);
+    if (!tenantId || !requireUuidParam(res, req.params.id)) return;
+    const updated = await service.update!(tenantId, req.params.id, req.body);
+    if (!updated) return sendProblem(res, 404, cfg.notFoundCode);
+    sendData(res, updated);
+  });
+  const remove = h('delete', async (req, res) => {
+    const tenantId = tenantOf(req, res);
+    if (!tenantId || !requireUuidParam(res, req.params.id)) return;
+    if (!(await service.remove(tenantId, req.params.id)))
+      return sendProblem(res, 404, cfg.notFoundCode);
+    sendData(res, { id: req.params.id, deleted: true });
+  });
+
+  router.get('/', list);
+  router.get('/:id', get);
+  router.post('/', ...(cfg.createSchema ? [validate(cfg.createSchema)] : []), create);
+  if (service.update)
+    router.put('/:id', ...(cfg.updateSchema ? [validate(cfg.updateSchema)] : []), update);
+  router.delete('/:id', remove);
+  return router;
 }
