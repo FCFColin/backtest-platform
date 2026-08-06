@@ -130,9 +130,14 @@ await runCheck(results, 'C-009', () => {
       continue;
     }
     for (const doc of content.split(/^---\s*$/m)) {
-      if (!doc.trim() || !/^kind:\s*NetworkPolicy\s*$/m.test(doc) || !/prometheus/i.test(doc))
+      // 仅匹配 prometheus 抓取 Ingress 策略；40-prometheus-dns.yaml 内的 DNS egress（端口 53）不属此检查
+      if (
+        !doc.trim() ||
+        !/^kind:\s*NetworkPolicy\s*$/m.test(doc) ||
+        !/name:\s*allow-prometheus-scrape\s*$/m.test(doc)
+      )
         continue;
-      const ports = [...doc.matchAll(/^\s*port:\s*(\d+)\s*$/gm)].map((m) => parseInt(m[1], 10));
+      const ports = [...doc.matchAll(/port:\s*(\d+)/g)].map((m) => parseInt(m[1], 10));
       policies.push({
         file,
         ports,

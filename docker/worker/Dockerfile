@@ -12,7 +12,7 @@ FROM node:20-alpine@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb836
 
 WORKDIR /app
 
-RUN npm install -g pnpm@11
+RUN npm install -g pnpm@11.5.3
 
 COPY pnpm-lock.yaml pnpm-workspace.yaml .npmrc package.json ./
 COPY packages/shared/package.json packages/shared/
@@ -41,9 +41,9 @@ RUN pnpm install --frozen-lockfile --prod
 COPY --from=builder /app/dist/workerEntrypoint.js ./dist/workerEntrypoint.js
 
 # 健康检查：读取 Redis heartbeat key（Worker 无 HTTP 端口）
-# 超过 45s 未更新 heartbeat 则判定不健康
+# 超过 45s 未更新 heartbeat 则判定不健康（与 docker-compose 探针一致）
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-  CMD node -e "import('./dist/workerEntrypoint.js').then(() => import('./packages/backend/src/queues/healthCheck.js')).then(m => m.checkHeartbeat()).then(ok => process.exit(ok ? 0 : 1)).catch(() => process.exit(1))"
+  CMD node -e "const r=new(require('ioredis')('redis://redis:6379'));r.get('worker:heartbeat').then(v=>{r.quit();process.exit(v?0:1)}).catch(()=>process.exit(1))"
 
 USER node
 CMD ["node", "dist/workerEntrypoint.js"]

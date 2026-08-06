@@ -134,5 +134,5 @@ console.log(
   `PASS=${passCount} FAIL=${failCount} SKIP=${skipCount} REVIEW=${reviewCount} / total=${issueResults.length}`,
 );
 
-// 退出码：任何 FAIL 都返回 1
-process.exit(failCount > 0 ? 1 : 0);
+// 退出码：任何 FAIL 或子脚本非零退出都返回 1（子脚本崩溃/未写 FAIL JSON 也阻断门禁）
+process.exit(failCount > 0 || results.some((r) => r.exitCode !== 0) ? 1 : 0);
