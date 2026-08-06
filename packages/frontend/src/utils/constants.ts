@@ -62,8 +62,6 @@ interface BuildBacktestParametersOptions {
   oneTimeCashflows?: OneTimeCashflow[];
 }
 
-export type { BacktestParameters };
-
 export function buildBacktestParameters(
   startDate: string,
   endDate: string,
@@ -84,7 +82,7 @@ export function buildBacktestParameters(
   };
 }
 
-export interface SinglePortfolioBodyOptions {
+interface SinglePortfolioBodyOptions {
   rebalanceFrequency?: RebalanceFrequency | string;
   rebalanceOffset?: number;
   id?: string;

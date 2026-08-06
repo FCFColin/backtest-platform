@@ -17,13 +17,7 @@ import {
 } from '@/components/ui/uiComponents.js';
 import { cn } from '@/lib/utils.js';
 import { CHART_COLORS, type PortfolioResult, type Statistics } from '@backtest/shared';
-import {
-  formatCurrency,
-  formatPercent,
-  formatDuration,
-  formatNumber,
-  fmtPct,
-} from '@/utils/format.js';
+import { formatCurrency, fmtPct, formatDuration, fmtNum } from '@/utils/format.js';
 import { STAT_KEY_TO_TESTID } from './types.js';
 import { SimpleTable, type SimpleTableColumn } from '@/components/tables.js';
 interface StatColumn {
@@ -76,9 +70,9 @@ interface StatisticsTableProps {
 }
 const FORMAT_FN: Record<string, (v: number) => string> = {
   currency: formatCurrency,
-  percent: formatPercent,
+  percent: fmtPct,
   duration: formatDuration,
-  number: formatNumber,
+  number: fmtNum,
 };
 const getColorClass = (value: number): string =>
   value > 0 ? 'text-pos' : value < 0 ? 'text-neg' : 'text-fg';
@@ -292,9 +286,7 @@ export function ExtendedMetricsTable({ portfolios }: ExtendedMetricsTableProps) 
                 : undefined
             : undefined;
         return (
-          <span className={cls}>
-            {col.format === 'percent' ? formatPercent(value) : formatNumber(value)}
-          </span>
+          <span className={cls}>{col.format === 'percent' ? fmtPct(value) : fmtNum(value)}</span>
         );
       },
     })),

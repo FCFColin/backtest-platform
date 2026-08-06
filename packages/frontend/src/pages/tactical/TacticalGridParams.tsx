@@ -1,10 +1,10 @@
 import { useTranslation } from 'react-i18next';
-import type { RebalanceFrequency } from '@backtest/shared';
 import { Input } from '@/components/ui/uiComponents';
 import { Field, FieldLabel, FieldDescription } from '@/components/form/Field';
 import { LabeledField, RunButton, SelectField } from '@/components/form/sharedFields';
 import { ParamSection } from './TacticalSignalEditor';
-import { INDICATOR_OPTIONS, REBALANCE_OPTIONS } from './sharedTacticalConstants';
+import { INDICATOR_OPTIONS } from './sharedTacticalConstants';
+import { BacktestParamsFields } from './sharedBacktestParams';
 import { OBJECTIVE_OPTIONS } from './tacticalGridUtils';
 import type { IndicatorType, ObjectiveType, GridParamRange } from './tacticalGridUtils';
 import type { TacticalGridState } from '@/hooks/useTacticalGridState';
@@ -88,52 +88,27 @@ function BacktestParamsSection({ state }: { state: TacticalGridState }) {
     setRebalanceFrequency,
   } = state;
   return (
-    <ParamSection title={t('Backtest Parameters')}>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <LabeledField htmlFor="grid-ticker" label={t('Ticker')}>
-          <Input
-            id="grid-ticker"
-            type="text"
-            value={ticker}
-            onChange={(e) => setTicker(e.target.value)}
-            placeholder={t('e.g. SPY')}
-          />
-        </LabeledField>
-        <LabeledField htmlFor="grid-start-date" label={t('Start Date')}>
-          <Input
-            id="grid-start-date"
-            type="date"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-          />
-        </LabeledField>
-        <LabeledField htmlFor="grid-end-date" label={t('End Date')}>
-          <Input
-            id="grid-end-date"
-            type="date"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-          />
-        </LabeledField>
-        <LabeledField htmlFor="grid-starting-value" label={t('Initial Capital')}>
-          <Input
-            id="grid-starting-value"
-            type="number"
-            min={100}
-            className="font-mono tabular-nums"
-            value={startingValue}
-            onChange={(e) => setStartingValue(Number(e.target.value))}
-          />
-        </LabeledField>
-        <SelectField
-          id="grid-rebalance"
-          label={t('Rebalancing Frequency')}
-          value={rebalanceFrequency}
-          onChange={(v) => setRebalanceFrequency(v as RebalanceFrequency)}
-          options={REBALANCE_OPTIONS.map((o) => ({ value: o.value, label: t(o.label) }))}
+    <BacktestParamsFields
+      idPrefix="grid"
+      startDate={startDate}
+      setStartDate={setStartDate}
+      endDate={endDate}
+      setEndDate={setEndDate}
+      startingValue={startingValue}
+      setStartingValue={setStartingValue}
+      rebalanceFrequency={rebalanceFrequency}
+      setRebalanceFrequency={setRebalanceFrequency}
+    >
+      <LabeledField htmlFor="grid-ticker" label={t('Ticker')}>
+        <Input
+          id="grid-ticker"
+          type="text"
+          value={ticker}
+          onChange={(e) => setTicker(e.target.value)}
+          placeholder={t('e.g. SPY')}
         />
-      </div>
-    </ParamSection>
+      </LabeledField>
+    </BacktestParamsFields>
   );
 }
 export function GridParamsPanel({ state }: { state: TacticalGridState }) {

@@ -2,17 +2,12 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Save, FolderOpen, Trash2, Loader2 } from 'lucide-react';
 import { Button, Input } from '@/components/ui/uiComponents';
-import { LabeledField, DollarInput, RunButton, SelectField } from '@/components/form/sharedFields';
-import {
-  useTacticalPageState,
-  REBALANCE_OPTIONS,
-  AGGREGATION_OPTIONS,
-  RANKING_METHOD_OPTIONS,
-} from './TacticalUtils';
+import { LabeledField, RunButton, SelectField } from '@/components/form/sharedFields';
+import { useTacticalPageState, AGGREGATION_OPTIONS, RANKING_METHOD_OPTIONS } from './TacticalUtils';
 import type { TacticalStrategy } from '@backtest/shared/types/tactical';
-import type { RebalanceFrequency } from '@backtest/shared';
 import { useTacticalConfigs, type TacticalConfigPayload } from './useTacticalConfigs';
 import { ParamSection, SignalBuilderSection } from './TacticalSignalEditor';
+import { BacktestParamsFields } from './sharedBacktestParams';
 type TacticalPageState = ReturnType<typeof useTacticalPageState>;
 function AggregationSection({ state }: { state: TacticalPageState }) {
   const { t } = useTranslation();
@@ -70,7 +65,6 @@ function AggregationSection({ state }: { state: TacticalPageState }) {
   );
 }
 function BacktestParamsSection({ state }: { state: TacticalPageState }) {
-  const { t } = useTranslation();
   const {
     startDate,
     setStartDate,
@@ -82,42 +76,17 @@ function BacktestParamsSection({ state }: { state: TacticalPageState }) {
     setRebalanceFrequency,
   } = state;
   return (
-    <ParamSection title={t('Backtest Parameters')}>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <LabeledField htmlFor="tactical-start-date" label={t('Start Date')}>
-          <Input
-            id="tactical-start-date"
-            type="date"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-          />
-        </LabeledField>
-        <LabeledField htmlFor="tactical-end-date" label={t('End Date')}>
-          <Input
-            id="tactical-end-date"
-            type="date"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-          />
-        </LabeledField>
-        <LabeledField htmlFor="tactical-starting-value" label={t('Initial Capital')}>
-          <DollarInput
-            id="tactical-starting-value"
-            type="number"
-            className="font-mono tabular-nums"
-            value={startingValue}
-            onChange={(e) => setStartingValue(Number(e.target.value))}
-          />
-        </LabeledField>
-        <SelectField
-          id="tactical-rebalance"
-          label={t('Rebalancing Frequency')}
-          value={rebalanceFrequency}
-          onChange={(v) => setRebalanceFrequency(v as RebalanceFrequency)}
-          options={REBALANCE_OPTIONS.map((o) => ({ value: o.value, label: t(o.label) }))}
-        />
-      </div>
-    </ParamSection>
+    <BacktestParamsFields
+      idPrefix="tactical"
+      startDate={startDate}
+      setStartDate={setStartDate}
+      endDate={endDate}
+      setEndDate={setEndDate}
+      startingValue={startingValue}
+      setStartingValue={setStartingValue}
+      rebalanceFrequency={rebalanceFrequency}
+      setRebalanceFrequency={setRebalanceFrequency}
+    />
   );
 }
 function applyTacticalConfig(state: TacticalPageState, config: TacticalConfigPayload) {

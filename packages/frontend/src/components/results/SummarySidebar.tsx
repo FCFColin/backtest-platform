@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { Card } from '@/components/ui/uiComponents.js';
-import { formatPercent, formatNumber } from '@/utils/format.js';
+import { fmtPct, fmtNum } from '@/utils/format.js';
 import { cn } from '@/lib/utils.js';
 import type { Statistics } from '@backtest/shared';
 interface SummarySidebarProps {
@@ -23,43 +23,43 @@ function buildMetrics(stats: Statistics, totalYears: number, positiveYears: numb
   return [
     {
       labelKey: 'summarySidebar.cagr',
-      value: formatPercent(stats.cagr),
+      value: fmtPct(stats.cagr),
       tone: stats.cagr >= 0 ? 'pos' : 'neg',
       testId: 'summary-cagr',
     },
     {
       labelKey: 'summarySidebar.totalReturn',
-      value: formatPercent(stats.totalReturn),
+      value: fmtPct(stats.totalReturn),
       tone: stats.totalReturn >= 0 ? 'pos' : 'neg',
       testId: 'summary-total-return',
     },
     {
       labelKey: 'summarySidebar.maxDrawdown',
-      value: formatPercent(stats.maxDrawdown),
+      value: fmtPct(stats.maxDrawdown),
       tone: 'neg',
       testId: 'summary-max-drawdown',
     },
     {
       labelKey: 'summarySidebar.sharpe',
-      value: formatNumber(stats.sharpe),
+      value: fmtNum(stats.sharpe),
       tone: stats.sharpe >= 0 ? 'pos' : 'neg',
       testId: 'summary-sharpe',
     },
     {
       labelKey: 'summarySidebar.sortino',
-      value: formatNumber(stats.sortino),
+      value: fmtNum(stats.sortino),
       tone: stats.sortino >= 0 ? 'pos' : 'neg',
       testId: 'summary-sortino',
     },
     {
       labelKey: 'summarySidebar.bestYear',
-      value: formatPercent(stats.bestYear),
+      value: fmtPct(stats.bestYear),
       tone: stats.bestYear >= 0 ? 'pos' : 'neg',
       testId: 'summary-best-year',
     },
     {
       labelKey: 'summarySidebar.worstYear',
-      value: formatPercent(stats.worstYear),
+      value: fmtPct(stats.worstYear),
       tone: stats.worstYear >= 0 ? 'pos' : 'neg',
       testId: 'summary-worst-year',
     },

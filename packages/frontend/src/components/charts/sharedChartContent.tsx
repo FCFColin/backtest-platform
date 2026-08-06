@@ -429,7 +429,7 @@ export function XYScatterChart({
           type="number"
           dataKey={xKey}
           name={xName}
-          tickFormatter={xTickFormatter ?? numberFormatter}
+          tickFormatter={(xTickFormatter ?? numberFormatter) as (value: number | string) => string}
           label={xLabel ?? xName}
         />
         <ChartYAxis

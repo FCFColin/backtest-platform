@@ -241,4 +241,3 @@ export function AppRoutes() {
     </Suspense>
   );
 }
-export default AppRoutes;

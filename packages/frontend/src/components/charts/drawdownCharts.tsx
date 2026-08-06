@@ -7,7 +7,7 @@ import {
   CHART_MARGIN,
   getPortfolioColor,
 } from '@/lib/chart-theme.js';
-import { formatPercent } from '@/utils/format.js';
+import { fmtPct } from '@/utils/format.js';
 import { ChartEmptyState, SimpleAreaChart } from '@/components/charts/sharedChartContent.js';
 
 interface DrawdownChartProps {
@@ -95,13 +95,13 @@ function StatsBar({ stats }: { stats: UnderwaterStats }) {
       <div className="flex items-baseline gap-1.5">
         <span className="text-label-tiny text-fg-tertiary">{t('Max Drawdown')}</span>
         <span className="text-caption font-mono tabular-nums font-semibold text-neg">
-          {formatPercent(-stats.maxDrawdown)}
+          {fmtPct(-stats.maxDrawdown)}
         </span>
       </div>
       <div className="flex items-baseline gap-1.5">
         <span className="text-label-tiny text-fg-tertiary">{t('Time Underwater')}</span>
         <span className="text-caption font-mono tabular-nums font-semibold text-fg">
-          {formatPercent(stats.underwaterPct)}
+          {fmtPct(stats.underwaterPct)}
         </span>
       </div>
       <div className="flex items-baseline gap-1.5">
@@ -156,10 +156,10 @@ function DrawdownAreaChart({
             margin={{ ...CHART_MARGIN, left: 64, right: 8 }}
             xTickFormatter={YEAR_ONLY_TICK_FORMATTER}
             xTickInterval={SMART_DATE_INTERVAL(totalMonths)}
-            yTickFormatter={(v: number) => formatPercent(v)}
+            yTickFormatter={(v: number) => fmtPct(v)}
             yDomain={['auto', 0]}
             gradientId={gradientId}
-            tooltipFormatter={(value: number, name: string) => [formatPercent(value), name]}
+            tooltipFormatter={(value: number, name: string) => [fmtPct(value), name]}
             tooltipLabelFormatter={(label) => t(tooltipLabelKey, { label })}
           >
             <DrawdownAreas portfolios={portfolios} gradientId={gradientId} />

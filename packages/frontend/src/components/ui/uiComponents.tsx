@@ -1,4 +1,4 @@
-/* eslint-disable react-refresh/only-export-components -- 导出共享工具常量，Plan-1 重写 */
+/* eslint-disable react-refresh/only-export-components */
 import * as React from 'react';
 import {
   isValidElement,

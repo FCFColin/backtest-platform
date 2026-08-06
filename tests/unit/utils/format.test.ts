@@ -5,9 +5,7 @@ import {
   fmtNum,
   fmtDollar,
   formatCurrency,
-  formatPercent,
   formatPercentSigned,
-  formatNumber,
 } from '../../../packages/frontend/src/utils/format.js';
 
 describe.each([
@@ -64,9 +62,9 @@ describe('fmtDollar', () => {
 describe('formatters — Infinity/极端值边界（D5-010）', () => {
   it.each([
     ['formatCurrency', formatCurrency],
-    ['formatPercent', formatPercent],
+    ['fmtPct', fmtPct],
     ['formatPercentSigned', formatPercentSigned],
-    ['formatNumber', formatNumber],
+    ['fmtNum', fmtNum],
   ])('%s(Infinity/-Infinity/MAX_VALUE/MIN_VALUE/MAX_SAFE_INTEGER) 不应抛异常', (_n, fn) => {
     expect(() => fn(Infinity)).not.toThrow();
     expect(() => fn(-Infinity)).not.toThrow();
@@ -77,9 +75,9 @@ describe('formatters — Infinity/极端值边界（D5-010）', () => {
 
   it.each([
     ['formatCurrency', formatCurrency],
-    ['formatPercent', formatPercent],
+    ['fmtPct', fmtPct],
     ['formatPercentSigned', formatPercentSigned],
-    ['formatNumber', formatNumber],
+    ['fmtNum', fmtNum],
   ])('%s(NaN/null/undefined) 应返回占位符', (_n, fn) => {
     expect(fn(NaN)).toBe('—');
     expect(fn(null as unknown as number)).toBe('—');

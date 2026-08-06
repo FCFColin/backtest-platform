@@ -1,4 +1,3 @@
-/* eslint-disable react-refresh/only-export-components -- 统计表导出多个组件与辅助，保持目录 barrel 结构 */
 import { useTranslation } from 'react-i18next';
 import { Info } from 'lucide-react';
 import type { PortfolioResult } from '@backtest/shared';
@@ -7,7 +6,7 @@ import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/uiCompo
 import type { StatRow, MetricImportance, FmtType } from './types.js';
 import { fmtPct, fmtRatio, fmtNum } from '@/utils/format';
 import { STAT_KEY_TO_TESTID } from './types.js';
-export function formatValue(v: number | undefined, fmt: FmtType): string {
+function formatValue(v: number | undefined, fmt: FmtType): string {
   if (v == null) return '—';
   if (fmt === 'pct') return fmtPct(v);
   if (fmt === 'ratio') return fmtRatio(v);

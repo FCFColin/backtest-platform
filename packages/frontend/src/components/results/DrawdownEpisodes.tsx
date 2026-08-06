@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChevronDown, ChevronRight } from 'lucide-react';
-import { formatPercent, formatDuration } from '@/utils/format.js';
+import { fmtPct, formatDuration } from '@/utils/format.js';
 import { cn } from '@/lib/utils.js';
 import type { DrawdownEpisode } from '@backtest/shared/types/backtest.js';
 interface DrawdownEpisodesProps {
@@ -98,15 +98,11 @@ function DrawdownSummary({ episodes }: { episodes: DrawdownEpisode[] }) {
       </div>
       <div>
         <div className="text-label-tiny text-fg-tertiary">{t('Max Drawdown')}</div>
-        <div className="text-h3 font-mono tabular-nums text-neg">
-          {formatPercent(summary.maxDepth)}
-        </div>
+        <div className="text-h3 font-mono tabular-nums text-neg">{fmtPct(summary.maxDepth)}</div>
       </div>
       <div>
         <div className="text-label-tiny text-fg-tertiary">{t('Average Drawdown')}</div>
-        <div className="text-h3 font-mono tabular-nums text-neg">
-          {formatPercent(summary.avgDepth)}
-        </div>
+        <div className="text-h3 font-mono tabular-nums text-neg">{fmtPct(summary.avgDepth)}</div>
       </div>
       <div>
         <div className="text-label-tiny text-fg-tertiary">{t('Avg Recovery Duration')}</div>
@@ -137,9 +133,7 @@ function DrawdownEpisodeRow({ episode, testId }: { episode: DrawdownEpisode; tes
         />
         <div className="flex-1 flex items-center gap-6 py-4 px-6">
           <div className="w-24 text-right">
-            <div className="text-h3 font-mono tabular-nums text-neg">
-              {formatPercent(episode.depth)}
-            </div>
+            <div className="text-h3 font-mono tabular-nums text-neg">{fmtPct(episode.depth)}</div>
           </div>
           <div className="flex-1">
             <TimelineViz episode={episode} />
@@ -169,11 +163,7 @@ function DrawdownEpisodeRow({ episode, testId }: { episode: DrawdownEpisode; tes
             <DetailField label={t('Recovery Factor')} value={episode.recoveryFactor.toFixed(2)} />
           )}
           {episode.cagrDuring !== undefined && (
-            <DetailField
-              label={t('Period CAGR')}
-              value={formatPercent(episode.cagrDuring)}
-              colorize
-            />
+            <DetailField label={t('Period CAGR')} value={fmtPct(episode.cagrDuring)} colorize />
           )}
           <DetailField label={t('Period Ulcer')} value={episode.ulcerDuring.toFixed(2)} />
         </div>

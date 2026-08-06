@@ -28,6 +28,15 @@ function StatCard({ label, value, hint }: StatCardProps) {
     </Card>
   );
 }
+function StatGrid({ rows }: { rows: { label: string; value: string }[] }) {
+  return (
+    <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+      {rows.map((r) => (
+        <StatCard key={r.label} label={r.label} value={r.value} />
+      ))}
+    </div>
+  );
+}
 function buildSignalColumns(t: (key: string) => string): Column<SignalRow>[] {
   return [
     { key: 'date', label: t('Date'), sortValue: (r) => r.date },
@@ -91,13 +100,15 @@ function SignalResultsContent({ results, signalColumns }: SignalResultsContentPr
   const { t } = useTranslation();
   return (
     <>
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
-        <StatCard label={t('Total Signals')} value={String(results.statistics.totalSignals)} />
-        <StatCard label={t('Win Rate')} value={fmtPct(results.statistics.winRate)} />
-        <StatCard label={t('Avg Return')} value={fmtPct(results.statistics.avgReturn)} />
-        <StatCard label={t('Max Drawdown')} value={fmtPct(results.statistics.maxDrawdown)} />
-        <StatCard label={t('Sharpe')} value={fmtRatio(results.statistics.sharpe)} />
-      </div>
+      <StatGrid
+        rows={[
+          { label: t('Total Signals'), value: String(results.statistics.totalSignals) },
+          { label: t('Win Rate'), value: fmtPct(results.statistics.winRate) },
+          { label: t('Avg Return'), value: fmtPct(results.statistics.avgReturn) },
+          { label: t('Max Drawdown'), value: fmtPct(results.statistics.maxDrawdown) },
+          { label: t('Sharpe'), value: fmtRatio(results.statistics.sharpe) },
+        ]}
+      />
       <Tabs defaultValue="signals">
         <TabsList>
           <TabsTrigger value="signals">
@@ -208,11 +219,7 @@ export function MultiSignalResultsPanel({
           defaultOpen
           className="rounded-xl border border-border bg-surface"
         >
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
-            {aggStatRows.map((r) => (
-              <StatCard key={r.label} label={t(r.label)} value={r.value} />
-            ))}
-          </div>
+          <StatGrid rows={aggStatRows.map((r) => ({ label: t(r.label), value: r.value }))} />
         </CollapsibleSection>
         <CollapsibleSection
           title={t('Signal Contribution Comparison')}

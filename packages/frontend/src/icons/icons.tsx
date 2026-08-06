@@ -10,15 +10,6 @@ const ICON_BASE = {
   strokeLinecap: 'round',
   strokeLinejoin: 'round',
 } as const;
-export function AlertCircle(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg {...ICON_BASE} {...props}>
-      <circle cx="12" cy="12" r="10" />
-      <line x1="12" x2="12" y1="8" y2="12" />
-      <line x1="12" x2="12.01" y1="16" y2="16" />
-    </svg>
-  );
-}
 export function BarChart3(props: SVGProps<SVGSVGElement>) {
   return (
     <svg {...ICON_BASE} {...props}>
@@ -43,24 +34,6 @@ export function ChevronDown(props: SVGProps<SVGSVGElement>) {
     </svg>
   );
 }
-export function Database(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg {...ICON_BASE} {...props}>
-      <ellipse cx="12" cy="5" rx="9" ry="3" />
-      <path d="M3 5V19A9 3 0 0 0 21 19V5" />
-      <path d="M3 12A9 3 0 0 0 21 12" />
-    </svg>
-  );
-}
-export function Info(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg {...ICON_BASE} {...props}>
-      <circle cx="12" cy="12" r="10" />
-      <path d="M12 16v-4" />
-      <path d="M12 8h.01" />
-    </svg>
-  );
-}
 export function Loader2(props: SVGProps<SVGSVGElement>) {
   return (
     <svg {...ICON_BASE} {...props}>
@@ -72,22 +45,6 @@ export function Play(props: SVGProps<SVGSVGElement>) {
   return (
     <svg {...ICON_BASE} {...props}>
       <polygon points="6 3 20 12 6 21 6 3" />
-    </svg>
-  );
-}
-export function Plus(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg {...ICON_BASE} {...props}>
-      <path d="M5 12h14" />
-      <path d="M12 5v14" />
-    </svg>
-  );
-}
-export function X(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg {...ICON_BASE} {...props}>
-      <path d="M18 6 6 18" />
-      <path d="m6 6 12 12" />
     </svg>
   );
 }

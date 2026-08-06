@@ -18,9 +18,9 @@ vi.mock('@/i18n/index.js', () => ({
 
 import {
   formatCurrency,
-  formatPercent,
+  fmtPct,
   formatDuration,
-  formatNumber,
+  fmtNum,
   formatPercentSigned,
 } from '../../../packages/frontend/src/utils/format.js';
 
@@ -41,14 +41,14 @@ describe('formatters', () => {
     });
   });
 
-  describe('formatPercent', () => {
+  describe('fmtPct', () => {
     it.each([
       [0.123456, 2, '12.35%'],
       [0.123456, 1, '12.3%'],
       [0, 2, '0.00%'],
       [-0.055, 2, '-5.50%'],
-    ])('formatPercent(%p, %p) 应为 %p', (value, digits, expected) => {
-      expect(formatPercent(value, digits)).toBe(expected);
+    ])('fmtPct(%p, %p) 应为 %p', (value, digits, expected) => {
+      expect(fmtPct(value, digits)).toBe(expected);
     });
   });
 
@@ -63,12 +63,12 @@ describe('formatters', () => {
     });
   });
 
-  describe('formatNumber', () => {
+  describe('fmtNum', () => {
     it.each([
       [3.14159, 2, '3.14'],
       [3.14159, 4, '3.1416'],
-    ])('formatNumber(%p, %p) 应为 %p', (value, digits, expected) => {
-      expect(formatNumber(value, digits)).toBe(expected);
+    ])('fmtNum(%p, %p) 应为 %p', (value, digits, expected) => {
+      expect(fmtNum(value, digits)).toBe(expected);
     });
   });
 

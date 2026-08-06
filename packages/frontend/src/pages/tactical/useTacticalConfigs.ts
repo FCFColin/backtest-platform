@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { apiGetJSON, apiPostJSON, apiDeleteJSON } from '@/utils/apiClient';
 import type { TacticalStrategy } from '@backtest/shared/types/tactical';
 import type { RebalanceFrequency } from '@backtest/shared';
-export interface TacticalConfigRecord {
+interface TacticalConfigRecord {
   id: string;
   name: string;
   description: string | null;

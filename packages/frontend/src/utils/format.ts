@@ -15,12 +15,10 @@ export function formatDuration(days: number | null | undefined): string {
 
 export const fmtPct = (v: number | undefined | null, decimals = 2): string =>
   v == null || Number.isNaN(v) ? NULL : `${(v * 100).toFixed(decimals)}%`;
-export const formatPercent = fmtPct;
 export const fmtRatio = (v: number | undefined | null): string =>
   v == null || Number.isNaN(v) ? NULL : v.toFixed(2);
 export const fmtNum = (v: number | undefined | null, decimals = 2): string =>
   v == null || Number.isNaN(v) ? NULL : v.toFixed(decimals);
-export const formatNumber = fmtNum;
 
 export function formatPercentSigned(value: number | null | undefined, digits = 2): string {
   if (invalid(value)) return NULL;
