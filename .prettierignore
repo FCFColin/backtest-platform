@@ -43,7 +43,7 @@ simple-check.txt
 # Knip deadcode analysis artifacts (tool-generated baselines and config)
 knip*.json
 jscpd_out/
-scc_temp*.json
+scc_*.json
 
 # Machine-consumed data (compact form, not human-formatted)
 docker/grafana/dashboards/backtest-platform.json

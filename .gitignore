@@ -80,7 +80,7 @@ coverage-output.txt
 knip*.json
 knip*.txt
 jscpd_out/
-scc_temp*.json
+scc_*.json
 
 # 测试运行产物
 test-output.txt
