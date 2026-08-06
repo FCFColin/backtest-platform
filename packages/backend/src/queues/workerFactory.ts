@@ -11,7 +11,7 @@ export function createQueueWorker<T, R>(
     dlq?: Queue<DlqJobData>;
     onCompleted?: (job: Job<T>, result: R) => void;
     onFailed?: (job: Job<T> | undefined, err: Error) => void;
-    onProgress?: (job: Job<T>, progress: number | object) => void;
+    onProgress?: (job: Job<T>, progress: string | boolean | number | object) => void;
   } = {},
 ): Worker<T, R> {
   const worker = new Worker<T, R>(queueName, processor, {

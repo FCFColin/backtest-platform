@@ -1,14 +1,12 @@
 packages:
   - 'packages/*'
 allowBuilds:
-  '@openapitools/openapi-generator-cli': set this to true or false
-  '@scarf/scarf': set this to true or false
+  '@scarf/scarf': false # 遥测 postinstall 不执行（供应链安全）
   argon2: true
   cpu-features: true
   esbuild: true
   msgpackr-extract: true
   protobufjs: true
-  puppeteer: set this to true or false
   ssh2: true
 
 # P3-4: 统一关键依赖版本，避免子包声明不一致导致构建产物差异

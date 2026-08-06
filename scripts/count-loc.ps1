@@ -7,7 +7,7 @@ $root = 'd:\Project\回测平台'
 $baseline = 179541
 $target50 = 89770
 $target30 = [math]::Floor($baseline * 0.70)
-$exclude = 'node_modules,dist,dist-ssr,.dev-logs,coverage,.git,data,report,.nyc_output,.turbo,.cache,.vite,playwright-report,test-results'
+$exclude = 'node_modules,dist,dist-ssr,.dev-logs,coverage,.git,data,report,.turbo,.cache,.vite,playwright-report,test-results'
 
 $result = scc $root --exclude-dir $exclude --no-cocomo --sort lines --format json | ConvertFrom-Json
 

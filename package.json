@@ -23,7 +23,6 @@
     "check": "turbo run check",
     "test": "turbo run test",
     "test:unit": "vitest run tests/unit",
-    "test:unit:shared": "vitest run --project node packages/shared",
     "test:chaos": "vitest run --project chaos",
     "test:integration": "vitest run tests/integration",
     "test:contract": "vitest run tests/contract",
@@ -42,11 +41,10 @@
     "audit:contract": "node scripts/verify-backtest-contract.mjs",
     "audit:dom": "node scripts/audit-page-dom.mjs",
     "audit:code": "node scripts/audit-code-static.mjs",
-    "audit:all": "npm run audit:i18n && npm run audit:contract && npm run audit:dom && npm run audit:code",
+    "audit:all": "pnpm run audit:i18n && pnpm run audit:contract && pnpm run audit:dom && pnpm run audit:code",
     "audit:supply": "pnpm audit --audit-level=high --prod",
     "verify:critical": "node scripts/verify/run-all.mjs",
     "verify:high": "node scripts/verify/run-all.mjs --pattern=H-",
-    "license:check": "license-checker --production --summary --onlyAllow 'MIT;ISC;Apache-2.0;BSD-2-Clause;BSD-3-Clause;0BSD;CC0-1.0;Unlicense;Python-2.0;BlueOak-1.0.0' || true",
     "prepare": "husky || true"
   },
   "devDependencies": {
@@ -80,7 +78,6 @@
     "jscpd": "^4.2.5",
     "jsdom": "^29.1.1",
     "knip": "^5.46.0",
-    "license-checker": "^25.0.1",
     "lint-staged": "^17.0.8",
     "prettier": "^3.9.1",
     "tailwindcss-animate": "^1.0.7",
