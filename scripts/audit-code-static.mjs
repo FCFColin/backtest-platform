@@ -97,7 +97,10 @@ const audits = {
         const file = line.split(':')[0];
         const componentName = file.match(/\/([A-Z][a-zA-Z]+)\.tsx$/)?.[1];
         if (!componentName) return null;
-        const importers = grepFiles(new RegExp(`import.*\\b${componentName}\\b`), tsFiles.filter((f) => !f.path.endsWith(`${componentName}.tsx`)));
+        const importers = grepFiles(
+          new RegExp(`import.*\\b${componentName}\\b`),
+          tsFiles.filter((f) => !f.path.endsWith(`${componentName}.tsx`)),
+        );
         return {
           file,
           componentName,

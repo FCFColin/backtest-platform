@@ -11,28 +11,28 @@ const OUTPUT_DIR = join(PROJECT_ROOT, 'docs', 'audit', 'verify');
 
 // 解析参数
 const args = process.argv.slice(2);
-const patternArg = args.find(a => a.startsWith('--pattern='))?.split('=')[1];
+const patternArg = args.find((a) => a.startsWith('--pattern='))?.split('=')[1];
 const skipFrontend = args.includes('--skip-frontend');
 const skipDb = args.includes('--skip-db');
-const onlyArg = args.find(a => a.startsWith('--only='))?.split('=')[1];
+const onlyArg = args.find((a) => a.startsWith('--only='))?.split('=')[1];
 
 // 收集所有验证脚本（C-XXX 开头的 .mjs 文件，排除 _lib / run-all）
 const allScripts = readdirSync(VERIFY_DIR)
-  .filter(f => f.endsWith('.mjs') && !f.startsWith('_') && f !== 'run-all.mjs' )
+  .filter((f) => f.endsWith('.mjs') && !f.startsWith('_') && f !== 'run-all.mjs')
   .sort();
 
 let scripts = allScripts;
 if (onlyArg) {
-  scripts = allScripts.filter(f => f.startsWith(onlyArg));
+  scripts = allScripts.filter((f) => f.startsWith(onlyArg));
 } else if (patternArg) {
   const rx = new RegExp(patternArg);
-  scripts = allScripts.filter(f => rx.test(f));
+  scripts = allScripts.filter((f) => rx.test(f));
 }
 if (skipFrontend) {
-  scripts = scripts.filter(f => f !== 'verify-frontend.mjs');
+  scripts = scripts.filter((f) => f !== 'verify-frontend.mjs');
 }
 if (skipDb) {
-  scripts = scripts.filter(f => f !== 'verify-data.mjs' && f !== 'verify-backend.mjs');
+  scripts = scripts.filter((f) => f !== 'verify-data.mjs' && f !== 'verify-backend.mjs');
 }
 
 console.log(`\n=== Critical Fixes Verification Runner ===`);
@@ -62,7 +62,13 @@ for (const script of scripts) {
   if (stdout) console.log(stdout);
   if (stderr) console.error('STDERR:', stderr);
   console.log(`--- ${script} exited code=${exitCode} in ${elapsed}ms ---`);
-  results.push({ script, exitCode, elapsed, stdout: stdout.slice(-500), stderr: stderr.slice(-500) });
+  results.push({
+    script,
+    exitCode,
+    elapsed,
+    stdout: stdout.slice(-500),
+    stderr: stderr.slice(-500),
+  });
 }
 
 // 收集每个 issue 的 JSON 报告
@@ -74,22 +80,26 @@ if (existsSync(OUTPUT_DIR)) {
       const data = JSON.parse(readFileSync(join(OUTPUT_DIR, f), 'utf-8'));
       if (data.results && typeof data.results === 'object' && !Array.isArray(data.results)) {
         for (const [subId, sub] of Object.entries(data.results)) {
-          const normalizedId = /^(C|H)\d+$/.test(subId) ? subId.replace(/^(C|H)(\d+)$/, '$1-$2') : subId;
+          const normalizedId = /^(C|H)\d+$/.test(subId)
+            ? subId.replace(/^(C|H)(\d+)$/, '$1-$2')
+            : subId;
           issueResults.push({ issueId: normalizedId, ...sub });
         }
       } else if (data.issueId) {
         issueResults.push(data);
       }
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }
 }
 
 // 生成 SUMMARY.md
 const summaryPath = join(OUTPUT_DIR, 'SUMMARY.md');
-const passCount = issueResults.filter(r => r.status === 'PASS').length;
-const failCount = issueResults.filter(r => r.status === 'FAIL').length;
-const skipCount = issueResults.filter(r => r.status === 'SKIP').length;
-const reviewCount = issueResults.filter(r => r.status === 'NEEDS_MANUAL_REVIEW').length;
+const passCount = issueResults.filter((r) => r.status === 'PASS').length;
+const failCount = issueResults.filter((r) => r.status === 'FAIL').length;
+const skipCount = issueResults.filter((r) => r.status === 'SKIP').length;
+const reviewCount = issueResults.filter((r) => r.status === 'NEEDS_MANUAL_REVIEW').length;
 
 let md = `# CRITICAL 修复验证汇总报告\n\n`;
 md += `**生成时间**：${new Date().toISOString()}\n\n`;
@@ -98,8 +108,15 @@ md += `## 详细结果\n\n`;
 md += `| Issue ID | 状态 | 摘要 | 验证脚本 |\n`;
 md += `|----------|------|------|----------|\n`;
 for (const r of issueResults.sort((a, b) => a.issueId.localeCompare(b.issueId))) {
-  const icon = r.status === 'PASS' ? '✓ PASS' : r.status === 'SKIP' ? '○ SKIP' : r.status === 'NEEDS_MANUAL_REVIEW' ? '? REVIEW' : '✗ FAIL';
-  const script = results.find(x => x.script.includes(r.issueId))?.script ?? '-';
+  const icon =
+    r.status === 'PASS'
+      ? '✓ PASS'
+      : r.status === 'SKIP'
+        ? '○ SKIP'
+        : r.status === 'NEEDS_MANUAL_REVIEW'
+          ? '? REVIEW'
+          : '✗ FAIL';
+  const script = results.find((x) => x.script.includes(r.issueId))?.script ?? '-';
   const summary = (r.summary ?? '').replace(/\|/g, '\\|').slice(0, 200);
   md += `| ${r.issueId} | ${icon} | ${summary} | ${script} |\n`;
 }
@@ -113,7 +130,9 @@ for (const r of results) {
 
 writeFileSync(summaryPath, md);
 console.log(`\n=== Summary written to ${summaryPath} ===`);
-console.log(`PASS=${passCount} FAIL=${failCount} SKIP=${skipCount} REVIEW=${reviewCount} / total=${issueResults.length}`);
+console.log(
+  `PASS=${passCount} FAIL=${failCount} SKIP=${skipCount} REVIEW=${reviewCount} / total=${issueResults.length}`,
+);
 
 // 退出码：任何 FAIL 都返回 1
 process.exit(failCount > 0 ? 1 : 0);

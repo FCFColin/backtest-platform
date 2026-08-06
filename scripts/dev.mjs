@@ -3,9 +3,7 @@ import { existsSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { appendFile } from 'node:fs/promises';
 import { createServer, Socket } from 'node:net';
-import { isWin, npxCmd, nodeCmd, PROJECT_ROOT, tsxLoaderUrl } from './_dev-shared.mjs';
-
-const ROOT = PROJECT_ROOT;
+import { isWin, npxCmd, nodeCmd, tsxLoaderUrl } from './_dev-shared.mjs';
 
 if (!tsxLoaderUrl) {
   console.error(

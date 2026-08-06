@@ -14,7 +14,10 @@ const sourceFiles = execSync('git ls-files "*.ts" "*.tsx"', {
   .split('\n')
   .filter((f) => !skip.test(f));
 
-const allSource = sourceFiles.filter(existsSync).map((f) => readFileSync(f, 'utf8')).join('\n');
+const allSource = sourceFiles
+  .filter(existsSync)
+  .map((f) => readFileSync(f, 'utf8'))
+  .join('\n');
 
 const dead = [];
 for (const key of keys) {

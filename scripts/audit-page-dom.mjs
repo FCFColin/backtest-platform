@@ -61,7 +61,9 @@ for (const page of PAGES) {
           ) && t.length < 80,
       );
 
-      const nanTexts = allText.filter((t) => /\bNaN\b|\bundefined\b|\bnull\b/.test(t) && !t.includes('http'));
+      const nanTexts = allText.filter(
+        (t) => /\bNaN\b|\bundefined\b|\bnull\b/.test(t) && !t.includes('http'),
+      );
 
       const emptyRegions = [];
       const scrollHeight = document.documentElement.scrollHeight;

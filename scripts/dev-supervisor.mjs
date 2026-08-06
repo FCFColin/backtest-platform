@@ -1,4 +1,3 @@
-
 import { spawn } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync, unlinkSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
@@ -30,18 +29,11 @@ function savePids(pids) {
   writeFileSync(PID_FILE, JSON.stringify(pids, null, 2), 'utf-8');
 }
 
-// ── 读 PID 文件 ──
-function loadPids() {
-  try {
-    return JSON.parse(readFileSync(PID_FILE, 'utf-8'));
-  } catch {
-    return {};
-  }
-}
-
 // ── 清理 PID 文件 ──
 function cleanPids() {
-  try { unlinkSync(PID_FILE); } catch {}
+  try {
+    unlinkSync(PID_FILE);
+  } catch {}
 }
 
 // ── 防止重复启动（lock file） ──
@@ -97,7 +89,7 @@ const SERVICES = [
 
 // ── 进程管理 ──
 const children = new Map(); // name → { proc, restartCount, lastRestart }
-const shuttingDown = false;
+let shuttingDown = false;
 
 function startService(svc) {
   const child = spawn(nodeCmd, svc.args, {
@@ -106,7 +98,7 @@ function startService(svc) {
     stdio: 'ignore',
     detached: true,
     shell: false,
-    windowsHide: true,  // CREATE_NO_WINDOW — 无控制台窗口
+    windowsHide: true, // CREATE_NO_WINDOW — 无控制台窗口
   });
 
   child.unref();
@@ -172,7 +164,9 @@ function shutdown(signal) {
         info.proc.kill('SIGTERM');
         // 5s 后强杀
         setTimeout(() => {
-          try { info.proc.kill('SIGKILL'); } catch {}
+          try {
+            info.proc.kill('SIGKILL');
+          } catch {}
         }, 5000);
       }
     } catch (err) {
@@ -182,7 +176,9 @@ function shutdown(signal) {
 
   // 清理文件
   cleanPids();
-  try { unlinkSync(LOCK_FILE); } catch {}
+  try {
+    unlinkSync(LOCK_FILE);
+  } catch {}
 
   setTimeout(() => {
     log('supervisor', '退出');
@@ -196,7 +192,9 @@ checkLock();
 if (!existsSync(LOG_DIR)) mkdirSync(LOG_DIR, { recursive: true });
 
 // 清理旧 supervisor 日志
-try { writeFileSync(path.join(LOG_DIR, 'supervisor.log'), '', 'utf-8'); } catch {}
+try {
+  writeFileSync(path.join(LOG_DIR, 'supervisor.log'), '', 'utf-8');
+} catch {}
 
 log('supervisor', `启动 supervisor (PID ${process.pid})`);
 log('supervisor', `项目根目录: ${ROOT}`);

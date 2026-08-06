@@ -22,7 +22,6 @@ export default tseslint.config(
       'playwright-report/**',
       'test-results/**',
       'tests/e2e/ui/coverage/**',
-      'scripts/**',
       'report/**',
     ],
   },
@@ -43,9 +42,9 @@ export default tseslint.config(
     files: ['tests/**/*.ts'],
     languageOptions: { globals: { ...globals.node, ...globals.browser } },
   },
-  // 圈复杂度门控：复杂度 15 / 深度 4 / 函数 80 行 / 参数 5 / 回调 3
+  // 圈复杂度门控（仅 backend：React 组件天然长分支，前端改由 sonarjs 缺省规则约束）
   {
-    files: ['packages/backend/src/**/*.ts', 'packages/frontend/src/**/*.{ts,tsx}'],
+    files: ['packages/backend/src/**/*.ts'],
     plugins: { sonarjs },
     rules: {
       complexity: ['error', { max: 15 }],
@@ -80,7 +79,6 @@ export default tseslint.config(
   {
     files: ['**/*.{ts,tsx,js,jsx,mjs,cjs}'],
     rules: {
-      'no-undef': 'off',
       '@typescript-eslint/no-unused-vars': [
         'error',
         { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
@@ -89,6 +87,23 @@ export default tseslint.config(
       'no-empty': ['error', { allowEmptyCatch: false }],
       'no-console': 'error',
     },
+  },
+  {
+    files: ['**/*.{ts,tsx}'],
+    rules: { 'no-undef': 'off' },
+  },
+  {
+    files: ['**/*.{js,jsx,mjs,cjs}'],
+    languageOptions: { globals: globals.node },
+  },
+  {
+    files: ['tests/**/*.{js,jsx}'],
+    rules: { 'no-undef': 'off' },
+  },
+  {
+    files: ['scripts/**/*.mjs'],
+    languageOptions: { globals: { ...globals.node, ...globals.browser } },
+    rules: { 'no-console': 'off', 'no-empty': ['error', { allowEmptyCatch: true }] },
   },
   eslintConfigPrettier,
 );

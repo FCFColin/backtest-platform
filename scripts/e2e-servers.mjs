@@ -13,7 +13,12 @@ if (!process.env.DATABASE_URL) delete env.DATABASE_URL;
 
 const children = new Set();
 function start(cmd, args, cwd) {
-  const child = spawn(cmd, args, { cwd, env, stdio: 'inherit', shell: process.platform === 'win32' });
+  const child = spawn(cmd, args, {
+    cwd,
+    env,
+    stdio: 'inherit',
+    shell: process.platform === 'win32',
+  });
   children.add(child);
   child.on('exit', () => children.delete(child));
   return child;

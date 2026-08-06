@@ -111,8 +111,8 @@ const missingInZh = [...enKeys].filter((k) => !zhKeys.has(k));
 // Collect all t('xxx') / t("xxx") / i18nKey="xxx" usages from source
 const sourceFiles = walkDir(srcDir, ['.tsx', '.ts']);
 const usedKeys = new Set();
-const keyRegex = /\bt\(['"]([a-zA-Z0-9_.\-]+)['"]/g;
-const i18nKeyRegex = /i18nKey=['"]([a-zA-Z0-9_.\-]+)['"]/g;
+const keyRegex = /\bt\(['"]([a-zA-Z0-9_.-]+)['"]/g;
+const i18nKeyRegex = /i18nKey=['"]([a-zA-Z0-9_.-]+)['"]/g;
 // Also catch useTranslation namespace prefix: t('foo.bar') within ns 'baz' → baz.foo.bar
 // Simple approach: just collect literal keys; namespace resolution handled elsewhere.
 
