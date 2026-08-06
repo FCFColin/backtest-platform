@@ -11,6 +11,7 @@ import { backtestOptimizerSchema } from '../schemas/backtest.js';
 import { tacticalGridSearchSchema } from '../schemas/tactical.js';
 import {
   executeGridSearch,
+  countCombinations,
   MAX_GRID_COMBINATIONS,
   type TacticalGridRequest,
 } from '../application/grid-application-service.js';
@@ -107,10 +108,8 @@ router.post(
   ...computeMiddleware(Permission.STRATEGY_MANAGE),
   validate(tacticalGridSearchSchema),
   (req: Request, res: Response, next: NextFunction) => {
-    const body = req.body as TacticalGridRequest;
-    const p1Count = Math.floor((body.param1.max - body.param1.min) / body.param1.step) + 1;
-    const p2Count = Math.floor((body.param2.max - body.param2.min) / body.param2.step) + 1;
-    if (p1Count * p2Count > MAX_GRID_COMBINATIONS) {
+    const { param1, param2 } = req.body as TacticalGridRequest;
+    if (countCombinations(param1, param2) > MAX_GRID_COMBINATIONS) {
       sendProblem(res, 422, 'GRID_TOO_MANY_COMBINATIONS');
       return;
     }

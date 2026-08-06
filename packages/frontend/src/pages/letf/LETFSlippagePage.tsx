@@ -2,7 +2,7 @@ import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Input } from '@/components/ui/uiComponents';
 import { Field, FieldLabel } from '@/components/form/Field';
-import { LabeledField, RunButton } from '@/components/form/sharedFields';
+import { LabeledField, RunButton, DateField } from '@/components/form/sharedFields';
 import { cn } from '@/lib/utils';
 import { LETFResultsPanel } from './LETFSlippageResults.js';
 import { ComputeToolShell, type ComputeToolConfig } from '../../components/shells/index.js';
@@ -127,22 +127,13 @@ function LETFParamsPanel({ state: s }: { state: LETFState }) {
         </Field>
       </div>
       <div className="grid grid-cols-2 gap-4">
-        <LabeledField htmlFor={startId} label={t('Start Date')}>
-          <Input
-            id={startId}
-            type="date"
-            value={s.startDate}
-            onChange={(e) => s.setStartDate(e.target.value)}
-          />
-        </LabeledField>
-        <LabeledField htmlFor={endId} label={t('End Date')}>
-          <Input
-            id={endId}
-            type="date"
-            value={s.endDate}
-            onChange={(e) => s.setEndDate(e.target.value)}
-          />
-        </LabeledField>
+        <DateField
+          id={startId}
+          label={t('Start Date')}
+          value={s.startDate}
+          onChange={s.setStartDate}
+        />
+        <DateField id={endId} label={t('End Date')} value={s.endDate} onChange={s.setEndDate} />
       </div>
       <RunButton
         isLoading={s.isLoading}

@@ -1,4 +1,3 @@
-import { Play, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Line } from 'recharts';
 import { CHART_COLORS } from '@backtest/shared';
@@ -19,6 +18,7 @@ import {
   Switch,
 } from '@/components/ui/uiComponents';
 import SinglePortfolioEditor from '@/components/PortfolioEditor.js';
+import { RunButton } from '@/components/form/sharedFields';
 import { StatCard } from '@/components/cards.js';
 import { ResultsShell } from '@/components/resultsShell.js';
 import { SortableTable } from '../../components/tables.js';
@@ -157,15 +157,12 @@ export function OptimizerParams({ s }: OptimizerSectionProps) {
       <ObjectiveSection s={s} />
       <BacktestRangeSection s={s} />
       <div className="py-3">
-        <Button
-          variant="primary"
-          className="w-full"
+        <RunButton
+          isLoading={s.result.isLoading}
           onClick={() => void s.runOptimize()}
-          disabled={s.result.isLoading}
-        >
-          {s.result.isLoading ? <Loader2 className="animate-spin" /> : <Play />}
-          {s.result.isLoading ? t('Optimizing...') : t('Start Optimization')}
-        </Button>
+          label={t('Start Optimization')}
+          loadingLabel={t('Optimizing...')}
+        />
       </div>
     </ParamsPanel>
   );

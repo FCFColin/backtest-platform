@@ -1,9 +1,9 @@
 import { useTranslation } from 'react-i18next';
-import { Input, badgeVariants } from '@/components/ui/uiComponents';
+import { badgeVariants } from '@/components/ui/uiComponents';
 import { AllHistoryCheckbox } from '@/components/params/toolFields.js';
 import PortfolioEditor from '../../components/PortfolioEditor.js';
 import { Field, FieldLabel } from '../../components/form/Field.js';
-import { LabeledField, SelectField, RunButton } from '@/components/form/sharedFields';
+import { DateField, SelectField, RunButton } from '@/components/form/sharedFields';
 import { FACTOR_OPTIONS, RF_SOURCE_OPTIONS } from './factorRegressionUtils.js';
 import type { FactorRegressionState } from '@/hooks/useFactorRegressionState.js';
 
@@ -53,22 +53,13 @@ export function FactorRegressionParamsPanel({ state: s }: { state: FactorRegress
           label={t('All History')}
         />
       </Field>
-      <LabeledField htmlFor="fr-start-date" label={t('Start Date')}>
-        <Input
-          id="fr-start-date"
-          type="date"
-          value={s.startDate}
-          onChange={(e) => s.setStartDate(e.target.value)}
-        />
-      </LabeledField>
-      <LabeledField htmlFor="fr-end-date" label={t('End Date')}>
-        <Input
-          id="fr-end-date"
-          type="date"
-          value={s.endDate}
-          onChange={(e) => s.setEndDate(e.target.value)}
-        />
-      </LabeledField>
+      <DateField
+        id="fr-start-date"
+        label={t('Start Date')}
+        value={s.startDate}
+        onChange={s.setStartDate}
+      />
+      <DateField id="fr-end-date" label={t('End Date')} value={s.endDate} onChange={s.setEndDate} />
       <SelectField
         id="fr-freq"
         label={t('Return Frequency')}

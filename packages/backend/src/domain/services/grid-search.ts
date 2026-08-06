@@ -28,18 +28,12 @@ export function validateGridSearchRequest(request: GridSearchDomainRequest): str
   return null;
 }
 
-function generateParamValues(range: GridParamRange): number[] {
-  const values: number[] = [];
-  if (range.step > 0) {
-    for (let v = range.min; v <= range.max + 1e-9; v += range.step) {
-      values.push(Math.round(v * 1000) / 1000);
-    }
-  } else {
-    values.push(range.min);
-  }
-  return values;
+function countRangeValues(range: GridParamRange): number {
+  if (range.step <= 0) return 1;
+  if (range.min > range.max) return 0;
+  return Math.floor((range.max - range.min + 1e-9) / range.step) + 1;
 }
 
 export function countCombinations(param1: GridParamRange, param2: GridParamRange): number {
-  return generateParamValues(param1).length * generateParamValues(param2).length;
+  return countRangeValues(param1) * countRangeValues(param2);
 }

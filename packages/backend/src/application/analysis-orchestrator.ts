@@ -23,34 +23,10 @@ import {
 } from './backtest-helpers.js';
 import type { Warning, DateRangeInfo } from './backtest-helpers.js';
 
-function assembleAnalysisResult(
-  result: Record<string, unknown>,
-  warnings: Warning[],
-  dateRange: DateRangeInfo,
-): Record<string, unknown> & { warnings?: Warning[]; dateRange: DateRangeInfo } {
-  const engineResp = result as { data?: { assets?: unknown[]; correlations?: unknown[][] } };
-  const engineData = engineResp?.data;
-  const finalResult: Record<string, unknown> = {};
-  if (engineData && engineData.assets) {
-    finalResult.tickers = engineData.assets;
-    finalResult.correlations = engineData.correlations || [];
-  } else {
-    Object.assign(finalResult, result);
-  }
-  if (warnings.length > 0) {
-    finalResult.warnings = warnings;
-  }
-  finalResult.dateRange = dateRange;
-  return finalResult as Record<string, unknown> & {
-    warnings?: Warning[];
-    dateRange: DateRangeInfo;
-  };
-}
-
 export async function runAnalysis(
   tickers: string[],
   parameters: BacktestParameters,
-): Promise<Record<string, unknown> & { warnings?: Warning[]; dateRange?: DateRangeInfo }> {
+): Promise<{ data: Record<string, unknown>; warnings: Warning[]; dateRange: DateRangeInfo }> {
   const { priceData, degraded, degradedWarning } = await fetchPriceDataWithRange(
     tickers,
     parameters.startDate,
@@ -83,7 +59,11 @@ export async function runAnalysis(
     missing.length > 0 ? missing : undefined,
   );
 
-  return assembleAnalysisResult(result, warnings, dateRange);
+  const engineData = (result as { data?: { assets?: unknown[]; correlations?: unknown[][] } }).data;
+  const data: Record<string, unknown> = engineData?.assets
+    ? { tickers: engineData.assets, correlations: engineData.correlations || [] }
+    : { ...result };
+  return { data, warnings, dateRange };
 }
 
 export function executePcaAnalyze(

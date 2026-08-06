@@ -1,13 +1,13 @@
 import { useTranslation } from 'react-i18next';
-import { Play, Loader2 } from 'lucide-react';
 import { ComputeToolShell, type ComputeToolConfig } from '@/components/shells/index.js';
 import { REBALANCE_OPTIONS, useRebalancingState } from './rebalancingSensitivityUtils.js';
 import type { RebalancingState } from './rebalancingSensitivityUtils.js';
 import { ResultsPanel } from './ResultsPanel.js';
 import { BasicParamsRow } from '../../components/BacktestParamsForm.js';
 import PortfolioEditor from '../../components/PortfolioEditor.js';
-import { Button, Input } from '@/components/ui/uiComponents';
+import { Input } from '@/components/ui/uiComponents';
 import { Field, FieldLabel } from '@/components/form/Field';
+import { RunButton } from '@/components/form/sharedFields';
 function FreqSelector({ s }: { s: RebalancingState }) {
   const { t } = useTranslation();
   return (
@@ -113,16 +113,13 @@ function RebalancingSensitivityParamsForm({ s }: { s: RebalancingState }) {
         onRemove={s.removeAsset}
         onUpdate={s.updateAsset}
       />
-      <Button
-        type="button"
-        variant="primary"
-        className="w-full"
+      <RunButton
+        isLoading={s.isLoading}
         onClick={() => void s.runSensitivity()}
-        disabled={s.isLoading}
-      >
-        {s.isLoading ? <Loader2 className="animate-spin" /> : <Play />}
-        {s.isLoading ? t('Analyzing...') : t('Start Analysis')}
-      </Button>
+        label={t('Start Analysis')}
+        loadingLabel={t('Analyzing...')}
+        type="button"
+      />
     </div>
   );
 }

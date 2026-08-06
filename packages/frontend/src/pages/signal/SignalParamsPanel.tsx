@@ -10,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/uiComponents';
-import { LabeledField, SectionHeader, RunButton } from '@/components/form/sharedFields';
+import { LabeledField, SectionHeader, RunButton, DateField } from '@/components/form/sharedFields';
 import type { SignalCfg, UseDualSignalStateResult } from './useDualSignalState.js';
 import type { UseSignalAnalyzerStateResult } from './useSignalAnalyzerState.js';
 
@@ -170,22 +170,8 @@ function CombinationAndDateFields({ state }: { state: UseDualSignalStateResult }
         </Select>
       </LabeledField>
       <TickerField value={ticker} onChange={setTicker} />
-      <LabeledField htmlFor={startId} label={t('Start Date')}>
-        <Input
-          id={startId}
-          type="date"
-          value={startDate}
-          onChange={(e) => setStartDate(e.target.value)}
-        />
-      </LabeledField>
-      <LabeledField htmlFor={endId} label={t('End Date')}>
-        <Input
-          id={endId}
-          type="date"
-          value={endDate}
-          onChange={(e) => setEndDate(e.target.value)}
-        />
-      </LabeledField>
+      <DateField id={startId} label={t('Start Date')} value={startDate} onChange={setStartDate} />
+      <DateField id={endId} label={t('End Date')} value={endDate} onChange={setEndDate} />
     </div>
   );
 }
@@ -301,22 +287,8 @@ function SignalConfigSection({ state }: { state: UseSignalAnalyzerStateResult })
             </SelectContent>
           </Select>
         </LabeledField>
-        <LabeledField htmlFor={startId} label={t('Start Date')}>
-          <Input
-            id={startId}
-            type="date"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-          />
-        </LabeledField>
-        <LabeledField htmlFor={endId} label={t('End Date')}>
-          <Input
-            id={endId}
-            type="date"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-          />
-        </LabeledField>
+        <DateField id={startId} label={t('Start Date')} value={startDate} onChange={setStartDate} />
+        <DateField id={endId} label={t('End Date')} value={endDate} onChange={setEndDate} />
       </div>
     </section>
   );

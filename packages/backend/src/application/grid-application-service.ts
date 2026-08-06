@@ -8,7 +8,7 @@ import {
   type GridSearchDomainRequest,
 } from '../domain/services/grid-search.js';
 
-export { MAX_GRID_COMBINATIONS };
+export { MAX_GRID_COMBINATIONS, countCombinations };
 
 export type TacticalGridRequest = GridSearchDomainRequest;
 

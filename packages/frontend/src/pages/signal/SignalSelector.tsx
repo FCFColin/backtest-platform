@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Plus, X } from 'lucide-react';
 import { Button, Input, Label, RadioGroup, RadioGroupItem } from '@/components/ui/uiComponents';
 import { Field, FieldLabel, FieldDescription } from '@/components/form/Field';
+import { DateField } from '@/components/form/sharedFields';
 import { IndicatorSelect, RunAnalysisButton, TickerField } from './SignalParamsPanel.js';
 import type { UseMultiSignalStateResult } from './hooks/useMultiSignalState.js';
 import type { AggregationMethod, SignalItem } from './signalTypes.js';
@@ -163,24 +164,8 @@ function BacktestParamsSection({ state }: { state: UseMultiSignalStateResult }) 
       <h3 className="text-h3 text-fg">{t('Backtest Parameters')}</h3>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <TickerField value={ticker} onChange={setTicker} />
-        <Field>
-          <FieldLabel htmlFor={startId}>{t('Start Date')}</FieldLabel>
-          <Input
-            id={startId}
-            type="date"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-          />
-        </Field>
-        <Field>
-          <FieldLabel htmlFor={endId}>{t('End Date')}</FieldLabel>
-          <Input
-            id={endId}
-            type="date"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-          />
-        </Field>
+        <DateField id={startId} label={t('Start Date')} value={startDate} onChange={setStartDate} />
+        <DateField id={endId} label={t('End Date')} value={endDate} onChange={setEndDate} />
       </div>
     </section>
   );

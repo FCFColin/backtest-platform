@@ -52,6 +52,24 @@ export function LabeledField({
   );
 }
 
+export function DateField({
+  id,
+  label,
+  value,
+  onChange,
+}: {
+  id?: string;
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <LabeledField htmlFor={id} label={label}>
+      <Input id={id} type="date" value={value} onChange={(e) => onChange(e.target.value)} />
+    </LabeledField>
+  );
+}
+
 export function SelectField<T extends string>({
   id,
   label,
@@ -125,24 +143,25 @@ export function RunButton({
   label,
   loadingLabel,
   variant = 'primary',
-  size,
   className = 'w-full',
+  disabled,
+  ...rest
 }: {
   isLoading: boolean;
   onClick: () => void;
   label: string;
   loadingLabel: string;
   variant?: ComponentProps<typeof Button>['variant'];
-  size?: ComponentProps<typeof Button>['size'];
   className?: string;
-}) {
+  disabled?: boolean;
+} & ComponentProps<typeof Button>) {
   return (
     <Button
       variant={variant}
-      size={size}
       onClick={onClick}
-      disabled={isLoading}
+      disabled={isLoading || disabled}
       className={className}
+      {...rest}
     >
       {isLoading ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" />}
       {isLoading ? loadingLabel : label}

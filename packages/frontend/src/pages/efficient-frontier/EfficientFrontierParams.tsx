@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { Checkbox, Input } from '@/components/ui/uiComponents';
 import { Field, FieldLabel } from '@/components/form/Field';
-import { SectionHeader, SelectField, RunButton } from '@/components/form/sharedFields';
+import { SectionHeader, SelectField, RunButton, DateField } from '@/components/form/sharedFields';
 import { TickerTagInput } from '../../components/form/TickerTagInput.js';
 import { useTagDiff, AllHistoryCheckbox } from '@/components/params/toolFields.js';
 import type { SolveSpeed, FrontierSolver, ReturnObjective } from './EfficientFrontierUtils.js';
@@ -50,14 +50,8 @@ function DateAndPointsGrid({ s }: { s: FrontierState }) {
   const { t } = useTranslation();
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-      <Field>
-        <FieldLabel>{t('Start Date')}</FieldLabel>
-        <Input type="date" value={s.startDate} onChange={(e) => s.setStartDate(e.target.value)} />
-      </Field>
-      <Field>
-        <FieldLabel>{t('End Date')}</FieldLabel>
-        <Input type="date" value={s.endDate} onChange={(e) => s.setEndDate(e.target.value)} />
-      </Field>
+      <DateField label={t('Start Date')} value={s.startDate} onChange={s.setStartDate} />
+      <DateField label={t('End Date')} value={s.endDate} onChange={s.setEndDate} />
       <Field>
         <FieldLabel>{t('Sample Points')}</FieldLabel>
         <Input

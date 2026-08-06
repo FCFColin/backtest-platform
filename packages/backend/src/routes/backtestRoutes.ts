@@ -1,7 +1,6 @@
 import { Router, type Request, type Response } from 'express';
 import type { Portfolio, BacktestParameters } from '@backtest/shared';
 import { runAnalysis } from '../application/analysis-orchestrator.js';
-import type { Warning } from '../application/backtest-helpers.js';
 import { runMonteCarlo } from '../application/montecarlo-service.js';
 import { runOptimization, runEfficientFrontier } from '../application/optimize-service.js';
 import {
@@ -141,12 +140,7 @@ router.post(
       tickers: string[];
       parameters: BacktestParameters;
     };
-    const result = (await runAnalysis(tickers, parameters)) as Record<string, unknown> & {
-      warnings?: Warning[];
-      dateRange?: unknown;
-    };
-    const { warnings, dateRange, ...data } = result;
-    return { data, warnings, dateRange };
+    return runAnalysis(tickers, parameters);
   }),
 );
 

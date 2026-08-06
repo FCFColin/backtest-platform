@@ -13,13 +13,7 @@ import {
   YAxis,
 } from 'recharts';
 import { CHART_COLORS, type PCAResult } from '@backtest/shared';
-import {
-  Card,
-  buttonVariants,
-  Input,
-  LoadingButton,
-  AffixInput,
-} from '@/components/ui/uiComponents';
+import { Card, buttonVariants, LoadingButton, AffixInput } from '@/components/ui/uiComponents';
 import { CollapsibleSection } from '@/components/cards.js';
 import { ResultsShell } from '@/components/resultsShell.js';
 import { useComputeTool, useListState } from '../../hooks/miscHooks.js';
@@ -37,7 +31,7 @@ import {
 import { TimeSeriesLineChart } from '@/components/charts/TimeSeriesLineChart.js';
 import { MatrixHeatmap } from '@/components/charts/tables.js';
 import { Field, FieldLabel, FieldDescription } from '../../components/form/Field.js';
-import { LabeledField } from '../../components/form/sharedFields.js';
+import { DateField } from '../../components/form/sharedFields.js';
 import { TickerTagInput } from '../../components/form/TickerTagInput.js';
 import { ComputeToolShell, type ComputeToolConfig } from '../../components/shells/index.js';
 import { useTagDiff } from '@/components/params/toolFields.js';
@@ -129,22 +123,18 @@ function PCAParamsPanel({ state: s }: { state: PCAState }) {
           </FieldDescription>
         </Field>
       </div>
-      <LabeledField htmlFor="pca-start-date" label={t('Start Date')}>
-        <Input
-          id="pca-start-date"
-          type="date"
-          value={s.startDate}
-          onChange={(e) => s.setStartDate(e.target.value)}
-        />
-      </LabeledField>
-      <LabeledField htmlFor="pca-end-date" label={t('End Date')}>
-        <Input
-          id="pca-end-date"
-          type="date"
-          value={s.endDate}
-          onChange={(e) => s.setEndDate(e.target.value)}
-        />
-      </LabeledField>
+      <DateField
+        id="pca-start-date"
+        label={t('Start Date')}
+        value={s.startDate}
+        onChange={s.setStartDate}
+      />
+      <DateField
+        id="pca-end-date"
+        label={t('End Date')}
+        value={s.endDate}
+        onChange={s.setEndDate}
+      />
       <Field>
         <FieldLabel htmlFor="pca-num-components">{t('Number of Components')}</FieldLabel>
         <AffixInput

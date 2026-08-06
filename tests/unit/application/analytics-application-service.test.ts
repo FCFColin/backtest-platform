@@ -274,7 +274,7 @@ describe('analysis-service', () => {
         '/api/engine/analysis',
         expect.objectContaining({ tickers: ['AAPL', 'SPY'], priceData: mockPriceData }),
       );
-      expect(result).toMatchObject({
+      expect(result.data).toMatchObject({
         tickers: ['AAPL', 'SPY'],
         correlations: [
           [1, 0.5],
@@ -282,7 +282,7 @@ describe('analysis-service', () => {
         ],
       });
       expect(result.dateRange).toBeDefined();
-      expect(result.warnings).toBeUndefined();
+      expect(result.warnings).toEqual([]);
     });
     it('数据降级时应添加 DATA_DEGRADED 警告', async () => {
       helpersMocks.fetchPriceDataWithRange.mockResolvedValue({
@@ -323,7 +323,7 @@ describe('analysis-service', () => {
       });
       mockEngine({ foo: 'bar', baz: 123 });
       const result = await runAnalysis(['AAPL', 'SPY'], params);
-      expect(result).toMatchObject({ foo: 'bar', baz: 123 });
+      expect(result.data).toMatchObject({ foo: 'bar', baz: 123 });
       expect(result.dateRange).toBeDefined();
     });
   });

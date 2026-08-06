@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { Play, Loader2, FolderOpen, Trash2, X, ChevronDown } from 'lucide-react';
+import { FolderOpen, Trash2, X, ChevronDown } from 'lucide-react';
 import { Card, Button, Input } from '@/components/ui/uiComponents';
 import { ComputeToolShell, type ComputeToolConfig } from '../../components/shells/index.js';
 import BacktestParamsForm from '@/components/BacktestParamsForm.js';
@@ -9,6 +9,7 @@ import type { TFunction } from 'i18next';
 import type { BacktestParameters, Portfolio } from '@backtest/shared';
 import type { SavedPortfolio } from '@/utils/portfolioStorage';
 import { useBacktestPageState } from './hooks/useBacktestPageState.js';
+import { RunButton } from '@/components/form/sharedFields';
 import { ResultsContent } from './BacktestResults.js';
 import { BacktestHero } from './BacktestHero.js';
 export interface BacktestPageState {
@@ -151,15 +152,14 @@ function BacktestToolbar(props: BacktestToolbarProps) {
   return (
     <div className="mt-3 flex flex-col gap-2 border-t border-border-subtle pt-4">
       <div className="flex items-center gap-2">
-        <Button
-          variant="primary"
+        <RunButton
+          isLoading={isLoading}
           onClick={props.runBacktest}
-          disabled={isLoading || portfolioCount === 0}
+          label={t('BACKTEST')}
+          loadingLabel={t('Backtesting...')}
+          disabled={portfolioCount === 0}
           data-testid="backtest-run"
-        >
-          {isLoading ? <Loader2 className="animate-spin" /> : <Play />}
-          {isLoading ? t('Backtesting...') : t('BACKTEST')}
-        </Button>
+        />
         <Button variant="secondary" onClick={() => void props.handleOpenLoadList()}>
           <FolderOpen />
           {t('LOAD SAVED BACKTEST')}

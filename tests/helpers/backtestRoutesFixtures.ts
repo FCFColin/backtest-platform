@@ -100,9 +100,13 @@ export function configureAnalysisMocks(m: BacktestMockHandles): void {
     const result = await m.callEngineStrict('/api/engine/analysis', { tickers });
     const engineData = (result as { data?: { assets?: unknown[]; correlations?: unknown[][] } })
       ?.data;
-    if (engineData?.assets)
-      return { tickers: engineData.assets, correlations: engineData.correlations || [] };
-    return result;
+    return {
+      data: engineData?.assets
+        ? { tickers: engineData.assets, correlations: engineData.correlations || [] }
+        : result,
+      warnings: [],
+      dateRange: undefined,
+    };
   });
 }
 
