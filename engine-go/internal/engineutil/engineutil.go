@@ -106,6 +106,13 @@ func NormalizeWeights(weights []float64) []float64 {
 const TradingDaysPerYear = 252.0
 const RiskFreeRate = 0.02
 
+func DefaultStartingValue(v float64) float64 {
+	if v <= 0 {
+		return 10000
+	}
+	return v
+}
+
 func IterDrawdowns(values []float64, fn func(idx, peakIdx int, peak float64)) {
 	if len(values) == 0 {
 		return
@@ -229,19 +236,9 @@ func WeightedDailyReturns(tickers []string, weights []float64, priceData map[str
 	return returns
 }
 
-/**
- * 组合日收益：对齐共有交易日 → 过滤日期区间 → 按绝对值权重归一化 → 加权日收益。
- * 日期用字符串区间比较（交集语义）；并集语义的调用方自行实现（见 montecarlo）。
- */
 func PortfolioDailyReturns(tickers []string, weights []float64, priceData map[string]map[string]float64, startDate, endDate string, requireBoth, normalize bool) []float64 {
-	dates := AlignDates(tickers, priceData)
-	var common []string
-	for _, d := range dates {
-		if d >= startDate && d <= endDate {
-			common = append(common, d)
-		}
-	}
-	if len(common) < 2 {
+	dates := FilterDates(AlignDates(tickers, priceData), startDate, endDate)
+	if len(dates) < 2 {
 		return nil
 	}
 	total := 0.0
@@ -255,7 +252,7 @@ func PortfolioDailyReturns(tickers []string, weights []float64, priceData map[st
 	for i, w := range weights {
 		norm[i] = math.Abs(w) / total
 	}
-	return WeightedDailyReturns(tickers, norm, priceData, common, requireBoth, normalize)
+	return WeightedDailyReturns(tickers, norm, priceData, dates, requireBoth, normalize)
 }
 
 type PricePoint struct {

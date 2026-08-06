@@ -6,44 +6,32 @@ import (
 	"sort"
 )
 
+func normalizedSol(name string, v []float64) ([]float64, error) {
+	sum := 0.0
+	for _, x := range v {
+		sum += x
+	}
+	if math.Abs(sum) < 1e-15 {
+		return nil, fmt.Errorf("%s: denominator is zero", name)
+	}
+	for i := range v {
+		v[i] /= sum
+	}
+	return v, nil
+}
 func tangentPortfolio(mu []float64, sigmaInv [][]float64) ([]float64, error) {
-	n := len(mu)
-	excess := make([]float64, n)
+	excess := make([]float64, len(mu))
 	for i := range excess {
 		excess[i] = mu[i] - riskFreeRate
 	}
-	rawW := denseMulVec(sigmaInv, excess)
-	sumRaw := 0.0
-	for _, v := range rawW {
-		sumRaw += v
-	}
-	if math.Abs(sumRaw) < 1e-15 {
-		return nil, fmt.Errorf("tangent portfolio: denominator is zero")
-	}
-	for i := range rawW {
-		rawW[i] /= sumRaw
-	}
-	return rawW, nil
+	return normalizedSol("tangent portfolio", denseMulVec(sigmaInv, excess))
 }
 func closedFormMinVolatility(sigmaInv [][]float64) ([]float64, error) {
-	n := len(sigmaInv)
-	ones := make([]float64, n)
+	ones := make([]float64, len(sigmaInv))
 	for i := range ones {
 		ones[i] = 1.0
 	}
-	sigmaInvOnes := denseMulVec(sigmaInv, ones)
-	denom := 0.0
-	for _, v := range sigmaInvOnes {
-		denom += v
-	}
-	if math.Abs(denom) < 1e-15 {
-		return nil, fmt.Errorf("closed form: denominator is zero")
-	}
-	weights := make([]float64, n)
-	for i := range weights {
-		weights[i] = sigmaInvOnes[i] / denom
-	}
-	return weights, nil
+	return normalizedSol("closed form", denseMulVec(sigmaInv, ones))
 }
 func optimizeMinVolatility(mu []float64, sigma [][]float64, c Constraints, numIter int) []float64 {
 	n := len(mu)
@@ -101,14 +89,12 @@ func optimizeMaxSharpeSubset(mu []float64, sigma [][]float64, c Constraints, num
 		}
 		k := len(indices)
 		subMu := make([]float64, k)
+		subSigma := make([][]float64, k)
 		for i, idx := range indices {
 			subMu[i] = mu[idx]
-		}
-		subSigma := make([][]float64, k)
-		for i := 0; i < k; i++ {
 			subSigma[i] = make([]float64, k)
 			for j := 0; j < k; j++ {
-				subSigma[i][j] = sigma[indices[i]][indices[j]]
+				subSigma[i][j] = sigma[idx][indices[j]]
 			}
 		}
 		subSigmaInv, err := invertDense(subSigma)

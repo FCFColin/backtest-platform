@@ -31,41 +31,32 @@ func generateGridSignals(indicator string, prices []float64, dates []string, p1,
 	prevDate := ""
 	ind := strings.ToLower(indicator)
 	threshold := p2 / 100
-	var rsi, ma []float64
+	var series []float64
+	var enter, exit func(int) bool
 	switch ind {
 	case "rsi":
-		rsi = indicators.CalcRSI(prices, int(p1))
-	case "sma":
-		ma = indicators.CalcSMA(prices, int(p1))
-	case "ema":
-		ma = indicators.CalcEMA(prices, int(p1))
+		series = indicators.CalcRSI(prices, int(p1))
+		enter = func(i int) bool { return series[i] < p2 }
+		exit = func(i int) bool { return series[i] > 100-p2 }
+	case "sma", "ema":
+		series = indicators.CalcSMA(prices, int(p1))
+		if ind == "ema" {
+			series = indicators.CalcEMA(prices, int(p1))
+		}
+		enter = func(i int) bool { return prices[i] > series[i]*(1+threshold) }
+		exit = func(i int) bool { return prices[i] < series[i]*(1-threshold) }
 	}
 	for i := 0; i < len(prices); i++ {
 		canRebalance := engineutil.ShouldRebalance(freq, prevDate, dates[i], 0, nil, nil, 0, nil)
-		if ind == "rsi" {
-			if math.IsNaN(rsi[i]) {
-				signals[i], prevDate = inPos, dates[i]
-				continue
-			}
-			if canRebalance {
-				if !inPos && rsi[i] < p2 {
-					inPos = true
-				} else if inPos && rsi[i] > 100-p2 {
-					inPos = false
-				}
-			}
-		} else {
-			if math.IsNaN(ma[i]) {
-				signals[i], prevDate = inPos, dates[i]
-				continue
-			}
-			upper, lower := ma[i]*(1+threshold), ma[i]*(1-threshold)
-			if canRebalance {
-				if !inPos && prices[i] > upper {
-					inPos = true
-				} else if inPos && prices[i] < lower {
-					inPos = false
-				}
+		if math.IsNaN(series[i]) {
+			signals[i], prevDate = inPos, dates[i]
+			continue
+		}
+		if canRebalance {
+			if !inPos && enter(i) {
+				inPos = true
+			} else if inPos && exit(i) {
+				inPos = false
 			}
 		}
 		signals[i], prevDate = inPos, dates[i]

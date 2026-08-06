@@ -29,7 +29,6 @@ import (
 
 var metricsRegistry = prometheus.NewRegistry()
 
-// Init 初始化 TracerProvider 与 Prometheus /metrics 处理器。
 //
 // 当 OTEL_EXPORTER_OTLP_ENDPOINT 设置时，trace 通过 OTLP HTTP 导出到 SaaS 后端
 // （Honeycomb / Datadog / Axiom）。OTEL_EXPORTER_OTLP_HEADERS 用于注入鉴权头。

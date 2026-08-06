@@ -7,32 +7,25 @@ import (
 )
 
 func TestAnalyzeSlippage_InsufficientData(t *testing.T) {
-	t.Run("空序列返回错误", func(t *testing.T) {
-		req := LETFRequest{LETFSeries: []engineutil.PricePoint{}, BenchSeries: []engineutil.PricePoint{}, Leverage: 2}
-		r, err := AnalyzeSlippage(req)
-		if err == nil {
-			t.Errorf("应返回错误, got %+v", r)
-		}
-		if r != nil {
-			t.Errorf("错误时应返回 nil, got %+v", r)
-		}
-	})
-	t.Run("仅1个交易日返回错误", func(t *testing.T) {
-		req := LETFRequest{LETFSeries: []engineutil.PricePoint{{Date: "2024-01-01", Price: 100}}, BenchSeries: []engineutil.PricePoint{{Date: "2024-01-01", Price: 100}}, Leverage: 2}
-		if _, err := AnalyzeSlippage(req); err == nil {
-			t.Errorf("至少需要 2 个交易日, 应返回错误")
-		}
-	})
-	t.Run("日期不匹配返回错误", func(t *testing.T) {
-		req := LETFRequest{
-			LETFSeries:  []engineutil.PricePoint{{Date: "2024-01-01", Price: 100}, {Date: "2024-01-02", Price: 110}},
-			BenchSeries: []engineutil.PricePoint{{Date: "2024-02-01", Price: 100}, {Date: "2024-02-02", Price: 110}},
-			Leverage:    2,
-		}
-		if _, err := AnalyzeSlippage(req); err == nil {
-			t.Errorf("无对齐日期应返回错误")
-		}
-	})
+	cases := []struct {
+		name string
+		req  LETFRequest
+	}{
+		{"空序列", LETFRequest{LETFSeries: []engineutil.PricePoint{}, BenchSeries: []engineutil.PricePoint{}, Leverage: 2}},
+		{"仅1个交易日", LETFRequest{LETFSeries: []engineutil.PricePoint{{Date: "2024-01-01", Price: 100}}, BenchSeries: []engineutil.PricePoint{{Date: "2024-01-01", Price: 100}}, Leverage: 2}},
+		{"日期不匹配", LETFRequest{LETFSeries: []engineutil.PricePoint{{Date: "2024-01-01", Price: 100}, {Date: "2024-01-02", Price: 110}}, BenchSeries: []engineutil.PricePoint{{Date: "2024-02-01", Price: 100}, {Date: "2024-02-02", Price: 110}}, Leverage: 2}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			r, err := AnalyzeSlippage(c.req)
+			if err == nil {
+				t.Errorf("应返回错误, got %+v", r)
+			}
+			if r != nil {
+				t.Errorf("错误时应返回 nil, got %+v", r)
+			}
+		})
+	}
 }
 func TestAnalyzeSlippage_NoSlippage(t *testing.T) {
 	req := LETFRequest{

@@ -2,6 +2,7 @@
 package goaloptimizer
 
 import (
+	"engine-go/internal/engine"
 	"engine-go/internal/engineutil"
 	"engine-go/internal/mathutil"
 	"math"
@@ -108,10 +109,7 @@ func OptimizeGoals(req GoalOptimizerRequest) (*GoalOptimizerResult, error) {
 				}
 			}
 		}
-		vol := 0.0
-		if len(dailyRets) > 1 {
-			vol = mathutil.Std(dailyRets) * math.Sqrt(tradingDaysPerYear)
-		}
+		vol := engine.CalcAnnualizedStdev(dailyRets)
 		paths[s] = path
 		metrics[s] = pathMetrics{finalValue: path[len(path)-1], maxDrawdown: maxDD, volatility: vol}
 	}

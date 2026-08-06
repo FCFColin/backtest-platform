@@ -66,7 +66,6 @@ func bindJSON[T any](c *gin.Context, code, msg string, req *T) bool {
 	return true
 }
 
-// bindCompute runs fn after optional validation (nil validate or empty code = validation passed).
 func bindCompute[T any, R any](c *gin.Context, code, bindMsg, errMsg, spanName string, validate func(T) (string, string), fn func(context.Context, T) (R, error)) {
 	var req T
 	if !bindJSON(c, code, bindMsg, &req) {

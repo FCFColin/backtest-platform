@@ -17,13 +17,11 @@ import (
 // 收口到 go-shared 后仅需按服务传入 header/env 名称与提示文案。
 // 使用常量时间比较防止时序侧信道泄露 token 信息。
 //
-// 参数：
 //   - headerName: 承载 token 的请求头名称（如 "X-Engine-Auth"）
 //   - envVarName: 存储期望 token 的环境变量名（如 "ENGINE_AUTH_TOKEN"）
 //   - missingHeaderMsg: 请求头缺失时返回的错误提示
 //   - noTokenMsg: 服务端未配置 token 时返回的错误提示
 //
-// 返回：gin.HandlerFunc，未通过认证时以 401 中断请求。
 func SharedTokenAuthMiddleware(headerName, envVarName, missingHeaderMsg, noTokenMsg string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		expected := strings.TrimSpace(os.Getenv(envVarName))

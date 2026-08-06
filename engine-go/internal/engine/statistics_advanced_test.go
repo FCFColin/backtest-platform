@@ -5,9 +5,13 @@ import (
 	"testing"
 )
 
-func assertFloatApprox(t *testing.T, got, want float64, label string) {
+func assertFloatApprox(t *testing.T, got, want float64, label string, tol ...float64) {
 	t.Helper()
-	if math.Abs(got-want) > 1e-10 {
+	eps := 1e-10
+	if len(tol) > 0 {
+		eps = tol[0]
+	}
+	if math.Abs(got-want) > eps {
 		t.Errorf("%s = %v, want %v", label, got, want)
 	}
 }

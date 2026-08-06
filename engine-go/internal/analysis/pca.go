@@ -30,59 +30,33 @@ func PerformPCA(req PCARequest) (*PCAResult, error) {
 	}
 	nTickers := len(tickers)
 	nDates := len(commonDates)
-	prices := make([][]float64, nDates)
-	for i := range prices {
-		prices[i] = make([]float64, nTickers)
-		for j := 0; j < nTickers; j++ {
-			prices[i][j] = priceData[tickers[j]][commonDates[i]]
-		}
-	}
 	nReturns := nDates - 1
-	returns := make([][]float64, nReturns)
-	for i := 0; i < nReturns; i++ {
-		returns[i] = make([]float64, nTickers)
-		for j := 0; j < nTickers; j++ {
-			prev := prices[i][j]
-			curr := prices[i+1][j]
-			if prev != 0 {
-				returns[i][j] = (curr - prev) / prev
-			}
+	returns := make([][]float64, nTickers)
+	for j := 0; j < nTickers; j++ {
+		col := make([]float64, nDates)
+		for i, d := range commonDates {
+			col[i] = priceData[tickers[j]][d]
 		}
+		returns[j] = mathutil.DailyReturnsWithZeros(col)
 	}
-	means := make([]float64, nTickers)
+	stdReturns := make([][]float64, nTickers)
 	stds := make([]float64, nTickers)
 	for j := 0; j < nTickers; j++ {
-		col := make([]float64, nReturns)
-		for i := 0; i < nReturns; i++ {
-			col[i] = returns[i][j]
-		}
-		means[j] = mathutil.Mean(col)
-		stds[j] = mathutil.Std(col)
+		stds[j] = mathutil.Std(returns[j])
 		if stds[j] == 0 {
 			stds[j] = 1
 		}
-	}
-	stdReturns := make([][]float64, nReturns)
-	for i := 0; i < nReturns; i++ {
-		stdReturns[i] = make([]float64, nTickers)
-		for j := 0; j < nTickers; j++ {
-			stdReturns[i][j] = (returns[i][j] - means[j]) / stds[j]
+		mean := mathutil.Mean(returns[j])
+		stdReturns[j] = make([]float64, nReturns)
+		for i := range stdReturns[j] {
+			stdReturns[j][i] = (returns[j][i] - mean) / stds[j]
 		}
 	}
 	cov := make([][]float64, nTickers)
 	for j := range cov {
 		cov[j] = make([]float64, nTickers)
-	}
-	stdCols := make([][]float64, nTickers)
-	for j := 0; j < nTickers; j++ {
-		stdCols[j] = make([]float64, nReturns)
-		for i := 0; i < nReturns; i++ {
-			stdCols[j][i] = stdReturns[i][j]
-		}
-	}
-	for j := 0; j < nTickers; j++ {
 		for k := 0; k < nTickers; k++ {
-			cov[j][k] = mathutil.Covariance(stdCols[j], stdCols[k])
+			cov[j][k] = mathutil.Covariance(stdReturns[j], stdReturns[k])
 		}
 	}
 	covFlat := make([]float64, nTickers*nTickers)
@@ -149,7 +123,7 @@ func PerformPCA(req PCARequest) (*PCAResult, error) {
 		for compIdx := 0; compIdx < nTickers; compIdx++ {
 			sum := 0.0
 			for j := 0; j < nTickers; j++ {
-				sum += stdReturns[i][j] * sortedEigenvectors[j][compIdx]
+				sum += stdReturns[j][i] * sortedEigenvectors[j][compIdx]
 			}
 			scores[i][compIdx] = sum
 		}

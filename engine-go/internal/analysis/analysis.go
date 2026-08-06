@@ -40,10 +40,7 @@ func RunAnalysis(ctx context.Context, req AnalysisRequest) (AnalysisResult, erro
 	if len(req.Tickers) == 0 {
 		return AnalysisResult{}, nil
 	}
-	startingValue := req.Params.StartingValue
-	if startingValue <= 0 {
-		startingValue = 10000
-	}
+	startingValue := engineutil.DefaultStartingValue(req.Params.StartingValue)
 	rollingWindowMonths := req.Params.RollingWindowMonths
 	if rollingWindowMonths <= 0 {
 		rollingWindowMonths = 12

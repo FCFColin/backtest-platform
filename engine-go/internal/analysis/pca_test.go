@@ -6,28 +6,25 @@ import (
 )
 
 func TestPerformPCA_InsufficientData(t *testing.T) {
-	t.Run("空tickers返回错误", func(t *testing.T) {
-		req := PCARequest{Tickers: []string{}, PriceData: map[string]map[string]float64{}}
-		r, err := PerformPCA(req)
-		if err == nil {
-			t.Errorf("应返回错误, got result=%+v", r)
-		}
-		if r != nil {
-			t.Errorf("错误时应返回 nil result, got %+v", r)
-		}
-	})
-	t.Run("PriceData为空返回错误", func(t *testing.T) {
-		req := PCARequest{Tickers: []string{"A", "B"}, PriceData: map[string]map[string]float64{}}
-		if _, err := PerformPCA(req); err == nil {
-			t.Errorf("应返回错误")
-		}
-	})
-	t.Run("仅1个交易日返回错误", func(t *testing.T) {
-		req := PCARequest{Tickers: []string{"A", "B"}, PriceData: map[string]map[string]float64{"A": {"2024-01-01": 100}, "B": {"2024-01-01": 100}}}
-		if _, err := PerformPCA(req); err == nil {
-			t.Errorf("至少需要2个交易日, 应返回错误")
-		}
-	})
+	cases := []struct {
+		name string
+		req  PCARequest
+	}{
+		{"空tickers", PCARequest{Tickers: []string{}, PriceData: map[string]map[string]float64{}}},
+		{"PriceData为空", PCARequest{Tickers: []string{"A", "B"}, PriceData: map[string]map[string]float64{}}},
+		{"仅1个交易日", PCARequest{Tickers: []string{"A", "B"}, PriceData: map[string]map[string]float64{"A": {"2024-01-01": 100}, "B": {"2024-01-01": 100}}}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			r, err := PerformPCA(c.req)
+			if err == nil {
+				t.Errorf("应返回错误, got result=%+v", r)
+			}
+			if r != nil {
+				t.Errorf("错误时应返回 nil result, got %+v", r)
+			}
+		})
+	}
 }
 func TestPerformPCA_SingleTicker(t *testing.T) {
 	req := PCARequest{Tickers: []string{"A"}, PriceData: map[string]map[string]float64{"A": {"2024-01-01": 100, "2024-01-02": 110, "2024-01-03": 105, "2024-01-04": 115}}}

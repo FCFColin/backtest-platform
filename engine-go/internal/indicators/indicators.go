@@ -5,11 +5,16 @@ import "math"
 
 var nan = math.NaN()
 
-func CalcSMA(prices []float64, period int) []float64 {
-	result := make([]float64, len(prices))
+func NanSeries(n int) []float64 {
+	result := make([]float64, n)
 	for i := range result {
 		result[i] = nan
 	}
+	return result
+}
+
+func CalcSMA(prices []float64, period int) []float64 {
+	result := NanSeries(len(prices))
 	if period <= 0 {
 		return result
 	}
@@ -26,10 +31,7 @@ func CalcSMA(prices []float64, period int) []float64 {
 	return result
 }
 func CalcEMA(prices []float64, period int) []float64 {
-	result := make([]float64, len(prices))
-	for i := range result {
-		result[i] = nan
-	}
+	result := NanSeries(len(prices))
 	if len(prices) == 0 || period <= 0 {
 		return result
 	}
@@ -40,11 +42,14 @@ func CalcEMA(prices []float64, period int) []float64 {
 	}
 	return result
 }
-func CalcRSI(prices []float64, period int) []float64 {
-	result := make([]float64, len(prices))
-	for i := range result {
-		result[i] = nan
+func rsiValue(avgGain, avgLoss float64) float64 {
+	if avgLoss == 0 {
+		return 100
 	}
+	return 100 - 100/(1+avgGain/avgLoss)
+}
+func CalcRSI(prices []float64, period int) []float64 {
+	result := NanSeries(len(prices))
 	if len(prices) <= period || period <= 0 {
 		return result
 	}
@@ -60,11 +65,7 @@ func CalcRSI(prices []float64, period int) []float64 {
 	}
 	avgGain := gainSum / float64(period)
 	avgLoss := lossSum / float64(period)
-	if avgLoss == 0 {
-		result[period] = 100
-	} else {
-		result[period] = 100 - 100/(1+avgGain/avgLoss)
-	}
+	result[period] = rsiValue(avgGain, avgLoss)
 	for i := period + 1; i < len(prices); i++ {
 		diff := prices[i] - prices[i-1]
 		gain, loss := 0.0, 0.0
@@ -75,11 +76,7 @@ func CalcRSI(prices []float64, period int) []float64 {
 		}
 		avgGain = (avgGain*float64(period-1) + gain) / float64(period)
 		avgLoss = (avgLoss*float64(period-1) + loss) / float64(period)
-		if avgLoss == 0 {
-			result[i] = 100
-		} else {
-			result[i] = 100 - 100/(1+avgGain/avgLoss)
-		}
+		result[i] = rsiValue(avgGain, avgLoss)
 	}
 	return result
 }
@@ -103,12 +100,8 @@ func CalcMACDHist(prices []float64) []float64 {
 }
 func CalcBollinger(prices []float64, period int, mult float64) (upper, middle, lower []float64) {
 	middle = CalcSMA(prices, period)
-	upper = make([]float64, len(prices))
-	lower = make([]float64, len(prices))
-	for i := range upper {
-		upper[i] = nan
-		lower[i] = nan
-	}
+	upper = NanSeries(len(prices))
+	lower = NanSeries(len(prices))
 	for i := period - 1; i < len(prices); i++ {
 		if math.IsNaN(middle[i]) {
 			continue
@@ -125,10 +118,7 @@ func CalcBollinger(prices []float64, period int, mult float64) (upper, middle, l
 }
 func CalcBollingerPctB(prices []float64, period int) []float64 {
 	sma := CalcSMA(prices, period)
-	result := make([]float64, len(prices))
-	for i := range result {
-		result[i] = nan
-	}
+	result := NanSeries(len(prices))
 	for i := period - 1; i < len(prices); i++ {
 		if math.IsNaN(sma[i]) {
 			continue

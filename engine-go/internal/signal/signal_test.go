@@ -12,6 +12,9 @@ func trendPrices() []float64 {
 	down := []float64{118, 116, 114, 112, 110, 108, 106, 104, 102, 100}
 	return append(append(up, down...), up...)
 }
+
+var trendData = engineutil.ToPricePoints(enginetest.PriceMap("2024-01-01", trendPrices()))
+
 func TestAnalyzeSignal_EmptyData(t *testing.T) {
 	t.Run("空数据无信号", func(t *testing.T) {
 		req := SignalAnalysisRequest{Indicator: "sma", Period: 5}
@@ -32,9 +35,8 @@ func TestAnalyzeSignal_EmptyData(t *testing.T) {
 	})
 }
 func TestAnalyzeSignal_SMA(t *testing.T) {
-	data := engineutil.ToPricePoints(enginetest.PriceMap("2024-01-01", trendPrices()))
 	req := SignalAnalysisRequest{Indicator: "sma", Period: 5, SignalType: ""}
-	r := AnalyzeSignal(req, data)
+	r := AnalyzeSignal(req, trendData)
 	t.Run("产生信号", func(t *testing.T) {
 		if len(r.Signals) == 0 {
 			t.Error("趋势数据应产生 SMA 交叉信号")
@@ -66,8 +68,8 @@ func TestAnalyzeSignal_SMA(t *testing.T) {
 		}
 	})
 	t.Run("EquityCurve长度与数据一致", func(t *testing.T) {
-		if len(r.EquityCurve) != len(data) {
-			t.Errorf("EquityCurve 长度=%v, want %v", len(r.EquityCurve), len(data))
+		if len(r.EquityCurve) != len(trendData) {
+			t.Errorf("EquityCurve 长度=%v, want %v", len(r.EquityCurve), len(trendData))
 		}
 		if len(r.EquityCurve) > 0 {
 			if r.EquityCurve[0].Value != 10000 {
@@ -77,10 +79,9 @@ func TestAnalyzeSignal_SMA(t *testing.T) {
 	})
 }
 func TestAnalyzeSignal_FilterByType(t *testing.T) {
-	data := engineutil.ToPricePoints(enginetest.PriceMap("2024-01-01", trendPrices()))
 	t.Run("entry只保留买入", func(t *testing.T) {
 		req := SignalAnalysisRequest{Indicator: "sma", Period: 5, SignalType: "entry"}
-		r := AnalyzeSignal(req, data)
+		r := AnalyzeSignal(req, trendData)
 		for _, s := range r.Signals {
 			if s.Type != SignalBuy {
 				t.Errorf("entry 应只含买入信号, got %v", s.Type)
@@ -89,7 +90,7 @@ func TestAnalyzeSignal_FilterByType(t *testing.T) {
 	})
 	t.Run("exit只保留卖出", func(t *testing.T) {
 		req := SignalAnalysisRequest{Indicator: "sma", Period: 5, SignalType: "exit"}
-		r := AnalyzeSignal(req, data)
+		r := AnalyzeSignal(req, trendData)
 		for _, s := range r.Signals {
 			if s.Type != SignalSell {
 				t.Errorf("exit 应只含卖出信号, got %v", s.Type)
@@ -98,27 +99,24 @@ func TestAnalyzeSignal_FilterByType(t *testing.T) {
 	})
 }
 func TestAnalyzeSignal_PeriodTooSmall(t *testing.T) {
-	data := engineutil.ToPricePoints(enginetest.PriceMap("2024-01-01", trendPrices()))
 	req := SignalAnalysisRequest{Indicator: "sma", Period: 1}
-	r := AnalyzeSignal(req, data)
+	r := AnalyzeSignal(req, trendData)
 	if r.Statistics.TotalSignals < 0 {
 		t.Errorf("TotalSignals 不应为负: %v", r.Statistics.TotalSignals)
 	}
 }
 func TestAnalyzeSignal_UnknownIndicator(t *testing.T) {
-	data := engineutil.ToPricePoints(enginetest.PriceMap("2024-01-01", trendPrices()))
 	req := SignalAnalysisRequest{Indicator: "unknown_indicator", Period: 5}
-	r := AnalyzeSignal(req, data)
+	r := AnalyzeSignal(req, trendData)
 	if len(r.Signals) != 0 {
 		t.Errorf("未知指标应无信号, got %d", len(r.Signals))
 	}
 }
 func TestAnalyzeDualSignal(t *testing.T) {
-	data := engineutil.ToPricePoints(enginetest.PriceMap("2024-01-01", trendPrices()))
 	cfg1 := SignalAnalysisRequest{Indicator: "sma", Period: 5}
 	cfg2 := SignalAnalysisRequest{Indicator: "ema", Period: 5}
 	t.Run("and组合", func(t *testing.T) {
-		r := AnalyzeDualSignal(cfg1, cfg2, data, data, "and")
+		r := AnalyzeDualSignal(cfg1, cfg2, trendData, trendData, "and")
 		s1Count := len(r.Signal1.Signals)
 		s2Count := len(r.Signal2.Signals)
 		combinedCount := len(r.Combined.Signals)
@@ -130,7 +128,7 @@ func TestAnalyzeDualSignal(t *testing.T) {
 		}
 	})
 	t.Run("or组合", func(t *testing.T) {
-		r := AnalyzeDualSignal(cfg1, cfg2, data, data, "or")
+		r := AnalyzeDualSignal(cfg1, cfg2, trendData, trendData, "or")
 		s1Count := len(r.Signal1.Signals)
 		combinedCount := len(r.Combined.Signals)
 		if combinedCount < s1Count {
@@ -138,16 +136,15 @@ func TestAnalyzeDualSignal(t *testing.T) {
 		}
 	})
 	t.Run("xor组合", func(t *testing.T) {
-		r := AnalyzeDualSignal(cfg1, cfg2, data, data, "xor")
+		r := AnalyzeDualSignal(cfg1, cfg2, trendData, trendData, "xor")
 		if r.Signal1.Signals == nil && r.Signal2.Signals == nil {
 		}
 	})
 }
 func TestAnalyzeMultiSignal(t *testing.T) {
-	data := engineutil.ToPricePoints(enginetest.PriceMap("2024-01-01", trendPrices()))
 	configs := []SignalAnalysisRequest{{Indicator: "sma", Period: 5}, {Indicator: "ema", Period: 5}, {Indicator: "rsi", Period: 5}}
 	t.Run("weighted聚合", func(t *testing.T) {
-		r := AnalyzeMultiSignal(context.Background(), configs, data, "weighted", []float64{0.5, 0.3, 0.2})
+		r := AnalyzeMultiSignal(context.Background(), configs, trendData, "weighted", []float64{0.5, 0.3, 0.2})
 		if len(r.Contributions) != len(configs) {
 			t.Errorf("Contributions 数应 = 配置数, got %d want %d", len(r.Contributions), len(configs))
 		}
@@ -158,19 +155,19 @@ func TestAnalyzeMultiSignal(t *testing.T) {
 		}
 	})
 	t.Run("voting聚合", func(t *testing.T) {
-		r := AnalyzeMultiSignal(context.Background(), configs, data, "voting", nil)
+		r := AnalyzeMultiSignal(context.Background(), configs, trendData, "voting", nil)
 		if len(r.Contributions) != len(configs) {
 			t.Errorf("Contributions 数应 = 配置数, got %d", len(r.Contributions))
 		}
 	})
 	t.Run("rank聚合_默认", func(t *testing.T) {
-		r := AnalyzeMultiSignal(context.Background(), configs, data, "rank", nil)
+		r := AnalyzeMultiSignal(context.Background(), configs, trendData, "rank", nil)
 		if len(r.Contributions) != len(configs) {
 			t.Errorf("Contributions 数应 = 配置数, got %d", len(r.Contributions))
 		}
 	})
 	t.Run("空配置不panic", func(t *testing.T) {
-		r := AnalyzeMultiSignal(context.Background(), []SignalAnalysisRequest{}, data, "rank", nil)
+		r := AnalyzeMultiSignal(context.Background(), []SignalAnalysisRequest{}, trendData, "rank", nil)
 		if len(r.Contributions) != 0 {
 			t.Errorf("空配置应无 Contributions, got %d", len(r.Contributions))
 		}

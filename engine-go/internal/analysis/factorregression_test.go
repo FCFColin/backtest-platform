@@ -22,31 +22,28 @@ func makePerfectReturns(alpha, beta float64, ff []FFDataPoint) []MonthlyReturn {
 	return rets
 }
 func TestRunRegression_InsufficientData(t *testing.T) {
-	t.Run("空输入返回零值结果", func(t *testing.T) {
-		req := FactorRegressionRequest{MonthlyReturns: []MonthlyReturn{}, FFData: []FFDataPoint{}, Factors: []string{"mktRF"}}
-		r, err := RunRegression(req)
-		if err != nil {
-			t.Fatalf("不应报错: %v", err)
-		}
-		if r.Alpha != 0 || r.Beta != 0 || r.RSquared != 0 {
-			t.Errorf("应返回零值, got alpha=%v beta=%v r2=%v", r.Alpha, r.Beta, r.RSquared)
-		}
-		if len(r.Residuals) != 0 {
-			t.Errorf("Residuals 应为空, got %v", r.Residuals)
-		}
-	})
-	t.Run("仅2个对齐点返回零值", func(t *testing.T) {
-		ff := []FFDataPoint{{Date: "2024-01", MktRf: 1.0, Smb: 0.5, Hml: 0.1}, {Date: "2024-02", MktRf: 2.0, Smb: 0.8, Hml: 0.2}}
-		rets := makePerfectReturns(0.001, 1.2, ff)
-		req := FactorRegressionRequest{MonthlyReturns: rets, FFData: ff, Factors: []string{"mktRF"}}
-		r, err := RunRegression(req)
-		if err != nil {
-			t.Fatalf("不应报错: %v", err)
-		}
-		if r.Alpha != 0 || r.Beta != 0 {
-			t.Errorf("数据不足应返回零系数, got alpha=%v beta=%v", r.Alpha, r.Beta)
-		}
-	})
+	ff := []FFDataPoint{{Date: "2024-01", MktRf: 1.0, Smb: 0.5, Hml: 0.1}, {Date: "2024-02", MktRf: 2.0, Smb: 0.8, Hml: 0.2}}
+	cases := []struct {
+		name string
+		req  FactorRegressionRequest
+	}{
+		{"空输入", FactorRegressionRequest{MonthlyReturns: []MonthlyReturn{}, FFData: []FFDataPoint{}, Factors: []string{"mktRF"}}},
+		{"仅2个对齐点", FactorRegressionRequest{MonthlyReturns: makePerfectReturns(0.001, 1.2, ff), FFData: ff, Factors: []string{"mktRF"}}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			r, err := RunRegression(c.req)
+			if err != nil {
+				t.Fatalf("不应报错: %v", err)
+			}
+			if r.Alpha != 0 || r.Beta != 0 || r.RSquared != 0 {
+				t.Errorf("应返回零值, got alpha=%v beta=%v r2=%v", r.Alpha, r.Beta, r.RSquared)
+			}
+			if len(r.Residuals) != 0 {
+				t.Errorf("Residuals 应为空, got %v", r.Residuals)
+			}
+		})
+	}
 }
 func TestRunRegression_PerfectLinear(t *testing.T) {
 	ff := makeFFData()

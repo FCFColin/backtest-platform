@@ -61,9 +61,7 @@ func applyDefaults(req *MonteCarloRequest) {
 	if req.MCParams.MinBlockYears > req.MCParams.MaxBlockYears {
 		req.MCParams.MinBlockYears, req.MCParams.MaxBlockYears = req.MCParams.MaxBlockYears, req.MCParams.MinBlockYears
 	}
-	if req.Params.StartingValue <= 0 {
-		req.Params.StartingValue = 10000
-	}
+	req.Params.StartingValue = engineutil.DefaultStartingValue(req.Params.StartingValue)
 	if req.MCParams.SuccessThreshold <= 0 {
 		req.MCParams.SuccessThreshold = 1.0
 	}
@@ -116,10 +114,7 @@ func calcPathMetrics(path []float64, startingValue float64, years float64) PathM
 	cagr := engine.CalcCAGR(startingValue, finalValue, years)
 	dailyRets := mathutil.DailyReturnsWithZeros(path)
 	maxDD := engine.CalcMaxDrawdown(path).MaxDrawdown
-	vol := 0.0
-	if len(dailyRets) > 1 {
-		vol = mathutil.Std(dailyRets) * math.Sqrt(float64(mcTradingDays))
-	}
+	vol := engine.CalcAnnualizedStdev(dailyRets)
 	sharpe := 0.0
 	if vol > 0 {
 		sharpe = (cagr - mcRiskFreeRate) / vol
@@ -134,18 +129,22 @@ func finalValues(paths [][]float64) []float64 {
 	}
 	return vals
 }
+func successFractionAtOrAbove(paths [][]float64, day int, target float64) float64 {
+	success := 0
+	for _, p := range paths {
+		if p[day] >= target {
+			success++
+		}
+	}
+	return float64(success) / float64(len(paths))
+}
 func computeMCStatistics(paths [][]float64, threshold float64, startingValue float64) MCStatistics {
 	if len(paths) == 0 {
 		return MCStatistics{}
 	}
 	finalValuesList := finalValues(paths)
 	target := startingValue * threshold
-	successCount := 0
-	for _, v := range finalValuesList {
-		if v >= target {
-			successCount++
-		}
-	}
+	successRate := successFractionAtOrAbove(paths, len(paths[0])-1, target)
 	slices.Sort(finalValuesList)
 	n := len(finalValuesList)
 	medianIdx := n / 2
@@ -153,7 +152,7 @@ func computeMCStatistics(paths [][]float64, threshold float64, startingValue flo
 	if n%2 == 0 && medianIdx > 0 {
 		medianVal = (finalValuesList[medianIdx-1] + finalValuesList[medianIdx]) / 2
 	}
-	return MCStatistics{MedianFinalValue: medianVal, MeanFinalValue: mathutil.Mean(finalValuesList), SuccessRate: float64(successCount) / float64(n)}
+	return MCStatistics{MedianFinalValue: medianVal, MeanFinalValue: mathutil.Mean(finalValuesList), SuccessRate: successRate}
 }
 func mcSortino(dailyRets []float64, cagr float64) float64 {
 	dailyRF := mcRiskFreeRate / float64(mcTradingDays)
@@ -200,15 +199,8 @@ func computeSuccessProbability(paths [][]float64, threshold float64, startingVal
 	totalDays := len(paths[0])
 	target := startingValue * threshold
 	result := make([]float64, totalDays)
-	numSims := float64(len(paths))
 	for day := 0; day < totalDays; day++ {
-		success := 0
-		for _, path := range paths {
-			if path[day] >= target {
-				success++
-			}
-		}
-		result[day] = float64(success) / numSims
+		result[day] = successFractionAtOrAbove(paths, day, target)
 	}
 	return result
 }

@@ -15,77 +15,47 @@ func assertNoPanic(t *testing.T, fn func()) {
 	fn()
 }
 
-func TestCalcVaR_ConfidenceEdgeCases(t *testing.T) {
-	returns := []float64{-0.03, -0.02, -0.01, 0, 0.01, 0.02, 0.03, 0.04}
+func TestRiskMetricEdgeCases(t *testing.T) {
+	var (
+		vaRReturns  = []float64{-0.03, -0.02, -0.01, 0, 0.01, 0.02, 0.03, 0.04}
+		cvaRReturns = []float64{-0.06, -0.04, -0.02, 0, 0.01, 0.02, 0.03, 0.04}
+	)
 	cases := []struct {
 		name       string
+		calc       func(returns []float64, confidence float64) float64
+		returns    []float64
 		confidence float64
+		wantFinite bool
 	}{
-		{"confidence zero", 0},
-		{"confidence negative", -0.5},
-		{"confidence exactly one", 1.0},
-		{"confidence above one", 1.5},
+		{"var zero", CalcVaR, vaRReturns, 0, false},
+		{"var negative", CalcVaR, vaRReturns, -0.5, false},
+		{"var exactly one", CalcVaR, vaRReturns, 1.0, false},
+		{"var above one", CalcVaR, vaRReturns, 1.5, false},
+		{"var subnormal", CalcVaR, vaRReturns, 1e-300, true},
+		{"var nil", CalcVaR, nil, 0.95, false},
+		{"cvar zero", CalcCVaR, cvaRReturns, 0, false},
+		{"cvar negative", CalcCVaR, cvaRReturns, -0.5, false},
+		{"cvar exactly one", CalcCVaR, cvaRReturns, 1.0, false},
+		{"cvar above one", CalcCVaR, cvaRReturns, 1.5, false},
+		{"cvar subnormal", CalcCVaR, cvaRReturns, 1e-300, true},
+		{"cvar nil", CalcCVaR, nil, 0.95, false},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			assertNoPanic(t, func() {
-				if got := CalcVaR(returns, c.confidence); got != 0 {
-					t.Errorf("CalcVaR(conf=%v) = %v, want 0", c.confidence, got)
+				got := c.calc(c.returns, c.confidence)
+				if c.wantFinite {
+					if math.IsNaN(got) || math.IsInf(got, 0) {
+						t.Errorf("want finite, got %v", got)
+					}
+					return
+				}
+				if got != 0 {
+					t.Errorf("calc(conf=%v) = %v, want 0", c.confidence, got)
 				}
 			})
 		})
 	}
-}
-func TestCalcVaR_ConfidenceSubnormal(t *testing.T) {
-	returns := []float64{-0.03, -0.02, -0.01, 0, 0.01, 0.02, 0.03, 0.04}
-	assertNoPanic(t, func() {
-		if got := CalcVaR(returns, 1e-300); math.IsNaN(got) || math.IsInf(got, 0) {
-			t.Errorf("CalcVaR(1e-300) = %v, want finite", got)
-		}
-	})
-}
-func TestCalcVaR_NilSlice(t *testing.T) {
-	assertNoPanic(t, func() {
-		if got := CalcVaR(nil, 0.95); got != 0 {
-			t.Errorf("CalcVaR(nil, 0.95) = %v, want 0", got)
-		}
-	})
-}
-func TestCalcCVaR_ConfidenceEdgeCases(t *testing.T) {
-	returns := []float64{-0.06, -0.04, -0.02, 0, 0.01, 0.02, 0.03, 0.04}
-	cases := []struct {
-		name       string
-		confidence float64
-	}{
-		{"confidence zero", 0},
-		{"confidence negative", -0.5},
-		{"confidence exactly one", 1.0},
-		{"confidence above one", 1.5},
-	}
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			assertNoPanic(t, func() {
-				if got := CalcCVaR(returns, c.confidence); got != 0 {
-					t.Errorf("CalcCVaR(conf=%v) = %v, want 0", c.confidence, got)
-				}
-			})
-		})
-	}
-}
-func TestCalcCVaR_ConfidenceSubnormal(t *testing.T) {
-	returns := []float64{-0.06, -0.04, -0.02, 0, 0.01, 0.02, 0.03, 0.04}
-	assertNoPanic(t, func() {
-		if got := CalcCVaR(returns, 1e-300); math.IsNaN(got) || math.IsInf(got, 0) {
-			t.Errorf("CalcCVaR(1e-300) = %v, want finite", got)
-		}
-	})
-}
-func TestCalcCVaR_NilSlice(t *testing.T) {
-	assertNoPanic(t, func() {
-		if got := CalcCVaR(nil, 0.95); got != 0 {
-			t.Errorf("CalcCVaR(nil, 0.95) = %v, want 0", got)
-		}
-	})
 }
 func TestCalcSharpe_ZeroVolatility(t *testing.T) {
 	identical := []float64{0.01, 0.01, 0.01, 0.01, 0.01}

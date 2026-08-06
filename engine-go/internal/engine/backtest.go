@@ -69,10 +69,7 @@ func RunBacktest(ctx context.Context, req BacktestRequest) (*BacktestResult, err
 }
 
 func computeBenchmarkGrowth(benchmarkTicker string, priceData PriceDataMap, tradingDates []time.Time, params BacktestParams) []DataPoint {
-	startValue := params.StartingValue
-	if startValue <= 0 {
-		startValue = 10000
-	}
+	startValue := engineutil.DefaultStartingValue(params.StartingValue)
 	prices := engineutil.ExtractPrices(priceData, benchmarkTicker, tradingDates)
 	if len(prices) < 2 || prices[0] <= 0 {
 		return nil
@@ -86,10 +83,7 @@ func computeBenchmarkGrowth(benchmarkTicker string, priceData PriceDataMap, trad
 }
 
 func computeGrowthCurve(pf PortfolioInput, priceData PriceDataMap, cpiData map[string]float64, exchangeRates map[string]float64, tradingDates []time.Time, params BacktestParams) ([]DataPoint, []AllocationPoint, error) {
-	startValue := params.StartingValue
-	if startValue <= 0 {
-		startValue = 10000
-	}
+	startValue := engineutil.DefaultStartingValue(params.StartingValue)
 	n := len(pf.Assets)
 	if n == 0 {
 		return nil, nil, fmt.Errorf("组合 %s 无资产", pf.Name)
@@ -105,11 +99,9 @@ func computeGrowthCurve(pf PortfolioInput, priceData PriceDataMap, cpiData map[s
 		holdings[i] = startValue * weights[i]
 	}
 	initPrices := make([]float64, n)
+	shares := make([]float64, n)
 	for i, a := range pf.Assets {
 		initPrices[i] = gp(a.Ticker, dates[0])
-	}
-	shares := make([]float64, n)
-	for i := range shares {
 		if initPrices[i] > 0 {
 			shares[i] = holdings[i] / initPrices[i]
 		}
@@ -154,17 +146,15 @@ func computeGrowthCurve(pf PortfolioInput, priceData PriceDataMap, cpiData map[s
 			continue
 		}
 		updatePrices(pf, gp, date, lastPrices)
+		pv := 0.0
 		for i := range holdings {
 			if lastPrices[i] > 0 {
 				holdings[i] = shares[i] * lastPrices[i]
 			}
-		}
-		pv := mathutil.Sum(holdings)
-		if dailyDrag != 1.0 {
-			for i := range holdings {
+			if dailyDrag != 1.0 {
 				holdings[i] *= dailyDrag
 			}
-			pv = mathutil.Sum(holdings)
+			pv += holdings[i]
 		}
 		currentWeights := glidepathWeights(weights, glidepathTo, di, glidepathYears)
 		cfAmount := cfMap[date] + otcMap[date]

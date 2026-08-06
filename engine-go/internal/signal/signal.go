@@ -138,19 +138,18 @@ func AnalyzeMultiSignal(ctx context.Context, configs []SignalAnalysisRequest, da
 				continue
 			}
 			winRate := perSignal[i].Statistics.WinRate
-			if dir == SignalBuy {
-				score += rawWeights[i] / wSum
-				buys++
-				if winRate > bestRank {
-					bestRank = winRate
-					bestDir = dirPtr(SignalBuy)
+			if dir == SignalBuy || dir == SignalSell {
+				sign := 1.0
+				if dir == SignalSell {
+					sign = -1
+					sells++
+				} else {
+					buys++
 				}
-			} else if dir == SignalSell {
-				score -= rawWeights[i] / wSum
-				sells++
+				score += sign * rawWeights[i] / wSum
 				if winRate > bestRank {
 					bestRank = winRate
-					bestDir = dirPtr(SignalSell)
+					bestDir = dirPtr(dir)
 				}
 			}
 		}

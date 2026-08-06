@@ -5,8 +5,6 @@ import (
 	"math"
 )
 
-var nan = math.NaN()
-
 func evaluateCondition(cond SignalCondition, values []*float64) []bool {
 	result := make([]bool, len(values))
 	for i, val := range values {
@@ -29,10 +27,7 @@ func evaluateCondition(cond SignalCondition, values []*float64) []bool {
 	return result
 }
 func calcMomentum(prices []float64, period int) []float64 {
-	result := make([]float64, len(prices))
-	for i := range result {
-		result[i] = nan
-	}
+	result := indicators.NanSeries(len(prices))
 	for i := period; i < len(prices); i++ {
 		if prices[i-period] > 0 {
 			result[i] = (prices[i]/prices[i-period] - 1) * 100
@@ -46,7 +41,7 @@ func maPct(prices, ma []float64) []float64 {
 		if !math.IsNaN(ma[i]) && ma[i] != 0 {
 			raw[i] = (prices[i] - ma[i]) / ma[i]
 		} else {
-			raw[i] = nan
+			raw[i] = math.NaN()
 		}
 	}
 	return raw
@@ -67,10 +62,7 @@ func computeIndicatorValue(indicator TechnicalIndicator, prices []float64, perio
 	case IndMomentum:
 		raw = calcMomentum(prices, period)
 	default:
-		raw = make([]float64, len(prices))
-		for i := range raw {
-			raw[i] = nan
-		}
+		raw = indicators.NanSeries(len(prices))
 	}
 	result := make([]*float64, len(raw))
 	for i, v := range raw {

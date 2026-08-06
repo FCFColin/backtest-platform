@@ -79,20 +79,11 @@ func calcUlcerDuring(curve []DataPoint, peakIdx, endIdx int, peakValue float64) 
 	if peakValue <= 0 || endIdx <= peakIdx {
 		return 0
 	}
-	var sumSquaredDD float64
-	count := 0
+	values := make([]float64, 0, endIdx-peakIdx+1)
 	for i := peakIdx; i <= endIdx && i < len(curve); i++ {
-		dd := (peakValue - curve[i].Value) / peakValue
-		if dd < 0 {
-			dd = 0
-		}
-		sumSquaredDD += dd * dd
-		count++
+		values = append(values, curve[i].Value)
 	}
-	if count == 0 {
-		return 0
-	}
-	return math.Sqrt(sumSquaredDD / float64(count))
+	return CalcUlcerIndex(values)
 }
 func daysBetween(dateStr1, dateStr2 string) int {
 	t1, err1 := time.Parse("2006-01-02", dateStr1)

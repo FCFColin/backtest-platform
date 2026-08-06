@@ -40,21 +40,19 @@ func CalcAnnualizedStdev(dailyReturns []float64) float64 {
 	}
 	return mathutil.Std(dailyReturns) * math.Sqrt(tradingDaysPerYear)
 }
-func CalcSharpe(cagr, stdev float64) float64 {
-	if stdev == 0 {
+func safeRatio(num, denom float64) float64 {
+	if denom == 0 {
 		return 0
 	}
-	return (cagr - riskFreeRate) / stdev
+	return num / denom
 }
+func CalcSharpe(cagr, stdev float64) float64 { return safeRatio(cagr-riskFreeRate, stdev) }
 func CalcSortino(cagr float64, dailyReturns []float64) float64 {
 	if len(dailyReturns) < 2 {
 		return 0
 	}
 	dd := mathutil.DownsideDeviation(dailyReturns, RiskFreeDaily()) * math.Sqrt(tradingDaysPerYear)
-	if dd == 0 {
-		return 0
-	}
-	return (cagr - riskFreeRate) / dd
+	return safeRatio(cagr-riskFreeRate, dd)
 }
 func CalcCorrelation(returns1, returns2 []float64) float64 {
 	r1, r2 := alignPair(returns1, returns2)
@@ -73,18 +71,14 @@ func CalcTotalReturn(startValue, endValue float64) float64 {
 	}
 	return endValue/startValue - 1
 }
-func MaxValue(values []float64) float64 {
+func sliceExtreme(values []float64, fn func([]float64) float64) float64 {
 	if len(values) == 0 {
 		return 0
 	}
-	return slices.Max(values)
+	return fn(values)
 }
-func MinValue(values []float64) float64 {
-	if len(values) == 0 {
-		return 0
-	}
-	return slices.Min(values)
-}
+func MaxValue(values []float64) float64 { return sliceExtreme(values, slices.Max) }
+func MinValue(values []float64) float64 { return sliceExtreme(values, slices.Min) }
 func ratioPositive(values []float64) float64 {
 	if len(values) == 0 {
 		return 0
@@ -151,10 +145,7 @@ func CalcTrackingError(portfolioReturns, benchmarkReturns []float64) float64 {
 	return mathutil.Std(diffs) * math.Sqrt(tradingDaysPerYear)
 }
 func CalcInformationRatio(alpha, trackingError float64) float64 {
-	if trackingError == 0 {
-		return 0
-	}
-	return alpha / trackingError
+	return safeRatio(alpha, trackingError)
 }
 func CalcCaptureRatio(pr, br []float64, upside bool) float64 {
 	filter := upsideFilter(upside)
@@ -245,12 +236,7 @@ func CalcConditionalCorr(pr, br []float64, upside bool) float64 {
 func CalcConditionalBeta(pr, br []float64, upside bool) float64 {
 	return calcFiltered(pr, br, upsideFilter(upside), CalcBeta)
 }
-func CalcTreynor(cagr, beta float64) float64 {
-	if beta == 0 {
-		return 0
-	}
-	return (cagr - riskFreeRate) / beta
-}
+func CalcTreynor(cagr, beta float64) float64        { return safeRatio(cagr-riskFreeRate, beta) }
 func CalcM2(sharpe, benchmarkStdev float64) float64 { return sharpe*benchmarkStdev + riskFreeRate }
 func CalcAlphaDaily(dailyReturns, benchDailyReturns []float64, beta float64) float64 {
 	if len(dailyReturns) == 0 || len(benchDailyReturns) == 0 {
@@ -326,18 +312,8 @@ func CalcUlcerIndex(values []float64) float64 {
 	sumSq := reduceDrawdowns(values, 0.0, func(acc, dd float64, _, _ int) float64 { return acc + dd*dd })
 	return math.Sqrt(sumSq / float64(n))
 }
-func CalcCalmar(cagr, maxDrawdown float64) float64 {
-	if maxDrawdown == 0 {
-		return 0
-	}
-	return cagr / maxDrawdown
-}
-func CalcUPI(cagr, ulcerIndex float64) float64 {
-	if ulcerIndex == 0 {
-		return 0
-	}
-	return (cagr - riskFreeRate) / ulcerIndex
-}
+func CalcCalmar(cagr, maxDrawdown float64) float64 { return safeRatio(cagr, maxDrawdown) }
+func CalcUPI(cagr, ulcerIndex float64) float64     { return safeRatio(cagr-riskFreeRate, ulcerIndex) }
 func CalcDrawdownCurve(values []float64, dates []string) []DrawdownPoint {
 	if len(values) == 0 {
 		return nil
