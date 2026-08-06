@@ -25,6 +25,29 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  security-scan:
+    name: Security Scan (trivy)
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write # SARIF 上传到 GitHub Security tab
+    steps:
+      - uses: actions/checkout@v4
+      # 固定 commit SHA（CVE-2026-33634 供应链事件后 trivy-action 禁用可变 tag）
+      - name: trivy-fs
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
+        with:
+          scan-type: fs
+          scan-ref: .
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          format: sarif
+          output: trivy-results.sarif
+      - name: Upload Trivy SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-results.sarif
+
   lint-and-typecheck:
     name: Lint + TypeScript Check
     runs-on: ubuntu-latest
@@ -38,6 +61,8 @@ jobs:
       - run: pnpm exec eslint . --max-warnings 10
       - run: pnpm format:check
       - run: pnpm check
+      # 供应链门禁：prod 依赖 CRITICAL/HIGH 漏洞阻断，moderate/low 仅告警（scripts/audit-supply.mjs）
+      - run: pnpm run audit:supply
 
   migration-check:
     name: Migration Integrity Check
@@ -81,6 +106,36 @@ jobs:
         run: pnpm verify:critical --skip-db --skip-frontend
       - name: Run Zod coverage verification
         run: pnpm verify:high
+      # Go 官方漏洞扫描：基于调用图只报实际受影响漏洞（engine-go / data-fetcher）
+      - name: govulncheck (engine-go)
+        run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+        working-directory: engine-go
+      - name: govulncheck (data-fetcher)
+        run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+        working-directory: data-fetcher
+
+  go-lint:
+    name: Go Lint (golangci-lint)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.4'
+          cache-dependency-path: |
+            engine-go/go.sum
+            data-fetcher/go.sum
+      # 配置见 engine-go/.golangci.yml 与 data-fetcher/.golangci.yml（gosec 已启用）
+      - name: golangci-lint (engine-go)
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.12.2
+          working-directory: engine-go
+      - name: golangci-lint (data-fetcher)
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.12.2
+          working-directory: data-fetcher
 
   deadcode:
     name: Dead Code Detection
