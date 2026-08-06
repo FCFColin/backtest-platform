@@ -1,9 +1,3 @@
-/**
- * WebSocket 实时进度推送服务端（P1-04，ADR-045 多 Pod 广播 + D3-002 共享订阅）。
- * 路径 /api/v1/ws/runs/:jobId；握手鉴权 ?token=<JWT> 或 Sec-WebSocket-Protocol: bearer.<JWT>
- * （浏览器 WebSocket 无法设置自定义 Header）。Worker 将进度 publish 到 Redis channel
- * backtest:progress:{jobId}，本服务端订阅并转发；Redis Pub/Sub 天然支持多 Pod 广播。
- */
 import { WebSocketServer, WebSocket } from 'ws';
 import type { Server, IncomingMessage } from 'node:http';
 import type { Duplex } from 'node:stream';
@@ -17,7 +11,6 @@ import { getPrometheusRegister } from '../utils/metrics.js';
 const WS_PATH_PREFIX = '/api/v1/ws/runs/';
 const CHANNEL_PREFIX = 'backtest:progress:';
 
-/** 活跃 WebSocket 连接数（P1-04 Saturation 指标）。 */
 const wsConnectionsActive = new client.Gauge({
   name: 'ws_connections_active',
   help: 'Active WebSocket connections for backtest progress streaming',
@@ -27,10 +20,8 @@ const wsConnectionsActive = new client.Gauge({
 let sharedSubscriber: IORedis | null = null;
 let subscriberInitPromise: Promise<IORedis> | null = null;
 const channelClients = new Map<string, Set<WebSocket>>();
-/** channel 订阅 Promise（防止并发连接同时 subscribe 同一 channel） */
 const channelSubscriptions = new Map<string, Promise<void>>();
 
-/** 懒初始化共享 Redis 订阅连接；ioredis 自动重连并重新订阅已注册 channel。 */
 async function ensureSharedSubscriber(): Promise<IORedis> {
   if (sharedSubscriber) return sharedSubscriber;
   if (subscriberInitPromise) return subscriberInitPromise;
@@ -53,7 +44,6 @@ async function ensureSharedSubscriber(): Promise<IORedis> {
   return subscriberInitPromise;
 }
 
-/** 注册连接：首个连接触发 Redis subscribe，后续仅加入内存 Set。subscribe 失败时清理并抛出。 */
 async function subscribeChannel(channel: string, ws: WebSocket): Promise<void> {
   const sub = await ensureSharedSubscriber();
   let clients = channelClients.get(channel);
@@ -77,7 +67,6 @@ async function subscribeChannel(channel: string, ws: WebSocket): Promise<void> {
   }
 }
 
-/** 注销连接：最后一个连接关闭时取消 Redis 订阅释放资源。 */
 function unsubscribeChannel(channel: string, ws: WebSocket): void {
   const clients = channelClients.get(channel);
   if (!clients) return;
@@ -89,7 +78,6 @@ function unsubscribeChannel(channel: string, ws: WebSocket): void {
   }
 }
 
-/** 提取 jobId：仅匹配精确前缀 /api/v1/ws/runs/<jobId>，避免误吞其他路径。 */
 function extractJobId(req: IncomingMessage): string | null {
   const url = req.url || '';
   let pathname: string;
@@ -103,7 +91,6 @@ function extractJobId(req: IncomingMessage): string | null {
   return jobId.length > 0 ? jobId : null;
 }
 
-/** 提取 JWT：优先 ?token=，回退 Sec-WebSocket-Protocol: bearer.<JWT>。 */
 function extractToken(req: IncomingMessage): string | null {
   const url = req.url || '';
   try {
@@ -159,10 +146,6 @@ function handleConnection(ws: WebSocket, jobId: string, userId: string): void {
     });
 }
 
-/**
- * 在已有 HTTP server 上挂载 WS 升级处理（noServer 模式）：仅处理 /api/v1/ws/runs/:jobId，
- * 其他升级请求放行不处理，避免与其他 upgrade 处理器冲突。
- */
 export function setupBacktestWebSocket(server: Server): void {
   const wss = new WebSocketServer({ noServer: true });
   server.on('upgrade', (req, socket, head) => {

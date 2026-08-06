@@ -92,11 +92,6 @@ function logRbac(
   );
 }
 
-/**
- * 两个权限中间件共享的前置检查：认证缺失 → 401；平台管理员 → 直接放行。
- *
- * @returns 'allowed' 已放行（调用方应立即 return）；'denied' 已响应错误；'continue' 继续业务判断
- */
 function authorizePrelude(
   req: AuthenticatedRequest,
   res: Response,
@@ -118,7 +113,6 @@ function authorizePrelude(
   return 'continue';
 }
 
-/** 权限不足统一拒绝：warn 日志 + 认证失败指标 + 403。 */
 function denyInsufficientPermission(
   req: AuthenticatedRequest,
   res: Response,

@@ -2,7 +2,7 @@ import { Client } from 'minio';
 import { config } from '../config/index.js';
 import { logger } from '../utils/logger.js';
 import { loadCpiSeriesFromDb } from '../db/macroData.js';
-import { callGoDataService } from './dataQuery.js';
+import { fetchGoJson } from './goDataServiceClient.js';
 import {
   dataUpdateQueue,
   getActiveUpdateJobs,
@@ -23,22 +23,19 @@ export const SYNTHETIC_TICKERS = (
 
 const cpiCache: Record<string, { map?: Record<string, number>; routeData?: unknown }> = {};
 
-/** Fetch CPI from Go service — returns both raw route data and date→value map. */
 async function fetchCpiFromGo(
   country: string,
 ): Promise<{ raw: unknown; map: Record<string, number> }> {
   try {
-    const response = await callGoDataService(`/api/data/cpi/${country}`);
-    const parsed = JSON.parse(response) as { success?: boolean; data?: unknown };
-    if (!parsed.success || !parsed.data) return { raw: null, map: {} };
-    const raw = parsed.data;
-    if (!Array.isArray(raw)) return { raw, map: {} };
+    const { success, data } = await fetchGoJson(`/api/data/cpi/${country}`);
+    if (!success || !data) return { raw: null, map: {} };
+    if (!Array.isArray(data)) return { raw: data, map: {} };
     const map = Object.fromEntries(
-      (raw as Array<{ date: string; value: number }>)
+      (data as Array<{ date: string; value: number }>)
         .filter((item) => item && typeof item.date === 'string')
         .map((item) => [item.date.slice(0, 10), item.value]),
     );
-    return { raw, map };
+    return { raw: data, map };
   } catch (err) {
     logger.warn({ err: err as Error, country }, '[cpiService] Go data-fetcher CPI 调用失败');
     return { raw: null, map: {} };
@@ -93,8 +90,6 @@ export async function fetchCpiForRoute(country: string): Promise<CpiRouteResult>
   return { data: null, degraded: false, notFound: true };
 }
 
-// ── MinIO audit storage ──────────────────────────────────────────────────────
-
 const AUDIT_BUCKET = 'audit-logs';
 let minioClient: Client | null = null;
 
@@ -124,7 +119,6 @@ function getClient(): Client | null {
   return minioClient;
 }
 
-/** Run a MinIO operation with standard null-check + error handling. */
 async function withMinio<T>(
   fn: (client: Client) => Promise<T>,
   fallback: T,
@@ -185,8 +179,6 @@ export async function uploadAuditObject(key: string, data: string | Buffer): Pro
     '审计对象上传',
   );
 }
-
-// ── Data update queue operations ─────────────────────────────────────────────
 
 interface UpdateStatus {
   running: boolean;

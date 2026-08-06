@@ -1,7 +1,3 @@
-/**
- * 速率限制配置（集中管理限流器定义与键生成）。
- * P0-05：Redis 不可用时限流 fail-closed——多实例下内存存储会变成"配置值 × 实例数"，等同无限流，故返回 503 拒绝所有请求直到 Redis 恢复。
- */
 import rateLimit from 'express-rate-limit';
 import { RedisStore, type RedisReply } from 'rate-limit-redis';
 import crypto from 'crypto';
@@ -89,10 +85,6 @@ function authRateLimitKey(req: Request): string {
   return req.ip ?? '';
 }
 
-/**
- * JWT 感知键生成器（apiLimiter/adminLimiter 用，这些路由在认证中间件之后执行可依赖 req.user）。
- * 已认证按 `userId:ip` 组合键；未认证回退 `ip:` 前缀 IP 键。认证端点（认证前执行）不用此生成器，用 authRateLimitKey。
- */
 function jwtAwareKeyGenerator(req: Request): string {
   const user = (req as { user?: { sub?: string } }).user;
   if (user?.sub) return `${user.sub}:${req.ip ?? ''}`;
@@ -122,7 +114,6 @@ interface LimiterOptions {
   passOnStoreError?: boolean;
 }
 
-/** deny-all 中间件：Redis 不可用时拒绝所有请求（P0-05 fail-closed）。adminLimiter 例外（passOnStoreError=true）便于运维排查。 */
 function createDenyAllLimiter(code: string, detail: string): RequestHandler {
   return (req: Request, res: Response, _next: NextFunction) => {
     res
@@ -142,7 +133,6 @@ function createDenyAllLimiter(code: string, detail: string): RequestHandler {
   };
 }
 
-/** 创建限流器：统一 standardHeaders/legacyHeaders/store。Redis 不可用且非 admin 路由 → deny-all（P0-05，不降级内存存储）。 */
 function createLimiter(opts: LimiterOptions): RequestHandler {
   if (process.env.NODE_ENV !== 'production' && process.env.DISABLE_RATE_LIMIT) {
     return (_req: Request, _res: Response, next: NextFunction) => next();

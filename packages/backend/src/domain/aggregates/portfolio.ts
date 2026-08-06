@@ -1,6 +1,3 @@
-// 充血模型：组合聚合根封装权重校验、持仓管理等业务逻辑。
-// application 层通过 fromDTO() 构造聚合根，通过 toEngineBody() 序列化为引擎请求体，
-
 import { Ticker, Weight, DomainValidationError } from '../value-objects/index.js';
 import type {
   Portfolio as PortfolioDTO,
@@ -66,66 +63,31 @@ export class Portfolio {
     this.validateWeightSum();
   }
 
-  /**
-   * 逐资产创建 Ticker（安全净化）+ Weight（0–100 百分比校验），
-   * 再由构造器校验权重和 ≈ 100。携带完整再平衡/glidepath 配置。
-   *
-   * @throws {DomainValidationError} 当 ticker 格式非法、权重越界、或权重和偏差 > 容差时
-   */
+  /** @throws {DomainValidationError} ticker 非法/权重越界/权重和偏差 > 容差 */
   static fromDTO(dto: PortfolioDTO): Portfolio {
-    const holdings: PortfolioHolding[] = [];
-    for (const asset of dto.assets) {
-      let ticker: Ticker;
-      let weight: Weight;
+    const { assets, ...rest } = dto;
+    const holdings: PortfolioHolding[] = assets.map((asset) => {
       try {
-        ticker = Ticker.create(asset.ticker);
-        weight = Weight.create(asset.weight);
+        return { ticker: Ticker.create(asset.ticker), weight: Weight.create(asset.weight) };
       } catch (err) {
         throw new DomainValidationError((err as Error).message, 'asset', asset);
       }
-      holdings.push({ ticker, weight });
-    }
+    });
     return new Portfolio({
-      id: dto.id ?? crypto.randomUUID(),
-      name: dto.name ?? 'Portfolio',
+      ...rest,
+      id: rest.id ?? crypto.randomUUID(),
+      name: rest.name ?? 'Portfolio',
       holdings,
-      rebalanceFrequency: dto.rebalanceFrequency,
-      rebalanceThreshold: dto.rebalanceThreshold,
-      rebalanceOffset: dto.rebalanceOffset,
-      rebalanceBands: dto.rebalanceBands,
-      drag: dto.drag,
-      totalReturn: dto.totalReturn,
-      isGlidepath: dto.isGlidepath,
-      glidepathFrom: dto.glidepathFrom,
-      glidepathTo: dto.glidepathTo,
-      glidepathYears: dto.glidepathYears,
-      glidepathToWeights: dto.glidepathToWeights,
     });
   }
 
-  /** 仅用于 domain 层内部构造或测试 */
   static create(
     id: string,
     name: string,
     holdings: PortfolioHolding[],
     config?: Partial<Pick<Portfolio, ConfigKeys>>,
   ): Portfolio {
-    return new Portfolio({
-      id,
-      name,
-      holdings,
-      rebalanceFrequency: config?.rebalanceFrequency,
-      rebalanceThreshold: config?.rebalanceThreshold,
-      rebalanceOffset: config?.rebalanceOffset,
-      rebalanceBands: config?.rebalanceBands,
-      drag: config?.drag,
-      totalReturn: config?.totalReturn,
-      isGlidepath: config?.isGlidepath,
-      glidepathFrom: config?.glidepathFrom,
-      glidepathTo: config?.glidepathTo,
-      glidepathYears: config?.glidepathYears,
-      glidepathToWeights: config?.glidepathToWeights,
-    });
+    return new Portfolio({ id, name, holdings, ...config });
   }
 
   get holdingCount(): number {
@@ -144,10 +106,6 @@ export class Portfolio {
     return this.holdings.reduce((max, h) => Math.max(max, h.weight.value), 0);
   }
 
-  /**
-   * 值对象在此处解包为原始值，是值对象生命周期的终点。
-   * 替代独立的 buildEnginePortfolioBody() 函数，确保序列化逻辑与领域模型同源。
-   */
   toEngineBody(): Record<string, unknown> {
     return {
       name: this.name,
@@ -171,10 +129,7 @@ export class Portfolio {
     };
   }
 
-  /**
-   * application 层持久化时应使用此 DTO 而非原始请求体的 assets，
-   * 确保落库数据与领域不变量一致（ADR-013）。
-   */
+  /** ADR-013: 持久化使用领域验证后的 DTO，非原始请求体 */
   toPersistenceDTO(): {
     name: string;
     assets: { ticker: string; weight: number }[];

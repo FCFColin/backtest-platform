@@ -1,9 +1,3 @@
-/**
- * OpenAPI 路径注册 — auth/saas 域（BIG2 拆分）
- *
- * 覆盖认证（登录/注册/刷新/登出/me/组织切换）、组织 API Key、组合/配置/回测历史 CRUD、
- * 组织成员/邀请、计费与任务查询。
- */
 import {
   sec,
   pubReg,

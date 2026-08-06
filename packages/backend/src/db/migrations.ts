@@ -14,7 +14,6 @@ function readMigrationFile(filename: string): string {
   return fs.readFileSync(path.join(MIGRATIONS_DIR, filename), 'utf-8');
 }
 
-/** 迁移注册表（001 为 45 个历史迁移重基线，002 为 Fama-French 因子）。 */
 const migrations: Array<{ version: number; upFile: string; downFile: string }> = [
   { version: 1, upFile: '001_initial_schema.sql', downFile: '001_initial_schema_down.sql' },
   {
@@ -24,7 +23,6 @@ const migrations: Array<{ version: number; upFile: string; downFile: string }> =
   },
 ];
 
-/** 初始化数据库 schema（执行未应用的迁移）。 */
 export async function initSchema(): Promise<void> {
   const client = await getPool().connect();
   const t0 = Date.now();
@@ -66,7 +64,6 @@ export async function initSchema(): Promise<void> {
   }
 }
 
-/** 回滚指定版本以上的迁移。 */
 export async function rollbackSchema(targetVersion: number): Promise<void> {
   const client = await getPool().connect();
   try {

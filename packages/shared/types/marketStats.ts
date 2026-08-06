@@ -1,15 +1,3 @@
-/**
- * @file 市场数据统计共享类型
- * @description 后端 PostgreSQL 聚合结果与前端数据引擎面板共用的统计快照结构，
- *  鼓励 DRY，避免在 backend/frontend 各自维护一份同构 interface。
- */
-
-/**
- * 市场数据统计快照。
- *
- * 由后端 `scanMarketStatsFromDb` 从 PostgreSQL 聚合生成，
- * 前端数据引擎面板直接消费同构 JSON。
- */
 export interface MarketStats {
   generated_at: string;
   total_cached: number;

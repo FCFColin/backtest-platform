@@ -134,7 +134,6 @@ async function checkServiceHealth(
 
 const toMB = (v: number): number => Math.round((v / 1024 / 1024) * 10) / 10;
 
-/** 格式化运行时间 */
 function formatUptime(uptimeSeconds: number): string {
   const days = Math.floor(uptimeSeconds / 86400);
   const hours = Math.floor((uptimeSeconds % 86400) / 3600);

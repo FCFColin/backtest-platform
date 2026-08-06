@@ -1,14 +1,6 @@
 /**
- * 登录失败计数与账户锁定（T-12 / OWASP A07 / 等保三级 8.1.4 b)
- *
- * 双层防护：
- * 1. 用户名维度：连续 5 次失败 → 15 分钟锁定（防止针对单账户暴力破解）
- * 2. IP 维度：5 分钟内 10 次失败 → 1 小时封锁（防止分布式用户名枚举/撞库）
- *
- * 锁定基于用户名/IP 而非账户行级标志，避免给攻击者"该用户名存在"的枚举信号。
- *
- * ADR-045：Redis 故障时不再降级到内存（跨 Pod 不一致 → 暴力破解防护失效），
- * 改为抛 RedisUnavailableError，登录路由由 asyncRouteHandler 翻译为 503。
+ * 登录失败计数与账户锁定（T-12 / OWASP A07 / 等保三级 8.1.4 b)。
+ * 双层：用户名 5 次锁定 15 分钟 / IP 5 分钟 10 次封锁 1 小时。ADR-045：Redis 故障抛 503。
  */
 import { appRedis } from '../../infrastructure/redisClient.js';
 import { logger } from '../../utils/logger.js';
@@ -17,7 +9,6 @@ import { config } from '../../config/index.js';
 import { authIpLockoutCounter } from '../../utils/metrics.js';
 import { createHash } from 'node:crypto';
 
-/** 用户名维度：触发锁定的连续失败次数阈值 */
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCKOUT_DURATION_SEC = 15 * 60;
 const FAILURE_WINDOW_SEC = 15 * 60;
@@ -25,16 +16,9 @@ const FAILURE_WINDOW_SEC = 15 * 60;
 const KEY_PREFIX = 'login_fail:';
 const LOCK_PREFIX = 'login_lock:';
 
-/** IP 维度：异常登录检测（等保三级 8.1.4 b) 自动化检测异常登录行为） */
 const IP_FAIL_PREFIX = 'login_ip_fail:';
 const IP_LOCK_PREFIX = 'login_ip_lock:';
 
-/**
- * 对 IP 进行 SHA-256 哈希，避免存储原始 IP（GDPR 友好，等保三级个人信息保护）。
- *
- * @param ip - 原始客户端 IP
- * @returns SHA-256 哈希的十六进制字符串
- */
 function hashIp(ip: string): string {
   return createHash('sha256').update(ip).digest('hex');
 }
@@ -43,10 +27,6 @@ function normalize(username: string): string {
   return username.trim().toLowerCase();
 }
 
-/**
- * 检查账户是否处于锁定状态。
- * @returns 锁定中返回剩余秒数；未锁定返回 0
- */
 export async function isLockedOut(username: string): Promise<number> {
   const key = LOCK_PREFIX + normalize(username);
   return requireRedis(key, async () => {
@@ -55,7 +35,6 @@ export async function isLockedOut(username: string): Promise<number> {
   });
 }
 
-/** 记录一次登录失败。达到阈值时锁定账户。 */
 export async function recordFailure(username: string): Promise<void> {
   const norm = normalize(username);
   const failKey = KEY_PREFIX + norm;
@@ -74,7 +53,6 @@ export async function recordFailure(username: string): Promise<void> {
   });
 }
 
-/** 登录成功后清除失败计数与锁定。 */
 export async function clearFailures(username: string): Promise<void> {
   const norm = normalize(username);
   const failKey = KEY_PREFIX + norm;
@@ -86,12 +64,6 @@ export async function clearFailures(username: string): Promise<void> {
 
 // IP 维度异常登录检测（P1-09 等保三级 8.1.4 b)
 
-/**
- * 检查 IP 是否因异常登录行为被封锁。
- *
- * @param ip - 客户端 IP 地址
- * @returns 封锁中返回剩余秒数；未封锁返回 0
- */
 export async function isIpBlocked(ip: string): Promise<number> {
   if (!ip) return 0;
   const key = IP_LOCK_PREFIX + hashIp(ip);
@@ -101,12 +73,6 @@ export async function isIpBlocked(ip: string): Promise<number> {
   });
 }
 
-/**
- * 记录一次 IP 维度的登录失败。
- * 达到阈值（默认 5 分钟内 10 次）时封锁 IP。
- *
- * @param ip - 客户端 IP 地址
- */
 export async function recordIpFailure(ip: string): Promise<void> {
   if (!ip) return;
   const hashedIp = hashIp(ip);
@@ -133,13 +99,6 @@ export async function recordIpFailure(ip: string): Promise<void> {
   });
 }
 
-/**
- * 综合检查登录是否被限制（用户名锁定 + IP 封锁）。
- *
- * @param username - 用户名
- * @param ip - 客户端 IP 地址
- * @returns { locked, reason, ttlSec } — locked=true 时拒绝登录
- */
 export async function checkLoginRestriction(
   username: string,
   ip: string,

@@ -3,7 +3,7 @@ import { pool, getReadPool } from '../db/pool.js';
 import { sendProblem } from '../utils/errors.js';
 import { logger } from '../utils/logger.js';
 import type { AuthenticatedRequest } from '../middleware/jwtAuth.js';
-import { asyncRouteHandler } from './routeUtils.js';
+import { asyncRouteHandler, sendData } from './routeUtils.js';
 import { validate } from '../middleware/miscMiddleware.js';
 import { adminMiddleware } from '../middleware/middlewareChains.js';
 import { createAnnouncementSchema, errorReportSchema } from '../schemas/tactical.js';
@@ -13,19 +13,20 @@ import {
   recordFrontendComponentRender,
   recordFrontendPageLoad,
 } from '../utils/metrics.js';
+import { createTtlCache } from '../utils/ttlCache.js';
 
 const router = Router();
 
-let announcementCache: { data: object[]; expiry: number } | null = null;
-const ANNOUNCEMENT_CACHE_TTL_MS = 60 * 1000;
+const announcementCache = createTtlCache<object[]>(60 * 1000);
 
 router.get(
   '/announcements',
   asyncRouteHandler(
     async (_req: Request, res: Response): Promise<void> => {
-      if (announcementCache && Date.now() < announcementCache.expiry) {
+      const cached = announcementCache.get('announcements');
+      if (cached) {
         res.set('Cache-Control', 'public, max-age=60');
-        res.json({ success: true, data: announcementCache.data });
+        sendData(res, cached);
         return;
       }
       const readPool = getReadPool();
@@ -40,9 +41,9 @@ router.get(
          ORDER BY published_at DESC
          LIMIT 50`,
       );
-      announcementCache = { data: result.rows, expiry: Date.now() + ANNOUNCEMENT_CACHE_TTL_MS };
+      announcementCache.set('announcements', result.rows);
       res.set('Cache-Control', 'public, max-age=60');
-      res.json({ success: true, data: result.rows });
+      sendData(res, result.rows);
     },
     { logMsg: 'Announcements fetch error', code: 'ANNOUNCEMENTS_FETCH_ERROR' },
   ),
@@ -71,8 +72,8 @@ router.post(
           (req as AuthenticatedRequest).user?.sub,
         ],
       );
-      announcementCache = null;
-      res.json({ success: true, data: result.rows[0] });
+      announcementCache.clear();
+      sendData(res, result.rows[0]);
     },
     { logMsg: 'Announcement create error', code: 'ANNOUNCEMENT_CREATE_ERROR' },
   ),

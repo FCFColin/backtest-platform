@@ -1,7 +1,3 @@
-/**
- * 回测应用服务：领域校验 → 数据获取 → 引擎调用 → 事件发布。
- * 仅负责组合回测编排；分析/MC/优化在各自服务，共享工具在 backtest-helpers.ts。
- */
 import { randomUUID } from 'crypto';
 import { trace } from '@opentelemetry/api';
 import { callEngineStrict } from '../utils/engineClient.js';
@@ -44,16 +40,12 @@ const tracer = trace.getTracer('backtest-platform', '1.0.0');
 
 export type { DateRangeInfo };
 
-/**
- * 组合回测完整编排：领域校验 → 数据获取 → 无效标的检测 → 宏观数据加载 → 引擎调用（带超时）→ 缓存 → 压缩。
- * @throws {ValidationError} 日期/标的格式非法；{@link EngineUnavailableError} Go 引擎不可用（ADR-031 fail-closed）
- */
+/** @throws {ValidationError} 日期/标的非法; @throws {EngineUnavailableError} ADR-031 */
 export async function runPortfolioBacktest(opts: {
   portfolios: Portfolio[];
   parameters: BacktestParameters;
   tenantId?: string;
   ownerUserId?: string;
-  /** 进度上报回调（P0-03 异步化）：数据 0-30%、计算 30-90%、写入 90-100%。同步路径不传。 */
   onProgress?: (pct: number) => void;
 }): Promise<{ result: unknown; warnings: Warning[]; dateRange: DateRangeInfo }> {
   const { portfolios, parameters, tenantId, ownerUserId, onProgress } = opts;
@@ -100,10 +92,8 @@ export async function runPortfolioBacktest(opts: {
   return { result: compressBacktestResultForSync(result), warnings, dateRange };
 }
 
-/**
- * 运行组合回测：domain 层验证组合不变量 → Go 引擎计算 → 发布 BacktestCompleted 领域事件。
- * @throws {EngineUnavailableError} Go 引擎不可用（ADR-031 fail-closed）
- */
+/** @throws {EngineUnavailableError} ADR-031 */
+
 export async function runBacktest(
   params: BacktestExecutionParams,
 ): Promise<BacktestExecutionResult> {
@@ -124,7 +114,6 @@ export async function runBacktest(
         },
         'Starting backtest',
       );
-      // ADR-013 Phase 3：Run 聚合根触发 RunStarted 事件（同步路径不持久化 Run，落库摘要由 BacktestCompletedHandler 完成）
       const aggregateId = `backtest-${Date.now()}`;
       const run = Run.create({
         id: aggregateId,
@@ -175,7 +164,6 @@ export async function runBacktest(
   });
 }
 
-/** 双通道发布 BacktestCompleted：进程内分发（即时副作用）+ outbox 事务写入（最终一致性），互不影响。 */
 function publishBacktestEvent(
   aggregateId: string,
   eventId: string,

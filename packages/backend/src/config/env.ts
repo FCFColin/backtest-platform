@@ -9,7 +9,7 @@ export const PROJECT_ROOT = path.resolve(__dirname, '../../../..');
 
 dotenv.config({ path: path.resolve(PROJECT_ROOT, '.env') });
 
-export type NodeEnv = 'development' | 'production' | 'test' | 'staging';
+type NodeEnv = 'development' | 'production' | 'test' | 'staging';
 type CorsOrigins = true | string[];
 
 const int = (v: string | undefined, d: string) => parseInt(v || d, 10);
@@ -35,7 +35,7 @@ export function requireSecret(name: string): string {
   return value;
 }
 
-export const serverConfig = {
+const serverConfig = {
   NODE_ENV: str(process.env.NODE_ENV, 'development') as NodeEnv,
   SERVE_STATIC: process.env.SERVE_STATIC !== undefined ? bool(process.env.SERVE_STATIC) : true,
   API_PORT: int(process.env.API_PORT || process.env.PORT, '15001'),
@@ -79,9 +79,6 @@ export const authConfig = {
   PASSWORD_REQUIRE_COMPLEXITY: int(process.env.PASSWORD_REQUIRE_COMPLEXITY, '3'),
   PASSWORD_HISTORY_KEEP: int(process.env.PASSWORD_HISTORY_KEEP, '5'),
   PASSWORD_EXPIRE_DAYS: int(process.env.PASSWORD_EXPIRE_DAYS, '90'),
-  MFA_ISSUER: str(process.env.MFA_ISSUER, 'BacktestPlatform'),
-  MFA_BACKUP_CODE_COUNT: int(process.env.MFA_BACKUP_CODE_COUNT, '8'),
-  MFA_REQUIRED_FOR_ADMIN: process.env.MFA_REQUIRED_FOR_ADMIN !== 'false',
   ANOMALY_LOGIN_WINDOW_SEC: int(process.env.ANOMALY_LOGIN_WINDOW_SEC, '300'),
   ANOMALY_LOGIN_MAX_FAILURES: int(process.env.ANOMALY_LOGIN_MAX_FAILURES, '10'),
   ANOMALY_LOGIN_LOCKOUT_SEC: int(process.env.ANOMALY_LOGIN_LOCKOUT_SEC, '3600'),
@@ -91,7 +88,7 @@ export const authConfig = {
   RBAC_CACHE_TTL_SEC: int(process.env.RBAC_CACHE_TTL_SEC, '300'),
 };
 
-export const databaseConfig = {
+const databaseConfig = {
   DATABASE_URL: str(
     process.env.DATABASE_URL,
     'postgresql://backtest:backtest@localhost:5432/backtest',
@@ -107,7 +104,7 @@ export const databaseConfig = {
   DB_POOL_MIN: int(process.env.DB_POOL_MIN, '2'),
 };
 
-export const integrationsConfig = {
+const integrationsConfig = {
   EMAIL_TRANSPORT: str(process.env.EMAIL_TRANSPORT, 'console') as 'smtp' | 'console',
   EMAIL_FROM: str(process.env.EMAIL_FROM, 'Backtest Platform <no-reply@backtest.local>'),
   EMAIL_SMTP_HOST: str(process.env.EMAIL_SMTP_HOST, ''),

@@ -1,9 +1,10 @@
 import { Router, type Request, type Response } from 'express';
 import { fetchCpiForRoute, SYNTHETIC_TICKERS } from '../infrastructure/dataServices.js';
 import { sendProblem } from '../utils/errors.js';
-import { asyncRouteHandler } from './routeUtils.js';
+import { asyncRouteHandler, sendData, sendDegraded } from './routeUtils.js';
 import { getReadPool } from '../db/pool.js';
 import { rowMapper, toIso } from '../repositories/rowMapper.js';
+import { createTtlCache } from '../utils/ttlCache.js';
 
 interface RecentUpdateRow {
   ticker: string;
@@ -18,15 +19,8 @@ const mapRecentUpdate = rowMapper<RecentUpdateRow>({
   updatedAt: (r) => toIso(r.updated_at),
 });
 
-const tickerMetaCache = new Map<string, { data: unknown; at: number }>();
-const TICKER_META_CACHE_TTL = 300_000;
-function cachedTickerMeta(ticker: string): unknown | undefined {
-  const hit = tickerMetaCache.get(ticker);
-  return hit && Date.now() - hit.at < TICKER_META_CACHE_TTL ? hit.data : undefined;
-}
-
-let metaCache: { data: object; expiry: number } | null = null;
-const META_CACHE_TTL_MS = 30 * 60 * 1000;
+const tickerMetaCache = createTtlCache<unknown>(300_000);
+const metaCache = createTtlCache<object>(30 * 60 * 1000);
 
 const META_SQL = `SELECT
   (SELECT MAX(date) FROM prices) AS "lastUpdated",
@@ -48,7 +42,7 @@ const EMPTY_META = { lastUpdated: null, tickerCount: 0, earliestDate: null, data
 export async function warmMetaCache(): Promise<void> {
   try {
     const result = await getReadPool().query(META_SQL);
-    metaCache = { data: buildMetaData(result.rows[0]), expiry: Date.now() + META_CACHE_TTL_MS };
+    metaCache.set('meta', buildMetaData(result.rows[0]));
   } catch {
     /* 预热失败不影响启动 */
   }
@@ -70,12 +64,8 @@ router.get(
         sendProblem(res, 404, 'CPI_NOT_FOUND');
         return;
       }
-      const response: Record<string, unknown> = { success: true, data: result.data };
-      if (result.degraded) {
-        response.degraded = true;
-        response.degradedWarning = result.degradedWarning;
-      }
-      res.json(response);
+      if (result.degraded) sendDegraded(res, result.data, result.degradedWarning);
+      else sendData(res, result.data);
     },
     { logMsg: 'CPI data fetch error', code: 'CPI_FETCH_ERROR', endpoint: 'data-cpi' },
   ),
@@ -85,17 +75,18 @@ router.get(
   '/meta',
   asyncRouteHandler(
     async (_req: Request, res: Response): Promise<void> => {
-      if (metaCache && Date.now() < metaCache.expiry) {
-        res.json({ success: true, data: metaCache.data });
+      const cached = metaCache.get('meta');
+      if (cached) {
+        sendData(res, cached);
         return;
       }
       try {
         const result = await getReadPool().query(META_SQL);
         const data = buildMetaData(result.rows[0]);
-        metaCache = { data, expiry: Date.now() + META_CACHE_TTL_MS };
-        res.json({ success: true, data });
+        metaCache.set('meta', data);
+        sendData(res, data);
       } catch {
-        res.json({ success: true, data: EMPTY_META });
+        sendData(res, EMPTY_META);
       }
     },
     { logMsg: 'Data meta fetch error', code: 'DATA_META_ERROR', endpoint: 'data-meta' },
@@ -111,7 +102,7 @@ router.get(
           'SELECT date, mkt_rf, smb, hml, rf FROM fama_french_factors ORDER BY date',
         );
         res.set('Cache-Control', 'public, max-age=3600');
-        res.json({ success: true, data: rows });
+        sendData(res, rows);
       } catch {
         sendProblem(res, 503, 'DATA_UNAVAILABLE', 'Service Unavailable', {
           detail: 'Fama-French 因子数据暂不可用',
@@ -134,23 +125,20 @@ router.get(
       const synthetic = SYNTHETIC_TICKERS.find((s) => s.ticker === ticker);
       if (synthetic) {
         res.set('Cache-Control', 'public, max-age=60');
-        res.json({
-          success: true,
-          data: {
-            ticker,
-            name: synthetic.name,
-            exchange: 'SIM',
-            currency: 'USD',
-            earliestDate: synthetic.earliestDate,
-            isSynthetic: true,
-          },
+        sendData(res, {
+          ticker,
+          name: synthetic.name,
+          exchange: 'SIM',
+          currency: 'USD',
+          earliestDate: synthetic.earliestDate,
+          isSynthetic: true,
         });
         return;
       }
-      const cached = cachedTickerMeta(ticker);
+      const cached = tickerMetaCache.get(ticker);
       if (cached) {
         res.set('Cache-Control', 'public, max-age=60');
-        res.json({ success: true, data: cached });
+        sendData(res, cached);
         return;
       }
       try {
@@ -173,9 +161,9 @@ router.get(
           earliestDate: row.earliest ?? null,
           isSynthetic: false,
         };
-        tickerMetaCache.set(ticker, { data, at: Date.now() });
+        tickerMetaCache.set(ticker, data);
         res.set('Cache-Control', 'public, max-age=60');
-        res.json({ success: true, data });
+        sendData(res, data);
       } catch {
         sendProblem(res, 503, 'DATA_UNAVAILABLE', 'Service Unavailable', {
           detail: '元数据暂不可用，请稍后重试',
@@ -203,10 +191,7 @@ router.get(
          LIMIT $1`,
         [limit],
       );
-      res.json({
-        success: true,
-        data: result.rows.map(mapRecentUpdate),
-      });
+      sendData(res, result.rows.map(mapRecentUpdate));
     },
     {
       logMsg: 'Recent updates fetch error',
@@ -216,6 +201,6 @@ router.get(
   ),
 );
 
-setInterval(() => void warmMetaCache(), META_CACHE_TTL_MS - 5 * 60 * 1000);
+setInterval(() => void warmMetaCache(), 25 * 60 * 1000);
 
 export default router;

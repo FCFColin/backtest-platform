@@ -1,8 +1,3 @@
-/**
- * OpenAPI 路径注册 — backtest/计算域（BIG2 拆分）
- *
- * 覆盖组合回测/分析/蒙特卡洛/优化/有效前沿/网格优化/战术/信号/PCA/LETF/目标优化/计算器。
- */
 import { z } from 'zod';
 import { sec, idParam, BACKTEST_ERR, TACTICAL_ERR } from './openapi-paths-shared.js';
 import {

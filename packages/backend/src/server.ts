@@ -4,6 +4,7 @@ initTracing();
 import app, { server } from './app.js';
 import { config, validateConfig } from './config/index.js';
 import { logger } from './utils/logger.js';
+import { createShutdownOnce } from './utils/gracefulShutdown.js';
 import { initDb } from './infrastructure/dataFacade.js';
 import { bootstrapPlatformAdminKey, startApiKeyMonitoring } from './infrastructure/adminBoot.js';
 import { getPool, getReadPool, closeDb } from './db/pool.js';
@@ -14,7 +15,6 @@ import { backtestQueue } from './queues/backtestQueue.js';
 import { dataUpdateQueue } from './queues/queueDefinitions.js';
 import { eventDispatcher } from './domain/events/events.js';
 import { BacktestCompletedHandler, RunCompletedHandler } from './application/completedHandlers.js';
-import type { Server } from 'http';
 // P3-05：OutboxConsumer 接口类型——由 createOutboxConsumer 工厂按 CDC_KAFKA_ENABLED 选择实现
 import type { OutboxConsumer } from './infrastructure/outboxPublisher.js';
 
@@ -102,50 +102,25 @@ server.on('error', (error: NodeJS.ErrnoException) => {
   }
 });
 
-let shuttingDown = false;
-
-function triggerShutdown(signal: string, exitCode = 0): void {
-  if (shuttingDown) {
-    logger.info({ signal }, '[shutdown] 已在关闭流程中，忽略重复信号');
-    return;
-  }
-  shuttingDown = true;
-  logger.info({ signal }, `Received ${signal}, starting graceful shutdown...`);
-
-  const forceExitTimeout = setTimeout(() => {
-    logger.error('Graceful shutdown timed out after 30s, forcing exit');
-    process.exit(1);
-  }, 30000);
-
-  server.close(async () => {
-    try {
-      if (outboxConsumer) {
-        await outboxConsumer.stop();
-        outboxConsumer = null;
-      }
-      await shutdownTracing();
-      await closeDb();
-      logger.info('Graceful shutdown complete');
-    } catch (err) {
-      logger.error({ err }, 'Error during shutdown');
-    } finally {
-      clearTimeout(forceExitTimeout);
-      process.exit(exitCode);
+const shutdown = createShutdownOnce({
+  onShutdown: async () => {
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+    if (outboxConsumer) {
+      await outboxConsumer.stop();
+      outboxConsumer = null;
     }
-  });
-}
+    await shutdownTracing();
+    await closeDb();
+  },
+});
 
-function setupGracefulShutdown(_server: Server): void {
-  process.on('SIGTERM', () => triggerShutdown('SIGTERM', 0));
-  process.on('SIGINT', () => triggerShutdown('SIGINT', 0));
-}
-
-setupGracefulShutdown(server);
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
 
 // P0-01：未捕获异常必须终止进程——不终止会导致状态不一致（连接池/事件循环可能已损坏）。
 process.on('uncaughtException', (err) => {
   logger.error({ err }, '[server] 未捕获异常，启动优雅关闭后终止进程');
-  triggerShutdown('uncaughtException', 1);
+  shutdown('uncaughtException', 1);
 });
 
 // P0-01：未处理 Promise 拒绝必须终止进程——Node 未来版本会将 unhandledRejection 直接 crash。

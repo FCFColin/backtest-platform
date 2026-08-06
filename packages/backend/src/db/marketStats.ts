@@ -6,6 +6,7 @@
  */
 import { getReadPool } from './pool.js';
 import { logger } from '../utils/logger.js';
+import { createTtlCache } from '../utils/ttlCache.js';
 
 export type {
   DbMarketStats,
@@ -20,30 +21,8 @@ export { bytesToMb, inferMarket, deriveExchangeFromTicker } from './marketStatsH
 import type { DbMarketStats, TickerAggRow, DbEngineStatusResult } from './marketStatsTypes.js';
 import { processTickerRow, buildMarketStatsResult } from './marketStatsHelpers.js';
 
-interface TtlCacheEntry<T> {
-  data: T;
-  expiresAt: number;
-}
-function makeTtlCache<T>(ttlMs: number) {
-  let entry: TtlCacheEntry<T> | null = null;
-  return {
-    get: (): T | null => {
-      if (entry && Date.now() < entry.expiresAt) return entry.data;
-      entry = null;
-      return null;
-    },
-    set: (data: T): void => {
-      entry = { data, expiresAt: Date.now() + ttlMs };
-    },
-    clear: (): void => {
-      entry = null;
-    },
-  };
-}
-
 const MARKET_DATA_TABLES = ['tickers', 'prices', 'cpi_data', 'exchange_rates'] as const;
 
-/** 查询行情相关 PostgreSQL 表的实际磁盘占用（含 TOAST 与索引）。查询失败返回 0。 */
 export async function getMarketDataStorageBytes(): Promise<number> {
   try {
     const { rows } = await getReadPool().query<{ total_bytes: string }>(
@@ -57,13 +36,11 @@ export async function getMarketDataStorageBytes(): Promise<number> {
   }
 }
 
-/** 进程内 TTL 缓存：scanMarketStatsFromDb() 结果缓存 60 秒 */
-const marketStatsCache = makeTtlCache<DbMarketStats>(60_000);
+const marketStatsCache = createTtlCache<DbMarketStats>(60_000);
 
-/** 从 PostgreSQL tickers + prices 聚合数据引擎统计。结果缓存 60 秒；数据库不可用返回 null。 */
 export async function scanMarketStatsFromDb(force = false): Promise<DbMarketStats | null> {
   if (!force) {
-    const cached = marketStatsCache.get();
+    const cached = marketStatsCache.get('stats');
     if (cached) return cached;
   }
   try {
@@ -116,7 +93,7 @@ export async function scanMarketStatsFromDb(force = false): Promise<DbMarketStat
       allPoints: state.allPoints,
       storageBytes,
     });
-    marketStatsCache.set(result);
+    marketStatsCache.set('stats', result);
     return result;
   } catch (err) {
     logger.warn({ err: err as Error }, '[marketStats] PostgreSQL 统计聚合失败');
@@ -124,32 +101,27 @@ export async function scanMarketStatsFromDb(force = false): Promise<DbMarketStat
   }
 }
 
-/** 进程内 TTL 缓存：getLastUpdated() 结果缓存 30 秒 */
-const lastUpdatedCache = makeTtlCache<string>(30_000);
+const lastUpdatedCache = createTtlCache<string>(30_000);
 
-/** 轻量查询：MAX(updated_at) FROM tickers（避免聚合开销）。缓存 30 秒。 */
 export async function getLastUpdated(): Promise<string> {
-  const cached = lastUpdatedCache.get();
-  if (cached !== null) return cached;
+  const cached = lastUpdatedCache.get('last');
+  if (cached !== undefined) return cached;
   try {
     const { rows } = await getReadPool().query<{ last: Date | null }>(
       'SELECT MAX(updated_at) AS last FROM tickers',
     );
     const result = rows[0]?.last ? new Date(rows[0].last).toISOString() : '';
-    lastUpdatedCache.set(result);
+    lastUpdatedCache.set('last', result);
     return result;
   } catch {
     return '';
   }
 }
 
-/** 进程内 TTL 缓存：getDbEngineStatus() 结果缓存 30 秒（避免 COUNT(DISTINCT ticker) 在大表上的扫描开销） */
-const dbEngineStatusCache = makeTtlCache<DbEngineStatusResult>(30_000);
+const dbEngineStatusCache = createTtlCache<DbEngineStatusResult>(30_000);
 
-/** 引擎状态摘要（PostgreSQL）：tickers 总数 / 已缓存数 / 最后更新时间；查询失败各字段归零。
- * cachedTickers 从 prices_monthly CAGG 读取（避免对 14.5M 行 prices 全扫 COUNT DISTINCT，冷启动从 ~5s 降到毫秒级）。 */
 export async function getDbEngineStatus(): Promise<DbEngineStatusResult> {
-  const cached = dbEngineStatusCache.get();
+  const cached = dbEngineStatusCache.get('status');
   if (cached) return cached;
   try {
     const { rows } = await getReadPool().query<{
@@ -165,7 +137,7 @@ export async function getDbEngineStatus(): Promise<DbEngineStatusResult> {
       cachedTickers: parseInt(row?.with_prices ?? '0', 10),
       lastUpdate: row?.last_update ? new Date(row.last_update).toISOString() : null,
     };
-    dbEngineStatusCache.set(result);
+    dbEngineStatusCache.set('status', result);
     return result;
   } catch {
     return { totalTickers: 0, cachedTickers: 0, lastUpdate: null };

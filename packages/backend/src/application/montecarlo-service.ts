@@ -4,20 +4,17 @@ import { buildEngineParams } from './backtest/backtestEngineUtils.js';
 import { Portfolio as DomainPortfolio } from '../domain/aggregates/portfolio.js';
 import {
   collectDomainTickers,
-  fetchPriceDataWithRange,
+  preparePriceDataAndWarnings,
   filterPriceData,
   loadMacroData,
   sanitizeMcParams,
   translateDomainError,
-  collectInvalidTickerWarnings,
   calculateDateRange,
-  pushDegradedWarning,
   clampParametersToDataRange,
 } from './backtest-helpers.js';
 import type { Portfolio, BacktestParameters } from '@backtest/shared/types';
 import type { Warning, DateRangeInfo } from './backtest-helpers.js';
 
-/** 引擎调用并发上限（D3-004：防止大量组合同时调用引擎导致过载） */
 const ENGINE_CONCURRENCY_LIMIT = 10;
 
 /**
@@ -35,14 +32,8 @@ export async function runMonteCarlo(
   );
   const allTickers = collectDomainTickers(domainPortfolios, '');
   const tickers = Array.from(allTickers);
-  const warnings: Warning[] = [];
-
-  const { priceData, effectiveStartDate, effectiveEndDate, degraded, degradedWarning } =
-    await fetchPriceDataWithRange(tickers, parameters.startDate, parameters.endDate);
-
-  const invalidTickers = collectInvalidTickerWarnings(allTickers, priceData, warnings);
-
-  pushDegradedWarning(warnings, degraded, degradedWarning);
+  const { priceData, warnings, invalidTickers, effectiveStartDate, effectiveEndDate } =
+    await preparePriceDataAndWarnings(tickers, parameters.startDate, parameters.endDate);
 
   const sanitizedMcParams = sanitizeMcParams(mcParams);
   const { cpiData, exchangeRates } = await loadMacroData(parameters);

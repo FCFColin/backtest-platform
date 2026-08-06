@@ -1,7 +1,4 @@
-/**
- * 回测路由 — 纯 HTTP 适配层（薄路由模式）：请求解析 → application 层 → 响应格式化。
- */
-import { Router, type Request, type RequestHandler, type Response } from 'express';
+import { Router, type Request, type Response } from 'express';
 import type { Portfolio, BacktestParameters } from '@backtest/shared';
 import { runAnalysis } from '../application/analysis-orchestrator.js';
 import type { Warning } from '../application/backtest-helpers.js';
@@ -15,9 +12,7 @@ import {
 import { searchTickers } from '../infrastructure/dataFacade.js';
 import { SYNTHETIC_TICKERS } from '../infrastructure/dataServices.js';
 import { sendProblem } from '../utils/errors.js';
-import { logger } from '../utils/logger.js';
-import { recordBacktestRequest } from '../utils/metrics.js';
-import { asyncRouteHandler, crudRouteHandler } from './routeUtils.js';
+import { asyncRouteHandler, crudRouteHandler, computeRoute } from './routeUtils.js';
 import { submitQueueJob, jobAccessGranted } from './jobSubmission.js';
 import type { AuthenticatedRequest } from '../middleware/jwtAuth.js';
 import { backtestQueue, type BacktestJobResult } from '../queues/backtestQueue.js';
@@ -32,42 +27,6 @@ import {
 } from '../schemas/backtest.js';
 
 const router = Router();
-
-function buildBacktestResponse(
-  data: unknown,
-  warnings: (Warning | string)[] = [],
-  dateRange?: unknown,
-): Record<string, unknown> {
-  const response: Record<string, unknown> = { success: true, data };
-  if (warnings.length > 0)
-    response.warnings = warnings.map((w: Warning | string): Warning =>
-      typeof w === 'string' ? { code: 'WARNING', message: w } : w,
-    );
-  if (dateRange) response.dateRange = dateRange;
-  return response;
-}
-
-function computeRoute(
-  metric: string,
-  logMsg: string,
-  code: string,
-  fn: (req: Request) => Promise<{
-    data: unknown;
-    warnings?: (Warning | string)[];
-    dateRange?: unknown;
-  }>,
-): RequestHandler {
-  return asyncRouteHandler(
-    async (req, res) => {
-      const startTime = Date.now();
-      const { data, warnings, dateRange } = await fn(req);
-      recordBacktestRequest(metric, 'sync', 'success');
-      res.json(buildBacktestResponse(data, warnings, dateRange));
-      logger.info(`[backtest] ${metric} completed in ${Date.now() - startTime}ms`);
-    },
-    { logMsg, code, endpoint: metric },
-  );
-}
 
 router.get(
   '/search',
@@ -95,6 +54,7 @@ router.post(
   validate(portfolioBacktestSchema),
   submitQueueJob({
     type: 'portfolio',
+    onQueueDown: 'fail-closed',
     statusUrl: (jobId) => `/api/v1/backtest/runs/${jobId}`,
     jobStatus: 'queued',
     metric: 'portfolio',

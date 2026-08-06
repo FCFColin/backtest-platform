@@ -1,11 +1,3 @@
-/**
- * 将原 optimizer application service 中的无副作用纯函数、类型与常量抽离到 domain 层，
- * 使其可在不依赖引擎/数据服务的情况下被单元测试与复用。application-service 仅保留
- * 编排入口（fetchHistoryData + callEngineStrict + 上述纯函数的串联）。
- *
- * 企业理由（ADR-013 DDD 分层）：领域逻辑不应与 I/O 耦合，拆分后可独立测试、
- * 减少重构时对编排层的连带修改。
- */
 import type {
   BacktestParameters,
   RebalanceFrequency,
@@ -35,7 +27,6 @@ export interface BacktestOptimizerRequest {
   objective: BacktestOptimizerObjective;
   constraints?: { maxDrawdown?: number; minCagr?: number };
 }
-// OptimizeResultItem / BestResultItem 已上提到 shared/types/optimizer.ts，
 export type { OptimizeResultItem, BestResultItem };
 
 export interface Combo {
@@ -44,7 +35,6 @@ export interface Combo {
   capital: number;
 }
 
-/** 参数组合数硬上限（防止滥用引擎算力） */
 export const MAX_OPTIMIZER_COMBINATIONS = 1000;
 
 export function range(min: number, max: number, step: number): number[] {
@@ -114,7 +104,6 @@ export function buildCombinations(
   return combos;
 }
 
-/** maxDrawdown/minCagr 以百分比表示，需除以 100 转小数。 */
 export function filterByConstraints(
   items: OptimizeResultItem[],
   constraints?: BacktestOptimizerRequest['constraints'],

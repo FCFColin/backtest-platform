@@ -6,7 +6,6 @@ import { logger } from '../utils/logger.js';
 import { eventDispatcher } from '../domain/events/events.js';
 import type { OutboxConsumer } from './outbox.js';
 
-/** topic 名前缀，与 connector 的 route.topic.replacement `backtest.${routedByValue}` 对齐。 */
 const TOPIC_PREFIX = 'backtest.';
 
 // 消息形态（Outbox Event Router SMT 展平后）：topic=backtest.<aggregate_type>，key=aggregate_id，
@@ -111,7 +110,6 @@ export class OutboxKafkaConsumer implements OutboxConsumer {
     }
   }
 
-  /** 处理单条消息：还原领域事件 → eventDispatcher → 可选 webhook。aggregate_type 从 topic 推导，eventType 优先 header（兼容多种 SMT 配置）回退 payload 字段。 */
   private async handleMessage(payload: KafkaMessage): Promise<void> {
     const { topic, message } = payload;
     const aggregateType = topic.startsWith(TOPIC_PREFIX) ? topic.slice(TOPIC_PREFIX.length) : topic;
@@ -144,7 +142,6 @@ export class OutboxKafkaConsumer implements OutboxConsumer {
     );
   }
 
-  /** 解析 value（Debezium schemas.enable=false 时为纯 JSON）。 */
   private parsePayload(value: Buffer | null): Record<string, unknown> {
     if (!value) return {};
     try {
@@ -158,7 +155,6 @@ export class OutboxKafkaConsumer implements OutboxConsumer {
     }
   }
 
-  /** 从 kafkajs 消息 header 提取字符串值（header 值为 Buffer）。 */
   private extractHeader(message: { headers?: Record<string, Buffer> }, key: string): string | null {
     const headers = message?.headers;
     if (!headers) return null;

@@ -1,24 +1,3 @@
-/**
- * 统计指标类型定义
- *
- * 包含 100+ 个计算指标，覆盖收益、风险、风险调整后收益、
- * 基准比较、分布特征和提款率分析。
- *
- * 注意：所有字段均为必填，Go引擎总是计算并返回所有指标。
- */
-
-/**
- * 回测统计指标集合
- *
- * 各频率后缀约定：
- * - 无后缀：年化（默认）
- * - Daily：日频指标
- * - Monthly：月频指标
- * - Annual/Annualized：年化（与无后缀等价）
- * - Raw：原始（未年化）指标
- *
- * VaR/CVaR 后缀数字表示置信水平（%），如 varDaily5 = 日频 95% VaR。
- */
 type VarLevel = 1 | 5 | 10;
 type HorizonStats = { daily: number; monthly: number; annual: number };
 type VaRByHorizon = { [H in 'daily' | 'monthly' | 'annual']: { [K in VarLevel]: number } };
@@ -240,10 +219,6 @@ const NUM_FIELDS = [
   'pwr40y',
 ] as const;
 
-/**
- * 创建零值 Statistics 骨架（T-24：集中空对象字面量，字段演进只改一处，编译器保证完整性）。
- * @returns 所有必填指标置零的 Statistics 对象
- */
 export function createEmptyStatistics(): Statistics {
   return {
     ...(Object.fromEntries(NUM_FIELDS.map((k) => [k, 0])) as Record<
@@ -258,13 +233,6 @@ export function createEmptyStatistics(): Statistics {
   };
 }
 
-/**
- * 将 Statistics 转换为表格组件可消费的扁平 Record<string, number> 视图。
- * 表格组件仅按字符串 key 访问扁平字段（cagr/sharpe/var5 等，未知 key 用 ?? 0 兜底），
- * 本 helper 把类型断言与嵌套→扁平填充集中到单一位置（替代 D6-013 的双重断言）。
- * @param stats - 完整 Statistics 对象（含嵌套对象字段）
- * @returns 表格组件可消费的扁平 Record<string, number> 视图
- */
 export function toStatsRecord(stats: Statistics): Record<string, number> {
   const record = stats as unknown as Record<string, number>;
   const HORIZON_CAPS = [

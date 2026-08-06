@@ -11,6 +11,7 @@ import { createAuditExportWorker, scheduleAuditExportJob } from './queueDefiniti
 import { createDataUpdateWorker } from './dataUpdateWorker.js';
 import { startHeartbeat } from './queueUtils.js';
 import { shutdownWorker } from './worker.js'; // Backtest worker (module-level side effect: creates Worker at import time)
+import { createShutdownOnce } from '../utils/gracefulShutdown.js';
 import type { Worker } from 'bullmq';
 
 validateConfig();
@@ -22,22 +23,10 @@ let auditExportWorker: Worker | null = null;
 let dataUpdateWorker: Worker | null = null;
 let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
 
-let shuttingDown = false;
-
-async function shutdown(signal: string): Promise<void> {
-  if (shuttingDown) {
-    logger.info({ signal }, '[worker-entry] 已在关闭流程中，忽略重复信号');
-    return;
-  }
-  shuttingDown = true;
-  logger.info({ signal }, `[worker-entry] ${signal} received, shutting down gracefully...`);
-
-  const forceExitTimeout = setTimeout(() => {
-    logger.error('[worker-entry] Graceful shutdown timed out after 60s, forcing exit');
-    process.exit(1);
-  }, 60_000);
-
-  try {
+const shutdown = createShutdownOnce({
+  timeoutMs: 60_000,
+  prefix: 'worker-entry',
+  onShutdown: async (signal) => {
     if (heartbeatTimer) {
       clearInterval(heartbeatTimer);
       heartbeatTimer = null;
@@ -50,18 +39,11 @@ async function shutdown(signal: string): Promise<void> {
       await dataUpdateWorker.close();
       dataUpdateWorker = null;
     }
-
     await shutdownWorker(signal);
     await closeDb();
     await shutdownTracing();
-    logger.info('[worker-entry] Graceful shutdown complete');
-  } catch (err) {
-    logger.error({ err }, '[worker-entry] Error during shutdown');
-  } finally {
-    clearTimeout(forceExitTimeout);
-    process.exit(0);
-  }
-}
+  },
+});
 
 async function main(): Promise<void> {
   logger.info('[worker-entry] Starting unified worker process...');
@@ -95,21 +77,17 @@ async function main(): Promise<void> {
   logger.info('[worker-entry] All workers started, waiting for jobs...');
 }
 
-process.on('SIGTERM', () => {
-  void shutdown('SIGTERM');
-});
-process.on('SIGINT', () => {
-  void shutdown('SIGINT');
-});
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
 
 process.on('uncaughtException', (err) => {
   logger.error({ err }, '[worker-entry] Uncaught exception, shutting down');
-  void shutdown('uncaughtException');
+  shutdown('uncaughtException');
 });
 
 process.on('unhandledRejection', (reason) => {
   logger.error({ err: reason }, '[worker-entry] Unhandled rejection, shutting down');
-  void shutdown('unhandledRejection');
+  shutdown('unhandledRejection');
 });
 
 void main().catch((err) => {

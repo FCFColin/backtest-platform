@@ -1,22 +1,13 @@
-/**
- * API Key 仓储（ADR-033 + P0-04）：组织自助创建可吊销密钥；平台 break-glass 密钥（is_platform_admin=true, org_id=NULL）同表治理。
- * 安全：key_hash（sha256）快速查找 + key_hash_argon2（argon2id）校验；明文 bpk_live_<rand> 仅创建时一次性返回；吊销为软删除（revoked_at）。
- * 隔离：api_keys 未启用 RLS（校验发生在尚未解析出租户时），按 org_id 显式收敛。verify 路径见 infrastructure/apiKeyVerifier.ts。
- */
 import crypto from 'crypto';
 import { getPool, withTenant } from '../db/pool.js';
 import { logger } from '../utils/logger.js';
 import { sha256Hex, hashApiKeyArgon2id } from '../utils/crypto.js';
 import { rowMapper, iso, toIso } from './rowMapper.js';
 
-/** 明文密钥前缀（标识环境/用途，便于在日志/告警中识别泄露形态） */
 export const KEY_PREFIX = 'bpk_live_';
-/** UI 展示与定位用前缀长度（含 KEY_PREFIX，不泄露可重建密钥的信息） */
 const DISPLAY_PREFIX_LEN = 16;
-/** 平台 break-glass 密钥最大有效期（天），等保三级"身份鉴别"要求限期 */
 export const PLATFORM_ADMIN_KEY_MAX_TTL_DAYS = 90;
 
-/** API Key 元数据（不含明文与哈希，可安全返回前端） */
 interface ApiKeyRecord {
   id: string;
   orgId: string | null;
@@ -83,7 +74,6 @@ function generatePlatformKeyPlaintext(): string {
   return `${KEY_PREFIX}${crypto.randomBytes(32).toString('base64url')}`;
 }
 
-/** 从明文派生哈希与展示前缀（sha256 快速查找 + argon2id 校验 + 前缀展示） */
 async function deriveKeyFields(plaintext: string) {
   return {
     keyHash: sha256Hex(plaintext),
@@ -92,7 +82,6 @@ async function deriveKeyFields(plaintext: string) {
   };
 }
 
-/** 为组织创建一把新的 API Key（argon2id 哈希存储）。 */
 export async function createApiKey(
   orgId: string,
   name: string,
@@ -110,7 +99,6 @@ export async function createApiKey(
   return { ...mapRow(rows[0]), plaintext };
 }
 
-/** 列出组织下的全部 API Key（含已吊销，用于审计）。 */
 export async function listApiKeys(orgId: string): Promise<ApiKeyRecord[]> {
   const { rows } = await withTenant(orgId, (client) =>
     client.query(
@@ -121,7 +109,6 @@ export async function listApiKeys(orgId: string): Promise<ApiKeyRecord[]> {
   return rows.map(mapRow);
 }
 
-/** 吊销组织下的某把 API Key（软删除，幂等）。返回 false 表示不存在/不属于该组织/已吊销。 */
 export async function revokeApiKey(orgId: string, keyId: string): Promise<boolean> {
   const { rowCount } = await withTenant(orgId, (client) =>
     client.query(
@@ -134,8 +121,6 @@ export async function revokeApiKey(orgId: string, keyId: string): Promise<boolea
   return ok;
 }
 
-// 平台 break-glass 密钥管理（P0-04）
-
 type Queryable = {
   query: (text: string, params?: unknown[]) => Promise<{ rows: ApiKeyRow[] }>;
 };
@@ -147,7 +132,6 @@ interface InsertPlatformKeyArgs {
   action: '已创建' | '已轮换';
   oldKeyId?: string;
 }
-/** 插入平台 break-glass 密钥（argon2id 哈希 + 90 天有效期内限）。 */
 async function insertPlatformAdminKey(
   exec: Queryable,
   args: InsertPlatformKeyArgs,
@@ -166,7 +150,6 @@ async function insertPlatformAdminKey(
   return { ...mapRow(rows[0]), plaintext };
 }
 
-/** 创建一把新的平台 break-glass 密钥（bootstrap 或管理员手动签发）。 */
 export async function createPlatformAdminKey(
   plaintext: string,
   name: string,
@@ -182,7 +165,6 @@ export async function createPlatformAdminKey(
   });
 }
 
-/** 轮换平台 break-glass 密钥：吊销旧密钥并签发新密钥（原子事务）。调用方须以当前有效平台密钥通过 x-api-key 鉴权。旧密钥无效时抛错。 */
 export async function rotatePlatformAdminKey(
   oldKeyId: string,
   name: string,
@@ -216,7 +198,6 @@ export async function rotatePlatformAdminKey(
   }
 }
 
-/** 列出全部平台 break-glass 密钥（含已吊销，用于审计）。 */
 export async function listPlatformAdminKeys(): Promise<ApiKeyRecord[]> {
   const { rows } = await getPool().query(
     `SELECT ${PLATFORM_KEY_COLUMNS} FROM api_keys WHERE is_platform_admin = TRUE ORDER BY created_at DESC`,
@@ -224,7 +205,6 @@ export async function listPlatformAdminKeys(): Promise<ApiKeyRecord[]> {
   return rows.map(mapRow);
 }
 
-/** 吊销指定的平台 break-glass 密钥（软删除，幂等）。不按 org_id 收敛（平台密钥 org_id 为 NULL），防误吊销租户密钥。 */
 export async function revokePlatformAdminKey(keyId: string): Promise<boolean> {
   const { rowCount } = await getPool().query(
     `UPDATE api_keys SET revoked_at = NOW() WHERE id = $1 AND is_platform_admin = TRUE AND revoked_at IS NULL`,
@@ -235,7 +215,6 @@ export async function revokePlatformAdminKey(keyId: string): Promise<boolean> {
   return ok;
 }
 
-/** 统计当前有效的平台 break-glass 密钥数量（bootstrap 判定用）。 */
 export async function countActivePlatformAdminKeys(): Promise<number> {
   const { rows } = await getPool().query(
     `SELECT COUNT(*)::int AS cnt FROM api_keys WHERE is_platform_admin = TRUE AND revoked_at IS NULL AND (expires_at IS NULL OR expires_at > NOW())`,
@@ -243,7 +222,6 @@ export async function countActivePlatformAdminKeys(): Promise<number> {
   return rows[0]?.cnt ?? 0;
 }
 
-/** 巡检陈旧密钥（T5 监控）：超过阈值天数未使用的有效密钥是泄露盲区（平台密钥 >7 天未用即应告警）。 */
 export async function findStaleApiKeys(thresholdDays: number): Promise<StaleApiKey[]> {
   const { rows } = await getPool().query(
     `SELECT id, org_id, is_platform_admin, name, key_prefix, last_used_at, created_at FROM api_keys WHERE revoked_at IS NULL AND (expires_at IS NULL OR expires_at > NOW()) AND (last_used_at IS NULL OR last_used_at < NOW() - make_interval(days => $1))`,

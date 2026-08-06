@@ -1,8 +1,9 @@
 import type { Response, NextFunction } from 'express';
 import { logger } from '../utils/logger.js';
 import { sendProblem } from '../utils/errors.js';
+import { withTimeout, TimeoutError } from '../utils/misc.js';
 import { verifyApiKey } from '../infrastructure/apiKeyVerifier.js';
-import { authCtx, authFail, attachAuthLogContext, hashUserId } from './jwtAuth.js';
+import { authCtx, denyAuth, attachAuthLogContext, hashUserId } from './jwtAuth.js';
 import type { AuthenticatedRequest, JwtPayload } from './jwtAuth.js';
 import { ACCESS_TOKEN_EXPIRES_IN_SEC } from './tokenStore.js';
 
@@ -46,14 +47,6 @@ function logAnonymous(req: AuthenticatedRequest): void {
 }
 
 const API_KEY_RESOLUTION_TIMEOUT_MS = 5000;
-function apiKeyTimeout(): Promise<never> {
-  return new Promise<never>((_, reject) =>
-    setTimeout(
-      () => reject(new Error('API_KEY_RESOLUTION_TIMEOUT')),
-      API_KEY_RESOLUTION_TIMEOUT_MS,
-    ),
-  );
-}
 export async function authenticateWithApiKey(
   req: AuthenticatedRequest,
   res: Response,
@@ -71,7 +64,7 @@ export async function authenticateWithApiKey(
   }
   try {
     const user = optional
-      ? await Promise.race([resolveApiKeyUser(apiKey), apiKeyTimeout()])
+      ? await withTimeout(resolveApiKeyUser(apiKey), API_KEY_RESOLUTION_TIMEOUT_MS, 'apiKey')
       : await resolveApiKeyUser(apiKey);
     if (user) {
       req.user = user;
@@ -86,10 +79,9 @@ export async function authenticateWithApiKey(
       next();
       return;
     }
-    authFail(middleware, req, 'API Key 无效');
-    sendProblem(res, 401, 'INVALID_API_KEY');
+    denyAuth(req, res, 'INVALID_API_KEY', 'API Key 无效', { middleware });
   } catch (err) {
-    if (optional && err instanceof Error && err.message === 'API_KEY_RESOLUTION_TIMEOUT') {
+    if (optional && err instanceof TimeoutError) {
       logger.warn({ ...authCtx(middleware, req) }, '[jwtAuth] API Key 解析超时（5s），返回 504');
       sendProblem(res, 504, 'GATEWAY_TIMEOUT', 'API Key Resolution Timeout', {
         detail: 'The API key resolution service did not respond within 5 seconds',

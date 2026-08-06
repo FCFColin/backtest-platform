@@ -1,7 +1,3 @@
-/**
- * 市场数据统计 — 纯辅助函数（从 marketStats.ts 拆分，P3-2 M-005）。
- * 无副作用纯函数集中于此便于单测与复用；所有 DB 查询函数保留在 marketStats.ts。
- */
 import type {
   DbMarketStats,
   TickerAggRow,
@@ -9,14 +5,10 @@ import type {
   MarketStatsAccumulators,
 } from './marketStatsTypes.js';
 
-/** 字节数 → MB（保留 1 位小数）。 */
 export function bytesToMb(bytes: number): number {
   return Math.round((bytes / 1024 / 1024) * 10) / 10;
 }
 
-// 市场代码 / 类型 / 交易所推断
-
-/** 根据 ticker 后缀或显式市场字段推断市场代码（CN / US）。 */
 export function inferMarket(ticker: string, market: string): string {
   if (market) return market.toUpperCase();
   // 同时支持点号（000001.SZ）与下划线（000001_SZ）后缀，修复 A 股计数为 0 的 bug（Task 5.1）
@@ -24,29 +16,25 @@ export function inferMarket(ticker: string, market: string): string {
   return 'US';
 }
 
-/** 按 ticker 后缀推导交易所代码（与 Go provider.DeriveExchange 保持一致）。 */
 export function deriveExchangeFromTicker(ticker: string): string {
   if (/[._]SZ$/i.test(ticker)) return 'SZSE';
   if (/[._](SS|SH)$/i.test(ticker)) return 'SSE';
   return 'US';
 }
 
-/** 根据 category 推断 ticker 类型（ETF / INDEX / STOCK）。 */
-export function inferType(category: string): string {
+function inferType(category: string): string {
   const c = (category || '').toUpperCase();
   if (c.includes('ETF')) return 'ETF';
   if (c.includes('INDEX')) return 'INDEX';
   return 'STOCK';
 }
 
-/** 首日日期 → 年代标签（如 1990s）；解析失败返回 'unknown'。 */
-export function decadeLabel(firstDate: string): string {
+function decadeLabel(firstDate: string): string {
   const y = parseInt(firstDate.slice(0, 4), 10);
   if (Number.isNaN(y)) return 'unknown';
   return `${Math.floor(y / 10) * 10}s`;
 }
 
-/** 首末日期 → 5 年跨度桶标签（如 "5-9年"）。 */
 function yearBucket(firstDate: string, lastDate: string): string {
   const startY = parseInt(firstDate.slice(0, 4), 10);
   const endY = parseInt((lastDate || firstDate).slice(0, 4), 10);
@@ -60,16 +48,12 @@ const SAMPLE_KEY_MAP: Array<[string, string, string]> = [
   ['CN', 'STOCK', 'cn_stock'],
   ['CN', 'ETF', 'cn_etf'],
 ];
-/** 判断样本 ticker 的分类键；不匹配返回空串。 */
 function categorizeSampleKey(market: string, ttype: string): string {
   for (const [m, t, key] of SAMPLE_KEY_MAP) if (market === m && ttype === t) return key;
   return ttype === 'INDEX' ? 'index' : '';
 }
 
-// 年代 / 年限 / 维度统计累加
-
-/** 累计年代与年限桶统计，返回该 ticker 跨度年限。 */
-export function accumulateYearStats(
+function accumulateYearStats(
   firstDate: string,
   lastDate: string,
   byDecade: Record<string, number>,
@@ -81,8 +65,7 @@ export function accumulateYearStats(
   return { years: parseInt(lastDate.slice(0, 4), 10) - parseInt(firstDate.slice(0, 4), 10) };
 }
 
-/** 更新市场/类型/交易所统计累加器。 */
-export function updateMarketStats(
+function updateMarketStats(
   market: string,
   ttype: string,
   exchange: string,
@@ -98,7 +81,6 @@ export function updateMarketStats(
   byExchange[exchange] = (byExchange[exchange] || 0) + 1;
 }
 
-/** 更新日期范围与年限覆盖率统计。 */
 function updateDateRangeStats(
   firstDate: string,
   lastDate: string,
@@ -121,7 +103,6 @@ function updateDateRangeStats(
   if (years >= 20) state.tickers20y++;
 }
 
-/** 处理单行 ticker 聚合数据，更新统计累加器。 */
 export function processTickerRow(opts: ProcessTickerRowOpts): void {
   const { row, byMarket, byType, byExchange, byDecade, byYearCount, sampleTickers, state } = opts;
   const market = inferMarket(row.ticker, row.market);
@@ -146,7 +127,6 @@ export function processTickerRow(opts: ProcessTickerRowOpts): void {
   }
 }
 
-/** 构建市场统计结果对象（DbMarketStats 快照）。 */
 export function buildMarketStatsResult(args: {
   rows: TickerAggRow[];
   byMarket: DbMarketStats['by_market'];

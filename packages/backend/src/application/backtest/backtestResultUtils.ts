@@ -5,9 +5,9 @@ import type {
   Portfolio,
   BacktestParameters,
 } from '@backtest/shared/types';
-import { logger } from '../../utils/logger.js';
 import { recordCacheHit } from '../../utils/metrics.js';
-import { appRedis, getRedisHealth, markRedisUnhealthy } from '../../infrastructure/redisClient.js';
+import { appRedis, getRedisHealth } from '../../infrastructure/redisClient.js';
+import { silentRedis, scanDelKeys } from '../../infrastructure/redisGuard.js';
 
 export const MAX_SYNC_CHART_POINTS = 400;
 const MAX_CHART_POINTS = 800;
@@ -131,20 +131,18 @@ export async function setBacktestResultCache(key: string, result: BacktestResult
     cache.delete(oldest);
   }
   cache.set(key, { result, expiresAt: Date.now() + TTL_MS });
-  const redisOk = await getRedisHealth();
-  if (redisOk) {
-    try {
-      await appRedis.set(
+  if (!(await getRedisHealth())) return;
+  await silentRedis(
+    () =>
+      appRedis.set(
         `${BACKTEST_CACHE_REDIS_PREFIX}${key}`,
         JSON.stringify(result),
         'EX',
         BACKTEST_CACHE_TTL_SEC,
-      );
-    } catch (err) {
-      logger.warn({ err, key }, '[backtestCache] Redis 写入失败');
-      markRedisUnhealthy();
-    }
-  }
+      ),
+    '[backtestCache] Redis 写入失败',
+    { key },
+  );
 }
 
 export async function getBacktestResultCache(key: string): Promise<BacktestResult | null> {
@@ -160,19 +158,20 @@ export async function getBacktestResultCache(key: string): Promise<BacktestResul
       return entry.result;
     }
   }
-  if (await getRedisHealth()) {
-    try {
-      const raw = await appRedis.get(`${BACKTEST_CACHE_REDIS_PREFIX}${key}`);
-      if (raw) {
-        const result = JSON.parse(raw) as BacktestResult;
-        if (!cache.has(key)) cache.set(key, { result, expiresAt: Date.now() + TTL_MS });
-        recordCacheHit('backtest_result_cache', true);
-        return result;
-      }
-    } catch (err) {
-      logger.warn({ err, key }, '[backtestCache] Redis 读取失败');
-      markRedisUnhealthy();
-    }
+  if (!(await getRedisHealth())) {
+    recordCacheHit('backtest_result_cache', false);
+    return null;
+  }
+  const raw = await silentRedis(
+    () => appRedis.get(`${BACKTEST_CACHE_REDIS_PREFIX}${key}`),
+    '[backtestCache] Redis 读取失败',
+    { key },
+  );
+  if (raw) {
+    const result = JSON.parse(raw) as BacktestResult;
+    if (!cache.has(key)) cache.set(key, { result, expiresAt: Date.now() + TTL_MS });
+    recordCacheHit('backtest_result_cache', true);
+    return result;
   }
   recordCacheHit('backtest_result_cache', false);
   return null;
@@ -202,20 +201,7 @@ export function clearBacktestResultCache(): void {
   inFlight.clear();
   void getRedisHealth().then((ok) => {
     if (!ok) return;
-    void (async () => {
-      let cursor = '0';
-      do {
-        const [nextCursor, keys] = await appRedis.scan(
-          cursor,
-          'MATCH',
-          `${BACKTEST_CACHE_REDIS_PREFIX}*`,
-          'COUNT',
-          100,
-        );
-        if (keys.length > 0) await appRedis.del(...keys);
-        cursor = nextCursor;
-      } while (cursor !== '0');
-    })().catch(() => {});
+    void scanDelKeys(`${BACKTEST_CACHE_REDIS_PREFIX}*`).catch(() => {});
   });
 }
 

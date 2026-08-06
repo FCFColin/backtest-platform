@@ -7,11 +7,11 @@ import { gzipSync, gunzipSync } from 'node:zlib';
 import { logger } from '../utils/logger.js';
 import { recordCacheHit, recordCacheEviction } from '../utils/metrics.js';
 import { appRedis, getRedisHealth, markRedisUnhealthy } from './redisClient.js';
+import { silentRedis, scanDelKeys } from './redisGuard.js';
 
 const PRICE_CACHE_TTL_SEC = 86400;
 const HISTORY_CACHE_TTL_SEC = 86400;
 const SEARCH_CACHE_TTL_SEC = 3600;
-const REALTIME_CACHE_TTL_SEC = 300;
 const L1_MAX_ENTRIES = 1000;
 const L1_TTL_MS = 5 * 60 * 1000;
 const COMPRESS_THRESHOLD_BYTES = 1024;
@@ -132,56 +132,32 @@ async function readCache(key: string): Promise<unknown> {
   }
 }
 
-/** 写缓存：L1 必写；L2 Redis 带 TTL。Redis 不可用时仅写 L1 并告警，不抛出。 */
 async function writeCache(key: string, data: unknown, ttlSec: number): Promise<void> {
   l1Set(key, data);
   if (!(await getRedisHealth())) return;
-  try {
-    await appRedis.set(key, serialize(data), 'EX', ttlSec);
-  } catch (err) {
-    logger.warn({ err, key, service: 'dataService' }, '[cache] Redis 写入失败，仅保留 L1');
-    markRedisUnhealthy();
-  }
+  await silentRedis(
+    () => appRedis.set(key, serialize(data), 'EX', ttlSec),
+    '[cache] Redis 写入失败，仅保留 L1',
+    { key, service: 'dataService' },
+  );
 }
 
 async function scanDel(pattern: string): Promise<void> {
   if (!(await getRedisHealth())) return;
-  try {
-    let cursor = '0';
-    do {
-      const [nextCursor, keys] = await appRedis.scan(
-        cursor,
-        'MATCH',
-        pattern,
-        'COUNT',
-        REDIS_SCAN_COUNT,
-      );
-      if (keys.length > 0) await appRedis.del(...keys);
-      cursor = nextCursor;
-    } while (cursor !== '0');
-  } catch (err) {
-    logger.warn({ err, pattern, service: 'dataService' }, '[cache] Redis 批量删除失败');
-    markRedisUnhealthy();
-  }
+  await silentRedis(() => scanDelKeys(pattern), '[cache] Redis 批量删除失败', {
+    pattern,
+    service: 'dataService',
+  });
 }
 
-/** 删除指定标的的价格缓存（L1 + L2）：key 精确生成故直接 DEL 而非 SCAN，避免 pattern 不匹配漏删。 */
 async function deletePriceCache(ticker: string, orgId: string = DEFAULT_ORG_ID): Promise<void> {
   const key = priceKey(ticker, orgId);
   l1Delete(key);
   if (!(await getRedisHealth())) return;
-  try {
-    await appRedis.del(key);
-  } catch (err) {
-    logger.warn({ err, key, service: 'dataService' }, '[cache] Redis 删除价格缓存失败');
-    markRedisUnhealthy();
-  }
-}
-
-/** 清空价格缓存（L1 全清 + L2 按价格 key 模式扫描删除）。L1 全清是保守策略：低频运维操作，短暂空窗由 L2 兜底。 */
-async function clearPriceCache(): Promise<void> {
-  l1Clear();
-  await scanDel(`${CACHE_KEY_PREFIX}*:price:*`);
+  await silentRedis(() => appRedis.del(key), '[cache] Redis 删除价格缓存失败', {
+    key,
+    service: 'dataService',
+  });
 }
 
 async function setPriceCache(
@@ -192,7 +168,6 @@ async function setPriceCache(
   await writeCache(priceKey(ticker, orgId), data, PRICE_CACHE_TTL_SEC);
 }
 
-/** 失效指定标的：删价格缓存 + best-effort 清理含该标的的 history/search key（SCAN + 客户端子串过滤）。L1 条目依赖 TTL 自然过期，不清整个 L1。 */
 async function invalidateTickerCache(
   ticker: string,
   orgId: string = DEFAULT_ORG_ID,
@@ -232,7 +207,6 @@ async function invalidateTickerCache(
   logger.info(`[dataService] invalidateCache: ticker=${ticker}`);
 }
 
-/** 全量失效：清空 L1 + 删除所有 `cache:org:*` key。backtest 结果缓存用独立 `backtest_cache:` 前缀，不受影响。 */
 async function invalidateAllCache(): Promise<void> {
   l1Clear();
   await scanDel(`${CACHE_KEY_PREFIX}*`);
@@ -243,13 +217,11 @@ export {
   PRICE_CACHE_TTL_SEC,
   HISTORY_CACHE_TTL_SEC,
   SEARCH_CACHE_TTL_SEC,
-  REALTIME_CACHE_TTL_SEC,
   DEFAULT_ORG_ID,
   getCacheKey,
   readCache,
   writeCache,
   deletePriceCache,
-  clearPriceCache,
   setPriceCache,
   invalidateTickerCache,
   invalidateAllCache,

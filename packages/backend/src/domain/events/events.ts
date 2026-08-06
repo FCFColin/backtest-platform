@@ -1,11 +1,6 @@
 import { logger } from '../../utils/logger.js';
 
-export const RUN_STARTED_EVENT = 'RunStarted' as const;
 export const RUN_COMPLETED_EVENT = 'RunCompleted' as const;
-export const RUN_FAILED_EVENT = 'RunFailed' as const;
-export const RUN_CANCELLED_EVENT = 'RunCancelled' as const;
-
-export const RUN_AGGREGATE_TYPE = 'Run' as const;
 
 export interface DomainEvent {
   eventType: string;

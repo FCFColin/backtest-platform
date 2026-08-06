@@ -80,6 +80,17 @@ export const authCtx = (_middleware: string, req: AuthenticatedRequest) => ({
   path: req.path,
   requestId: req.id,
 });
+export const denyAuth = (
+  req: AuthenticatedRequest,
+  res: Response,
+  code: string,
+  error: string,
+  opts?: { middleware?: string; failureCode?: string; extra?: Record<string, unknown> },
+): void => {
+  authLog('warn', opts?.middleware ?? 'jwtAuth', req, 'JWT 认证失败', { error, ...opts?.extra });
+  if (opts?.failureCode) recordAuthFailure(getRoutePattern(req), opts.failureCode);
+  sendProblem(res, 401, code);
+};
 
 type JoseKey = Exclude<Awaited<ReturnType<typeof importPKCS8>>, Uint8Array> | Uint8Array;
 const JWT_SECRET = config.JWT_SECRET;
@@ -115,17 +126,11 @@ async function loadKey(type: 'private' | 'public'): Promise<JoseKey> {
     `RS256 模式下必须配置 JWT_${type.toUpperCase()}_KEY 或 JWT_${type.toUpperCase()}_KEY_FILE`,
   );
 }
-const base64urlEncode = (input: string) =>
-  Buffer.from(input, 'utf-8')
-    .toString('base64')
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/, '');
-const getHS256Key = () => importJWK({ kty: 'oct', k: base64urlEncode(JWT_SECRET) }, 'HS256');
-// Cached key loaders (inlined memoizeKey pattern)
+const getHS256Key = () =>
+  importJWK({ kty: 'oct', k: Buffer.from(JWT_SECRET, 'utf-8').toString('base64url') }, 'HS256');
 let _privKey: JoseKey | null = null,
   _pubKey: JoseKey | null = null,
-  _hs256Key: Exclude<Awaited<ReturnType<typeof importJWK>>, Uint8Array> | null = null;
+  _hs256Key: Awaited<ReturnType<typeof importJWK>> | null = null;
 export const getOrCachePrivateKey = async (): Promise<JoseKey> => {
   if (!_privKey) _privKey = await loadKey('private');
   return _privKey;
@@ -210,15 +215,6 @@ export async function verifyToken(token: string): Promise<JwtPayload | null> {
   });
 }
 
-export function authFail(
-  middleware: string,
-  req: AuthenticatedRequest,
-  error: string,
-  failureCode?: string,
-): void {
-  authLog('warn', middleware, req, 'JWT 认证失败', { error });
-  if (failureCode) recordAuthFailure(getRoutePattern(req), failureCode);
-}
 function tryDevBypass(req: AuthenticatedRequest, next: NextFunction): boolean {
   if (!(
     config.NODE_ENV === 'development' &&
@@ -246,15 +242,19 @@ async function denyIfRevokedOrDisabled(
 ): Promise<boolean> {
   const uid = hashUserId(payload.sub);
   if (await isAccessTokenRevokedForUser(payload.sub, payload.iat)) {
-    authLog('warn', middleware, req, '会话已全局撤销，拒绝访问', { userId: uid });
-    recordAuthFailure(getRoutePattern(req), 'session_revoked');
-    sendProblem(res, 401, 'SESSION_REVOKED');
+    denyAuth(req, res, 'SESSION_REVOKED', '会话已全局撤销，拒绝访问', {
+      middleware,
+      failureCode: 'session_revoked',
+      extra: { userId: uid },
+    });
     return true;
   }
   if (!(await isUserSessionValid(payload.sub))) {
-    authLog('warn', middleware, req, '用户已停用，拒绝访问', { userId: uid });
-    recordAuthFailure(getRoutePattern(req), 'account_disabled');
-    sendProblem(res, 401, 'ACCOUNT_DISABLED');
+    denyAuth(req, res, 'ACCOUNT_DISABLED', '用户已停用，拒绝访问', {
+      middleware,
+      failureCode: 'account_disabled',
+      extra: { userId: uid },
+    });
     return true;
   }
   return false;
@@ -279,8 +279,10 @@ async function authenticateWithBearer(
       next();
       return;
     }
-    authFail(middleware, req, 'JWT token 无效或已过期', 'invalid_token');
-    sendProblem(res, 401, 'INVALID_TOKEN');
+    denyAuth(req, res, 'INVALID_TOKEN', 'JWT token 无效或已过期', {
+      middleware,
+      failureCode: 'invalid_token',
+    });
     return;
   }
   try {
@@ -316,8 +318,10 @@ async function authenticate(
   if (req.headers.authorization?.startsWith('Bearer '))
     return authenticateWithBearer(req, res, next, optional);
   if (optional || req.headers['x-api-key']) return authenticateWithApiKey(req, res, next, optional);
-  authFail(middleware, req, '缺少认证凭证', 'missing_credentials');
-  sendProblem(res, 401, 'MISSING_CREDENTIALS');
+  denyAuth(req, res, 'MISSING_CREDENTIALS', '缺少认证凭证', {
+    middleware,
+    failureCode: 'missing_credentials',
+  });
 }
 export function jwtAuth(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
   void authenticate(req, res, next, false);

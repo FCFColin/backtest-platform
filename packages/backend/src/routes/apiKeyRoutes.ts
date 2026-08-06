@@ -90,7 +90,6 @@ function requirePlatformAdmin(req: AuthenticatedRequest, res: Response, next: Ne
   next();
 }
 
-/** 轮换请求体（均可选，提供默认值） */
 const rotateSchema = z.object({
   name: z.string().trim().min(1, '名称不能为空').max(120, '名称过长').optional(),
   expiresInDays: z.number().int().min(1).max(PLATFORM_ADMIN_KEY_MAX_TTL_DAYS).optional(),

@@ -1,20 +1,12 @@
-/**
- * 优化应用服务（统一函数导出）。
- * 合并了原 optimize-service.ts（组合优化/有效前沿）与 optimizer-application-service.ts（回测优化器参数搜索）。
- * 所有计算逻辑已迁移到 Go 引擎（ADR-031），此服务仅负责数据获取编排与引擎调用。
- * 纯领域逻辑（参数组合生成、约束过滤等）在 domain/optimizer-domain.ts 中。
- */
 import type { Portfolio, BacktestResult, BacktestParameters } from '@backtest/shared/types';
 import { callEngineStrict } from '../utils/engineClient.js';
 import { buildEngineParams } from './backtest/backtestEngineUtils.js';
 import { Portfolio as DomainPortfolio } from '../domain/aggregates/portfolio.js';
 import {
-  fetchPriceDataWithRange,
+  preparePriceDataAndWarnings,
   filterPriceData,
   translateDomainError,
-  collectInvalidTickerWarnings,
   calculateDateRange,
-  pushDegradedWarning,
 } from './backtest-helpers.js';
 import type { Warning, DateRangeInfo } from './backtest-helpers.js';
 import { logger } from '../utils/logger.js';
@@ -40,15 +32,11 @@ async function runCompute(
   parameters: BacktestParameters,
   bodyExtra: Record<string, unknown>,
 ): Promise<{ data: Record<string, unknown>; warnings: Warning[]; dateRange: DateRangeInfo }> {
-  const warnings: Warning[] = [];
-  const { priceData, degraded, degradedWarning } = await fetchPriceDataWithRange(
+  const { priceData, warnings, invalidTickers, allTickers } = await preparePriceDataAndWarnings(
     tickers,
     parameters.startDate,
     parameters.endDate,
   );
-  const allTickers = new Set(tickers);
-  const invalidTickers = collectInvalidTickerWarnings(allTickers, priceData, warnings);
-  pushDegradedWarning(warnings, degraded, degradedWarning);
   const result = await callEngineStrict<Record<string, unknown>>(path, {
     tickers,
     priceData: filterPriceData(priceData, allTickers),
@@ -90,7 +78,6 @@ export async function runEfficientFrontier(
   });
 }
 
-/** 按资金分组运行回测，收集结果项（经 Go 引擎，ADR-031 fail-closed） */
 async function runBacktestGroups(
   combos: Combo[],
   portfolio: OptimizeRequest['portfolio'],
@@ -137,7 +124,6 @@ async function runBacktestGroups(
   return { items };
 }
 
-/** 运行最优组合回测，获取增长曲线（经 Go 引擎，ADR-031 fail-closed） */
 async function computeBestResult(
   bestItem: OptimizeResultItem,
   portfolio: OptimizeRequest['portfolio'],
@@ -184,18 +170,13 @@ export async function executeOptimization(body: Record<string, unknown>): Promis
   if (validationError) return { success: false, error: validationError };
   const allTickers = new Set(portfolio.assets.map((a) => a.ticker));
   if (parameters.benchmarkTicker) allTickers.add(parameters.benchmarkTicker);
-  const warnings: Warning[] = [];
-  const { priceData, degraded, degradedWarning } = await fetchPriceDataWithRange(
+  const { priceData, warnings, invalidTickers } = await preparePriceDataAndWarnings(
     Array.from(allTickers),
     parameters.startDate,
     parameters.endDate,
   );
-  const invalidTickers: string[] = Array.from(allTickers).filter(
-    (t) => !priceData[t] || Object.keys(priceData[t]).length === 0,
-  );
   if (invalidTickers.length > 0)
     return { success: false, error: `以下标的代码无效：${invalidTickers.join(', ')}` };
-  pushDegradedWarning(warnings, degraded, degradedWarning);
   const combos = buildCombinations(parameterSpace);
   if (combos.length === 0) return { success: false, error: '参数空间为空，请检查范围与步长' };
   if (combos.length > MAX_OPTIMIZER_COMBINATIONS)

@@ -1,10 +1,3 @@
-/**
- * 结构化日志模块（pino）。
- *
- * 企业理由：request_id 是分布式系统中关联日志的最小可行单元。
- * 无 request_id 时，多服务日志无法关联，排障只能靠猜时间戳。
- */
-
 import pino from 'pino';
 import pinoHttp from 'pino-http';
 import { randomUUID } from 'crypto';
@@ -93,9 +86,6 @@ const httpLogger = pinoHttp({
   },
 });
 
-/**
- * 日志脱敏工具：净化用户输入用于日志——移除换行符、脱敏敏感数据、截断到指定长度。
- */
 const SENSITIVE_PATTERNS: { pattern: RegExp; replacement: string }[] = [
   {
     pattern: /(api[_-]?key|apikey|token|secret|password|auth|credential)[=:]\s*['"]?\S+['"]?/gi,

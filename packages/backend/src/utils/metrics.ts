@@ -22,32 +22,38 @@ function startSampler(fn: () => void | Promise<void>, intervalMs: number): void 
   setInterval(fn, intervalMs).unref();
 }
 
-export const eventLoopLagSeconds = gauge(
-  'node_eventloop_lag_seconds',
-  'Event loop lag (P99) in seconds, sampled every 10s',
-);
+const GAUGE_DEFS = {
+  node_eventloop_lag_seconds: ['Event loop lag (P99) in seconds, sampled every 10s', []],
+  circuit_breaker_state: ['Circuit breaker state: 0=closed, 1=open, 2=halfOpen', ['name']],
+  data_service_semaphore_permits_available: [
+    'Available permits of data-service concurrency semaphore',
+    ['name'],
+  ],
+  data_service_semaphore_permits_max: [
+    'Max permits of data-service concurrency semaphore (configured limit)',
+    ['name'],
+  ],
+  api_keys_stale_count: [
+    'Active API keys not used within the staleness threshold (by is_platform_admin)',
+    ['is_platform_admin'],
+  ],
+  bullmq_queue_size: ['Number of jobs in BullMQ queue (waiting + active + delayed)', ['queue']],
+} as const;
+const gauges = Object.fromEntries(
+  Object.entries(GAUGE_DEFS).map(([n, [h, l]]) => [n, gauge(n, h, [...l])]),
+) as Record<keyof typeof GAUGE_DEFS, client.Gauge>;
+export const eventLoopLagSeconds = gauges.node_eventloop_lag_seconds;
+export const circuitBreakerState = gauges.circuit_breaker_state;
+export const dataServiceSemaphoreAvailable = gauges.data_service_semaphore_permits_available;
+export const dataServiceSemaphoreTotal = gauges.data_service_semaphore_permits_max;
+export const apiKeysStaleCount = gauges.api_keys_stale_count;
+const bullmqQueueSize = gauges.bullmq_queue_size;
 const eventLoopMonitor = monitorEventLoopDelay({ resolution: 20 });
 eventLoopMonitor.enable();
 setInterval(() => {
   eventLoopLagSeconds.set(eventLoopMonitor.percentile(99) / 1e9);
   eventLoopMonitor.reset();
 }, 10_000).unref();
-
-export const circuitBreakerState = gauge(
-  'circuit_breaker_state',
-  'Circuit breaker state: 0=closed, 1=open, 2=halfOpen',
-  ['name'],
-);
-export const dataServiceSemaphoreAvailable = gauge(
-  'data_service_semaphore_permits_available',
-  'Available permits of data-service concurrency semaphore',
-  ['name'],
-);
-export const dataServiceSemaphoreTotal = gauge(
-  'data_service_semaphore_permits_max',
-  'Max permits of data-service concurrency semaphore (configured limit)',
-  ['name'],
-);
 
 export function registerCircuitBreakerMetrics(
   name: string,
@@ -129,12 +135,6 @@ export const engineUnavailableTotal = ctr.engine_unavailable_total;
 export const authIpLockoutCounter = ctr.auth_ip_lockout_total;
 export const readPoolFallbackCounter = ctr.read_pool_fallback_total;
 export const quotaEnforcementFailures = ctr.quota_enforcement_failures_total;
-
-export const apiKeysStaleCount = gauge(
-  'api_keys_stale_count',
-  'Active API keys not used within the staleness threshold (by is_platform_admin)',
-  ['is_platform_admin'],
-);
 
 function sanitizeMetricLabel(value: string, maxLength = 64, allowSlash = false): string {
   const pattern = allowSlash ? /[^a-zA-Z0-9_/-]/g : /[^a-zA-Z0-9_-]/g;
@@ -239,11 +239,6 @@ export function registerTimescaleMetrics(
   }, 60_000);
 }
 
-const bullmqQueueSize = gauge(
-  'bullmq_queue_size',
-  'Number of jobs in BullMQ queue (waiting + active + delayed)',
-  ['queue'],
-);
 export function registerQueueMetrics(
   queues: Array<{ name: string; getJobCounts: () => Promise<Record<string, number>> }>,
 ): void {
@@ -293,7 +288,7 @@ const fe = {
   ),
 } as Record<string, client.Gauge | client.Histogram>;
 export const recordFrontendWebVital = (metric: string, value: number, route?: string): void =>
-  fe.webVital.set({ metric, route: route || 'unknown' }, value);
+  (fe.webVital as client.Gauge).set({ metric, route: route || 'unknown' }, value);
 export const recordFrontendApiCall = (
   endpoint: string,
   method: string,

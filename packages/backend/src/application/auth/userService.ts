@@ -1,12 +1,3 @@
-/**
- * 用户业务流程服务（精简版）
- *
- * 承载与用户身份相关的业务流程：凭证校验、邮箱验证令牌签发与消费。
- * CRUD（创建、查询、停用、匿名化、物理删除）见 repositories/userRepo.ts。
- *
- * 企业理由：argon2.verify 使用常量时间比较，防止时序攻击。
- * 验证失败不区分"用户不存在"和"密码错误"，防止用户名枚举。
- */
 import argon2 from 'argon2';
 import crypto from 'crypto';
 import { getPool } from '../../db/pool.js';
@@ -16,16 +7,7 @@ import { sha256Hex } from '../../utils/crypto.js';
 
 const EMAIL_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
 
-/**
- * 验证用户凭证
- *
- * 企业理由：argon2.verify 使用常量时间比较，防止时序攻击。
- * 验证失败不区分"用户不存在"和"密码错误"，防止用户名枚举。
- *
- * @param username - 用户名
- * @param password - 明文密码
- * @returns 验证成功返回 User，失败返回 null
- */
+// argon2.verify 常量时间比较防时序攻击；失败不区分“用户不存在”和“密码错误”防枚举。
 export async function verifyUser(username: string, password: string): Promise<User | null> {
   const pool = getPool();
   const { rows } = await pool.query(
@@ -51,12 +33,6 @@ export async function verifyUser(username: string, password: string): Promise<Us
   return rowToUser(user);
 }
 
-/**
- * 为用户签发一枚邮箱验证令牌（返回明文，仅用于邮件链接）。
- *
- * @param userId - 用户 UUID
- * @returns 明文令牌
- */
 export async function issueEmailVerificationToken(userId: string): Promise<string> {
   const token = crypto.randomBytes(32).toString('base64url');
   const tokenHash = sha256Hex(token);
@@ -69,12 +45,6 @@ export async function issueEmailVerificationToken(userId: string): Promise<strin
   return token;
 }
 
-/**
- * 校验邮箱验证令牌：未过期且未消费时，标记用户 email_verified_at 并消费令牌。
- *
- * @param token - 明文令牌
- * @returns 验证成功返回 userId，否则 null
- */
 export async function verifyEmailToken(token: string): Promise<string | null> {
   if (typeof token !== 'string' || token.length === 0 || token.length > 256) return null;
   const tokenHash = sha256Hex(token);

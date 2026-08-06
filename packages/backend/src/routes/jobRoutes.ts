@@ -91,6 +91,7 @@ router.post(
   validate(backtestOptimizerSchema),
   submitQueueJob({
     type: 'optimizer',
+    onQueueDown: 'fail-closed',
     statusUrl: (jobId) => `/api/v1/jobs/${jobId}`,
     queueDownCode: 'OPTIMIZER_QUEUE_UNAVAILABLE',
     retryAfter: '60',

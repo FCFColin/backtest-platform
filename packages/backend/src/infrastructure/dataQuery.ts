@@ -1,4 +1,5 @@
 import CircuitBreaker from 'opossum';
+import type { QueryResultRow } from 'pg';
 import { logger } from '../utils/logger.js';
 import { toDateStr } from '../utils/misc.js';
 import { getReadPool } from '../db/pool.js';
@@ -12,8 +13,13 @@ import {
   HISTORY_CACHE_TTL_SEC,
   SEARCH_CACHE_TTL_SEC,
 } from './dataCache.js';
-import { callGoDataService } from './goDataServiceClient.js';
+import { fetchGoJson } from './goDataServiceClient.js';
 import { scanMarketStatsFromDb, getDbEngineStatus, type DbMarketStats } from '../db/marketStats.js';
+
+const DEFAULT_START_DATE = '2000-01-01';
+function defaultDateRange(): [string, string] {
+  return [DEFAULT_START_DATE, toDateStr(new Date())];
+}
 
 export interface TickerSearchResult {
   ticker: string;
@@ -33,14 +39,15 @@ export const pgCircuitBreaker = new CircuitBreaker(
     rollingCountBuckets: 6,
   },
 );
-const CB_EVENTS: Record<string, ['warn' | 'info', string]> = {
+const CB_EVENTS = {
   open: ['warn', '后续查询将失败直至恢复'],
   halfOpen: ['info', '放行探测查询'],
   close: ['info', 'PostgreSQL 恢复正常'],
-};
+} as const;
 for (const [event, [level, msg]] of Object.entries(CB_EVENTS))
-  pgCircuitBreaker.on(event, () =>
-    logger[level](`[dataService] PostgreSQL 熔断器 ${event.toUpperCase()}：${msg}`),
+  (pgCircuitBreaker.on as (event: string, listener: () => void) => typeof pgCircuitBreaker)(
+    event,
+    () => logger[level](`[dataService] PostgreSQL 熔断器 ${event.toUpperCase()}：${msg}`),
   );
 registerCircuitBreakerMetrics('postgres', pgCircuitBreaker);
 
@@ -48,7 +55,7 @@ export function isDbAvailable(): boolean {
   return !pgCircuitBreaker.opened;
 }
 
-async function runQuery<T>(
+async function runQuery<T extends QueryResultRow>(
   sql: string,
   params: unknown[],
   tag: string,
@@ -74,7 +81,7 @@ async function computeCommonDateRange(
     'SELECT ticker, MIN(date) as first, MAX(date) as last FROM prices WHERE ticker = ANY($1) GROUP BY ticker',
     [validTickers],
   );
-  let maxStart: string | null = hasUnknownTickers ? '2000-01-01' : null;
+  let maxStart: string | null = hasUnknownTickers ? DEFAULT_START_DATE : null;
   let minEnd: string | null = hasUnknownTickers ? toDateStr(new Date()) : null;
   for (const r of rows) {
     const first = toDateStr(r.first),
@@ -101,7 +108,7 @@ export async function queryPricesFromDb(
     if (startDate === '' && endDate === '') {
       const range =
         (await computeCommonDateRange(validTickers, hasUnknownTickers)) ??
-        (hasUnknownTickers ? { start: '2000-01-01', end: toDateStr(new Date()) } : null);
+        (hasUnknownTickers ? { start: DEFAULT_START_DATE, end: toDateStr(new Date()) } : null);
       if (range) [s, e] = [range.start, range.end];
     }
     if (validTickers.length === 0 && hasUnknownTickers)
@@ -129,19 +136,19 @@ export async function fetchMissingFromGoService(
   cacheKey: string,
   orgId?: string,
 ): Promise<Record<string, Record<string, number>>> {
+  let [s, e] = [startDate, endDate];
+  if (s === '' && e === '') [s, e] = defaultDateRange();
   const goResult: Record<string, Record<string, number>> = {};
   await Promise.all(
     stillMissing.map(async (ticker) => {
       try {
-        const parsed = JSON.parse(
-          await callGoDataService(
-            `/api/data/price/${ticker}?start=${startDate}&end=${endDate}`,
-            orgId,
-          ),
+        const { success, data } = await fetchGoJson(
+          `/api/data/price/${ticker}?start=${s}&end=${e}`,
+          orgId,
         );
-        if (parsed.success && Array.isArray(parsed.data)) {
+        if (success && Array.isArray(data)) {
           const priceMap = Object.fromEntries(
-            (parsed.data as Array<{ date: string; close: number }>).map((p) => [p.date, p.close]),
+            (data as Array<{ date: string; close: number }>).map((p) => [p.date, p.close]),
           );
           if (Object.keys(priceMap).length > 0) {
             goResult[ticker] = priceMap;
@@ -194,7 +201,6 @@ export async function searchTickersFromDb(
     : rows.map((r) => ({ ticker: r.ticker, name: r.category, market: r.market }));
 }
 
-/** valid=DB 存在；unknown=格式合法但 DB 不存在（可由 Go 服务获取）；invalid=格式非法。DB 不可用时 formatValid→unknown。 */
 export async function validateTickers(
   tickers: string[],
 ): Promise<{ valid: string[]; invalid: string[]; unknown: string[] }> {
@@ -228,17 +234,18 @@ export async function searchTickers(
   const cached = await readCache(cacheKey);
   if (cached) return cached as TickerSearchResult[];
   try {
-    const parsed = JSON.parse(
-      await callGoDataService(`/api/data/search?q=${encodeURIComponent(query)}`, orgId),
+    const { success, data } = await fetchGoJson(
+      `/api/data/search?q=${encodeURIComponent(query)}`,
+      orgId,
     );
-    if (parsed.success && Array.isArray(parsed.data)) {
-      const data = parsed.data.map((r: { ticker: string; name: string; market: string }) => ({
+    if (success && Array.isArray(data)) {
+      const mapped = data.map((r: { ticker: string; name: string; market: string }) => ({
         ticker: r.ticker,
         name: r.name,
         market: r.market,
       }));
-      await writeCache(cacheKey, data, SEARCH_CACHE_TTL_SEC);
-      return data;
+      await writeCache(cacheKey, mapped, SEARCH_CACHE_TTL_SEC);
+      return mapped;
     }
     return [];
   } catch (err) {
@@ -304,8 +311,7 @@ export async function loadTickerData(ticker: string): Promise<Record<string, unk
   };
 }
 
-export const scanTickersStats = (_force = false): Promise<DbMarketStats | null> =>
-  scanMarketStatsFromDb();
+export const scanTickersStats = (): Promise<DbMarketStats | null> => scanMarketStatsFromDb();
 
 export function resolveUniverseFromCacheStats(stats: DbMarketStats | null) {
   if (!stats || stats.total_cached <= 0) return { total: 0, updated_at: '', stats: {} };
@@ -326,5 +332,3 @@ export function resolveUniverseFromCacheStats(stats: DbMarketStats | null) {
 
 export const getUniverseStats = async () =>
   resolveUniverseFromCacheStats(await scanMarketStatsFromDb());
-
-export { callGoDataService };

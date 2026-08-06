@@ -1,4 +1,3 @@
-/** OpenAPI 3.0 注册中心（P1-05）。生成: scripts/generate-openapi.ts（yaml 不入库）; Swagger UI: GET /api/docs（仅开发环境）。 */
 import { OpenApiGeneratorV3 } from '@asteasolutions/zod-to-openapi';
 import { registry } from './openapi-components.js';
 import { registerAuthPaths } from './openapi-paths-auth.js';

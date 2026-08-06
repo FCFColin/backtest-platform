@@ -1,11 +1,3 @@
-/**
- * 组织与成员管理路由（ADR-035）
- *
- * 挂载于 /api/v1/orgs，app.ts 前置链：jwtAuth → resolveTenant。本路由内部对除
- * "接受邀请"外的端点追加 requireTenant。读操作（组织信息、成员/邀请列表）任意成员可见；
- * 写操作（改名、改成员角色、移除成员、邀请增删）要求 ADMIN_ACCESS（owner/admin）。
- * 接受邀请 POST /invitations/accept 仅需登录（受邀者尚不属于该组织，不能要求 requireTenant）。
- */
 import { Router, type Response } from 'express';
 import { z } from 'zod';
 import { validate } from '../middleware/miscMiddleware.js';
@@ -14,7 +6,7 @@ import { logger } from '../utils/logger.js';
 import { type AuthenticatedRequest } from '../middleware/jwtAuth.js';
 import { requireTenant } from '../middleware/tenantContext.js';
 import { requirePermission, Permission } from '../middleware/rbac.js';
-import { tenantHandler, requireTenantId, requireUuidParam } from './routeUtils.js';
+import { tenantHandler, requireTenantId, requireUuidParam, sendData } from './routeUtils.js';
 import {
   getOrg,
   listOrgMembers,
@@ -50,20 +42,35 @@ router.post(
       sendProblem(res, 400, `INVITATION_${result.reason.toUpperCase()}`);
       return;
     }
-    res.json({ success: true, data: { orgId: result.orgId, role: result.role } });
+    sendData(res, { orgId: result.orgId, role: result.role });
   },
 );
 
 router.use(requireTenant);
 
-/** GET /api/v1/orgs/members - 成员列表（任意成员可见） */
 router.get('/members', async (req: AuthenticatedRequest, res: Response) => {
   const tenantId = requireTenantId(req, res);
   if (!tenantId) return;
-  res.json({ success: true, data: await listOrgMembers(tenantId) });
+  sendData(res, await listOrgMembers(tenantId));
 });
 
 const roleSchema = z.object({ role: ROLE_ENUM });
+const sendMemberOutcome = (
+  res: Response,
+  result: 'ok' | 'not_found' | 'last_owner',
+  okPayload: object,
+) => {
+  if (result === 'not_found') {
+    sendProblem(res, 404, 'MEMBER_NOT_FOUND');
+    return;
+  }
+  if (result === 'last_owner') {
+    sendProblem(res, 409, 'LAST_OWNER');
+    return;
+  }
+  sendData(res, okPayload);
+};
+
 router.patch(
   '/members/:userId',
   requireAdmin,
@@ -72,24 +79,18 @@ router.patch(
     if (!requireUuidParam(res, req.params.userId)) return;
     const tenantId = requireTenantId(req, res);
     if (!tenantId) return;
-    const result = await updateMemberRole(
-      tenantId,
-      req.params.userId,
-      (req.body as { role: 'owner' | 'admin' | 'analyst' | 'readonly' }).role,
+    sendMemberOutcome(
+      res,
+      await updateMemberRole(
+        tenantId,
+        req.params.userId,
+        (req.body as { role: 'owner' | 'admin' | 'analyst' | 'readonly' }).role,
+      ),
+      { updated: true },
     );
-    if (result === 'not_found') {
-      sendProblem(res, 404, 'MEMBER_NOT_FOUND');
-      return;
-    }
-    if (result === 'last_owner') {
-      sendProblem(res, 409, 'LAST_OWNER');
-      return;
-    }
-    res.json({ success: true, data: { updated: true } });
   },
 );
 
-/** DELETE /api/v1/orgs/members/:userId - 移除成员（admin） */
 router.delete(
   '/members/:userId',
   requireAdmin,
@@ -97,24 +98,14 @@ router.delete(
     if (!requireUuidParam(res, req.params.userId)) return;
     const tenantId = requireTenantId(req, res);
     if (!tenantId) return;
-    const result = await removeMember(tenantId, req.params.userId);
-    if (result === 'not_found') {
-      sendProblem(res, 404, 'MEMBER_NOT_FOUND');
-      return;
-    }
-    if (result === 'last_owner') {
-      sendProblem(res, 409, 'LAST_OWNER');
-      return;
-    }
-    res.json({ success: true, data: { removed: true } });
+    sendMemberOutcome(res, await removeMember(tenantId, req.params.userId), { removed: true });
   },
 );
 
-/** GET /api/v1/orgs/invitations - 邀请列表（admin） */
 router.get('/invitations', requireAdmin, async (req: AuthenticatedRequest, res: Response) => {
   const tenantId = requireTenantId(req, res);
   if (!tenantId) return;
-  res.json({ success: true, data: await listInvitations(tenantId) });
+  sendData(res, await listInvitations(tenantId));
 });
 
 const inviteSchema = z.object({
@@ -134,14 +125,11 @@ router.post(
     } catch (err) {
       logger.warn({ err: String(err), orgId, email }, '[orgRoutes] 邀请邮件发送失败');
     }
-    res.status(201).json({
-      success: true,
-      data: { id: inv.id, email: inv.email, role: inv.role, expiresAt: inv.expiresAt },
-    });
+    res.status(201);
+    sendData(res, { id: inv.id, email: inv.email, role: inv.role, expiresAt: inv.expiresAt });
   }),
 );
 
-/** DELETE /api/v1/orgs/invitations/:id - 撤销邀请（admin） */
 router.delete(
   '/invitations/:id',
   requireAdmin,
@@ -154,7 +142,7 @@ router.delete(
       sendProblem(res, 404, 'INVITATION_NOT_FOUND');
       return;
     }
-    res.json({ success: true, data: { revoked: true } });
+    sendData(res, { revoked: true });
   },
 );
 

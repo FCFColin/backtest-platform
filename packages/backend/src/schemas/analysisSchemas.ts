@@ -8,7 +8,7 @@ export const assetSchema = z.object({
 
 export const emptyBodySchema = z.object({}).strict().optional().default({});
 
-export const paginationQuerySchema = {
+const paginationQuerySchema = {
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(200).default(50),
 };

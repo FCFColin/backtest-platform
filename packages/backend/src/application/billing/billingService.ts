@@ -1,10 +1,3 @@
-/**
- * Stripe 计费服务（ADR-036）：组织映射到 Stripe customer/subscription，
- * Checkout 完成购买、Billing Portal 自助管理，webhook 权威同步 organizations.plan/status 与 subscriptions 表。
- * - Stripe 客户端懒初始化；未配置 STRIPE_SECRET_KEY 时返回 null，路由层据此回 503。
- * - webhook 必须用原始请求体做签名校验（路由层用 express.raw 在全局 json 之前挂载）。
- * - 计划与 Stripe Price 的映射由 STRIPE_PRICE_* 配置驱动，便于多环境切换。
- */
 import Stripe from 'stripe';
 import { config } from '../../config/index.js';
 import { getPool } from '../../db/pool.js';
@@ -118,7 +111,6 @@ function orgStatusFromSub(subStatus: string): 'active' | 'suspended' | 'canceled
   return 'suspended';
 }
 
-/** upsert 本地订阅记录并同步 organizations.plan/status（订阅终止时计划回落 free）。 */
 async function syncSubscription(orgId: string, sub: Stripe.Subscription): Promise<void> {
   const priceId = sub.items.data[0]?.price?.id ?? null;
   const plan = planForPriceId(priceId);

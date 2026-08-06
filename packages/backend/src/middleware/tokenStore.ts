@@ -21,7 +21,7 @@ export async function isUserSessionValid(userId: string): Promise<boolean> {
   }
 }
 
-export interface RefreshTokenEntry {
+interface RefreshTokenEntry {
   userId: string;
   role: Role;
   expiresAt: number;
@@ -30,15 +30,15 @@ export interface RefreshTokenEntry {
   orgRole?: OrgRole;
   platformAdmin?: boolean;
 }
-export interface TokenFamilyEntry {
+interface TokenFamilyEntry {
   lastToken: string;
   revoked: boolean;
 }
 
 export const ACCESS_TOKEN_EXPIRES_IN_SEC = config.JWT_ACCESS_TTL;
-export const REFRESH_TOKEN_EXPIRES_IN_SEC = config.JWT_REFRESH_TTL;
-export const REFRESH_TOKEN_PREFIX = 'refresh_token:';
-export const TOKEN_FAMILY_PREFIX = 'token_family:';
+const REFRESH_TOKEN_EXPIRES_IN_SEC = config.JWT_REFRESH_TTL;
+const REFRESH_TOKEN_PREFIX = 'refresh_token:';
+const TOKEN_FAMILY_PREFIX = 'token_family:';
 
 export const ROLE_TTL: Record<Role, number> = {
   readonly: config.SESSION_IDLE_TIMEOUT_READONLY_SEC,
@@ -55,7 +55,7 @@ export const redisKeys = {
   idempotency: (key: string) => `idempotency:${key}`,
 };
 
-export function tenantFromEntry(entry: RefreshTokenEntry): TenantContext {
+function tenantFromEntry(entry: RefreshTokenEntry): TenantContext {
   return { tenantId: entry.tenantId, orgRole: entry.orgRole, platformAdmin: entry.platformAdmin };
 }
 

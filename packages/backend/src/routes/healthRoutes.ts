@@ -1,11 +1,3 @@
-/**
- * 健康检查路由（含调试端点，ADR-042 合并）
- * GET /api/health          - 轻量存活探针（不暴露依赖拓扑）
- * GET /api/ready           - 深度就绪检查（含引擎/DB/Redis，需 METRICS_AUTH_TOKEN 鉴权）
- * GET /api/metrics         - Prometheus 格式指标端点
- * GET /api/v1/debug/health - 调试子系统存活探测（需 DEBUG_AUTH_TOKEN 鉴权，T-29）
- */
-
 import crypto from 'crypto';
 import { Router, type Request, type Response } from 'express';
 import { logger } from '../utils/logger.js';
@@ -18,16 +10,6 @@ import { crudRouteHandler } from './routeUtils.js';
 
 const router = Router();
 
-/**
- * 恒定时间字符串比较（D2-004）。
- *
- * 使用 crypto.timingSafeEqual 防止计时侧信道攻击。长度不匹配时直接返回 false
- * （攻击者可控输入长度，且 secret 长度本身不属于敏感信息）。
- *
- * @param a - 用户提供的令牌
- * @param b - 服务端配置的令牌
- * @returns 两字符串内容与长度均一致时返回 true
- */
 function safeEqual(a: string, b: string): boolean {
   const aBuf = Buffer.from(a, 'utf-8');
   const bBuf = Buffer.from(b, 'utf-8');
@@ -35,16 +17,6 @@ function safeEqual(a: string, b: string): boolean {
   return crypto.timingSafeEqual(aBuf, bBuf);
 }
 
-/**
- * 校验运维端点 Bearer 令牌（恒定时间比较，D2-004/005）。
- *
- * @param req - Express 请求
- * @param res - Express 响应（鉴权失败时直接写入错误响应）
- * @param expectedToken - 期望的令牌（未配置时 fail-closed）
- * @param notConfiguredCode - 未配置令牌时的错误码（/metrics 用 METRICS_AUTH_NOT_CONFIGURED，debug 用 NOT_FOUND）
- * @param notConfiguredStatus - 未配置令牌时的状态码（/metrics 用 403，debug 用 404）
- * @returns true 表示已鉴权通过；false 表示已写入错误响应，调用方应 return
- */
 function checkBearerToken(
   req: Request,
   res: Response,
@@ -94,19 +66,12 @@ async function checkRedis(): Promise<boolean> {
   }
 }
 
-/**
- * GET /api/health — 轻量存活探针（liveness）。
- *
- * 企业为何需要：对外暴露的探针不应泄露引擎/DB/Redis 拓扑，避免侦察攻击。
- * 仅确认 Node 进程可响应；编排器用 /ready 做流量切换决策。
- */
 router.get('/health', (_req: Request, res: Response) => {
   res.status(200).json({
     success: true,
     data: {
       status: 'ok',
       timestamp: new Date().toISOString(),
-      // P0-3：包含 Redis 模式信息（sentinel/standalone），便于运维快速确认高可用状态
       redis: {
         mode: isSentinelMode ? 'sentinel' : 'standalone',
       },
@@ -114,13 +79,6 @@ router.get('/health', (_req: Request, res: Response) => {
   });
 });
 
-/**
- * GET /api/ready — 深度就绪检查（readiness）。
- *
- * 并行探测引擎、数据库、Redis、Go 数据服务，返回分项状态。
- * Sentinel 模式下额外校验 master 角色与从节点拓扑（ADR-045 T6）。
- * 配置 METRICS_AUTH_TOKEN 时须 Bearer 鉴权（与 /metrics 一致）。
- */
 router.get('/ready', async (req: Request, res: Response) => {
   if (!checkBearerToken(req, res, config.METRICS_AUTH_TOKEN, 'METRICS_AUTH_NOT_CONFIGURED', 403))
     return;
@@ -134,7 +92,6 @@ router.get('/ready', async (req: Request, res: Response) => {
       checkSentinelMaster(),
     ]);
 
-    // ADR-031 fail-closed：Go 引擎不可用即返回 503 + Retry-After
     if (!goEngineOk) {
       sendProblem(res, 503, 'ENGINE_UNAVAILABLE', undefined, {
         headers: { 'Retry-After': '30' },
@@ -147,7 +104,6 @@ router.get('/ready', async (req: Request, res: Response) => {
       return;
     }
 
-    // ADR-045 T6：Sentinel 模式下，master 角色缺失或无从节点 → 503
     const sentinelOk =
       sentinelHealth.isMaster === null
         ? true
@@ -188,13 +144,6 @@ router.get('/ready', async (req: Request, res: Response) => {
   }
 });
 
-/**
- * Prometheus 指标端点
- *
- * 企业理由：Prometheus 是 K8s 生态监控标准，/metrics 端点必须返回
- * Prometheus text format（text/plain; version=0.0.4），而非自定义 JSON。
- * 这使得 Prometheus server 可以直接抓取指标并配置告警规则。
- */
 router.get(
   '/metrics',
   crudRouteHandler(
@@ -213,12 +162,6 @@ router.get(
   ),
 );
 
-// 调试端点（原 debugRoutes.ts 合并，T-29）
-//
-// 企业理由：生产排障需 CPU/堆快照，但端点必须鉴权以防信息泄露。
-// 仅当 DEBUG_AUTH_TOKEN 配置时启用，未配置时返回 404。
-
-/** GET /api/v1/debug/health — 调试子系统存活探测 */
 router.get('/v1/debug/health', (req, res) => {
   if (!checkBearerToken(req, res, config.DEBUG_AUTH_TOKEN, 'NOT_FOUND', 404)) return;
   res.json({

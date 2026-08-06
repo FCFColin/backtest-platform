@@ -11,7 +11,7 @@ export type RunStatus = 'queued' | 'running' | 'completed' | 'failed' | 'cancell
 
 const TERMINAL_STATES: ReadonlySet<RunStatus> = new Set(['completed', 'failed', 'cancelled']);
 
-export interface RunProps {
+interface RunProps {
   id: string;
   portfolioId?: string;
   name?: string | null;
@@ -25,13 +25,6 @@ export interface RunProps {
   skipInitialEvent?: boolean;
 }
 
-/**
- * 不变量：
- * 1. 终态（completed/failed/cancelled）后不可再转换状态
- * 2. complete() 仅 running 态可调用
- * 3. fail() 仅 running 态可调用
- * 4. cancel() 仅 queued/running 态可调用
- */
 export class Run {
   public readonly id: string;
   public readonly portfolioId?: string;
@@ -58,7 +51,6 @@ export class Run {
     this._failureReason = props.failureReason;
   }
 
-  /** 初始 status='queued'，产生 RunStarted 事件。 */
   static create(props: Omit<RunProps, 'status'> & Partial<Pick<RunProps, 'status'>>): Run {
     const run = new Run({
       id: props.id,
@@ -82,7 +74,6 @@ export class Run {
     return run;
   }
 
-  /** 仅 repo 层使用：从持久化行重建聚合根（不产生事件）。 */
   static fromRow(props: RunProps): Run {
     return new Run({ ...props, skipInitialEvent: true });
   }
@@ -115,7 +106,6 @@ export class Run {
     return TERMINAL_STATES.has(this._status);
   }
 
-  /** queued → running。设 startedAt。 */
   start(): void {
     if (this._status !== 'queued') {
       throw new DomainValidationError(
@@ -128,7 +118,6 @@ export class Run {
     this._startedAt = new Date();
   }
 
-  /** running → completed。设 completedAt + result，产生 RunCompleted 事件。 */
   complete(result: unknown): void {
     if (this._status !== 'running') {
       throw new DomainValidationError(
@@ -147,7 +136,6 @@ export class Run {
     });
   }
 
-  /** running → failed。设 failureReason + completedAt，产生 RunFailed 事件。 */
   fail(reason: string): void {
     if (this._status !== 'running') {
       throw new DomainValidationError(
@@ -167,7 +155,6 @@ export class Run {
     });
   }
 
-  /** queued|running → cancelled。设 completedAt，产生 RunCancelled 事件。 */
   cancel(): void {
     if (TERMINAL_STATES.has(this._status)) {
       throw new DomainValidationError(
@@ -195,17 +182,12 @@ export class Run {
     });
   }
 
-  /**
-   * 调用者应在持久化聚合根后调用此方法，将事件交给 eventDispatcher 分发。
-   * 取出后清空内部缓存。
-   */
   pullEvents(): DomainEvent[] {
     const events = [...this._events];
     this._events.length = 0;
     return events;
   }
 
-  /** 导出供测试断言。 */
   static newEventId(): string {
     return randomUUID();
   }

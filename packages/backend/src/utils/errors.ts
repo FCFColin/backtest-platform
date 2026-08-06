@@ -1,7 +1,4 @@
-/**
- * RFC 7807 Problem Details 统一错误响应 + 类型化错误层级。
- * P0 统一错误处理：引入 ApplicationError 类层级，消除路由层字符串匹配错误的反模式。
- */
+/** RFC 7807 Problem Details 统一错误响应 + 类型化错误层级。 */
 import type { Response } from 'express';
 
 interface SendProblemOptions {
@@ -46,12 +43,7 @@ export class DataNotFoundError extends ApplicationError {
   }
 }
 
-/**
- * Redis 不可用错误（503，ADR-045）。
- * HA（Sentinel）架构下静默降级比显式失败更危险：跨 Pod 状态不一致会导致
- * 刷新令牌无法验证、幂等键失效、暴力破解防护失效。asyncRouteHandler /
- * crudRouteHandler 自动翻译为 503 + RFC 7807 响应体。
- */
+/** Redis 不可用（503，ADR-045）。HA 下静默降级比显式失败更危险。 */
 export class RedisUnavailableError extends ApplicationError {
   readonly statusCode = 503;
   readonly errorCode = 'REDIS_UNAVAILABLE';
@@ -62,18 +54,7 @@ export class RedisUnavailableError extends ApplicationError {
   }
 }
 
-/**
- * 上游服务 4xx 错误（RFC 7807 透传）。
- *
- * Go 引擎对参数错误返回 4xx，httpClient 此前在 !resp.ok 时统一返回 null，
- * engineClient 包装为 EngineUnavailableError → 503，使客户端无法区分"引擎宕机"
- * 与"参数错误"。本错误携带上游原始 status/code/title/detail，由 callEngineStrict
- * 透传给路由层。
- *
- * 与 EngineUnavailableError 的边界（ADR-031 细化）：
- * - 4xx（客户端错误）→ UpstreamProblemError，透传原始状态码（不重试、不 fail-closed）
- * - 5xx / 网络错误（服务不可用）→ EngineUnavailableError → 503 + Retry-After（fail-closed）
- */
+/** 上游 4xx 透传（ADR-031：4xx 参数错误不降级为 503 fail-closed）。 */
 export class UpstreamProblemError extends Error {
   readonly status: number;
   readonly code: string;

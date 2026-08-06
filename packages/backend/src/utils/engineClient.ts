@@ -79,7 +79,6 @@ async function retryWithBackoff<T>(
   throw lastError;
 }
 
-/** @internal 测试专用：生产代码零外部引用，仅单元测试直接调用 */
 export function resetEngineAvailability(): void {
   goCircuitBreaker.close();
 }
@@ -94,20 +93,6 @@ export class EngineUnavailableError extends Error {
   }
 }
 
-/**
- * 调用 Go 引擎并返回严格类型化结果（ADR-031 fail-closed）。
- *
- * responseSchema 提供时对引擎响应做运行时校验，校验失败时抛出 Error（不降级），
- * 避免类型炸弹向后传播。未提供时回退到 `as T` 断言（向后兼容）。
- *
- * @throws {EngineUnavailableError} Go 引擎不可用时
- * @throws {UpstreamProblemError} Go 引擎返回 4xx
- * @throws {Error} responseSchema 校验失败时
- */
-/**
- * 解包引擎响应：go-shared 返回 {data: {...}}，路由再包一层会造成双重嵌套。
- * 分析/优化类端点须解包（与 assembleAnalysisResult 一致）；worker 回测路径由前端轮询 result.data 解包，不适用。
- */
 export function unwrapEngineData<T>(r: unknown): T {
   return ((r as { data?: T })?.data ?? r) as T;
 }

@@ -10,7 +10,6 @@ import { Portfolio as DomainPortfolio } from '../domain/aggregates/portfolio.js'
 
 // 领域异常翻译：domain 层抛 DomainValidationError（无 HTTP 语义），application 层统一翻译为 ValidationError（HTTP 422）
 
-/** 执行领域构造操作，将 DomainValidationError 翻译为 ValidationError。 */
 export function translateDomainError<T>(fn: () => T): T {
   try {
     return fn();
@@ -103,7 +102,6 @@ export function pushDegradedWarning(
     });
 }
 
-/** 用数据实际覆盖范围裁剪参数日期（请求超范围/全历史时生效，消除 2 处重复 clamp 样板）。 */
 export function clampParametersToDataRange<
   T extends Pick<BacktestParameters, 'startDate' | 'endDate'>,
 >(parameters: T, effectiveStartDate: string, effectiveEndDate: string): T {
@@ -147,7 +145,6 @@ function inferDateRangeFromData(
   return minDate && maxDate ? { min: minDate, max: maxDate } : null;
 }
 
-/** 推断实际生效日期范围并构造 DateRangeInfo（含 clamped 标记与缺失标的）。 */
 export function calculateDateRange(
   startDate: string,
   endDate: string,
@@ -205,7 +202,27 @@ export async function fetchPriceDataWithRange(
   };
 }
 
-/** 加载宏观经济数据（CPI + 汇率）。 */
+export async function preparePriceDataAndWarnings(
+  tickers: string[],
+  startDate: string,
+  endDate: string,
+): Promise<{
+  priceData: Record<string, Record<string, number>>;
+  warnings: Warning[];
+  invalidTickers: string[];
+  effectiveStartDate: string;
+  effectiveEndDate: string;
+  allTickers: Set<string>;
+}> {
+  const warnings: Warning[] = [];
+  const { priceData, effectiveStartDate, effectiveEndDate, degraded, degradedWarning } =
+    await fetchPriceDataWithRange(tickers, startDate, endDate);
+  const allTickers = new Set(tickers);
+  const invalidTickers = collectInvalidTickerWarnings(allTickers, priceData, warnings);
+  pushDegradedWarning(warnings, degraded, degradedWarning);
+  return { priceData, warnings, invalidTickers, effectiveStartDate, effectiveEndDate, allTickers };
+}
+
 export async function loadMacroData(
   parameters: BacktestParameters,
 ): Promise<{ cpiData: Record<string, number>; exchangeRates: Record<string, number> }> {

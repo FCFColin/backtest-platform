@@ -33,43 +33,26 @@ import {
   executeDualSignalAnalyze,
   executeMultiSignalAnalyze,
 } from '../application/signal-orchestrator.js';
-import { asyncRouteHandler } from './routeUtils.js';
+import { asyncRouteHandler, plainCompute } from './routeUtils.js';
 
 const analysisRouter = Router();
-
-/** 分析类端点统一骨架：开始日志 → 执行 → 完成耗时日志 → 统一响应（消除 3 处 WithFetch 端点重复样板）。 */
-function timedCompute(
-  metric: string,
-  code: string,
-  startLog: (req: Request) => string,
-  fn: (req: Request) => Promise<unknown>,
-) {
-  return asyncRouteHandler(
-    async (req: Request, res: Response): Promise<void> => {
-      const startTime = Date.now();
-      logger.info(startLog(req));
-      const result = await fn(req);
-      logger.info(`[${metric}] 完成, 耗时 ${Date.now() - startTime}ms`);
-      res.json({ success: true, data: result });
-    },
-    { logMsg: `[${metric}] 失败`, code, endpoint: metric },
-  );
-}
 
 analysisRouter.post(
   '/pca/analyze',
   ...computeMiddleware(Permission.BACKTEST_RUN),
   validate(pcaAnalyzeSchema),
-  timedCompute(
+  plainCompute(
     'PCA',
     'PCA_ERROR',
-    (req) => {
-      const cleanTickers = (req.body as PCARequest).tickers
-        .map((t: string) => String(t).trim().toUpperCase())
-        .filter(Boolean);
-      return `[PCA] 开始分析: tickers=${cleanTickers.join(',')}, range=${(req.body as PCARequest).startDate}~${(req.body as PCARequest).endDate}`;
-    },
     async (req) => executePcaAnalyzeWithFetch(req.body as PCARequest),
+    {
+      startLog: (req) => {
+        const cleanTickers = (req.body as PCARequest).tickers
+          .map((t: string) => String(t).trim().toUpperCase())
+          .filter(Boolean);
+        return `[PCA] 开始分析: tickers=${cleanTickers.join(',')}, range=${(req.body as PCARequest).startDate}~${(req.body as PCARequest).endDate}`;
+      },
+    },
   ),
 );
 
@@ -77,14 +60,16 @@ analysisRouter.post(
   '/letf/analyze',
   ...computeMiddleware(Permission.BACKTEST_RUN),
   validate(letfAnalyzeSchema),
-  timedCompute(
+  plainCompute(
     'LETF',
     'LETF_ERROR',
-    (req) => {
-      const body = req.body as LETFRequest;
-      return `[LETF] 开始分析: letf=${body.letfTicker}, bench=${body.benchmarkTicker}`;
-    },
     async (req) => executeLetfAnalyzeWithFetch(req.body as LETFRequest),
+    {
+      startLog: (req) => {
+        const body = req.body as LETFRequest;
+        return `[LETF] 开始分析: letf=${body.letfTicker}, bench=${body.benchmarkTicker}`;
+      },
+    },
   ),
 );
 
@@ -92,17 +77,19 @@ analysisRouter.post(
   '/goal-optimizer/optimize',
   ...computeMiddleware(Permission.STRATEGY_MANAGE),
   validate(goalOptimizerSchema),
-  timedCompute(
+  plainCompute(
     'GoalOptimizer',
     'GOAL_OPTIMIZER_ERROR',
-    (req) => {
-      const request = req.body as GoalOptimizerRequest;
-      const tickers = request.assets
-        .filter((a) => a.ticker?.trim())
-        .map((a) => a.ticker.trim().toUpperCase());
-      return `[GoalOptimizer] target=${request.targetAmount}, assets=${tickers.map((t) => sanitizeLog(t)).join(',')}`;
-    },
     async (req) => executeGoalOptimizeWithFetch(req.body as GoalOptimizerRequest),
+    {
+      startLog: (req) => {
+        const request = req.body as GoalOptimizerRequest;
+        const tickers = request.assets
+          .filter((a) => a.ticker?.trim())
+          .map((a) => a.ticker.trim().toUpperCase());
+        return `[GoalOptimizer] target=${request.targetAmount}, assets=${tickers.map((t) => sanitizeLog(t)).join(',')}`;
+      },
+    },
   ),
 );
 
@@ -110,25 +97,20 @@ analysisRouter.post(
   '/analysis/factor-regression',
   ...computeMiddlewareNoQuota(Permission.BACKTEST_RUN),
   validate(factorRegressionSchema),
-  asyncRouteHandler(
-    async (req: Request, res: Response): Promise<void> => {
+  plainCompute(
+    'factor-regression',
+    'FR_ERROR',
+    async (req) => {
       const { monthlyReturns, ffData, factors, startDate, endDate } = req.body;
-
-      logger.info('[FactorRegression] 开始回归');
-      const result = await callEngineStrict('/api/engine/factor-regression', {
+      return callEngineStrict('/api/engine/factor-regression', {
         monthlyReturns,
         ffData,
         factors: factors || ['mktRF', 'smb', 'hml'],
         startDate: startDate || '',
         endDate: endDate || '',
       });
-      res.json({ success: true, data: result });
     },
-    {
-      logMsg: '[FactorRegression] 失败',
-      code: 'FR_ERROR',
-      endpoint: 'factor-regression',
-    },
+    { startLog: () => '[FactorRegression] 开始回归' },
   ),
 );
 
@@ -137,24 +119,22 @@ analysisRouter.post(
   '/calculators/:type',
   ...computeMiddlewareNoQuota(Permission.BACKTEST_RUN),
   validate(calculatorBodySchema),
-  asyncRouteHandler(
-    async (req: Request, res: Response): Promise<void> => {
+  plainCompute(
+    'calculator',
+    'CALC_ERROR',
+    async (req) => {
       const { type } = req.params;
-      const body = req.body;
-
-      if (!VALID_CALC_TYPES.includes(type)) {
-        sendProblem(res, 422, 'CALC_INVALID_TYPE');
-        return;
-      }
-
-      logger.info(`[Calculator] 执行 ${type} 计算`);
-      const result = await callEngineStrict('/api/engine/calculators', { type, ...body });
-      res.json({ success: true, data: result });
+      return callEngineStrict('/api/engine/calculators', { type, ...req.body });
     },
     {
-      logMsg: '[Calculators] 失败',
-      code: 'CALC_ERROR',
-      endpoint: 'calculator',
+      startLog: (req) => `[Calculator] 执行 ${req.params.type} 计算`,
+      guard: (req, res) => {
+        if (!VALID_CALC_TYPES.includes(req.params.type)) {
+          sendProblem(res, 422, 'CALC_INVALID_TYPE');
+          return false;
+        }
+        return true;
+      },
     },
   ),
 );
@@ -163,20 +143,8 @@ analysisRouter.post(
   '/tactical/backtest',
   ...computeMiddleware(Permission.STRATEGY_MANAGE),
   validate(tacticalBacktestSchema),
-  asyncRouteHandler(
-    async (req: Request, res: Response): Promise<void> => {
-      const startTime = Date.now();
-      const body = req.body;
-
-      const data = await executeTacticalBacktest(body);
-      res.json({ success: true, data });
-      logger.info(`[tactical] 回测完成，耗时 ${Date.now() - startTime}ms`);
-    },
-    {
-      logMsg: '[tactical] 回测失败',
-      code: 'TACTICAL_BACKTEST_ERROR',
-      endpoint: 'tactical-backtest',
-    },
+  plainCompute('tactical-backtest', 'TACTICAL_BACKTEST_ERROR', async (req) =>
+    executeTacticalBacktest(req.body),
   ),
 );
 
@@ -184,18 +152,10 @@ analysisRouter.post(
   '/tactical/what-if',
   ...computeMiddleware(Permission.STRATEGY_MANAGE),
   validate(tacticalWhatIfSchema),
-  asyncRouteHandler(
-    async (req: Request, res: Response): Promise<void> => {
-      const { tickers, strategy } = req.body;
-      const results = await executeTacticalWhatIf(tickers, strategy);
-      res.json({ success: true, data: results });
-    },
-    {
-      logMsg: '[tactical] what-if 查询失败',
-      code: 'TACTICAL_WHATIF_ERROR',
-      endpoint: 'tactical-whatif',
-    },
-  ),
+  plainCompute('tactical-whatif', 'TACTICAL_WHATIF_ERROR', async (req) => {
+    const { tickers, strategy } = req.body;
+    return executeTacticalWhatIf(tickers, strategy);
+  }),
 );
 
 type SignalMode = 'analyze' | 'dual' | 'multi';

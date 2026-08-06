@@ -1,9 +1,3 @@
-/**
- * OpenAPI 路径注册 — data 域（BIG2 拆分）
- *
- * 覆盖行情数据（history/search/cpi/synthetic/meta/ticker-meta）、数据管理（状态/统计/更新控制）、
- * 自定义 ticker、战术配置 CRUD。
- */
 import { z } from 'zod';
 import {
   sec,

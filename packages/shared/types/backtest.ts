@@ -1,19 +1,6 @@
-/**
- * 回测参数与结果类型定义
- *
- * 定义回测请求的输入参数和各个阶段的输出结果结构。
- * PortfolioResult 是回测核心输出的统一格式。
- */
-
 import type { BaseCurrency, CashflowLeg, OneTimeCashflow } from './portfolio.js';
 import type { Statistics } from './statistics.js';
 
-/**
- * 价格数据映射
- *
- * 按 ticker → date → close price 组织的历史价格数据结构。
- * 被 backtest 引擎和 application 层共享使用（application 层不应直接 import engine 层类型）。
- */
 export interface PriceData {
   [ticker: string]: Record<string, number>;
 }
@@ -43,66 +30,31 @@ export interface BacktestParameters {
   oneTimeCashflows?: OneTimeCashflow[];
 }
 
-/** 通用时间序列数据点 */
 export type TimeSeriesPoint = { date: string; value: number };
 
-/** 回撤曲线数据点 */
-export type DrawdownPoint = { date: string; drawdown: number };
+type DrawdownPoint = { date: string; drawdown: number };
 
-/**
- * 回撤事件
- *
- * 记录从峰值到谷值再到恢复的完整回撤周期。
- *
- * UNIT conventions:
- * - date string (YYYY-MM-DD): peakDate, troughDate, recoveryDate
- * - decimal ratio (negative): depth, returnFromPeakToTrough, returnFromTroughToRecovery, cagrDuring
- * - days (int): timeToTrough, recoveryTime, totalTimeDurationDays
- * - dimensionless: recoveryFactor, ulcerDuring
- *
- * recoveryDate 为空时表示回测结束时该回撤尚未恢复。
- */
 export interface DrawdownEpisode {
-  /** YYYY-MM-DD format */
   peakDate: string;
-  /** YYYY-MM-DD format */
   troughDate: string;
-  /** YYYY-MM-DD format; empty/undefined if not recovered */
   recoveryDate?: string;
-  /** UNIT: decimal ratio (e.g. -0.2278 = -22.78%) */
   depth: number;
-  /** UNIT: days */
   timeToTrough: number;
-  /** UNIT: days */
   recoveryTime: number;
-  /** UNIT: days */
   totalTimeDurationDays: number;
-  /** UNIT: dimensionless */
   recoveryFactor: number;
-  /** UNIT: decimal ratio (e.g. -0.15 = -15% annualized during drawdown) */
   cagrDuring: number;
-  /** UNIT: dimensionless */
   ulcerDuring: number;
-  /** UNIT: decimal ratio (e.g. -0.30 = -30% from peak to trough) */
   returnFromPeakToTrough: number;
-  /** UNIT: decimal ratio (e.g. +0.45 = +45% from trough to recovery) */
   returnFromTroughToRecovery?: number;
 }
 
-/**
- * Drag（拖累）计算结果
- *
- * 模拟管理费、交易成本等持续损耗对组合净值的累积影响。
- * dragSeries 与 growthCurve 一一对应，表示到该时间点为止累积扣除的金额。
- * 仅在组合配置了 drag 且引擎处于降级模式时生成（Go/Rust 引擎在引擎内部计算 drag）。
- */
-export interface DragResult {
+interface DragResult {
   totalDrag: number;
   annualDrag: number;
   dragSeries: number[];
 }
 
-/** 单个组合的回测结果 */
 export interface PortfolioResult {
   name: string;
   growthCurve: TimeSeriesPoint[];
@@ -113,11 +65,9 @@ export interface PortfolioResult {
   statistics: Statistics;
   drawdownEpisodes?: DrawdownEpisode[];
   allocationHistory?: Array<{ date: string; weights: number[] }>;
-  /** Drag（拖累）近似计算结果，仅在降级模式且组合配置了 drag 时存在 */
   drag?: DragResult;
 }
 
-/** 完整回测结果 */
 export interface BacktestResult {
   portfolios: PortfolioResult[];
   correlations: number[][];
@@ -126,7 +76,6 @@ export interface BacktestResult {
   assetCorrelations?: number[][];
 }
 
-/** 资产分析结果 */
 export interface AssetAnalysisResult {
   tickers: Array<{
     ticker: string;

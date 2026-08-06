@@ -1,4 +1,3 @@
-/** 用户仓储（CRUD）。argon2id 密码哈希（OWASP 推荐，抗 GPU/ASIC）。 */
 import argon2 from 'argon2';
 import type { PoolClient } from 'pg';
 import { getPool } from '../db/pool.js';
@@ -13,7 +12,6 @@ export interface User {
   isActive: boolean;
 }
 
-/** 将数据库行映射为 User 实体。 */
 export const rowToUser = rowMapper<User>({
   id: 'id',
   username: 'username',
@@ -22,7 +20,6 @@ export const rowToUser = rowMapper<User>({
   isActive: 'is_active',
 });
 
-/** argon2id 密码哈希（OWASP 推荐参数）。 */
 async function hashPassword(password: string): Promise<string> {
   return argon2.hash(password, {
     type: argon2.argon2id,
@@ -32,13 +29,6 @@ async function hashPassword(password: string): Promise<string> {
   });
 }
 
-/**
- * 创建用户。
- * @param username 用户名
- * @param password 明文密码（argon2id 哈希存储）
- * @param role 全局角色（默认 analyst）
- * @param email 邮箱（可空）
- */
 export async function createUser(
   username: string,
   password: string,
@@ -61,16 +51,6 @@ export async function createUser(
   return rowToUser(rows[0]);
 }
 
-/**
- * 在事务内创建用户（供注册流程与组织/成员一并落库，ADR-035）。
- *
- * @param client - 事务客户端
- * @param username - 用户名
- * @param password - 明文密码
- * @param email - 邮箱（可空）
- * @param role - 全局角色
- * @returns 新建用户
- */
 export async function createUserTx(
   client: PoolClient,
   username: string,
@@ -86,12 +66,6 @@ export async function createUserTx(
   return rowToUser(rows[0]);
 }
 
-/**
- * 按邮箱查找用户（大小写不敏感）。
- *
- * @param email - 邮箱
- * @returns 用户或 null
- */
 export async function getUserByEmail(email: string): Promise<User | null> {
   const pool = getPool();
   const { rows } = await pool.query(
@@ -102,12 +76,6 @@ export async function getUserByEmail(email: string): Promise<User | null> {
   return rowToUser(rows[0]);
 }
 
-/**
- * 根据 ID 获取用户
- *
- * @param id - 用户 UUID
- * @returns 用户或 null
- */
 export async function getUserById(id: string): Promise<User | null> {
   const pool = getPool();
   const { rows } = await pool.query(
@@ -120,11 +88,7 @@ export async function getUserById(id: string): Promise<User | null> {
   return rowToUser(rows[0]);
 }
 
-/**
- * 停用用户（软删除/可逆）。GDPR/PIPL：保留行记录满足审计义务，仅阻断登录。
- * @param id - 用户 ID
- * @returns 是否有记录被更新
- */
+// GDPR/PIPL：保留行记录满足审计义务，仅阻断登录。
 export async function deactivateUser(id: string): Promise<boolean> {
   const pool = getPool();
   const { rowCount } = await pool.query(
@@ -135,12 +99,7 @@ export async function deactivateUser(id: string): Promise<boolean> {
   return (rowCount ?? 0) > 0;
 }
 
-/**
- * 匿名化用户（GDPR Art.17 被遗忘权：抹除 PII，保留占位标识以维护外键完整性）。
- *
- * @param id - 用户 ID
- * @returns 是否有记录被匿名化
- */
+// GDPR Art.17 被遗忘权：抹除 PII，保留占位标识以维护外键完整性。
 export async function anonymizeUser(id: string): Promise<boolean> {
   const pool = getPool();
   const anonymizedUsername = `deleted_${id.replace(/-/g, '').substring(0, 8)}`;
@@ -157,11 +116,6 @@ export async function anonymizeUser(id: string): Promise<boolean> {
   return (rowCount ?? 0) > 0;
 }
 
-/**
- * 物理删除用户。优先使用 anonymizeUser（保留引用完整性）；调用方须确保已解除外键依赖。
- * @param id - 用户 ID
- * @returns 是否有记录被删除
- */
 export async function deleteUser(id: string): Promise<boolean> {
   const pool = getPool();
   const { rowCount } = await pool.query('DELETE FROM users WHERE id = $1', [id]);
