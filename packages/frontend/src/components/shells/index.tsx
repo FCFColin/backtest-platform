@@ -105,7 +105,6 @@ function PresetsCard({ presets }: { presets: PresetButtonProps[] }) {
     </div>
   );
 }
-// eslint-disable-next-line complexity
 export function ComputeToolShell<S>({
   config,
   state,

@@ -38,7 +38,6 @@ interface PortfolioCardProps {
   onDuplicate: () => void;
   onSave: (p: StorePortfolio) => void;
 }
-// eslint-disable-next-line max-lines-per-function -- 组合卡片渲染分支多，拆分反而损失内聚
 export function PortfolioCard({
   portfolio,
   color,

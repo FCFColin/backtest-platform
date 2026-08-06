@@ -1,4 +1,4 @@
-/* eslint-disable react-refresh/only-export-components, complexity, sonarjs/cognitive-complexity, max-params -- SVG 图表共享工具库 */
+/* eslint-disable react-refresh/only-export-components -- SVG 图表共享工具库 */
 import { useCallback, useState, type CSSProperties, type ReactNode } from 'react';
 import { CHART_COLORS } from '@backtest/shared';
 import { AXIS_TICK_STYLE } from '@/lib/chart-theme';

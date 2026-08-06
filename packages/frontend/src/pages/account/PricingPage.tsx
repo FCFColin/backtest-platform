@@ -186,7 +186,6 @@ function PricingNotice() {
     </div>
   );
 }
-// eslint-disable-next-line max-lines-per-function
 function PlanCard({ plan }: { plan: Plan }) {
   const isRecommended = plan.recommended;
   const brandColor = 'hsl(var(--brand))';

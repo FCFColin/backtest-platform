@@ -109,7 +109,6 @@ function buildComparisonColumns(t: TFunction): Column<DualSignalResponse['compar
     },
   ];
 }
-// eslint-disable-next-line max-lines-per-function
 function DualSignalResultsBody({
   t,
   comparisonColumns,

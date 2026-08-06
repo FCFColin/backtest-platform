@@ -48,7 +48,6 @@ function buildMonitorData(d: Record<string, unknown>, services: ServiceHealthVie
     },
   };
 }
-// eslint-disable-next-line max-lines-per-function
 export default function SystemMonitor() {
   const { t } = useTranslation();
   const [data, setData] = useState<MonitorData>(defaultMonitorData);

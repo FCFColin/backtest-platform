@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { TRADING_DAYS_PER_YEAR } from '@backtest/shared/constants';
 import type { AssetAnalysisResult } from '@backtest/shared';
+import { mergePortfolioSeries } from '@/utils/format.js';
 function computeSingleBeta(pr: number[], br: number[]): number {
   const len = Math.min(pr.length, br.length);
   if (len < 2) return 0;
@@ -69,17 +70,16 @@ function usePortfolioResults(tickers: AssetAnalysisResult['tickers']) {
   );
 }
 function useGrowthData(portfolioResults: ReturnType<typeof usePortfolioResults>) {
-  return useMemo(() => {
-    const dateMap = new Map<string, Record<string, number | string>>();
-    for (const p of portfolioResults)
-      for (const point of p.growthCurve) {
-        if (!dateMap.has(point.date)) dateMap.set(point.date, { date: point.date });
-        dateMap.get(point.date)![p.name] = point.value;
-      }
-    return Array.from(dateMap.values()).sort((a, b) =>
-      (a.date as string).localeCompare(b.date as string),
-    );
-  }, [portfolioResults]);
+  return useMemo(
+    () =>
+      mergePortfolioSeries(
+        portfolioResults,
+        (p) => p.growthCurve,
+        (pt) => pt.date,
+        (pt) => pt.value,
+      ),
+    [portfolioResults],
+  );
 }
 export function useAnalysisData(
   results: AssetAnalysisResult,

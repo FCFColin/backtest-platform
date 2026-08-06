@@ -29,7 +29,6 @@ interface SvgScatterChartProps {
   tooltipFormatter?: (value: number | string, name: string) => [string, string];
   tooltipLabelFormatter?: (label: string) => string;
 }
-// eslint-disable-next-line max-lines-per-function -- 散点图渲染含交互/坐标/图例逻辑，内聚保留
 export function SvgScatterChart({
   data,
   xDataKey,

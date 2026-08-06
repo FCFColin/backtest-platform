@@ -1,4 +1,3 @@
-/* eslint-disable max-lines-per-function -- 扇形图渲染分支多，Plan-1 重写 */
 import { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import { CHART_COLORS } from '@backtest/shared';
 import type { FanDataPoint } from './monteCarloUtils.js';

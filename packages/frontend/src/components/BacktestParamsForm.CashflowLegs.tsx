@@ -70,6 +70,57 @@ interface CashflowLegRowProps extends TFunctionProp {
   leg: CashflowLeg;
   currency: string | undefined;
 }
+function CashflowTypeSelect({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: CashflowLeg['type'];
+  onChange: (v: CashflowLeg['type']) => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <ParamCard label={label}>
+      <Select value={value} onValueChange={(v) => onChange(v as CashflowLeg['type'])}>
+        <SelectTrigger className="w-[110px]">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="contribution">{t('Contribution')}</SelectItem>
+          <SelectItem value="withdrawal">{t('Withdrawal')}</SelectItem>
+        </SelectContent>
+      </Select>
+    </ParamCard>
+  );
+}
+function AmountField({
+  value,
+  currency,
+  onChange,
+  absolute,
+}: {
+  value: number | undefined;
+  currency: string | undefined;
+  onChange: (amount: number) => void;
+  absolute?: boolean;
+}) {
+  const { t } = useTranslation();
+  return (
+    <ParamCard label={t('Amount')}>
+      <AffixInput
+        type="number"
+        value={value || ''}
+        placeholder="0"
+        prefix={currency === 'usd' ? '$' : '¥'}
+        className="w-[140px]"
+        onChange={(e) =>
+          onChange(absolute ? Math.abs(Number(e.target.value) || 0) : Number(e.target.value) || 0)
+        }
+      />
+    </ParamCard>
+  );
+}
 function CashflowFrequencySelect({
   leg,
   updateCashflowLeg,
@@ -107,32 +158,16 @@ function CashflowLegRow({ leg, currency, t }: CashflowLegRowProps) {
   const updateCashflowLeg = useBacktestStore((s) => s.updateCashflowLeg);
   return (
     <ParamRow className="mt-4">
-      <ParamCard label={t('Amount')}>
-        <AffixInput
-          type="number"
-          value={leg.amount || ''}
-          placeholder="0"
-          prefix={currency === 'usd' ? '$' : '¥'}
-          className="w-[140px]"
-          onChange={(e) => updateCashflowLeg(leg.id, { amount: Number(e.target.value) || 0 })}
-        />
-      </ParamCard>
-      <ParamCard label={t('Cashflow Type')}>
-        <Select
-          value={leg.type}
-          onValueChange={(v) =>
-            updateCashflowLeg(leg.id, { type: v as 'contribution' | 'withdrawal' })
-          }
-        >
-          <SelectTrigger className="w-[110px]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="contribution">{t('Contribution')}</SelectItem>
-            <SelectItem value="withdrawal">{t('Withdrawal')}</SelectItem>
-          </SelectContent>
-        </Select>
-      </ParamCard>
+      <AmountField
+        value={leg.amount}
+        currency={currency}
+        onChange={(amount) => updateCashflowLeg(leg.id, { amount })}
+      />
+      <CashflowTypeSelect
+        label={t('Cashflow Type')}
+        value={leg.type}
+        onChange={(type) => updateCashflowLeg(leg.id, { type })}
+      />
       <CashflowFrequencySelect leg={leg} updateCashflowLeg={updateCashflowLeg} t={t} />
       <ParamCard label={t('Offset')}>
         <Input
@@ -165,34 +200,17 @@ export function OneTimeCashflowSection() {
     <ParamGroup title={t('One-Time Cashflow')} badge={parameters.oneTimeCashflows?.length || 0}>
       {(parameters.oneTimeCashflows || []).map((cf) => (
         <ParamRow key={cf.id} className="mb-4 last:mb-0">
-          <ParamCard label={t('Amount')}>
-            <AffixInput
-              type="number"
-              value={cf.amount || ''}
-              placeholder="0"
-              prefix={parameters.baseCurrency === 'usd' ? '$' : '¥'}
-              className="w-[140px]"
-              onChange={(e) =>
-                updateOneTimeCashflow(cf.id, { amount: Math.abs(Number(e.target.value) || 0) })
-              }
-            />
-          </ParamCard>
-          <ParamCard label={t('Type')}>
-            <Select
-              value={cf.type}
-              onValueChange={(v) =>
-                updateOneTimeCashflow(cf.id, { type: v as 'contribution' | 'withdrawal' })
-              }
-            >
-              <SelectTrigger className="w-[110px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="contribution">{t('Contribution')}</SelectItem>
-                <SelectItem value="withdrawal">{t('Withdrawal')}</SelectItem>
-              </SelectContent>
-            </Select>
-          </ParamCard>
+          <AmountField
+            value={cf.amount}
+            currency={parameters.baseCurrency}
+            absolute
+            onChange={(amount) => updateOneTimeCashflow(cf.id, { amount })}
+          />
+          <CashflowTypeSelect
+            label={t('Type')}
+            value={cf.type}
+            onChange={(type) => updateOneTimeCashflow(cf.id, { type })}
+          />
           <ParamCard label={t('Date')}>
             <Input
               type="date"

@@ -220,7 +220,7 @@ function useCachedResource<T>(cache: ResourceCache<T>): T | null {
         });
     }
     cache.pending!.then(setData);
-  }, []);
+  }, [cache]);
   return data;
 }
 
@@ -296,10 +296,10 @@ export function useAnnouncements() {
   const list = announcements ?? [];
   const unreadCount = list.filter((a) => !readIds.has(a.id)).length;
   const markAllRead = useCallback(() => {
-    const all = new Set(list.map((a) => a.id));
+    const all = new Set(announcements?.map((a) => a.id) ?? []);
     setReadIds(all);
     localStorage.setItem(READ_KEY, JSON.stringify([...all]));
-  }, [list]);
+  }, [announcements]);
   return { announcements: list, unreadCount, markAllRead };
 }
 

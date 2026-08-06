@@ -420,39 +420,27 @@ export function XYScatterChart({
   yLabel,
   children,
 }: XYScatterChartProps) {
+  const numberFormatter = (v: number | string) => String(v);
   return (
     <ResponsiveContainer width="100%" height={height}>
       <ScatterChart margin={margin}>
         <CartesianGrid {...CHART_GRID_PROPS} />
-        <XAxis
+        <ChartXAxis
           type="number"
           dataKey={xKey}
           name={xName}
-          tick={AXIS_TICK_STYLE}
-          tickFormatter={xTickFormatter}
-          label={{
-            value: xLabel ?? xName,
-            position: 'insideBottom',
-            offset: -5,
-            style: { fill: 'var(--fg-tertiary)', fontSize: 12 },
-          }}
+          tickFormatter={xTickFormatter ?? numberFormatter}
+          label={xLabel ?? xName}
         />
-        <YAxis
+        <ChartYAxis
           type="number"
           dataKey={yKey}
           name={yName}
-          tick={AXIS_TICK_STYLE}
-          tickFormatter={yTickFormatter}
-          label={{
-            value: yLabel ?? yName,
-            angle: -90,
-            position: 'insideLeft',
-            style: { fill: 'var(--fg-tertiary)', fontSize: 12 },
-          }}
+          tickFormatter={yTickFormatter ?? numberFormatter}
+          label={yLabel ?? yName}
         />
         <ZAxis type="number" dataKey={zDataKey} range={zRange} />
-        <Tooltip
-          contentStyle={CHART_TOOLTIP_STYLE}
+        <ChartTooltip
           formatter={tooltipFormatter}
           labelFormatter={labelFormatter}
           cursor={cursor}

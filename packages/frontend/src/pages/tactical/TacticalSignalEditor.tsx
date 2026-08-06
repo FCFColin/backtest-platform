@@ -189,7 +189,6 @@ function WeightRow({
     </div>
   );
 }
-// eslint-disable-next-line max-lines-per-function
 function SignalEditor({
   signal,
   index,

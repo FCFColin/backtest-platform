@@ -151,7 +151,6 @@ function CloseBtn({ onClose, className }: { onClose: () => void; className?: str
   );
 }
 
-// eslint-disable-next-line max-lines-per-function, complexity
 export function ErrorBanner({
   message,
   errorCode,

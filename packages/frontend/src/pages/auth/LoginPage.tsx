@@ -145,7 +145,6 @@ function SignupSuccess({ email }: { email: string }) {
     </AuthPageLayout>
   );
 }
-// eslint-disable-next-line max-lines-per-function -- 合并页面内多区块渲染，内聚保留
 export function SignupPage() {
   const { t } = useTranslation();
   const register = useAuthStore((s) => s.register);

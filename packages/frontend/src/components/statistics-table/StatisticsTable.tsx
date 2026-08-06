@@ -82,7 +82,6 @@ const FORMAT_FN: Record<string, (v: number) => string> = {
 };
 const getColorClass = (value: number): string =>
   value > 0 ? 'text-pos' : value < 0 ? 'text-neg' : 'text-fg';
-// eslint-disable-next-line max-lines-per-function
 export function StatisticsTable({
   portfolios,
   colors,

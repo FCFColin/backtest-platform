@@ -81,7 +81,6 @@ export async function doFetchStats(
     setters.setLoading(false);
     setters.setError(msg);
   };
-  // eslint-disable-next-line complexity -- 轮询状态机分支多，Plan-1 已拆分，保留可读性
   const poll = async (): Promise<void> => {
     let json: Record<string, unknown> | null = null;
     try {

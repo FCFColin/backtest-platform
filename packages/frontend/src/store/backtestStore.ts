@@ -215,7 +215,7 @@ function crudActions<T extends CashflowLeg | OneTimeCashflow>(
       patchParams<T>(set, key, (l) => l.map((x) => (x.id === id ? { ...x, ...u } : x))),
   };
 }
-// eslint-disable-next-line max-lines-per-function
+
 export const useBacktestStore = create<BacktestState>()((set, get) => {
   const cf = crudActions(
     set,

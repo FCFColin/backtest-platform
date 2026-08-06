@@ -1,4 +1,3 @@
-/* eslint-disable max-lines-per-function -- 图表组件库，渲染分支多 */
 import { useMemo, useCallback, type CSSProperties } from 'react';
 import {
   SvgAxis,
