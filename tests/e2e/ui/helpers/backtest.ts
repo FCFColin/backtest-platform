@@ -3,7 +3,7 @@ import { expect, type Browser, type Page } from '@playwright/test';
 export const PERF_BUDGET_MS = Number(process.env.E2E_BACKTEST_PERF_MS ?? 1_000);
 
 // 预热：跑一次默认回测（热 worker 价格缓存与 DB 连接池），
-export async function warmUpBacktest(page: Page): Promise<void> {
+async function warmUpBacktest(page: Page): Promise<void> {
   await page.goto('/', { waitUntil: 'networkidle' });
   await expect(page.getByText(/基础参数|Basic Parameters/).first()).toBeVisible({
     timeout: 15_000,

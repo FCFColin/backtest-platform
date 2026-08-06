@@ -18,6 +18,8 @@ import {
   backtestCacheKey,
 } from '../../../packages/backend/src/application/backtest/backtestResultUtils.js';
 import { mockBacktestResult } from '../../helpers/storeFixtures.js';
+import analysisRoutes from '../../../packages/backend/src/routes/analysisRoutes.js';
+import { jobRoutes } from '../../../packages/backend/src/routes/jobRoutes.js';
 
 const get = (url: string, headers?: Record<string, string>) =>
   reqJson(url, 'GET', undefined, headers).then(({ res, body }) => ({ res, json: body }));
@@ -27,6 +29,9 @@ const portfolioJobServer = () => {
   queueMocks.getJob.mockReset();
   return setupPortfolioServer(backtestRoutes, m);
 };
+
+const manyTickers = Array.from({ length: 51 }, (_, i) => `T${i}`);
+
 interface EngineCase {
   name: string;
   path: string;
@@ -39,7 +44,6 @@ interface EngineCase {
   specials: Array<[string, (url: string, c: EngineCase) => Promise<void> | void]>;
 }
 
-const manyTickers = Array.from({ length: 51 }, (_, i) => `T${i}`);
 const engineCases: EngineCase[] = [
   {
     name: 'analysis',
@@ -265,8 +269,6 @@ describe.each(engineCases)('backtestRoutes - POST $path', (c) => {
     await fn(`${getServer().url}${c.path}`, c);
   });
 });
-
-import analysisRoutes from '../../../packages/backend/src/routes/analysisRoutes.js';
 
 function createSignalConfig(ticker = 'SPY') {
   return {
@@ -579,8 +581,6 @@ describe('backtestRoutes - GET /api/backtest/runs/:jobId — 状态查询', () =
     expect(json.error.code).toBe('JOB_NOT_FOUND');
   });
 });
-
-import { jobRoutes } from '../../../packages/backend/src/routes/jobRoutes.js';
 
 describe('jobRoutes - GET /api/v1/jobs/:id', () => {
   const getServer = withServer(() => {

@@ -116,34 +116,27 @@ function createRedisMocks(
   target.set = makeFn();
   target.del = makeFn();
   target.expire = makeFn();
-
   if (withSets) {
     target.sadd = makeFn();
     target.smembers = makeFn();
   }
-
   if (withHandlers) {
     target.on = vi.fn((event: string, handler: (...args: unknown[]) => void) => {
-      if (!handlers![event]) handlers![event] = [];
-      handlers![event].push(handler);
+      (handlers![event] ??= []).push(handler);
     });
-    target.emit = function (event: string, ...args: unknown[]): void {
-      for (const h of handlers![event] ?? []) h(...args);
-    };
+    target.emit = (event: string, ...args: unknown[]) =>
+      (handlers![event] ?? []).forEach((h) => h(...args));
     target.handlers = handlers;
   } else {
     target.on = vi.fn();
   }
-
   if (store) target.store = store;
   if (sets) target.sets = sets;
-
-  if (withStore) {
+  if (withStore)
     target.resetStore = () => {
       store!.clear();
       sets?.clear();
     };
-  }
 
   if (withMemoryHelpers) {
     const reject = (key: string, err: Error) =>
@@ -170,7 +163,7 @@ function createRedisMocks(
         store!.delete(key);
         return Promise.resolve(1);
       });
-      if (target.sadd) {
+      if (target.sadd)
         (target.sadd as ReturnType<typeof vi.fn>).mockImplementation(
           (key: string, member: string) => {
             const s = sets!.get(key) ?? new Set<string>();
@@ -179,12 +172,10 @@ function createRedisMocks(
             return Promise.resolve(1);
           },
         );
-      }
-      if (target.smembers) {
+      if (target.smembers)
         (target.smembers as ReturnType<typeof vi.fn>).mockImplementation((key: string) =>
           Promise.resolve([...(sets!.get(key) ?? [])]),
         );
-      }
       (target.expire as ReturnType<typeof vi.fn>).mockResolvedValue(1);
       if (target.emit) (target.emit as (e: string, ...a: unknown[]) => void)('ready');
     };

@@ -114,13 +114,13 @@ export async function withContainerStopped<T>(
   }
 }
 
-export interface ChaosFixture {
+interface ChaosFixture {
   dockerAvailable: boolean;
   containerRunning: boolean;
   recover: () => Promise<void>;
 }
 
-export async function setupChaosFixture(
+async function setupChaosFixture(
   containerName: string,
   recoverFn: (name: string) => Promise<void> = startContainer,
 ): Promise<ChaosFixture> {

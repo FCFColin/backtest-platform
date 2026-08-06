@@ -63,11 +63,7 @@ export function createMockNext(): ReturnType<typeof vi.fn> {
   return vi.fn();
 }
 
-export function createMockMiddleware(reqOverrides?: MockRequestOverrides): {
-  req: Request;
-  res: MockResponse;
-  next: ReturnType<typeof vi.fn>;
-} {
+export function createMockMiddleware(reqOverrides?: MockRequestOverrides) {
   return {
     req: createMockRequest(reqOverrides),
     res: createMockResponse(),
@@ -81,12 +77,12 @@ export async function awaitMiddleware(
   res: unknown,
   onNext?: () => void,
 ): Promise<void> {
-  return new Promise<void>((resolve) => {
+  return new Promise<void>((resolve) =>
     middleware(req, res, () => {
       onNext?.();
       resolve();
-    });
-  });
+    }),
+  );
 }
 
 export const createJwtAuthMockRequest = (o: Record<string, unknown> = {}) =>

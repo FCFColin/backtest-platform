@@ -1,7 +1,5 @@
 import { vi } from 'vitest';
-import { loggerMocks as fixtureLoggerMocks } from './loggerFixture.js';
-
-export const loggerMocks = fixtureLoggerMocks;
+export { loggerMocks } from './loggerFixture.js';
 
 vi.mock('../../packages/backend/src/middleware/jwtAuth.js', () => ({
   jwtAuth: (_req: unknown, _res: unknown, next: () => void) => next(),

@@ -2,8 +2,7 @@ import { vi } from 'vitest';
 import { startExpressApp, type TestServer, type TestRequest } from './expressApp.js';
 import { loggerMocks } from './loggerFixture.js';
 
-// vi.hoisted 结果不能直接 export（Vitest 转换会抛 SyntaxError: Cannot export
-// hoisted variable）。统一创建到 internalMocks 内部容器，vi.mock 工厂与对外
+// vi.hoisted 结果不能直接 export，统一放入 internalMocks 容器
 const internalMocks = vi.hoisted(() => ({
   engine: {
     getEngineStatus: vi.fn(),
@@ -22,7 +21,6 @@ const internalMocks = vi.hoisted(() => ({
 
 vi.mock('../../packages/backend/src/infrastructure/dataQuery.js', () => internalMocks.engine);
 vi.mock('../../packages/backend/src/infrastructure/dataServices.js', () => internalMocks.dataFetch);
-// dataManageRoutes 已直接从 db/marketStats.js 与 services/dataService.js 取函数，
 vi.mock('../../packages/backend/src/db/marketStats.js', () => ({
   scanMarketStatsFromDb: internalMocks.engine.scanMarketStatsFromDb,
 }));

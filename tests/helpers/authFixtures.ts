@@ -43,7 +43,7 @@ export function signRsa(payload: Record<string, unknown>, key: CryptoKey, kid?: 
     .sign(key);
 }
 
-/** 默认 JWT payload 工厂。 */
+/** 默认 JWT payload 工厂 */
 export function validPayload(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return { sub: 'user-1', role: 'admin', ...overrides };
 }
@@ -52,7 +52,7 @@ export function b64url(obj: unknown): string {
   return Buffer.from(JSON.stringify(obj)).toString('base64url');
 }
 
-/** 解码 JWT payload（第二段）。 */
+/** 解码 JWT payload */
 export function decodePayload(token: string): Record<string, unknown> {
   return JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString());
 }
@@ -151,16 +151,7 @@ export function createJwtAuthUserRepoMock() {
   }));
 }
 
-/**
- * 重置 jwtAuth HS256 测试的默认 mock 状态
- *
- * 在 beforeEach 中调用，将 config 重置为 production + HS256 + 默认 JWT_SECRET，
- * 并将 redisMocks 切换到 Redis 成功模式（ADR-045：内存降级路径已删除）。
- * 供所有 jwt-auth.* 测试文件的 beforeEach 复用。
- *
- * @param mocks - 测试文件的 vi.hoisted mocks 对象（含 config 属性）
- * @param redisMocks - 测试文件的 vi.hoisted redisMocks 对象
- */
+/** 重置 jwtAuth HS256 测试的默认 mock 状态 */
 export function setupJwtAuthTestMocks(
   mocks: { config: JwtAuthConfigMocks },
   redisMocks: Record<string, unknown>,

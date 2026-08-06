@@ -9,14 +9,7 @@ import { loggerMocks } from '../../helpers/loggerFixture.js';
 import { createJwtAuthUserRepoMock } from '../../helpers/authFixtures.js';
 import { getUserById } from '../../../packages/backend/src/repositories/userRepo.js';
 
-/**
- * jwt-auth.test.ts / token-refresh.test.ts 共享的 mock 配置与 setup helper。
- *
- * 拆分前 jwt-auth.test.ts 为 934 行，两个拆分文件共用同一套 vi.mock 样板。
- * vitest 的 vi.mock 会提升执行，且 hoisted 变量不能直接 export（参见
- * tests/helpers/dataManageRoutesFixtures.ts 既有模式），因此统一放入
- * internalMocks 容器，vi.mock 工厂与对外导出均通过属性引用获取。
- */
+/** jwt-auth.test.ts / token-refresh.test.ts 共享的 mock 配置与 setup helper */
 const internalMocks = vi.hoisted(() => ({
   configContainer: { config: {} as JwtAuthConfigMocks },
   redis: {} as Record<string, unknown>,
@@ -51,12 +44,7 @@ export const redisMocks = internalMocks.redis;
 export const fsMocks = internalMocks.fs;
 export const apiKeyMocks = internalMocks.apiKey;
 
-/**
- * 设置 getUserById 的 mock 返回指定用户（默认活跃 admin）
- *
- * @param isActive - 用户是否激活（默认 true）
- * @param role - 用户角色（默认 'admin'）
- */
+/** 设置 getUserById 的 mock 返回指定用户（默认活跃 admin） */
 export function mockUser(isActive = true, role: 'admin' | 'readonly' = 'admin'): void {
   vi.mocked(getUserById).mockImplementation(async (id: string) => ({
     id,
@@ -67,7 +55,7 @@ export function mockUser(isActive = true, role: 'admin' | 'readonly' = 'admin'):
   }));
 }
 
-/** 生成 RS256 密钥对并写入 mocks.config（PEM 内联），返回密钥供测试签发 */
+/** 生成 RS256 密钥对并写入 mocks.config */
 export async function setupRsaKeys(env = 'production') {
   const { publicKey, privateKey } = await generateKeyPair('RS256', {
     modulusLength: 2048,
@@ -82,7 +70,7 @@ export async function setupRsaKeys(env = 'production') {
   return { publicKey, privateKey, privatePem, publicPem };
 }
 
-/** 清空 PEM 配置（内联 + 文件路径），恢复无密钥基线 */
+/** 清空 PEM 配置，恢复无密钥基线 */
 export function resetRsaConfig(): void {
   mocks.config.JWT_PRIVATE_KEY = '';
   mocks.config.JWT_PRIVATE_KEY_FILE = '';
@@ -90,7 +78,7 @@ export function resetRsaConfig(): void {
   mocks.config.JWT_PUBLIC_KEY_FILE = '';
 }
 
-/** 重置模块缓存并重新加载 jwtAuth 模块（读取最新 mocks.config） */
+/** 重新加载 jwtAuth 模块 */
 export async function reloadJwtAuthModule() {
   vi.resetModules();
   return import('../../../packages/backend/src/middleware/jwtAuth.js');

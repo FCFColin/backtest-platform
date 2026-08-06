@@ -1,5 +1,10 @@
 import { describe, it, expect, vi } from 'vitest';
-import { startExpressApp, reqJson, useTestServer } from '../../helpers/expressApp.js';
+import {
+  startExpressApp,
+  type TestServer,
+  reqJson,
+  useTestServer,
+} from '../../helpers/expressApp.js';
 import { withServer } from '../../helpers/serverLifecycle.js';
 import { mockBacktestQueue, mockConfigModule } from '../../helpers/mockFactories.js';
 import { loggerMocks } from '../../helpers/loggerFixture.js';
