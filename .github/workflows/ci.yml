@@ -95,6 +95,7 @@ jobs:
       - name: Install scc
         run: |
           curl -sL https://github.com/boyter/scc/releases/download/v3.7.0/scc_Linux_x86_64.tar.gz -o scc.tar.gz
+          mkdir -p /tmp/scc
           tar -xzf scc.tar.gz -C /tmp/scc
           echo "/tmp/scc" >> $GITHUB_PATH
       - name: Count lines
