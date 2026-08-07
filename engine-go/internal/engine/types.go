@@ -214,4 +214,3 @@ type DrawdownEpisode struct {
 	ReturnFromPeakToTrough     float64  `json:"returnFromPeakToTrough,omitempty"`
 	ReturnFromTroughToRecovery *float64 `json:"returnFromTroughToRecovery,omitempty"`
 }
-

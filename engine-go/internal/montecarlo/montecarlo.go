@@ -33,6 +33,11 @@ func RunMonteCarlo(ctx context.Context, req MonteCarloRequest) (*MonteCarloResul
 	}
 	totalDays := req.MCParams.NumYears * mcTradingDays
 	paths := runSimulations(ctx, dailyReturns, totalDays, req.MCParams.NumSimulations, req.MCParams, req.Params.StartingValue)
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err() // 取消时 goroutine 可能留下 nil path，禁止继续计算
+	default:
+	}
 	percentiles := computePercentiles(paths, totalDays)
 	successProb := computeSuccessProbability(paths, req.MCParams.SuccessThreshold, req.Params.StartingValue)
 	successProbs := computeSuccessProbabilities(paths, req.Params.StartingValue, req.MCParams.NumYears)
