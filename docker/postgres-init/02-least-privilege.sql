@@ -1,5 +1,5 @@
 -- T-21b：开发环境自动创建最小权限角色（docker-entrypoint-initdb.d）
--- 生产部署请使用 migrations/007_least_privilege.sql 并替换为强随机密码。
+-- 生产部署请使用 migrations/001_initial_schema.sql 中的角色创建并替换为强随机密码。
 
 DO $$
 BEGIN

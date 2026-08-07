@@ -79,6 +79,7 @@ export function auditLog(req: Request, res: Response, next: NextFunction): void 
       method: req.method,
       path: req.originalUrl || req.url,
       userId,
+      orgId: (req as AuthenticatedRequest).tenantId ?? null,
       ip: req.ip || req.socket.remoteAddress || 'unknown',
       userAgent: req.headers['user-agent'] || 'unknown',
       statusCode: res.statusCode,

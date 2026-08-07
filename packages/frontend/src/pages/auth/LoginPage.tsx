@@ -207,12 +207,12 @@ export function SignupPage() {
           autoComplete="email"
         />
         <AuthFormField
-          label={t('Password must be at least 8 characters')}
+          label={t('Password must be at least 12 characters')}
           value={password}
           onChange={setPassword}
           type="password"
           autoComplete="new-password"
-          minLength={8}
+          minLength={12}
         />
         <AuthFormField label={t('Organization Name')} value={orgName} onChange={setOrgName} />
         <TermsCheckbox accepted={termsAccepted} onChange={setTermsAccepted} />

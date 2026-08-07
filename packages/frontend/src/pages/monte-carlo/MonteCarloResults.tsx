@@ -128,6 +128,7 @@ function ResultsDisplay({
   setDistMetric: (m: DistMetric) => void;
   onTabChange: (tab: ResultTab) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div key={label}>
       {portfolioMode === 2 && <PortfolioLabel label={label} colorIdx={colorIdx} />}
@@ -136,7 +137,7 @@ function ResultsDisplay({
         <TabsList className="mb-4 flex-wrap">
           {RESULT_TABS.map((tab) => (
             <TabsTrigger key={tab.key} value={tab.key}>
-              {tab.label}
+              {t(tab.label)}
             </TabsTrigger>
           ))}
         </TabsList>

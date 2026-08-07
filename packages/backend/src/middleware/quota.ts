@@ -42,6 +42,10 @@ async function atomicQuotaIncrement(key: string, limit: number): Promise<[number
 
 export function enforceQuota(metric: string) {
   return async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+    if (req.method === 'GET') {
+      next();
+      return;
+    }
     const tenantId = req.tenantId;
     if (!tenantId || req.user?.platform_admin === true) {
       next();

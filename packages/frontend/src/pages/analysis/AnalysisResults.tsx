@@ -119,7 +119,7 @@ function CorrelationsBetaTab({
     Math.min(1, results.tickers.length - 1),
   ]);
   const tickers = results.tickers.map((tk) => tk.ticker);
-  const { betaMatrix, rollingCorrData } = useAnalysisData(results, correlationWindow, 12);
+  const { betaMatrix, rollingCorrData } = useAnalysisData(results, correlationWindow);
   return (
     <div className="space-y-6">
       <CorrelationMatrixTable tickers={results.tickers} correlations={results.correlations} />

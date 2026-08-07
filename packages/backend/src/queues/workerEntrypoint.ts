@@ -7,6 +7,7 @@ import { initDb } from '../infrastructure/dataFacade.js';
 import { closeDb } from '../db/pool.js';
 import { eventDispatcher } from '../domain/events/events.js';
 import { BacktestCompletedHandler, RunCompletedHandler } from '../application/completedHandlers.js';
+import { AuditEventHandler } from '../application/auditEventHandler.js';
 import { createAuditExportWorker, scheduleAuditExportJob } from './queueDefinitions.js';
 import { createDataUpdateWorker } from './dataUpdateWorker.js';
 import { startHeartbeat } from './queueUtils.js';
@@ -17,6 +18,7 @@ import type { Worker } from 'bullmq';
 validateConfig();
 
 eventDispatcher.register(new BacktestCompletedHandler());
+eventDispatcher.register(new AuditEventHandler());
 eventDispatcher.register(new RunCompletedHandler());
 
 let auditExportWorker: Worker | null = null;

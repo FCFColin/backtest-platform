@@ -81,11 +81,7 @@ function useGrowthData(portfolioResults: ReturnType<typeof usePortfolioResults>)
     [portfolioResults],
   );
 }
-export function useAnalysisData(
-  results: AssetAnalysisResult,
-  correlationWindow: number,
-  _rollingWindow: number,
-) {
+export function useAnalysisData(results: AssetAnalysisResult, correlationWindow: number) {
   const tickers = useMemo(() => results.tickers ?? [], [results.tickers]);
   const tickerNames = useMemo(() => tickers.map((t) => t.ticker), [tickers]);
   const portfolioResults = usePortfolioResults(tickers);
