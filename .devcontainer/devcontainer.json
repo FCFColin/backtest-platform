@@ -1,12 +1,10 @@
 {
   "$schema": "https://raw.githubusercontent.com/devcontainers/spec/main/schemas/devContainer.schema.json",
   "name": "回测平台 (Backtest Platform)",
-  "_comment": "T-26 / 维度7：一键开发环境。企业为何需要——多语言(TS/Go/Rust/Python)依赖在不同机器上版本漂移会导致'在我机器上能跑'问题。devcontainer 将工具链固化为代码，新成员打开即获得一致环境，缩短上手时间。",
+  "_comment": "T-26 / 维度7：一键开发环境，固化为代码避免多语言工具链版本漂移（技术栈以 AGENTS.md 为准，Go+TS 双语言，ADR-008/031 已退役 Rust/Python）。",
   "image": "mcr.microsoft.com/devcontainers/typescript-node:20",
   "features": {
-    "ghcr.io/devcontainers/features/go:1": { "version": "1.22" },
-    "ghcr.io/devcontainers/features/rust:1": {},
-    "ghcr.io/devcontainers/features/python:1": { "version": "3.11" },
+    "ghcr.io/devcontainers/features/go:1": { "version": "1.26" },
     "ghcr.io/devcontainers/features/docker-in-docker:2": {}
   },
   "forwardPorts": [15173, 15001, 15004, 15003, 15442, 16381],
@@ -18,16 +16,10 @@
     "15442": { "label": "PostgreSQL" },
     "16381": { "label": "Redis" }
   },
-  "postCreateCommand": "npm install",
+  "postCreateCommand": "corepack enable && pnpm install",
   "customizations": {
     "vscode": {
-      "extensions": [
-        "dbaeumer.vscode-eslint",
-        "esbenp.prettier-vscode",
-        "golang.go",
-        "rust-lang.rust-analyzer",
-        "ms-python.python"
-      ]
+      "extensions": ["dbaeumer.vscode-eslint", "esbenp.prettier-vscode", "golang.go"]
     }
   },
   "remoteEnv": {
