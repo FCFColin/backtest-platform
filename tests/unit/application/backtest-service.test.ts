@@ -93,7 +93,9 @@ describe('runBacktest', () => {
     const outboxCall = outboxMocks.writeEventInTransaction.mock.calls[0][1];
     expect(outboxCall.eventType).toBe('BacktestCompleted');
     expect(outboxCall.aggregateType).toBe('BacktestSession');
-    expect(outboxCall.aggregateId).toMatch(/^backtest-\d+$/);
+    expect(outboxCall.aggregateId).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+    );
     expect(outboxCall.eventId).toBeDefined();
     expect(outboxCall.payload.startingValue).toBe(10000);
     expect(outboxCall.payload.portfolioCount).toBe(1);

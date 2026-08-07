@@ -160,7 +160,7 @@ function buildContributionColumns(
   t: TFunction,
 ): Column<MultiSignalResponse['contributions'][number]>[] {
   return [
-    { key: 'index', label: t('#'), sortValue: (r) => r.index },
+    { key: 'index', label: '#', sortValue: (r) => r.index },
     { key: 'indicator', label: t('Metric'), sortValue: (r) => r.indicator },
     {
       key: 'contribution',

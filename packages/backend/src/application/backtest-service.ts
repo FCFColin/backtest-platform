@@ -112,7 +112,7 @@ export async function runBacktest(
         },
         'Starting backtest',
       );
-      const aggregateId = `backtest-${Date.now()}`;
+      const aggregateId = randomUUID();
       const run = Run.create({
         id: aggregateId,
         name: `Backtest ${aggregateId}`,

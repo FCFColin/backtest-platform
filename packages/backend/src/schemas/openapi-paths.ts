@@ -81,7 +81,7 @@ const SuccessEnvelope = registry.register(
     degradedWarning: z.string().optional(),
   }),
 );
-export const AcceptedEnvelope = registry.register(
+const AcceptedEnvelope = registry.register(
   'BacktestJobAccepted',
   z.object({
     success: z.literal(true),
@@ -167,7 +167,7 @@ function reg(opts: RegPathOpts): void {
     responses: buildResponses(opts),
   });
 }
-export function idParam(name = 'id') {
+function idParam(name = 'id') {
   return z.object({ [name]: z.string() });
 }
 
@@ -529,5 +529,3 @@ export function generateOpenApiDocument() {
     security: [{ BearerAuth: [] }],
   });
 }
-
-export { registry, reg };

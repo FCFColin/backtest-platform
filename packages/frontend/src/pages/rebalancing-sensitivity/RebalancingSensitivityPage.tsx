@@ -44,44 +44,54 @@ function FreqSelector({ s }: { s: RebalancingState }) {
     </Field>
   );
 }
+function BandField({
+  label,
+  value,
+  onChange,
+  max,
+}: {
+  label: string;
+  value: number | '';
+  onChange: (v: number | '') => void;
+  max: number;
+}) {
+  const { t } = useTranslation();
+  return (
+    <Field>
+      <FieldLabel>{label}</FieldLabel>
+      <div className="relative">
+        <Input
+          type="number"
+          value={value}
+          onChange={(e) => onChange(e.target.value === '' ? '' : Number(e.target.value))}
+          placeholder={t('Leave empty to disable')}
+          min={0}
+          max={max}
+          className="pr-8"
+        />
+        <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-caption text-fg-tertiary">
+          %
+        </span>
+      </div>
+    </Field>
+  );
+}
 function RebalBandFields({ s }: { s: RebalancingState }) {
   const { t } = useTranslation();
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-      <Field>
-        <FieldLabel>{t('Absolute Deviation Band')}</FieldLabel>
-        <div className="relative">
-          <Input
-            type="number"
-            value={s.absoluteBand}
-            onChange={(e) => s.setAbsoluteBand(e.target.value === '' ? '' : Number(e.target.value))}
-            placeholder={t('Leave empty to disable')}
-            min={0}
-            max={50}
-            className="pr-8"
-          />
-          <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-caption text-fg-tertiary">
-            %
-          </span>
-        </div>
-      </Field>
-      <Field>
-        <FieldLabel>{t('Relative Deviation Band')}</FieldLabel>
-        <div className="relative">
-          <Input
-            type="number"
-            value={s.relativeBand}
-            onChange={(e) => s.setRelativeBand(e.target.value === '' ? '' : Number(e.target.value))}
-            placeholder={t('Leave empty to disable')}
-            min={0}
-            max={100}
-            className="pr-8"
-          />
-          <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-caption text-fg-tertiary">
-            %
-          </span>
-        </div>
-      </Field>
+      <BandField
+        label={t('Absolute Deviation Band')}
+        value={s.absoluteBand}
+        onChange={s.setAbsoluteBand}
+        max={50}
+      />
+      <BandField
+        label={t('Relative Deviation Band')}
+        value={s.relativeBand}
+        onChange={s.setRelativeBand}
+        max={100}
+      />
     </div>
   );
 }

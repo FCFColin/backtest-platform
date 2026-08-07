@@ -38,11 +38,11 @@ const mapRow = rowMapper<PortfolioRecord>({
 
 // @throws {ValidationError} 权重和不为 ~100 或包含非法 ticker
 function validateAndBuild(input: PortfolioInput, id: string): unknown {
-  const holdings: PortfolioHolding[] = input.assets.map((a) => ({
-    ticker: Ticker.create(a.ticker),
-    weight: Weight.create(a.weight),
-  }));
   try {
+    const holdings: PortfolioHolding[] = input.assets.map((a) => ({
+      ticker: Ticker.create(a.ticker),
+      weight: Weight.create(a.weight),
+    }));
     return DomainPortfolio.create(id, input.name, holdings, {
       rebalanceFrequency: input.rebalanceFrequency,
     }).toPersistenceDTO();

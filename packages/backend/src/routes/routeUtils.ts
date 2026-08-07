@@ -25,7 +25,7 @@ function translateError(res: Response, error: unknown): 'engine' | 'app' | null 
     return 'engine';
   }
   if (error instanceof ApplicationError) {
-    sendProblem(res, error.statusCode, error.errorCode);
+    sendProblem(res, error.statusCode, error.errorCode, error.errorTitle);
     return 'app';
   }
   if (error instanceof TimeoutError) {

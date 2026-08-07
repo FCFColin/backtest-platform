@@ -2,7 +2,7 @@ import type { ReactElement, ReactNode, ComponentType } from 'react';
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ToolSeoCard, ToolPageLayout } from '../layout/ToolPageLayout.js';
-import { Loader2 } from '@/icons/icons.js';
+import { Loader2 } from 'lucide-react';
 export function TabFallback() {
   return (
     <div className="flex justify-center py-12">

@@ -17,12 +17,16 @@ func evaluateCondition(cond SignalCondition, values []*float64) []bool {
 		}
 		crossAbove := *val > cond.Threshold && prev != nil && *prev <= cond.Threshold
 		crossBelow := *val < cond.Threshold && prev != nil && *prev >= cond.Threshold
-		result[i] = map[string]bool{
-			"gt":          *val > cond.Threshold,
-			"lt":          *val < cond.Threshold,
-			"cross_above": crossAbove,
-			"cross_below": crossBelow,
-		}[cond.Operator]
+		switch cond.Operator {
+		case "gt":
+			result[i] = *val > cond.Threshold
+		case "lt":
+			result[i] = *val < cond.Threshold
+		case "cross_above":
+			result[i] = crossAbove
+		case "cross_below":
+			result[i] = crossBelow
+		}
 	}
 	return result
 }

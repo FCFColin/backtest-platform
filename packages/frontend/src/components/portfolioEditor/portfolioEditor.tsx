@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNsT } from '@/hooks/miscHooks.js';
 import { useBacktestStore } from '@/store/backtestStore';
 import { Button } from '@/components/ui/uiComponents';
-import { Play as PlayIcon, Loader2, Check } from '@/icons/icons.js';
+import { Play as PlayIcon, Loader2, Check } from 'lucide-react';
 import { getPortfolioColor } from '@/lib/chart-theme.js';
 import { cn } from '@/lib/utils';
 export { GlidepathForm } from './portfolioEditorFields.js';

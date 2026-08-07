@@ -134,7 +134,7 @@ function createDenyAllLimiter(code: string, detail: string): RequestHandler {
 }
 
 function createLimiter(opts: LimiterOptions): RequestHandler {
-  if (process.env.NODE_ENV !== 'production' && process.env.DISABLE_RATE_LIMIT) {
+  if (process.env.NODE_ENV === 'development' && process.env.DISABLE_RATE_LIMIT) {
     return (_req: Request, _res: Response, next: NextFunction) => next();
   }
   const store = createRateLimiterStore(opts.storePrefix);

@@ -13,7 +13,7 @@ export class DomainValidationError extends Error {
 export class Weight {
   private constructor(public readonly value: number) {
     if (value < 0 || value > 100) {
-      throw new Error(`Weight must be between 0 and 100 (percent): ${value}`);
+      throw new DomainValidationError(`Weight must be between 0 and 100 (percent): ${value}`);
     }
   }
 
@@ -30,7 +30,7 @@ export class Ticker {
   static create(value: string): Ticker {
     const upper = value.toUpperCase().trim();
     if (!DOMAIN_TICKER_PATTERN.test(upper)) {
-      throw new Error(`Invalid ticker: ${value}`);
+      throw new DomainValidationError(`Invalid ticker: ${value}`);
     }
     return new Ticker(upper);
   }

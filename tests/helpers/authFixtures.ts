@@ -95,6 +95,7 @@ export function createAuthConfigMock() {
   return {
     SESSION_IDLE_TIMEOUT_READONLY_SEC: 1800,
     SESSION_IDLE_TIMEOUT_ANALYST_SEC: 3600,
+    JWT_REFRESH_TTL: 604800,
   };
 }
 

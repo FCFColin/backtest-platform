@@ -1,5 +1,5 @@
 import { Link } from 'react-router';
-import { BarChart3 } from '@/icons/icons.js';
+import { BarChart3 } from 'lucide-react';
 import { Github, Twitter } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useEffect, useState } from 'react';

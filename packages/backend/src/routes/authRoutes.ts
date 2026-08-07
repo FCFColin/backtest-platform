@@ -55,7 +55,7 @@ const RT_COOKIE_BASE = {
   sameSite: 'strict' as const,
   path: '/api/v1/auth',
 };
-const RT_COOKIE_SET = { ...RT_COOKIE_BASE, maxAge: 604800000 };
+const RT_COOKIE_SET = { ...RT_COOKIE_BASE, maxAge: authConfig.JWT_REFRESH_TTL * 1000 };
 const RT_COOKIE_CLEAR = { ...RT_COOKIE_BASE };
 
 async function issueSession(
