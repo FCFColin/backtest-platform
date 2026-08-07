@@ -27,7 +27,7 @@ interface StatColumn {
   sticky?: 'left' | 'right';
   minWidth?: string;
 }
-export interface PortfolioStatsRow {
+interface PortfolioStatsRow {
   id: string;
   name: string;
   stats: Record<string, number | string>;

@@ -2,7 +2,6 @@ import {
   useRef,
   useState,
   useEffect,
-  memo,
   type ReactElement,
   type ReactNode,
   type ElementType,
@@ -32,8 +31,6 @@ import {
 } from '@/lib/chart-theme.js';
 import type { TooltipValueFormatter } from '@/lib/chart-theme.js';
 import { SvgBarChart, SvgScatterChart } from './svg/svgCharts.js';
-import type { PortfolioResult } from '@backtest/shared';
-import ChartCard from '../ChartCard.js';
 
 type SeriesNames = string[];
 type ChartDataPoint = Record<string, number | string>;
@@ -256,29 +253,6 @@ export function ChartEmptyState({ message, height = '280px' }: ChartEmptyStatePr
     </div>
   );
 }
-
-interface ReturnsTabDailyChartProps {
-  portfolios: PortfolioResult[];
-  bins: Array<{ range: string; [portfolioName: string]: string | number }>;
-}
-export default memo(function ReturnsTabDailyChart({ portfolios, bins }: ReturnsTabDailyChartProps) {
-  const { t } = useTranslation();
-  if (bins.length === 0) return null;
-  return (
-    <ChartCard title={t('Daily Returns Distribution')} data={bins}>
-      <BarChartContent
-        data={bins}
-        seriesNames={portfolios.map((p) => p.name)}
-        xDataKey="range"
-        height={350}
-        yLabel={t('Frequency')}
-        fillOpacity={0.7}
-        xTickFontSize={9}
-        xTickInterval={4}
-      />
-    </ChartCard>
-  );
-});
 
 interface SimpleChartProps {
   type?: 'line' | 'area';

@@ -33,7 +33,7 @@ interface TableProps<T> {
   onSort?: (key: string) => void;
 }
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 泛型约束需要 any 以兼容无索引签名的具体接口
-export function BaseTable<T extends Record<string, any>>({
+function BaseTable<T extends Record<string, any>>({
   columns,
   data,
   maxWidth,
