@@ -1,8 +1,4 @@
-import { useState, useEffect } from 'react';
-import { useNsT } from '@/hooks/miscHooks.js';
 import { useBacktestStore } from '@/store/backtestStore';
-import { Button } from '@/components/ui/uiComponents';
-import { Play as PlayIcon, Loader2, Check } from 'lucide-react';
 import { getPortfolioColor } from '@/lib/chart-theme.js';
 import { cn } from '@/lib/utils';
 export { GlidepathForm } from './portfolioEditorFields.js';
@@ -10,57 +6,6 @@ export { PortfolioCard } from './portfolioEditorCard.js';
 
 export type StorePortfolio = ReturnType<typeof useBacktestStore.getState>['portfolios'][number];
 export type TFunc = (key: string) => string;
-interface RunBacktestButtonProps {
-  onRun: () => void;
-  isRunning: boolean;
-  runComplete: boolean;
-  elapsedMs?: number;
-}
-export function RunBacktestButton({
-  onRun,
-  isRunning,
-  runComplete,
-  elapsedMs,
-}: RunBacktestButtonProps) {
-  const { t } = useNsT('backtest');
-  const [showComplete, setShowComplete] = useState(false);
-  useEffect(() => {
-    if (!runComplete) return;
-    setShowComplete(true);
-    const timer = setTimeout(() => setShowComplete(false), 3000);
-    return () => clearTimeout(timer);
-  }, [runComplete]);
-  if (isRunning)
-    return (
-      <Button variant="primary" size="default" disabled className="min-w-[160px]">
-        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-        {t('Backtesting...')}
-      </Button>
-    );
-  if (showComplete)
-    return (
-      <Button
-        variant="primary"
-        size="default"
-        className={cn(
-          'min-w-[160px] bg-success hover:bg-success text-white',
-          'animate-in fade-in-0 zoom-in-95 duration-200',
-        )}
-        disabled
-      >
-        <Check className="h-4 w-4 mr-2" />
-        {elapsedMs
-          ? t('{{seconds}}s complete', { seconds: (elapsedMs / 1000).toFixed(1) })
-          : t('Complete')}
-      </Button>
-    );
-  return (
-    <Button variant="primary" size="default" onClick={onRun} className="min-w-[160px]">
-      <PlayIcon className="h-4 w-4 mr-2" />
-      {t('Run Backtest')}
-    </Button>
-  );
-}
 export function AllocationBar({
   assets,
   tw,

@@ -43,7 +43,6 @@ const UnderwaterCurve = lazyNamed(
   () => import('@/components/charts/drawdownCharts'),
   'UnderwaterCurve',
 );
-const ReturnsTabDailyChart = lazy(() => import('@/components/charts/sharedChartContent'));
 const TelltaleChart = lazyNamed(() => import('@/components/charts/analysis'), 'TelltaleChart');
 const RiskReturnScatter = lazyNamed(
   () => import('@/components/charts/riskReturn'),
@@ -189,7 +188,6 @@ const TAB_RENDERERS: Record<string, (c: TabCtx) => ReactNode> = {
       {pf.map((x) => (
         <MonthlyHeatmap key={x.name} portfolio={x} />
       ))}
-      <ReturnsTabDailyChart portfolios={pf} bins={[]} />
     </>
   ),
   yearlyReturns: ({ pf, r }) => (

@@ -276,7 +276,7 @@ function useParamField() {
     const v = e.target.value;
     if (!v) return void updateParameter(field, v);
     const other = field === 'startDate' ? parameters.endDate : parameters.startDate;
-    const today = new Date().toISOString().slice(0, 10);
+    const today = new Date().toLocaleDateString('en-CA');
     let err: string | null = null;
     if (field === 'endDate' && v > today) err = t('End date cannot be later than today');
     else if (field === 'startDate' && other && v > other)

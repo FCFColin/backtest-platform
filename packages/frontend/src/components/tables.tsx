@@ -134,6 +134,7 @@ interface SortableTableProps<T> {
   data: T[];
   initialSortKey?: string;
   initialSortDir?: 'asc' | 'desc';
+  rowKey?: (row: T, idx: number) => string;
 }
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 泛型约束需要 any 以兼容无索引签名的具体接口
 function sortRows<T extends Record<string, any>>(
@@ -157,6 +158,7 @@ export function SortableTable<T extends Record<string, any>>({
   data,
   initialSortKey,
   initialSortDir = 'desc',
+  rowKey,
 }: SortableTableProps<T>) {
   const [sortKey, setSortKey] = useState<string | undefined>(initialSortKey);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>(initialSortDir);
@@ -179,6 +181,7 @@ export function SortableTable<T extends Record<string, any>>({
       sortKey={sortKey}
       sortDir={sortDir}
       onSort={handleSort}
+      rowKey={rowKey}
     />
   );
 }

@@ -1,6 +1,6 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, Bookmark, Bell, Save, Download, RefreshCw, Info } from 'lucide-react';
+import { Download } from 'lucide-react';
 import { Button } from '@/components/ui/uiComponents.js';
 import {
   DropdownMenu,
@@ -8,74 +8,12 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
 } from '@/components/ui/uiComponents.js';
-import { PlanBadge } from '@/components/layout/Navbar.js';
 import { cn } from '@/lib/utils.js';
-interface ActionBarActionsProps {
-  onRefresh?: () => void;
-  onShare?: () => void;
-  onSaveBacktest?: () => void;
-  onEmailAlerts?: () => void;
-  onSavePortfolio?: () => void;
+interface ResultsActionBarProps {
+  timeRange: { start: string; end: string; years: number };
   onExport?: (format: 'csv' | 'json' | 'png' | 'pdf') => void;
 }
-interface ResultsActionBarProps extends ActionBarActionsProps {
-  timeRange: { start: string; end: string; years: number };
-}
-function ActionBarActions({
-  onRefresh,
-  onShare,
-  onSaveBacktest,
-  onEmailAlerts,
-  onSavePortfolio,
-  onExport,
-}: ActionBarActionsProps) {
-  const { t } = useTranslation();
-  return (
-    <div className="flex items-center gap-1">
-      <Button
-        variant="ghost"
-        size="icon"
-        className="h-8 w-8"
-        onClick={onRefresh}
-        title={t('Refresh')}
-      >
-        <RefreshCw className="h-4 w-4" />
-      </Button>
-      <div className="w-px h-5 bg-border mx-1" />
-      <Button variant="ghost" size="sm" onClick={onShare}>
-        <Link className="h-4 w-4 mr-1.5" /> {t('Share')}
-      </Button>
-      <Button variant="ghost" size="sm" onClick={onSaveBacktest}>
-        <Bookmark className="h-4 w-4 mr-1.5" /> {t('Save Backtest')}
-      </Button>
-      <Button variant="ghost" size="sm" onClick={onEmailAlerts}>
-        <Bell className="h-4 w-4 mr-1.5" /> {t('Email Alerts')}
-        <PlanBadge tier="pro" className="ml-1.5" />
-      </Button>
-      <Button variant="ghost" size="sm" onClick={onSavePortfolio}>
-        <Save className="h-4 w-4 mr-1.5" /> {t('Save Portfolio')}
-      </Button>
-      <div className="w-px h-5 bg-border mx-1" />
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="secondary" size="sm">
-            <Download className="h-4 w-4 mr-1.5" />
-            {t('Export')}
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={() => onExport?.('csv')}>{t('CSV (Data)')}</DropdownMenuItem>
-          <DropdownMenuItem onClick={() => onExport?.('json')}>
-            {t('JSON (Full Config + Results)')}
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => onExport?.('png')}>{t('PNG (Chart)')}</DropdownMenuItem>
-          <DropdownMenuItem onClick={() => onExport?.('pdf')}>{t('PDF (Report)')}</DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
-  );
-}
-export function ResultsActionBar(props: ResultsActionBarProps) {
+export function ResultsActionBar({ timeRange, onExport }: ResultsActionBarProps) {
   const { t } = useTranslation();
   const [sticky, setSticky] = useState(false);
   const sentinelRef = useRef<HTMLDivElement>(null);
@@ -102,17 +40,35 @@ export function ResultsActionBar(props: ResultsActionBarProps) {
             <h2 className="text-h3">{t('Results')}</h2>
             <span className="text-caption text-fg-tertiary font-mono tabular-nums">
               {t('{{years}} yrs · {{start}} to {{end}}', {
-                years: props.timeRange.years.toFixed(2),
-                start: props.timeRange.start,
-                end: props.timeRange.end,
+                years: timeRange.years.toFixed(2),
+                start: timeRange.start,
+                end: timeRange.end,
               })}
             </span>
-            <Button variant="ghost" size="icon" className="h-6 w-6">
-              <Info className="h-3.5 w-3.5 text-fg-tertiary" />
-            </Button>
           </div>
           <div className="flex-1" />
-          <ActionBarActions {...props} />
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="secondary" size="sm">
+                <Download className="h-4 w-4 mr-1.5" />
+                {t('Export')}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => onExport?.('csv')}>
+                {t('CSV (Data)')}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onExport?.('json')}>
+                {t('JSON (Full Config + Results)')}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onExport?.('png')}>
+                {t('PNG (Chart)')}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onExport?.('pdf')}>
+                {t('PDF (Report)')}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
     </>

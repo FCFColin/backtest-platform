@@ -133,9 +133,15 @@ export function useAdminFetch<T>(
     setLoading(true);
     try {
       const res = await apiFetch(url);
-      if (!res.ok) return;
+      if (!res.ok) {
+        setLoading(false);
+        return;
+      }
       const json = await res.json();
-      if (!json.success || !json.data) return;
+      if (!json.success || !json.data) {
+        setLoading(false);
+        return;
+      }
       setData(parser(json.data));
     } catch (error) {
       reportError(error, { component: componentName, action: 'fetch' });

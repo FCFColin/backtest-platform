@@ -33,7 +33,6 @@ export interface BacktestPageState {
   handleOpenLoadList: () => Promise<void>;
   handleLoadConfig: (config: SavedPortfolio) => void;
   handleDeleteConfig: (id: string) => Promise<void>;
-  handleShareLink: () => Promise<void>;
 }
 type BacktestToolbarProps = Pick<
   BacktestPageState,
@@ -48,7 +47,6 @@ type BacktestToolbarProps = Pick<
   | 'savedConfigs'
   | 'handleLoadConfig'
   | 'handleDeleteConfig'
-  | 'handleShareLink'
 >;
 type BacktestState = ReturnType<typeof useBacktestPageState>;
 type TFunc = (k: string) => string;
@@ -202,7 +200,6 @@ function BacktestParamsWrapper({ state }: { state: BacktestState }) {
         savedConfigs={state.savedConfigs}
         handleLoadConfig={state.handleLoadConfig}
         handleDeleteConfig={state.handleDeleteConfig}
-        handleShareLink={state.handleShareLink}
       />
     </>
   );

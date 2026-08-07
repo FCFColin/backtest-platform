@@ -180,7 +180,7 @@ function loadFromShareAction(
     })),
     parameters: { ...defaultParameters, ...data.parameters },
     results: null,
-    activeTab: 'growth' as const,
+    activeTab: 'summary' as const,
     portfolioCounter: maxId,
     hasLoadedFromShare: true,
   });

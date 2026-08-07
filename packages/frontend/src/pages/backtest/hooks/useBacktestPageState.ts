@@ -9,7 +9,7 @@ import {
   deleteNamedConfigApi,
   type SavedPortfolio,
 } from '@/utils/portfolioStorage';
-import { readStateFromURL, writeStateToURL } from '@/utils/portfolioStorage';
+import { readStateFromURL } from '@/utils/portfolioStorage';
 import type { Portfolio, BacktestParameters } from '@backtest/shared';
 import type { BacktestPageState } from '../BacktestPage.js';
 function useUrlShareLoader() {
@@ -129,18 +129,6 @@ export function useBacktestPageState(): BacktestPageState {
     await deleteNamedConfigApi(id);
     setSavedConfigs(await listNamedConfigs());
   };
-  const handleShareLink = async () => {
-    const state = useBacktestStore.getState().getShareableState();
-    const url = writeStateToURL(state);
-    try {
-      await navigator.clipboard.writeText(url);
-      useToastStore.getState().addToast('success', t('Share link copied to clipboard'));
-    } catch {
-      useToastStore
-        .getState()
-        .addToast('success', t('Share link generated (please copy from address bar manually)'));
-    }
-  };
   return {
     t,
     seoProps,
@@ -157,6 +145,5 @@ export function useBacktestPageState(): BacktestPageState {
     handleOpenLoadList,
     handleLoadConfig,
     handleDeleteConfig,
-    handleShareLink,
   };
 }

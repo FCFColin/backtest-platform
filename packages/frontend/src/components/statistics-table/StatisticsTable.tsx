@@ -18,7 +18,7 @@ import {
 import { CHART_COLORS, type PortfolioResult, type Statistics } from '@backtest/shared';
 import { formatCurrency, fmtPct, formatDuration, fmtNum } from '@/utils/format.js';
 import { STAT_KEY_TO_TESTID } from './types.js';
-import { BaseTable, SimpleTable, type SimpleTableColumn } from '@/components/tables.js';
+import { SortableTable, SimpleTable, type SimpleTableColumn } from '@/components/tables.js';
 interface StatColumn {
   key: string;
   label: string;
@@ -26,6 +26,11 @@ interface StatColumn {
   colorize?: boolean;
   sticky?: 'left' | 'right';
   minWidth?: string;
+}
+export interface PortfolioStatsRow {
+  id: string;
+  name: string;
+  stats: Record<string, number | string>;
 }
 const DEFAULT_COLUMNS: StatColumn[] = [
   {
@@ -58,11 +63,7 @@ const DEFAULT_COLUMNS: StatColumn[] = [
   { key: 'beta', label: 'Beta', format: 'number' },
 ];
 interface StatisticsTableProps {
-  portfolios: Array<{
-    id: string;
-    name: string;
-    stats: Record<string, number | string>;
-  }>;
+  portfolios: PortfolioStatsRow[];
   colors: string[];
   onExport?: () => void;
   extendedTable?: React.ReactNode;
@@ -82,19 +83,10 @@ export function StatisticsTable({
   extendedTable,
 }: StatisticsTableProps) {
   const { t } = useTranslation();
-  const [sortKey, setSortKey] = useState<string | null>(null);
-  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(new Set());
   const [expanded, setExpanded] = useState(false);
   const visibleColumns = DEFAULT_COLUMNS.filter((c) => !hiddenColumns.has(c.key));
-  const sortedPortfolios = [...portfolios].sort((a, b) => {
-    if (!sortKey) return 0;
-    const av = a.stats[sortKey] as number;
-    const bv = b.stats[sortKey] as number;
-    if (typeof av !== 'number' || typeof bv !== 'number') return 0;
-    return sortDir === 'asc' ? av - bv : bv - av;
-  });
-  const columns: SimpleTableColumn<(typeof portfolios)[number]>[] = visibleColumns.map((col) => ({
+  const columns: SimpleTableColumn<PortfolioStatsRow>[] = visibleColumns.map((col) => ({
     key: col.key,
     label: t(col.label),
     align: col.format === 'text' ? 'left' : 'right',
@@ -169,32 +161,11 @@ export function StatisticsTable({
         </div>
       </div>
       <div className="border border-border rounded-lg overflow-hidden">
-        <BaseTable
-          columns={columns}
-          data={sortedPortfolios}
-          rowKey={(p) => p.id}
-          nowrap={false}
-          sortKey={sortKey ?? undefined}
-          sortDir={sortDir}
-          onSort={(key) => {
-            if (sortKey === key) setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
-            else {
-              setSortKey(key);
-              setSortDir('desc');
-            }
-          }}
-        />
+        <SortableTable columns={columns} data={portfolios} rowKey={(p) => p.id} />
       </div>
       {expanded && extendedTable}
     </div>
   );
-}
-interface ExtendedMetricsTableProps {
-  portfolios: Array<{
-    id: string;
-    name: string;
-    stats: Record<string, number>;
-  }>;
 }
 const EXTENDED_COLUMNS: StatColumn[] = [
   { key: 'var95', label: 'VaR 95%', format: 'percent' },
@@ -221,16 +192,16 @@ const EXTENDED_COLUMNS: StatColumn[] = [
   { key: 'positiveMonthsPct', label: 'Positive Months %', format: 'percent' },
   { key: 'negativeMonthsPct', label: 'Negative Months %', format: 'percent' },
 ];
-export function ExtendedMetricsTable({ portfolios }: ExtendedMetricsTableProps) {
+export function ExtendedMetricsTable({ portfolios }: { portfolios: PortfolioStatsRow[] }) {
   const { t } = useTranslation();
-  const columns: SimpleTableColumn<(typeof portfolios)[number]>[] = [
+  const columns: SimpleTableColumn<PortfolioStatsRow>[] = [
     { key: 'name', label: t('Portfolio'), render: (p) => p.name },
     ...EXTENDED_COLUMNS.map((col) => ({
       key: col.key,
       label: col.label,
       align: 'right' as const,
-      render: (p: (typeof portfolios)[number]) => {
-        const value = p.stats[col.key] ?? 0;
+      render: (p: PortfolioStatsRow) => {
+        const value = Number(p.stats[col.key]) || 0;
         const cls =
           col.format === 'percent'
             ? value < 0
