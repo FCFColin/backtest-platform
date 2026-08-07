@@ -5,7 +5,7 @@ import { assertNoDefaultSecrets } from './assertNoDefaultSecrets.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-export const PROJECT_ROOT = path.resolve(__dirname, '../../../..');
+const PROJECT_ROOT = path.resolve(__dirname, '../../../..');
 
 dotenv.config({ path: path.resolve(PROJECT_ROOT, '.env') });
 
@@ -52,7 +52,7 @@ const serverConfig = {
   OTEL_EXPORTER_OTLP_METRICS_ENDPOINT: str(process.env.OTEL_EXPORTER_OTLP_METRICS_ENDPOINT, ''),
 };
 
-export const engineConfig = {
+const engineConfig = {
   GO_ENGINE_URL: str(process.env.GO_ENGINE_URL, 'http://127.0.0.1:15004'),
   ENGINE_TIMEOUT_MS: int(process.env.ENGINE_TIMEOUT_MS, '120000'),
   GO_DATA_SERVICE_URL: str(process.env.GO_DATA_SERVICE_URL, 'http://127.0.0.1:15003'),
@@ -146,5 +146,4 @@ export const config: Config = Object.assign(
   integrationsConfig,
 );
 
-// P0-02：生产环境默认密钥启动拦截（fail-fast）
 assertNoDefaultSecrets(config as Record<string, unknown>);

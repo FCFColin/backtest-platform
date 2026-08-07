@@ -2,17 +2,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { PCARequest, GoalOptimizerRequest } from '@backtest/shared';
 import type { LETFRequest } from '@backtest/shared/types/letf.js';
 import { loggerMocks } from '../../helpers/loggerFixture.js';
+import { engineMocks, engineModuleMock } from '../../helpers/engineFixture.js';
 
-const engineMocks = vi.hoisted(() => ({ callEngineStrict: vi.fn() }));
 const dataMocks = vi.hoisted(() => ({ fetchHistoryData: vi.fn() }));
 const helpersMocks = vi.hoisted(() => ({
   fetchPriceDataWithRange: vi.fn(),
   calculateDateRange: vi.fn(),
 }));
-vi.mock('../../../packages/backend/src/utils/engineClient.js', () => ({
-  callEngineStrict: engineMocks.callEngineStrict,
-  unwrapEngineData: <T>(r: unknown) => ((r as { data?: T })?.data ?? r) as T,
-}));
+vi.mock('../../../packages/backend/src/utils/engineClient.js', () => engineModuleMock);
 vi.mock('../../../packages/backend/src/infrastructure/dataFacade.js', () => ({
   fetchHistoryData: dataMocks.fetchHistoryData,
 }));

@@ -33,8 +33,6 @@
     "test:coverage:check": "vitest run --coverage --coverage.reporter=json-summary && node scripts/check-coverage.mjs",
     "test:docker": "cross-env RUN_TESTCONTAINERS=1 vitest run",
     "test:property": "vitest run tests/property",
-    "load:test": "k6 run tests/load/backtest-submit.js",
-    "load:test:all": "k6 run tests/load/backtest-submit.js && k6 run tests/load/price-history.js && k6 run tests/load/optimizer.js",
     "simplify": "jscpd packages/backend/src/ packages/frontend/src/ --reporters json,html --output report",
     "deadcode": "knip --no-exit-code",
     "audit:i18n": "node scripts/verify-i18n.mjs",
@@ -42,9 +40,8 @@
     "audit:dom": "node scripts/audit-page-dom.mjs",
     "audit:code": "node scripts/audit-code-static.mjs",
     "audit:all": "pnpm run audit:i18n && pnpm run audit:contract && pnpm run audit:dom && pnpm run audit:code",
-    "audit:supply": "pnpm audit --audit-level=high --prod",
+    "audit:supply": "node scripts/audit-supply.mjs",
     "verify:critical": "node scripts/verify/run-all.mjs",
-    "verify:high": "node scripts/verify/run-all.mjs --pattern=H-",
     "prepare": "husky || true"
   },
   "devDependencies": {
@@ -89,7 +86,6 @@
     "vite-plugin-pwa": "^1.3.0",
     "vite-tsconfig-paths": "^5.1.4",
     "vitest": "^3.2.6",
-    "wait-on": "^9.0.10",
     "yaml": "^2.9.0"
   },
   "lint-staged": {

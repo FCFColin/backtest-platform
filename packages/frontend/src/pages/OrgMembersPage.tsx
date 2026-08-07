@@ -18,7 +18,7 @@ function UnauthedMembers() {
         <p className="text-[var(--text-muted)]">
           {t('Please')}{' '}
           <Link to="/login" className="text-brand">
-            {t('log in')}
+            {t('Log In')}
           </Link>{' '}
           {t('to manage organization members.')}
         </p>

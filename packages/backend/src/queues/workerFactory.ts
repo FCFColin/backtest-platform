@@ -19,7 +19,6 @@ export function createQueueWorker<T, R>(
     concurrency: opts.concurrency ?? 1,
   });
   worker.on('completed', (job, result) => opts.onCompleted?.(job, result));
-  // C-021: 仅在"最终失败"（重试穷尽）时转移到 DLQ，避免每次重试都重复入队。
   worker.on('failed', (job, err) => {
     if (job && opts.dlq && isFinalFailure(job)) {
       void transferToDlq(opts.dlq, queueName, job, err);

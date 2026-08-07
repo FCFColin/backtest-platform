@@ -45,10 +45,10 @@ function buildEquityData(results: DualSignalResponse): Array<Record<string, numb
 }
 const STAT_COLS: { key: string; label: string; fmt: 'int' | 'pct' | 'ratio' }[] = [
   { key: 'totalSignals', label: 'signal.dual.statTotalSignals', fmt: 'int' },
-  { key: 'winRate', label: 'signal.dual.statWinRate', fmt: 'pct' },
-  { key: 'avgReturn', label: 'signal.dual.statAvgReturn', fmt: 'pct' },
-  { key: 'maxDrawdown', label: 'signal.dual.statMaxDrawdown', fmt: 'pct' },
-  { key: 'sharpe', label: 'signal.dual.statSharpe', fmt: 'ratio' },
+  { key: 'winRate', label: 'Win Rate', fmt: 'pct' },
+  { key: 'avgReturn', label: 'Average Return', fmt: 'pct' },
+  { key: 'maxDrawdown', label: 'Max Drawdown', fmt: 'pct' },
+  { key: 'sharpe', label: 'backtest.sharpeRatio', fmt: 'ratio' },
 ];
 function formatStat(v: number, fmt: 'int' | 'pct' | 'ratio'): string {
   if (fmt === 'int') return String(v);
@@ -186,7 +186,7 @@ function DualSignalResultsBody({
           series={[
             { dataKey: 'signal1', legendName: t('Sig1'), strokeWidth: 1.5 },
             { dataKey: 'signal2', legendName: t('Sig2'), strokeWidth: 1.5 },
-            { dataKey: 'combined', legendName: t('Combined'), strokeWidth: 2.5 },
+            { dataKey: 'combined', legendName: t('Portfolio'), strokeWidth: 2.5 },
           ]}
           referenceY={10000}
           tooltipLabelFormatter={(label) => `${t('Date')}: ${label}`}

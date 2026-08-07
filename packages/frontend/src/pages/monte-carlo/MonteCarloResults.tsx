@@ -1,6 +1,7 @@
-import { lazy, Suspense } from 'react';
+import { Suspense } from 'react';
 import { useTranslation } from 'react-i18next';
 import { CHART_COLORS, type MonteCarloResult } from '@backtest/shared';
+import { lazyNamed } from '@/utils/lazyImport';
 import {
   Card,
   Separator,
@@ -27,19 +28,18 @@ import {
   buildSummaryData,
   useMonteCarloState,
 } from './monteCarloUtils.js';
-const MonteCarloRangeTab = lazy(() =>
-  import('./MonteCarloRangeTab.js').then((m) => ({ default: m.MonteCarloRangeTab })),
+const MonteCarloRangeTab = lazyNamed(() => import('./MonteCarloRangeTab.js'), 'MonteCarloRangeTab');
+const MonteCarloSuccessTab = lazyNamed(
+  () => import('./MonteCarloRangeTab.js'),
+  'MonteCarloSuccessTab',
 );
-const MonteCarloSuccessTab = lazy(() =>
-  import('./MonteCarloRangeTab.js').then((m) => ({ default: m.MonteCarloSuccessTab })),
+const MonteCarloDistributionsTab = lazyNamed(
+  () => import('./MonteCarloScenariosTab.js'),
+  'MonteCarloDistributionsTab',
 );
-const MonteCarloDistributionsTab = lazy(() =>
-  import('./MonteCarloScenariosTab.js').then((m) => ({
-    default: m.MonteCarloDistributionsTab,
-  })),
-);
-const MonteCarloScenariosTab = lazy(() =>
-  import('./MonteCarloScenariosTab.js').then((m) => ({ default: m.MonteCarloScenariosTab })),
+const MonteCarloScenariosTab = lazyNamed(
+  () => import('./MonteCarloScenariosTab.js'),
+  'MonteCarloScenariosTab',
 );
 export function StatsGrid({
   r,
@@ -67,7 +67,7 @@ export function StatsGrid({
         color="hsl(var(--success))"
       />
       <MiniStatCard
-        label={t('Simulations')}
+        label={t('Simulation Count')}
         value={`${r.perPathMetrics?.length ?? numSimulations}`}
       />
     </div>
@@ -240,7 +240,7 @@ function MonteCarloResultsPanel({ s }: { s: McState }) {
   );
 }
 const config: ComputeToolConfig<McState> = {
-  titleKey: 'monteCarlo.title',
+  titleKey: 'nav.monteCarlo',
   seoDescKey: 'monteCarlo.seoDesc',
   seoFeatures: [
     { titleKey: 'monteCarlo.seoSimulatable', descKey: 'monteCarlo.seoSimulatableDesc' },

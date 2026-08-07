@@ -88,7 +88,7 @@ function createRebalancingRunners(
 ) {
   const validate = (): Array<{ ticker: string; weight: number }> | string => {
     const validAssets = assets.filter((a) => a.ticker.trim() !== '');
-    if (validAssets.length === 0) return i18n.t('Please add at least one asset');
+    if (validAssets.length === 0) return i18n.t('Please add at least one ticker');
     const weightErr = validateAssetWeights(assets);
     if (weightErr) return weightErr;
     if (s.selectedFreqs.length === 0)

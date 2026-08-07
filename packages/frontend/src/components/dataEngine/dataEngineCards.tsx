@@ -286,7 +286,7 @@ export function SampleTickersCard({ stats }: { stats: Stats }) {
     us_etf: t('US ETFs'),
     cn_stock: t('CN Stocks'),
     cn_etf: t('CN ETFs'),
-    index: t('Indices'),
+    index: t('Index'),
   };
   return (
     <Panel title={t('Sample Tickers')}>

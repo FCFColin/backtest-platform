@@ -1,8 +1,3 @@
-// 聚合根层 status 用 'queued'（领域语义更准确，"已入队待执行"），
-// DB schema 仍保持 'pending'/'running'/'completed'/'failed'（不破坏迁移），
-// repo 层 save() 做 'queued'↔'pending' 映射。
-// BacktestCompleted 由 backtest-service 发布（基于结果摘要），
-
 import { randomUUID } from 'crypto';
 import { DomainValidationError } from '../value-objects/index.js';
 import type { DomainEvent } from '../events/events.js';

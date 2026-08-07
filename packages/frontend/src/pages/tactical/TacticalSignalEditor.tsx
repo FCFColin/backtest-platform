@@ -110,7 +110,7 @@ function ConditionRow({
         options={INDICATOR_OPTIONS}
         t={t}
         className="w-[130px]"
-        label={t('tactical.params.indicator')}
+        label={t('Metric')}
       />
       {indicatorDesc && (
         <Tooltip>
@@ -179,7 +179,7 @@ function WeightRow({
       />
       <AffixInput
         type="number"
-        aria-label={t('tactical.params.weight')}
+        aria-label={t('Weight')}
         className="h-8 w-[104px] pr-6 text-caption"
         value={weight.weight}
         suffix="%"

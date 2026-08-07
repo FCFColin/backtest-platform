@@ -70,9 +70,6 @@ export const create = repo.create;
 export const update = repo.update;
 export const remove = repo.delete;
 
-/**
- * 统计租户的战术配置数量（用于配额检查）。
- */
 export async function count(tenantId: string): Promise<number> {
   return withTenantReadOnly(tenantId, async (client) => {
     const { rows } = await client.query('SELECT COUNT(*)::int AS count FROM tactical_configs');

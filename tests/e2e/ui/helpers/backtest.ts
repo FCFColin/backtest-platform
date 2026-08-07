@@ -44,7 +44,6 @@ async function fillAssetRow(
 }
 
 export async function runDefaultBacktest(page: Page): Promise<void> {
-  // 幂等：serial 模式下页面可能已有组合（上一测试残留），直接用现有组合；
   if ((await page.getByPlaceholder('VTI').count()) === 0) {
     await page.getByRole('button', { name: /添加组合|Add Portfolio/ }).click();
     await page.getByRole('menuitem', { name: /添加空组合|Add Empty/ }).click();

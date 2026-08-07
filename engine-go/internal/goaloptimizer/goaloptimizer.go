@@ -1,4 +1,3 @@
-// Package goaloptimizer 提供目标优化（蒙特卡洛模拟）功能。
 package goaloptimizer
 
 import (
@@ -92,26 +91,15 @@ func OptimizeGoals(req GoalOptimizerRequest) (*GoalOptimizerResult, error) {
 		path := make([]float64, 0, totalDays+1)
 		path = append(path, req.InitialAmount)
 		var dailyRets []float64
-		peak := req.InitialAmount
-		maxDD := 0.0
 		for d := 0; d < totalDays; d++ {
 			r := mathutil.GaussianRandom(rnd, dailyMean, dailyStd)
 			dailyRets = append(dailyRets, r)
 			nextValue := path[len(path)-1] * (1 + r)
 			path = append(path, nextValue)
-			if nextValue > peak {
-				peak = nextValue
-			}
-			if peak > 0 {
-				dd := (peak - nextValue) / peak
-				if dd > maxDD {
-					maxDD = dd
-				}
-			}
 		}
 		vol := engine.CalcAnnualizedStdev(dailyRets)
 		paths[s] = path
-		metrics[s] = pathMetrics{finalValue: path[len(path)-1], maxDrawdown: maxDD, volatility: vol}
+		metrics[s] = pathMetrics{finalValue: path[len(path)-1], maxDrawdown: engine.CalcMaxDrawdown(path).MaxDrawdown, volatility: vol}
 	}
 	var filteredMetrics []pathMetrics
 	var filteredPaths [][]float64

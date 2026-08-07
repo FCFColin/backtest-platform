@@ -1,12 +1,4 @@
-/**
- * 信号分析编排器（Orchestrator）— 纯 fetch data + call engine，无 domain 交互。
- *
- * 合并了原两层模式（WithFetch + 纯转发），每个函数直接完成数据获取 + 引擎调用。
- * 计算逻辑在 Go 引擎 /api/engine/signal-analyze（ADR-031）。
- *
- * 命名约定（见 application/README.md）：纯透传到引擎、不涉及 domain 聚合根的编排器
- * 命名 *Orchestrator 并放在 application/，与涉及 domain 的 application service 区分。
- */
+// 纯透传到引擎、不涉及 domain 聚合根的编排器（ADR-031）
 import type {
   SignalAnalysisRequest,
   DualSignalConfig,
@@ -59,32 +51,17 @@ async function runSignalMode(
   }).then((r) => unwrapEngineData(r));
 }
 
-/**
- * 单信号分析（含数据获取）。
- *
- * @throws {DataNotFoundError} 无价格数据
- * @throws {EngineUnavailableError} Go 引擎不可用时
- */
+// @throws {DataNotFoundError} {EngineUnavailableError}
 export function executeSignalAnalyze(body: SignalAnalysisRequest) {
   return runSignalMode('single', body);
 }
 
-/**
- * 双信号分析（含数据获取）。
- *
- * @throws {DataNotFoundError} 无价格数据
- * @throws {EngineUnavailableError} Go 引擎不可用时
- */
+// @throws {DataNotFoundError} {EngineUnavailableError}
 export function executeDualSignalAnalyze(body: DualSignalConfig) {
   return runSignalMode('dual', body);
 }
 
-/**
- * 多信号分析（含数据获取）。
- *
- * @throws {DataNotFoundError} 无价格数据
- * @throws {EngineUnavailableError} Go 引擎不可用时
- */
+// @throws {DataNotFoundError} {EngineUnavailableError}
 export function executeMultiSignalAnalyze(body: MultiSignalConfig) {
   return runSignalMode('multi', body);
 }

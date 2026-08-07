@@ -1,4 +1,3 @@
-// Package analysis 提供单资产分析功能（T-ARCH-2.5）。
 package analysis
 
 import (

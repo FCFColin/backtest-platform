@@ -1,7 +1,3 @@
-// Package engine 提供回测引擎的共享类型和统计计算函数。
-//
-// Statistics 字段约定：比率类为小数（0.05 = 5%），无量纲字段不标注，
-// MaxDrawdownDuration 单位为天。
 package engine
 
 import "engine-go/internal/engineutil"
@@ -219,4 +215,3 @@ type DrawdownEpisode struct {
 	ReturnFromTroughToRecovery *float64 `json:"returnFromTroughToRecovery,omitempty"`
 }
 
-const tradingDays = 252

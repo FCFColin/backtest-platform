@@ -155,7 +155,7 @@ function BacktestToolbar(props: BacktestToolbarProps) {
         <RunButton
           isLoading={isLoading}
           onClick={props.runBacktest}
-          label={t('BACKTEST')}
+          label={t('Run Backtest')}
           loadingLabel={t('Backtesting...')}
           disabled={portfolioCount === 0}
           data-testid="backtest-run"
@@ -218,14 +218,14 @@ function BacktestResultsWrapper(_: { state: BacktestState }) {
   return <ResultsContent />;
 }
 const config: ComputeToolConfig<BacktestState> = {
-  titleKey: 'backtest.title',
+  titleKey: 'nav.portfolioBacktest',
   hidePageTitle: true,
   paramsTitleKey: 'params.basicParams',
-  seoSubtitleKey: 'backtest.seoSubtitle',
+  seoSubtitleKey: 'nav.portfolioBacktest',
   seoDescKey: 'backtest.seoDesc',
   seoFeatures: [
     { titleKey: 'backtest.seoModelable', descKey: 'backtest.seoModelableDesc' },
-    { titleKey: 'backtest.seoViewable', descKey: 'backtest.seoViewableDesc' },
+    { titleKey: 'analysis.seoViewable', descKey: 'backtest.seoViewableDesc' },
   ],
   relatedTools: [
     { titleKey: 'nav.monteCarlo', href: '/monte-carlo' },

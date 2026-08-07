@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { EngineUnavailableErrorStub } from '../../helpers/backtestRoutesFixtures.js';
+import { engineMocks, engineModuleMock } from '../../helpers/engineFixture.js';
+import { loggerMocks } from '../../helpers/loggerFixture.js';
 import type {
   SignalAnalysisRequest,
   DualSignalConfig,
@@ -7,17 +8,7 @@ import type {
 } from '@backtest/shared/types/signal.js';
 import type { TacticalStrategy } from '@backtest/shared/types/tactical.js';
 
-const engineMocks = vi.hoisted(() => ({ callEngineStrict: vi.fn() }));
-
 const dataMocks = vi.hoisted(() => ({ fetchHistoryData: vi.fn() }));
-
-const loggerMocks = vi.hoisted(() => ({
-  info: vi.fn(),
-  warn: vi.fn(),
-  error: vi.fn(),
-  debug: vi.fn(),
-  child: vi.fn(() => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() })),
-}));
 
 const sanitizeMocks = vi.hoisted(() => ({ sanitizeLog: vi.fn((v: string) => v) }));
 
@@ -26,11 +17,7 @@ vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
   sanitizeLog: sanitizeMocks.sanitizeLog,
 }));
 
-vi.mock('../../../packages/backend/src/utils/engineClient.js', () => ({
-  callEngineStrict: engineMocks.callEngineStrict,
-  EngineUnavailableError: EngineUnavailableErrorStub,
-  unwrapEngineData: <T>(r: unknown) => ((r as { data?: T })?.data ?? r) as T,
-}));
+vi.mock('../../../packages/backend/src/utils/engineClient.js', () => engineModuleMock);
 
 vi.mock('../../../packages/backend/src/infrastructure/dataFacade.js', () => ({
   fetchHistoryData: dataMocks.fetchHistoryData,

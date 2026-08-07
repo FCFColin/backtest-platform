@@ -1,20 +1,5 @@
-/**
- * 统一 CSS 主题变量系统（P3-3）
- *
- * 设计要点：
- * - HSL 通道变量（--app, --surface, --fg, --brand 等）供 Tailwind 使用，格式为 `H S% L%`
- * - Hex 变量（--bg-app, --text-strong, --color-brand 等）供组件 CSS 直接使用
- * - 亮色主题为默认（:root），暗色主题通过 [data-theme="dark"] 切换
- * - .dark 选择器保留向后兼容（Tailwind darkMode 及遗留 CSS）
- * - 冲突变量（--brand, --success, --danger, --warning, --input-bg, --border-strong, --brand-hover）
- *   统一使用 HSL 通道值；组件 CSS 中直接使用这些变量时须包裹 hsl()
- */
-
-/* ============================================
-   亮色主题（默认）
-   ============================================ */
+/* P3-3: HSL 通道变量供 Tailwind，Hex 变量供组件 CSS；暗色经 [data-theme="dark"] 切换 */
 :root {
-  /* --- HSL 通道变量（Tailwind 系统）--- */
   --app: 213 33% 96%;
   --surface: 0 0% 100%;
   --elevated: 210 40% 96%;
@@ -41,7 +26,6 @@
   --pos: 142 71% 36%;
   --neg: 0 72% 51%;
 
-  /* shadcn 兼容映射 */
   --background: var(--app);
   --foreground: var(--fg);
   --card: var(--surface);
@@ -62,7 +46,6 @@
   --ring: var(--brand);
   --radius: 0.5rem;
 
-  /* --- Hex 变量（组件 CSS 系统）--- */
   --bg-app: #f0f5fa;
   --bg-elevated: #ffffff;
   --bg-subtle: #f1f5f9;
@@ -88,21 +71,17 @@
   --color-input-bg: #f8fafc;
   --color-border-strong: #cbd5e1;
 
-  /* --- P0-2 新增：表面层扩展 --- */
   --surface-raised: 0 0% 100%;
   --surface-sunken: 210 40% 94%;
 
-  /* --- P0-2 新增：品牌色 subtle/glow 变体 --- */
   --brand-subtle: 217 91% 53%;
   --brand-glow: 217 91% 53%;
 
-  /* --- P0-2 新增：语义色 subtle 变体（背景高亮用） --- */
   --success-subtle: 142 71% 36%;
   --warning-subtle: 32 95% 44%;
   --danger-subtle: 0 72% 51%;
   --info-subtle: 217 91% 53%;
 
-  /* --- P0-2 新增：图表专用配色 --- */
   --chart-1: 217 91% 53%;
   --chart-2: 32 95% 44%;
   --chart-3: 142 71% 36%;
@@ -114,10 +93,8 @@
   --chart-grid: 214 20% 88%;
   --chart-tooltip-bg: 0 0% 100%;
 
-  /* --- P0-2 新增：Sticky 层 --- */
   --sticky-bg: 0 0% 100%;
 
-  /* --- 静态变量 --- */
   --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
   --shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.08), 0 2px 4px -2px rgba(15, 23, 42, 0.06);
   --shadow-card: 0 1px 3px rgba(15, 23, 42, 0.08), 0 1px 2px rgba(15, 23, 42, 0.04);
@@ -133,12 +110,8 @@
   --space-6: 24px;
 }
 
-/* ============================================
-   暗色主题
-   ============================================ */
 :root[data-theme='dark'],
 .dark {
-  /* --- HSL 通道变量（Tailwind 系统）--- */
   --app: 224 15% 5%;
   --surface: 222 14% 8%;
   --elevated: 222 13% 10%;
@@ -160,7 +133,6 @@
   --pos: 142 71% 45%;
   --neg: 0 91% 71%;
 
-  /* --- Hex 变量（组件 CSS 系统）--- */
   --bg-app: #0a1320;
   --bg-elevated: #111b2a;
   --bg-subtle: #1e293b;
@@ -186,26 +158,21 @@
   --color-input-bg: #1e293b;
   --color-border-strong: #374151;
 
-  /* --- P0-2 新增：表面层扩展 --- */
   --surface-raised: 222 14% 10%;
   --surface-sunken: 224 20% 3%;
 
-  /* --- P0-2 品牌色微调（更接近金融冷蓝） --- */
   --brand: 214 100% 60%;
   --brand-hover: 214 100% 55%;
   --brand-active: 214 100% 50%;
 
-  /* --- P0-2 新增：品牌色 subtle/glow 变体 --- */
   --brand-subtle: 214 100% 60%;
   --brand-glow: 214 100% 60%;
 
-  /* --- P0-2 新增：语义色 subtle 变体（背景高亮用） --- */
   --success-subtle: 160 84% 39%;
   --warning-subtle: 38 92% 50%;
   --danger-subtle: 0 84% 60%;
   --info-subtle: 214 100% 60%;
 
-  /* --- P0-2 新增：图表专用配色 --- */
   --chart-1: 214 100% 60%;
   --chart-2: 38 92% 50%;
   --chart-3: 160 84% 39%;
@@ -217,10 +184,8 @@
   --chart-grid: 222 15% 14%;
   --chart-tooltip-bg: 222 20% 8%;
 
-  /* --- P0-2 新增：Sticky 层 --- */
   --sticky-bg: 222 14% 8%;
 
-  /* --- 暗色主题阴影 --- */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.25);
   --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.25), 0 1px 3px rgba(0, 0, 0, 0.15);

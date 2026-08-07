@@ -65,7 +65,7 @@ function GoalSettingsSection({
             min={1}
             value={years}
             onChange={(e) => setYears(Number(e.target.value))}
-            suffix={t('years')}
+            suffix={t('y')}
           />
         </Field>
       </div>
@@ -130,7 +130,7 @@ function ConstraintsAndSimulation({
     },
     {
       id: 'go-maxvol',
-      label: t('Max Volatility'),
+      label: t('Max Vol'),
       value: maxVolatility,
       onChange: setMaxVolatility,
     },

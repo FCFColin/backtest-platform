@@ -58,8 +58,7 @@ function useAnalysisPageState() {
         t,
       );
     },
-    () =>
-      tickers.filter(Boolean).length > 0 ? null : t('Please enter at least one ticker symbol'),
+    () => (tickers.filter(Boolean).length > 0 ? null : t('Please enter at least one ticker')),
   );
   return {
     tickers,
@@ -162,9 +161,9 @@ const AnalysisResultsPanel = memo(function AnalysisResultsPanel({
       error={error}
       isLoading={isLoading}
       hasResults={!!results}
-      errorPrefix={`${t('Analysis Failed')}：`}
+      errorPrefix={`${t('Analysis failed')}：`}
       loadingLabel={t('Analyzing...')}
-      emptyTitle={t('Set parameters and click "Start Analysis" to see results')}
+      emptyTitle={t('Set parameters and click "Run Analysis" to see results')}
       emptyIcon={LineChart}
     >
       {results && (
@@ -188,7 +187,7 @@ const AnalysisResultsPanel = memo(function AnalysisResultsPanel({
 });
 type AnalysisPageState = ReturnType<typeof useAnalysisPageState>;
 const config: ComputeToolConfig<AnalysisPageState> = {
-  titleKey: 'analysis.title',
+  titleKey: 'nav.assetAnalysis',
   seoDescKey: 'analysis.seoDesc',
   hideParamsTitle: true,
   seoFeatures: [
@@ -197,7 +196,7 @@ const config: ComputeToolConfig<AnalysisPageState> = {
   ],
   relatedTools: [
     { titleKey: 'nav.portfolioBacktest', href: '/' },
-    { titleKey: 'optimizer.title', href: '/optimizer' },
+    { titleKey: 'nav.portfolioOptimize', href: '/optimizer' },
     { titleKey: 'nav.efficientFrontier', href: '/efficient-frontier' },
   ],
   params: ({ state }) => <AnalysisParamsPanel {...state} />,
@@ -210,8 +209,8 @@ export default function AnalysisPage() {
 type StatCol = { key: keyof Statistics; labelKey: string; fmt: 'pct' | 'ratio' | 'duration' };
 const STATS_COLUMNS: StatCol[] = [
   { key: 'cagr', labelKey: 'CAGR', fmt: 'pct' },
-  { key: 'maxDrawdown', labelKey: 'backtest.maxDrawdown', fmt: 'pct' },
-  { key: 'avgDrawdown', labelKey: 'analysis.avgDrawdown', fmt: 'pct' },
+  { key: 'maxDrawdown', labelKey: 'Max Drawdown', fmt: 'pct' },
+  { key: 'avgDrawdown', labelKey: 'Avg Drawdown', fmt: 'pct' },
   { key: 'maxDrawdownDuration', labelKey: 'analysis.maxDrawdownDuration', fmt: 'duration' },
   { key: 'stdev', labelKey: 'backtest.stdev', fmt: 'pct' },
   { key: 'sharpe', labelKey: 'backtest.sharpeRatio', fmt: 'ratio' },

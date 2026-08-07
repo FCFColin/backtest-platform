@@ -133,6 +133,52 @@ export function CollapsibleCard({
     </Card>
   );
 }
+interface CalcCardProps {
+  icon: ElementType;
+  title: string;
+  defaultOpen?: boolean;
+  cols?: 2 | 3;
+  fields?: CalcFieldProps[];
+  extra?: ReactNode;
+  rows?: { label: string; value: string; tone?: ResultTone }[];
+  rowsClassName?: string;
+  chart?: ReactNode;
+  info?: string;
+}
+export function CalcCard({
+  icon,
+  title,
+  defaultOpen = false,
+  cols = 2,
+  fields = [],
+  extra,
+  rows = [],
+  rowsClassName = 'mt-3',
+  chart,
+  info,
+}: CalcCardProps) {
+  return (
+    <CollapsibleCard icon={icon} title={title} defaultOpen={defaultOpen}>
+      {fields.length > 0 && (
+        <div className={cols === 3 ? 'grid grid-cols-3 gap-3' : 'grid grid-cols-2 gap-3'}>
+          {fields.map((f) => (
+            <Field key={f.label} {...f} />
+          ))}
+        </div>
+      )}
+      {extra && <div className="mt-3">{extra}</div>}
+      {rows.length > 0 && (
+        <div className={rowsClassName}>
+          {rows.map((r) => (
+            <ResultRow key={r.label} {...r} />
+          ))}
+        </div>
+      )}
+      {chart}
+      {info && <InfoBox>{info}</InfoBox>}
+    </CollapsibleCard>
+  );
+}
 function TwoFundChart({ data }: { data: Array<{ wA: number; cagr: number; vol: number }> }) {
   const { t } = useTranslation();
   return (
@@ -196,14 +242,17 @@ function TwoFundPortfolioCalculator() {
     [cagrA, volA, cagrB, volB, corr],
   );
   return (
-    <CollapsibleCard icon={PieChart} title={t('Two-Fund Calculator')}>
-      <div className="grid grid-cols-2 gap-3">
-        <Field label={t('Asset A CAGR')} value={cagrA} onChange={setCagrA} suffix="%" />
-        <Field label={t('Asset A Volatility')} value={volA} onChange={setVolA} suffix="%" />
-        <Field label={t('Asset B CAGR')} value={cagrB} onChange={setCagrB} suffix="%" />
-        <Field label={t('Asset B Volatility')} value={volB} onChange={setVolB} suffix="%" />
-      </div>
-      <div className="mt-3">
+    <CalcCard
+      icon={PieChart}
+      title={t('Two-Fund Calculator')}
+      cols={2}
+      fields={[
+        { label: t('Asset A CAGR'), value: cagrA, onChange: setCagrA, suffix: '%' },
+        { label: t('Asset A Volatility'), value: volA, onChange: setVolA, suffix: '%' },
+        { label: t('Asset B CAGR'), value: cagrB, onChange: setCagrB, suffix: '%' },
+        { label: t('Asset B Volatility'), value: volB, onChange: setVolB, suffix: '%' },
+      ]}
+      extra={
         <Field
           label={t('Correlation')}
           value={corr}
@@ -212,18 +261,15 @@ function TwoFundPortfolioCalculator() {
           min={-1}
           max={1}
         />
-      </div>
-      <div className="mt-1">
-        <ResultRow
-          label={t('Min Variance Weight')}
-          value={`${(minVarW * 100).toFixed(1)}%`}
-          tone="brand"
-        />
-        <ResultRow label={t('Min Variance CAGR')} value={`${minVarCagr.toFixed(2)}%`} />
-        <ResultRow label={t('Min Variance Volatility')} value={`${minVarVol.toFixed(2)}%`} />
-      </div>
-      <TwoFundChart data={frontier} />
-    </CollapsibleCard>
+      }
+      rowsClassName="mt-1"
+      rows={[
+        { label: t('Min Variance Weight'), value: `${(minVarW * 100).toFixed(1)}%`, tone: 'brand' },
+        { label: t('Min Variance CAGR'), value: `${minVarCagr.toFixed(2)}%` },
+        { label: t('Min Variance Volatility'), value: `${minVarVol.toFixed(2)}%` },
+      ]}
+      chart={<TwoFundChart data={frontier} />}
+    />
   );
 }
 export default function CalculatorsPage() {

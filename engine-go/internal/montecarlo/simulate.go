@@ -39,7 +39,7 @@ func runSimulations(ctx context.Context, historicalReturns []float64, totalDays 
 			var seed int64
 			var seedBuf [8]byte
 			if _, err := rand.Read(seedBuf[:]); err == nil {
-				seed = int64(binary.LittleEndian.Uint64(seedBuf[:]))
+				seed = int64(binary.LittleEndian.Uint64(seedBuf[:]) >> 1)
 			} else {
 				seed = time.Now().UnixNano() + int64(start)
 			}

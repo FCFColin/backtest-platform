@@ -2,10 +2,41 @@ import { useState, useMemo } from 'react';
 import { TrendingUp, DollarSign } from 'lucide-react';
 import { Area } from 'recharts';
 import { useTranslation } from 'react-i18next';
-import { Field, ResultRow, InfoBox, CollapsibleCard } from './BaseCalculatorUI.js';
+import { CalcCard } from './BaseCalculatorUI.js';
 import { formatPct, formatNum } from './baseCalculatorUtils.js';
 import { CHART_COLORS } from '@backtest/shared';
 import { SimpleAreaChart } from '@/components/charts/sharedChartContent.js';
+function ValueCurveChart({
+  curve,
+  height,
+}: {
+  curve: Array<{ year: number; value: number }>;
+  height: number;
+}) {
+  const { t } = useTranslation();
+  return (
+    <div className="mt-3">
+      <SimpleAreaChart
+        data={curve}
+        height={height}
+        xDataKey="year"
+        showLegend={false}
+        xTickInterval="preserveStartEnd"
+        yTickFormatter={formatNum}
+        tooltipFormatter={(v: number) => [formatNum(v), t('Final Value')]}
+      >
+        <Area
+          type="monotone"
+          dataKey="value"
+          stroke={CHART_COLORS[0]}
+          fill={CHART_COLORS[0]}
+          fillOpacity={0.12}
+          strokeWidth={2}
+        />
+      </SimpleAreaChart>
+    </div>
+  );
+}
 export function CAGRCalculator() {
   const { t } = useTranslation();
   const [initial, setInitial] = useState(10000);
@@ -16,40 +47,21 @@ export function CAGRCalculator() {
     return Math.pow(finalVal / initial, 1 / years) - 1;
   }, [initial, finalVal, years]);
   return (
-    <CollapsibleCard icon={TrendingUp} title={t('CAGR Calculator')} defaultOpen>
-      <div className="grid grid-cols-3 gap-3">
-        <Field
-          label={t('Initial Value')}
-          value={initial}
-          onChange={setInitial}
-          step={1000}
-          min={0}
-        />
-        <Field
-          label={t('Final Value')}
-          value={finalVal}
-          onChange={setFinalVal}
-          step={1000}
-          min={0}
-        />
-        <Field
-          label={t('Years')}
-          value={years}
-          onChange={setYears}
-          suffix={t('y')}
-          step={1}
-          min={1}
-        />
-      </div>
-      <div className="mt-3">
-        <ResultRow label="CAGR" value={formatPct(cagr)} tone="brand" />
-      </div>
-      <InfoBox>
-        {t(
-          'Formula: Final Value = Initial Value × (1 + Monthly Return)^Months + Monthly Contribution × [((1 + Monthly Return)^Months - 1) / Monthly Return]',
-        )}
-      </InfoBox>
-    </CollapsibleCard>
+    <CalcCard
+      icon={TrendingUp}
+      title={t('CAGR Calculator')}
+      defaultOpen
+      cols={3}
+      fields={[
+        { label: t('Initial Value'), value: initial, onChange: setInitial, step: 1000, min: 0 },
+        { label: t('Final Value'), value: finalVal, onChange: setFinalVal, step: 1000, min: 0 },
+        { label: t('Years'), value: years, onChange: setYears, suffix: t('y'), step: 1, min: 1 },
+      ]}
+      rows={[{ label: 'CAGR', value: formatPct(cagr), tone: 'brand' }]}
+      info={t(
+        'Formula: Final Value = Initial Value × (1 + Monthly Return)^Months + Monthly Contribution × [((1 + Monthly Return)^Months - 1) / Monthly Return]',
+      )}
+    />
   );
 }
 function computeFutureValue(initial: number, cagr: number, years: number, monthly: number) {
@@ -80,62 +92,34 @@ export function FutureValueCalculator() {
     [initial, cagr, years, monthly],
   );
   return (
-    <CollapsibleCard icon={DollarSign} title={t('Future Value Calculation')} defaultOpen>
-      <div className="grid grid-cols-2 gap-3">
-        <Field
-          label={t('Initial Value')}
-          value={initial}
-          onChange={setInitial}
-          step={1000}
-          min={0}
-        />
-        <Field label="CAGR" value={cagr} onChange={setCagr} suffix="%" step={0.5} />
-        <Field
-          label={t('Years')}
-          value={years}
-          onChange={setYears}
-          suffix={t('y')}
-          step={1}
-          min={1}
-        />
-        <Field
-          label={t('Monthly Contribution')}
-          value={monthly}
-          onChange={setMonthly}
-          step={100}
-          min={0}
-        />
-      </div>
-      <div className="mt-3">
-        <ResultRow label={t('Final Value')} value={formatNum(finalValue)} tone="brand" />
-        <ResultRow label={t('Total Contribution')} value={formatNum(totalContributions)} />
-        <ResultRow
-          label={t('Investment Gain')}
-          value={formatNum(finalValue - totalContributions)}
-          tone="success"
-        />
-      </div>
-      <div className="mt-3">
-        <SimpleAreaChart
-          data={curve}
-          height={240}
-          xDataKey="year"
-          showLegend={false}
-          yTickFormatter={formatNum}
-          xTickInterval="preserveStartEnd"
-          tooltipFormatter={(v: number) => [formatNum(v), t('Final Value')]}
-        >
-          <Area
-            type="monotone"
-            dataKey="value"
-            stroke={CHART_COLORS[0]}
-            fill={CHART_COLORS[0]}
-            fillOpacity={0.12}
-            strokeWidth={2}
-          />
-        </SimpleAreaChart>
-      </div>
-    </CollapsibleCard>
+    <CalcCard
+      icon={DollarSign}
+      title={t('Future Value Calculation')}
+      defaultOpen
+      cols={2}
+      fields={[
+        { label: t('Initial Value'), value: initial, onChange: setInitial, step: 1000, min: 0 },
+        { label: 'CAGR', value: cagr, onChange: setCagr, suffix: '%', step: 0.5 },
+        { label: t('Years'), value: years, onChange: setYears, suffix: t('y'), step: 1, min: 1 },
+        {
+          label: t('Monthly Contribution'),
+          value: monthly,
+          onChange: setMonthly,
+          step: 100,
+          min: 0,
+        },
+      ]}
+      rows={[
+        { label: t('Final Value'), value: formatNum(finalValue), tone: 'brand' },
+        { label: t('Total Contribution'), value: formatNum(totalContributions) },
+        {
+          label: t('Investment Gain'),
+          value: formatNum(finalValue - totalContributions),
+          tone: 'success',
+        },
+      ]}
+      chart={<ValueCurveChart curve={curve} height={240} />}
+    />
   );
 }
 export function CAGRAssumptionCalculator() {
@@ -153,35 +137,18 @@ export function CAGRAssumptionCalculator() {
     return { finalValue: initial * Math.pow(1 + r, years), curve: pts };
   }, [cagr, years, initial]);
   return (
-    <CollapsibleCard icon={TrendingUp} title={t('Assumptions')}>
-      <div className="grid grid-cols-2 gap-3">
-        <Field label={t('Expected Return')} value={cagr} onChange={setCagr} suffix="%" />
-        <Field label={t('Volatility')} value={vol} onChange={setVol} suffix="%" />
-        <Field label={t('Time')} value={years} onChange={setYears} suffix={t('y')} step={1} />
-        <Field label={t('Initial Capital')} value={initial} onChange={setInitial} step={1000} />
-      </div>
-      <div className="mt-3">
-        <ResultRow label={t('Final Value')} value={formatNum(finalValue)} tone="brand" />
-      </div>
-      <div className="mt-3">
-        <SimpleAreaChart
-          data={curve}
-          height={200}
-          xDataKey="year"
-          showLegend={false}
-          yTickFormatter={formatNum}
-          tooltipFormatter={(v: number) => [formatNum(v), t('Final Value')]}
-        >
-          <Area
-            type="monotone"
-            dataKey="value"
-            stroke={CHART_COLORS[0]}
-            fill={CHART_COLORS[0]}
-            fillOpacity={0.12}
-            strokeWidth={2}
-          />
-        </SimpleAreaChart>
-      </div>
-    </CollapsibleCard>
+    <CalcCard
+      icon={TrendingUp}
+      title={t('Assumptions')}
+      cols={2}
+      fields={[
+        { label: t('Expected Return'), value: cagr, onChange: setCagr, suffix: '%' },
+        { label: t('Volatility'), value: vol, onChange: setVol, suffix: '%' },
+        { label: t('Time'), value: years, onChange: setYears, suffix: t('y'), step: 1 },
+        { label: t('Initial Capital'), value: initial, onChange: setInitial, step: 1000 },
+      ]}
+      rows={[{ label: t('Final Value'), value: formatNum(finalValue), tone: 'brand' }]}
+      chart={<ValueCurveChart curve={curve} height={200} />}
+    />
   );
 }

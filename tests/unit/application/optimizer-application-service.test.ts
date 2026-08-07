@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { loggerMocks } from '../../helpers/loggerFixture.js';
-import { EngineUnavailableErrorStub } from '../../helpers/backtestRoutesFixtures.js';
+import { engineModuleMock } from '../../helpers/engineFixture.js';
 
 const mocks = vi.hoisted(() => ({
   callEngineStrict: vi.fn(),
@@ -8,8 +8,8 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('../../../packages/backend/src/utils/engineClient.js', () => ({
+  ...engineModuleMock,
   callEngineStrict: mocks.callEngineStrict,
-  EngineUnavailableError: EngineUnavailableErrorStub,
 }));
 
 vi.mock('../../../packages/backend/src/infrastructure/dataFacade.js', () => ({
@@ -134,11 +134,11 @@ describe('executeOptimization', () => {
   it('引擎不可用时抛出 EngineUnavailableError（fail-closed）', async () => {
     mocks.fetchHistoryData.mockResolvedValueOnce(mockPriceDataResponse());
     mocks.callEngineStrict.mockRejectedValueOnce(
-      new EngineUnavailableErrorStub('/api/engine/backtest'),
+      new engineModuleMock.EngineUnavailableError('/api/engine/backtest'),
     );
 
     await expect(executeOptimization(validBody())).rejects.toBeInstanceOf(
-      EngineUnavailableErrorStub,
+      engineModuleMock.EngineUnavailableError,
     );
     expect(mocks.callEngineStrict).toHaveBeenCalledTimes(1);
   });

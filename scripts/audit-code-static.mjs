@@ -17,7 +17,7 @@
  * 用法：node scripts/audit-code-static.mjs
  * 退出码：0=始终通过（结果仅作 baseline 参考）
  */
-import { readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { readdirSync, readFileSync, statSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -56,9 +56,7 @@ function walkAndRead(dir, exts, exclude = []) {
       try {
         const content = readFileSync(fullPath, 'utf-8');
         result.push({ path: fullPath, content });
-      } catch {
-        // ignore read errors
-      }
+      } catch {}
     }
   }
   return result;
@@ -168,6 +166,7 @@ const summary = {
 };
 
 const reportPath = resolve(ROOT, 'docs/audit/reports/p0-0-5-code-audit.json');
+mkdirSync(dirname(reportPath), { recursive: true });
 writeFileSync(reportPath, JSON.stringify(summary, null, 2));
 console.log(JSON.stringify(summary.criticalIssues, null, 2));
 console.log(`\nFull report: ${reportPath}`);

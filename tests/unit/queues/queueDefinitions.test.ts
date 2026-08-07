@@ -1,17 +1,10 @@
 import { describe, it, expect, vi } from 'vitest';
+import { loggerMocks } from '../../helpers/loggerFixture.js';
 
-const { loggerMocks, queueMocks, workerMocks } = vi.hoisted(() => {
+const { queueMocks, workerMocks } = vi.hoisted(() => {
   const queueInstances: Record<string, unknown> = {};
   const workerInstances: Record<string, unknown> = {};
-  const loggerMocks = {
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-    debug: vi.fn(),
-    child: vi.fn(() => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() })),
-  };
   return {
-    loggerMocks,
     queueMocks: {
       instances: queueInstances,
       Queue: vi.fn().mockImplementation((name: string) => {

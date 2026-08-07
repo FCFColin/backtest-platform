@@ -18,6 +18,7 @@ func TestOptimizeGoals_EmptyAssets(t *testing.T) {
 	}
 	if r == nil {
 		t.Fatal("应返回非 nil 结果")
+		return
 	}
 	if r.SuccessProbability != 0 {
 		t.Errorf("空资产时 SuccessProbability 应为 0, got %v", r.SuccessProbability)

@@ -166,10 +166,10 @@ export function Footer() {
           <FooterSection
             title={t('Product')}
             links={[
-              { to: '/', label: t('Portfolio Backtest') },
+              { to: '/', label: t('nav.portfolioBacktest') },
               { to: '/monte-carlo', label: t('Monte Carlo') },
               { to: '/optimizer', label: t('Optimizer') },
-              { to: '/tactical', label: t('Tactical Allocation') },
+              { to: '/tactical', label: t('Tactical') },
               { to: '/analysis', label: t('Analysis Tools') },
             ]}
           />

@@ -1,0 +1,203 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+  labels:
+    app: api
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: api }
+  template:
+    metadata:
+      labels: { app: api }
+    spec:
+      terminationGracePeriodSeconds: 35
+      containers:
+        - name: api
+          image: backtest-platform/api:v1.0.0
+          ports: [{ containerPort: 5001 }]
+          resources:
+            requests: { memory: '256Mi', cpu: '0.5' }
+            limits: { memory: '1Gi', cpu: '1' }
+          startupProbe:
+            httpGet: { path: /api/health, port: 5001 }
+            failureThreshold: 30
+            periodSeconds: 2
+          livenessProbe:
+            httpGet: { path: /api/health, port: 5001 }
+            initialDelaySeconds: 10
+            periodSeconds: 15
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet: { path: /api/ready, port: 5001 }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+          envFrom:
+            - { configMapRef: { name: backtest-config } }
+            - { secretRef: { name: postgres-secret } }
+            - { secretRef: { name: auth-tokens } }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  labels:
+    app: frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: frontend }
+  template:
+    metadata:
+      labels: { app: frontend }
+    spec:
+      terminationGracePeriodSeconds: 35
+      containers:
+        - name: frontend
+          image: backtest-platform/frontend:v1.0.0
+          ports: [{ containerPort: 80 }]
+          resources:
+            requests: { memory: '64Mi', cpu: '0.1' }
+            limits: { memory: '256Mi', cpu: '0.5' }
+          startupProbe:
+            httpGet: { path: /, port: 80 }
+            failureThreshold: 30
+            periodSeconds: 2
+          livenessProbe:
+            httpGet: { path: /, port: 80 }
+            initialDelaySeconds: 10
+            periodSeconds: 15
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet: { path: /, port: 80 }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+          volumeMounts:
+            - { name: nginx-cache, mountPath: /var/cache/nginx }
+            - { name: nginx-run, mountPath: /var/run }
+            - { name: tmp, mountPath: /tmp }
+      volumes:
+        - { name: nginx-cache, emptyDir: {} }
+        - { name: nginx-run, emptyDir: {} }
+        - { name: tmp, emptyDir: {} }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: engine-go
+  labels:
+    app: engine-go
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: engine-go }
+  template:
+    metadata:
+      labels: { app: engine-go }
+    spec:
+      terminationGracePeriodSeconds: 35
+      containers:
+        - name: engine-go
+          image: backtest-platform/engine-go:v1.0.0
+          ports: [{ containerPort: 5004 }]
+          envFrom:
+            - { configMapRef: { name: backtest-config } }
+            - { secretRef: { name: auth-tokens } }
+          resources:
+            requests: { memory: '512Mi', cpu: '1' }
+            limits: { memory: '2Gi', cpu: '2' }
+          startupProbe:
+            httpGet: { path: /api/engine/health, port: 5004 }
+            failureThreshold: 30
+            periodSeconds: 2
+          livenessProbe:
+            httpGet: { path: /api/engine/health, port: 5004 }
+            initialDelaySeconds: 10
+            periodSeconds: 15
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet: { path: /api/ready, port: 5004 }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: data-fetcher
+  labels:
+    app: data-fetcher
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: data-fetcher }
+  template:
+    metadata:
+      labels: { app: data-fetcher }
+    spec:
+      terminationGracePeriodSeconds: 35
+      containers:
+        - name: data-fetcher
+          image: backtest-platform/data-fetcher:v1.0.0
+          ports: [{ containerPort: 5003 }]
+          resources:
+            requests: { memory: '256Mi', cpu: '0.5' }
+            limits: { memory: '512Mi', cpu: '1' }
+          startupProbe:
+            httpGet: { path: /api/data/health, port: 5003 }
+            failureThreshold: 30
+            periodSeconds: 2
+          livenessProbe:
+            httpGet: { path: /api/data/health, port: 5003 }
+            initialDelaySeconds: 10
+            periodSeconds: 15
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet: { path: /api/ready, port: 5003 }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backtest-worker
+  labels:
+    app: backtest-worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: backtest-worker }
+  template:
+    metadata:
+      labels: { app: backtest-worker }
+    spec:
+      terminationGracePeriodSeconds: 60
+      containers:
+        - name: worker
+          image: backtest-platform/worker:v1.0.0
+          resources:
+            requests: { memory: '512Mi', cpu: '0.5' }
+            limits: { memory: '1Gi', cpu: '1' }
+          env:
+            - { name: WORKER_CONCURRENCY, value: '3' }
+          envFrom:
+            - { configMapRef: { name: backtest-config } }
+            - { secretRef: { name: postgres-secret } }
+            - { secretRef: { name: auth-tokens } }
+          livenessProbe:
+            exec:
+              command:
+                - node
+                - -e
+                - |
+                  const redis = new (require('ioredis'))(process.env.REDIS_URL || 'redis://redis:6379');
+                  redis.get('worker:heartbeat')
+                    .then(v => { redis.quit(); process.exit(v ? 0 : 1); })
+                    .catch(() => process.exit(1));
+            initialDelaySeconds: 20
+            periodSeconds: 30
+            timeoutSeconds: 10

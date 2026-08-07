@@ -83,13 +83,15 @@ func (c *Client) Connect() error {
 		return fmt.Errorf("连接baostock服务器失败: %w", err)
 	}
 	c.conn = conn
-	c.conn.SetReadDeadline(time.Now().Add(30 * time.Second))
+	if err := c.conn.SetReadDeadline(time.Now().Add(30 * time.Second)); err != nil {
+		return fmt.Errorf("设置读取超时失败: %w", err)
+	}
 	return nil
 }
 func (c *Client) Close() error {
 	if c.conn != nil {
 		nowTime := time.Now().Format("20060102150405")
-		c.sendMsg(MsgLogoutRequest, "logout"+MsgSplit+c.userID+MsgSplit+nowTime)
+		_, _ = c.sendMsg(MsgLogoutRequest, "logout"+MsgSplit+c.userID+MsgSplit+nowTime)
 		c.conn.Close()
 		c.conn = nil
 	}
@@ -305,7 +307,9 @@ func (c *Client) sendMsg(msgType, msgBody string) (string, error) {
 			}
 			return "", fmt.Errorf("接收失败: %w", err)
 		}
-		c.conn.SetReadDeadline(time.Now().Add(30 * time.Second))
+		if err := c.conn.SetReadDeadline(time.Now().Add(30 * time.Second)); err != nil {
+			return "", fmt.Errorf("设置读取超时失败: %w", err)
+		}
 		receive = append(receive, buf[:n]...)
 		if bytes.HasSuffix(receive, endMarker) {
 			break

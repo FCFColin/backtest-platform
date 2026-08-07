@@ -265,7 +265,7 @@ function FrontierResultsView({ state }: { state: FrontierState }) {
   );
 }
 const config: ComputeToolConfig<FrontierState> = {
-  titleKey: 'efficientFrontier.title',
+  titleKey: 'nav.efficientFrontier',
   seoDescKey: 'efficientFrontier.seo.desc',
   seoFeatures: [
     {
@@ -273,7 +273,7 @@ const config: ComputeToolConfig<FrontierState> = {
       descKey: 'efficientFrontier.seo.visualizationDesc',
     },
     {
-      titleKey: 'efficientFrontier.seo.constraintsTitle',
+      titleKey: 'Constraints',
       descKey: 'efficientFrontier.seo.constraintsDesc',
     },
   ],

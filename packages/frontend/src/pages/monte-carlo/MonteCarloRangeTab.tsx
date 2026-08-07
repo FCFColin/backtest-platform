@@ -64,17 +64,17 @@ function MonteCarloTerminalHistogram({
           {
             label: p5Label,
             color: CHART_COLORS[3],
-            value: t('monteCarlo.histogram.p5', { value: fmtDollar(p5Val) }),
+            value: t('charts.annualReturn.p5', { value: fmtDollar(p5Val) }),
           },
           {
             label: p50Label,
             color: CHART_COLORS[2],
-            value: t('monteCarlo.histogram.median', { value: fmtDollar(p50Val) }),
+            value: t('Median', { value: fmtDollar(p50Val) }),
           },
           {
             label: p95Label,
             color: CHART_COLORS[4],
-            value: t('monteCarlo.histogram.p95', { value: fmtDollar(p95Val) }),
+            value: t('charts.annualReturn.p95', { value: fmtDollar(p95Val) }),
           },
         ]}
       />
@@ -92,7 +92,7 @@ export function MonteCarloSuccessTab({ r }: { r: MonteCarloResult }) {
     {
       key: 'capitalPreservation',
       color: CHART_COLORS[0],
-      nameKey: 'monteCarlo.results.preservationProb',
+      nameKey: 'Capital Preservation',
     },
     { key: 'profit', color: CHART_COLORS[1], nameKey: 'monteCarlo.results.profitProb' },
   ];

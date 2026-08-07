@@ -14,15 +14,7 @@ import { Spinner } from '@/components/ui/uiComponents';
 import { onNavEnd } from '../utils/performanceReporter.js';
 import { PlaceholderPage } from '@/pages/errors/ErrorPages';
 import NotFoundPage from '@/pages/errors/ErrorPages';
-import { loadNamespace } from '../i18n/index.js';
 import { PAGE_LOADERS, type PageName } from './pageLoaders.js';
-
-function NsBoundary({ ns, children }: { ns: string; children: ReactNode }) {
-  useEffect(() => {
-    loadNamespace(ns).catch(() => {});
-  }, [ns]);
-  return <>{children}</>;
-}
 
 const lazyDefault = (imp: () => Promise<{ default: ComponentType }>) => lazy(imp);
 const lazyNamed = <T,>(imp: () => Promise<T>, name: keyof T) =>
@@ -81,52 +73,8 @@ function useRouteFallback() {
   );
 }
 
-const ANALYSIS_ROUTES = [
-  'backtest',
-  'analysis',
-  'monte-carlo',
-  'mc-optimizer',
-  'optimizer',
-  'efficient-frontier',
-  'data-engine',
-  'rebalancing-sensitivity',
-  'lumpsum-vs-dca',
-  'factor-regression',
-  'calculators',
-  'tactical',
-  'tactical-grid',
-  'backtest-optimizer',
-  'pca',
-  'signal-analyzer',
-  'dual-signal',
-  'multi-signal',
-  'letf-slippage',
-  'goal-optimizer',
-  'portfolio-comparison',
-  'chart-benchmark',
-];
-const ROUTE_NS: Record<string, string> = {
-  ...Object.fromEntries(ANALYSIS_ROUTES.map((r) => [r, 'analysis'])),
-  ...Object.fromEntries(
-    (
-      [
-        ['pages', ['about', 'contact', 'help', 'changelog', 'pricing', 'limits', 'upgrade']],
-        ['auth', ['login', 'signup', 'verify-email', 'accept-invite']],
-        ['legal', ['legal-terms', 'legal-privacy', 'legal-disclaimer']],
-        ['account', ['account', 'org-members', 'billing']],
-        ['admin', ['admin', 'admin-dashboard', 'admin-monitor', 'admin-data', 'admin-settings']],
-      ] satisfies Array<[string, string[]]>
-    ).flatMap(([ns, keys]) => keys.map((k): [string, string] => [k, ns])),
-  ),
-  'not-found': 'common',
-};
-
 function withBoundary(element: ReactNode, routeName: string): ReactNode {
-  return (
-    <NsBoundary ns={ROUTE_NS[routeName] ?? 'common'}>
-      <RouteErrorBoundary routeName={routeName}>{element}</RouteErrorBoundary>
-    </NsBoundary>
-  );
+  return <RouteErrorBoundary routeName={routeName}>{element}</RouteErrorBoundary>;
 }
 function protectedElement(element: ReactNode, routeName: string): ReactNode {
   return withBoundary(<ProtectedRoute>{element}</ProtectedRoute>, routeName);

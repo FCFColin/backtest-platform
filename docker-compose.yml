@@ -1,10 +1,10 @@
 x-base:
   timescale: &timescale
     image: timescale/timescaledb:latest-pg16
-    pull_policy: never
+    pull_policy: if_not_exists
   redis-img: &redis-img
     image: redis:7-alpine
-    pull_policy: never
+    pull_policy: if_not_exists
   hc-5x5: &hc-5x5
     interval: 5s
     timeout: 5s
@@ -19,13 +19,15 @@ x-base:
     <<: *hc-5x5
     test: ['CMD', 'redis-cli', '-p', '26379', 'ping']
   hc-wget: &hc-wget
+    <<: *hc-5x5
     interval: 30s
-    timeout: 5s
     retries: 3
   hc-10x5: &hc-10x5
     interval: 10s
     timeout: 5s
     retries: 5
+  restart-unless: &restart-unless
+    restart: unless-stopped
   env-pg: &env-pg
     POSTGRES_USER: backtest
     POSTGRES_PASSWORD: backtest
@@ -78,27 +80,25 @@ services:
       AWS_REGION: us-east-1
       WALG_UPLOAD_CONCURRENCY: 4
     command:
-      [
-        'postgres',
-        '-c',
-        'wal_level=replica',
-        '-c',
-        'archive_mode=on',
-        '-c',
-        "archive_command='envdir /etc/wal-g.d/env wal-g wal-push %p'",
-        '-c',
-        'archive_timeout=60',
-        '-c',
-        "restore_command='envdir /etc/wal-g.d/env wal-g wal-fetch %f %p'",
-        '-c',
-        'max_wal_senders=3',
-        '-c',
-        'wal_keep_size=64',
-        '-c',
-        "listen_addresses='*'",
-        '-c',
-        'full_page_writes=on',
-      ]
+      - postgres
+      - -c
+      - wal_level=replica
+      - -c
+      - archive_mode=on
+      - -c
+      - archive_command='envdir /etc/wal-g.d/env wal-g wal-push %p'
+      - -c
+      - archive_timeout=60
+      - -c
+      - restore_command='envdir /etc/wal-g.d/env wal-g wal-fetch %f %p'
+      - -c
+      - max_wal_senders=3
+      - -c
+      - wal_keep_size=64
+      - -c
+      - listen_addresses='*'
+      - -c
+      - full_page_writes=on
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./docker/postgres-init:/docker-entrypoint-initdb.d
@@ -125,7 +125,7 @@ services:
 
   unleash:
     image: unleashorg/unleash-server:5.12.5
-    pull_policy: never
+    pull_policy: if_not_exists
     container_name: backtest-unleash
     ports: ['127.0.0.1:4242:4242']
     environment:
@@ -135,7 +135,7 @@ services:
     healthcheck:
       <<: *hc-10x5
       test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:4242/health']
-    restart: unless-stopped
+    <<: *restart-unless
 
   redis-master:
     <<: *redis-img
@@ -200,6 +200,7 @@ services:
       <<: *hc-wget
       test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:5004/api/engine/health']
       start_period: 10s
+    <<: *restart-unless
 
   api:
     build: { context: ., dockerfile: Dockerfile.backend }
@@ -211,7 +212,7 @@ services:
       <<: *hc-wget
       test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:5001/api/health']
       start_period: 15s
-    restart: unless-stopped
+    <<: *restart-unless
 
   worker:
     build: { context: ., dockerfile: docker/worker/Dockerfile }
@@ -226,7 +227,7 @@ services:
       timeout: 5s
       start_period: 20s
       retries: 3
-    restart: unless-stopped
+    <<: *restart-unless
 
   frontend:
     build: { context: ., dockerfile: Dockerfile.frontend }
@@ -237,7 +238,7 @@ services:
       <<: *hc-wget
       test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:80/']
       start_period: 5s
-    restart: unless-stopped
+    <<: *restart-unless
 
   data-fetcher:
     build: { context: ., dockerfile: data-fetcher/Dockerfile }
@@ -254,6 +255,7 @@ services:
       <<: *hc-wget
       test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:5003/api/data/health']
       start_period: 10s
+    <<: *restart-unless
 
   prometheus:
     image: prom/prometheus:v2.54.0
@@ -274,7 +276,7 @@ services:
     healthcheck:
       <<: *hc-wget
       test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:9090/-/healthy']
-    restart: unless-stopped
+    <<: *restart-unless
 
   alertmanager-config:
     image: alpine:3.20
@@ -290,7 +292,6 @@ services:
         FEISHU_WEBHOOK: '${FEISHU_WEBHOOK:-http://127.0.0.1:9999/dummy}',
         DINGTALK_WEBHOOK: '${DINGTALK_WEBHOOK:-http://127.0.0.1:9999/dummy}',
       }
-    restart: 'no'
     volumes:
       - ./docker/alertmanager/alertmanager.yml:/tpl/alertmanager.yml:ro
       - alertmanager-rendered:/rendered
@@ -307,7 +308,7 @@ services:
     healthcheck:
       <<: *hc-wget
       test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:9093/-/healthy']
-    restart: unless-stopped
+    <<: *restart-unless
 
   grafana:
     image: grafana/grafana:11.3.0
@@ -324,7 +325,7 @@ services:
       - ./docker/grafana/dashboards:/var/lib/grafana/dashboards:ro
       - grafana-data:/var/lib/grafana
     depends_on: [prometheus]
-    restart: unless-stopped
+    <<: *restart-unless
 
   uptime-kuma:
     image: louislam/uptime-kuma:1
@@ -332,7 +333,7 @@ services:
     ports: ['127.0.0.1:3001:3001']
     volumes:
       - uptime-kuma-data:/app/data
-    restart: unless-stopped
+    <<: *restart-unless
 
   postgres-exporter:
     image: quay.io/prometheuscommunity/postgres-exporter:v0.15.0
@@ -341,7 +342,7 @@ services:
     environment:
       { DATA_SOURCE_NAME: 'postgresql://backtest:backtest@postgres:5432/backtest?sslmode=disable' }
     depends_on: { postgres: { condition: service_healthy } }
-    restart: unless-stopped
+    <<: *restart-unless
 
   redis-exporter:
     image: oliver006/redis_exporter:v1.66.0
@@ -349,7 +350,7 @@ services:
     ports: ['127.0.0.1:9121:9121']
     environment: { REDIS_ADDR: 'redis://redis:6379' }
     depends_on: { redis: { condition: service_healthy } }
-    restart: unless-stopped
+    <<: *restart-unless
 
   ofelia:
     image: mcuadros/ofelia:latest
@@ -366,7 +367,7 @@ services:
       ofelia.job-exec.walg-verify.schedule: '0 19 * * 6'
       ofelia.job-exec.walg-verify.container: 'backtest-postgres'
       ofelia.job-exec.walg-verify.command: 'wal-g wal-verify integrity'
-    restart: unless-stopped
+    <<: *restart-unless
 
   minio:
     image: minio/minio:latest
@@ -381,14 +382,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 3
-
-  k6:
-    image: grafana/k6:latest
-    profiles: ['load-test']
-    volumes:
-      - ./tests/load:/scripts
-    environment: { BASE_URL: 'http://api:8001', API_KEY: '${K6_API_KEY:-}' }
-    depends_on: { api: { condition: service_healthy } }
 
   postgres-cdc:
     <<: *timescale
@@ -421,7 +414,7 @@ services:
     healthcheck:
       <<: *hc-10x5
       test: ['CMD-SHELL', 'echo ruok | nc -w 2 127.0.0.1 2181 | grep imok']
-    restart: unless-stopped
+    <<: *restart-unless
 
   kafka:
     image: confluentinc/cp-kafka:7.7.0
@@ -447,7 +440,7 @@ services:
       interval: 15s
       timeout: 10s
       retries: 6
-    restart: unless-stopped
+    <<: *restart-unless
 
   connect:
     image: debezium/connect:2.7
@@ -472,12 +465,12 @@ services:
       timeout: 5s
       retries: 6
       start_period: 30s
-    restart: unless-stopped
+    <<: *restart-unless
 
   apisix:
     image: apache/apisix:3.11.0-debian
     container_name: backtest-apisix
-    restart: always
+    <<: *restart-unless
     environment: [APISIX_STAND_ALONE=true]
     volumes:
       - ./config/apisix/apisix.yaml:/usr/local/apisix/conf/apisix.yaml:ro

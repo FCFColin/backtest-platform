@@ -1,5 +1,3 @@
-// E2E 服务拉起：后端 API + 队列 worker（E2E 回测需 worker 处理 job）。
-// Playwright webServer 启动本脚本，url 轮询后端健康检查；测试结束后清理进程树。
 import { spawn } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';

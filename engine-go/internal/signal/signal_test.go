@@ -135,11 +135,6 @@ func TestAnalyzeDualSignal(t *testing.T) {
 			t.Errorf("or 组合信号数(%d) 应 >= 单信号1数(%d)", combinedCount, s1Count)
 		}
 	})
-	t.Run("xor组合", func(t *testing.T) {
-		r := AnalyzeDualSignal(cfg1, cfg2, trendData, trendData, "xor")
-		if r.Signal1.Signals == nil && r.Signal2.Signals == nil {
-		}
-	})
 }
 func TestAnalyzeMultiSignal(t *testing.T) {
 	configs := []SignalAnalysisRequest{{Indicator: "sma", Period: 5}, {Indicator: "ema", Period: 5}, {Indicator: "rsi", Period: 5}}

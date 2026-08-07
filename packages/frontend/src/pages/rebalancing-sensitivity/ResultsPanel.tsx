@@ -250,7 +250,7 @@ export function ResultsPanel({ s }: { s: RebalancingState }) {
       isLoading={s.isLoading}
       hasResults={s.results.length > 0}
       loadingLabel={t('Analyzing...')}
-      emptyTitle={t('Select rebalancing frequencies and click "Start Analysis"')}
+      emptyTitle={t('Select rebalancing frequencies and click "Run Analysis"')}
     >
       <Card className="p-5">
         <div className="mb-4 flex gap-2 border-b-2 border-subtle pb-3">

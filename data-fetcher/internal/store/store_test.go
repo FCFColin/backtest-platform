@@ -1,4 +1,3 @@
-// Package store — store_test.go
 package store
 
 import (
@@ -42,8 +41,7 @@ func TestFilterPricePointsByDate(t *testing.T) {
 }
 func TestPricePoint_Fields(t *testing.T) {
 	p := PricePoint{
-		Date: "2024-01-15", Open: 100.5, High: 105.0, Low: 99.5, Close: 103.0,
-		AdjClose: 103.0, Volume: 1000000, Dividend: 0.5, SplitFactor: 1.0,
+		Date: "2024-01-15", Open: 100.5, Volume: 1000000,
 	}
 	if p.Date != "2024-01-15" {
 		t.Errorf("Date = %s, want 2024-01-15", p.Date)

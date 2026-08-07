@@ -7,25 +7,11 @@
  * 依赖模块（dataQuery/dataCache/tickerValidation/OTel）被 mock。
  */
 import { describe, it, expect, afterAll, vi, beforeEach } from 'vitest';
-import { loggerMocks } from '../../helpers/loggerFixture.js';
+import { loggerMocks } from '../helpers/loggerFixture.js';
+import { mockOtelApi } from '../helpers/otelMock.js';
 
 vi.mock('../../packages/backend/src/utils/logger.js', () => ({ logger: loggerMocks }));
-
-vi.mock('@opentelemetry/api', () => {
-  const noopSpan = {
-    setAttribute: vi.fn(),
-    recordException: vi.fn(),
-    end: vi.fn(),
-  };
-  return {
-    trace: {
-      getTracer: () => ({
-        startActiveSpan: async <T>(_name: string, fn: (span: typeof noopSpan) => Promise<T>) =>
-          fn(noopSpan),
-      }),
-    },
-  };
-});
+vi.mock('@opentelemetry/api', () => mockOtelApi());
 
 const { queryPricesFromDbMock, fetchMissingFromGoServiceMock, validateTickersMock } = vi.hoisted(
   () => ({

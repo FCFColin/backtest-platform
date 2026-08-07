@@ -11,7 +11,6 @@ export function bytesToMb(bytes: number): number {
 
 export function inferMarket(ticker: string, market: string): string {
   if (market) return market.toUpperCase();
-  // 同时支持点号（000001.SZ）与下划线（000001_SZ）后缀，修复 A 股计数为 0 的 bug（Task 5.1）
   if (/[._](SZ|SS|SH)$/i.test(ticker)) return 'CN';
   return 'US';
 }

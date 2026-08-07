@@ -12,20 +12,16 @@ const autoprefixer = frontendRequire('autoprefixer');
 const tailwindConfigPath = path.resolve(projectRoot, 'tailwind.config.cjs');
 
 const sharedTypesDir = path.resolve(projectRoot, 'packages/shared/types');
-const sharedTypeAliases: Record<string, string> = Object.fromEntries(
-  ['tactical', 'signal', 'letf', 'index'].map((n) => [
-    `@backtest/shared/types/${n}`,
-    `${sharedTypesDir}/${n}.ts`,
-  ]),
-);
-sharedTypeAliases['@backtest/shared/types'] = `${sharedTypesDir}/index.ts`;
-sharedTypeAliases['@backtest/shared/constants'] = path.resolve(
-  projectRoot,
-  'packages/shared/constants.ts',
-);
-sharedTypeAliases['@backtest/shared'] = `${sharedTypesDir}/index.ts`;
+const sharedTypeAliases: Record<string, string> = {
+  '@backtest/shared/types/tactical': `${sharedTypesDir}/tactical.ts`,
+  '@backtest/shared/types/signal': `${sharedTypesDir}/signal.ts`,
+  '@backtest/shared/types/letf': `${sharedTypesDir}/letf.ts`,
+  '@backtest/shared/types/index': `${sharedTypesDir}/index.ts`,
+  '@backtest/shared/types': `${sharedTypesDir}/index.ts`,
+  '@backtest/shared/constants': path.resolve(projectRoot, 'packages/shared/constants.ts'),
+  '@backtest/shared': `${sharedTypesDir}/index.ts`,
+};
 
-// E2E 覆盖率脚本会设 VITE_COVERAGE=true
 const enableCoverage = process.env.VITE_COVERAGE === 'true';
 
 const feNm = (p: string) => path.resolve(projectRoot, 'packages/frontend/node_modules', p);
@@ -47,10 +43,9 @@ const frontendAlias: Record<string, string> = {
   ...Object.fromEntries(FE_PACKAGES.map((p) => [p, feNm(p)])),
 };
 
-// esbuild 预编译 zustand v5 时无法正确处理 ESM 子路径导出，用 resolveId hook 直接指向 ESM 入口
 function zustandEsmResolver(): Plugin {
-  const zustandEsm = feNm('zustand/esm');
-  const zustandMap: Record<string, string> = {
+  const esm = feNm('zustand/esm');
+  const map: Record<string, string> = {
     zustand: 'index.mjs',
     'zustand/vanilla': 'vanilla.mjs',
     'zustand/vanilla/shallow': 'vanilla/shallow.mjs',
@@ -63,14 +58,11 @@ function zustandEsmResolver(): Plugin {
     name: 'zustand-esm-resolver',
     enforce: 'pre',
     resolveId(source) {
-      const target = zustandMap[source];
-      if (target) return path.join(zustandEsm, target);
-      return null;
+      return map[source] && path.join(esm, map[source]);
     },
   };
 }
 
-// SSR 产物需自带 i18n locale 文件，entry-server 从文件系统读取 ./locales/{lang}/{ns}.json
 function ssrLocalesCopy(): Plugin {
   let outDir = '';
   return {
@@ -90,15 +82,9 @@ function ssrLocalesCopy(): Plugin {
 }
 
 export default defineConfig(async ({ command }) => {
-  // ADR-050: Module Federation，包未安装时降级跳过
-  let federation: ((opts: unknown) => Plugin) | null = null;
-  try {
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- devDependency；安装前后均不报错（ADR-050）
-    // @ts-ignore
-    ({ federation } = await import('@originjs/vite-plugin-federation'));
-  } catch {
-    /* federation 包未安装，降级跳过 */
-  }
+  const { federation } = await import('@originjs/vite-plugin-federation').catch(() => ({
+    federation: null,
+  }));
 
   return {
     root: projectRoot,
@@ -164,6 +150,8 @@ export default defineConfig(async ({ command }) => {
           test: {
             name: 'browser',
             globals: true,
+            environment: 'jsdom',
+            setupFiles: ['tests/setup-browser.ts'],
             include: [
               'tests/unit/store/**/*.test.{ts,tsx}',
               'tests/unit/hooks/**/*.test.{ts,tsx}',
@@ -171,11 +159,7 @@ export default defineConfig(async ({ command }) => {
               'tests/unit/pages/**/*.test.{ts,tsx}',
               'tests/unit/utils/{admin-stats,api-client,auth-tokens,chart-data-merge,color-scale,config-api,format,portfolio-storage,stats,ticker-presets,url-state,formatter-boundaries}.test.ts',
             ],
-            deps: {
-              moduleDirectories: ['node_modules', 'packages/frontend/node_modules'],
-            },
-            environment: 'jsdom',
-            setupFiles: ['tests/setup-browser.ts'],
+            deps: { moduleDirectories: ['node_modules', 'packages/frontend/node_modules'] },
           },
           resolve: {
             alias: {
@@ -187,7 +171,6 @@ export default defineConfig(async ({ command }) => {
             },
           },
         },
-        // chaos
         {
           test: {
             name: 'chaos',
@@ -196,11 +179,7 @@ export default defineConfig(async ({ command }) => {
             testTimeout: 120000,
             hookTimeout: 60000,
           },
-          resolve: {
-            alias: {
-              '@': path.resolve(projectRoot, './packages/frontend/src'),
-            },
-          },
+          resolve: { alias: { '@': path.resolve(projectRoot, './packages/frontend/src') } },
         },
       ],
       coverage: {

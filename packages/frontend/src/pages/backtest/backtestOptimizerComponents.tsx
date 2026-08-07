@@ -75,8 +75,8 @@ const RANGE_DEFS: Array<{
     suffix: '%',
     step: '0.5',
     fields: [
-      ['backtest.optimizer.min', 'thrMin'],
-      ['backtest.optimizer.max', 'thrMax'],
+      ['Min', 'thrMin'],
+      ['Max', 'thrMax'],
       ['backtest.optimizer.step', 'thrStep'],
     ],
   },
@@ -85,8 +85,8 @@ const RANGE_DEFS: Array<{
     prefix: '$',
     step: '1000',
     fields: [
-      ['backtest.optimizer.min', 'capMin'],
-      ['backtest.optimizer.max', 'capMax'],
+      ['Min', 'capMin'],
+      ['Max', 'capMax'],
       ['backtest.optimizer.step', 'capStep'],
     ],
   },
@@ -97,8 +97,8 @@ const DATE_FIELDS: Array<{
   type: string;
   placeholderKey?: string;
 }> = [
-  { key: 'startDate', labelKey: 'backtest.optimizer.startDate', type: 'date' },
-  { key: 'endDate', labelKey: 'backtest.optimizer.endDate', type: 'date' },
+  { key: 'startDate', labelKey: 'Start Date', type: 'date' },
+  { key: 'endDate', labelKey: 'End Date', type: 'date' },
   {
     key: 'benchmarkTicker',
     labelKey: 'backtest.optimizer.benchmarkTicker',
@@ -135,7 +135,7 @@ function BestMetricsCard({ best, totalCombos }: BestMetricsCardProps) {
   return (
     <div>
       <div className="mb-3 flex items-center justify-between">
-        <div className="text-body font-semibold text-fg">{t('Best Combination')}</div>
+        <div className="text-body font-semibold text-fg">{t('Optimal Portfolio')}</div>
         <span className="text-caption text-fg-tertiary">
           {t('Total Combinations', { count: totalCombos })}
         </span>
@@ -193,7 +193,7 @@ function PortfolioConfigSection({ s }: OptimizerSectionProps) {
   const totalWeight = s.assets.reduce((sum, a) => sum + (Number(a.weight) || 0), 0);
   return (
     <ParamsSection
-      title={t('Portfolio Configuration')}
+      title={t('Portfolio Allocation')}
       info={t('Add tickers and weights for optimization')}
     >
       <SinglePortfolioEditor
@@ -213,7 +213,7 @@ function FreqMultiSelect({ s }: OptimizerSectionProps) {
   return (
     <div>
       <div className="mb-1.5 text-caption font-medium text-fg-secondary">
-        {t('Rebalance Frequency')}
+        {t('Rebalancing Frequency')}
       </div>
       <div className="flex flex-wrap gap-2">
         {FREQ_OPTIONS.map((opt) => {
@@ -332,7 +332,7 @@ function GrowthComparisonChart({ best, benchmarkGrowth }: GrowthComparisonChartP
   const chartData = buildChartData(best, benchmarkGrowth);
   if (chartData.length === 0) return null;
   const nameMap: Record<string, string> = {
-    portfolio: t('Best Portfolio'),
+    portfolio: t('Optimal Portfolio'),
     benchmark: t('Benchmark'),
   };
   return (

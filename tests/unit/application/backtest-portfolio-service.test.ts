@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { BacktestParameters } from '@backtest/shared';
 import type { Warning } from '../../../packages/backend/src/application/backtest-helpers.js';
 import { loggerMocks } from '../../helpers/loggerFixture.js';
+import { engineMocks, engineModuleMock } from '../../helpers/engineFixture.js';
 import {
   mockParameters as parametersFixture,
   mockPortfolio as portfolioFixture,
@@ -23,16 +24,8 @@ const helpersMocks = vi.hoisted(() => ({
   collectDomainTickers: vi.fn(),
 }));
 
-const engineMocks = vi.hoisted(() => ({
-  callEngineStrict: vi.fn(),
-}));
-
 const eventMocks = vi.hoisted(() => ({
   dispatch: vi.fn(async () => {}),
-}));
-
-const dbMocks = vi.hoisted(() => ({
-  getClient: vi.fn(async () => ({ query: vi.fn(async () => ({ rows: [] })), release: vi.fn() })),
 }));
 
 const outboxMocks = vi.hoisted(() => ({
@@ -81,17 +74,13 @@ vi.mock('../../../packages/backend/src/application/backtest-helpers.js', () => (
       : parameters,
 }));
 
-vi.mock('../../../packages/backend/src/utils/engineClient.js', () => ({
-  callEngineStrict: engineMocks.callEngineStrict,
-}));
+vi.mock('../../../packages/backend/src/utils/engineClient.js', () => engineModuleMock);
 
 vi.mock('../../../packages/backend/src/domain/events/events.js', () => ({
   eventDispatcher: { dispatch: eventMocks.dispatch },
 }));
 
-vi.mock('../../../packages/backend/src/db/pool.js', () => ({
-  getClient: dbMocks.getClient,
-}));
+vi.mock('../../../packages/backend/src/db/pool.js', () => ({}));
 
 vi.mock('../../../packages/backend/src/infrastructure/outboxWriter.js', () => ({
   writeEventInTransaction: outboxMocks.writeEventInTransaction,

@@ -101,7 +101,7 @@ function DrawdownSummary({ episodes }: { episodes: DrawdownEpisode[] }) {
         <div className="text-h3 font-mono tabular-nums text-neg">{fmtPct(summary.maxDepth)}</div>
       </div>
       <div>
-        <div className="text-label-tiny text-fg-tertiary">{t('Average Drawdown')}</div>
+        <div className="text-label-tiny text-fg-tertiary">{t('Avg Drawdown')}</div>
         <div className="text-h3 font-mono tabular-nums text-neg">{fmtPct(summary.avgDepth)}</div>
       </div>
       <div>

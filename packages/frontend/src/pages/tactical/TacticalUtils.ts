@@ -12,7 +12,6 @@ import type {
 import {
   INDICATOR_OPTIONS,
   OPERATOR_OPTIONS,
-  REBALANCE_OPTIONS,
   AGGREGATION_OPTIONS,
 } from './sharedTacticalConstants.js';
 interface BacktestResponse {
@@ -101,7 +100,7 @@ function useTacticalPageState() {
       const data = await apiPostJSON<BacktestResponse>(
         '/api/v1/tactical/backtest',
         { strategy, startDate, endDate, startingValue, rebalanceFrequency },
-        i18n.t('Backtest failed'),
+        i18n.t('errors.backtestFailed'),
       );
       setResults(data);
       setActiveTab('backtest');
@@ -132,7 +131,6 @@ function useTacticalPageState() {
 export {
   INDICATOR_OPTIONS,
   OPERATOR_OPTIONS,
-  REBALANCE_OPTIONS,
   AGGREGATION_OPTIONS,
   RANKING_METHOD_OPTIONS,
   TABS,

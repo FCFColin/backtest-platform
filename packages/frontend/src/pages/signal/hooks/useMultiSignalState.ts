@@ -1,10 +1,15 @@
 import { useState } from 'react';
-import type { SignalAnalysisRequest, MultiSignalConfig } from '@backtest/shared/types/signal';
+import type { MultiSignalConfig } from '@backtest/shared/types/signal';
 import { useComputeTool } from '../../../hooks/miscHooks.js';
 import { apiPostJSON } from '@/utils/apiClient';
 import i18n from '../../../i18n/index.js';
 import { DEFAULT_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
-import type { AggregationMethod, MultiSignalResponse, SignalItem } from '../signalTypes.js';
+import {
+  buildSignalRequest,
+  type AggregationMethod,
+  type MultiSignalResponse,
+  type SignalItem,
+} from '../signalTypes.js';
 function useSignalActions(
   signalsState: [SignalItem[], React.Dispatch<React.SetStateAction<SignalItem[]>>],
   weightsState: [number[], React.Dispatch<React.SetStateAction<number[]>>],
@@ -14,15 +19,23 @@ function useSignalActions(
   const [weights, setWeights] = weightsState;
   const [nextId, setNextId] = nextIdState;
   const addSignal = () => {
-    setSignals([...signals, { id: nextId, indicator: 'EMA', period: 50, threshold: 30 }]);
-    setWeights([...weights, 1 / (signals.length + 1)]);
-    setNextId(nextId + 1);
+    setSignals((s) => [...s, { id: nextId, indicator: 'EMA', period: 50, threshold: 30 }]);
+    setWeights((w) => {
+      const n = w.length + 1;
+      return [...w.map((x) => (x * (n - 1)) / n), 1 / n];
+    });
+    setNextId((id) => id + 1);
   };
   const removeSignal = (id: number) => {
     if (signals.length <= 1) return;
     const idx = signals.findIndex((s) => s.id === id);
-    setSignals(signals.filter((s) => s.id !== id));
-    if (idx >= 0) setWeights(weights.filter((_, i) => i !== idx));
+    setSignals((s) => s.filter((x) => x.id !== id));
+    if (idx >= 0)
+      setWeights((w) => {
+        const next = w.filter((_, i) => i !== idx);
+        const total = next.reduce((a, b) => a + b, 0);
+        return total > 0 ? next.map((x) => x / total) : next;
+      });
   };
   const updateSignal = (id: number, patch: Partial<SignalItem>) =>
     setSignals(signals.map((s) => (s.id === id ? { ...s, ...patch } : s)));
@@ -51,15 +64,9 @@ export function useMultiSignalState() {
     runCompute: runAnalysis,
   } = useComputeTool<MultiSignalResponse>(
     async () => {
-      const reqSignals: SignalAnalysisRequest[] = signals.map((s) => ({
-        ticker: ticker.trim().toUpperCase(),
-        indicator: s.indicator,
-        period: s.period,
-        threshold: s.threshold,
-        startDate,
-        endDate,
-        signalType: 'both',
-      }));
+      const reqSignals = signals.map((s) =>
+        buildSignalRequest(ticker, s, 'both', startDate, endDate),
+      );
       const reqBody: MultiSignalConfig = {
         signals: reqSignals,
         aggregationMethod,

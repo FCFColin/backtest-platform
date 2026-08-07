@@ -1,19 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { loggerMocks } from '../helpers/loggerFixture.js';
 
 interface StoredEntry {
   value: string;
   expiresAt: number; // epoch ms，0 表示无过期
 }
 
-const { loggerMocks, redisStub, healthMock, markUnhealthy } = vi.hoisted(() => {
-  const loggerMocks = {
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-    debug: vi.fn(),
-    child: vi.fn(() => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() })),
-  };
-
+const { redisStub, healthMock, markUnhealthy } = vi.hoisted(() => {
   const store = new Map<string, StoredEntry>();
   const globToRegex = (pattern: string): RegExp =>
     new RegExp('^' + pattern.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*') + '$');
@@ -53,7 +46,7 @@ const { loggerMocks, redisStub, healthMock, markUnhealthy } = vi.hoisted(() => {
 
   const healthMock = { getRedisHealth: vi.fn().mockResolvedValue(true) };
   const markUnhealthy = vi.fn();
-  return { loggerMocks, redisStub, healthMock, markUnhealthy };
+  return { redisStub, healthMock, markUnhealthy };
 });
 
 vi.mock('../../packages/backend/src/utils/logger.js', () => ({ logger: loggerMocks }));

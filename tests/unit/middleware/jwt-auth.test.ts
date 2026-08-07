@@ -117,21 +117,20 @@ describe('JWT 生成与验证', () => {
     ['空 sub', { sub: '', role: 'admin' }],
     ['缺少 role', { sub: 'user-1' }],
     ['非法 role', { sub: 'user-1', role: 'superadmin' }],
+    [
+      '缺少 exp（永不过期 = 安全风险）',
+      async () => signTestToken({ sub: 'user-1', role: 'admin' }, { omitExp: true }),
+    ],
+    [
+      'exp 为 Infinity（永不过期 = 安全风险）',
+      async () => signTestToken(validPayload({ exp: Infinity }), { omitExp: true }),
+    ],
   ])('%s 应验证失败', async (_n, payload) => {
     expect(
       await verifyToken(
         typeof payload === 'function' ? await payload() : await signTestToken(payload),
       ),
     ).toBeNull();
-  });
-  it.each([
-    ['缺少 exp', async () => signTestToken({ sub: 'user-1', role: 'admin' }, { omitExp: true })],
-    [
-      'exp 为 Infinity',
-      async () => signTestToken(validPayload({ exp: Infinity }), { omitExp: true }),
-    ],
-  ])('%s 应被拒绝（永不过期 = 安全风险）', async (_n, build) => {
-    expect(await verifyToken(await build())).toBeNull();
   });
   it('Null 字节注入：sub 含 \\0 应原样保留', async () => {
     const p = await verifyToken(await signTestToken({ sub: 'user\0admin', role: 'admin' }));
@@ -190,11 +189,7 @@ describe('jwtAuth 与相关中间件', () => {
     ['超长 x-api-key（防缓冲区攻击）', 'a'.repeat(129)],
   ])('%s 应返回 401', async (_n, key) => {
     apiKeyMocks.verifyApiKey.mockResolvedValueOnce(null);
-    const { req, res, next } = mockReqRes({ headers: { 'x-api-key': key } });
-    jwtAuth(req, res, next);
-    await new Promise<void>((r) => setTimeout(r, 10));
-    expect(next).not.toHaveBeenCalled();
-    expect(res.status).toHaveBeenCalledWith(401);
+    await expectJwtAuth401({ 'x-api-key': key });
   });
   it.each([
     [
@@ -244,7 +239,6 @@ describe('jwtAuth 与相关中间件', () => {
     expect(req.user).toMatchObject({ role: 'readonly', sub: 'user-1' });
   });
   it('撤销后 access token 应失效（refresh 已在撤销用例覆盖）', async () => {
-    redisMocks.useRedisSuccess();
     const at = await generateToken('user-revoke', 'admin');
     await revokeAllUserSessions('user-revoke');
     expect(await verifyToken(at)).toBeNull();
@@ -272,7 +266,6 @@ describe('jwtAuth 与相关中间件', () => {
     await expectJwtAuth401({ authorization: `Bearer ${await build()}` }, code);
   });
   it('已停用用户 refresh 应被拒绝并删除 token', async () => {
-    redisMocks.useRedisSuccess();
     const t = await generateRefreshToken('disabled-redis-refresh', 'admin');
     mockUser(false, 'readonly');
     expect(await refreshAccessToken(t)).toBeNull();

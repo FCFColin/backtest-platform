@@ -1,11 +1,4 @@
-/**
- * 组合（portfolios）租户作用域仓储（ADR-032 / ADR-034）
- *
- * 企业理由：组合此前仅存于浏览器 localStorage——换设备/清缓存即丢失，无法团队共享、
- * 无法服务端复用。迁移到 Postgres 后由 RLS 强制租户隔离：读路径经 withTenantReadOnly()
- * （读副本 + RLS），写路径经 withTenant()（主库 + RLS），在事务内激活
- * app.current_tenant_id，即便忘记 WHERE tenant_id 也不会跨租户泄露。
- */
+// ADR-032/034: RLS 强制租户隔离（读 withTenantReadOnly，写 withTenant）
 import crypto from 'node:crypto';
 import {
   Portfolio as DomainPortfolio,
@@ -43,11 +36,7 @@ const mapRow = rowMapper<PortfolioRecord>({
   updatedAt: (r) => iso(r.updated_at),
 });
 
-/**
- * 领域校验：通过聚合根构造函数强制不变量，返回净化后的持久化 DTO。
- *
- * @throws {ValidationError} 当权重和不为 ~100 或包含非法 ticker 时
- */
+// @throws {ValidationError} 权重和不为 ~100 或包含非法 ticker
 function validateAndBuild(input: PortfolioInput, id: string): unknown {
   const holdings: PortfolioHolding[] = input.assets.map((a) => ({
     ticker: Ticker.create(a.ticker),

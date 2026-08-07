@@ -54,5 +54,4 @@ i18n
     react: { useSuspense: true },
   });
 
-export async function loadNamespace(_ns: string): Promise<void> {}
 export default i18n;

@@ -1,7 +1,7 @@
 import pg from 'pg';
 import { config } from '../config/index.js';
 import { logger } from '../utils/logger.js';
-import { registerPgPoolMetrics, readPoolFallbackCounter } from '../utils/metrics.js';
+import { registerPgPoolMetrics } from '../utils/metrics.js';
 import { isUuid } from '../utils/misc.js';
 
 const { Pool } = pg;
@@ -9,7 +9,7 @@ const { Pool } = pg;
 let pool: pg.Pool | null = null;
 let readPool: pg.Pool | null = null;
 
-export { pool, readPool };
+export { pool };
 
 export async function closeDb(): Promise<void> {
   if (pool) {
@@ -85,41 +85,13 @@ export function getReadPool(): pg.Pool {
   return readPool;
 }
 
-export async function getReadClient(): Promise<pg.PoolClient> {
-  if (!config.DATABASE_READ_URL) return getPool().connect();
-  if (readPool) {
-    try {
-      return await readPool.connect();
-    } catch (err) {
-      logger.warn({ err }, '[db] 只读副本不可用，降级到主库连接池');
-      readPoolFallbackCounter.inc();
-    }
-  }
-  return getPool().connect();
-}
-
-export function isReadPoolAvailable(): boolean {
-  return Boolean(config.DATABASE_READ_URL);
-}
-
-export async function getClient(): Promise<pg.PoolClient> {
-  return getPool().connect();
-}
-
-// 租户上下文（RLS 强制点，ADR-032）：通过 SET LOCAL 注入 tenant_id 使 RLS 策略生效。
-async function withTenantContext<T>(
-  tenantId: string,
-  sourcePool: pg.Pool,
+export async function withTransaction<T>(
   fn: (client: pg.PoolClient) => Promise<T>,
-  label: string,
+  sourcePool: pg.Pool = getPool(),
 ): Promise<T> {
-  if (!isUuid(tenantId)) {
-    throw new Error(`withTenant: 非法 tenantId（需为 UUID）: ${tenantId}`);
-  }
   const client = await sourcePool.connect();
   try {
     await client.query('BEGIN');
-    await client.query("SELECT set_config('app.current_tenant_id', $1, true)", [tenantId]);
     const result = await fn(client);
     await client.query('COMMIT');
     return result;
@@ -127,7 +99,7 @@ async function withTenantContext<T>(
     try {
       await client.query('ROLLBACK');
     } catch (rollbackErr) {
-      logger.error({ err: rollbackErr }, `[db] ${label} ROLLBACK 失败`);
+      logger.error({ err: rollbackErr }, '[db] ROLLBACK 失败');
     }
     throw err;
   } finally {
@@ -135,16 +107,31 @@ async function withTenantContext<T>(
   }
 }
 
+// 租户上下文（RLS 强制点，ADR-032）：通过 SET LOCAL 注入 tenant_id 使 RLS 策略生效。
+async function withTenantContext<T>(
+  tenantId: string,
+  sourcePool: pg.Pool,
+  fn: (client: pg.PoolClient) => Promise<T>,
+): Promise<T> {
+  if (!isUuid(tenantId)) {
+    throw new Error(`withTenant: 非法 tenantId（需为 UUID）: ${tenantId}`);
+  }
+  return withTransaction(async (client) => {
+    await client.query("SELECT set_config('app.current_tenant_id', $1, true)", [tenantId]);
+    return fn(client);
+  }, sourcePool);
+}
+
 export async function withTenant<T>(
   tenantId: string,
   fn: (client: pg.PoolClient) => Promise<T>,
 ): Promise<T> {
-  return withTenantContext(tenantId, getPool(), fn, 'withTenant');
+  return withTenantContext(tenantId, getPool(), fn);
 }
 
 export async function withTenantReadOnly<T>(
   tenantId: string,
   fn: (client: pg.PoolClient) => Promise<T>,
 ): Promise<T> {
-  return withTenantContext(tenantId, getReadPool(), fn, 'withTenantReadOnly');
+  return withTenantContext(tenantId, getReadPool(), fn);
 }

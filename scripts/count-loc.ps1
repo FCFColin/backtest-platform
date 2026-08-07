@@ -1,9 +1,7 @@
-# count-loc.ps1 — scc 行数统计（对齐 structural-slim-down 计划）
-#
-# 基线 179,541 行：瘦身前 commit c10bc33（df4d779 父提交）全仓库统一口径实测
-# 目标：<= 89,770 行（-50%）/ 125,678 行（-30%）。
+# count-loc.ps1 — scc 行数统计
+# 基线 179,541 行，目标 <= 89,770 行（-50%）/ 125,678 行（-30%）
 
-$root = 'd:\Project\回测平台'
+$root = Split-Path -Parent $PSScriptRoot
 $baseline = 179541
 $target50 = 89770
 $target30 = [math]::Floor($baseline * 0.70)

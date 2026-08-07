@@ -1,8 +1,4 @@
-﻿/**
- * 战术分配回测应用服务（T-30 / CQRS Command）
- *
- * 计算逻辑已迁移到 Go 引擎 /api/engine/tactical-backtest（ADR-031）。
- */
+﻿// ADR-031: 计算逻辑在 Go 引擎 /api/engine/tactical-backtest
 import type { TacticalStrategy } from '@backtest/shared/types/tactical';
 import type { PortfolioResult, RebalanceFrequency } from '@backtest/shared/types/index';
 import type { TacticalBacktestRequest } from '../schemas/tactical.js';
@@ -86,7 +82,6 @@ async function runBenchmarkBacktest(params: BenchmarkParams): Promise<PortfolioR
   }
 }
 
-/** 返回全零统计的空回测结果，用于基准回测失败时的降级。 */
 function createEmptyPortfolioResult(): PortfolioResult {
   return {
     name: '等权基准',
@@ -99,11 +94,7 @@ function createEmptyPortfolioResult(): PortfolioResult {
   } satisfies PortfolioResult;
 }
 
-/**
- * 获取并校验战术回测所需的价格数据，返回排序后的交易日列表。
- *
- * @throws ValidationError 无效标的或交易日不足
- */
+// @throws ValidationError 无效标的或交易日不足
 async function prepareTacticalPriceData(
   allTickers: string[],
   startDate: string,
@@ -124,12 +115,7 @@ async function prepareTacticalPriceData(
   return { priceData, dates };
 }
 
-/**
- * 运行战术分配回测（含数据获取 + 等权基准）。
- *
- * @throws ValidationError 无效标的或交易日不足
- * @throws {EngineUnavailableError} Go 引擎不可用时
- */
+// @throws ValidationError {EngineUnavailableError}
 export async function executeTacticalBacktest(
   req: TacticalBacktestRequest,
 ): Promise<TacticalBacktestResult> {
@@ -165,14 +151,7 @@ export async function executeTacticalBacktest(
   };
 }
 
-/**
- * 运行战术分配 what-if 查询：获取最近信号状态（含数据获取）。
- *
- * @param tickers - 标的代码列表
- * @param strategy - 战术策略配置
- * @returns 信号状态与权重列表
- * @throws {EngineUnavailableError} Go 引擎不可用时
- */
+// @throws {EngineUnavailableError}
 export async function executeTacticalWhatIf(
   tickers: string[],
   strategy: TacticalStrategy,

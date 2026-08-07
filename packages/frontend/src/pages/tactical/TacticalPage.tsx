@@ -117,8 +117,8 @@ const config: ComputeToolConfig<TacticalPageState> = {
   titleKey: 'tactical.title',
   seoDescKey: 'tactical.seo.desc',
   seoFeatures: [
-    { titleKey: 'tactical.seo.configurableTitle', descKey: 'tactical.seo.configurableDesc' },
-    { titleKey: 'tactical.seo.viewableTitle', descKey: 'tactical.seo.viewableDesc' },
+    { titleKey: 'lumpSumDca.seo.configurableTitle', descKey: 'tactical.seo.configurableDesc' },
+    { titleKey: 'analysis.seoViewable', descKey: 'tactical.seo.viewableDesc' },
   ],
   relatedTools: [
     { titleKey: 'nav.portfolioBacktest', href: '/' },

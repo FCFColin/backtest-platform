@@ -1,6 +1,7 @@
 package analysis
 
 import (
+	"fmt"
 	"gonum.org/v1/gonum/mat"
 	"sort"
 )
@@ -42,12 +43,19 @@ func RunRegression(req FactorRegressionRequest) (*RegressionResult, error) {
 	for _, r := range req.MonthlyReturns {
 		returnMap[r.Date] = r.Value
 	}
+	startPrefix, endPrefix := req.StartDate, req.EndDate
+	if len(startPrefix) > 7 {
+		startPrefix = startPrefix[:7]
+	}
+	if len(endPrefix) > 7 {
+		endPrefix = endPrefix[:7]
+	}
 	var data []FFDataPoint
 	for _, d := range req.FFData {
-		if req.StartDate != "" && d.Date < req.StartDate[:7] {
+		if startPrefix != "" && d.Date < startPrefix {
 			continue
 		}
-		if req.EndDate != "" && d.Date > req.EndDate[:7] {
+		if endPrefix != "" && d.Date > endPrefix {
 			continue
 		}
 		data = append(data, d)
@@ -115,7 +123,7 @@ func RunRegression(req FactorRegressionRequest) (*RegressionResult, error) {
 	XtX.Mul(&Xt, xdense)
 	var XtXInv mat.Dense
 	if err := XtXInv.Inverse(&XtX); err != nil {
-		return &RegressionResult{Alpha: 0, Beta: 0, SMB: 0, HML: 0, RSquared: 0, Residuals: []float64{}}, nil
+		return nil, fmt.Errorf("因子矩阵不可逆（因子共线性）: %w", err)
 	}
 	var XtY mat.VecDense
 	XtY.MulVec(&Xt, yvec)

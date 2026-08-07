@@ -1,20 +1,4 @@
-/**
- * 配额中间件（ADR-037 / P0-04 fail-closed）
- *
- * 企业理由：把"按计划限制资源消耗"落到请求路径上——计算/异步入队前校验本计费周期用量
- * 与单次标的数是否超出当前组织计划上限，超限以 RFC-7807 返回 402（需升级）/422（请求过大），
- * 并在放行后计量一次用量（事件 + 月度计数）。
- *
- * P0-04 变更：
- * - Redis 不可用时 fail-closed（返回 503，不是 next()），防止免费用户绕过配额限制
- * - 使用 Lua 脚本保证原子性，解决并发竞态（INCR + EXPIRE 单次原子操作）
- * - 添加 Prometheus counter `quota_enforcement_failures_total` 供告警
- *
- * 纪律：
- * - 无活跃租户（匿名本地开发）直接放行，保持零摩擦（与 computePermission 一致）。
- * - 平台管理员（break-glass）放行，不受租户配额约束。
- * - 计量为放行后触发，失败不阻断主流程（usageService 内部已容错）。
- */
+// ADR-037 / P0-04: Redis/组织查询失败时 fail-closed 503（防免费用户绕过）
 import { type Response, type NextFunction } from 'express';
 import { sendProblem } from '../utils/errors.js';
 import { logger } from '../utils/logger.js';
@@ -35,15 +19,7 @@ function extractTickerCount(body: unknown): number {
   return 0;
 }
 
-/**
- * Lua 脚本：原子 INCR + EXPIRE + 返回计数。
- *
- * 第一次 INCR 时设置 EXPIRE（TTL 窗口），后续 INCR 不重置 TTL。
- * 返回 [current, limit] 供调用方判断是否超限。
- *
- * 原子性保证：Redis 单线程执行 Lua 脚本，不会被其他命令插入，
- * 消除 INCR + EXPIRE 分离操作间的并发竞态。
- */
+/** Lua 原子 INCR+EXPIRE（首增设 TTL，后续不重置）；Redis 单线程保证无并发竞态 */
 const QUOTA_ATOMIC_SCRIPT = `
   local current = redis.call('INCR', KEYS[1])
   if current == 1 then
@@ -52,17 +28,8 @@ const QUOTA_ATOMIC_SCRIPT = `
   return {current, tonumber(ARGV[1])}
 `;
 
-/** Redis 配额窗口（秒），用于短期并发请求限制（1 分钟窗口） */
 const QUOTA_WINDOW_SECONDS = 60;
 
-/**
- * 使用 Redis Lua 脚本原子递增配额计数器。
- *
- * @param key - Redis key（如 `quota:{tenantId}:{metric}`）
- * @param limit - 当前窗口允许的最大请求数
- * @returns [current, effectiveLimit] — 当前计数和有效上限
- * @throws 当 Redis 不可用时抛出异常（由调用方 fail-closed 处理）
- */
 async function atomicQuotaIncrement(key: string, limit: number): Promise<[number, number]> {
   return (await appRedis.eval(
     QUOTA_ATOMIC_SCRIPT,
@@ -73,15 +40,6 @@ async function atomicQuotaIncrement(key: string, limit: number): Promise<[number
   )) as [number, number];
 }
 
-/**
- * 生成配额中间件：在计算/入队前校验计划配额，放行后计量。
- *
- * P0-04：Redis 不可用时 fail-closed 返回 503，不放行请求。
- * 防止免费用户在 Redis 故障期间绕过配额限制无限使用付费功能。
- *
- * @param metric - 计量指标名（usage_counters.metric）
- * @returns Express 中间件
- */
 export function enforceQuota(metric: string) {
   return async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
     const tenantId = req.tenantId;

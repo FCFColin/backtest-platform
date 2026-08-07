@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { loggerMocks } from '../../helpers/loggerFixture.js';
 
-// P0-03：在模块加载前设置极小的响应体大小限制（100 字节），使测试无需创建大字符串
 vi.hoisted(() => {
   process.env.MAX_RESPONSE_BODY_SIZE = '100';
 });

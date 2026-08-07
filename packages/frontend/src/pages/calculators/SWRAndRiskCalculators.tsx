@@ -1,8 +1,7 @@
 import { useState, useMemo } from 'react';
 import { ShieldAlert, BarChart3 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import type { TFunction } from 'i18next';
-import { Field, ResultRow, CollapsibleCard, InfoBox, SWRChart } from './BaseCalculatorUI.js';
+import { CalcCard, Field, SWRChart } from './BaseCalculatorUI.js';
 import { formatPct } from './baseCalculatorUtils.js';
 export function SWRCalculator() {
   const { t } = useTranslation();
@@ -32,55 +31,52 @@ export function SWRCalculator() {
     return pts;
   }, [swr, expectedReturn, retirementYears]);
   return (
-    <CollapsibleCard icon={ShieldAlert} title={t('Safe Withdrawal Rate (SWR) Calculator')}>
-      <div className="grid grid-cols-2 gap-3">
-        <Field
-          label={t('Expected Return')}
-          value={expectedReturn}
-          onChange={setExpectedReturn}
-          suffix="%"
-          step={0.5}
-        />
-        <Field
-          label={t('Volatility')}
-          value={volatility}
-          onChange={setVolatility}
-          suffix="%"
-          step={1}
-        />
-        <Field
-          label={t('Retirement Years')}
-          value={retirementYears}
-          onChange={setRetirementYears}
-          suffix={t('y')}
-          step={1}
-          min={1}
-        />
-        <Field
-          label={t('Success Target')}
-          value={successTarget}
-          onChange={setSuccessTarget}
-          suffix="%"
-          step={1}
-          min={50}
-          max={99}
-        />
-      </div>
-      <div className="mt-3">
-        <ResultRow label={t('Estimated SWR')} value={formatPct(swr)} tone="brand" />
-        <ResultRow
-          label={t('Annual Withdrawal')}
-          value={(swr * 1000000).toFixed(0)}
-          tone="success"
-        />
-      </div>
-      <SWRChart data={portfolioSurvival} />
-      <InfoBox>
-        {t(
-          'Formula: SWR ≈ (Expected Return - Risk Premium × Volatility²) / (1 + Risk Premium × Volatility²)',
-        )}
-      </InfoBox>
-    </CollapsibleCard>
+    <CalcCard
+      icon={ShieldAlert}
+      title={t('Safe Withdrawal Rate (SWR) Calculator')}
+      cols={2}
+      fields={[
+        {
+          label: t('Expected Return'),
+          value: expectedReturn,
+          onChange: setExpectedReturn,
+          suffix: '%',
+          step: 0.5,
+        },
+        {
+          label: t('Volatility'),
+          value: volatility,
+          onChange: setVolatility,
+          suffix: '%',
+          step: 1,
+        },
+        {
+          label: t('Retirement Years'),
+          value: retirementYears,
+          onChange: setRetirementYears,
+          suffix: t('y'),
+          step: 1,
+          min: 1,
+        },
+        {
+          label: t('Success Target'),
+          value: successTarget,
+          onChange: setSuccessTarget,
+          suffix: '%',
+          step: 1,
+          min: 50,
+          max: 99,
+        },
+      ]}
+      rows={[
+        { label: t('Estimated SWR'), value: formatPct(swr), tone: 'brand' },
+        { label: t('Annual Withdrawal'), value: (swr * 1000000).toFixed(0), tone: 'success' },
+      ]}
+      chart={<SWRChart data={portfolioSurvival} />}
+      info={t(
+        'Formula: SWR ≈ (Expected Return - Risk Premium × Volatility²) / (1 + Risk Premium × Volatility²)',
+      )}
+    />
   );
 }
 interface AllocationRiskComputation {
@@ -111,33 +107,6 @@ function computeAllocationRisk(
     (wB * wB * sB * sB + wS * wB * rho * sS * sB) / (portfolioVol * portfolioVol);
   return { portfolioVol, diversificationBenefit, riskContributionStock, riskContributionBond };
 }
-function RiskResults({ result, t }: { result: AllocationRiskComputation; t: TFunction }) {
-  return (
-    <>
-      <div className="mt-2">
-        <ResultRow
-          label={t('Portfolio Volatility')}
-          value={formatPct(result.portfolioVol)}
-          tone="brand"
-        />
-        <ResultRow
-          label={t('Diversification Benefit')}
-          value={formatPct(result.diversificationBenefit)}
-          tone="success"
-        />
-        <ResultRow
-          label={t('Stock Risk Contribution')}
-          value={formatPct(result.riskContributionStock)}
-        />
-        <ResultRow
-          label={t('Bond Risk Contribution')}
-          value={formatPct(result.riskContributionBond)}
-        />
-      </div>
-      <InfoBox>{t('Formula: σp = √(ws²σs² + wb²σb² + 2wswbσsσbρ)')}</InfoBox>
-    </>
-  );
-}
 export function AssetAllocationRiskCalculator() {
   const { t } = useTranslation();
   const [stockPct, setStockPct] = useState(60);
@@ -150,42 +119,39 @@ export function AssetAllocationRiskCalculator() {
     [stockPct, bondPct, stockVol, bondVol, correlation],
   );
   return (
-    <CollapsibleCard icon={BarChart3} title={t('Risk Contribution Calculator')}>
-      <div className="grid grid-cols-2 gap-3">
-        <Field
-          label={t('Stock Percentage')}
-          value={stockPct}
-          onChange={setStockPct}
-          suffix="%"
-          step={5}
-          min={0}
-          max={100}
-        />
-        <Field
-          label={t('Bond Percentage')}
-          value={bondPct}
-          onChange={setBondPct}
-          suffix="%"
-          step={5}
-          min={0}
-          max={100}
-        />
-        <Field
-          label={t('Stock Volatility')}
-          value={stockVol}
-          onChange={setStockVol}
-          suffix="%"
-          step={1}
-        />
-        <Field
-          label={t('Bond Volatility')}
-          value={bondVol}
-          onChange={setBondVol}
-          suffix="%"
-          step={1}
-        />
-      </div>
-      <div className="mt-3">
+    <CalcCard
+      icon={BarChart3}
+      title={t('Risk Contribution Calculator')}
+      cols={2}
+      fields={[
+        {
+          label: t('Stock Percentage'),
+          value: stockPct,
+          onChange: setStockPct,
+          suffix: '%',
+          step: 5,
+          min: 0,
+          max: 100,
+        },
+        {
+          label: t('Bond Percentage'),
+          value: bondPct,
+          onChange: setBondPct,
+          suffix: '%',
+          step: 5,
+          min: 0,
+          max: 100,
+        },
+        {
+          label: t('Stock Volatility'),
+          value: stockVol,
+          onChange: setStockVol,
+          suffix: '%',
+          step: 1,
+        },
+        { label: t('Bond Volatility'), value: bondVol, onChange: setBondVol, suffix: '%', step: 1 },
+      ]}
+      extra={
         <Field
           label={t('Correlation')}
           value={correlation}
@@ -194,8 +160,19 @@ export function AssetAllocationRiskCalculator() {
           min={-1}
           max={1}
         />
-      </div>
-      <RiskResults result={result} t={t} />
-    </CollapsibleCard>
+      }
+      rowsClassName="mt-2"
+      rows={[
+        { label: t('Portfolio Volatility'), value: formatPct(result.portfolioVol), tone: 'brand' },
+        {
+          label: t('Diversification Benefit'),
+          value: formatPct(result.diversificationBenefit),
+          tone: 'success',
+        },
+        { label: t('Stock Risk Contribution'), value: formatPct(result.riskContributionStock) },
+        { label: t('Bond Risk Contribution'), value: formatPct(result.riskContributionBond) },
+      ]}
+      info={t('Formula: σp = √(ws²σs² + wb²σb² + 2wswbσsσbρ)')}
+    />
   );
 }

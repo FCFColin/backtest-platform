@@ -22,7 +22,7 @@ export const INDICATOR_OPTIONS: Array<{
 ];
 export const REBALANCE_OPTIONS: Array<{ value: RebalanceFrequency | 'none'; label: string }> = [
   ...REBALANCE_FREQUENCIES.map((value) => ({ value, label: `tactical.rebalanceOptions.${value}` })),
-  { value: 'none', label: 'tactical.rebalanceOptions.none' },
+  { value: 'none', label: 'monteCarlo.params.rebalanceNone' },
 ];
 export const OPERATOR_OPTIONS: Array<{ value: SignalCondition['operator']; label: string }> = [
   { value: 'gt', label: 'tactical.operators.gt' },
@@ -34,7 +34,7 @@ export const AGGREGATION_OPTIONS: Array<{
   value: TacticalStrategy['aggregationMethod'];
   label: string;
 }> = [
-  { value: 'voting', label: 'tactical.aggregation.voting' },
+  { value: 'voting', label: 'signal.multi.aggregationVoting' },
   { value: 'weighted_average', label: 'tactical.aggregation.weighted_average' },
-  { value: 'rank', label: 'tactical.aggregation.rank' },
+  { value: 'rank', label: 'signal.multi.aggregationRank' },
 ];

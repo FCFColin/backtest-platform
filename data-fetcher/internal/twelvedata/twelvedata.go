@@ -62,13 +62,19 @@ func parseTimeSeries(body []byte, startDate, endDate string) ([]provider.DailyPr
 		if msg == "" {
 			msg = "unknown error"
 		}
-		return nil, fmt.Errorf("Twelve Data API 错误: %s", msg)
+		return nil, fmt.Errorf("twelve data API 错误: %s", msg)
 	}
 	if resp.Status != "ok" {
-		return nil, fmt.Errorf("Twelve Data API 异常状态: %s", resp.Status)
+		return nil, fmt.Errorf("twelve data API 异常状态: %s", resp.Status)
 	}
-	start, _ := time.Parse("2006-01-02", startDate)
-	end, _ := time.Parse("2006-01-02", endDate)
+	start, err := time.Parse("2006-01-02", startDate)
+	if err != nil {
+		return nil, fmt.Errorf("解析开始日期 %q 失败: %w", startDate, err)
+	}
+	end, err := time.Parse("2006-01-02", endDate)
+	if err != nil {
+		return nil, fmt.Errorf("解析结束日期 %q 失败: %w", endDate, err)
+	}
 	var prices []provider.DailyPrice
 	for _, v := range resp.Values {
 		t, err := time.Parse("2006-01-02", v.Datetime)

@@ -9,7 +9,6 @@ import { withServer } from '../../helpers/serverLifecycle.js';
 import { mockBacktestQueue, mockConfigModule } from '../../helpers/mockFactories.js';
 import { loggerMocks } from '../../helpers/loggerFixture.js';
 import { engineModuleMock, engineMocks } from '../../helpers/engineFixture.js';
-import { EngineUnavailableErrorStub } from '../../helpers/backtestRoutesFixtures.js';
 import { createMockPriceData, mockPortfolioResult } from '../../helpers/storeFixtures.js';
 
 const dataServiceMocks = vi.hoisted(() => ({ fetchHistoryData: vi.fn() }));
@@ -361,7 +360,7 @@ describe('analysisRoutes - Calculator: POST /api/v1/calculators/:type', () => {
   });
   it('引擎抛 EngineUnavailableError 应返回 503 + Retry-After（ADR-031 fail-closed）', async () => {
     engineMocks.callEngineStrict.mockRejectedValueOnce(
-      new EngineUnavailableErrorStub('/api/engine/calculators'),
+      new engineModuleMock.EngineUnavailableError('/api/engine/calculators'),
     );
     const { res, body } = await post(getServer(), '/api/v1/calculators/cagr', {});
     expect(res.status).toBe(503);

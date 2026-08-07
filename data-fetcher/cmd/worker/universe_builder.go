@@ -85,7 +85,7 @@ func parseOtherList(data []byte) []TickerEntry {
 	return parseMarketList(parsePipeDelimited(data, true), 2, 5, false)
 }
 func loadTickersFromFile(path string) ([]TickerEntry, error) {
-	f, err := os.Open(path)
+	f, err := os.Open(path) // #nosec G304 -- CLI --file 标志路径，非用户可控输入
 	if err != nil {
 		return nil, fmt.Errorf("打开文件 %s 失败: %w", path, err)
 	}

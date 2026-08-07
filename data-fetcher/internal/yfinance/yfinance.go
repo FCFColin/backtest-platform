@@ -84,7 +84,7 @@ func parseChartResponse(body []byte) ([]provider.DailyPrice, error) {
 		return nil, fmt.Errorf("JSON 解析失败: %w", err)
 	}
 	if resp.Chart.Error != nil {
-		return nil, fmt.Errorf("Yahoo API 错误: %v", resp.Chart.Error)
+		return nil, fmt.Errorf("yahoo API 错误: %v", resp.Chart.Error)
 	}
 	if len(resp.Chart.Result) == 0 || len(resp.Chart.Result[0].Timestamp) == 0 {
 		return []provider.DailyPrice{}, nil

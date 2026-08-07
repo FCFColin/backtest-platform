@@ -26,9 +26,9 @@ const GOAL_KEYS = [
 ] as const;
 const GOAL_LBL: Record<(typeof GOAL_KEYS)[number], string> = {
   maxCagrPercentile: 'monteCarlo.params.goalMaxCagrPercentile',
-  minMaxDrawdown: 'monteCarlo.params.goalMinMaxDrawdown',
+  minMaxDrawdown: 'backtest.optimizer.minMaxDrawdown',
   maxSharpe: 'monteCarlo.params.goalMaxSharpe',
-  minVolatility: 'monteCarlo.params.goalMinVolatility',
+  minVolatility: 'Minimize Volatility',
   maxFinalValue: 'monteCarlo.params.goalMaxFinalValue',
   maxSuccessRate: 'monteCarlo.params.goalMaxSuccessRate',
 };
@@ -98,7 +98,7 @@ function PortfolioConfigSection({ s }: { s: McState }) {
   return (
     <section className="flex flex-col gap-3">
       <SectionHeader
-        title={t('Portfolio Configuration')}
+        title={t('Portfolio Allocation')}
         info={t('Add tickers and weights for simulation')}
       />
       <PortfolioModeToggle s={s} />
@@ -156,13 +156,13 @@ function SimParamsSection({ s }: { s: McState }) {
   const { t } = useTranslation();
   const fields: FieldConfig[] = [
     {
-      labelKey: 'monteCarlo.params.startDate',
+      labelKey: 'Start Date',
       value: s.startDate,
       onChange: s.setStartDate,
       type: 'date',
     },
     {
-      labelKey: 'monteCarlo.params.endDate',
+      labelKey: 'End Date',
       value: s.endDate,
       onChange: s.setEndDate,
       type: 'date',
@@ -174,13 +174,13 @@ function SimParamsSection({ s }: { s: McState }) {
       type: 'number',
     },
     {
-      labelKey: 'monteCarlo.params.simCount',
+      labelKey: 'Simulation Count',
       value: s.numSimulations,
       onChange: (v) => s.setNumSimulations(Number(v)),
       type: 'number',
     },
     {
-      labelKey: 'monteCarlo.params.startingValue',
+      labelKey: 'Initial Capital',
       value: s.startingValue,
       onChange: (v) => s.setStartingValue(Number(v)),
       type: 'number',
@@ -191,14 +191,14 @@ function SimParamsSection({ s }: { s: McState }) {
       value: s.minBlock,
       onChange: (v) => s.setMinBlock(Number(v)),
       type: 'number',
-      suffixKey: 'monteCarlo.params.yearSuffix',
+      suffixKey: 'y',
     },
     {
       labelKey: 'monteCarlo.params.maxBlock',
       value: s.maxBlock,
       onChange: (v) => s.setMaxBlock(Number(v)),
       type: 'number',
-      suffixKey: 'monteCarlo.params.yearSuffix',
+      suffixKey: 'y',
     },
     {
       labelKey: 'monteCarlo.params.randomSeed',

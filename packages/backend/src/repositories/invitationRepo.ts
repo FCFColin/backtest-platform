@@ -1,14 +1,4 @@
-/**
- * 组织邀请仓储（ADR-035）
- *
- * 企业理由：团队协作需要把新成员按指定角色加入组织。邀请以邮箱为目标、持哈希令牌，
- * 受邀者注册/登录后凭明文令牌接受邀请即建立 membership。令牌仅存哈希、有过期、可吊销。
- *
- * 隔离边界：invitations 属身份/控制平面，不启用 RLS（accept 流程跨"受邀者尚不属于组织"
- * 的边界）。按 org_id 的读写在应用层显式收敛；accept 凭高熵令牌完成。
- *
- * 本仓储只承载 CRUD（创建、列表、撤销）；accept 业务流程见 services/invitationService.ts。
- */
+// ADR-035: 令牌仅存哈希、有过期、可吊销；accept 跨"受邀者尚不属于组织"边界，不启用 RLS
 import crypto from 'crypto';
 import { getPool } from '../db/pool.js';
 import { logger } from '../utils/logger.js';
@@ -18,7 +8,6 @@ import { rowMapper, iso, toIso } from './rowMapper.js';
 
 const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
-/** 邀请记录（不含令牌哈希，可安全返回） */
 interface InvitationRecord {
   id: string;
   orgId: string;
@@ -45,15 +34,6 @@ const mapRow = rowMapper<InvitationRecord>({
   createdAt: (r) => iso(r.created_at),
 });
 
-/**
- * 创建组织邀请（同组织同邮箱若已有待处理邀请，先撤销旧的再建新）。
- *
- * @param orgId - 组织 UUID
- * @param email - 受邀邮箱
- * @param role - 加入后的角色
- * @param invitedBy - 邀请人用户 UUID（可空）
- * @returns 含明文令牌的邀请记录
- */
 export async function createInvitation(
   orgId: string,
   email: string,
@@ -78,11 +58,6 @@ export async function createInvitation(
   return { ...mapRow(rows[0]), token };
 }
 
-/**
- * 列出组织的邀请（含已接受/待处理）。
- *
- * @param orgId - 组织 UUID
- */
 export async function listInvitations(orgId: string): Promise<InvitationRecord[]> {
   const pool = getPool();
   const { rows } = await pool.query(
@@ -93,13 +68,6 @@ export async function listInvitations(orgId: string): Promise<InvitationRecord[]
   return rows.map(mapRow);
 }
 
-/**
- * 撤销邀请（仅限本组织、未接受的邀请）。
- *
- * @param orgId - 组织 UUID
- * @param id - 邀请 UUID
- * @returns 是否撤销成功
- */
 export async function revokeInvitation(orgId: string, id: string): Promise<boolean> {
   const pool = getPool();
   const { rowCount } = await pool.query(

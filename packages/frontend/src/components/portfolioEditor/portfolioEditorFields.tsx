@@ -367,7 +367,7 @@ export function RebalanceBandsRow({
   const items = [
     {
       label: t('portfolio.absoluteDeviation'),
-      title: t('portfolio.absoluteDeviationTitle'),
+      title: t('portfolio.absoluteDeviation'),
       val: bands.absoluteBand,
       min: 0.1,
       max: 50,
@@ -376,7 +376,7 @@ export function RebalanceBandsRow({
     },
     {
       label: t('portfolio.relativeDeviation'),
-      title: t('portfolio.relativeDeviationTitle'),
+      title: t('portfolio.relativeDeviation'),
       val: bands.relativeBand,
       min: 1,
       max: 100,

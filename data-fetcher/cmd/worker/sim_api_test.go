@@ -1,4 +1,3 @@
-// Package main — sim_api_test.go
 package main
 
 import (

@@ -11,7 +11,7 @@ import type { TacticalGridState } from '@/hooks/useTacticalGridState';
 const RANGE_FIELDS: { key: keyof GridParamRange; label: string; min?: number; step?: number }[] = [
   { key: 'min', label: 'Min' },
   { key: 'max', label: 'Max' },
-  { key: 'step', label: 'Step', min: 0.1, step: 0.5 },
+  { key: 'step', label: 'backtest.optimizer.step', min: 0.1, step: 0.5 },
 ];
 function ParamRangeRow({
   range,
@@ -118,7 +118,7 @@ export function GridParamsPanel({ state }: { state: TacticalGridState }) {
     <div className="flex flex-col gap-4">
       <SignalGridSection state={state} />
       <BacktestParamsSection state={state} />
-      <ParamSection title={t('Optimization Objective')}>
+      <ParamSection title={t('Objective')}>
         <SelectField
           label={t('Objective')}
           value={objective}

@@ -1,23 +1,9 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
-import { loggerMocks } from '../../helpers/loggerFixture.js';
+import { loggerMocks } from '../helpers/loggerFixture.js';
+import { mockOtelApi } from '../helpers/otelMock.js';
 
 vi.mock('../../packages/backend/src/utils/logger.js', () => ({ logger: loggerMocks }));
-
-vi.mock('@opentelemetry/api', () => {
-  const noopSpan = {
-    setAttribute: vi.fn(),
-    recordException: vi.fn(),
-    end: vi.fn(),
-  };
-  return {
-    trace: {
-      getTracer: () => ({
-        startActiveSpan: async <T>(_name: string, fn: (span: typeof noopSpan) => Promise<T>) =>
-          fn(noopSpan),
-      }),
-    },
-  };
-});
+vi.mock('@opentelemetry/api', () => mockOtelApi());
 
 vi.mock('../../packages/backend/src/infrastructure/dataCache.js', () => ({
   readCache: vi.fn(async () => null),

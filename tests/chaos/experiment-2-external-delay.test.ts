@@ -31,7 +31,6 @@ describe('Chaos Experiment 2: External Service Unreachable', () => {
       await withContainerStopped(
         CONTAINERS.dataFetcher,
         async () => {
-          // 等待连接池检测到故障 + 熔断器累积失败请求
           await new Promise((resolve) => setTimeout(resolve, 2000));
 
           const results: { status: number; degraded: boolean }[] = [];

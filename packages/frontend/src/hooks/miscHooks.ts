@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation, type UseTranslationOptions } from 'react-i18next';
 import { useNavigate } from 'react-router';
-import i18n, { loadNamespace } from '@/i18n/index.js';
-import { apiFetch } from '@/utils/apiClient';
+import i18n from '@/i18n/index.js';
+import { apiFetch, apiPostJSON } from '@/utils/apiClient';
 import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
 import { useAuthStore } from '@/store/authStore';
+import { reportError } from '@/utils/errorReporter';
+import { useToastStore } from '@/store/toastStore';
 
 export function useAsyncAction() {
   const [isLoading, setIsLoading] = useState(false);
@@ -76,11 +78,7 @@ export function useAssetList<T extends { ticker: string; weight: number | string
 }
 
 export function useNsT(ns: string, options?: UseTranslationOptions<string>) {
-  const ret = useTranslation(ns, options);
-  useEffect(() => {
-    loadNamespace(ns).catch(() => {});
-  }, [ns]);
-  return ret;
+  return useTranslation(ns, options);
 }
 
 export function useTheme() {
@@ -121,6 +119,34 @@ export function usePolling(
   }, [enabled, intervalMs, immediate, ...deps]);
 }
 
+export function useAdminFetch<T>(
+  url: string,
+  parser: (data: Record<string, unknown>) => T,
+  initial: T,
+  componentName: string,
+) {
+  const { t } = useTranslation();
+  const [data, setData] = useState(initial);
+  const [loading, setLoading] = useState(false);
+  const [lastRefresh, setLastRefresh] = useState('');
+  const fetch = async () => {
+    setLoading(true);
+    try {
+      const res = await apiFetch(url);
+      if (!res.ok) return;
+      const json = await res.json();
+      if (!json.success || !json.data) return;
+      setData(parser(json.data));
+    } catch (error) {
+      reportError(error, { component: componentName, action: 'fetch' });
+      useToastStore.getState().addToast('error', t('Load failed'));
+    }
+    setLoading(false);
+    setLastRefresh(new Date().toLocaleTimeString('zh-CN'));
+  };
+  return { data, loading, lastRefresh, fetch };
+}
+
 export function useComputeTool<TResult>(
   computeFn: () => Promise<TResult>,
   validateFn?: () => string | null,
@@ -140,6 +166,25 @@ export function useComputeTool<TResult>(
     setResults(null);
   }, [resetAction]);
   return { isLoading, error, results, runCompute, setResults, reset };
+}
+
+export function useAnalysisState<S extends Record<string, unknown>, R>(
+  endpoint: string,
+  initial: S,
+  buildBody: (s: S) => unknown,
+  validate: (s: S) => string | null,
+) {
+  const s = useSetterState(initial);
+  const {
+    isLoading,
+    error,
+    results,
+    runCompute: runAnalysis,
+  } = useComputeTool<R>(
+    async () => apiPostJSON<R>(endpoint, buildBody(s), i18n.t('Analysis failed')),
+    () => validate(s),
+  );
+  return { ...s, isLoading, error, results, runAnalysis };
 }
 
 export function useOptimizerLikeState<TResults>() {
@@ -290,7 +335,7 @@ export function useAnnouncements() {
       const s = localStorage.getItem(READ_KEY);
       if (s) setReadIds(new Set(JSON.parse(s)));
     } catch {
-      // localStorage 不可用/损坏时忽略
+      // localStorage 数据损坏时忽略，视为未读
     }
   }, []);
   const list = announcements ?? [];
@@ -325,7 +370,7 @@ function getPreloadedMeta(): DataMeta | null {
         dataPointCount: d.dataPointCount || 0,
       };
   } catch {
-    // 预加载元数据缺失/损坏时忽略
+    // 无有效预加载数据时忽略
   }
   return null;
 }

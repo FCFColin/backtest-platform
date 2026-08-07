@@ -1,9 +1,4 @@
-/**
- * 市场数据统计 — 从 PostgreSQL 聚合（替代 JSON 文件扫描）。
- * 合并自 marketStatsHelpers.ts + marketStorageStats.ts + marketStats.ts；P3-2 M-005：类型在 marketStatsTypes.ts，纯函数在 marketStatsHelpers.ts。
- * 本文件保留 DB 查询 + 进程内 TTL 缓存 + 公共 API 再导出。
- * RLS 说明：tickers/prices 为全局共享市场数据表，无 tenant_id 列，不启用 RLS，直连 getReadPool() 是正确设计。
- */
+// tickers/prices 为全局共享市场数据表，无 tenant_id，不启用 RLS
 import { getReadPool } from './pool.js';
 import { logger } from '../utils/logger.js';
 import { createTtlCache } from '../utils/ttlCache.js';

@@ -110,10 +110,10 @@ export function buildSinglePortfolioBody(
 }
 
 export const REBALANCE_LBL: Record<RebalanceFrequency, string> = {
-  none: 'portfolio.rebalanceNone',
-  annual: 'portfolio.rebalanceAnnual',
-  quarterly: 'portfolio.rebalanceQuarterly',
-  monthly: 'portfolio.rebalanceMonthly',
+  none: 'monteCarlo.params.rebalanceNone',
+  annual: 'monteCarlo.params.rebalanceYearly',
+  quarterly: 'monteCarlo.params.rebalanceQuarterly',
+  monthly: 'monteCarlo.params.rebalanceMonthly',
   weekly: 'portfolio.rebalanceWeekly',
   daily: 'portfolio.rebalanceDaily',
   threshold: 'portfolio.rebalanceThreshold',

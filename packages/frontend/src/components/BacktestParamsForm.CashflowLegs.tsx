@@ -144,7 +144,7 @@ function CashflowFrequencySelect({
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="yearly">{t('Yearly')}</SelectItem>
+          <SelectItem value="yearly">{t('Annual')}</SelectItem>
           <SelectItem value="quarterly">{t('Quarterly')}</SelectItem>
           <SelectItem value="monthly">{t('Monthly')}</SelectItem>
           <SelectItem value="weekly">{t('Weekly')}</SelectItem>

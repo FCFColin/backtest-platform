@@ -1,15 +1,18 @@
 import { vi } from 'vitest';
-import { EngineUnavailableErrorStub } from './backtestRoutesFixtures.js';
 
-const internalMocks = vi.hoisted(() => ({
+const engineModuleMocks = vi.hoisted(() => ({
   callEngineStrict: vi.fn(),
-}));
-
-export const engineMocks = internalMocks;
-
-export const engineModuleMock = {
-  callEngineStrict: internalMocks.callEngineStrict,
-  EngineUnavailableError: EngineUnavailableErrorStub,
   resetEngineAvailability: vi.fn(),
   unwrapEngineData: <T>(r: unknown): T => ((r as { data?: T })?.data ?? r) as T,
-};
+  EngineUnavailableError: class EngineUnavailableError extends Error {
+    readonly retryAfterSeconds = 30;
+    readonly code = 'ENGINE_UNAVAILABLE';
+    constructor(endpoint = 'engine') {
+      super(`计算引擎暂不可用（${endpoint}），请稍后重试`);
+      this.name = 'EngineUnavailableError';
+    }
+  },
+}));
+
+export const engineMocks = engineModuleMocks;
+export const engineModuleMock = engineModuleMocks;

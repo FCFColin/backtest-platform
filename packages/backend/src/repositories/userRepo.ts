@@ -88,7 +88,6 @@ export async function getUserById(id: string): Promise<User | null> {
   return rowToUser(rows[0]);
 }
 
-// GDPR/PIPL：保留行记录满足审计义务，仅阻断登录。
 export async function deactivateUser(id: string): Promise<boolean> {
   const pool = getPool();
   const { rowCount } = await pool.query(
@@ -99,7 +98,6 @@ export async function deactivateUser(id: string): Promise<boolean> {
   return (rowCount ?? 0) > 0;
 }
 
-// GDPR Art.17 被遗忘权：抹除 PII，保留占位标识以维护外键完整性。
 export async function anonymizeUser(id: string): Promise<boolean> {
   const pool = getPool();
   const anonymizedUsername = `deleted_${id.replace(/-/g, '').substring(0, 8)}`;

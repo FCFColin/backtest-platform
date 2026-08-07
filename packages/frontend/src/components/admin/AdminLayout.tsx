@@ -84,7 +84,7 @@ const STATUS_CONFIG: Record<
     icon: AlertCircle,
     badgeVariant: 'secondary',
     overrideClassName: 'bg-elevated text-fg-tertiary',
-    labelKey: 'adminPage.dataManagement.statusUnknown',
+    labelKey: 'Unknown',
   },
 };
 export function ServiceStatusBadge({
@@ -141,7 +141,7 @@ export function ServiceStatusTable({ services }: { services: ServiceHealthView[]
 const SIDEBAR_ITEMS = [
   { to: '/admin', icon: LayoutDashboard, labelKey: 'adminLayout.dashboard', end: true },
   { to: '/admin/monitor', icon: Activity, labelKey: 'adminLayout.monitor' },
-  { to: '/admin/data', icon: Database, labelKey: 'adminLayout.dataManagement' },
+  { to: '/admin/data', icon: Database, labelKey: 'Data Management' },
   { to: '/admin/history', icon: History, labelKey: 'adminLayout.history' },
   { to: '/admin/settings', icon: Settings, labelKey: 'adminLayout.settings' },
 ];

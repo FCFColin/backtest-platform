@@ -33,7 +33,7 @@ describe('OptimizerPage (smoke)', () => {
 
   it('happy path: 装配标题与参数/结果面板 slot', async () => {
     render(<OptimizerPage />);
-    expect(screen.getByText('optimizer.title')).toBeTruthy();
+    expect(screen.getByText('nav.portfolioOptimize')).toBeTruthy();
     await waitFor(() => expect(screen.getByTestId('optimizer-params')).toBeTruthy());
     await waitFor(() => expect(screen.getByTestId('optimizer-results')).toBeTruthy());
   });
@@ -41,6 +41,6 @@ describe('OptimizerPage (smoke)', () => {
   it('edge path: 空 tickers 状态下仍渲染标题不崩溃', () => {
     pageState.tickers = [];
     render(<OptimizerPage />);
-    expect(screen.getByText('optimizer.title')).toBeTruthy();
+    expect(screen.getByText('nav.portfolioOptimize')).toBeTruthy();
   });
 });

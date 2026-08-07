@@ -33,9 +33,9 @@ export interface TacticalGridResponse {
   bestCombination: TopCombinationResult;
 }
 export const OBJECTIVE_OPTIONS: Array<{ value: ObjectiveType; label: string }> = [
-  { value: 'maxCAGR', label: 'tacticalGrid.objectives.maxCAGR' },
+  { value: 'maxCAGR', label: 'backtest.optimizer.maxCagr' },
   { value: 'minDrawdown', label: 'tacticalGrid.objectives.minDrawdown' },
-  { value: 'maxSharpe', label: 'tacticalGrid.objectives.maxSharpe' },
+  { value: 'maxSharpe', label: 'backtest.optimizer.maxSharpe' },
 ];
 export function getParamLabelKeys(indicator: IndicatorType): { p1: string; p2: string } {
   if (indicator === 'rsi') {
@@ -45,7 +45,7 @@ export function getParamLabelKeys(indicator: IndicatorType): { p1: string; p2: s
     };
   }
   return {
-    p1: 'tacticalGrid.paramLabels.period',
+    p1: 'Period',
     p2: 'tacticalGrid.paramLabels.breakoutThreshold',
   };
 }

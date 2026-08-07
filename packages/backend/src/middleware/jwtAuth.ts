@@ -128,21 +128,13 @@ async function loadKey(type: 'private' | 'public'): Promise<JoseKey> {
 }
 const getHS256Key = () =>
   importJWK({ kty: 'oct', k: Buffer.from(JWT_SECRET, 'utf-8').toString('base64url') }, 'HS256');
-let _privKey: JoseKey | null = null,
-  _pubKey: JoseKey | null = null,
-  _hs256Key: Awaited<ReturnType<typeof importJWK>> | null = null;
-export const getOrCachePrivateKey = async (): Promise<JoseKey> => {
-  if (!_privKey) _privKey = await loadKey('private');
-  return _privKey;
+const cacheOnce = <T>(load: () => Promise<T>): (() => Promise<T>) => {
+  let cached: T | null = null;
+  return async () => (cached ??= await load());
 };
-export const getOrCachePublicKey = async (): Promise<JoseKey> => {
-  if (!_pubKey) _pubKey = await loadKey('public');
-  return _pubKey;
-};
-export const getOrCacheHS256Key = async () => {
-  if (!_hs256Key) _hs256Key = await getHS256Key();
-  return _hs256Key;
-};
+export const getOrCachePrivateKey = cacheOnce(() => loadKey('private'));
+export const getOrCachePublicKey = cacheOnce(() => loadKey('public'));
+export const getOrCacheHS256Key = cacheOnce(getHS256Key);
 
 async function signConfiguredJwt(payload: JwtPayload): Promise<string> {
   const isRs256 = JWT_ALGORITHM === 'RS256';

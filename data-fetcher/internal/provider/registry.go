@@ -1,4 +1,3 @@
-// Package provider 提供数据源接口、注册表与跨 provider 共享的基础设施。
 package provider
 
 import (

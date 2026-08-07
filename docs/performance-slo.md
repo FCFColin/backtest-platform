@@ -42,13 +42,6 @@
 - api, engine-go, data-fetcher: `preferredDuringSchedulingIgnoredDuringExecution` 跨 zone 拓扑分布
 - postgres, redis: StatefulSet `requiredDuringSchedulingIgnoredDuringExecution`
 
-## Load Test Thresholds (k6)
-
-| Scenario                                  | VUs             | P99 SLA           | Error Rate SLA |
-| ----------------------------------------- | --------------- | ----------------- | -------------- |
-| Backtest submit / Optimizer submit        | 100 / 50        | < 500ms / < 300ms | < 5%           |
-| Price history / Announcements / Data meta | 500 / 200 / 200 | < 200ms           | < 5% / < 2%    |
-
 ## Escalation
 
 - **Notice** (P90 > 100ms): 24h 内评审，检查缓存命中与 DB 慢查询

@@ -160,7 +160,7 @@ const config: ComputeToolConfig<LETFState> = {
   titleKey: 'letf.title',
   seoDescKey: 'letf.seo.desc',
   seoFeatures: [
-    { titleKey: 'letf.seo.analyzableTitle', descKey: 'letf.seo.analyzableDesc' },
+    { titleKey: 'analysis.seoAnalyzable', descKey: 'letf.seo.analyzableDesc' },
     { titleKey: 'letf.seo.scenarioTitle', descKey: 'letf.seo.scenarioDesc' },
   ],
   relatedTools: [

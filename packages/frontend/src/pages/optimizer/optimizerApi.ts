@@ -1,5 +1,5 @@
 import type { OptimizationResult, Statistics } from '@backtest/shared';
-import { apiFetch } from '@/utils/apiClient';
+import { apiPostJSON } from '@/utils/apiClient';
 import { buildBacktestParameters } from '@/utils/constants';
 export type SolverType = 'markowitz' | 'ga';
 export type OptimizerResultExt = OptimizationResult & {
@@ -61,43 +61,51 @@ export async function runOptimizeApi(
   };
   if (s.maxHoldings !== '') body.maxHoldings = Number(s.maxHoldings);
   if (s.minWeightToInclude !== '') body.minWeightToInclude = Number(s.minWeightToInclude) / 100;
-  const res = await apiFetch('/api/v1/backtest/optimize', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const json = await res.json();
-  if (json.success === false) throw new Error(json.error || t('Optimization Failed'));
-  return json.data ?? json;
+  return apiPostJSON<OptimizerResultExt>(
+    '/api/v1/backtest/optimize',
+    body,
+    t('Optimization Failed'),
+  );
 }
-export async function fetchStats(
-  optResult: OptimizerResultExt,
-  s: OptimizerStateParams,
-  t: (k: string) => string,
-): Promise<Statistics | null> {
-  const weights = Object.entries(optResult.optimalWeights as Record<string, number>);
-  const btBody = {
+function buildPortfolioBody(
+  name: string,
+  weights: Record<string, number>,
+  startDate: string,
+  endDate: string,
+  id?: string,
+) {
+  return {
     portfolios: [
       {
-        name: t('Optimal Portfolio'),
-        assets: weights.map(([tk, w]) => ({ ticker: tk, weight: Math.round(w * 10000) / 100 })),
+        ...(id ? { id } : {}),
+        name,
+        assets: Object.entries(weights).map(([tk, w]) => ({
+          ticker: tk,
+          weight: Math.round(w * 10000) / 100,
+        })),
         rebalanceFrequency: 'quarterly',
         rebalanceOffset: 0,
         drag: 0,
         totalReturn: true,
       },
     ],
-    parameters: { ...BASE_PARAMS, startDate: s.startDate, endDate: s.endDate },
+    parameters: { ...BASE_PARAMS, startDate, endDate },
   };
-  const r = await apiFetch('/api/v1/backtest/portfolio', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(btBody),
-  });
-  if (!r.ok) return null;
-  const j = await r.json();
-  return (j.data ?? j).portfolios?.[0]?.statistics ?? null;
+}
+export async function fetchStats(
+  optResult: OptimizerResultExt,
+  s: OptimizerStateParams,
+  t: (k: string) => string,
+): Promise<Statistics | null> {
+  try {
+    const j = await apiPostJSON<{ portfolios?: Array<{ statistics?: Statistics }> }>(
+      '/api/v1/backtest/portfolio',
+      buildPortfolioBody(t('Optimal Portfolio'), optResult.optimalWeights, s.startDate, s.endDate),
+    );
+    return j.portfolios?.[0]?.statistics ?? null;
+  } catch {
+    return null;
+  }
 }
 interface LoadInBacktesterParams {
   results: OptimizerResultExt | null;
@@ -110,27 +118,13 @@ export function loadInBacktesterAction(
   navigate: (path: string) => void,
 ) {
   if (!s.results) return;
-  const weights = Object.entries(s.results.optimalWeights);
-  const data = {
-    portfolios: [
-      {
-        id: `portfolio-${Date.now()}-1`,
-        name: t('Optimal Portfolio'),
-        assets: weights.map(([tk, w]) => ({ ticker: tk, weight: Math.round(w * 10000) / 100 })),
-        rebalanceFrequency: 'quarterly',
-        rebalanceOffset: 0,
-        drag: 0,
-        totalReturn: true,
-      },
-    ],
-    parameters: {
-      ...BASE_PARAMS,
-      startDate: s.startDate,
-      endDate: s.endDate,
-      startingValue: 10000,
-      baseCurrency: 'usd',
-    },
-  };
+  const data = buildPortfolioBody(
+    t('Optimal Portfolio'),
+    s.results.optimalWeights,
+    s.startDate,
+    s.endDate,
+    `portfolio-${Date.now()}-1`,
+  );
   localStorage.setItem('bt_load_from_optimizer', JSON.stringify(data));
   navigate('/');
 }

@@ -66,7 +66,7 @@ async function fetchFrontier(params: FetchFrontierParams): Promise<EfficientFron
       solver: params.solver,
       parameters: buildBacktestParameters(params.startDate, params.endDate),
     },
-    i18n.t('Computation failed'),
+    i18n.t('Calculation failed'),
   );
 }
 async function fetchCorrelations(
@@ -181,7 +181,7 @@ function useEfficientFrontierState() {
   const runFrontier = () => {
     const validTickers = s.tickers.filter(Boolean);
     if (validTickers.length < 2) {
-      s.setError(i18n.t('Please enter at least two tickers'));
+      s.setError(i18n.t('Please enter at least two ticker symbols'));
       return;
     }
     s.setSelectedPoint(null);

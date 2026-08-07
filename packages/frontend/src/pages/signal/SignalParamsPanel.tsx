@@ -25,13 +25,35 @@ export function TickerField({ value, onChange, placeholder }: TickerFieldProps) 
   const { t } = useTranslation();
   const id = useId();
   return (
-    <LabeledField htmlFor={id} label={t('Ticker Symbol')}>
+    <LabeledField htmlFor={id} label={t('Ticker')}>
       <Input
         id={id}
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder ?? t('e.g. SPY')}
+      />
+    </LabeledField>
+  );
+}
+
+interface NumberFieldProps {
+  label: string;
+  value: number;
+  min?: number;
+  onChange: (value: number) => void;
+}
+function NumberField({ label, value, min, onChange }: NumberFieldProps) {
+  const id = useId();
+  return (
+    <LabeledField htmlFor={id} label={label}>
+      <Input
+        id={id}
+        type="number"
+        className="font-mono tabular-nums"
+        value={value}
+        min={min}
+        onChange={(e) => onChange(Number(e.target.value))}
       />
     </LabeledField>
   );
@@ -101,8 +123,6 @@ interface SignalCfgFieldsProps {
 function SignalCfgFields({ cfg, onChange }: SignalCfgFieldsProps) {
   const { t } = useTranslation();
   const indId = useId();
-  const periodId = useId();
-  const thrId = useId();
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
       <LabeledField htmlFor={indId} label={t('Technical Indicator')}>
@@ -112,25 +132,17 @@ function SignalCfgFields({ cfg, onChange }: SignalCfgFieldsProps) {
           id={indId}
         />
       </LabeledField>
-      <LabeledField htmlFor={periodId} label={t('Period')}>
-        <Input
-          id={periodId}
-          type="number"
-          className="font-mono tabular-nums"
-          value={cfg.period}
-          min={2}
-          onChange={(e) => onChange({ ...cfg, period: Number(e.target.value) })}
-        />
-      </LabeledField>
-      <LabeledField htmlFor={thrId} label={t('Threshold')}>
-        <Input
-          id={thrId}
-          type="number"
-          className="font-mono tabular-nums"
-          value={cfg.threshold}
-          onChange={(e) => onChange({ ...cfg, threshold: Number(e.target.value) })}
-        />
-      </LabeledField>
+      <NumberField
+        label={t('Period')}
+        value={cfg.period}
+        min={2}
+        onChange={(v) => onChange({ ...cfg, period: v })}
+      />
+      <NumberField
+        label={t('Threshold')}
+        value={cfg.threshold}
+        onChange={(v) => onChange({ ...cfg, threshold: v })}
+      />
     </div>
   );
 }
@@ -208,10 +220,7 @@ function IndicatorConfigSection({ state }: { state: UseSignalAnalyzerStateResult
   const { t } = useTranslation();
   const { ticker, setTicker, indicator, setIndicator, period, setPeriod, threshold, setThreshold } =
     state;
-  const tickerId = useId();
   const indId = useId();
-  const periodId = useId();
-  const thrId = useId();
   return (
     <section className="flex flex-col gap-2">
       <SectionHeader
@@ -222,37 +231,12 @@ function IndicatorConfigSection({ state }: { state: UseSignalAnalyzerStateResult
         variant="h3"
       />
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <LabeledField htmlFor={tickerId} label={t('Ticker Symbol')}>
-          <Input
-            id={tickerId}
-            type="text"
-            value={ticker}
-            onChange={(e) => setTicker(e.target.value)}
-            placeholder={t('e.g. SPY')}
-          />
-        </LabeledField>
+        <TickerField value={ticker} onChange={setTicker} />
         <LabeledField htmlFor={indId} label={t('Technical Indicator')}>
           <IndicatorSelect value={indicator} onChange={setIndicator} id={indId} />
         </LabeledField>
-        <LabeledField htmlFor={periodId} label={t('Period')}>
-          <Input
-            id={periodId}
-            type="number"
-            className="font-mono tabular-nums"
-            value={period}
-            min={2}
-            onChange={(e) => setPeriod(Number(e.target.value))}
-          />
-        </LabeledField>
-        <LabeledField htmlFor={thrId} label={t('Threshold')}>
-          <Input
-            id={thrId}
-            type="number"
-            className="font-mono tabular-nums"
-            value={threshold}
-            onChange={(e) => setThreshold(Number(e.target.value))}
-          />
-        </LabeledField>
+        <NumberField label={t('Period')} value={period} min={2} onChange={setPeriod} />
+        <NumberField label={t('Threshold')} value={threshold} onChange={setThreshold} />
       </div>
       <FieldDescription>
         {t(

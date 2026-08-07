@@ -110,7 +110,7 @@ func TestConfigStruct(t *testing.T) {
 	}
 }
 
-const testDataServiceToken = "test-data-service-secret-token"
+const testDataServiceToken = "test-data-service-secret-token" // #nosec G101 -- 测试夹具假密钥，非真实凭据
 
 func dataServiceAuthMiddleware() gin.HandlerFunc {
 	return gosharedmw.SharedTokenAuthMiddleware(

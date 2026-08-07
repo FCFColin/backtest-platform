@@ -5,9 +5,10 @@
  * 重点断言 ADR-031 fail-closed：引擎不可用时返回 503 + Retry-After，绝不静默本地计算。
  * 引擎与数据服务被 mock 以避免真实外部依赖。
  */
-import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
-import { EngineUnavailableErrorStub } from '../helpers/backtestRoutesFixtures.js';
-import { loggerMocks } from '../../helpers/loggerFixture.js';
+import { describe, it, expect, vi } from 'vitest';
+import { loggerMocks } from '../helpers/loggerFixture.js';
+import { useTestServer } from '../helpers/expressApp.js';
+import { engineModuleMock } from '../helpers/engineFixture.js';
 
 vi.mock('../../packages/backend/src/utils/logger.js', () => ({ logger: loggerMocks }));
 
@@ -18,9 +19,8 @@ const { callEngineStrictMock, fetchHistoryDataMock, searchTickersMock } = vi.hoi
 }));
 
 vi.mock('../../packages/backend/src/utils/engineClient.js', () => ({
+  ...engineModuleMock,
   callEngineStrict: callEngineStrictMock,
-  EngineUnavailableError: EngineUnavailableErrorStub,
-  resetEngineAvailability: vi.fn(),
 }));
 
 vi.mock('../../packages/backend/src/infrastructure/dataFacade.js', () => ({
@@ -46,32 +46,15 @@ vi.mock('../../packages/backend/src/infrastructure/cpiLoader.js', () => ({
   fetchCpiFromGoService: vi.fn(async () => null),
 }));
 
-import express from 'express';
 import backtestRoutes from '../../packages/backend/src/routes/backtestRoutes.js';
-import { mockAuthMiddleware } from '../helpers/testcontainersPg.js';
 
 const orgId = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
 const userId = 'backtest-e2e-user';
-let baseUrl = '';
-
-beforeAll(async () => {
-  const app = express();
-  app.use(express.json());
-  app.use(mockAuthMiddleware(orgId, userId));
-  app.use('/api/v1/backtest', backtestRoutes);
-
-  await new Promise<void>((resolve) => {
-    const server = app.listen(0, () => {
-      const addr = server.address();
-      const port = typeof addr === 'object' && addr ? addr.port : 0;
-      baseUrl = `http://127.0.0.1:${port}`;
-      resolve();
-    });
-  });
-});
-
-afterAll(() => {
-  vi.restoreAllMocks();
+const server = useTestServer('/api/v1/backtest', backtestRoutes, {
+  auth: {
+    user: { sub: userId, role: 'admin', tenant_id: orgId, org_role: 'owner' },
+    tenantId: orgId,
+  },
 });
 
 const validOptimizeBody = {
@@ -86,16 +69,15 @@ describe('回测端到端集成测试', () => {
       { ticker: 'AAPL', name: 'Apple Inc.' },
       { ticker: 'MSFT', name: 'Microsoft Corp.' },
     ]);
-    const res = await fetch(`${baseUrl}/api/v1/backtest/search?query=aap&limit=10`);
+    const { res, body } = await server.get('/search?query=aap&limit=10');
     expect(res.status).toBe(200);
-    const json = await res.json();
-    expect(json.success).toBe(true);
-    expect(json.data).toHaveLength(2);
-    expect(json.data[0].ticker).toBe('AAPL');
+    expect(body.success).toBe(true);
+    expect(body.data).toHaveLength(2);
+    expect(body.data[0].ticker).toBe('AAPL');
   });
 
   it('GET /search 缺少 query 参数返回 422', async () => {
-    const res = await fetch(`${baseUrl}/api/v1/backtest/search?limit=10`);
+    const { res } = await server.get('/search?limit=10');
     expect(res.status).toBe(422);
   });
 
@@ -112,15 +94,10 @@ describe('回测端到端集成测试', () => {
       data: { optimalWeights: { AAPL: 0.6, MSFT: 0.4 }, sharpe: 1.8 },
     });
 
-    const res = await fetch(`${baseUrl}/api/v1/backtest/optimize`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(validOptimizeBody),
-    });
+    const { res, body } = await server.post('/optimize', validOptimizeBody);
     expect(res.status).toBe(200);
-    const json = await res.json();
-    expect(json.success).toBe(true);
-    expect(json.data.optimalWeights).toEqual({ AAPL: 0.6, MSFT: 0.4 });
+    expect(body.success).toBe(true);
+    expect(body.data.optimalWeights).toEqual({ AAPL: 0.6, MSFT: 0.4 });
   });
 
   it('POST /optimize 引擎不可用时 fail-closed 返回 503（ADR-031）', async () => {
@@ -132,48 +109,31 @@ describe('回测端到端集成测试', () => {
       degraded: false,
     });
     callEngineStrictMock.mockRejectedValueOnce(
-      new EngineUnavailableErrorStub('/api/engine/optimize', 30),
+      new engineModuleMock.EngineUnavailableError('/api/engine/optimize'),
     );
 
-    const res = await fetch(`${baseUrl}/api/v1/backtest/optimize`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(validOptimizeBody),
-    });
+    const { res, body } = await server.post('/optimize', validOptimizeBody);
     expect(res.status).toBe(503);
     expect(res.headers.get('retry-after')).toBe('30');
-    const json = await res.json();
-    expect(json.error.code).toBe('ENGINE_UNAVAILABLE');
-    expect(json.degraded).toBeUndefined();
-    expect(json.degradedWarning).toBeUndefined();
+    expect(body.error.code).toBe('ENGINE_UNAVAILABLE');
+    expect(body.degraded).toBeUndefined();
+    expect(body.degradedWarning).toBeUndefined();
   });
 
   it('POST /optimize 非法 objective 返回校验错误', async () => {
-    const res = await fetch(`${baseUrl}/api/v1/backtest/optimize`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...validOptimizeBody, objective: 'invalid' }),
-    });
+    const { res } = await server.post('/optimize', { ...validOptimizeBody, objective: 'invalid' });
     expect(res.status).toBe(400);
   });
 
   it('POST /optimize 空 tickers 数组返回校验错误', async () => {
-    const res = await fetch(`${baseUrl}/api/v1/backtest/optimize`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...validOptimizeBody, tickers: [] }),
-    });
+    const { res } = await server.post('/optimize', { ...validOptimizeBody, tickers: [] });
     expect(res.status).toBe(400);
   });
 
   it('POST /optimize startDate 晚于 endDate 返回校验错误', async () => {
-    const res = await fetch(`${baseUrl}/api/v1/backtest/optimize`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        ...validOptimizeBody,
-        parameters: { startDate: '2023-12-31', endDate: '2020-01-01' },
-      }),
+    const { res } = await server.post('/optimize', {
+      ...validOptimizeBody,
+      parameters: { startDate: '2023-12-31', endDate: '2020-01-01' },
     });
     expect(res.status).toBe(400);
   });

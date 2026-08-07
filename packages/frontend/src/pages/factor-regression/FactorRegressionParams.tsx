@@ -97,7 +97,7 @@ export function FactorRegressionParamsPanel({ state: s }: { state: FactorRegress
         <RunButton
           isLoading={s.isLoading}
           onClick={s.runRegression}
-          label={t('Start Analysis')}
+          label={t('Run Analysis')}
           loadingLabel={t('Running regression...')}
         />
       </div>

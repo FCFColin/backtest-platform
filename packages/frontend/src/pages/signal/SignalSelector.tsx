@@ -131,7 +131,7 @@ function AggregationSection({ state }: { state: UseMultiSignalStateResult }) {
   const { aggregationMethod, setAggregationMethod } = state;
   return (
     <section className="flex flex-col gap-2">
-      <h3 className="text-h3 text-fg">{t('Aggregation Configuration')}</h3>
+      <h3 className="text-h3 text-fg">{t('Aggregation Config')}</h3>
       <Field>
         <FieldLabel>{t('Aggregation Method')}</FieldLabel>
         <RadioGroup

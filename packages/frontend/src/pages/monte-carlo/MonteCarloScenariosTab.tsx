@@ -77,14 +77,14 @@ function DistHistogramChart({
         {
           label: medianLabel,
           color: CHART_COLORS[2],
-          value: t('monteCarlo.results.medianLabel', {
+          value: t('Median', {
             value: medianVal !== undefined ? METRIC_FORMAT[distMetric](medianVal) : '',
           }),
         },
         {
           label: meanLabel,
           color: CHART_COLORS[1],
-          value: t('monteCarlo.results.meanLabel', {
+          value: t('charts.annualReturn.mean', {
             value: meanVal !== undefined ? METRIC_FORMAT[distMetric](meanVal) : '',
           }),
         },

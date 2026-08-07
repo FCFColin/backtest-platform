@@ -23,7 +23,7 @@
   ],
   "limits": [
     {
-      "labelKey": "about.limits.portfolioCountLabel",
+      "labelKey": "Portfolio Count",
       "valueKey": "about.limits.portfolioCountValue",
       "descKey": "about.limits.portfolioCountDesc"
     },
@@ -33,12 +33,12 @@
       "descKey": "about.limits.tickerCountDesc"
     },
     {
-      "labelKey": "about.limits.backtestRangeLabel",
+      "labelKey": "Backtest Range",
       "valueKey": "about.limits.backtestRangeValue",
       "descKey": "about.limits.backtestRangeDesc"
     },
     {
-      "labelKey": "about.limits.mcSimLabel",
+      "labelKey": "Simulation Count",
       "valueKey": "about.limits.mcSimValue",
       "descKey": "about.limits.mcSimDesc"
     },
@@ -55,7 +55,7 @@
   ],
   "plans": [
     {
-      "titleKey": "about.upgrade.freePlanTitle",
+      "titleKey": "Free Plan",
       "priceKey": "about.upgrade.freePlanPrice",
       "featuresKey": "about.upgrade.freePlanFeatures",
       "current": true
@@ -67,7 +67,7 @@
     },
     {
       "titleKey": "about.upgrade.perfPlanTitle",
-      "priceKey": "about.upgrade.perfPlanPrice",
+      "priceKey": "$29/mo",
       "featuresKey": "about.upgrade.perfPlanFeatures"
     }
   ]

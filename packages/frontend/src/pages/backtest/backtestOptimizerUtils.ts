@@ -36,7 +36,7 @@ const numCol = (key: keyof OptimizeResultItem, label: string): Column<OptimizeRe
 export const TABLE_COLUMNS: Column<OptimizeResultItem>[] = [
   {
     key: 'rebalanceFrequency',
-    label: i18n.t('Rebalance Frequency'),
+    label: i18n.t('Rebalancing Frequency'),
     sortValue: (r) => r.rebalanceFrequency,
     render: (r) =>
       r.rebalanceFrequency === 'threshold'
@@ -259,7 +259,7 @@ export function useOptimizerState(): BacktestOptimizerState {
       }>(
         '/api/v1/backtest-optimizer/optimize',
         buildOptimizeBody(validAssets, frequencies, form),
-        i18n.t('Optimization failed'),
+        i18n.t('Optimization Failed'),
       );
       patchResult({
         results: data.results ?? [],
@@ -268,7 +268,7 @@ export function useOptimizerState(): BacktestOptimizerState {
         totalCombos: data.totalCombinations ?? 0,
       });
     } catch (e) {
-      patchResult({ error: e instanceof Error ? e.message : i18n.t('Optimization failed') });
+      patchResult({ error: e instanceof Error ? e.message : i18n.t('Optimization Failed') });
     } finally {
       patchResult({ isLoading: false });
     }

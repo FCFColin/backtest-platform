@@ -1,12 +1,12 @@
-import { useState } from 'react';
 import type { Statistics } from '@backtest/shared';
-import { useOptimizerLikeState } from '../../hooks/miscHooks.js';
+import { useSetterState } from '../../hooks/miscHooks.js';
+import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
 import type { OptimizerStateParams, OptimizerResultExt, SolverType } from './optimizerApi.js';
 import { fetchStats, loadInBacktesterAction, runOptimizeApi } from './optimizerApi.js';
 export type { SolverType, OptimizerResultExt } from './optimizerApi.js';
 export interface EfficientFrontierState {
   tickers: string[];
-  setTickers: React.Dispatch<React.SetStateAction<string[]>>;
+  setTickers: (v: string[]) => void;
   objective: string;
   setObjective: (v: string) => void;
   startDate: string;
@@ -54,101 +54,44 @@ export interface EfficientFrontierState {
   handleLoadInBacktester: () => void;
 }
 function useWeightConstraints() {
-  const [minWeight, setMinWeight] = useState(0);
-  const [maxWeight, setMaxWeight] = useState(100);
-  const [tbillRate, setTbillRate] = useState(5.0);
-  const [allowShort, setAllowShort] = useState(false);
-  const [solver, setSolver] = useState<SolverType>('markowitz');
-  return {
-    minWeight,
-    setMinWeight,
-    maxWeight,
-    setMaxWeight,
-    tbillRate,
-    setTbillRate,
-    allowShort,
-    setAllowShort,
-    solver,
-    setSolver,
-  };
+  return useSetterState({
+    minWeight: 0,
+    maxWeight: 100,
+    tbillRate: 5.0,
+    allowShort: false,
+    solver: 'markowitz' as SolverType,
+  });
 }
 function useOptimizerConstraints() {
-  const [minCagr, setMinCagr] = useState('');
-  const [minSharpe, setMinSharpe] = useState('');
-  const [minSortino, setMinSortino] = useState('');
-  const [maxVol, setMaxVol] = useState('');
-  const [maxMaxDD, setMaxMaxDD] = useState('');
-  const [maxAvgDD, setMaxAvgDD] = useState('');
-  const [maxHoldings, setMaxHoldings] = useState('');
-  const [minWeightToInclude, setMinWeightToInclude] = useState('');
-  const [enableMaxDD, setEnableMaxDD] = useState(false);
-  const [enableMinCagr, setEnableMinCagr] = useState(false);
-  const [enableMaxVol, setEnableMaxVol] = useState(false);
-  return {
-    minCagr,
-    setMinCagr,
-    minSharpe,
-    setMinSharpe,
-    minSortino,
-    setMinSortino,
-    maxVol,
-    setMaxVol,
-    maxMaxDD,
-    setMaxMaxDD,
-    maxAvgDD,
-    setMaxAvgDD,
-    maxHoldings,
-    setMaxHoldings,
-    minWeightToInclude,
-    setMinWeightToInclude,
-    enableMaxDD,
-    setEnableMaxDD,
-    enableMinCagr,
-    setEnableMinCagr,
-    enableMaxVol,
-    setEnableMaxVol,
-  };
+  return useSetterState({
+    minCagr: '',
+    minSharpe: '',
+    minSortino: '',
+    maxVol: '',
+    maxMaxDD: '',
+    maxAvgDD: '',
+    maxHoldings: '',
+    minWeightToInclude: '',
+    enableMaxDD: false,
+    enableMinCagr: false,
+    enableMaxVol: false,
+  });
 }
 function useOptimizerSetters() {
-  const [tickers, setTickers] = useState(['VTI', 'VXUS', 'BND']);
-  const [objective, setObjective] = useState('maxSharpe');
-  const {
-    startDate,
-    setStartDate,
-    endDate,
-    setEndDate,
-    isLoading,
-    setIsLoading,
-    error,
-    setError,
-    results,
-    setResults,
-  } = useOptimizerLikeState<OptimizerResultExt>();
-  const weights = useWeightConstraints();
-  const constraints = useOptimizerConstraints();
-  const [isCalculatingStats, setIsCalculatingStats] = useState(false);
-  const [backtestStats, setBacktestStats] = useState<Statistics | null>(null);
   return {
-    ...weights,
-    ...constraints,
-    tickers,
-    setTickers,
-    objective,
-    setObjective,
-    startDate,
-    setStartDate,
-    endDate,
-    setEndDate,
-    isLoading,
-    setIsLoading,
-    error,
-    setError,
-    results,
-    setResults,
-    isCalculatingStats,
-    setIsCalculatingStats,
-    backtestStats,
-    setBacktestStats,
+    ...useSetterState({
+      startDate: DEFAULT_BACKTEST_START_DATE,
+      endDate: DEFAULT_END_DATE,
+      isLoading: false,
+      error: null as string | null,
+      results: null as OptimizerResultExt | null,
+      tickers: ['VTI', 'VXUS', 'BND'],
+      objective: 'maxSharpe',
+      isCalculatingStats: false,
+      backtestStats: null as Statistics | null,
+    }),
+    ...useWeightConstraints(),
+    ...useOptimizerConstraints(),
   };
 }
 function buildOptimizerStateParams(

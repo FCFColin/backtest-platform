@@ -1,17 +1,4 @@
-/**
- * 数据更新 BullMQ Worker（P1-2）
- *
- * 替换 child_process.spawn + `go run` 编译模式：
- * Worker 从 PostgreSQL 读取全部标的列表，分批调用 Go data-fetcher 的
- * `/api/data/price/batch` HTTP 端点拉取并存储价格数据。
- *
- * 优势：
- * - 无需 `go run` 每次编译（使用已运行的 data-fetcher HTTP 服务）
- * - 无需 `taskkill`（BullMQ job.remove() 即可取消）
- * - 无内存全局状态（进度存储在 Redis/BullMQ job 中）
- * - 可在 Linux 容器环境正常工作
- * - 可水平扩展（多 Worker 实例由 BullMQ 自动分配任务）
- */
+// P1-2: HTTP 拉取替代 spawn+go run（免编译、可取消、可水平扩展）
 import { type Job, type Worker } from 'bullmq';
 import { isSentinelMode } from '../infrastructure/redisClient.js';
 import { config } from '../config/index.js';
@@ -25,33 +12,16 @@ import {
 } from './queueDefinitions.js';
 import { createQueueWorker } from './workerFactory.js';
 
-/** 每批处理的标的数量（避免单次 HTTP 请求过大） */
 const BATCH_SIZE = 50;
 
 const BATCH_TIMEOUT_MS = 120_000;
 
-/**
- * 从 PostgreSQL 读取全部标的列表。
- *
- * @returns 标的代码数组
- */
 async function getAllTickers(): Promise<string[]> {
   const pool = getPool();
   const { rows } = await pool.query('SELECT ticker FROM tickers ORDER BY ticker');
   return rows.map((r: { ticker: string }) => r.ticker);
 }
 
-/**
- * 调用 Go data-fetcher 批量价格端点拉取并存储数据。
- *
- * data-fetcher 的 `/api/data/price/batch` 端点会从外部数据源拉取价格
- * 并写入 PostgreSQL（由 store 层处理 upsert）。
- *
- * @param tickers - 标的代码列表
- * @param startDate - 起始日期
- * @param endDate - 结束日期
- * @returns 成功的标的数
- */
 async function fetchBatchPrices(
   tickers: string[],
   startDate: string,
@@ -97,15 +67,6 @@ async function fetchBatchPrices(
   }
 }
 
-/**
- * 数据更新任务处理函数。
- *
- * 全量更新：从 2000-01-01 至今
- * 增量更新：仅拉取最近 30 天数据
- *
- * @param job - BullMQ 任务
- * @returns 任务结果
- */
 async function processDataUpdateJob(job: Job<DataUpdateJobData>): Promise<DataUpdateJobResult> {
   const { mode } = job.data;
   logger.info({ jobId: job.id, mode }, '[dataUpdateWorker] 开始数据更新');
@@ -162,11 +123,6 @@ async function processDataUpdateJob(job: Job<DataUpdateJobData>): Promise<DataUp
   };
 }
 
-/**
- * 创建数据更新 Worker。
- *
- * @returns BullMQ Worker 实例
- */
 export function createDataUpdateWorker(): Worker<DataUpdateJobData, DataUpdateJobResult> {
   logger.info(
     { module: 'dataUpdateWorker', mode: isSentinelMode ? 'sentinel' : 'standalone' },

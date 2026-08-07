@@ -1,8 +1,6 @@
-// Package main — sim_splice_test.go
 package main
 
 import (
-	"data-fetcher/internal/provider"
 	"math"
 	"reflect"
 	"testing"
@@ -143,11 +141,7 @@ func TestSimDefinitions_Integrity(t *testing.T) {
 	}
 }
 func TestDailyPriceTypeAlias(t *testing.T) {
-	var p dailyPrice = provider.DailyPrice{
-		Date:   "2024-01-01",
-		Close:  100,
-		Volume: 1000,
-	}
+	p := dailyPrice{Date: "2024-01-01"}
 	if p.Date != "2024-01-01" {
 		t.Errorf("Date = %s, want 2024-01-01", p.Date)
 	}

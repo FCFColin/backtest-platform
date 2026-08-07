@@ -16,7 +16,7 @@ import type { EfficientFrontierState, SolverType } from './OptimizerUtils.js';
 import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
 
 const OBJECTIVES = [
-  { value: 'maxSharpe', labelKey: 'optimizer.maxSharpe' },
+  { value: 'maxSharpe', labelKey: 'backtest.optimizer.maxSharpe' },
   { value: 'minVolatility', labelKey: 'optimizer.minVolatility' },
   { value: 'maxReturn', labelKey: 'optimizer.maxReturn' },
 ] as const;
@@ -47,13 +47,13 @@ function TickerEditor({ s }: { s: EfficientFrontierState }) {
 const DATE_FIELDS = [
   {
     id: 'opt-start-date',
-    labelKey: 'optimizer.startDate',
+    labelKey: 'Start Date',
     get: (s: EfficientFrontierState) => s.startDate,
     set: (s: EfficientFrontierState, v: string) => s.setStartDate(v),
   },
   {
     id: 'opt-end-date',
-    labelKey: 'optimizer.endDate',
+    labelKey: 'End Date',
     get: (s: EfficientFrontierState) => s.endDate,
     set: (s: EfficientFrontierState, v: string) => s.setEndDate(v),
   },
@@ -61,13 +61,13 @@ const DATE_FIELDS = [
 const WEIGHT_FIELDS = [
   {
     id: 'opt-min-weight',
-    labelKey: 'optimizer.minWeight',
+    labelKey: 'Min Weight',
     get: (s: EfficientFrontierState) => s.minWeight,
     set: (s: EfficientFrontierState, v: number) => s.setMinWeight(v),
   },
   {
     id: 'opt-max-weight',
-    labelKey: 'optimizer.maxWeight',
+    labelKey: 'Max Weight',
     get: (s: EfficientFrontierState) => s.maxWeight,
     set: (s: EfficientFrontierState, v: number) => s.setMaxWeight(v),
   },
@@ -105,7 +105,7 @@ function SolverSettings({ s }: { s: EfficientFrontierState }) {
         ))}
         <SelectField
           id="opt-objective"
-          label={t('optimizer.objective')}
+          label={t('Objective')}
           value={s.objective}
           onChange={s.setObjective}
           options={OBJECTIVES.map((o) => ({ value: o.value, label: t(o.labelKey) }))}
@@ -238,7 +238,7 @@ function AdvancedConstraints({ s }: { s: EfficientFrontierState }) {
       step: 0.01,
     },
     {
-      labelKey: 'optimizer.maxAvgDDLabel',
+      labelKey: 'Max Avg DD',
       value: s.maxAvgDD,
       setter: s.setMaxAvgDD,
       percent: true,

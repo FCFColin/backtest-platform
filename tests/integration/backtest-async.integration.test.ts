@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createConfigMocks } from '../helpers/mockFactories.js';
+import { engineModuleMock } from '../helpers/engineFixture.js';
+import { loggerMocks } from '../helpers/loggerFixture.js';
 import {
   configurePortfolioBacktestMocks,
   configureTickerHelpersMocks,
@@ -29,14 +31,6 @@ const m = vi.hoisted<BacktestMockHandles>(() => ({
   validateTickers: vi.fn(),
   portfolioToDomain: vi.fn(),
   sanitizeMcParams: vi.fn(),
-}));
-
-const loggerMocks = vi.hoisted(() => ({
-  info: vi.fn(),
-  warn: vi.fn(),
-  error: vi.fn(),
-  debug: vi.fn(),
-  child: vi.fn(() => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() })),
 }));
 
 const jobStore = vi.hoisted(
@@ -96,16 +90,8 @@ vi.mock('../../packages/backend/src/application/backtest-helpers.js', () => ({
   translateDomainError: vi.fn(<T>(fn: () => T): T => fn()),
 }));
 vi.mock('../../packages/backend/src/utils/engineClient.js', () => ({
+  ...engineModuleMock,
   callEngineStrict: m.callEngineStrict,
-  EngineUnavailableError: class MockEngineUnavailableError extends Error {
-    readonly retryAfterSeconds = 30;
-    readonly code = 'ENGINE_UNAVAILABLE';
-    constructor(message = '计算引擎暂不可用') {
-      super(message);
-      this.name = 'EngineUnavailableError';
-    }
-  },
-  resetEngineAvailability: vi.fn(),
 }));
 vi.mock('../../packages/backend/src/application/backtest/backtestEngineUtils.js', () => ({
   buildEngineParams: m.buildEngineParams,

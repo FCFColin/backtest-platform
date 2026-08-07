@@ -1,24 +1,16 @@
-/**
- * 计划配额、特性开关与安全检查（ADR-037 / ADR-P1-06 / P0-02）。
- */
 import { unleashClient } from '../infrastructure/unleashClient.js';
 import { logger } from '../utils/logger.js';
 
-/** 订阅计划标识（与 organizations.plan 对齐） */
 type PlanId = 'free' | 'pro' | 'enterprise';
 
 export interface PlanLimits {
   backtestsPerMonth: number;
   maxTickers: number;
-  /** 同一组织同时在跑的异步任务上限（tenant-fair 调度用） */
   asyncConcurrency: number;
-  /** 计算端点每分钟速率上限（限流 max） */
   rateLimitPerMin: number;
-  /** 每租户可保存的战术配置上限（P1-1） */
   maxTacticalConfigs: number;
 }
 
-/** 计费计量指标名（与 usage_events.metric / usage_counters.metric 对齐） */
 export const USAGE_METRIC = {
   BACKTEST: 'backtest',
 } as const;
@@ -53,7 +45,7 @@ interface FlagContext {
   plan?: string;
 }
 
-// Unleash 未初始化时返回 false（fail-closed）
+// fail-closed
 export function isEnabled(flagName: string, context?: FlagContext): boolean {
   if (!unleashClient?.isInitialized) return false;
   return unleashClient.isEnabled(flagName, {
@@ -82,7 +74,6 @@ export function logFlagAccess(
 }
 
 export const PLAN_LIMIT_FLAGS = {
-  /** 启用企业级增强配额（如更高 asyncConcurrency / maxTickers） */
   enterpriseQuota: 'plan.enterprise-quota',
   proAnalytics: 'plan.pro-analytics',
 } as const;

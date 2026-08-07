@@ -15,7 +15,7 @@ const config: ComputeToolConfig<BacktestOptimizerState> = {
       descKey: 'backtest.optimizer.featureMultiObjectiveDesc',
     },
   ],
-  paramsTitleKey: 'backtest.optimizer.paramSettings',
+  paramsTitleKey: 'Parameters',
   params: ({ state }) => <OptimizerParams s={state} />,
   results: ({ state }) => <OptimizerResults s={state} />,
 };

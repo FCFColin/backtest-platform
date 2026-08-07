@@ -42,7 +42,6 @@ test.describe('页面冒烟测试', () => {
       await expect(page.getByRole('heading', { name: smoke.headingRegex })).toBeVisible({
         timeout: 1_000,
       });
-      // region: 顶部公告栏/品牌链接是全局布局，不在页面组件控制范围内
       await expectA11y(page, { rules: ['region', 'color-contrast'] });
     });
   }

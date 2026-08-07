@@ -9,9 +9,6 @@ import { logger } from '../utils/logger.js';
 import { createDeadLetterQueue, SOURCE_QUEUE_FAIL_RETENTION_AGE_SECONDS } from './queueUtils.js';
 import { createQueueWorker } from './workerFactory.js';
 
-// Architecture: BullMQ任务队列，将长任务从同步改为异步
-// 企业为何需要：同步执行长任务阻塞Node.js事件循环，所有其他请求被挂起
-
 export interface BacktestJobData {
   type: 'optimizer' | 'grid-search' | 'portfolio';
   payload: Record<string, unknown>;
@@ -40,18 +37,13 @@ export const backtestQueue = new Queue<BacktestJobData, BacktestJobResult>(QUEUE
   connection: bullmqConnectionOptions,
   defaultJobOptions: {
     removeOnComplete: { count: 100 },
-    // C-021: 失败任务保留 7 天（按 age 而非 count），避免高吞吐场景过早剪枝丢失排障上下文。
     removeOnFail: { age: SOURCE_QUEUE_FAIL_RETENTION_AGE_SECONDS },
-    // Architecture: 指数退避重试，应对 Redis 瞬断、引擎瞬时错误等可恢复故障
-    // 企业为何需要：单次失败直接丢弃会导致用户任务丢失，重试提升可靠性
-    // 权衡：重试可能放大下游压力，但 3 次上限 + 5s 起步指数退避可控
-    // P0-03: 执行超时不在 BullMQ defaultJobOptions（5.79 无此字段），由 application 层
+    // P0-03: 超时由 application 层控制（BullMQ 5.x defaultJobOptions 无此字段）
     attempts: 3,
     backoff: { type: 'exponential', delay: 5000 },
   },
 });
 
-// C-021: backtest-compute 死信队列——接收 3 次重试后仍失败的任务，便于追溯/重放。
 const backtestDlq = createDeadLetterQueue(QUEUE_NAME);
 
 backtestQueue.on('error', (err) => {
@@ -60,12 +52,7 @@ backtestQueue.on('error', (err) => {
 
 const PROGRESS_CHANNEL_PREFIX = 'backtest:progress:';
 
-/**
- * Publish 进度消息到 Redis Pub/Sub channel（P1-04 实时进度推送）。
- *
- * 多 Pod 广播：每个 API Pod 的 WS 服务端各自订阅同一 channel，故 Worker 只需 publish 一次，
- * 所有 Pod 的连接客户端都能收到（ADR-045）。发布失败仅告警，不影响任务执行。
- */
+// ADR-045: 多 Pod 广播——每个 API Pod 各自订阅同一 channel，Worker 只需 publish 一次
 function publishBacktestProgress(jobId: string, payload: Record<string, unknown>): void {
   const channel = `${PROGRESS_CHANNEL_PREFIX}${jobId}`;
   appRedis.publish(channel, JSON.stringify(payload)).catch((err) => {

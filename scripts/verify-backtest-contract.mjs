@@ -22,7 +22,6 @@ const body = {
   },
 };
 
-// P0-02 起回测为纯异步模式：POST 返回 202 + jobId，需轮询 GET /runs/:jobId 拿结果
 const POLL_INTERVAL_MS = 500;
 const POLL_TIMEOUT_MS = 60_000;
 
@@ -90,7 +89,6 @@ async function fetchDrawdownEpisodesFromSeries(requestBody) {
     const json = await res.json();
     return json?.data?.portfolios?.[0]?.drawdownEpisodes ?? null;
   } catch {
-    // 系列 API 不可用（缓存过期或部署未启用）时静默降级，断言会标 false 但不影响其他检查
     return null;
   }
 }
@@ -101,9 +99,7 @@ try {
 
   // result 形状：{ data: { portfolios }, warnings, dateRange } — 多层 data 嵌套
   const portfolio = result?.data?.portfolios?.[0];
-  // Go 引擎返回 statistics（字段名），前端 types 用 stats，兼容两者
   const stats = portfolio?.stats ?? portfolio?.statistics;
-  // 首屏 sync 响应省略 drawdownEpisodes（compressBacktestResultForSync），从 /portfolio/series 补全
   let episodes = portfolio?.drawdownEpisodes;
   if ((!episodes || episodes.length === 0) && portfolio) {
     episodes = await fetchDrawdownEpisodesFromSeries(body);

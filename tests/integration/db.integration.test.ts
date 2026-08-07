@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
-import { loggerMocks } from '../../helpers/loggerFixture.js';
+﻿import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
+import { loggerMocks } from '../helpers/loggerFixture.js';
 import {
   isDockerAvailable,
   setupTestContainer,
@@ -33,7 +33,6 @@ describe.skipIf(!dockerAvailable)('PostgreSQL 集成测试（testcontainers）',
   it('应成功回滚到指定版本（v3→v2）', async () => {
     await rollbackSchema(2);
     const pool = getPool();
-    // v3 的 down 文件删除了 CHECK 约束和冗余索引，
     const { rows } = await pool.query('SELECT version FROM schema_migrations ORDER BY version');
     const versions = rows.map((r: { version: number }) => r.version);
     expect(versions).not.toContain(3);

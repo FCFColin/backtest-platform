@@ -103,8 +103,11 @@ func AnalyzeDualSignal(cfg1, cfg2 SignalAnalysisRequest, data1, data2 []PricePoi
 }
 func AnalyzeMultiSignal(ctx context.Context, configs []SignalAnalysisRequest, data []PricePoint, aggregationMethod string, weights []float64) MultiSignalResult {
 	perSignal := make([]SignalAnalysisResult, len(configs))
+	contributions := make([]Contribution, len(configs))
 	for i, c := range configs {
-		perSignal[i] = AnalyzeSignal(c, data)
+		r := AnalyzeSignal(c, data)
+		perSignal[i] = r
+		contributions[i] = Contribution{Index: i, Indicator: c.Indicator, Contribution: r.Statistics.AvgReturn, Statistics: r.Statistics}
 	}
 	dirMaps := make([]map[string]SignalDir, len(perSignal))
 	for i, r := range perSignal {
@@ -175,10 +178,6 @@ func AnalyzeMultiSignal(ctx context.Context, configs []SignalAnalysisRequest, da
 				aggregatedSignals = append(aggregatedSignals, SignalPoint{Date: date, Type: *aggDir, Price: price})
 			}
 		}
-	}
-	contributions := make([]Contribution, len(perSignal))
-	for i, r := range perSignal {
-		contributions[i] = Contribution{Index: i, Indicator: configs[i].Indicator, Contribution: r.Statistics.AvgReturn, Statistics: r.Statistics}
 	}
 	return MultiSignalResult{Aggregated: finalizeResult(aggregatedSignals, data), Contributions: contributions}
 }

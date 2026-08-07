@@ -83,7 +83,6 @@ describe('backtestQueue', () => {
     expect(queueInstanceMocks.on).toHaveBeenCalledWith('error', expect.any(Function));
   });
   it('Queue error 回调应记录 error 日志', () => {
-    // C-021: 主队列与 DLQ 共享同一 mock 实例，均注册了 'error' 回调。
     const errorCalls = queueInstanceMocks.on.mock.calls.filter(
       (call: unknown[]) => call[0] === 'error',
     );

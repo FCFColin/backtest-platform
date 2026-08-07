@@ -168,7 +168,7 @@ const config: ComputeToolConfig<LumpSumVsDCAState> = {
     { titleKey: 'nav.rebalancingSensitivity', href: '/rebalancing-sensitivity' },
     { titleKey: 'nav.monteCarlo', href: '/monte-carlo' },
   ],
-  paramsTitleKey: 'lumpSumDca.paramsSettings',
+  paramsTitleKey: 'Parameters',
   params: ({ state }) => <LumpSumVsDCAParamsForm state={state} />,
   results: ({ state }) => <LumpSumVsDCAResults state={state} />,
 };

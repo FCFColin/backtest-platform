@@ -16,6 +16,8 @@ export interface TableColumn<T> {
   render?: (row: T, rowIdx: number) => ReactNode;
   sortValue?: (row: T) => number | string;
   style?: CSSProperties;
+  sticky?: 'left';
+  testId?: string;
 }
 export type SimpleTableColumn<T> = TableColumn<T>;
 export type Column<T> = TableColumn<T>;
@@ -31,7 +33,7 @@ interface TableProps<T> {
   onSort?: (key: string) => void;
 }
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 泛型约束需要 any 以兼容无索引签名的具体接口
-function BaseTable<T extends Record<string, any>>({
+export function BaseTable<T extends Record<string, any>>({
   columns,
   data,
   maxWidth,
@@ -61,6 +63,7 @@ function BaseTable<T extends Record<string, any>>({
                     onSort &&
                       'cursor-pointer text-left hover:text-fg transition-colors duration-150',
                     col.align === 'right' ? 'text-right' : 'text-left',
+                    col.sticky === 'left' && 'sticky left-0 z-10',
                   )}
                   style={TH_BORDER}
                 >
@@ -91,10 +94,12 @@ function BaseTable<T extends Record<string, any>>({
                 return (
                   <td
                     key={colKey}
+                    data-testid={col.testId}
                     className={cn(
                       TD_BASE,
                       nowrap && 'whitespace-nowrap',
                       isRight && 'text-right font-mono tabular-nums font-medium',
+                      col.sticky === 'left' && 'sticky left-0 z-10 bg-surface',
                     )}
                     style={{ ...TD_BORDER, ...col.style }}
                   >

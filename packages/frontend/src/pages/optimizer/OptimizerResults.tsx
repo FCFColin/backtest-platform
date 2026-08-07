@@ -63,7 +63,7 @@ function ConstraintsSummary({ s }: { s: EfficientFrontierState }) {
     { show: s.maxHoldings !== '', label: t('Max Holdings'), value: s.maxHoldings },
     {
       show: s.minWeightToInclude !== '',
-      label: t('Min Weight to Include'),
+      label: t('Min Inclusion Weight'),
       value: `${s.minWeightToInclude}%`,
     },
     {
@@ -212,11 +212,11 @@ export function OptimizerResults({ s }: { s: EfficientFrontierState }) {
             </div>
             <MetricsTable backtestStats={s.backtestStats} results={s.results} />
           </section>
-          <ChartCard title={t('Efficient Frontier')}>
+          <ChartCard title={t('nav.efficientFrontier')}>
             <FrontierChart data={s.results.frontier ?? []} results={s.results} />
           </ChartCard>
           <section>
-            <div className="mb-3 text-h3 font-semibold text-fg">{t('Constraints Summary')}</div>
+            <div className="mb-3 text-h3 font-semibold text-fg">{t('Constraints')}</div>
             <ConstraintsSummary s={s} />
           </section>
         </div>

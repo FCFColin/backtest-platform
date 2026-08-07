@@ -16,7 +16,7 @@ interface PresetPortfolio {
 export const PRESET_PORTFOLIOS: readonly PresetPortfolio[] = [
   {
     id: '6040',
-    nameKey: 'portfolio.preset.6040.label',
+    nameKey: 'monteCarlo.presets.preset6040',
     descriptionKey: 'portfolio.preset.6040.description',
     assets: [
       { ticker: 'SPY', weight: 60 },
@@ -48,7 +48,7 @@ export const PRESET_PORTFOLIOS: readonly PresetPortfolio[] = [
   },
   {
     id: 'three-fund',
-    nameKey: 'portfolio.preset.three-fund.label',
+    nameKey: 'monteCarlo.presets.presetThreeFund',
     descriptionKey: 'portfolio.preset.three-fund.description',
     assets: [
       { ticker: 'VTI', weight: 50 },

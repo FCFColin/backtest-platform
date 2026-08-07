@@ -1,5 +1,3 @@
-// scripts/verify/verify-infra.mjs
-// C-007 (k8s overlays) + C-008 (readiness probe) + C-009 (network policy) + C-010 (metrics) + C-011 (HPA)
 import { readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import {
@@ -34,8 +32,8 @@ await runCheck(results, 'C-007', () => {
       continue;
     }
     const content = readFileContent(`${dir}kustomization.yaml`);
-    const baseRef = content.match(/^\s*-\s+(\.\.\/\.\.\/base)([\s/#].*)?$/m);
-    const hasTrailingSlash = baseRef ? /\.\.\/\.\.\/base\//.test(baseRef[0]) : false;
+    const baseRef = content.match(/^\s*-\s+(\.\.\/\.\.\/?[^\s]*)\s*$/m);
+    const hasTrailingSlash = baseRef ? /\/$/.test(baseRef[1]) : false;
     const pathOk = baseRef !== null && !hasTrailingSlash;
     details.pathCheck[env] = { referencesBase: baseRef !== null, hasTrailingSlash, pass: pathOk };
     const flaggedRes = runCmd(`kubectl kustomize --load-restrictor LoadRestrictionsNone ${dir}`, {
@@ -52,13 +50,11 @@ await runCheck(results, 'C-007', () => {
   };
 });
 
-// ── C-008: readiness probe ───────────────────────────────────
 await runCheck(results, 'C-008', () => {
   const ALLOWED = ['/api/ready', '/health/ready'];
   const WHITELIST = {
     'alertmanager-deployment.yaml': '/-/ready',
-    'frontend-deployment.yaml': '/',
-    'otel-collector.yaml': '/',
+    'deployments.yaml': '/', // frontend readinessProbe（合并后单文件）
     'unleash-deployment.yaml': '/health',
   };
   const probeMatches = grepInCode(/^\s*readinessProbe\s*:\s*$/, 'k8s', {
@@ -130,7 +126,7 @@ await runCheck(results, 'C-009', () => {
       continue;
     }
     for (const doc of content.split(/^---\s*$/m)) {
-      // 仅匹配 prometheus 抓取 Ingress 策略；40-prometheus-dns.yaml 内的 DNS egress（端口 53）不属此检查
+      // 仅匹配 prometheus 抓取 Ingress 策略；DNS egress（端口 53）不属此检查
       if (
         !doc.trim() ||
         !/^kind:\s*NetworkPolicy\s*$/m.test(doc) ||
@@ -169,7 +165,7 @@ await runCheck(results, 'C-010', () => {
     'ws_connections_active',
   ];
   const registerMatches = grepInCode(
-    /registers:\s*\[\s*getPrometheusRegister\(\)\s*\]/,
+    /registers:\s*\[\s*getPrometheusRegister\(\)\s*\]|mkGauge\(/,
     'packages/backend/src',
     { extensions: ['.ts'] },
   );
@@ -186,8 +182,23 @@ await runCheck(results, 'C-010', () => {
       }
     }
     const lines = content.split('\n');
-    for (let i = match.line - 1; i >= Math.max(0, match.line - 15); i--) {
-      const nm = lines[i] && lines[i].match(/^\s*name:\s*['"]([^'"]+)['"]/);
+    if (/^\s*registers\s*:/.test(match.text)) {
+      for (let i = match.line - 1; i >= Math.max(0, match.line - 15); i--) {
+        const nm = lines[i] && lines[i].match(/^\s*name:\s*['"]([^'"]+)['"]/);
+        if (nm) {
+          foundMetrics.push(nm[1]);
+          break;
+        }
+      }
+      continue;
+    }
+    const sameLine = lines[match.line - 1].match(/mkGauge\(\s*['"]([^'"]+)['"]/);
+    if (sameLine) {
+      foundMetrics.push(sameLine[1]);
+      continue;
+    }
+    for (let i = match.line; i < Math.min(lines.length, match.line + 4); i++) {
+      const nm = lines[i] && lines[i].match(/^\s*['"]([^'"]+)['"]/);
       if (nm) {
         foundMetrics.push(nm[1]);
         break;
@@ -205,7 +216,6 @@ await runCheck(results, 'C-010', () => {
   };
 });
 
-// ── C-011: HPA fields ────────────────────────────────────────
 await runCheck(results, 'C-011', () => {
   const wrong = grepInCode(/\bstabilizationScaleDownSeconds\b/, 'k8s', {
     extensions: ['.yaml', '.yml'],
@@ -219,6 +229,68 @@ await runCheck(results, 'C-011', () => {
     summary: ok
       ? `HPA fields OK (${right.length} uses of stabilizationWindowSeconds)`
       : `wrong=${wrong.length}, right=${right.length}`,
+  };
+});
+
+await runCheck(results, 'C-025', () => {
+  const f = '.github/workflows/ci.yml';
+  if (!fileExists(f)) return { status: 'FAIL', summary: `${f} 不存在` };
+  const lines = readFileContent(f).split('\n');
+
+  // Find trivy scan steps and check for continue-on-error
+  const trivySteps = [];
+  const seenStarts = new Set();
+  for (let i = 0; i < lines.length; i++) {
+    if (!/trivy/i.test(lines[i])) continue;
+    let stepStart = i;
+    for (let j = i; j >= 0; j--) {
+      if (/^\s*-\s/.test(lines[j])) {
+        stepStart = j;
+        break;
+      }
+    }
+    if (seenStarts.has(stepStart)) continue;
+    seenStarts.add(stepStart);
+    let stepEnd = lines.length - 1;
+    for (let j = stepStart + 1; j < lines.length; j++) {
+      if (/^\s*-\s/.test(lines[j])) {
+        stepEnd = j - 1;
+        break;
+      }
+    }
+    const stepLines = lines.slice(stepStart, stepEnd + 1);
+    trivySteps.push({
+      hasContinueOnError: stepLines.some((l) => /continue-on-error\s*:\s*true/i.test(l)),
+      isScanStep: stepLines.some((l) => /uses:\s*aquasecurity\/trivy-action/i.test(l)),
+    });
+  }
+
+  if (trivySteps.length === 0) return { status: 'FAIL', summary: 'ci.yml 中未找到 trivy 步骤' };
+
+  const enforcementLines = lines.filter((l) => /steps\.trivy-.*\.outcome/i.test(l));
+  const nearbyExit = enforcementLines.some((_, i) => {
+    const start = lines.indexOf(enforcementLines[i]);
+    return lines
+      .slice(Math.max(0, start), Math.min(lines.length, start + 11))
+      .some((l) => /exit\s+1|::error::/i.test(l));
+  });
+
+  const scanSteps = trivySteps.filter((s) => s.isScanStep);
+  const withContinue = scanSteps.filter((s) => s.hasContinueOnError);
+  const pass = withContinue.length === 0 || (enforcementLines.length > 0 && nearbyExit);
+
+  return {
+    status: pass ? 'PASS' : 'FAIL',
+    summary: pass
+      ? withContinue.length === 0
+        ? `Trivy 无 continue-on-error (${scanSteps.length} 扫描步骤)`
+        : `有 continue-on-error 但有 enforcement (exit 1)，门控有效`
+      : `Trivy 有 continue-on-error (${withContinue.length}/${scanSteps.length}) 且无 enforcement`,
+    details: {
+      scanStepCount: scanSteps.length,
+      withContinueOnError: withContinue.length,
+      hasEnforcement: enforcementLines.length > 0,
+    },
   };
 });
 

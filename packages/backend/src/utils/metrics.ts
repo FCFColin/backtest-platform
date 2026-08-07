@@ -133,7 +133,6 @@ export const httpRequestsTotal = ctr.http_requests_total;
 export const engineCallsTotal = ctr.go_engine_calls_total;
 export const engineUnavailableTotal = ctr.engine_unavailable_total;
 export const authIpLockoutCounter = ctr.auth_ip_lockout_total;
-export const readPoolFallbackCounter = ctr.read_pool_fallback_total;
 export const quotaEnforcementFailures = ctr.quota_enforcement_failures_total;
 
 function sanitizeMetricLabel(value: string, maxLength = 64, allowSlash = false): string {

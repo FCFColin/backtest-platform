@@ -14,7 +14,6 @@ import {
   onNavStart,
   initVitalsReporting,
 } from './utils/performanceReporter.js';
-// 布局静态区块 memo：路由切换时 AppShell 重渲染，这些组件无 location 依赖，
 const MemoOfflineBanner = memo(OfflineBanner);
 const MemoPromoBar = memo(PromoBar);
 const MemoToast = memo(Toast);

@@ -10,19 +10,21 @@ import {
 const createMockReq = (body: unknown) => createMockRequest({ body });
 const createMockRes = createMockResponse;
 const createMockNext = createMockNextFn;
+const testSchema = z.object({
+  name: z.string().min(1),
+  age: z.number().positive(),
+});
+const run = (body: unknown) => {
+  const req = createMockReq(body);
+  const res = createMockRes();
+  const next = createMockNext();
+  validate(testSchema)(req, res, next);
+  return { req, res, next };
+};
 
 describe('validate middleware', () => {
-  const testSchema = z.object({
-    name: z.string().min(1),
-    age: z.number().positive(),
-  });
-
   it('should return 400 for invalid input', () => {
-    const req = createMockReq({ name: '', age: -1 });
-    const res = createMockRes();
-    const next = createMockNext();
-
-    validate(testSchema)(req, res, next);
+    const { res, next } = run({ name: '', age: -1 });
 
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith(
@@ -40,11 +42,7 @@ describe('validate middleware', () => {
   });
 
   it('should call next() and replace req.body for valid input', () => {
-    const req = createMockReq({ name: 'test', age: 25 });
-    const res = createMockRes();
-    const next = createMockNext();
-
-    validate(testSchema)(req, res, next);
+    const { req, res, next } = run({ name: 'test', age: 25 });
 
     expect(next).toHaveBeenCalled();
     expect(res.status).not.toHaveBeenCalled();
@@ -52,22 +50,14 @@ describe('validate middleware', () => {
   });
 
   it('should return 400 for missing required fields', () => {
-    const req = createMockReq({});
-    const res = createMockRes();
-    const next = createMockNext();
-
-    validate(testSchema)(req, res, next);
+    const { res, next } = run({});
 
     expect(res.status).toHaveBeenCalledWith(400);
     expect(next).not.toHaveBeenCalled();
   });
 
   it('should return 400 for wrong types', () => {
-    const req = createMockReq({ name: 123, age: 'not a number' });
-    const res = createMockRes();
-    const next = createMockNext();
-
-    validate(testSchema)(req, res, next);
+    const { res, next } = run({ name: 123, age: 'not a number' });
 
     expect(res.status).toHaveBeenCalledWith(400);
     expect(next).not.toHaveBeenCalled();
@@ -75,21 +65,12 @@ describe('validate middleware', () => {
 });
 
 describe('安全攻击用例', () => {
-  const testSchema = z.object({
-    name: z.string().min(1),
-    age: z.number().positive(),
-  });
-
   it('原型污染：body 含 __proto__ 不应修改 Object.prototype', () => {
-    const maliciousBody = JSON.parse('{"__proto__": {"admin": true}, "name": "test", "age": 25}');
+    const body = JSON.parse('{"__proto__": {"admin": true}, "name": "test", "age": 25}');
 
     expect({}.admin).toBeUndefined();
 
-    const req = createMockReq(maliciousBody);
-    const res = createMockRes();
-    const next = createMockNext();
-
-    validate(testSchema)(req, res, next);
+    const { req, next } = run(body);
 
     expect(next).toHaveBeenCalled();
     expect({}.admin).toBeUndefined();
@@ -97,17 +78,13 @@ describe('安全攻击用例', () => {
   });
 
   it('构造函数污染：body 含 constructor.prototype 不应修改 Object.prototype', () => {
-    const maliciousBody = JSON.parse(
+    const body = JSON.parse(
       '{"constructor": {"prototype": {"admin": true}}, "name": "test", "age": 25}',
     );
 
     expect({}.admin).toBeUndefined();
 
-    const req = createMockReq(maliciousBody);
-    const res = createMockRes();
-    const next = createMockNext();
-
-    validate(testSchema)(req, res, next);
+    const { req, next } = run(body);
 
     expect(next).toHaveBeenCalled();
     expect({}.admin).toBeUndefined();
@@ -115,13 +92,7 @@ describe('安全攻击用例', () => {
   });
 
   it('超大 body（1MB+）应被拒绝或安全处理', () => {
-    const oversizedBody = 'x'.repeat(1024 * 1024 + 1); // 1MB+ 字符串
-
-    const req = createMockReq(oversizedBody);
-    const res = createMockRes();
-    const next = createMockNext();
-
-    validate(testSchema)(req, res, next);
+    const { res, next } = run('x'.repeat(1024 * 1024 + 1));
 
     expect(res.status).toHaveBeenCalledWith(400);
     expect(next).not.toHaveBeenCalled();
@@ -133,11 +104,7 @@ describe('安全攻击用例', () => {
       nested = { nested };
     }
 
-    const req = createMockReq(nested);
-    const res = createMockRes();
-    const next = createMockNext();
-
-    validate(testSchema)(req, res, next);
+    const { res, next } = run(nested);
 
     expect(res.status).toHaveBeenCalledWith(400);
     expect(next).not.toHaveBeenCalled();

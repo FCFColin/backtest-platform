@@ -12,21 +12,23 @@ export interface PortfolioHolding {
 
 const PORTFOLIO_WEIGHT_SUM_TOLERANCE = 1;
 
-interface PortfolioProps {
+type PortfolioConfigKeys =
+  | 'rebalanceFrequency'
+  | 'rebalanceThreshold'
+  | 'rebalanceOffset'
+  | 'rebalanceBands'
+  | 'drag'
+  | 'totalReturn'
+  | 'isGlidepath'
+  | 'glidepathFrom'
+  | 'glidepathTo'
+  | 'glidepathYears'
+  | 'glidepathToWeights';
+type PortfolioConfig = Partial<Pick<PortfolioDTO, PortfolioConfigKeys>>;
+interface PortfolioProps extends PortfolioConfig {
   id: string;
   name: string;
   holdings: PortfolioHolding[];
-  rebalanceFrequency?: RebalanceFrequency;
-  rebalanceThreshold?: number;
-  rebalanceOffset?: number;
-  rebalanceBands?: RebalanceBands;
-  drag?: number;
-  totalReturn?: boolean;
-  isGlidepath?: boolean;
-  glidepathFrom?: string;
-  glidepathTo?: string;
-  glidepathYears?: number;
-  glidepathToWeights?: number[];
 }
 
 export class Portfolio {
@@ -154,15 +156,4 @@ export class Portfolio {
   }
 }
 
-type ConfigKeys =
-  | 'rebalanceFrequency'
-  | 'rebalanceThreshold'
-  | 'rebalanceOffset'
-  | 'rebalanceBands'
-  | 'drag'
-  | 'totalReturn'
-  | 'isGlidepath'
-  | 'glidepathFrom'
-  | 'glidepathTo'
-  | 'glidepathYears'
-  | 'glidepathToWeights';
+type ConfigKeys = PortfolioConfigKeys;

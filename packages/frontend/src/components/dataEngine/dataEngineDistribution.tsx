@@ -78,7 +78,7 @@ export function MarketDistributionCard({
   const maxCount =
     marketEntries.length > 0 ? Math.max(...marketEntries.map(([, d]) => d.count)) : 0;
   const labelOf = (market: string) =>
-    market === 'US' ? t('US Stock') : market === 'CN' ? t('CN Stock') : market;
+    market === 'US' ? t('US Stocks') : market === 'CN' ? t('CN Stocks') : market;
   return (
     <Panel title={t('By Market')}>
       {marketEntries.map(([market, data]) => (

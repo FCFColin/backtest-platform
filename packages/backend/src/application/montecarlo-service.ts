@@ -17,11 +17,7 @@ import type { Warning, DateRangeInfo } from './backtest-helpers.js';
 
 const ENGINE_CONCURRENCY_LIMIT = 10;
 
-/**
- * 运行蒙特卡洛模拟。
- *
- * @throws {EngineUnavailableError} Go 引擎不可用时
- */
+// @throws {EngineUnavailableError}
 export async function runMonteCarlo(
   portfolioList: Portfolio[],
   parameters: BacktestParameters,

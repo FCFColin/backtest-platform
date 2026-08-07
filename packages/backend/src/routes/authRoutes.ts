@@ -30,7 +30,7 @@ import {
   verifyEmailToken,
 } from '../application/auth/userService.js';
 import { createUserTx, getUserByEmail } from '../repositories/userRepo.js';
-import { getClient } from '../db/pool.js';
+import { withTransaction } from '../db/pool.js';
 import { sendVerificationEmail } from '../infrastructure/mailService.js';
 import {
   isLockedOut,
@@ -169,25 +169,23 @@ router.post('/register', validate(registerSchema), async (req, res) => {
     return;
   }
 
-  const client = await getClient();
   let userId = '';
   try {
-    await client.query('BEGIN');
-    const user = await createUserTx(client, username, password, email, 'admin');
-    userId = user.id;
-    const slug = `${slugify(orgName)}-${randomBytes(3).toString('hex')}`;
-    const orgRes = await client.query(
-      'INSERT INTO organizations (name, slug) VALUES ($1, $2) RETURNING id',
-      [orgName, slug],
-    );
-    const orgId = orgRes.rows[0].id as string;
-    await client.query("INSERT INTO memberships (org_id, user_id, role) VALUES ($1, $2, 'owner')", [
-      orgId,
-      userId,
-    ]);
-    await client.query('COMMIT');
+    await withTransaction(async (client) => {
+      const user = await createUserTx(client, username, password, email, 'admin');
+      userId = user.id;
+      const slug = `${slugify(orgName)}-${randomBytes(3).toString('hex')}`;
+      const orgRes = await client.query(
+        'INSERT INTO organizations (name, slug) VALUES ($1, $2) RETURNING id',
+        [orgName, slug],
+      );
+      const orgId = orgRes.rows[0].id as string;
+      await client.query(
+        "INSERT INTO memberships (org_id, user_id, role) VALUES ($1, $2, 'owner')",
+        [orgId, userId],
+      );
+    });
   } catch (err) {
-    await client.query('ROLLBACK');
     const msg = String(err);
     if (msg.includes('duplicate key') || msg.includes('unique')) {
       sendProblem(res, 409, 'ACCOUNT_CONFLICT');
@@ -196,8 +194,6 @@ router.post('/register', validate(registerSchema), async (req, res) => {
     logger.error({ err: msg }, '[auth] 注册失败');
     sendProblem(res, 500, 'REGISTER_FAILED');
     return;
-  } finally {
-    client.release();
   }
 
   try {

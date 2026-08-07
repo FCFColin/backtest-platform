@@ -1,8 +1,4 @@
-/**
- * 审计存储服务（P2-03 不可篡改审计存储）：HMAC-SHA256 签名防篡改 + prev_hash 链式完整性校验。
- * 与 outbox 互补：outbox 是临时事件队列，audit_logs 是持久化审计存储（保留 ≥180 天）。
- * 未配置 AUDIT_HMAC_KEY 时签名返回空字符串，校验 fail-closed（D2-010）。
- */
+// P2-03: HMAC-SHA256 签名防篡改 + prev_hash 链式完整性；未配置 AUDIT_HMAC_KEY 时 fail-closed（D2-010）
 import crypto from 'crypto';
 import type { PoolClient } from 'pg';
 import { config } from '../config/index.js';
@@ -10,7 +6,6 @@ import { logger } from '../utils/logger.js';
 import { getPool } from '../db/pool.js';
 import { rowMapper, iso, toIso } from '../repositories/rowMapper.js';
 
-/** 与迁移 022 的 CHECK 约束对齐 */
 export type AuditAction =
   'CREATE' | 'UPDATE' | 'DELETE' | 'LOGIN' | 'LOGOUT' | 'READ' | 'EXPORT' | 'CONFIG';
 

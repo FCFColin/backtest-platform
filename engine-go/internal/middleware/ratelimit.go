@@ -5,6 +5,7 @@ import (
 	"golang.org/x/time/rate"
 	"net/http"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -12,17 +13,18 @@ var ipLimiters sync.Map
 
 type limiterEntry struct {
 	limiter    *rate.Limiter
-	lastAccess time.Time
+	lastAccess atomic.Int64
 }
 
 func getLimiter(ip string, rps float64, burst int) *rate.Limiter {
 	if v, ok := ipLimiters.Load(ip); ok {
 		entry := v.(*limiterEntry)
-		entry.lastAccess = time.Now()
+		entry.lastAccess.Store(time.Now().UnixNano())
 		return entry.limiter
 	}
 	l := rate.NewLimiter(rate.Limit(rps), burst)
-	entry := &limiterEntry{limiter: l, lastAccess: time.Now()}
+	entry := &limiterEntry{limiter: l}
+	entry.lastAccess.Store(time.Now().UnixNano())
 	actual, loaded := ipLimiters.LoadOrStore(ip, entry)
 	if loaded {
 		return actual.(*limiterEntry).limiter
@@ -35,7 +37,7 @@ func startLimiterCleanup(idleTTL, interval time.Duration) {
 		for range ticker.C {
 			ipLimiters.Range(func(key, value any) bool {
 				entry := value.(*limiterEntry)
-				if time.Since(entry.lastAccess) > idleTTL {
+				if time.Since(time.Unix(0, entry.lastAccess.Load())) > idleTTL {
 					ipLimiters.Delete(key)
 				}
 				return true

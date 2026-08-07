@@ -1,5 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { Portfolio, BacktestParameters, BacktestResult } from '@backtest/shared';
+import { engineMocks, engineModuleMock } from '../../helpers/engineFixture.js';
+import { loggerMocks } from '../../helpers/loggerFixture.js';
+import { createWithTransactionMock } from '../../helpers/poolFixture.js';
 import {
   mockParameters,
   mockPortfolio as portfolioFixture,
@@ -16,28 +19,19 @@ import {
 import type { Warning } from '../../../packages/backend/src/application/backtest-helpers.js';
 import { MAX_TICKERS } from '../../../packages/shared/constants.js';
 
-const engineMocks = vi.hoisted(() => ({ callEngineStrict: vi.fn() }));
 const eventMocks = vi.hoisted(() => ({ dispatch: vi.fn(async () => {}) }));
 const dbMocks = vi.hoisted(() => ({
   getClient: vi.fn(async () => ({ query: vi.fn(async () => ({ rows: [] })), release: vi.fn() })),
 }));
 const outboxMocks = vi.hoisted(() => ({ writeEventInTransaction: vi.fn(async () => {}) }));
-const loggerMocks = vi.hoisted(() => ({
-  info: vi.fn(),
-  warn: vi.fn(),
-  error: vi.fn(),
-  debug: vi.fn(),
-  child: vi.fn(() => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() })),
-}));
 
-// Mock 引擎调用：fail-closed（ADR-031），callEngineStrict 直接返回引擎结果
-vi.mock('../../../packages/backend/src/utils/engineClient.js', () => ({
-  callEngineStrict: engineMocks.callEngineStrict,
-}));
+vi.mock('../../../packages/backend/src/utils/engineClient.js', () => engineModuleMock);
 vi.mock('../../../packages/backend/src/domain/events/events.js', () => ({
   eventDispatcher: { dispatch: eventMocks.dispatch },
 }));
-vi.mock('../../../packages/backend/src/db/pool.js', () => ({ getClient: dbMocks.getClient }));
+vi.mock('../../../packages/backend/src/db/pool.js', () => ({
+  withTransaction: createWithTransactionMock(() => dbMocks.getClient()),
+}));
 vi.mock('../../../packages/backend/src/infrastructure/outbox.js', () => ({
   writeEventInTransaction: outboxMocks.writeEventInTransaction,
 }));

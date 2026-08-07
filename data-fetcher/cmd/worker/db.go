@@ -43,6 +43,11 @@ func ensureSchema(ctx context.Context, pool *pgxpool.Pool) error {
 		close  DOUBLE PRECISION,
 		volume BIGINT,
 		adjusted_close DOUBLE PRECISION,
+		open_numeric DOUBLE PRECISION,
+		high_numeric DOUBLE PRECISION,
+		low_numeric DOUBLE PRECISION,
+		close_numeric DOUBLE PRECISION,
+		adjusted_close_numeric DOUBLE PRECISION,
 		PRIMARY KEY (ticker, date)
 	);
 	CREATE INDEX IF NOT EXISTS idx_prices_ticker_date ON prices (ticker, date);

@@ -36,6 +36,15 @@ type Config struct {
 func newDefaultConfig() *Config {
 	return &Config{Port: "5003", DatabaseURL: strings.TrimSpace(os.Getenv("DATABASE_URL"))}
 }
+func newLimiterMiddleware() gin.HandlerFunc {
+	rate, err := limiter.NewRateFromFormatted("60-M")
+	if err != nil {
+		slog.Error("解析限流配置失败", "module", "main", "error", err)
+		os.Exit(1)
+	}
+	limiterStore := memory.NewStore()
+	return mgin.NewMiddleware(limiter.New(limiterStore, rate))
+}
 func main() {
 	gosharedlog.InitDefault()
 	cfg := newDefaultConfig()
@@ -62,15 +71,7 @@ func main() {
 	r.Use(gin.Recovery())
 	r.Use(gosharedmw.SecurityHeadersMiddleware())
 	r.Use(otelgin.Middleware("data-fetcher"))
-	rate, err := limiter.NewRateFromFormatted("60-M")
-	if err != nil {
-		slog.Error("解析限流配置失败", "module", "main", "error", err)
-		os.Exit(1)
-	}
-	limiterStore := memory.NewStore()
-	instance := limiter.New(limiterStore, rate)
-	limiterMiddleware := mgin.NewMiddleware(instance)
-	r.Use(limiterMiddleware)
+	r.Use(newLimiterMiddleware())
 	corsConfig := middleware.BuildCorsConfig()
 	r.Use(cors.New(corsConfig))
 	r.GET("/api/data/health", handlers.HandleHealth(ds))

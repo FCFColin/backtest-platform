@@ -20,7 +20,6 @@ import type { OutboxConsumer } from './infrastructure/outboxPublisher.js';
 
 validateConfig();
 
-// DDD: 注册领域事件处理器
 eventDispatcher.register(new BacktestCompletedHandler());
 // P1-07：RunCompletedHandler——Run 聚合根进入 completed 态时触发（worker 路径）。
 // 仅做观测日志（Run 本身已由 worker save() 持久化，不重复写库）。

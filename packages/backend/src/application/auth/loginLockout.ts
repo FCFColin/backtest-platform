@@ -1,7 +1,4 @@
-/**
- * 登录失败计数与账户锁定（T-12 / OWASP A07 / 等保三级 8.1.4 b)。
- * 双层：用户名 5 次锁定 15 分钟 / IP 5 分钟 10 次封锁 1 小时。ADR-045：Redis 故障抛 503。
- */
+// T-12 / OWASP A07 / 等保三级 8.1.4 b: 用户名 5 次→锁 15min / IP 5min 10 次→封 1h。ADR-045: Redis 故障抛 503
 import { appRedis } from '../../infrastructure/redisClient.js';
 import { logger } from '../../utils/logger.js';
 import { requireRedis } from '../../utils/redisFallback.js';
@@ -61,8 +58,6 @@ export async function clearFailures(username: string): Promise<void> {
     await appRedis.del(failKey, lockKey);
   });
 }
-
-// IP 维度异常登录检测（P1-09 等保三级 8.1.4 b)
 
 export async function isIpBlocked(ip: string): Promise<number> {
   if (!ip) return 0;

@@ -32,7 +32,7 @@ export default function HelpPage() {
       label: t('Methodology'),
       icon: <Calculator className="size-4" />,
     },
-    { key: 'data', label: t('Data Sources'), icon: <Database className="size-4" /> },
+    { key: 'data', label: t('Data Source'), icon: <Database className="size-4" /> },
     { key: 'faq', label: t('FAQ'), icon: <HelpCircle className="size-4" /> },
   ];
   return (
@@ -171,7 +171,7 @@ function DataSection() {
   return (
     <HelpSection
       icon={<Database className="size-6 text-brand" />}
-      title={t('Data Sources')}
+      title={t('Data Source')}
       description={t(
         'The platform supports multiple data sources; all data is cached locally in a SQLite database. After the first query, the cache is preferred to reduce API calls.',
       )}

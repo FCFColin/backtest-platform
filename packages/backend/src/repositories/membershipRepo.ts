@@ -1,17 +1,4 @@
-/**
- * 组织成员关系仓储（多租户身份解析，ADR-032）
- *
- * 企业理由：多租户 SaaS 中，"用户"与"组织（租户）"是多对多关系——
- * 一个用户可属于多个组织，并在每个组织内持有不同角色。登录与 org 切换时
- * 需要据此解析当前活跃租户与租户内角色，并将其写入 JWT。
- *
- * 隔离边界：organizations/memberships 属于身份/控制平面，未启用 RLS（见
- * 009_tenancy.sql 文件头说明——它们在"尚未解析出租户"时即被查询，存在先有鸡
- * 先有蛋问题）。因此本仓储直接使用主连接池查询，并由应用层成员校验强制安全。
- *
- * 本仓储只承载成员关系的查询（无角色变更业务逻辑）；角色变更/移除等业务流程见
- * services/membershipService.ts。
- */
+// ADR-032: organizations/memberships 未启用 RLS（鸡生蛋问题），直接用主连接池
 import { getPool } from '../db/pool.js';
 import type { OrgRole } from '../middleware/jwtAuth.js';
 import { rowMapper, iso } from './rowMapper.js';
@@ -51,12 +38,6 @@ const mapOrgMember = rowMapper<OrgMember>({
   createdAt: (r) => iso(r.created_at),
 });
 
-/**
- * 查询用户的全部组织成员关系（按角色优先级与创建时间排序）。
- *
- * @param userId - 用户 UUID
- * @returns 成员关系数组（可能为空）
- */
 export async function getUserMemberships(userId: string): Promise<Membership[]> {
   const pool = getPool();
   const { rows } = await pool.query(
@@ -71,16 +52,7 @@ export async function getUserMemberships(userId: string): Promise<Membership[]> 
   return rows.map(mapRow);
 }
 
-/**
- * 查询用户在指定组织内的成员关系（org 切换鉴权用）。
- *
- * 企业理由：switch-org 必须验证用户确属目标组织，否则用户可伪造 orgId 越权访问
- * 他租户数据。返回 null 即表示无权进入该组织。
- *
- * @param userId - 用户 UUID
- * @param orgId - 目标组织 UUID
- * @returns 成员关系或 null（不属于该组织）
- */
+// switch-org 必须验证用户确属目标组织，否则可伪造 orgId 越权
 export async function getMembership(userId: string, orgId: string): Promise<Membership | null> {
   const pool = getPool();
   const { rows } = await pool.query(
@@ -94,12 +66,6 @@ export async function getMembership(userId: string, orgId: string): Promise<Memb
   return rows.length > 0 ? mapRow(rows[0]) : null;
 }
 
-/**
- * 列出组织成员（含基本身份信息）。
- *
- * @param orgId - 组织 UUID
- * @returns 成员数组
- */
 export async function listOrgMembers(orgId: string): Promise<OrgMember[]> {
   const pool = getPool();
   const { rows } = await pool.query(

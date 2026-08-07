@@ -1,4 +1,12 @@
-import { useRef, useState, useEffect, memo, type ReactElement, type ReactNode } from 'react';
+import {
+  useRef,
+  useState,
+  useEffect,
+  memo,
+  type ReactElement,
+  type ReactNode,
+  type ElementType,
+} from 'react';
 import {
   XAxis,
   YAxis,
@@ -11,7 +19,6 @@ import {
   ScatterChart,
   ZAxis,
 } from 'recharts';
-import type { XAxisProps, YAxisProps } from 'recharts';
 import { BarChart3 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -133,71 +140,58 @@ function axisLabel(label: unknown, angle?: number) {
     : { value: label, position: 'insideBottom' as const, offset: -10, style: LABEL_STYLE };
 }
 
-interface ChartXAxisProps extends Omit<XAxisProps, 'label' | 'tick' | 'tickFormatter' | 'ref'> {
+interface ChartAxisProps {
+  dir: 'x' | 'y';
   dataKey?: string;
-  tickFormatter?: (value: number | string) => string;
-  label?: string | XAxisProps['label'];
+  type?: 'number' | 'category';
+  name?: string;
+  // method 签名（双变）以兼容调用方收窄的 formatter，如 (v: number) => string
+  tickFormatter?(value: number | string): string;
+  label?: string;
   tickFontSize?: number;
+  interval?: number | 'preserveStartEnd';
+  domain?: [number | 'auto' | 'dataMin' | 'dataMax', number | 'auto' | 'dataMin' | 'dataMax'];
+  scale?: 'log' | 'linear';
+  width?: number;
+  axisId?: number;
 }
-export function ChartXAxis({
-  dataKey = 'date',
+export const ChartXAxis = (p: Omit<ChartAxisProps, 'dir'>) => (
+  <ChartAxis dir="x" dataKey="date" {...p} />
+);
+export const ChartYAxis = (p: Omit<ChartAxisProps, 'dir'>) => <ChartAxis dir="y" {...p} />;
+function ChartAxis({
+  dir,
+  dataKey,
   type,
   name,
   tickFormatter = DATE_TICK_FORMATTER as (value: number | string) => string,
   label,
   tickFontSize,
   interval,
-  xAxisId = 0,
+  domain,
+  scale,
+  width = 80,
+  axisId = 0,
   ...rest
-}: ChartXAxisProps) {
+}: ChartAxisProps) {
   const tick = tickFontSize
     ? { fill: 'var(--text-muted)', fontSize: tickFontSize }
     : AXIS_TICK_STYLE;
-  const labelProps = axisLabel(label as string | object | undefined);
+  const labelProps = axisLabel(label, dir === 'y' ? -90 : undefined);
+  const Comp = (dir === 'x' ? XAxis : YAxis) as ElementType;
+  const idProp = dir === 'x' ? { xAxisId: axisId } : { yAxisId: axisId };
   return (
-    <XAxis
-      xAxisId={xAxisId}
+    <Comp
+      {...idProp}
       dataKey={dataKey}
       type={type}
       name={name}
       tick={tick}
       tickFormatter={tickFormatter}
       interval={interval}
-      label={labelProps}
-      {...rest}
-    />
-  );
-}
-
-interface ChartYAxisProps extends Omit<YAxisProps, 'label' | 'tick' | 'width' | 'ref'> {
-  tickFormatter?: (v: number) => string;
-  label?: string | YAxisProps['label'];
-  width?: number;
-}
-export function ChartYAxis({
-  tickFormatter,
-  domain,
-  scale,
-  label,
-  type,
-  dataKey,
-  name,
-  width = 80,
-  yAxisId = 0,
-  ...rest
-}: ChartYAxisProps) {
-  const labelProps = axisLabel(label, -90);
-  return (
-    <YAxis
-      yAxisId={yAxisId}
-      type={type}
-      dataKey={dataKey}
-      name={name}
-      tick={AXIS_TICK_STYLE}
-      tickFormatter={tickFormatter}
       domain={domain}
       scale={scale}
-      width={width}
+      width={dir === 'y' ? width : undefined}
       label={labelProps}
       {...rest}
     />
@@ -257,7 +251,7 @@ export function ChartEmptyState({ message, height = '280px' }: ChartEmptyStatePr
     >
       <div className="text-center text-fg-tertiary">
         <BarChart3 className="h-8 w-8 mx-auto mb-2 opacity-40" />
-        <p className="text-caption">{message ?? t('No data available')}</p>
+        <p className="text-caption">{message ?? t('No data')}</p>
       </div>
     </div>
   );

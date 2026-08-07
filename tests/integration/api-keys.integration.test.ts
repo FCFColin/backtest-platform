@@ -1,4 +1,4 @@
-/**
+﻿/**
  * API Key 管理集成测试（RO-049 / ADR-033）
  *
  * 跨层验证：Express 路由 → apiKeyService（sha256 哈希、软吊销）→ PostgreSQL。
@@ -6,7 +6,7 @@
  * 使用 testcontainers 起真实 PG。
  */
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
-import { loggerMocks } from '../../helpers/loggerFixture.js';
+import { loggerMocks } from '../helpers/loggerFixture.js';
 
 vi.mock('../../packages/backend/src/utils/logger.js', () => ({ logger: loggerMocks }));
 

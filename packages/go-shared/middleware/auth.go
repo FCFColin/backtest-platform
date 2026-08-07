@@ -25,7 +25,6 @@ import (
 func SharedTokenAuthMiddleware(headerName, envVarName, missingHeaderMsg, noTokenMsg string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		expected := strings.TrimSpace(os.Getenv(envVarName))
-		// 未配置 token 时拒绝所有请求，避免无认证暴露
 		if expected == "" {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
 				"error": noTokenMsg,
@@ -41,7 +40,6 @@ func SharedTokenAuthMiddleware(headerName, envVarName, missingHeaderMsg, noToken
 			return
 		}
 
-		// 常量时间比较，防止时序攻击
 		if subtle.ConstantTimeCompare([]byte(provided), []byte(expected)) != 1 {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
 				"error": "认证失败",

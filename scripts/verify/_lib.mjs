@@ -10,16 +10,6 @@ const OUTPUT_DIR = join(PROJECT_ROOT, 'docs', 'audit', 'verify');
 mkdirSync(OUTPUT_DIR, { recursive: true });
 mkdirSync(join(OUTPUT_DIR, 'screenshots'), { recursive: true });
 
-export function writeResult(issueId, result) {
-  const timestamp = new Date().toISOString();
-  const output = { issueId, timestamp, ...result };
-  const filePath = join(OUTPUT_DIR, `${issueId}-reverify.json`);
-  writeFileSync(filePath, JSON.stringify(output, null, 2));
-  const icon = result.status === 'PASS' ? '✓' : result.status === 'SKIP' ? '○' : '✗';
-  console.log(`[${icon} ${issueId}] ${result.status}: ${result.summary}`);
-  return result.status === 'PASS';
-}
-
 export function writeAggregatedResult(aggregateId, results) {
   const timestamp = new Date().toISOString();
   const allPass = Object.values(results).every((r) => r.status === 'PASS');

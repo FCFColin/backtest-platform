@@ -88,9 +88,12 @@ describe('App 安全中间件', () => {
     expect(res.headers.get('x-content-type-options')).toBeTruthy();
   });
 
-  it('GET /api/v1/data/meta 无参数应返回 4xx', async () => {
+  it('GET /api/v1/data/meta 应返回元信息（无必填参数，公开端点）', async () => {
     const res = await fetch(`${baseUrl}/api/v1/data/meta`);
-    expect(res.status).toBeGreaterThanOrEqual(400);
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.success).toBe(true);
+    expect(json.data).toBeDefined();
   });
 
   it('未知路由应返回错误响应', async () => {

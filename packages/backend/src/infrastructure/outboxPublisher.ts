@@ -168,7 +168,6 @@ export class OutboxPublisher {
     }
   }
 
-  // 补偿扫描器：LISTEN 断开期间错过/处理失败的事件每 60s 兜底重新触发。
   private startCompensationScanner(): void {
     this.compensationInterval = setInterval(async () => {
       try {

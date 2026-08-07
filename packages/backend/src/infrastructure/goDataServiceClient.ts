@@ -1,9 +1,3 @@
-/**
- * Go 数据服务 HTTP 客户端 — 从 dataQuery.ts 拆分。
- *
- * 封装 Go data service 的 HTTP 调用：信号量并发控制、响应体大小限制（P0-03）。
- * 供 dataQuery.ts 的 fetchMissingFromGoService 使用。
- */
 import { config } from '../config/index.js';
 import { registerSemaphoreMetrics } from '../utils/metrics.js';
 
@@ -58,7 +52,6 @@ class Semaphore {
 const tenantSemaphores = new Map<string, Semaphore>();
 const TENANT_SEMAPHORE_LIMIT = 10;
 
-/** Default semaphore for calls without tenant context (backward compat) */
 const defaultGoServiceSemaphore = new Semaphore(TENANT_SEMAPHORE_LIMIT);
 
 registerSemaphoreMetrics('go_data_service', defaultGoServiceSemaphore.total(), () =>
@@ -89,7 +82,6 @@ export async function callGoDataService(path: string, orgId?: string): Promise<s
         signal: controller.signal,
         headers: { 'X-Data-Service-Auth': config.DATA_SERVICE_AUTH_TOKEN },
       });
-      // P0-03：Content-Length 预检——声明大小超限直接拒绝
       const contentLength = parseInt(res.headers.get('content-length') ?? '', 10);
       if (!Number.isNaN(contentLength) && contentLength > MAX_RESPONSE_BODY_SIZE) {
         throw new Error(
@@ -99,7 +91,6 @@ export async function callGoDataService(path: string, orgId?: string): Promise<s
       let body = '';
       for await (const chunk of res.body!) {
         body += Buffer.from(chunk).toString();
-        // P0-03：流式累计字节数超限则中断读取并拒绝（for-await 退出时自动取消流）
         if (body.length > MAX_RESPONSE_BODY_SIZE) {
           throw new Error(
             `Go data service response too large: received ${body.length} bytes exceeds limit ${MAX_RESPONSE_BODY_SIZE}`,

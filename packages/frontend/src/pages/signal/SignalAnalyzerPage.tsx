@@ -12,7 +12,7 @@ import { SignalAnalyzerResultsPanel, MultiSignalResultsPanel } from './SignalAna
 import { DualSignalResultsPanel } from './DualSignalResults.js';
 const analyzerConfig: ComputeToolConfig<UseSignalAnalyzerStateResult> = {
   titleKey: 'signal.analyzer.title',
-  paramsTitleKey: 'signal.analyzer.paramsTitle',
+  paramsTitleKey: 'rebalancingSensitivity.params.title',
   params: ({ state }) => <SignalAnalyzerParamsPanel state={state} />,
   results: ({ state }) => (
     <SignalAnalyzerResultsPanel
@@ -28,7 +28,7 @@ export default function SignalAnalyzerPage() {
 }
 const dualConfig: ComputeToolConfig<UseDualSignalStateResult> = {
   titleKey: 'signal.dual.title',
-  paramsTitleKey: 'signal.dual.paramsTitle',
+  paramsTitleKey: 'rebalancingSensitivity.params.title',
   params: ({ state }) => <DualSignalParamsPanel state={state} />,
   results: ({ state }) => (
     <DualSignalResultsPanel
@@ -44,7 +44,7 @@ export function DualSignalPage() {
 }
 const multiConfig: ComputeToolConfig<UseMultiSignalStateResult> = {
   titleKey: 'signal.multi.title',
-  paramsTitleKey: 'signal.multi.paramsTitle',
+  paramsTitleKey: 'rebalancingSensitivity.params.title',
   params: ({ state }) => <MultiSignalParamsPanel state={state} />,
   results: ({ state }) => (
     <MultiSignalResultsPanel

@@ -121,7 +121,7 @@ func TestLoadTickersFromFile(t *testing.T) {
 		{"empty file", "", 0, ""},
 	} {
 		tmpFile := filepath.Join(t.TempDir(), "tickers.txt")
-		if err := os.WriteFile(tmpFile, []byte(tc.content), 0o644); err != nil {
+		if err := os.WriteFile(tmpFile, []byte(tc.content), 0o600); err != nil {
 			t.Fatal(err)
 		}
 		entries, err := loadTickersFromFile(tmpFile)

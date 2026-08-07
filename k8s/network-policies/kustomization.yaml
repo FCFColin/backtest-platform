@@ -3,8 +3,4 @@ kind: Kustomization
 metadata:
   name: backtest-platform-network-policies
 resources:
-  - 00-default-deny.yaml
-  - 10-ingress.yaml
-  - 20-api-egress.yaml
-  - 30-internal-egress.yaml
-  - 40-prometheus-dns.yaml
+  - network-policies.yaml

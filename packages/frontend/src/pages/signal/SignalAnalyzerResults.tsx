@@ -104,7 +104,7 @@ function SignalResultsContent({ results, signalColumns }: SignalResultsContentPr
         rows={[
           { label: t('Total Signals'), value: String(results.statistics.totalSignals) },
           { label: t('Win Rate'), value: fmtPct(results.statistics.winRate) },
-          { label: t('Avg Return'), value: fmtPct(results.statistics.avgReturn) },
+          { label: t('Average Return'), value: fmtPct(results.statistics.avgReturn) },
           { label: t('Max Drawdown'), value: fmtPct(results.statistics.maxDrawdown) },
           { label: t('Sharpe'), value: fmtRatio(results.statistics.sharpe) },
         ]}
@@ -161,7 +161,7 @@ function buildContributionColumns(
 ): Column<MultiSignalResponse['contributions'][number]>[] {
   return [
     { key: 'index', label: t('#'), sortValue: (r) => r.index },
-    { key: 'indicator', label: t('Indicator'), sortValue: (r) => r.indicator },
+    { key: 'indicator', label: t('Metric'), sortValue: (r) => r.indicator },
     {
       key: 'contribution',
       label: t('Contribution (Avg Return)'),
@@ -185,11 +185,11 @@ function buildContributionColumns(
 function buildAggStatRows(results: MultiSignalResponse): AggStatRow[] {
   const s = results.aggregated.statistics;
   return [
-    { label: 'signal.multi.statTotalSignals', value: String(s.totalSignals) },
-    { label: 'signal.multi.statWinRate', value: fmtPct(s.winRate) },
-    { label: 'signal.multi.statAvgReturn', value: fmtPct(s.avgReturn) },
-    { label: 'signal.multi.statMaxDrawdown', value: fmtPct(s.maxDrawdown) },
-    { label: 'signal.multi.statSharpe', value: fmtRatio(s.sharpe) },
+    { label: 'signal.dual.statTotalSignals', value: String(s.totalSignals) },
+    { label: 'Win Rate', value: fmtPct(s.winRate) },
+    { label: 'Average Return', value: fmtPct(s.avgReturn) },
+    { label: 'Max Drawdown', value: fmtPct(s.maxDrawdown) },
+    { label: 'backtest.sharpeRatio', value: fmtRatio(s.sharpe) },
   ];
 }
 export function MultiSignalResultsPanel({

@@ -29,8 +29,14 @@ func NewProvider() provider.Provider {
 	return &finnhubProvider{BaseProvider: &base, apiKey: key}
 }
 func (p *finnhubProvider) FetchStockDaily(ticker, startDate, endDate string) ([]provider.DailyPrice, error) {
-	startUnix, _ := providerutil.DateToUnix(startDate)
-	endUnix, _ := providerutil.DateToUnix(endDate)
+	startUnix, err := providerutil.DateToUnix(startDate)
+	if err != nil {
+		return nil, fmt.Errorf("解析开始日期 %q 失败: %w", startDate, err)
+	}
+	endUnix, err := providerutil.DateToUnix(endDate)
+	if err != nil {
+		return nil, fmt.Errorf("解析结束日期 %q 失败: %w", endDate, err)
+	}
 	url := fmt.Sprintf("%s/stock/candle?symbol=%s&resolution=D&from=%d&to=%d&token=%s",
 		baseURL, ticker, startUnix, endUnix, p.apiKey)
 	return httpclient.DoGetWithBreaker(base.Breaker, base.HTTPClient, url, parseCandleResponse)
@@ -66,7 +72,7 @@ func parseCandleResponse(body []byte) ([]provider.DailyPrice, error) {
 		return []provider.DailyPrice{}, nil
 	}
 	if resp.S != "ok" {
-		return nil, fmt.Errorf("Finnhub API 错误: status=%s", resp.S)
+		return nil, fmt.Errorf("finnhub API 错误: status=%s", resp.S)
 	}
 	n := len(resp.T)
 	if n == 0 {

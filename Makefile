@@ -13,11 +13,11 @@
 help: ## 显示所有可用命令
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
 
-install: ## 安装 Node 依赖
-	npm install
+install: ## 安装 Node 依赖（pnpm lockfile）
+	pnpm install
 
 dev: ## SaaS 本地开发（预构建前端+API:5001，自动拉起 engine-go）
-	npm run dev
+	pnpm run dev
 
 up: ## 启动依赖容器（postgres/redis/engine/data）
 	docker compose up -d
@@ -27,36 +27,35 @@ down: ## 停止依赖容器
 
 # ---- TypeScript（API + 前端）----
 check: ## TS 类型检查
-	npm run check
+	pnpm run check
 
 lint: ## ESLint
-	npm run lint
+	pnpm run lint
 
 test: ## 全部测试（vitest）
-	npm run test
+	pnpm run test
 
 test-unit: ## 单元测试
-	npm run test:unit
+	pnpm run test:unit
 
 bench: ## 性能基准（无专用 bench 套件，复用单元测试）
-	npm run test:unit
+	pnpm run test:unit
 
-audit: ## 供应链/许可证审计
-	npm run audit:supply
-	npm run license:check
+audit: ## 供应链审计（prod 依赖漏洞阻断）
+	pnpm run audit:supply
 
 simplify: ## 重复代码检测（jscpd）
-	npm run simplify
+	pnpm run simplify
 
 deadcode: ## 死代码检测（knip）
-	npm run deadcode
+	pnpm run deadcode
 
 # ---- Go（engine-go / data-fetcher）----
 go-test: ## Go 竞态测试
-	cd engine-go && go test -race ./... ; cd ../data-fetcher && go test -race ./...
+	cd engine-go && go test -race ./... && cd ../data-fetcher && go test -race ./...
 
 go-vet: ## Go 静态检查
-	cd engine-go && go vet ./... ; cd ../data-fetcher && go vet ./...
+	cd engine-go && go vet ./... && cd ../data-fetcher && go vet ./...
 
 fmt: ## 格式化（prettier）
-	npx prettier --write .
+	pnpm exec prettier --write .

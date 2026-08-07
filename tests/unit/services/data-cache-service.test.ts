@@ -1,14 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { loggerMocks } from '../../helpers/loggerFixture.js';
 
-const { loggerMocks, redisStub, healthMock } = vi.hoisted(() => {
-  const loggerMocks = {
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-    debug: vi.fn(),
-    child: vi.fn(() => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() })),
-  };
-
+const { redisStub, healthMock } = vi.hoisted(() => {
   const store = new Map<string, string>();
   const globToRegex = (pattern: string): RegExp =>
     new RegExp('^' + pattern.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*') + '$');
@@ -33,7 +26,7 @@ const { loggerMocks, redisStub, healthMock } = vi.hoisted(() => {
   };
 
   const healthMock = { getRedisHealth: vi.fn().mockResolvedValue(true) };
-  return { loggerMocks, redisStub, healthMock };
+  return { redisStub, healthMock };
 });
 
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({

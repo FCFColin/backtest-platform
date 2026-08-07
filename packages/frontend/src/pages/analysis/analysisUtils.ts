@@ -6,7 +6,7 @@ export const TABS = [
   { key: 'telltale', labelKey: 'tabs.telltale' },
   { key: 'correlations', labelKey: 'tabs.correlationsBeta' },
   { key: 'rolling', labelKey: 'tabs.rollingMetrics' },
-  { key: 'risk-return', labelKey: 'tabs.riskVsReturn' },
+  { key: 'risk-return', labelKey: 'Risk vs Return' },
   { key: 'returns', labelKey: 'tabs.returns' },
 ] as const;
 function extractErrorDetail(j: Record<string, unknown>, fallback: string): string {
@@ -69,7 +69,7 @@ export async function fetchAnalysisResult(
         t('Server response abnormal, please confirm backend service is running and retry'),
       );
     }
-    throwIfError(res, json, t('Analysis Failed'));
+    throwIfError(res, json, t('Analysis failed'));
     const raw = (json.data ?? json) as Record<string, unknown>;
     const tickers = (raw.tickers ?? raw.assets ?? []) as AssetAnalysisResult['tickers'];
     for (const tk of tickers) {

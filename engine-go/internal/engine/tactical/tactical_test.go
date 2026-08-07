@@ -41,6 +41,7 @@ func TestRunTacticalBacktest_EmptyDates(t *testing.T) {
 	}
 	if r == nil {
 		t.Fatal("应返回非 nil 结果")
+		return
 	}
 	if len(r.Portfolio.GrowthCurve) != 0 {
 		t.Errorf("空 dates 应无 GrowthCurve, got %d", len(r.Portfolio.GrowthCurve))

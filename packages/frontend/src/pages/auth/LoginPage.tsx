@@ -1,4 +1,3 @@
-/* eslint-disable react-refresh/only-export-components -- 认证表单 schema 与组件同文件，拆分独立文件则重复 import */
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, Link, useLocation, useSearchParams } from 'react-router';
@@ -8,7 +7,7 @@ import { useAuthStore } from '@/store/authStore';
 import { ErrorBanner } from '@/components/stateDisplay';
 import { Checkbox } from '@/components/ui/uiComponents';
 import AuthPageLayout, { AuthFormField, AuthSubmitButton } from '@/components/auth/formFields';
-export const loginSchema = z.object({
+const loginSchema = z.object({
   username: z.string().min(1, 'auth.login.usernameRequired'),
   password: z.string().min(1, 'auth.login.passwordRequired'),
 });
@@ -18,7 +17,7 @@ const signupSchema = z.object({
     .min(3, 'auth.signup.usernameMinLength')
     .max(30, 'auth.signup.usernameMaxLength'),
   email: z.string().email('auth.signup.emailInvalid'),
-  password: z.string().min(8, 'auth.signup.passwordMinLength'),
+  password: z.string().min(8, 'Password must be at least 8 characters'),
   orgName: z
     .string()
     .min(1, 'auth.signup.orgNameRequired')
@@ -64,7 +63,7 @@ export default function LoginPage() {
       title={t('Log In')}
       footer={
         <>
-          {t("Don't have an account?")}
+          {t('Dont have an account?')}
           <Link to="/signup" className="text-brand">
             {t('Sign Up')}
           </Link>

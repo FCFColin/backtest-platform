@@ -70,7 +70,7 @@ func glidepathWeights(initialWeights, targetWeights []float64, dayIndex int, gli
 		copy(result, initialWeights)
 		return result
 	}
-	progress := (float64(dayIndex) / float64(tradingDays)) / glidepathYears
+	progress := (float64(dayIndex) / tradingDaysPerYear) / glidepathYears
 	if progress > 1 {
 		progress = 1
 	}

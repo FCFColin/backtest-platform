@@ -22,31 +22,31 @@ function toneClass(tone: MetricItem['tone']): string {
 function buildMetrics(stats: Statistics, totalYears: number, positiveYears: number): MetricItem[] {
   return [
     {
-      labelKey: 'summarySidebar.cagr',
+      labelKey: 'lumpSumDca.stats.cagr',
       value: fmtPct(stats.cagr),
       tone: stats.cagr >= 0 ? 'pos' : 'neg',
       testId: 'summary-cagr',
     },
     {
-      labelKey: 'summarySidebar.totalReturn',
+      labelKey: 'stats.totalReturn',
       value: fmtPct(stats.totalReturn),
       tone: stats.totalReturn >= 0 ? 'pos' : 'neg',
       testId: 'summary-total-return',
     },
     {
-      labelKey: 'summarySidebar.maxDrawdown',
+      labelKey: 'Max Drawdown',
       value: fmtPct(stats.maxDrawdown),
       tone: 'neg',
       testId: 'summary-max-drawdown',
     },
     {
-      labelKey: 'summarySidebar.sharpe',
+      labelKey: 'backtest.sharpeRatio',
       value: fmtNum(stats.sharpe),
       tone: stats.sharpe >= 0 ? 'pos' : 'neg',
       testId: 'summary-sharpe',
     },
     {
-      labelKey: 'summarySidebar.sortino',
+      labelKey: 'lumpSumDca.stats.sortino',
       value: fmtNum(stats.sortino),
       tone: stats.sortino >= 0 ? 'pos' : 'neg',
       testId: 'summary-sortino',

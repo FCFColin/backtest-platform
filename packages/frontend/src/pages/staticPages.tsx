@@ -179,7 +179,7 @@ function UpgradeContent() {
 const ABOUT_TABS = [
   {
     key: 'about',
-    labelKey: 'about.tabs.about',
+    labelKey: 'About',
     to: '/about',
     titleKey: 'about.title',
     C: AboutContent,
@@ -228,13 +228,13 @@ const CHANGE_META: Record<
   ChangeType,
   { labelKey: string; variant: 'success' | 'asset' | 'secondary'; icon: ReactNode }
 > = {
-  added: { labelKey: 'changelog.added', variant: 'success', icon: <Plus className="size-3" /> },
+  added: { labelKey: 'Added', variant: 'success', icon: <Plus className="size-3" /> },
   improved: {
-    labelKey: 'changelog.improved',
+    labelKey: 'Improved',
     variant: 'asset',
     icon: <Wrench className="size-3" />,
   },
-  fixed: { labelKey: 'changelog.fixed', variant: 'secondary', icon: <Bug className="size-3" /> },
+  fixed: { labelKey: 'Fixed', variant: 'secondary', icon: <Bug className="size-3" /> },
 };
 export function ChangelogPage() {
   const { t } = useTranslation();

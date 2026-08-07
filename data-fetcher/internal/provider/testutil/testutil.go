@@ -1,4 +1,3 @@
-// Package testutil 提供 data-fetcher 各 provider 测试共享的断言辅助。
 package testutil
 
 import (
@@ -10,7 +9,6 @@ import (
 	"data-fetcher/internal/provider"
 )
 
-// ParseCase 描述一个解析函数表驱动用例。
 type ParseCase[In, Out any] struct {
 	Name    string
 	In      In
@@ -18,7 +16,6 @@ type ParseCase[In, Out any] struct {
 	WantErr bool
 }
 
-// RunParse 执行解析类表驱动测试：WantErr 用例断言返回错误，其余断言解析结果。
 func RunParse[In, Out any](t *testing.T, cases []ParseCase[In, Out], parse func(In) (Out, error), assert func(*testing.T, Out, Out)) {
 	t.Helper()
 	for _, c := range cases {
@@ -38,13 +35,11 @@ func RunParse[In, Out any](t *testing.T, cases []ParseCase[In, Out], parse func(
 	}
 }
 
-// AssertPricesEqual 适配 AssertPrices 为 RunParse 的 assert 签名。
 func AssertPricesEqual(t *testing.T, got, want []provider.DailyPrice) {
 	t.Helper()
 	AssertPrices(t, got, want...)
 }
 
-// AssertEqual 按元素比较可比较切片（TickerInfo 等）。
 func AssertEqual[T comparable](t *testing.T, got, want []T) {
 	t.Helper()
 	if len(got) != len(want) {
@@ -57,7 +52,6 @@ func AssertEqual[T comparable](t *testing.T, got, want []T) {
 	}
 }
 
-// AssertPrices 逐字段断言解析结果与期望一致（浮点容差 1e-6）。
 func AssertPrices(t *testing.T, got []provider.DailyPrice, want ...provider.DailyPrice) {
 	t.Helper()
 	if len(got) != len(want) {

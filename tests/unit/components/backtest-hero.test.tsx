@@ -31,7 +31,7 @@ beforeEach(() => {
 describe('BacktestHero', () => {
   it('渲染标题', () => {
     render(<BacktestHero />);
-    expect(screen.getByText('Portfolio Backtest')).toBeTruthy();
+    expect(screen.getByText('nav.portfolioBacktest')).toBeTruthy();
   });
 
   it('渲染副标题', () => {
@@ -82,9 +82,9 @@ describe('BacktestHero', () => {
   it('展开时显示研究工具链接', () => {
     localStorage.setItem('backtest-hero-visit-count', '0');
     render(<BacktestHero />);
-    expect(screen.getByText('backtest.hero.tools.mc')).toBeTruthy();
-    expect(screen.getByText('backtest.hero.tools.opt')).toBeTruthy();
-    expect(screen.getByText('backtest.hero.tools.ef')).toBeTruthy();
+    expect(screen.getByText('nav.monteCarlo')).toBeTruthy();
+    expect(screen.getByText('nav.portfolioOptimize')).toBeTruthy();
+    expect(screen.getByText('nav.efficientFrontier')).toBeTruthy();
   });
 
   it('每次渲染增加访问计数', () => {

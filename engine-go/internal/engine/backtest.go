@@ -109,7 +109,7 @@ func computeGrowthCurve(pf PortfolioInput, priceData PriceDataMap, cpiData map[s
 	lastPrices := make([]float64, n)
 	dailyDrag := 1.0
 	if pf.Drag > 0 {
-		dailyDrag = math.Pow(1.0-pf.Drag/100.0, 1.0/float64(tradingDays))
+		dailyDrag = math.Pow(1.0-pf.Drag/100.0, 1.0/tradingDaysPerYear)
 	}
 	var glidepathTo []float64
 	if len(pf.GlidepathToWeights) == n {
@@ -239,7 +239,7 @@ func computeStatistics(curve []DataPoint, episodes []DrawdownEpisode, benchCurve
 	var benchmarkCagr *float64
 	if len(benchCurve) >= 2 {
 		benchDailyReturns = mathutil.DailyReturns(extractValues(benchCurve))
-		c := CalcCAGR(benchCurve[0].Value, benchCurve[len(benchCurve)-1].Value, float64(len(benchCurve))/float64(tradingDays))
+		c := CalcCAGR(benchCurve[0].Value, benchCurve[len(benchCurve)-1].Value, float64(len(benchCurve))/tradingDaysPerYear)
 		benchmarkCagr = &c
 	}
 	result := CalculateStatisticsFromRequest(StatisticsRequest{Values: values, Dates: dates, StartingValue: startValue, DailyReturns: mathutil.DailyReturns(values), AnnualReturnValues: annualReturnValues, MonthlyReturnValues: monthlyReturnValues, MwrrCashflows: []Cashflow{{Value: -startValue, Time: 0}}, BenchmarkDailyReturns: benchDailyReturns, BenchmarkCagr: benchmarkCagr})

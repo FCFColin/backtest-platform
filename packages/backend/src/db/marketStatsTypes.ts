@@ -12,7 +12,7 @@ export interface TickerAggRow {
   last_date: string | null;
 }
 
-export interface TickerRowState {
+interface TickerRowState {
   earliest: string | null;
   latest: string | null;
   tickers5y: number;

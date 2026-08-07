@@ -152,7 +152,7 @@ function PreferencesSection({
         </PrefRow>
         <PrefRow
           icon={<RefreshCw className="w-4 h-4" />}
-          label={t('Rebalance Frequency')}
+          label={t('Rebalancing Frequency')}
           desc={t('Set the default rebalance frequency')}
         >
           {renderSelect(rebalance, onRebalanceChange, REBALANCE_OPTS)}

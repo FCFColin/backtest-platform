@@ -4,8 +4,6 @@ import { resolve } from 'path';
 import { checkServerAvailable } from '../helpers/chaos.js';
 import { API_BASE_URL } from '../helpers/expressApp.js';
 
-// 集成测试：数据引擎页面、引擎状态指示器、新增工具页面 API、布局验证
-
 const BASE_URL = API_BASE_URL;
 
 let serverAvailable = false;

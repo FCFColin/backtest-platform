@@ -226,12 +226,12 @@ export function useMonteCarloState() {
 }
 export type McState = ReturnType<typeof useMonteCarloState>;
 const DIST_METRICS: Array<{ key: DistMetric; labelKey: string; format: (v: number) => string }> = [
-  { key: 'finalValue', labelKey: 'monteCarlo.results.metrics.finalValue', format: fmtDollar },
-  { key: 'cagr', labelKey: 'monteCarlo.results.metrics.cagr', format: fmtPct },
-  { key: 'maxDrawdown', labelKey: 'monteCarlo.results.metrics.maxDrawdown', format: fmtPct },
-  { key: 'volatility', labelKey: 'monteCarlo.results.metrics.volatility', format: fmtPct },
-  { key: 'sharpe', labelKey: 'monteCarlo.results.metrics.sharpe', format: fmtNum },
-  { key: 'sortino', labelKey: 'monteCarlo.results.metrics.sortino', format: fmtNum },
+  { key: 'finalValue', labelKey: 'lumpSumDca.stats.finalValue', format: fmtDollar },
+  { key: 'cagr', labelKey: 'lumpSumDca.stats.cagr', format: fmtPct },
+  { key: 'maxDrawdown', labelKey: 'Max Drawdown', format: fmtPct },
+  { key: 'volatility', labelKey: 'Volatility', format: fmtPct },
+  { key: 'sharpe', labelKey: 'backtest.sharpeRatio', format: fmtNum },
+  { key: 'sortino', labelKey: 'lumpSumDca.stats.sortino', format: fmtNum },
 ];
 export const metricLabels = (t: TFunction) =>
   Object.fromEntries(DIST_METRICS.map((m) => [m.key, t(m.labelKey)])) as Record<DistMetric, string>;

@@ -115,7 +115,7 @@ const ERROR_I18N_MAP: Record<string, string> = {
   DATA_FETCH_FAILED: 'errors.dataFetchFailed',
   EMAIL_TAKEN: 'errors.emailTaken',
   USERNAME_TAKEN: 'errors.usernameTaken',
-  REGISTER_FAILED: 'errors.registerFailed',
+  REGISTER_FAILED: 'Registration failed',
   BILLING_DISABLED: 'errors.billingDisabled',
   INVALID_COUNTRY: 'errors.invalidCountry',
   CPI_NOT_FOUND: 'errors.cpiNotFound',

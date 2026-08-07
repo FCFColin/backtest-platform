@@ -116,7 +116,7 @@ function RebalancingSensitivityParamsForm({ s }: { s: RebalancingState }) {
       <RunButton
         isLoading={s.isLoading}
         onClick={() => void s.runSensitivity()}
-        label={t('Start Analysis')}
+        label={t('Run Analysis')}
         loadingLabel={t('Analyzing...')}
         type="button"
       />
@@ -125,11 +125,11 @@ function RebalancingSensitivityParamsForm({ s }: { s: RebalancingState }) {
 }
 type RebalancingStateResult = ReturnType<typeof useRebalancingState>;
 const config: ComputeToolConfig<RebalancingStateResult> = {
-  titleKey: 'rebalancingSensitivity.title',
+  titleKey: 'nav.rebalancingSensitivity',
   seoDescKey: 'rebalancingSensitivity.seo.desc',
   seoFeatures: [
     {
-      titleKey: 'rebalancingSensitivity.seo.analyzableTitle',
+      titleKey: 'analysis.seoAnalyzable',
       descKey: 'rebalancingSensitivity.seo.analyzableDesc',
     },
     {

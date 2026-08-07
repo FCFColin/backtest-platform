@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach, afterEach, afterAll } from 'vites
 import { loggerMocks } from '../../helpers/loggerFixture.js';
 import { redisModuleMock } from '../../helpers/redisFixture.js';
 import { engineModuleMock } from '../../helpers/engineFixture.js';
-import { EngineUnavailableErrorStub } from '../../helpers/backtestRoutesFixtures.js';
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: loggerMocks }));
 vi.mock('../../../packages/backend/src/queues/backtestQueue.js', () => ({
   createBacktestWorker: vi.fn(() => ({ close: vi.fn().mockResolvedValue(undefined) })),
@@ -186,7 +185,7 @@ describe('processBacktestJob - 任务分发', () => {
   it.each([
     [
       'EngineUnavailableError 时应释放 claim 并重抛以触发 BullMQ 重试',
-      new EngineUnavailableErrorStub('/api/engine/backtest'),
+      new engineModuleMock.EngineUnavailableError('/api/engine/backtest'),
       true,
     ],
     ['handler 抛 DelayedError 时应直接重抛（不释放 claim）', new DelayedError('内部延迟'), false],

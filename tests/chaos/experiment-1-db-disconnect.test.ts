@@ -54,7 +54,6 @@ describe('Chaos Experiment 1: Database Disconnect', () => {
         await reconnectContainer(CONTAINERS.postgres);
       }
 
-      // Step 5: 验证恢复——等待熔断器 halfOpen 探测成功后回到 closed
       await new Promise((resolve) => setTimeout(resolve, 15000));
 
       const recoveredHealthy = await waitForHealthy(HEALTH_URL, 15000);

@@ -1,7 +1,6 @@
 import type { Router } from 'express';
 import { startExpressApp, type TestServer } from './expressApp.js';
 import { mockBacktestResult } from './storeFixtures.js';
-import { TimeoutError } from '../../packages/backend/src/utils/misc.js';
 import { ValidationError } from '../../packages/backend/src/utils/errors.js';
 import {
   clearBacktestResultCache,
@@ -209,7 +208,7 @@ export function configureTickerHelpersMocks(m: BacktestMockHandles): void {
   m.loadMacroData.mockImplementation(async () => ({ cpiData: {}, exchangeRates: {} }));
 }
 
-export { TimeoutError, ValidationError, clearBacktestResultCache };
+export { clearBacktestResultCache };
 
 const VALID_PARAMS = { startDate: '2024-01-01', endDate: '2024-06-30', startingValue: 10000 };
 const VALID_ASSETS = [

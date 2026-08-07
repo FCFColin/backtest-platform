@@ -296,10 +296,10 @@ function PCAResultsPanel({ state: s }: { state: PCAState }) {
   );
 }
 const config: ComputeToolConfig<PCAState> = {
-  titleKey: 'pca.title',
+  titleKey: 'nav.pca',
   seoDescKey: 'pca.seo.desc',
   seoFeatures: [
-    { titleKey: 'pca.seo.analyzableTitle', descKey: 'pca.seo.analyzableDesc' },
+    { titleKey: 'analysis.seoAnalyzable', descKey: 'pca.seo.analyzableDesc' },
     { titleKey: 'pca.seo.scenarioTitle', descKey: 'pca.seo.scenarioDesc' },
   ],
   relatedTools: [

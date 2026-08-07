@@ -8,12 +8,12 @@ import { CONTAINER_WIDTHS, CARD_GRID_CLASSES } from '@/utils/constants';
 import { cn } from '@/lib/utils';
 const HERO_STORAGE_KEY = 'backtest-hero-visit-count';
 const RESEARCH_TOOLS = [
-  { key: 'mc', path: '/monte-carlo' },
-  { key: 'opt', path: '/optimizer' },
-  { key: 'ef', path: '/efficient-frontier' },
-  { key: 'fr', path: '/factor-regression' },
-  { key: 'pca', path: '/pca' },
-  { key: 'letf', path: '/letf-slippage' },
+  { labelKey: 'nav.monteCarlo', path: '/monte-carlo' },
+  { labelKey: 'nav.portfolioOptimize', path: '/optimizer' },
+  { labelKey: 'nav.efficientFrontier', path: '/efficient-frontier' },
+  { labelKey: 'nav.factorRegression', path: '/factor-regression' },
+  { labelKey: 'nav.pca', path: '/pca' },
+  { labelKey: 'nav.letfAnalysis', path: '/letf-slippage' },
 ] as const;
 function HeroDetails() {
   const { t } = useTranslation();
@@ -48,7 +48,7 @@ function HeroDetails() {
           icon={Rocket}
           title={t('Related Research Tools')}
           tools={RESEARCH_TOOLS.map((tool) => ({
-            label: t(`backtest.hero.tools.${tool.key}`),
+            label: t(tool.labelKey),
             path: tool.path,
           }))}
         />
@@ -102,7 +102,7 @@ export const BacktestHero = memo(function BacktestHero() {
       <div className="flex items-start justify-between mb-4">
         <div>
           <h1 className="text-display md:text-display-xl text-fg mb-3" data-testid="page-title">
-            {t('Portfolio Backtest')}
+            {t('nav.portfolioBacktest')}
           </h1>
           <p className="text-h2 text-fg-secondary font-normal max-w-[720px]">
             {t(

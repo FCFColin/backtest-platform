@@ -124,15 +124,15 @@ func TestDoWithRetry(t *testing.T) {
 	}{
 		{"http 500", func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusInternalServerError)
-			w.Write([]byte(`internal server error`))
+			_, _ = w.Write([]byte(`internal server error`))
 		}, true},
 		{"parse error", func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
-			w.Write([]byte(`{"data":null}`))
+			_, _ = w.Write([]byte(`{"data":null}`))
 		}, true},
 		{"success", func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
-			w.Write(buildEastMoneyJSON([]string{validKline("2024-01-02", "10.5", "10.8", "11.0", "10.3", "1000000")}, false))
+			_, _ = w.Write(buildEastMoneyJSON([]string{validKline("2024-01-02", "10.5", "10.8", "11.0", "10.3", "1000000")}, false))
 		}, false},
 	}
 	for _, c := range cases {

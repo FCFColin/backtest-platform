@@ -4,7 +4,7 @@ export interface ServiceHealth {
   version?: string;
   message?: string;
 }
-export type ServiceStatus = ServiceHealth['status'];
+type ServiceStatus = ServiceHealth['status'];
 interface ServiceHealthGroup {
   goEngine: ServiceHealth;
   goDataService: ServiceHealth;
@@ -109,19 +109,19 @@ interface ServiceDef {
 }
 const SERVICE_DEFS: readonly ServiceDef[] = [
   {
-    name: 'adminPage.dashboard.goEngine',
+    name: 'Go Engine',
     url: 'http://127.0.0.1:15004',
     apiKey: 'go_engine',
     defaultStatus: 'down',
   },
   {
-    name: 'adminPage.dashboard.goDataService',
+    name: 'Go Data Service',
     url: 'http://127.0.0.1:3003',
     apiKey: 'go_data_service',
     defaultStatus: 'down',
   },
   {
-    name: 'adminPage.dashboard.nodeService',
+    name: 'Node Service',
     url: 'http://127.0.0.1:3001',
     apiKey: 'nodeServer',
     defaultStatus: 'healthy',

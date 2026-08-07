@@ -1,13 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { loggerMocks } from '../../helpers/loggerFixture.js';
 
-const { loggerMocks, redisStub, markUnhealthy, configMock } = vi.hoisted(() => {
-  const loggerMocks = {
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-    debug: vi.fn(),
-    child: vi.fn(() => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() })),
-  };
+const { redisStub, markUnhealthy, configMock } = vi.hoisted(() => {
   const store = new Map<string, string>();
   const redisStub = {
     store,
@@ -24,7 +18,6 @@ const { loggerMocks, redisStub, markUnhealthy, configMock } = vi.hoisted(() => {
     scan: vi.fn(async () => ['0', []]),
   };
   return {
-    loggerMocks,
     redisStub,
     markUnhealthy: vi.fn(),
     configMock: { RBAC_CACHE_TTL_SEC: 300 },

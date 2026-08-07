@@ -107,6 +107,4 @@ func TestRunRegression_UnselectedFactor(t *testing.T) {
 	if r.Beta != 0 {
 		t.Errorf("未选 mktRF 时 Beta 应为 0, got %v", r.Beta)
 	}
-	if r.SMB == 0 {
-	}
 }

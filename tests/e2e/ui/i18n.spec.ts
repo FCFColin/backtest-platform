@@ -13,7 +13,7 @@ test.describe('语言切换', () => {
 
     await langBtn.click();
 
-    await expect(page.getByText('Portfolio Backtest').first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText('nav.portfolioBacktest').first()).toBeVisible({ timeout: 10_000 });
 
     await expect(langBtn).toContainText('EN');
   });
@@ -22,7 +22,7 @@ test.describe('语言切换', () => {
     const langBtn = page.getByTestId('language-selector');
 
     await langBtn.click();
-    await expect(page.getByText('Portfolio Backtest').first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText('nav.portfolioBacktest').first()).toBeVisible({ timeout: 10_000 });
 
     await langBtn.click();
 

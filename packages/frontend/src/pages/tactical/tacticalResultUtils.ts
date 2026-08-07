@@ -38,12 +38,12 @@ function buildStatRows(
     label: string;
     fmt: 'pct' | 'ratio';
   }> = [
-    { key: 'cagr', label: 'tactical.results.cagr', fmt: 'pct' },
-    { key: 'totalReturn', label: 'tactical.results.totalReturn', fmt: 'pct' },
-    { key: 'stdev', label: 'tactical.results.stdev', fmt: 'pct' },
-    { key: 'sharpe', label: 'tactical.results.sharpe', fmt: 'ratio' },
-    { key: 'maxDrawdown', label: 'tactical.results.maxDrawdown', fmt: 'pct' },
-    { key: 'calmar', label: 'tactical.results.calmar', fmt: 'ratio' },
+    { key: 'cagr', label: 'lumpSumDca.stats.cagr', fmt: 'pct' },
+    { key: 'totalReturn', label: 'stats.totalReturn', fmt: 'pct' },
+    { key: 'stdev', label: 'backtest.stdev', fmt: 'pct' },
+    { key: 'sharpe', label: 'backtest.sharpeRatio', fmt: 'ratio' },
+    { key: 'maxDrawdown', label: 'Max Drawdown', fmt: 'pct' },
+    { key: 'calmar', label: 'lumpSumDca.stats.calmar', fmt: 'ratio' },
     { key: 'pctPositiveDays', label: 'tactical.results.pctPositiveDays', fmt: 'pct' },
     { key: 'maxDailyReturn', label: 'tactical.results.maxDailyReturn', fmt: 'pct' },
     { key: 'minDailyReturn', label: 'tactical.results.minDailyReturn', fmt: 'pct' },
@@ -67,8 +67,8 @@ function whatIfSignalColor(t: WhatIfResult['signalType']): string {
   return 'var(--text-muted)';
 }
 function whatIfSignalLabel(t: WhatIfResult['signalType'], tfn: TFunction): string {
-  if (t === 'buy') return tfn('tactical.results.buy');
-  if (t === 'sell') return tfn('tactical.results.sell');
+  if (t === 'buy') return tfn('Buy');
+  if (t === 'sell') return tfn('Sell');
   return tfn('tactical.results.hold');
 }
 export { fmtPrice, buildGrowthData, buildStatRows, whatIfSignalColor, whatIfSignalLabel };

@@ -213,7 +213,7 @@ export default function BillingPage() {
           <p className="text-fg-tertiary">
             {t('Please')}{' '}
             <Link to="/login" className="text-brand">
-              {t('Log in')}
+              {t('Log In')}
             </Link>{' '}
             {t('to manage your subscription.')}
           </p>

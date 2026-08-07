@@ -1,4 +1,3 @@
-// Package indicators 提供共享的技术指标计算实现（SMA/EMA/RSI/MACD/Bollinger）。
 package indicators
 
 import "math"
@@ -108,7 +107,7 @@ func CalcBollinger(prices []float64, period int, mult float64) (upper, middle, l
 		}
 		variance := 0.0
 		for j := i - period + 1; j <= i; j++ {
-			variance += math.Pow(prices[j]-middle[i], 2)
+			variance += (prices[j] - middle[i]) * (prices[j] - middle[i])
 		}
 		std := math.Sqrt(variance / float64(period))
 		upper[i] = middle[i] + mult*std

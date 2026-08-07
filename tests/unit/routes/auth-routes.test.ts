@@ -4,6 +4,7 @@ import { startExpressApp, reqJson } from '../../helpers/expressApp.js';
 import { withServer } from '../../helpers/serverLifecycle.js';
 import { expectError } from '../../helpers/routeAssertions.js';
 import { loggerMocks } from '../../helpers/loggerFixture.js';
+import { createWithTransactionMock } from '../../helpers/poolFixture.js';
 import {
   validPasswordLoginPayload,
   createAuthRoutesConfig,
@@ -77,7 +78,7 @@ vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () => ({
   },
 }));
 vi.mock('../../../packages/backend/src/db/pool.js', () => ({
-  getClient: mocks.registration.getClient,
+  withTransaction: createWithTransactionMock(() => mocks.registration.getClient()),
 }));
 vi.mock('../../../packages/backend/src/infrastructure/mailService.js', () => ({
   sendVerificationEmail: mocks.registration.sendVerificationEmail,

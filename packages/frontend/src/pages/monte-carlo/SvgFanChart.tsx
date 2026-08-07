@@ -103,7 +103,6 @@ export default function SvgFanChart({
         onMouseMove={handleMouseMove}
         onMouseLeave={() => setTooltip(null)}
       >
-        {/* Grid lines */}
         {yTicks.map((t) => (
           <line
             key={'g' + t}
@@ -115,7 +114,6 @@ export default function SvgFanChart({
             strokeWidth={1}
           />
         ))}
-        {/* Bands */}
         <path
           d={buildBandPath(
             (d) => d.band5_95[1],
@@ -132,14 +130,12 @@ export default function SvgFanChart({
           fill={CHART_COLORS[0]}
           fillOpacity={0.18}
         />
-        {/* Median line */}
         <path
           d={buildLinePath((d) => d.p50)}
           fill="none"
           stroke={CHART_COLORS[0]}
           strokeWidth={2.5}
         />
-        {/* X axis */}
         <line
           x1={MARGIN.left}
           y1={height - MARGIN.bottom}
@@ -159,7 +155,6 @@ export default function SvgFanChart({
             {monthFormatter(m)}
           </text>
         ))}
-        {/* Y axis */}
         <line
           x1={MARGIN.left}
           y1={MARGIN.top}
@@ -179,7 +174,6 @@ export default function SvgFanChart({
             {dollarKFormatter(t)}
           </text>
         ))}
-        {/* Tooltip vertical line */}
         {tooltip && (
           <line
             x1={tooltip.x}
@@ -192,7 +186,6 @@ export default function SvgFanChart({
           />
         )}
       </svg>
-      {/* Tooltip overlay */}
       {tooltip && (
         <div
           className="absolute z-10 pointer-events-none rounded-md border border-border bg-app p-2 px-3 text-xs shadow-lg"
@@ -222,7 +215,6 @@ export default function SvgFanChart({
           </div>
         </div>
       )}
-      {/* Legend */}
       <div className="absolute top-2 right-[30px] flex gap-4 text-xs text-fg-tertiary">
         <div className="flex items-center gap-1">
           <span

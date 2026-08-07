@@ -80,7 +80,7 @@ export function FrontierScatterChart({
   return (
     <div>
       <div className="mb-3 flex items-center justify-between">
-        <h3 className="text-h3 font-semibold text-fg">{t('Efficient Frontier')}</h3>
+        <h3 className="text-h3 font-semibold text-fg">{t('nav.efficientFrontier')}</h3>
         <LoadInBacktesterButton onClick={onLoadInBacktester} label={t('Load in backtester')} />
       </div>
       <FrontierScatterChartInner

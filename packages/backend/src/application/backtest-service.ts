@@ -2,7 +2,7 @@ import { randomUUID } from 'crypto';
 import { trace } from '@opentelemetry/api';
 import { callEngineStrict } from '../utils/engineClient.js';
 import { buildEngineParams } from './backtest/backtestEngineUtils.js';
-import { getClient } from '../db/pool.js';
+import { withTransaction } from '../db/pool.js';
 import { writeEventInTransaction } from '../infrastructure/outbox.js';
 import { logger } from '../utils/logger.js';
 import { recordBacktestRequest } from '../utils/metrics.js';
@@ -188,9 +188,7 @@ async function writeBacktestEventToOutbox(
   eventId: string,
   eventPayload: Record<string, unknown>,
 ): Promise<void> {
-  const client = await getClient();
-  try {
-    await client.query('BEGIN');
+  await withTransaction(async (client) => {
     await writeEventInTransaction(client, {
       aggregateType: 'BacktestSession',
       aggregateId,
@@ -198,12 +196,6 @@ async function writeBacktestEventToOutbox(
       payload: { ...eventPayload, occurredAt: new Date().toISOString() },
       eventId,
     });
-    await client.query('COMMIT');
     await client.query('NOTIFY outbox_channel');
-  } catch (err) {
-    await client.query('ROLLBACK');
-    throw err;
-  } finally {
-    client.release();
-  }
+  });
 }

@@ -6,10 +6,10 @@ interface CashflowsLogProps {
   parameters: BacktestParameters;
 }
 const FREQ_LABELS: Record<string, string> = {
-  yearly: 'params.yearly',
-  quarterly: 'params.quarterly',
-  monthly: 'params.monthly',
-  weekly: 'params.weekly',
+  yearly: 'Annual',
+  quarterly: 'Quarterly',
+  monthly: 'Monthly',
+  weekly: 'Weekly',
 };
 const TYPE_LABELS: Record<string, string> = {
   contribution: 'params.contribution',
@@ -32,7 +32,9 @@ function PeriodicCashflowsTable({
     {
       key: 'frequency',
       label: t('Frequency'),
-      render: (leg) => <span className={muted}>{FREQ_LABELS[leg.frequency] || leg.frequency}</span>,
+      render: (leg) => (
+        <span className={muted}>{t(FREQ_LABELS[leg.frequency]) || leg.frequency}</span>
+      ),
     },
     {
       key: 'amount',

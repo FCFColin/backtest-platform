@@ -6,14 +6,12 @@ import (
 	"engine-go/internal/engineutil"
 	"engine-go/internal/mathutil"
 	"fmt"
-	"math"
 	"slices"
 	"sort"
 )
 
 const (
 	mcTradingDays   = int(engineutil.TradingDaysPerYear)
-	mcRiskFreeRate  = engineutil.RiskFreeRate
 	mcHistogramBins = 50
 	mcDefaultSims   = 1000
 	mcDefaultYears  = 20
@@ -113,13 +111,7 @@ func calcPathMetrics(path []float64, startingValue float64, years float64) PathM
 	finalValue := path[len(path)-1]
 	cagr := engine.CalcCAGR(startingValue, finalValue, years)
 	dailyRets := mathutil.DailyReturnsWithZeros(path)
-	maxDD := engine.CalcMaxDrawdown(path).MaxDrawdown
-	vol := engine.CalcAnnualizedStdev(dailyRets)
-	sharpe := 0.0
-	if vol > 0 {
-		sharpe = (cagr - mcRiskFreeRate) / vol
-	}
-	return PathMetrics{FinalValue: finalValue, CAGR: cagr, MaxDrawdown: maxDD, Volatility: vol, Sharpe: sharpe, Sortino: mcSortino(dailyRets, cagr)}
+	return PathMetrics{FinalValue: finalValue, CAGR: cagr, MaxDrawdown: engine.CalcMaxDrawdown(path).MaxDrawdown, Volatility: engine.CalcAnnualizedStdev(dailyRets), Sharpe: engine.CalcSharpe(cagr, engine.CalcAnnualizedStdev(dailyRets)), Sortino: engine.CalcSortino(cagr, dailyRets)}
 }
 
 func finalValues(paths [][]float64) []float64 {
@@ -154,15 +146,6 @@ func computeMCStatistics(paths [][]float64, threshold float64, startingValue flo
 	}
 	return MCStatistics{MedianFinalValue: medianVal, MeanFinalValue: mathutil.Mean(finalValuesList), SuccessRate: successRate}
 }
-func mcSortino(dailyRets []float64, cagr float64) float64 {
-	dailyRF := mcRiskFreeRate / float64(mcTradingDays)
-	downsideDev := mathutil.DownsideDeviation(dailyRets, dailyRF) * math.Sqrt(float64(mcTradingDays))
-	if downsideDev == 0 {
-		return 0
-	}
-	return (cagr - mcRiskFreeRate) / downsideDev
-}
-
 func computePercentiles(paths [][]float64, totalDays int) MCPercentiles {
 	numSims := len(paths)
 	if numSims == 0 {

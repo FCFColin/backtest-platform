@@ -1,4 +1,3 @@
-// Package providerutil 提供 data-fetcher 各数据源 provider 共享的类型转换工具。
 package providerutil
 
 import (
@@ -7,7 +6,6 @@ import (
 	"time"
 )
 
-// DateToUnix 将 "2006-01-02" 日期字符串转换为 Unix 秒时间戳。
 func DateToUnix(dateStr string) (int64, error) {
 	t, err := time.Parse("2006-01-02", dateStr)
 	if err != nil {

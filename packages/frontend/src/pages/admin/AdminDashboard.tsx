@@ -1,10 +1,6 @@
-import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Activity, Clock, Database, Server, RefreshCw, HardDrive } from 'lucide-react';
-import { apiFetch } from '../../utils/apiClient.js';
-import { usePolling } from '../../hooks/miscHooks.js';
-import { useToastStore } from '../../store/toastStore.js';
-import { reportError } from '../../utils/errorReporter.js';
+import { useAdminFetch, usePolling } from '../../hooks/miscHooks.js';
 import {
   parseAdminStats,
   defaultParsedAdminStats,
@@ -154,25 +150,17 @@ function SystemResourceSection({
   );
 }
 export default function AdminDashboard() {
-  const { t } = useTranslation();
-  const [data, setData] = useState<ParsedAdminStats>(defaultParsedAdminStats);
-  const [loading, setLoading] = useState(false);
-  const [lastRefresh, setLastRefresh] = useState<string>('');
-  const fetchDashboardData = async () => {
-    setLoading(true);
-    try {
-      const res = await apiFetch('/api/v1/admin/stats');
-      if (!res.ok) return;
-      const json = await res.json();
-      if (!json.success || !json.data) return;
-      setData(parseAdminStats(json.data));
-    } catch (error) {
-      reportError(error, { component: 'AdminDashboard', action: 'fetchDashboardData' });
-      useToastStore.getState().addToast('error', t('Load failed'));
-    }
-    setLoading(false);
-    setLastRefresh(new Date().toLocaleTimeString('zh-CN'));
-  };
+  const {
+    data,
+    loading,
+    lastRefresh,
+    fetch: fetchDashboardData,
+  } = useAdminFetch(
+    '/api/v1/admin/stats',
+    parseAdminStats,
+    defaultParsedAdminStats,
+    'AdminDashboard',
+  );
   usePolling(fetchDashboardData, 30000);
   const totalSizeGB = (data.dataStats.totalSizeMB / 1024).toFixed(1);
   return (

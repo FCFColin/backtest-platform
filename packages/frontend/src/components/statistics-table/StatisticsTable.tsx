@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ArrowUp, ArrowDown, Download, Settings2, Info } from 'lucide-react';
+import { Download, Settings2, Info } from 'lucide-react';
 import { Button } from '@/components/ui/uiComponents.js';
 import {
   DropdownMenu,
@@ -15,11 +15,10 @@ import {
   TooltipTrigger,
   TooltipContent,
 } from '@/components/ui/uiComponents.js';
-import { cn } from '@/lib/utils.js';
 import { CHART_COLORS, type PortfolioResult, type Statistics } from '@backtest/shared';
 import { formatCurrency, fmtPct, formatDuration, fmtNum } from '@/utils/format.js';
 import { STAT_KEY_TO_TESTID } from './types.js';
-import { SimpleTable, type SimpleTableColumn } from '@/components/tables.js';
+import { BaseTable, SimpleTable, type SimpleTableColumn } from '@/components/tables.js';
 interface StatColumn {
   key: string;
   label: string;
@@ -46,13 +45,13 @@ const DEFAULT_COLUMNS: StatColumn[] = [
   },
   { key: 'cagr', label: 'CAGR', format: 'percent', colorize: true },
   { key: 'mwrr', label: 'MWRR', format: 'percent', colorize: true },
-  { key: 'maxDrawdown', label: 'statsTable.maxDrawdown', format: 'percent', colorize: true },
-  { key: 'avgDrawdown', label: 'statsTable.avgDrawdown', format: 'percent', colorize: true },
+  { key: 'maxDrawdown', label: 'Max Drawdown', format: 'percent', colorize: true },
+  { key: 'avgDrawdown', label: 'Avg Drawdown', format: 'percent', colorize: true },
   { key: 'longestDrawdown', label: 'statsTable.longestDrawdown', format: 'duration' },
-  { key: 'volatility', label: 'statsTable.volatility', format: 'percent' },
-  { key: 'sharpe', label: 'statsTable.sharpe', format: 'number' },
-  { key: 'sortino', label: 'statsTable.sortino', format: 'number' },
-  { key: 'calmar', label: 'statsTable.calmar', format: 'number' },
+  { key: 'volatility', label: 'Volatility', format: 'percent' },
+  { key: 'sharpe', label: 'backtest.sharpeRatio', format: 'number' },
+  { key: 'sortino', label: 'lumpSumDca.stats.sortino', format: 'number' },
+  { key: 'calmar', label: 'lumpSumDca.stats.calmar', format: 'number' },
   { key: 'ulcerIndex', label: 'Ulcer', format: 'number' },
   { key: 'upi', label: 'UPI', format: 'number' },
   { key: 'diversificationRatio', label: 'statsTable.diversificationRatio', format: 'number' },
@@ -95,20 +94,33 @@ export function StatisticsTable({
     if (typeof av !== 'number' || typeof bv !== 'number') return 0;
     return sortDir === 'asc' ? av - bv : bv - av;
   });
-  const cellContent = (p: (typeof portfolios)[0], col: StatColumn, i: number) =>
-    col.key === 'name' ? (
-      <div className="flex items-center gap-2">
-        <span
-          className="w-2 h-2 rounded-full flex-shrink-0"
-          style={{ background: colors[i] ?? '#888' }}
-        />
-        <span className="truncate">{p.name}</span>
-      </div>
-    ) : p.stats[col.key] == null ? (
-      '—'
-    ) : (
-      (FORMAT_FN[col.format]?.(Number(p.stats[col.key])) ?? String(p.stats[col.key]))
-    );
+  const columns: SimpleTableColumn<(typeof portfolios)[number]>[] = visibleColumns.map((col) => ({
+    key: col.key,
+    label: t(col.label),
+    align: col.format === 'text' ? 'left' : 'right',
+    sticky: col.sticky === 'left' ? 'left' : undefined,
+    testId: STAT_KEY_TO_TESTID[col.key],
+    style: col.minWidth ? { minWidth: col.minWidth } : undefined,
+    sortValue: col.key === 'name' ? () => 0 : (p) => p.stats[col.key] as number,
+    render: (p, i) =>
+      col.key === 'name' ? (
+        <div className="flex items-center gap-2">
+          <span
+            className="w-2 h-2 rounded-full flex-shrink-0"
+            style={{ background: colors[i] ?? '#888' }}
+          />
+          <span className="truncate">{p.name}</span>
+        </div>
+      ) : p.stats[col.key] == null ? (
+        '—'
+      ) : (
+        (() => {
+          const value = Number(p.stats[col.key]);
+          const text = FORMAT_FN[col.format]?.(value) ?? String(p.stats[col.key]);
+          return col.colorize ? <span className={getColorClass(value)}>{text}</span> : text;
+        })()
+      ),
+  }));
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
@@ -146,7 +158,7 @@ export function StatisticsTable({
                     setHiddenColumns(next);
                   }}
                 >
-                  {col.label}
+                  {t(col.label)}
                 </DropdownMenuCheckboxItem>
               ))}
             </DropdownMenuContent>
@@ -157,79 +169,21 @@ export function StatisticsTable({
         </div>
       </div>
       <div className="border border-border rounded-lg overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-caption">
-            <thead>
-              <tr className="bg-surface-sunken border-b border-border">
-                {visibleColumns.map((col) => (
-                  <th
-                    key={col.key}
-                    className={cn(
-                      'h-10 px-3 text-fg-tertiary text-label-tiny',
-                      col.format === 'text' ? 'text-left' : 'text-right',
-                      col.sticky === 'left' && 'sticky left-0 bg-surface-sunken z-10',
-                    )}
-                    style={{ minWidth: col.minWidth }}
-                  >
-                    <button
-                      className={cn(
-                        'inline-flex items-center gap-1 hover:text-fg transition-colors',
-                        col.format !== 'text' && 'ml-auto',
-                      )}
-                      onClick={() => {
-                        if (sortKey === col.key) {
-                          setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
-                        } else {
-                          setSortKey(col.key);
-                          setSortDir('desc');
-                        }
-                      }}
-                    >
-                      {col.label}
-                      {sortKey === col.key &&
-                        (sortDir === 'asc' ? (
-                          <ArrowUp className="h-3 w-3" />
-                        ) : (
-                          <ArrowDown className="h-3 w-3" />
-                        ))}
-                    </button>
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {sortedPortfolios.map((p, i) => (
-                <tr
-                  key={p.id}
-                  className={cn(
-                    'h-12 border-b border-border-subtle',
-                    'hover:bg-hover/50 transition-colors',
-                    i === sortedPortfolios.length - 1 && 'border-b-0',
-                  )}
-                >
-                  {visibleColumns.map((col) => {
-                    const value = col.key === 'name' ? p.name : (p.stats[col.key] as number);
-                    return (
-                      <td
-                        key={col.key}
-                        data-testid={STAT_KEY_TO_TESTID[col.key]}
-                        className={cn(
-                          'px-3',
-                          col.format === 'text' ? 'text-left' : 'text-right',
-                          col.format !== 'text' && 'font-mono tabular-nums',
-                          col.sticky === 'left' && 'sticky left-0 bg-surface z-10',
-                          col.colorize && typeof value === 'number' && getColorClass(value),
-                        )}
-                      >
-                        {cellContent(p, col, i)}
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <BaseTable
+          columns={columns}
+          data={sortedPortfolios}
+          rowKey={(p) => p.id}
+          nowrap={false}
+          sortKey={sortKey ?? undefined}
+          sortDir={sortDir}
+          onSort={(key) => {
+            if (sortKey === key) setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
+            else {
+              setSortKey(key);
+              setSortDir('desc');
+            }
+          }}
+        />
       </div>
       {expanded && extendedTable}
     </div>
@@ -299,7 +253,7 @@ export function ExtendedMetricsTable({ portfolios }: ExtendedMetricsTableProps) 
 }
 const HORIZON_LABELS = [
   'stats.horizon10y',
-  'stats.horizon20y',
+  'about.limits.backtestRangeValue',
   'stats.horizon30y',
   'stats.horizon40y',
 ] as const;

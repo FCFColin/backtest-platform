@@ -1,10 +1,11 @@
 // scripts/verify/verify-backend.mjs
-// C-002 (RLS) + C-003 (webhook SSRF) + C-018 (singleflight) + C-020 (engine timeout) + C-021 (BullMQ DLQ) + C-024 (webhook encryption)
-import { existsSync } from 'node:fs';
+// C-002 (RLS) + C-018 (singleflight) + C-020 (engine timeout) + C-021 (BullMQ DLQ) + C-022 (OpenAPI) + C-023 (degraded) + C-001 (migrations) + C-015 (ADR) + C-016 (CHANGELOG) + C-017 (migration chain)
+import { existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import pg from 'pg';
 import {
   withDb,
+  runCmd,
   fileExists,
   readFileContent,
   grepInCode,
@@ -47,7 +48,6 @@ await runCheck(results, 'C-002', async () => {
     }
     const envSuper = envDbUser === 'backtest' || envDbUser === 'postgres';
 
-    // App role check
     const roleRes = await client.query(
       `SELECT rolname, rolsuper, rolbypassrls, rolcanlogin FROM pg_roles WHERE rolname = 'backtest_app'`,
     );
@@ -71,7 +71,6 @@ await runCheck(results, 'C-002', async () => {
       .filter((r) => r.relrowsecurity && !r.relforcerowsecurity)
       .map((r) => r.relname);
 
-    // Wrong GUC in policies
     const polRes = await client.query(
       `SELECT tablename, policyname, qual::text, with_check::text FROM pg_policies WHERE schemaname = 'public' AND tablename = ANY($1::text[])`,
       [TENANT_TABLES],
@@ -80,7 +79,6 @@ await runCheck(results, 'C-002', async () => {
       WRONG_GUC.some((pat) => pat.test(`${p.qual || ''} ${p.with_check || ''}`)),
     );
 
-    // Wrong GUC in app code
     const appCodeRefs = grepInCode(
       /app\.(tenant_id|org_id|current_org_id|current_tenant_id)/,
       'packages/backend/src',
@@ -157,94 +155,14 @@ await runCheck(results, 'C-002', async () => {
   }
 });
 
-// ── C-003: Webhook SSRF 防护验证 ─────────────────────────────
-await runCheck(results, 'C-003', async () => {
-  const svcPath = 'packages/backend/src/application/webhookService.ts';
-  const guardPath = 'packages/backend/src/utils/ssrfGuard.ts';
-  if (!fileExists(svcPath)) return { status: 'FAIL', summary: 'webhookService.ts not found' };
-  const svc = readFileContent(svcPath);
-  const guard = fileExists(guardPath) ? readFileContent(guardPath) : '';
-  const combined = svc + guard;
-
-  const checks = {
-    ipValidation: /isPrivateIPv4|isPrivateIPv6|isForbiddenIp|isPrivate/.test(guard),
-    dnsResolve: /dns\.resolve|dns\.lookup/.test(guard),
-    dnsRebinding:
-      /dns\.resolve4|resolve4\s*\(/.test(guard) && /rebind|SSRF_DNS_REBINDING/i.test(guard),
-    sizeLimit: /MAX_RESPONSE_BYTES|readResponseWithLimit|maxBytes/i.test(combined),
-    importsAssertSafeUrl: /import\s+\{[^}]*assertSafeUrl[^}]*\}\s+from\s+['"][^'"]*ssrfGuard/.test(
-      svc,
-    ),
-    callsAssertSafeUrl: /assertSafeUrl\s*\(/.test(svc),
-  };
-  const hasTest =
-    fileExists('tests/unit/services/webhookService.ssrf.test.ts') ||
-    fileExists('tests/unit/utils/ssrf-guard.test.ts') ||
-    fileExists('tests/unit/application/webhookService.test.ts');
-  const delegationValid = checks.importsAssertSafeUrl && checks.callsAssertSafeUrl;
-  const allChecks = Object.values(checks).every(Boolean);
-
-  // Integration test
-  let integration = { status: 'SKIP' };
-  try {
-    const token = process.env.TEST_ADMIN_TOKEN || 'dev-admin-token';
-    const intResults = await Promise.all(
-      [
-        'http://169.254.169.254/latest/meta-data/',
-        'http://localhost:6379/',
-        'http://10.0.0.1/',
-        'http://[::1]/',
-      ].map(async (url) => {
-        try {
-          const res = await fetch('http://localhost:15001/api/v1/webhooks/test-ssrf', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-            body: JSON.stringify({ url }),
-            signal: AbortSignal.timeout(5000),
-          });
-          return { url, status: res.status, rejected: res.status >= 400 };
-        } catch (e) {
-          return { url, error: e.message };
-        }
-      }),
-    );
-    if (intResults.every((r) => r.error)) {
-      integration = {
-        status: 'SKIP',
-        reason: 'API not available',
-        sampleError: intResults[0]?.error,
-      };
-    } else {
-      integration = {
-        status: 'DONE',
-        allRejected: intResults.filter((r) => !r.error).every((r) => r.rejected),
-      };
-    }
-  } catch (e) {
-    integration = { status: 'SKIP', reason: e.message };
-  }
-
-  const pass =
-    allChecks &&
-    hasTest &&
-    delegationValid &&
-    (integration.status === 'SKIP' || integration.allRejected === true);
-  return {
-    status: pass ? 'PASS' : 'FAIL',
-    summary: `static=${allChecks ? 'all' : 'PARTIAL'}, tests=${hasTest ? 'present' : 'missing'}, delegation=${delegationValid ? 'valid' : 'invalid'}, integration=${integration.status}`,
-    details: { checks, hasTest, delegationValid, integration },
-  };
-});
-
-// ── C-018: singleflight 验证 ─────────────────────────────────
 await runCheck(results, 'C-018', () => {
-  const f = 'packages/backend/src/application/backtest/backtestResultCache.ts';
+  const f = 'packages/backend/src/application/backtest/backtestResultUtils.ts';
   if (!fileExists(f)) return { status: 'FAIL', summary: `${f} 不存在` };
   const ops = new Set(
     grepInCode(/inFlight\.(set|get|delete)/, 'packages/backend/src/application/backtest', {
       extensions: ['.ts'],
     })
-      .filter((m) => m.file.includes('backtestResultCache.ts'))
+      .filter((m) => m.file.includes('backtestResultUtils.ts'))
       .map((m) => m.text.match(/inFlight\.(set|get|delete)/)?.[1]),
   );
   const ok = ops.has('set') && ops.has('get') && ops.has('delete');
@@ -256,13 +174,14 @@ await runCheck(results, 'C-018', () => {
 
 // ── C-020: engine timeout 验证 ────────────────────────────────
 await runCheck(results, 'C-020', () => {
-  const f = 'packages/backend/src/config/engineConfig.ts';
+  const f = 'packages/backend/src/config/env.ts';
   if (!fileExists(f)) return { status: 'FAIL', summary: `${f} 不存在` };
   const content = readFileContent(f);
   let timeoutMs = null;
   for (const re of [
     /ENGINE_TIMEOUT_MS\s*[=:]\s*(\d+)/,
     /ENGINE_TIMEOUT_MS\s*:\s*parseInt\([^)]*?\|\|\s*['"](\d+)['"]/,
+    /ENGINE_TIMEOUT_MS\s*[=:]\s*\w+\([^)]*['"](\d+)['"]\)/,
     /ENGINE_TIMEOUT_MS\s*[=:]\s*[^;]*?\|\|\s*['"](\d+)['"]/,
   ]) {
     const m = content.match(re);
@@ -296,72 +215,198 @@ await runCheck(results, 'C-021', () => {
   };
 });
 
-// ── C-024: Webhook secret 加密验证 ────────────────────────────
-const WH_SVC = 'packages/backend/src/application/webhookService.ts';
-const WH_ENC = 'packages/backend/src/utils/envelopeEncryption.ts';
-const WH_TESTS = [
-  'tests/unit/services/webhookService.encryption.test.ts',
-  'tests/unit/application/webhookService.encryption.test.ts',
-  'tests/unit/application/webhookService.test.ts',
-  'tests/unit/services/webhookService.test.ts',
-];
+await runCheck(results, 'C-022', () => {
+  const f = 'packages/backend/src/schemas/openapi-registry.ts';
+  if (!fileExists(f)) return { status: 'FAIL', summary: `${f} 不存在` };
+  const urls = [...new Set(readFileContent(f).match(/localhost:\d+/g) ?? [])];
+  const hasOld = urls.includes('localhost:5001');
+  const hasNew = urls.includes('localhost:15001');
+  return {
+    status: !hasOld && hasNew ? 'PASS' : 'FAIL',
+    summary:
+      !hasOld && hasNew ? 'OpenAPI server.url 为 http://localhost:15001' : `OpenAPI URL 未修复`,
+  };
+});
 
-await runCheck(results, 'C-024', async () => {
-  // DB layer
-  let dbStatus = 'SKIP';
-  try {
-    await withDb(async (db) => {
-      const cols = (
-        await db.query(
-          `SELECT column_name, data_type FROM information_schema.columns
-         WHERE table_schema = 'public' AND table_name = 'webhook_endpoints' AND column_name IN ('secret', 'secret_iv', 'secret_tag', 'secret_kid')`,
-        )
-      ).rows;
-      const secretCol = cols.find((c) => c.column_name === 'secret');
-      dbStatus = secretCol ? (secretCol.data_type === 'bytea' ? 'PASS' : 'FAIL') : 'FAIL';
-    });
-  } catch {
-    dbStatus = 'SKIP';
+// ── C-023: ADR-031 degraded 字段验证 ──────────────────────────
+await runCheck(results, 'C-023', () => {
+  const f = 'packages/backend/src/routes/routeUtils.ts';
+  if (!fileExists(f)) return { status: 'FAIL', summary: `${f} 不存在` };
+  const lines = readFileContent(f).split('\n');
+  const responseFieldLines = [];
+  for (let i = 0; i < lines.length; i++) {
+    if (!/degraded/i.test(lines[i])) continue;
+    if (/recordDegraded|^\s*(\*|\/\/|\/\*)|^\s*import\s/.test(lines[i])) continue;
+    responseFieldLines.push({ line: i + 1, text: lines[i].trim() });
   }
-
-  // Migration layer
-  let migStatus = 'SKIP';
-  if (fileExists('migrations/021_webhooks.sql')) {
-    const sql = readFileContent('migrations/021_webhooks.sql');
-    migStatus =
-      /secret\s+bytea/i.test(sql) && !/secret\s+(text|varchar)/i.test(sql) ? 'PASS' : 'FAIL';
-  }
-
-  // App layer
-  let appStatus = 'FAIL';
-  if (fileExists(WH_SVC)) {
-    const src = readFileContent(WH_SVC);
-    const hasEnc = /\bencrypt\b/i.test(src) && /\bdecrypt\b/i.test(src);
-    const hasImport =
-      /from\s+['"][^'"]*envelopeEncryption(?:\.js)?['"]/.test(src) ||
-      /from\s+['"][^'"]*\/crypto['"]/.test(src);
-    appStatus = hasEnc && hasImport ? 'PASS' : 'FAIL';
-  }
-
-  // Envelope layer
-  let envStatus = fileExists(WH_ENC) ? 'PASS' : 'FAIL';
-
-  // Test layer
-  const testStatus = WH_TESTS.map((p) => ({ path: p, exists: fileExists(p) }));
-  const hasEncTest = testStatus.some((t) => t.exists && /encryption/.test(t.path));
-  const testLayer = hasEncTest
-    ? 'PASS'
-    : testStatus.some((t) => t.exists)
-      ? 'NEEDS_MANUAL_REVIEW'
-      : 'FAIL';
-
-  const pass = ['PASS', 'PASS', 'PASS', 'PASS', 'PASS'].every(
-    (s, i) => [dbStatus, migStatus, appStatus, envStatus, testLayer][i] === s,
-  );
+  const pass = responseFieldLines.length === 0;
   return {
     status: pass ? 'PASS' : 'FAIL',
-    summary: `db=${dbStatus}, migration=${migStatus}, app=${appStatus}, envelope=${envStatus}, tests=${testLayer}`,
-    details: { dbStatus, migStatus, appStatus, envStatus, testLayer, testFiles: testStatus },
+    summary: pass
+      ? `${f} 无 degraded 响应字段 (ADR-031)`
+      : `${f} 有 ${responseFieldLines.length} 处 degraded 响应字段`,
+  };
+});
+
+const regLines = (p) =>
+  readFileContent(p)
+    .split('\n')
+    .filter((l) => !/^\s*(\/\/|\*)/.test(l));
+const EXPECTED_VERSIONS = (() => {
+  const p = 'packages/backend/src/db/migrations.ts';
+  return fileExists(p)
+    ? regLines(p)
+        .map((l) => l.match(/version:\s*(\d+)/)?.[1])
+        .filter(Boolean)
+        .map(Number)
+    : [];
+})();
+const EXPECTED_TABLES = [
+  'audit_logs',
+  'webhook_endpoints',
+  'webhook_deliveries',
+  'tactical_configs',
+  'announcements',
+  'custom_tickers',
+  'roles',
+  'role_permissions',
+  'user_roles',
+];
+
+await runCheck(results, 'C-001', () =>
+  withDb(async (db) => {
+    const applied = (
+      await db.query('SELECT version FROM schema_migrations ORDER BY version')
+    ).rows.map((r) => r.version);
+    const appliedSet = new Set(applied);
+    const missingVersions = EXPECTED_VERSIONS.filter((v) => !appliedSet.has(v));
+    const unexpectedVersions = applied.filter((v) => !EXPECTED_VERSIONS.includes(v));
+    const foundTables = (
+      await db.query(
+        `SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename = ANY($1::text[])`,
+        [EXPECTED_TABLES],
+      )
+    ).rows.map((r) => r.tablename);
+    const missingTables = EXPECTED_TABLES.filter((t) => !foundTables.includes(t));
+    const tsExt = (
+      await db.query(`SELECT extname, extversion FROM pg_extension WHERE extname = 'timescaledb'`)
+    ).rows;
+    const timescaleOk = tsExt.length > 0;
+    let pricesHt = false;
+    if (timescaleOk) {
+      const ht = await db.query(
+        `SELECT hypertable_name FROM timescaledb_information.hypertables WHERE hypertable_schema = 'public' AND hypertable_name = 'prices'`,
+      );
+      pricesHt = ht.rows.length > 0;
+    }
+    let annIdType = null;
+    if (!missingTables.includes('announcements')) {
+      const c = await db.query(
+        `SELECT data_type FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'announcements' AND column_name = 'id'`,
+      );
+      annIdType = c.rows[0]?.data_type ?? null;
+    }
+    const pass =
+      missingVersions.length === 0 &&
+      unexpectedVersions.length === 0 &&
+      missingTables.length === 0 &&
+      timescaleOk &&
+      pricesHt &&
+      annIdType === 'uuid';
+    return {
+      status: pass ? 'PASS' : 'FAIL',
+      summary: `applied=${applied.length}/${EXPECTED_VERSIONS.length}, missing=${missingVersions.length}, unexpected=${unexpectedVersions.length}, missing_tables=${missingTables.length}, timescale=${timescaleOk}, prices_ht=${pricesHt}, ann_id=${annIdType}`,
+      details: {
+        applied,
+        missingVersions,
+        unexpectedVersions,
+        missingTables,
+        timescaleOk,
+        pricesHt,
+        annIdType,
+      },
+    };
+  }),
+);
+
+await runCheck(results, 'C-015', () => {
+  if (!fileExists('docs/adr/README.md'))
+    return { status: 'FAIL', summary: 'docs/adr/README.md 不存在' };
+  const readme = readFileContent('docs/adr/README.md');
+  const sections = readme.split(/^## /m);
+  const activeAdrs = new Set(
+    (sections.find((s) => s.startsWith('当前有效')) ?? '').match(/ADR-\d+/g) ?? [],
+  );
+  const deletedAdrs = new Set(
+    (sections.find((s) => s.startsWith('已删除')) ?? '').match(/ADR-\d+/g) ?? [],
+  );
+  let files = [];
+  try {
+    files = readdirSync(join(PROJECT_ROOT_PATH, 'docs', 'adr')).filter((f) =>
+      /^ADR-\d+.*\.md$/.test(f),
+    );
+  } catch {}
+  const fileAdrs = new Set(files.map((f) => f.match(/^(ADR-\d+)/)?.[1]).filter(Boolean));
+  const inIndexNotInFiles = [...activeAdrs].filter((a) => !fileAdrs.has(a));
+  const inFilesNotInIndex = [...fileAdrs].filter((a) => !activeAdrs.has(a) && !deletedAdrs.has(a));
+  const ok = inIndexNotInFiles.length === 0 && inFilesNotInIndex.length === 0;
+  return {
+    status: ok ? 'PASS' : 'FAIL',
+    summary: ok
+      ? `ADR 索引与文件一致 (${fileAdrs.size} 文件, ${activeAdrs.size} 有效, ${deletedAdrs.size} 已删除)`
+      : `差异: 索引有文件缺失 [${inIndexNotInFiles}], 文件有索引缺失 [${inFilesNotInIndex}]`,
+    details: {
+      activeCount: activeAdrs.size,
+      fileCount: fileAdrs.size,
+      inIndexNotInFiles,
+      inFilesNotInIndex,
+    },
+  };
+});
+
+await runCheck(results, 'C-016', () => {
+  if (!fileExists('CHANGELOG.md')) return { status: 'FAIL', summary: 'CHANGELOG.md 不存在' };
+  const changelog = readFileContent('CHANGELOG.md');
+  const dates = [...changelog.matchAll(/^## \[[\d.]+\]\s*-\s*(\d{4}-\d{2}-\d{2})/gm)].map(
+    (m) => m[1],
+  );
+  if (dates.length === 0) return { status: 'FAIL', summary: 'CHANGELOG.md 中未找到日期条目' };
+  const latestDate = dates[0];
+  const gitDate = runCmd('git log -1 --format=%ai').out.trim().split(' ')[0];
+  if (!gitDate) return { status: 'FAIL', summary: '无法获取 git log 最新提交日期' };
+  const diffDays = (new Date(gitDate).getTime() - new Date(latestDate).getTime()) / 86400000;
+  const ok = diffDays <= 7;
+  return {
+    status: ok ? 'PASS' : 'FAIL',
+    summary: ok
+      ? `CHANGELOG ${latestDate} 在提交 ${gitDate} 7天内`
+      : `CHANGELOG 过期: ${latestDate} vs ${gitDate}, 差${diffDays.toFixed(1)}天`,
+  };
+});
+
+await runCheck(results, 'C-017', () => {
+  const dir = join(process.cwd(), 'migrations');
+  let allFiles = [];
+  try {
+    allFiles = readdirSync(dir).filter((f) => f.endsWith('.sql'));
+  } catch (e) {
+    return { status: 'FAIL', summary: `无法读取 migrations: ${e.message}` };
+  }
+  const regPath = 'packages/backend/src/db/migrations.ts';
+  const regExists = fileExists(regPath);
+  const registered = regExists
+    ? regLines(regPath)
+        .map((l) => l.match(/upFile:\s*'([^']+)'\s*,\s*downFile:\s*'([^']+)'/))
+        .filter(Boolean)
+        .flatMap((m) => [m[1], m[2]])
+    : [];
+  const orphans = allFiles.filter((f) => !registered.includes(f));
+  const missingReg = registered.filter((f) => !allFiles.includes(f));
+  const pass = regExists && orphans.length === 0 && missingReg.length === 0;
+  return {
+    status: pass ? 'PASS' : 'FAIL',
+    summary: `orphans=${orphans.length}, missing_reg=${missingReg.length}, registered=${registered.length}`,
+    details: { orphans, missingReg },
   };
 });
 

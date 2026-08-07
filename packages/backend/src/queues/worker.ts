@@ -209,7 +209,6 @@ export async function processBacktestJob(job: Job<BacktestJobData>): Promise<Bac
 const worker = createBacktestWorker(processBacktestJob);
 logger.info('[worker] Backtest worker started, waiting for jobs...');
 
-// 优雅关闭：等待当前任务完成，30s 强制退出兜底。
 let workerShuttingDown = false;
 
 export async function shutdownWorker(signal: string): Promise<void> {

@@ -1,14 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-
-const { loggerMocks } = vi.hoisted(() => ({
-  loggerMocks: {
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-    debug: vi.fn(),
-    child: vi.fn(() => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() })),
-  },
-}));
+import { loggerMocks } from '../../helpers/loggerFixture.js';
 
 vi.mock('../../../packages/backend/src/infrastructure/unleashClient.js', () => ({
   unleashClient: { isInitialized: false, isEnabled: vi.fn() },

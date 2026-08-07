@@ -12,11 +12,11 @@ function OptimizerResultsWrapper({ state }: { state: EfficientFrontierState }) {
   return <OptimizerResults s={state} />;
 }
 const config: ComputeToolConfig<EfficientFrontierState> = {
-  titleKey: 'optimizer.title',
+  titleKey: 'nav.portfolioOptimize',
   seoDescKey: 'optimizer.seoDesc',
   seoFeatures: [
-    { titleKey: 'optimizer.seoObjective', descKey: 'optimizer.seoObjectiveDesc' },
-    { titleKey: 'optimizer.seoOutput', descKey: 'optimizer.seoOutputDesc' },
+    { titleKey: 'Objective', descKey: 'optimizer.seoObjectiveDesc' },
+    { titleKey: 'goalOptimizer.seo.outputTitle', descKey: 'optimizer.seoOutputDesc' },
   ],
   relatedTools: [
     { titleKey: 'nav.portfolioBacktest', href: '/' },

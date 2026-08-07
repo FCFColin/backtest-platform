@@ -1,0 +1,76 @@
+# v2 schema (golangci-lint >= 2.0): linters-settings → linters.settings, exclusions restructured
+# https://golangci-lint.run/docs/configuration/file/
+
+version: '2'
+
+run:
+  timeout: 5m
+
+formatters:
+  enable:
+    - gofmt
+
+linters:
+  enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck # subsumes gosimple in v2
+    - unused
+    - gocritic
+    - gosec
+    - revive
+    # typecheck: built-in, always run in v2
+
+  settings:
+    govet:
+      enable-all: true
+      disable:
+        - fieldalignment
+        # shadow: benign shadowing, noisy
+        - shadow
+
+    errcheck:
+      # 测试 env / Close 调用不可操作
+      exclude-functions:
+        - os.Setenv
+        - os.Unsetenv
+        - (net.Conn).Close
+        - (io.ReadCloser).Close
+        - (*os.File).Close
+        - (github.com/jackc/pgx/v5.BatchResults).Close
+        - (*baostock.Client).Close
+        - (*data-fetcher/baostock.Client).Close
+
+    gosec:
+      # G404: math/rand 用于蒙特卡洛/UA 轮换/退避 jitter
+      # G104: 与 errcheck 重复，避免双重上报
+      excludes:
+        - G404
+        - G104
+
+    revive:
+      rules:
+        - name: blank-imports
+        - name: context-as-argument
+        - name: context-keys-type
+        - name: dot-imports
+        - name: error-return
+        - name: error-strings
+        - name: error-naming
+        - name: increment-decrement
+        - name: indent-error-flow
+        - name: range
+        - name: receiver-naming
+        - name: time-naming
+        - name: unexported-return
+        - name: var-declaration
+        - name: var-naming
+
+  # v2: 等价 v1 issues.exclude-use-default: false
+  exclusions:
+    presets: []
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0

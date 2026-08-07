@@ -23,9 +23,7 @@ func cmdFetch(cfg *WorkerConfig, ticker, startDate, endDate string) error {
 	})
 }
 func cmdSeed(cfg *WorkerConfig) error {
-	return withPool(cfg, func(ctx context.Context, pool *pgxpool.Pool) error {
-		return seedUniverse(ctx, pool)
-	})
+	return withPool(cfg, seedUniverse)
 }
 func cmdFetchSIM(cfg *WorkerConfig, startDate, endDate string) error {
 	return withPool(cfg, func(ctx context.Context, pool *pgxpool.Pool) error {

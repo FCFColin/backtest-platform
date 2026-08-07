@@ -1,12 +1,4 @@
-# =============================================================================
-# Go 数据服务 - 多阶段构建
-# =============================================================================
-# Stage 1: builder
-# 使用 golang:1.26-alpine 编译静态二进制（digest pin 防止供应链攻击）
-# =============================================================================
-# Supply Chain: 基础镜像digest pin，防止供应链攻击
-# 企业为何需要：tag是可变的（golang:1.26-alpine可指向不同镜像），digest是不可变的
-# 权衡：需定期更新digest（可通过Renovate自动化），但防止tag碰撞攻击
+# data-fetcher 多阶段构建
 FROM golang:1.26-alpine@sha256:0178a641fbb4858c5f1b48e34bdaabe0350a330a1b1149aabd498d0699ff5fb2 AS builder
 
 WORKDIR /build
@@ -25,16 +17,9 @@ COPY data-fetcher ./data-fetcher
 # 编译静态二进制（CGO_DISABLED 确保纯静态链接，适配 alpine 运行时）
 RUN cd data-fetcher && CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /data-fetcher-bin .
 
-# =============================================================================
-# Stage 2: runner
-# 使用 alpine:3.20 运行编译后的二进制
-# =============================================================================
-# Supply Chain: 基础镜像digest pin，防止供应链攻击
-# 企业为何需要：tag是可变的（alpine:3.20可指向不同镜像），digest是不可变的
-# 权衡：需定期更新digest（可通过Renovate自动化），但防止tag碰撞攻击
+# Stage 2: runner (digest pin)
 FROM alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc AS runner
 
-# 安装运行时依赖：ca-certificates（HTTPS）、wget（健康检查）、tzdata（时区）
 RUN apk add --no-cache ca-certificates wget tzdata \
     && cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
     && echo "Asia/Shanghai" > /etc/timezone
@@ -56,8 +41,7 @@ EXPOSE 5003
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD wget -qO- http://127.0.0.1:5003/api/data/health || exit 1
 
-# 企业理由：容器以 root 运行是 CIS Docker Benchmark 第一条禁止项。
-# 创建专用非 root 用户（UID 1000），与 K8s securityContext.runAsUser 匹配。
+# 非 root 运行（CIS Docker Benchmark）
 RUN adduser -D -u 1000 appuser
 USER appuser
 CMD ["/app/data-fetcher"]

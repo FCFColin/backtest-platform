@@ -159,9 +159,7 @@ func GetSortedDates(priceData map[string]map[string]float64, tickers []string) [
 	return slices.Sorted(maps.Keys(dateSet))
 }
 func FilterDates(dates []string, startDate, endDate string) []string {
-	return FilterByRange(dates, startDate, endDate, func(d, bound string) int {
-		return strings.Compare(d, bound)
-	})
+	return FilterByRange(dates, startDate, endDate, strings.Compare)
 }
 func ParseTradingDates(priceData map[string]map[string]float64) ([]time.Time, error) {
 	dateSet := make(map[time.Time]bool)

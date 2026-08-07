@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { loggerMocks } from '../../helpers/loggerFixture.js';
+import { createWithTransactionMock } from '../../helpers/poolFixture.js';
 import { mockUserRecord, mockUserRecordWithPassword } from '../../helpers/authFixtures.js';
 
 const mocks = vi.hoisted(() => ({
@@ -20,7 +21,10 @@ vi.mock('crypto', () => ({
   randomBytes: mocks.crypto.randomBytes,
   createHash: mocks.crypto.createHash,
 }));
-vi.mock('../../../packages/backend/src/db/pool.js', () => ({ getPool: () => mocks.pool }));
+vi.mock('../../../packages/backend/src/db/pool.js', () => ({
+  getPool: () => mocks.pool,
+  withTransaction: createWithTransactionMock(() => mocks.pool.connect()),
+}));
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: loggerMocks }));
 
 import {
@@ -335,7 +339,7 @@ describe('verifyEmailToken - 校验邮箱验证令牌', () => {
     expect(await verifyEmailToken(token)).toBeNull();
   });
   it.each([
-    ['令牌不存在或已消费应返回 null 并 ROLLBACK', [{ rows: [] }], 'ROLLBACK', null],
+    ['令牌不存在或已消费应返回 null', [{ rows: [] }], 'COMMIT', null],
     [
       '令牌有效应验证并消费并 COMMIT',
       [{ rows: [{ id: 'tok-1', user_id: 'user-1' }] }],

@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import { getPool, withTenant } from '../db/pool.js';
+import { getPool, withTenant, withTransaction } from '../db/pool.js';
 import { logger } from '../utils/logger.js';
 import { sha256Hex, hashApiKeyArgon2id } from '../utils/crypto.js';
 import { rowMapper, iso, toIso } from './rowMapper.js';
@@ -171,16 +171,14 @@ export async function rotatePlatformAdminKey(
   expiresInDays: number,
   createdBy: string | null,
 ): Promise<CreatedApiKey> {
-  const client = await getPool().connect();
-  try {
-    await client.query('BEGIN');
+  return withTransaction(async (client) => {
     const { rows } = await client.query(
       `SELECT id FROM api_keys WHERE id = $1 AND is_platform_admin = TRUE AND revoked_at IS NULL AND (expires_at IS NULL OR expires_at > NOW()) FOR UPDATE`,
       [oldKeyId],
     );
     if (rows.length === 0) throw new Error('PLATFORM_ADMIN_KEY_NOT_FOUND');
     await client.query('UPDATE api_keys SET revoked_at = NOW() WHERE id = $1', [oldKeyId]);
-    const created = await insertPlatformAdminKey(client, {
+    return insertPlatformAdminKey(client, {
       plaintext: generatePlatformKeyPlaintext(),
       name,
       expiresInDays,
@@ -188,14 +186,7 @@ export async function rotatePlatformAdminKey(
       action: '已轮换',
       oldKeyId,
     });
-    await client.query('COMMIT');
-    return created;
-  } catch (err) {
-    await client.query('ROLLBACK');
-    throw err;
-  } finally {
-    client.release();
-  }
+  });
 }
 
 export async function listPlatformAdminKeys(): Promise<ApiKeyRecord[]> {

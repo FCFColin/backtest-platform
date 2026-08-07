@@ -9,9 +9,11 @@ const dbMocks = vi.hoisted(() => ({
 }));
 
 import { loggerMocks } from '../../helpers/loggerFixture.js';
+import { createWithTransactionMock } from '../../helpers/poolFixture.js';
 
 vi.mock('../../../packages/backend/src/db/pool.js', () => ({
   getPool: () => ({ query: dbMocks.query, connect: () => Promise.resolve(dbMocks.client) }),
+  withTransaction: createWithTransactionMock(() => dbMocks.client),
 }));
 
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: loggerMocks }));
@@ -309,11 +311,11 @@ describe('acceptInvitation', () => {
     expect(dbMocks.client.query).not.toHaveBeenCalled();
   });
 
-  it('令牌不存在应返回 invalid 并回滚', async () => {
+  it('令牌不存在应返回 invalid', async () => {
     mockInviteLookup(null);
     const result = await acceptInvitation('sometoken', USER);
     expect(result).toEqual({ ok: false, reason: 'invalid' });
-    expect(dbMocks.client.query).toHaveBeenCalledWith('ROLLBACK');
+    expect(dbMocks.client.query).toHaveBeenCalledWith('COMMIT');
   });
 
   it('已接受应返回 already', async () => {

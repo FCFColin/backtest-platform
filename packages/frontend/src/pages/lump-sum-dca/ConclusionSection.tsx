@@ -49,13 +49,13 @@ function GrowthCurveChart({ results }: { results: CompareResult[] }) {
 const STATS_ROWS = [
   { key: 'finalValue' as const, label: 'lumpSumDca.stats.finalValue' },
   { key: 'cagr' as const, label: 'lumpSumDca.stats.cagr' },
-  { key: 'stdev' as const, label: 'lumpSumDca.stats.stdev' },
-  { key: 'maxDrawdown' as const, label: 'lumpSumDca.stats.maxDrawdown' },
-  { key: 'sharpe' as const, label: 'lumpSumDca.stats.sharpe' },
+  { key: 'stdev' as const, label: 'backtest.stdev' },
+  { key: 'maxDrawdown' as const, label: 'Max Drawdown' },
+  { key: 'sharpe' as const, label: 'backtest.sharpeRatio' },
   { key: 'sortino' as const, label: 'lumpSumDca.stats.sortino' },
   { key: 'calmar' as const, label: 'lumpSumDca.stats.calmar' },
-  { key: 'maxDrawdownDuration' as const, label: 'lumpSumDca.stats.maxDrawdownDuration' },
-  { key: 'ulcerIndex' as const, label: 'lumpSumDca.stats.ulcerIndex' },
+  { key: 'maxDrawdownDuration' as const, label: 'analysis.maxDrawdownDuration' },
+  { key: 'ulcerIndex' as const, label: 'analysis.ulcerIndex' },
 ];
 const REQUIRED_KEYS = new Set(['finalValue', 'cagr', 'stdev', 'maxDrawdown', 'sharpe', 'sortino']);
 type FmtFns = {

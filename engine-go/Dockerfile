@@ -1,8 +1,4 @@
-# =============================================================================
-# Go 引擎服务 - 多阶段构建（T-ARCH-2.5）
-# =============================================================================
-# Stage 1: builder
-# 使用 golang:1.26-alpine 编译静态二进制（与 go.mod 对齐）
+# engine-go 多阶段构建
 FROM golang:1.26-alpine@sha256:0178a641fbb4858c5f1b48e34bdaabe0350a330a1b1149aabd498d0699ff5fb2 AS builder
 
 WORKDIR /build
@@ -21,12 +17,7 @@ COPY engine-go ./engine-go
 # 编译静态二进制
 RUN cd engine-go && CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /engine-go-bin ./cmd/server
 
-# =============================================================================
-# Stage 2: runner
-# =============================================================================
-# Supply Chain: 基础镜像digest pin，防止供应链攻击
-# 企业为何需要：tag是可变的（alpine:3.20可指向不同镜像），digest是不可变的
-# 权衡：需定期更新digest（可通过Renovate自动化），但防止tag碰撞攻击
+# Stage 2: runner (digest pin 防止供应链攻击)
 FROM alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc AS runner
 
 RUN apk add --no-cache ca-certificates wget tzdata \

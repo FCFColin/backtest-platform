@@ -85,7 +85,7 @@ export async function seedOrgAndUser(): Promise<SeedData> {
   return { orgId, userId, secondUserId };
 }
 
-export function mockAuthMiddleware(orgId: string, userId: string) {
+function mockAuthMiddleware(orgId: string, userId: string) {
   return (req: Request, _res: Response, next: NextFunction): void => {
     (req as unknown as { tenantId: string }).tenantId = orgId;
     (req as unknown as { user: unknown }).user = {

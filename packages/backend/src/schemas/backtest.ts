@@ -1,8 +1,14 @@
 import { z } from 'zod';
+import { extendZodWithOpenApi } from '@asteasolutions/zod-to-openapi';
 import { MAX_TICKERS, ALL_REBALANCE_FREQUENCIES } from '@backtest/shared/constants';
 import { TICKER_PATTERN } from '../utils/tickerValidation.js';
 import { assetSchema } from './analysisSchemas.js';
 import type { BacktestOptimizerRequest } from '../domain/services/optimizer-domain.js';
+
+extendZodWithOpenApi(z);
+
+// z.unknown() 会渲染成无效 JSON Schema {nullable:true}（无 type，严格 ajv 拒绝编译）；object+additionalProperties 兼容 OpenAPI 3.0
+export const anyJsonSchema = z.unknown().openapi({ type: 'object', additionalProperties: true });
 
 const portfolioSchema = z
   .object({
@@ -153,13 +159,13 @@ export const portfolioBodySchema = z.object({
 
 export const savedConfigBodySchema = z.object({
   name: z.string().trim().min(1).max(120),
-  config: z.record(z.string(), z.unknown()),
+  config: z.record(z.string(), anyJsonSchema),
 });
 
 export const backtestRunBodySchema = z.object({
   name: z.string().trim().max(120).optional(),
-  request: z.record(z.string(), z.unknown()),
-  result: z.unknown().optional(),
+  request: z.record(z.string(), anyJsonSchema),
+  result: anyJsonSchema.optional(),
   status: z.enum(['pending', 'running', 'completed', 'failed']).optional(),
 });
 

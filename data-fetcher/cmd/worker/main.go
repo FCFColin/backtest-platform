@@ -18,6 +18,12 @@ type WorkerConfig struct {
 func defaultWorkerConfig() *WorkerConfig {
 	return &WorkerConfig{DatabaseURL: strings.TrimSpace(os.Getenv("DATABASE_URL"))}
 }
+func parseFlags(fs *flag.FlagSet, args []string) {
+	if err := fs.Parse(args); err != nil {
+		slog.Error("参数解析失败", "error", err)
+		os.Exit(1)
+	}
+}
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 	slog.SetDefault(logger)
@@ -63,7 +69,7 @@ func main() {
 	}
 	switch os.Args[1] {
 	case "fetch":
-		fetchCmd.Parse(os.Args[2:])
+		parseFlags(fetchCmd, os.Args[2:])
 		if *fetchTicker == "" {
 			fmt.Println("错误: 必须指定 --ticker")
 			os.Exit(1)
@@ -73,25 +79,25 @@ func main() {
 			os.Exit(1)
 		}
 	case "update":
-		updateCmd.Parse(os.Args[2:])
+		parseFlags(updateCmd, os.Args[2:])
 		if err := cmdUpdate(cfg, *updateIncremental, *updateStart, *updateEnd); err != nil {
 			slog.Error("update 失败", "error", err)
 			os.Exit(1)
 		}
 	case "seed":
-		seedCmd.Parse(os.Args[2:])
+		parseFlags(seedCmd, os.Args[2:])
 		if err := cmdSeed(cfg); err != nil {
 			slog.Error("seed 失败", "error", err)
 			os.Exit(1)
 		}
 	case "fetch-universe":
-		fetchUniverseCmd.Parse(os.Args[2:])
+		parseFlags(fetchUniverseCmd, os.Args[2:])
 		if err := cmdFetchUniverse(cfg, *fetchUniverseFile); err != nil {
 			slog.Error("fetch-universe 失败", "error", err)
 			os.Exit(1)
 		}
 	case "fetch-sim":
-		fetchSIMCmd.Parse(os.Args[2:])
+		parseFlags(fetchSIMCmd, os.Args[2:])
 		if err := cmdFetchSIM(cfg, *fetchSIMStart, *fetchSIMEnd); err != nil {
 			slog.Error("fetch-sim 失败", "error", err)
 			os.Exit(1)

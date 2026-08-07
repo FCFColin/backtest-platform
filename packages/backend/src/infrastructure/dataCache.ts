@@ -1,8 +1,4 @@
-/**
- * 数据缓存（P0-01）：L1 进程内 LRU（Map + TTL 5min，容量 1000）+ L2 Redis 两级缓存。
- * 降级：Redis 不可用时 L2 静默跳过（warn + markRedisUnhealthy），不抛出（ADR-031）。
- * 多租户（ADR-032）：key 带 `cache:org:{orgId}:` 前缀；市场参考数据默认 orgId='shared' 共享。
- */
+// P0-01: L1 LRU + L2 Redis 两级缓存；Redis 不可用时 L2 静默跳过（ADR-031）；多租户 key 前缀（ADR-032）
 import { gzipSync, gunzipSync } from 'node:zlib';
 import { logger } from '../utils/logger.js';
 import { recordCacheHit, recordCacheEviction } from '../utils/metrics.js';
@@ -217,7 +213,6 @@ export {
   PRICE_CACHE_TTL_SEC,
   HISTORY_CACHE_TTL_SEC,
   SEARCH_CACHE_TTL_SEC,
-  DEFAULT_ORG_ID,
   getCacheKey,
   readCache,
   writeCache,

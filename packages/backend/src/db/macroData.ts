@@ -1,21 +1,10 @@
-/**
- * 宏观数据（CPI / 汇率）PostgreSQL 读取
- *
- * RLS 说明（P0-03 审计结论）：cpi_data / exchange_rates 表为全局共享宏观数据，
- * 不含 tenant_id 列，不启用 RLS。所有租户共享同一份数据，直连 getReadPool() 是正确设计。
- */
+// P0-03: cpi_data / exchange_rates 为全局共享宏观数据，无 tenant_id，不启用 RLS
 import { getReadPool } from './pool.js';
 import { logger } from '../utils/logger.js';
 import { toDateStr } from '../utils/misc.js';
 
 const exchangeRateCache: Record<string, Record<string, number>> = {};
 
-/**
- * 从 PostgreSQL 加载 CPI 序列（API 响应格式）
- *
- * @param country - `us` 或 `cn`
- * @returns `{ date, value }[]`；无数据时返回空数组
- */
 export async function loadCpiSeriesFromDb(
   country: string,
 ): Promise<Array<{ date: string; value: number }>> {
@@ -33,12 +22,6 @@ export async function loadCpiSeriesFromDb(
   }
 }
 
-/**
- * 从 PostgreSQL 加载汇率映射 `{ date: rate }`
- *
- * @param base - 基准货币（默认 USD）
- * @param target - 目标货币（默认 CNY）
- */
 export async function loadExchangeRatesFromDb(
   base = 'USD',
   target = 'CNY',

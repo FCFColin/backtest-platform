@@ -203,7 +203,6 @@ export function jsonRoute(
   );
 }
 
-/** 租户 CRUD 仓储接口 */
 interface TenantCrudRepo<T> {
   list(tenantId: string, limit?: number, offset?: number): Promise<T[]>;
   get(tenantId: string, id: string): Promise<T | null>;

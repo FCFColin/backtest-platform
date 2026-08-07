@@ -1,10 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Activity, Server, RefreshCw, Clock, HardDrive } from 'lucide-react';
-import { apiFetch } from '../../utils/apiClient.js';
-import { usePolling } from '../../hooks/miscHooks.js';
-import { useToastStore } from '../../store/toastStore.js';
-import { reportError } from '../../utils/errorReporter.js';
+import { useAdminFetch, usePolling } from '../../hooks/miscHooks.js';
 import { KpiCard, ServiceStatusBadge } from '../../components/admin/AdminLayout.js';
 import { Button, Card, Progress } from '../../components/ui/uiComponents.js';
 import { buildServiceHealths, type ServiceHealthView } from '../../utils/adminStats.js';
@@ -50,25 +47,18 @@ function buildMonitorData(d: Record<string, unknown>, services: ServiceHealthVie
 }
 export default function SystemMonitor() {
   const { t } = useTranslation();
-  const [data, setData] = useState<MonitorData>(defaultMonitorData);
-  const [loading, setLoading] = useState(false);
   const [autoRefresh, setAutoRefresh] = useState(true);
-  const [lastRefresh, setLastRefresh] = useState('');
-  const fetchMonitorData = async () => {
-    setLoading(true);
-    try {
-      const res = await apiFetch('/api/v1/admin/system');
-      if (!res.ok) return;
-      const json = await res.json();
-      if (!json.success || !json.data) return;
-      setData(buildMonitorData(json.data, buildServiceHealths(json.data)));
-    } catch (error) {
-      reportError(error, { component: 'SystemMonitor', action: 'fetchMonitorData' });
-      useToastStore.getState().addToast('error', t('Load failed'));
-    }
-    setLoading(false);
-    setLastRefresh(new Date().toLocaleTimeString('zh-CN'));
-  };
+  const {
+    data,
+    loading,
+    lastRefresh,
+    fetch: fetchMonitorData,
+  } = useAdminFetch(
+    '/api/v1/admin/system',
+    (d) => buildMonitorData(d, buildServiceHealths(d)),
+    defaultMonitorData,
+    'SystemMonitor',
+  );
   usePolling(fetchMonitorData, 10000, { enabled: autoRefresh, deps: [autoRefresh] });
   const memBars = [
     {

@@ -13,7 +13,6 @@ try {
   process.loadEnvFile(path.join(ROOT, '.env'));
 } catch {}
 
-// ── 日志 ──
 function log(tag, msg) {
   const ts = new Date().toISOString().replace('T', ' ').slice(0, 19);
   const line = `[${ts}] [${tag}] ${msg}`;
@@ -23,37 +22,31 @@ function log(tag, msg) {
   } catch {}
 }
 
-// ── 写 PID 文件 ──
 function savePids(pids) {
   if (!existsSync(LOG_DIR)) mkdirSync(LOG_DIR, { recursive: true });
   writeFileSync(PID_FILE, JSON.stringify(pids, null, 2), 'utf-8');
 }
 
-// ── 清理 PID 文件 ──
 function cleanPids() {
   try {
     unlinkSync(PID_FILE);
   } catch {}
 }
 
-// ── 防止重复启动（lock file） ──
 function checkLock() {
   try {
     const existing = JSON.parse(readFileSync(LOCK_FILE, 'utf-8'));
-    // 检查旧的 supervisor 是否还活着
     try {
       process.kill(existing.pid, 0);
       log('supervisor', `已有 supervisor 运行中 (PID ${existing.pid})，退出`);
       process.exit(0);
     } catch {
-      // 旧的已经死了，清理 lock
       log('supervisor', `旧 supervisor (PID ${existing.pid}) 已不存在，接管`);
     }
   } catch {}
   writeFileSync(LOCK_FILE, JSON.stringify({ pid: process.pid }), 'utf-8');
 }
 
-// ── 主逻辑 ──
 if (!tsxLoaderUrl) {
   log('supervisor', '找不到 tsx loader，退出');
   process.exit(1);
@@ -69,7 +62,6 @@ const env = {
 
 const PORT = process.env.PORT || process.env.API_PORT || '15001';
 
-// ── 定义要守护的服务 ──
 const SERVICES = [
   {
     name: 'backtest-api',
@@ -87,7 +79,6 @@ const SERVICES = [
   },
 ];
 
-// ── 进程管理 ──
 const children = new Map(); // name → { proc, restartCount, lastRestart }
 let shuttingDown = false;
 
@@ -128,7 +119,6 @@ function handleExit(name) {
   if (!info) return;
 
   const now = Date.now();
-  // 重置计数器（如果距离上次重启超过 60s）
   if (now - info.lastRestart > 60_000) {
     info.restartCount = 0;
   }
@@ -141,7 +131,6 @@ function handleExit(name) {
     return;
   }
 
-  // 指数退避：3s, 6s, 12s, 最大 30s
   const delay = Math.min(info.config.restartDelay * Math.pow(1.5, info.restartCount - 1), 30_000);
   log(name, `${delay / 1000}s 后重启 (第 ${info.restartCount} 次)…`);
 
@@ -162,7 +151,6 @@ function shutdown(signal) {
       if (info.proc && !info.proc.killed) {
         log(name, `发送 SIGTERM (PID ${info.proc.pid})`);
         info.proc.kill('SIGTERM');
-        // 5s 后强杀
         setTimeout(() => {
           try {
             info.proc.kill('SIGKILL');
@@ -174,7 +162,6 @@ function shutdown(signal) {
     }
   }
 
-  // 清理文件
   cleanPids();
   try {
     unlinkSync(LOCK_FILE);
@@ -186,12 +173,10 @@ function shutdown(signal) {
   }, 2000);
 }
 
-// ── 启动 ──
 checkLock();
 
 if (!existsSync(LOG_DIR)) mkdirSync(LOG_DIR, { recursive: true });
 
-// 清理旧 supervisor 日志
 try {
   writeFileSync(path.join(LOG_DIR, 'supervisor.log'), '', 'utf-8');
 } catch {}

@@ -71,7 +71,6 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   next();
 });
 
-// P3-5: 全局请求超时（30s 上限），超时返回 503 Problem Detail
 app.use(requestTimeout(30_000));
 
 app.use(createEarlyHintsMiddleware());
@@ -116,7 +115,6 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cookieParser()); // P0-1 BFF 模式：解析 httpOnly Cookie 中的 Refresh Token
 
-// P2-1: OpenAPI 运行时验证（仅非生产环境，生产零运行时开销）
 if (config.NODE_ENV !== 'production') {
   void (async () => {
     try {
@@ -179,7 +177,6 @@ app.use('/api/v1', apiKeyRoutes);
 app.use('/api/v1', workspaceRoutes);
 app.use('/api/v1', platformRoutes);
 
-// Swagger UI (P1-05) - 仅非生产环境
 setupOpenApiUi(app);
 
 // 静态文件 — 只匹配 /assets/ 等非 HTML 路径（HTML 由 SSR 或 SPA fallback 处理）

@@ -2,14 +2,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { BacktestParameters } from '@backtest/shared';
 import type { Warning } from '../../../packages/backend/src/application/backtest-helpers.js';
 import { loggerMocks } from '../../helpers/loggerFixture.js';
+import { engineMocks, engineModuleMock } from '../../helpers/engineFixture.js';
 import {
   mockParameters,
   mockPortfolio as portfolioFixture,
 } from '../../helpers/backtestFixtures.js';
-
-const engineMocks = vi.hoisted(() => ({
-  callEngineStrict: vi.fn(),
-}));
 
 const helpersMocks = vi.hoisted(() => ({
   collectDomainTickers: vi.fn(),
@@ -21,10 +18,7 @@ const helpersMocks = vi.hoisted(() => ({
   collectInvalidTickerWarnings: vi.fn(),
   calculateDateRange: vi.fn(),
 }));
-vi.mock('../../../packages/backend/src/utils/engineClient.js', () => ({
-  callEngineStrict: engineMocks.callEngineStrict,
-  unwrapEngineData: <T>(r: unknown) => ((r as { data?: T })?.data ?? r) as T,
-}));
+vi.mock('../../../packages/backend/src/utils/engineClient.js', () => engineModuleMock);
 
 vi.mock('../../../packages/backend/src/application/backtest-helpers.js', async () => {
   const mockPushDegradedWarning = (
@@ -86,7 +80,6 @@ import { runMonteCarlo } from '../../../packages/backend/src/application/monteca
 
 const mockPortfolio = portfolioFixture({ name: 'Test' });
 
-// translateDomainError 在源码中被以闭包形式调用：translateDomainError(() => DomainPortfolio.fromDTO(p))
 function makeTranslateDomainError() {
   return vi.fn(<T>(fn: () => T): T => fn());
 }

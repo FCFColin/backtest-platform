@@ -30,7 +30,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.26'
+          go-version: '1.26.5'
           cache-dependency-path: data-fetcher/go.sum
 
       - name: Build
@@ -52,7 +52,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.26'
+          go-version: '1.26.5'
           cache-dependency-path: engine-go/go.sum
 
       - name: Build
@@ -60,3 +60,141 @@ jobs:
 
       - name: Benchmark
         run: go test -bench=. -benchmem -count=1 -run=^$ -timeout=120s ./...
+
+  docker-security-scan:
+    name: Docker Image Scan + SBOM
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write # SARIF 上传到 GitHub Security tab
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build API image
+        run: docker build -f Dockerfile.backend -t backtest-api:scan .
+      # 构建上下文统一为仓库根（Dockerfile 内 COPY data-fetcher/ 与 packages/go-shared）
+      - name: Build data-fetcher image
+        run: docker build -f data-fetcher/Dockerfile -t data-fetcher:scan .
+      - name: Build engine image
+        run: docker build -f engine-go/Dockerfile -t engine-go:scan .
+      - name: Build worker image
+        run: docker build -f docker/worker/Dockerfile -t backtest-worker:scan .
+
+      # Trivy 镜像扫描（nightly 而非 PR，检测最终交付镜像的基础层/产物漏洞）
+      # 每个扫描 continue-on-error 确保 4 镜像全部扫完并生成完整 SARIF，末尾 gate 统一判定
+      - name: Trivy scan API
+        id: trivy-api
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
+        continue-on-error: true
+        with:
+          image-ref: backtest-api:scan
+          severity: CRITICAL,HIGH
+          exit-code: 1
+          ignore-unfixed: true
+          format: sarif
+          output: trivy-api.sarif
+      - name: Trivy scan data-fetcher
+        id: trivy-data-fetcher
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
+        continue-on-error: true
+        with:
+          image-ref: data-fetcher:scan
+          severity: CRITICAL,HIGH
+          exit-code: 1
+          ignore-unfixed: true
+          format: sarif
+          output: trivy-data-fetcher.sarif
+      - name: Trivy scan engine-go
+        id: trivy-engine
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
+        continue-on-error: true
+        with:
+          image-ref: engine-go:scan
+          severity: CRITICAL,HIGH
+          exit-code: 1
+          ignore-unfixed: true
+          format: sarif
+          output: trivy-engine.sarif
+      - name: Trivy scan worker
+        id: trivy-worker
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
+        continue-on-error: true
+        with:
+          image-ref: backtest-worker:scan
+          severity: CRITICAL,HIGH
+          exit-code: 1
+          ignore-unfixed: true
+          format: sarif
+          output: trivy-worker.sarif
+
+      - name: Merge SARIF
+        if: always()
+        run: |
+          node <<'SCRIPT'
+          const fs = require('fs');
+          const files = ['trivy-api.sarif', 'trivy-data-fetcher.sarif', 'trivy-engine.sarif', 'trivy-worker.sarif'];
+          const merged = { $schema: 'https://json.schemastore.org/sarif-2.1.0.json', version: '2.1.0', runs: [] };
+          for (const f of files) {
+            if (fs.existsSync(f)) merged.runs.push(...JSON.parse(fs.readFileSync(f, 'utf8')).runs);
+          }
+          fs.writeFileSync('trivy-results.sarif', JSON.stringify(merged, null, 2));
+          SCRIPT
+      - name: Upload SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-results.sarif
+      - name: Security gate (block on CRITICAL/HIGH)
+        if: always()
+        run: |
+          if [ "${{ steps.trivy-api.outcome }}" = "failure" ] || \
+             [ "${{ steps.trivy-data-fetcher.outcome }}" = "failure" ] || \
+             [ "${{ steps.trivy-engine.outcome }}" = "failure" ] || \
+             [ "${{ steps.trivy-worker.outcome }}" = "failure" ]; then
+            echo "::error::Trivy 发现 CRITICAL/HIGH 可修复漏洞，阻断"
+            exit 1
+          fi
+
+      # SBOM（CycloneDX）— 恢复 NOTICE/security.md 承诺的 sbom-cyclonedx 制品
+      - name: SBOM (API)
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610
+        with:
+          image: backtest-api:scan
+          format: cyclonedx-json
+          output-file: sbom-backtest-api.json
+      - name: SBOM (data-fetcher)
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610
+        with:
+          image: data-fetcher:scan
+          format: cyclonedx-json
+          output-file: sbom-data-fetcher.json
+      - name: SBOM (engine-go)
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610
+        with:
+          image: engine-go:scan
+          format: cyclonedx-json
+          output-file: sbom-engine-go.json
+      - name: SBOM (worker)
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610
+        with:
+          image: backtest-worker:scan
+          format: cyclonedx-json
+          output-file: sbom-backtest-worker.json
+      - name: Upload SBOMs
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-cyclonedx
+          path: sbom-*.json
+          retention-days: 30
+
+  loc-stats:
+    name: Line Count Stats
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install scc
+        run: |
+          curl -sL https://github.com/boyter/scc/releases/download/v3.7.0/scc_Linux_x86_64.tar.gz -o scc.tar.gz
+          mkdir -p /tmp/scc
+          tar -xzf scc.tar.gz -C /tmp/scc
+          echo "/tmp/scc" >> $GITHUB_PATH
+      - name: Count lines
+        run: scc --exclude-dir node_modules,dist,dist-ssr,.dev-logs,coverage,.git,data,report,.turbo,.cache,.vite,playwright-report,test-results --no-cocomo --sort lines

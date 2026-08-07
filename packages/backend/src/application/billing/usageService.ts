@@ -1,12 +1,4 @@
-/**
- * 用量计量服务（ADR-037）
- *
- * 企业理由：配额判定与计费对账都依赖"某组织本计费周期内某指标的累计用量"。本服务提供
- * 双写：明细事件（usage_events，审计/BI）+ 月度聚合（usage_counters，配额权威），并以
- * Redis 月度计数器做快路径读，DB 作为跨实例一致性兜底。
- *
- * 隔离：写入经 withTenant（RLS 收敛到当前组织）。Redis 键含 org/period/metric。
- */
+// ADR-037: 双写 usage_events（审计/BI）+ usage_counters（配额权威），Redis 快路径读
 import { withTenant } from '../../db/pool.js';
 import { appRedis } from '../../infrastructure/redisClient.js';
 import { logger } from '../../utils/logger.js';
@@ -16,17 +8,8 @@ function counterKey(orgId: string, period: string, metric: string): string {
   return `usage:${orgId}:${period}:${metric}`;
 }
 
-/** 月底过期：粗略给 35 天 TTL，足以覆盖一个计费周期 */
 const COUNTER_TTL_SEC = 35 * 24 * 60 * 60;
 
-/**
- * 记录一次用量：明细 + 月度聚合（DB）并递增 Redis 快路径计数。
- *
- * @param orgId - 组织 UUID
- * @param metric - 指标名（见 USAGE_METRIC）
- * @param quantity - 数量（默认 1）
- * @param metadata - 附加上下文（可空）
- */
 export async function recordUsage(
   orgId: string,
   metric: string,
@@ -58,13 +41,7 @@ export async function recordUsage(
   }
 }
 
-/**
- * 读取本计费周期某指标的累计用量（优先 Redis，回退 DB）。
- *
- * @param orgId - 组织 UUID
- * @param metric - 指标名
- * @returns 累计数量
- */
+// 优先 Redis，回退 DB
 export async function getMonthlyUsage(orgId: string, metric: string): Promise<number> {
   const period = currentPeriod();
   const key = counterKey(orgId, period, metric);

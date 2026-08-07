@@ -210,7 +210,6 @@ describe('createApiKey', () => {
     const keyPrefix = params[4] as string;
     expect(keyHash).not.toContain(created.plaintext);
     expect(keyHash).toMatch(/^[0-9a-f]{64}$/);
-    // argon2id 编码哈希（P0-04/T6），与密码同策略，同样不含明文
     expect(keyHashArgon2).not.toContain(created.plaintext);
     expect(keyHashArgon2).toMatch(/^\$argon2id\$/);
     expect(created.plaintext.startsWith(keyPrefix)).toBe(true);

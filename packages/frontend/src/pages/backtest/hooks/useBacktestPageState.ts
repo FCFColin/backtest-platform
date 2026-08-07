@@ -72,13 +72,13 @@ function buildBacktestSeoProps(t: TFunction) {
     ),
     features: [
       {
-        title: t('Modelable Content'),
+        title: t('What You Can Model'),
         desc: t(
           'Portfolio weights, date ranges, rebalancing schedules, cashflows, inflation, drag and withdrawal assumptions.',
         ),
       },
       {
-        title: t('Viewable Metrics'),
+        title: t('Metrics You Can Inspect'),
         desc: t(
           'CAGR, MWRR, volatility, max drawdown, Sharpe/Sortino/Calmar ratios, rolling metrics, seasonality, correlations and retirement withdrawal statistics.',
         ),
@@ -86,9 +86,9 @@ function buildBacktestSeoProps(t: TFunction) {
     ],
     related: [
       { title: t('Monte Carlo'), href: '/monte-carlo' },
-      { title: t('Portfolio Optimization'), href: '/optimizer' },
-      { title: t('Efficient Frontier'), href: '/efficient-frontier' },
-      { title: t('Asset Analysis'), href: '/analysis' },
+      { title: t('nav.portfolioOptimize'), href: '/optimizer' },
+      { title: t('nav.efficientFrontier'), href: '/efficient-frontier' },
+      { title: t('nav.assetAnalysis'), href: '/analysis' },
     ],
     relatedLabel: t('Related Tools:'),
   };

@@ -48,7 +48,7 @@ func TestNew(t *testing.T) {
 func TestGet_Success(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"hello":"world"}`))
+		_, _ = w.Write([]byte(`{"hello":"world"}`))
 	}))
 	defer ts.Close()
 	body, err := New("test", Options{RequestDelay: 1 * time.Millisecond, MaxRetries: 1}).Get(ts.URL)
@@ -134,7 +134,7 @@ func TestGet_429Recovers(t *testing.T) {
 			return
 		}
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"ok":true}`))
+		_, _ = w.Write([]byte(`{"ok":true}`))
 	}))
 	defer ts.Close()
 	body, err := New("test", Options{RequestDelay: 1 * time.Millisecond, MaxRetries: 3}).Get(ts.URL)

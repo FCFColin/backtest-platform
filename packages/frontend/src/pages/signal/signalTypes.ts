@@ -1,5 +1,18 @@
-import type { SignalAnalysisResult } from '@backtest/shared/types/signal';
+import type {
+  SignalAnalysisRequest,
+  SignalAnalysisResult,
+  SignalType,
+} from '@backtest/shared/types/signal';
 export type SignalDir = 'buy' | 'sell' | null;
+export function buildSignalRequest(
+  ticker: string,
+  cfg: Pick<SignalAnalysisRequest, 'indicator' | 'period' | 'threshold'>,
+  signalType: SignalType,
+  startDate: string,
+  endDate: string,
+): SignalAnalysisRequest {
+  return { ticker: ticker.trim().toUpperCase(), ...cfg, startDate, endDate, signalType };
+}
 export interface DualSignalResponse {
   signal1: SignalAnalysisResult;
   signal2: SignalAnalysisResult;

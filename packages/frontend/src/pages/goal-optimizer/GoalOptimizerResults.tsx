@@ -163,7 +163,7 @@ function GoalOptimizerResultsPanel({ state }: { state: GoalOptimizerState }) {
   const probColor = r ? getProbColor(r.successProbability) : '';
   return (
     <ResultsShell
-      error={state.error ? `${t('Optimization failed')}: ${state.error}` : null}
+      error={state.error ? `${t('Optimization Failed')}: ${state.error}` : null}
       isLoading={state.isLoading}
       hasResults={!!state.results}
       loadingLabel={t('Optimizing...')}
@@ -200,7 +200,7 @@ const config: ComputeToolConfig<GoalOptimizerState> = {
   titleKey: 'goalOptimizer.title',
   seoDescKey: 'goalOptimizer.seo.desc',
   seoFeatures: [
-    { titleKey: 'goalOptimizer.seo.analyzableTitle', descKey: 'goalOptimizer.seo.analyzableDesc' },
+    { titleKey: 'analysis.seoAnalyzable', descKey: 'goalOptimizer.seo.analyzableDesc' },
     { titleKey: 'goalOptimizer.seo.outputTitle', descKey: 'goalOptimizer.seo.outputDesc' },
   ],
   relatedTools: [

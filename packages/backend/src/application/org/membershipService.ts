@@ -1,14 +1,4 @@
-/**
- * 组织成员业务流程服务（精简版，ADR-032）
- *
- * 承载角色变更、移除、默认活跃组织解析等业务逻辑（含"最后一个 owner"保护、
- * 平台管理员判定等安全约束）。CRUD 查询见 repositories/membershipRepo.ts 与
- * repositories/orgRepo.ts。
- *
- * 隔离边界：organizations/memberships 属身份/控制平面，未启用 RLS（见
- * 009_tenancy.sql 文件头说明——它们在"尚未解析出租户"时即被查询，存在先有鸡
- * 先有蛋问题）。因此本服务直接使用主连接池查询，并由应用层成员校验强制安全。
- */
+// ADR-032: organizations/memberships 未启用 RLS（鸡生蛋问题），直接用主连接池查询
 import { getPool } from '../../db/pool.js';
 import { logger } from '../../utils/logger.js';
 import type { OrgRole } from '../../middleware/jwtAuth.js';
@@ -26,16 +16,6 @@ export {
 } from '../../repositories/membershipRepo.js';
 export { getOrg, updateOrgName } from '../../repositories/orgRepo.js';
 
-/**
- * 将组织内角色映射为全局（legacy）RBAC 角色。
- *
- * 企业理由：现有 RBAC（api/middleware/rbac.ts）以三元角色（admin/analyst/readonly）
- * 判权，而组织成员新增了 owner 级别。owner 在租户内拥有最高权限，映射为 admin，
- * 使既有 requirePermission 链在多租户接入期间无需改动即可工作。
- *
- * @param role - 组织内成员角色
- * @returns 对应的全局 RBAC 角色
- */
 export function orgRoleToGlobalRole(role: OrgRole): GlobalRole {
   return role === 'owner' ? 'admin' : role;
 }
@@ -47,16 +27,6 @@ const ROLE_PRIORITY: Record<OrgRole, number> = {
   readonly: 0,
 };
 
-/**
- * 解析用户登录后的默认活跃组织。
- *
- * 策略：优先选择处于 active 状态的组织中角色优先级最高者（owner > admin > ...），
- * 同优先级取最早加入的组织（稳定可预测）。无任何成员关系时返回 null（用户尚未
- * 加入或创建组织，前端应引导其完成 onboarding）。
- *
- * @param userId - 用户 UUID
- * @returns 默认成员关系或 null
- */
 export async function resolveDefaultOrg(userId: string): Promise<Membership | null> {
   const memberships = await getUserMemberships(userId);
   if (memberships.length === 0) return null;
@@ -68,11 +38,6 @@ export async function resolveDefaultOrg(userId: string): Promise<Membership | nu
   return sorted[0];
 }
 
-/**
- * 检查用户是否为组织内最后一个 owner。
- *
- * @returns 'last_owner' 是最后一个 owner / 'ok' 可操作
- */
 async function ensureNotLastOwner(orgId: string, isOwner: boolean): Promise<'last_owner' | 'ok'> {
   if (!isOwner) return 'ok';
   const pool = getPool();
@@ -83,16 +48,6 @@ async function ensureNotLastOwner(orgId: string, isOwner: boolean): Promise<'las
   return owners[0].c <= 1 ? 'last_owner' : 'ok';
 }
 
-/**
- * 修改成员在组织内的角色。
- *
- * 安全：拒绝把组织内最后一个 owner 降级（避免组织失去管理者）。
- *
- * @param orgId - 组织 UUID
- * @param userId - 目标用户 UUID
- * @param role - 新角色
- * @returns 'ok' | 'not_found' | 'last_owner'
- */
 export async function updateMemberRole(
   orgId: string,
   userId: string,
@@ -117,13 +72,6 @@ export async function updateMemberRole(
   return 'ok';
 }
 
-/**
- * 移除组织成员。拒绝移除最后一个 owner。
- *
- * @param orgId - 组织 UUID
- * @param userId - 目标用户 UUID
- * @returns 'ok' | 'not_found' | 'last_owner'
- */
 export async function removeMember(
   orgId: string,
   userId: string,
@@ -141,12 +89,6 @@ export async function removeMember(
   return 'ok';
 }
 
-/**
- * 判断用户是否为平台管理员（运营 SaaS 自身，区别于租户内 admin）。
- *
- * @param userId - 用户 UUID
- * @returns 是否为平台管理员（查询失败时保守返回 false）
- */
 export async function isPlatformAdmin(userId: string): Promise<boolean> {
   try {
     const pool = getPool();

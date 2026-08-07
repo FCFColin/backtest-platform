@@ -1,6 +1,3 @@
-// DDD: Value Objects + Domain Errors — 不变性+校验+领域异常
-//
-
 export class DomainValidationError extends Error {
   readonly field?: string;
   readonly value?: unknown;

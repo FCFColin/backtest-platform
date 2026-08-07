@@ -353,7 +353,7 @@ function BasicParamsGrid() {
         max={120}
         step={1}
         onChange={(e) => handleNum('rollingWindowMonths', e)}
-        suffix={t('mo')}
+        suffix={t('months')}
       />
       <FloatingField
         label={t('Date Range')}

@@ -295,6 +295,15 @@ describe('portfolioRepo CRUD', () => {
       });
       expect(r.ownerUserId).toBeNull();
     });
+
+    it('应序列化 assets 为 JSONB 参数并按 tenant 隔离', async () => {
+      dbMocks.query.mockResolvedValueOnce({ rows: [baseRow] });
+      await createPortfolio(TENANT, null, { name: 'X', assets: [{ ticker: 'QQQ', weight: 100 }] });
+      const params = dbMocks.query.mock.calls[0][1];
+      expect(params[0]).toBe(TENANT);
+      expect(params[3]).toBe(JSON.stringify([{ ticker: 'QQQ', weight: 100 }]));
+      expect(params[4]).toBe('none');
+    });
   });
 
   describe('updatePortfolio', () => {

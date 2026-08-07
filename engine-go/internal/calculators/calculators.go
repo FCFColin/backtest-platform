@@ -1,4 +1,3 @@
-// Package calculators 提供金融计算器功能。
 package calculators
 
 import (

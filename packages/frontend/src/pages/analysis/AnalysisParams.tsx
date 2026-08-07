@@ -94,7 +94,7 @@ export function AnalysisParamsPanel(props: AnalysisParamsPanelProps) {
           tickers={props.tickers.filter(Boolean)}
           onChange={handleTagChange}
           minCount={1}
-          placeholder={t('Enter ticker, e.g. SPY')}
+          placeholder={t('Enter symbol, e.g. SPY')}
         />
       </Field>
       <AllHistoryCheckbox
@@ -152,7 +152,7 @@ export function AnalysisParamsPanel(props: AnalysisParamsPanelProps) {
         <RunButton
           isLoading={props.isLoading}
           onClick={props.runAnalysis}
-          label={t('ANALYZE')}
+          label={t('Run Analysis')}
           loadingLabel={t('Analyzing...')}
           className={cn(buttonVariants({ variant: 'primary', size: 'default' }), 'w-auto')}
         />

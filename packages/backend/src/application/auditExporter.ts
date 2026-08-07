@@ -1,9 +1,4 @@
-/**
- * 审计日志导出作业（P2-03 不可篡改审计存储）。
- * 批量导出 DB 中未导出的审计日志至 MinIO WORM bucket（Object Lock COMPLIANCE）。
- * BullMQ 重复任务，每 5 分钟执行。DBA 可篡改 DB 行，但 WORM 对象写入后不可删/覆盖。
- * 上传前逐条 HMAC 校验防篡改记录进入 WORM；MinIO 未配置时静默跳过（fail-closed）。
- */
+// P2-03: HMAC 校验后写 MinIO WORM（Object Lock COMPLIANCE）；MinIO 未配置时 fail-closed
 import crypto from 'crypto';
 import { logger } from '../utils/logger.js';
 import {
@@ -29,19 +24,6 @@ interface ExportResult {
   minioConfigured: boolean;
 }
 
-/**
- * 导出待导出的审计日志至 MinIO WORM bucket。
- *
- * 流程：
- * 1. 拉取未导出记录（limit 100，按 created_at 正序）
- * 2. 若 MinIO 未配置，记录 warning 并返回（审计日志仍留 DB）
- * 3. 确保 bucket 存在
- * 4. 逐条校验 HMAC 完整性（跳过已篡改记录）
- * 5. 按日期分组，每组生成 JSONL 上传至 MinIO
- * 6. 上传成功后回填 object_key + exported_at
- *
- * @returns 导出结果统计
- */
 export async function exportPendingAuditLogs(): Promise<ExportResult> {
   const result: ExportResult = {
     processed: 0,
@@ -58,7 +40,6 @@ export async function exportPendingAuditLogs(): Promise<ExportResult> {
     return result;
   }
 
-  // 2. MinIO 未配置时静默跳过（fail-closed）
   if (!result.minioConfigured) {
     logger.warn(
       { count: logs.length },
@@ -128,15 +109,6 @@ export async function exportPendingAuditLogs(): Promise<ExportResult> {
   return result;
 }
 
-/**
- * 将审计日志按 UTC 日期分组（YYYY/MM/DD）。
- *
- * 企业理由：按日期分组使每个 MinIO 对象对应一天的一批审计日志，便于按日期归档
- * 与检索。使用 UTC 而非本地时区，保证跨时区部署的分组一致性。
- *
- * @param logs - 审计日志数组（已按 created_at 正序）
- * @returns Map<日期键(YYYY/MM/DD), 当日日志数组>
- */
 function groupByDate(logs: AuditLogRow[]): Map<string, AuditLogRow[]> {
   const grouped = new Map<string, AuditLogRow[]>();
   for (const log of logs) {
@@ -155,15 +127,6 @@ function groupByDate(logs: AuditLogRow[]): Map<string, AuditLogRow[]> {
   return grouped;
 }
 
-/**
- * 将审计日志数组构建为 JSONL（JSON Lines）字符串。
- *
- * 每行一个 JSON 对象（含 id / eventType / action / payload / hmacSignature /
- * createdAt），行间以换行符分隔。JSONL 格式便于流式处理与按行检索。
- *
- * @param logs - 同一天的审计日志数组
- * @returns JSONL 字符串
- */
 function buildJsonl(logs: AuditLogRow[]): string {
   return logs
     .map((log) =>
