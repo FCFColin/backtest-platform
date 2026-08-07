@@ -3,8 +3,6 @@ import type { AuthenticatedRequest } from './jwtAuth.js';
 import { logger } from '../utils/logger.js';
 import { sendProblem } from '../utils/errors.js';
 import { recordAuthFailure, getRoutePattern } from '../utils/metrics.js';
-import { getUserPermissions } from '../repositories/rbacRepo.js';
-import { getCachedUserPermissions, setCachedUserPermissions } from '../infrastructure/rbacCache.js';
 
 enum Role {
   ADMIN = 'admin',
@@ -134,46 +132,5 @@ export function requirePermission(permission: Permission) {
       return;
     }
     next();
-  };
-}
-
-async function resolveUserPermissions(
-  user: NonNullable<AuthenticatedRequest['user']>,
-): Promise<string[]> {
-  const cached = await getCachedUserPermissions(user.sub);
-  if (cached !== null) return cached;
-  const dbPerms = await getUserPermissions(user.sub);
-  await setCachedUserPermissions(user.sub, dbPerms);
-  if (dbPerms.length === 0) {
-    const role = effectiveRole(user) as Role;
-    const legacyPerms = ROLE_PERMISSIONS[role];
-    return legacyPerms ? Array.from(legacyPerms) : [];
-  }
-  return dbPerms;
-}
-
-export function requirePermissionFromDb(permission: Permission) {
-  return async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
-    const prelude = authorizePrelude(req, res, next, permission, '权限检查（DB）');
-    if (prelude !== 'continue') return;
-    try {
-      const perms = await resolveUserPermissions(req.user!);
-      if (!perms.includes(permission)) {
-        denyInsufficientPermission(req, res, permission, '权限不足，访问拒绝（DB）');
-        return;
-      }
-      next();
-    } catch (err) {
-      logger.error(
-        { err, middleware: 'rbac', permission, userId: req.user!.sub, path: req.path },
-        '[rbac] DB 权限解析失败，回退到 legacy 检查',
-      );
-      const userRole = effectiveRole(req.user!) as Role;
-      if (!hasPermission(userRole, permission)) {
-        denyInsufficientPermission(req, res, permission, '权限不足（legacy 回退）');
-        return;
-      }
-      next();
-    }
   };
 }

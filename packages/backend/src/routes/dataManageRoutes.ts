@@ -165,13 +165,4 @@ router.get(
   ),
 );
 
-router.put(
-  '/regenerate-meta',
-  requireDataManage,
-  validate(emptyBodySchema),
-  (_req: Request, res: Response): void => {
-    sendData(res, { message: '元信息已由 PostgreSQL 实时计算，无需重新生成。' });
-  },
-);
-
 export default router;

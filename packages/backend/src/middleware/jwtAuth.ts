@@ -233,14 +233,7 @@ async function denyIfRevokedOrDisabled(
   middleware: string,
 ): Promise<boolean> {
   const uid = hashUserId(payload.sub);
-  if (await isAccessTokenRevokedForUser(payload.sub, payload.iat)) {
-    denyAuth(req, res, 'SESSION_REVOKED', '会话已全局撤销，拒绝访问', {
-      middleware,
-      failureCode: 'session_revoked',
-      extra: { userId: uid },
-    });
-    return true;
-  }
+  // 吊销已在 validateJwtPayload 检查，此处只查账号停用
   if (!(await isUserSessionValid(payload.sub))) {
     denyAuth(req, res, 'ACCOUNT_DISABLED', '用户已停用，拒绝访问', {
       middleware,
@@ -346,6 +339,6 @@ export {
   isAccessTokenRevokedForUser,
   isUserSessionValid,
 } from './tokenStore.js';
-export { auditLog, writeOutboxEvent, verifyPayload } from './auditMiddleware.js';
+export { auditLog } from './auditMiddleware.js';
 export { idempotencyKey } from './idempotency.js';
 export { handleApiKeyAuth, handleOptionalApiKey } from './apiKeyAuth.js';

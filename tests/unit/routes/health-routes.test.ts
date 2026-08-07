@@ -19,10 +19,6 @@ vi.mock('../../../packages/backend/src/config/index.js', () => ({
     GO_DATA_SERVICE_URL: 'http://127.0.0.1:15003',
   }),
   validateConfig: vi.fn(),
-  PLAN_LIMIT_FLAGS: {
-    enterpriseQuota: 'plan.enterprise-quota',
-    proAnalytics: 'plan.pro-analytics',
-  },
 }));
 
 vi.mock('../../../packages/backend/src/db/pool.js', () => ({

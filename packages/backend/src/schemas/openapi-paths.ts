@@ -438,7 +438,6 @@ function registerAllPaths(): void {
   sec('patch', '/data/manage/update/inc', 'data-manage', '触发增量更新', [401, 403, 503]);
   sec('post', '/data/manage/update/stop', 'data-manage', '停止更新任务', [401, 403, 409]);
   sec('put', '/data/manage/universe', 'data-manage', '更新标的池', [401, 403, 422]);
-  sec('put', '/data/manage/regenerate-meta', 'data-manage', '重生成标的元数据', [401, 403, 503]);
   sec('get', '/tactical/configs', 'tactical-config', '列出当前租户的战术分配配置列表', AUTH_ERR, {
     query: PAGINATION_QUERY,
   });
@@ -503,14 +502,9 @@ const TAGS = [
   'calculators',
   'factor-regression',
   'health',
-  'webhooks',
   'announcements',
   'tactical-config',
-  'data-custom',
-  'audit-logs',
-  'rbac',
   'errors',
-  'feature-flags',
 ];
 
 export function generateOpenApiDocument() {

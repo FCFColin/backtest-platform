@@ -62,7 +62,6 @@ const engineConfig = {
 };
 
 export const authConfig = {
-  REQUIRE_API_KEY: bool(process.env.REQUIRE_API_KEY),
   DEV_SKIP_AUTH: bool(process.env.DEV_SKIP_AUTH),
   JWT_SECRET: requireSecret('JWT_SECRET'),
   JWT_ACCESS_TTL: int(process.env.JWT_ACCESS_TTL, '900'),
@@ -75,17 +74,12 @@ export const authConfig = {
   AUDIT_HMAC_KEY: str(process.env.AUDIT_HMAC_KEY, ''),
   DEBUG_AUTH_TOKEN: str(process.env.DEBUG_AUTH_TOKEN, ''),
   METRICS_AUTH_TOKEN: str(process.env.METRICS_AUTH_TOKEN, ''),
-  PASSWORD_MIN_LENGTH: int(process.env.PASSWORD_MIN_LENGTH, '12'),
-  PASSWORD_REQUIRE_COMPLEXITY: int(process.env.PASSWORD_REQUIRE_COMPLEXITY, '3'),
-  PASSWORD_HISTORY_KEEP: int(process.env.PASSWORD_HISTORY_KEEP, '5'),
-  PASSWORD_EXPIRE_DAYS: int(process.env.PASSWORD_EXPIRE_DAYS, '90'),
   ANOMALY_LOGIN_WINDOW_SEC: int(process.env.ANOMALY_LOGIN_WINDOW_SEC, '300'),
   ANOMALY_LOGIN_MAX_FAILURES: int(process.env.ANOMALY_LOGIN_MAX_FAILURES, '10'),
   ANOMALY_LOGIN_LOCKOUT_SEC: int(process.env.ANOMALY_LOGIN_LOCKOUT_SEC, '3600'),
   AUDIT_RETENTION_DAYS: int(process.env.AUDIT_RETENTION_DAYS, '180'),
   SESSION_IDLE_TIMEOUT_READONLY_SEC: int(process.env.SESSION_IDLE_TIMEOUT_READONLY_SEC, '1800'),
   SESSION_IDLE_TIMEOUT_ANALYST_SEC: int(process.env.SESSION_IDLE_TIMEOUT_ANALYST_SEC, '3600'),
-  RBAC_CACHE_TTL_SEC: int(process.env.RBAC_CACHE_TTL_SEC, '300'),
 };
 
 const databaseConfig = {

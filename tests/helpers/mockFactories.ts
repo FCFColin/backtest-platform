@@ -12,7 +12,6 @@ const CONFIG_DEFAULTS: Record<string, unknown> = {
   ENGINE_AUTH_TOKEN: 'dev-engine-auth-token',
   DATA_SERVICE_AUTH_TOKEN: 'dev-data-service-auth-token',
   CORS_ORIGINS: true,
-  REQUIRE_API_KEY: false,
   DEV_SKIP_AUTH: false,
   JWT_SECRET: 'test-jwt-secret-for-unit-tests',
   JWT_ACCESS_TTL: 900,

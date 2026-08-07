@@ -62,7 +62,7 @@ function publishBacktestProgress(jobId: string, payload: Record<string, unknown>
 export function createBacktestWorker(
   processFn: (job: Job<BacktestJobData>) => Promise<BacktestJobResult>,
 ) {
-  // P0-03: 并发度从硬编码 3 改为环境变量 WORKER_CONCURRENCY（默认 4，生产建议 8）。
+  // P0-03: 并发度从硬编码 3 改为环境变量 WORKER_CONCURRENCY（默认 3）。
   const concurrency = Math.max(1, config.WORKER_CONCURRENCY);
   logger.info({ module: 'backtestQueue', concurrency }, 'Creating BullMQ worker...');
 

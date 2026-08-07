@@ -22,7 +22,6 @@ resources:
   - ../redis.yaml
   - ../canary-deployment.yaml
   - ../mtls-issuer.yaml
-  - ../unleash-deployment.yaml
   - ../prometheus-rules.yaml
   - ../alertmanager-deployment.yaml
   - ../network-policies/

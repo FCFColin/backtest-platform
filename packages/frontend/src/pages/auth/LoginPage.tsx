@@ -17,7 +17,7 @@ const signupSchema = z.object({
     .min(3, 'auth.signup.usernameMinLength')
     .max(30, 'auth.signup.usernameMaxLength'),
   email: z.string().email('auth.signup.emailInvalid'),
-  password: z.string().min(8, 'Password must be at least 8 characters'),
+  password: z.string().min(12, 'Password must be at least 12 characters'),
   orgName: z
     .string()
     .min(1, 'auth.signup.orgNameRequired')

@@ -26,7 +26,6 @@ const CFG_KEYS = [
   'JWT_PUBLIC_KEY_FILE',
   'ENGINE_AUTH_TOKEN',
   'DATA_SERVICE_AUTH_TOKEN',
-  'REQUIRE_API_KEY',
   'CORS_ORIGINS',
   'TRUST_PROXY_HOPS',
   'AUDIT_HMAC_KEY',
@@ -60,7 +59,6 @@ function applyValidProd() {
   config.JWT_PRIVATE_KEY_FILE = '';
   config.JWT_PUBLIC_KEY = '';
   config.JWT_PUBLIC_KEY_FILE = '';
-  config.REQUIRE_API_KEY = true;
   config.CORS_ORIGINS = ['https://example.com'];
   config.AUDIT_HMAC_KEY = 'a-very-strong-hmac-key-of-32-chars+';
   config.DEV_SKIP_AUTH = false;
@@ -133,10 +131,6 @@ describe('validateConfig - 生产环境（严格校验）', () => {
     expect(() => validateConfig()).toThrow(key);
   });
   it('所有配置正确时不应抛错', () => {
-    expect(() => validateConfig()).not.toThrow();
-  });
-  it('REQUIRE_API_KEY=false 时不应抛错（RBAC 始终生效，REQUIRE_API_KEY 已退役）', () => {
-    config.REQUIRE_API_KEY = false;
     expect(() => validateConfig()).not.toThrow();
   });
   it('多个校验失败时错误信息应包含全部失败项', () => {

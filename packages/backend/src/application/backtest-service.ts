@@ -149,7 +149,9 @@ export async function runBacktest(
         tenantId: params.tenantId,
         ownerUserId: params.ownerUserId,
       };
-      publishBacktestEvent(aggregateId, randomUUID(), eventPayload);
+      void publishBacktestEvent(aggregateId, randomUUID(), eventPayload).catch((err) =>
+        logger.error({ err, aggregateId }, 'Failed to write BacktestCompleted event to outbox'),
+      );
       logger.info('Backtest completed');
       recordBacktestRequest('portfolio', 'sync', 'success');
       return { result };
@@ -162,28 +164,7 @@ export async function runBacktest(
   });
 }
 
-function publishBacktestEvent(
-  aggregateId: string,
-  eventId: string,
-  eventPayload: Record<string, unknown>,
-): void {
-  void eventDispatcher
-    .dispatch({
-      eventType: 'BacktestCompleted',
-      aggregateType: 'BacktestSession',
-      aggregateId,
-      payload: eventPayload,
-      occurredAt: new Date(),
-    })
-    .catch((err) =>
-      logger.error({ err, aggregateId }, 'Failed to dispatch BacktestCompleted event'),
-    );
-  void writeBacktestEventToOutbox(aggregateId, eventId, eventPayload).catch((err) =>
-    logger.error({ err, aggregateId }, 'Failed to write BacktestCompleted event to outbox'),
-  );
-}
-
-async function writeBacktestEventToOutbox(
+async function publishBacktestEvent(
   aggregateId: string,
   eventId: string,
   eventPayload: Record<string, unknown>,

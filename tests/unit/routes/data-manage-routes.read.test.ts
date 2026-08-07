@@ -187,7 +187,6 @@ describe('dataManageRoutes - 写端点权限保护（对抗性）', () => {
       ['PUT', '/update/full'],
       ['PATCH', '/update/inc'],
       ['PUT', '/universe'],
-      ['PUT', '/regenerate-meta'],
     ] as const) {
       const res = await fetch(`${server.url}/api/v1/data/manage${path}`, { method });
       expect(res.status).not.toBe(501);
@@ -251,10 +250,5 @@ describe('dataManageRoutes - 写端点（admin）', () => {
     const { res, body } = await reqJson(`${server.url}/api/v1/data/manage/universe`, 'PUT');
     expect(res.status).toBe(200);
     expect(body.data.total).toBe(0);
-  });
-  it('PUT /regenerate-meta 应直接返回成功（数据由 PostgreSQL 实时计算）', async () => {
-    const { res, body } = await reqJson(`${server.url}/api/v1/data/manage/regenerate-meta`, 'PUT');
-    expect(res.status).toBe(200);
-    expect(body.data.message).toContain('PostgreSQL');
   });
 });

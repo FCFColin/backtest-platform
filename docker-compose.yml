@@ -123,20 +123,6 @@ services:
     command: ['redis-server', '--save', '', '--appendonly', 'no']
     healthcheck: *hc-redis
 
-  unleash:
-    image: unleashorg/unleash-server:5.12.5
-    pull_policy: if_not_exists
-    container_name: backtest-unleash
-    ports: ['127.0.0.1:4242:4242']
-    environment:
-      DATABASE_URL: 'postgresql://backtest:backtest@postgres:5432/unleash'
-      INIT_ADMIN_API_TOKENS: '${UNLEASH_API_TOKEN:-dev-unleash-token}'
-    depends_on: { postgres: { condition: service_healthy } }
-    healthcheck:
-      <<: *hc-10x5
-      test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:4242/health']
-    <<: *restart-unless
-
   redis-master:
     <<: *redis-img
     container_name: backtest-redis-master

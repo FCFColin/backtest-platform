@@ -24,11 +24,11 @@ vi.mock('../../../packages/backend/src/db/pool.js', () => ({
   getPool: () => ({ query: poolMocks.query }),
 }));
 
+import { auditLog } from '../../../packages/backend/src/middleware/jwtAuth.js';
 import {
-  auditLog,
   verifyPayload,
   writeOutboxEvent,
-} from '../../../packages/backend/src/middleware/jwtAuth.js';
+} from '../../../packages/backend/src/middleware/auditMiddleware.js';
 import { config } from '../../../packages/backend/src/config/index.js';
 
 function createMockReqRes(opts: {

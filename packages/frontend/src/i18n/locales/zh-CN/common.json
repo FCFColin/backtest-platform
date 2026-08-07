@@ -528,7 +528,7 @@
   "Parameters": "参数设置",
   "Parameters Summary": "参数汇总",
   "Password": "密码",
-  "Password must be at least 8 characters": "密码至少 8 位",
+  "Password must be at least 12 characters": "密码至少 12 位",
   "Pending": "待接受",
   "Per-Period Amount": "每期投入",
   "Period": "周期",
