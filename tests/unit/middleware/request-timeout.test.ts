@@ -153,4 +153,23 @@ describe('requestTimeout', () => {
     vi.advanceTimersByTime(1_000);
     expect(res.status).toHaveBeenCalledWith(408);
   });
+
+  it('resolver 形式：按路径返回超时值，compute 路径使用较长超时', () => {
+    const middleware = requestTimeout((req) =>
+      req.path.startsWith('/api/v1/backtest') ? 125_000 : 30_000,
+    );
+    const res = createEventMockResponse();
+    const next = vi.fn();
+
+    middleware({ method: 'POST', path: '/api/v1/backtest/analysis' } as never, res as never, next);
+    vi.advanceTimersByTime(124_999);
+    expect(res.status).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(1_000);
+    expect(res.status).toHaveBeenCalledWith(408);
+
+    const res2 = createEventMockResponse();
+    middleware({ method: 'GET', path: '/api/v1/data/tickers' } as never, res2 as never, next);
+    vi.advanceTimersByTime(30_000);
+    expect(res2.status).toHaveBeenCalledWith(408);
+  });
 });

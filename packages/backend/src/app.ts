@@ -72,7 +72,24 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   next();
 });
 
-app.use(requestTimeout(30_000));
+// 同步计算端点调用引擎最长可达 ENGINE_TIMEOUT_MS，须大于引擎客户端超时让其先返回错误而非 408
+const COMPUTE_PATHS = [
+  '/api/v1/backtest',
+  '/api/v1/backtest-optimizer',
+  '/api/v1/tactical',
+  '/api/v1/tactical-grid',
+  '/api/v1/pca',
+  '/api/v1/signal',
+  '/api/v1/letf',
+  '/api/v1/goal-optimizer',
+  '/api/v1/analysis',
+  '/api/v1/calculators',
+];
+app.use(
+  requestTimeout((req) =>
+    COMPUTE_PATHS.some((p) => req.path.startsWith(p)) ? config.ENGINE_TIMEOUT_MS + 5_000 : 30_000,
+  ),
+);
 
 app.use(createEarlyHintsMiddleware());
 
