@@ -1541,5 +1541,6 @@
   "yfinance · finnhub · akshare · BaoStock": "yfinance · finnhub · akshare · BaoStock",
   "{{baseName}} vs {{targetName}}": "{{baseName}} 对比 {{targetName}}",
   "{{p1Label}}  {{p2Label}}": "{{p1Label}}  {{p2Label}}",
+  "{{p1Label}}={{p1}}, {{p2Label}}={{p2}}\n{{objectiveLabel}}: {{value}}": "{{p1Label}}={{p1}}, {{p2Label}}={{p2}}\n{{objectiveLabel}}：{{value}}",
   "© {{year}} {{brand}}": "© {{year}} {{brand}}"
 }
