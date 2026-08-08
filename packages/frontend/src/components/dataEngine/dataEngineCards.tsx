@@ -147,7 +147,6 @@ export function DataEngineOverviewCards({
   const { t } = useTranslation();
   const totalUniverse = universe?.total || stats.total_cached || 0;
   const totalCached = stats.total_cached || 0;
-  const coverageBase = totalUniverse > 0 ? totalUniverse : totalCached;
   const earliestDate = stats.date_ranges.earliest;
   const latestDate = stats.date_ranges.latest;
   const historyYears = historySpanYears(earliestDate, latestDate);
@@ -156,7 +155,7 @@ export function DataEngineOverviewCards({
       icon: <Database className="size-5" />,
       label: t('Ticker Universe'),
       value: fmt(totalUniverse),
-      sub: `${t('Cached')} ${fmt(totalCached)} (${coverageBase > 0 ? ((totalCached / coverageBase) * 100).toFixed(1) : 0}%)`,
+      sub: `${t('Cached')} ${fmt(totalCached)} (${totalUniverse > 0 ? ((totalCached / totalUniverse) * 100).toFixed(1) : 0}%)`,
     },
     {
       icon: <BarChart3 className="size-5" />,
@@ -201,7 +200,6 @@ export function DataEngineCoverageBars({
   const { t } = useTranslation();
   const totalUniverse = universe?.total || stats.total_cached || 0;
   const totalCached = stats.total_cached || 0;
-  const coverageBase = totalUniverse > 0 ? totalUniverse : totalCached;
   const bars = [
     { label: t('Total Coverage'), current: totalCached },
     { label: t('5+ Years Data'), current: stats.coverage.tickers_with_5y_plus || 0 },
@@ -212,7 +210,7 @@ export function DataEngineCoverageBars({
   return (
     <Panel title={t('Data Coverage')}>
       {bars.map((b) => (
-        <ProgressBar key={b.label} label={b.label} current={b.current} total={coverageBase} />
+        <ProgressBar key={b.label} label={b.label} current={b.current} total={totalUniverse} />
       ))}
     </Panel>
   );
