@@ -11,6 +11,7 @@ import {
   type DataUpdateJobResult,
 } from './queueDefinitions.js';
 import { createQueueWorker } from './workerFactory.js';
+import { invalidateAllCache } from '../infrastructure/dataCache.js';
 
 const BATCH_SIZE = 50;
 
@@ -109,6 +110,8 @@ async function processDataUpdateJob(job: Job<DataUpdateJobData>): Promise<DataUp
 
     await job.updateProgress(i + batch.length);
   }
+
+  if (completedTickers > 0) await invalidateAllCache();
 
   logger.info(
     { jobId: job.id, mode, totalTickers, completedTickers, failed: failedTickers.length },

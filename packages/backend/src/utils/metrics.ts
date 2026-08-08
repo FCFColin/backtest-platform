@@ -125,6 +125,10 @@ const COUNTER_DEFS = {
     help: 'Total number of quota enforcement failures (Redis/DB unavailable, fail-closed)',
     labels: ['quota_key', 'reason'],
   },
+  audit_outbox_write_failures_total: {
+    help: 'Total number of audit outbox event write failures (non-transactional path)',
+    labels: [],
+  },
 } as const;
 const ctr = Object.fromEntries(
   Object.entries(COUNTER_DEFS).map(([name, def]) => [name, counter(name, def.help, def.labels)]),
@@ -134,6 +138,7 @@ export const engineCallsTotal = ctr.go_engine_calls_total;
 export const engineUnavailableTotal = ctr.engine_unavailable_total;
 export const authIpLockoutCounter = ctr.auth_ip_lockout_total;
 export const quotaEnforcementFailures = ctr.quota_enforcement_failures_total;
+export const auditOutboxWriteFailures = ctr.audit_outbox_write_failures_total;
 
 function sanitizeMetricLabel(value: string, maxLength = 64, allowSlash = false): string {
   const pattern = allowSlash ? /[^a-zA-Z0-9_/-]/g : /[^a-zA-Z0-9_-]/g;

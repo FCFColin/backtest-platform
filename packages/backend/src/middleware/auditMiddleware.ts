@@ -4,6 +4,7 @@ import { config } from '../config/index.js';
 import { logger } from '../utils/logger.js';
 import type { PoolClient } from 'pg';
 import { getPool } from '../db/pool.js';
+import { auditOutboxWriteFailures } from '../utils/metrics.js';
 import type { AuthenticatedRequest } from './jwtAuth.js';
 
 const auditLogger = logger.child({ audit: true, module: 'audit' });
@@ -73,6 +74,7 @@ export async function writeOutboxEvent(
       { err, middleware: 'auditLog' },
       '[auditLog] outbox 事件写入失败，审计日志仍已记录到 pino 日志流',
     );
+    auditOutboxWriteFailures.inc();
   }
 }
 export function auditLog(req: Request, res: Response, next: NextFunction): void {
