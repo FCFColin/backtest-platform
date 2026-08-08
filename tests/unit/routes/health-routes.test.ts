@@ -1,16 +1,14 @@
+import '../../helpers/loggerMock.js';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { startExpressApp } from '../../helpers/expressApp.js';
 import { withServer } from '../../helpers/serverLifecycle.js';
 import { createConfigMocks } from '../../helpers/mockFactories.js';
-import { loggerMocks } from '../../helpers/loggerFixture.js';
 
 const originalFetch = globalThis.fetch;
 
 const dbMocks = vi.hoisted(() => ({
   query: vi.fn(),
 }));
-
-vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: loggerMocks }));
 
 vi.mock('../../../packages/backend/src/config/index.js', () => ({
   config: createConfigMocks({
@@ -89,14 +87,11 @@ describe('healthRoutes', () => {
     });
   });
 
-  describe('GET /api/ready', () => {
-    it('Go 引擎可用时应返回 status=ok', async () => {
-      config.METRICS_AUTH_TOKEN = 'test-metrics-token';
+  describe('GET /api/ready（k8s readinessProbe 无鉴权探测，见 k8s/deployments.yaml）', () => {
+    it('无鉴权且 Go 引擎可用时应返回 status=ok', async () => {
       globalThis.fetch = createFetchMock({ goEngine: { ok: true, status: 200 } }) as typeof fetch;
 
-      const res = await fetch(`${getServer().url}/api/ready`, {
-        headers: { Authorization: 'Bearer test-metrics-token' },
-      });
+      const res = await fetch(`${getServer().url}/api/ready`);
       const body = await res.json();
 
       expect(res.status).toBe(200);
@@ -106,15 +101,12 @@ describe('healthRoutes', () => {
       expect(body.data.dependencies.database).toBe(true);
     });
 
-    it('Go 引擎不可用时应 fail-closed 返回 503 + Retry-After（ADR-031）', async () => {
-      config.METRICS_AUTH_TOKEN = 'test-metrics-token';
+    it('无鉴权且 Go 引擎不可用时应 fail-closed 返回 503 + Retry-After（ADR-031）', async () => {
       globalThis.fetch = createFetchMock({
         goEngine: new Error('ECONNREFUSED'),
       }) as typeof fetch;
 
-      const res = await fetch(`${getServer().url}/api/ready`, {
-        headers: { Authorization: 'Bearer test-metrics-token' },
-      });
+      const res = await fetch(`${getServer().url}/api/ready`);
       const body = await res.json();
 
       expect(res.status).toBe(503);
@@ -148,25 +140,19 @@ describe('healthRoutes', () => {
     });
   });
 
-  it.each(['/ready', '/metrics'] as const)(
-    '配置 METRICS_AUTH_TOKEN 时未鉴权访问 %s 应返回 401',
-    async (path) => {
-      config.METRICS_AUTH_TOKEN = 'secret-metrics-token';
+  it('配置 METRICS_AUTH_TOKEN 时未鉴权访问 /metrics 应返回 401', async () => {
+    config.METRICS_AUTH_TOKEN = 'secret-metrics-token';
 
-      const res = await fetch(`${getServer().url}/api${path}`);
-      expect(res.status).toBe(401);
-    },
-  );
+    const res = await fetch(`${getServer().url}/api/metrics`);
+    expect(res.status).toBe(401);
+  });
 
-  it.each(['/ready', '/metrics'] as const)(
-    'D2-005: 未配置 METRICS_AUTH_TOKEN 时 %s 应返回 403',
-    async (path) => {
-      config.METRICS_AUTH_TOKEN = '';
+  it('D2-005: 未配置 METRICS_AUTH_TOKEN 时 /metrics 应返回 403', async () => {
+    config.METRICS_AUTH_TOKEN = '';
 
-      const res = await fetch(`${getServer().url}/api${path}`);
-      expect(res.status).toBe(403);
-    },
-  );
+    const res = await fetch(`${getServer().url}/api/metrics`);
+    expect(res.status).toBe(403);
+  });
 });
 
 describe('healthRoutes (debug endpoint) - GET /api/v1/debug/health', () => {

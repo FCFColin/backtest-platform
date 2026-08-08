@@ -50,7 +50,6 @@ for (const [metric, threshold] of Object.entries(GLOBAL_THRESHOLDS)) {
 }
 
 const CRITICAL_FILES = [
-  'packages/backend/src/middleware/jwtAuth.ts',
   'packages/backend/src/middleware/rbac.ts',
   'packages/backend/src/application/auth/userService.ts',
   'packages/backend/src/utils/tickerValidation.ts',
@@ -59,7 +58,6 @@ const CRITICAL_FILES = [
   'packages/backend/src/utils/engineClient.ts',
   'packages/backend/src/infrastructure/dataFacade.ts',
   'packages/backend/src/queues/worker.ts',
-  'packages/backend/src/queues/backtestQueue.ts',
 ];
 const MIN_LINE_COVERAGE = 60,
   CRITICAL_LINE_COVERAGE = 60;

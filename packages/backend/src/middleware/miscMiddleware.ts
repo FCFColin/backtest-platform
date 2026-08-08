@@ -19,26 +19,6 @@ function createValidator(source: 'body' | 'query', statusCode: number) {
 export const validate = createValidator('body', 400);
 export const validateQuery = createValidator('query', 422);
 
-interface DeprecationConfig {
-  deprecated: string;
-  sunset?: string;
-  successor?: string;
-}
-
-export function createDeprecationMiddleware(config: DeprecationConfig) {
-  const { deprecated, sunset, successor } = config;
-  return function deprecationHeaders(_req: Request, res: Response, next: NextFunction): void {
-    res.setHeader('Deprecation', deprecated);
-    if (sunset) {
-      res.setHeader('Sunset', sunset);
-    }
-    if (successor) {
-      res.setHeader('Link', `<${successor}>; rel="successor-version"`);
-    }
-    next();
-  };
-}
-
 export function setupOpenApiUi(app: Application): void {
   if (process.env.NODE_ENV === 'production') return;
   const document = generateOpenApiDocument();

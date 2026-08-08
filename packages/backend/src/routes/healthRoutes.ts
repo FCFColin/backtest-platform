@@ -79,10 +79,7 @@ router.get('/health', (_req: Request, res: Response) => {
   });
 });
 
-router.get('/ready', async (req: Request, res: Response) => {
-  if (!checkBearerToken(req, res, config.METRICS_AUTH_TOKEN, 'METRICS_AUTH_NOT_CONFIGURED', 403))
-    return;
-
+router.get('/ready', async (_req: Request, res: Response) => {
   try {
     const [goEngineOk, goDataOk, dbOk, redisOk, sentinelHealth] = await Promise.all([
       checkHttp(`${config.GO_ENGINE_URL}/api/engine/health`),
