@@ -1,13 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
-  savePortfolios,
-  loadPortfolios,
-  saveParameters,
-  loadParameters,
   saveNamedConfig,
   loadNamedConfigs,
   deleteNamedConfig,
-  clearAllData,
 } from '../../../packages/frontend/src/utils/portfolioStorage.js';
 import type { Portfolio, BacktestParameters } from '@backtest/shared';
 
@@ -70,77 +65,6 @@ afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
   vi.useRealTimers();
-});
-
-describe('savePortfolios / loadPortfolios', () => {
-  it('保存后能正确加载', () => {
-    savePortfolios(validPortfolios);
-    expect(loadPortfolios()).toEqual(validPortfolios);
-  });
-  it('未保存时加载返回 null', () => {
-    expect(loadPortfolios()).toBeNull();
-  });
-  it('保存空数组也能正确加载', () => {
-    savePortfolios([]);
-    expect(loadPortfolios()).toEqual([]);
-  });
-  it('保存多个组合', () => {
-    const portfolios: Portfolio[] = [
-      {
-        id: 'p1',
-        name: 'Portfolio 1',
-        assets: [{ ticker: 'VTI', weight: 100 }],
-        rebalanceFrequency: 'none',
-      },
-      {
-        id: 'p2',
-        name: 'Portfolio 2',
-        assets: [
-          { ticker: 'SPY', weight: 50 },
-          { ticker: 'BND', weight: 50 },
-        ],
-        rebalanceFrequency: 'quarterly',
-      },
-      {
-        id: 'p3',
-        name: 'Portfolio 3',
-        assets: [{ ticker: 'QQQ', weight: 100 }],
-        rebalanceFrequency: 'monthly',
-      },
-    ];
-    savePortfolios(portfolios);
-    expect(loadPortfolios()).toEqual(portfolios);
-  });
-  it('覆盖保存：第二次保存替换第一次', () => {
-    savePortfolios(validPortfolios);
-    const np: Portfolio[] = [
-      {
-        id: 'p2',
-        name: 'New',
-        assets: [{ ticker: 'SPY', weight: 100 }],
-        rebalanceFrequency: 'none',
-      },
-    ];
-    savePortfolios(np);
-    expect(loadPortfolios()).toEqual(np);
-    expect(loadPortfolios()?.length).toBe(1);
-  });
-});
-
-describe('saveParameters / loadParameters', () => {
-  it('保存后能正确加载', () => {
-    saveParameters(validParams);
-    expect(loadParameters()).toEqual(validParams);
-  });
-  it('未保存时加载返回 null', () => {
-    expect(loadParameters()).toBeNull();
-  });
-  it('覆盖保存', () => {
-    saveParameters(validParams);
-    const np: BacktestParameters = { ...validParams, startingValue: 50000 };
-    saveParameters(np);
-    expect(loadParameters()).toEqual(np);
-  });
 });
 
 describe('saveNamedConfig / loadNamedConfigs', () => {
@@ -222,50 +146,29 @@ describe('deleteNamedConfig', () => {
   });
 });
 
-describe('clearAllData', () => {
-  it('清除所有存储数据', () => {
-    savePortfolios(validPortfolios);
-    saveParameters(validParams);
-    saveNamedConfig('Test', validPortfolios, validParams);
-    clearAllData();
-    expect(loadPortfolios()).toBeNull();
-    expect(loadParameters()).toBeNull();
-    expect(loadNamedConfigs()).toEqual([]);
-  });
-  it('无数据时清除不抛错', () => {
-    expect(() => clearAllData()).not.toThrow();
-  });
-});
-
 describe('localStorage 不可用 - 优雅降级', () => {
   it.each([
-    ['savePortfolios', () => savePortfolios(validPortfolios), 'throwSet'],
-    ['saveParameters', () => saveParameters(validParams), 'throwSet'],
     ['saveNamedConfig', () => saveNamedConfig('Test', validPortfolios, validParams), 'throwSet'],
     ['deleteNamedConfig', () => deleteNamedConfig('any-id'), 'throwSet'],
-    ['clearAllData', () => clearAllData(), 'throwRemove'],
   ])('%s 不抛错', (_n, fn, mode) => {
     vi.stubGlobal('localStorage', unavailableStorage(mode as string));
     expect(() => fn()).not.toThrow();
   });
-  it.each([
-    ['loadPortfolios', () => loadPortfolios(), null],
-    ['loadParameters', () => loadParameters(), null],
-    ['loadNamedConfigs', () => loadNamedConfigs(), []],
-  ])('%s 返回默认值', (_n, fn, expected) => {
-    vi.stubGlobal('localStorage', unavailableStorage('throwGet'));
-    expect(fn()).toEqual(expected);
-  });
+  it.each([['loadNamedConfigs', () => loadNamedConfigs(), []]])(
+    '%s 返回默认值',
+    (_n, fn, expected) => {
+      vi.stubGlobal('localStorage', unavailableStorage('throwGet'));
+      expect(fn()).toEqual(expected);
+    },
+  );
 });
 
 describe('损坏数据恢复', () => {
-  it.each([
-    ['backtest-portfolios', () => loadPortfolios(), null, 'not valid json{{{'],
-    ['backtest-params', () => loadParameters(), null, 'not valid json{{{'],
-    ['backtest-saved-configs', () => loadNamedConfigs(), [], 'not valid json{{{'],
-    ['backtest-portfolios 为 null 字符串', () => loadPortfolios(), null, 'null'],
-  ])('localStorage 中 %s 应返回默认值', (key, fn, expected, raw) => {
-    localStorage.setItem(key, raw);
-    expect(fn()).toEqual(expected);
-  });
+  it.each([['backtest-saved-configs', () => loadNamedConfigs(), [], 'not valid json{{{']])(
+    'localStorage 中 %s 应返回默认值',
+    (key, fn, expected, raw) => {
+      localStorage.setItem(key, raw);
+      expect(fn()).toEqual(expected);
+    },
+  );
 });

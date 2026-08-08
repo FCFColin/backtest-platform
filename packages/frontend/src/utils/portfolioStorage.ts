@@ -49,12 +49,6 @@ export function writeStateToURL(state: ShareableState): string {
   return url.toString();
 }
 
-export function clearStateFromURL(): void {
-  const url = new URL(window.location.href);
-  url.searchParams.delete('d');
-  window.history.replaceState({}, '', url.toString());
-}
-
 function lsGet<T>(key: string, fallback: T): T {
   try {
     const data = localStorage.getItem(key);
@@ -71,16 +65,6 @@ function lsSet(key: string, value: unknown): void {
     reportError(e, { component: 'portfolioStorage', action: `lsSet:${key}` });
   }
 }
-
-const STORAGE_KEY = 'backtest-portfolios';
-const PARAMS_KEY = 'backtest-params';
-
-export const savePortfolios = (p: Portfolio[]): void => lsSet(STORAGE_KEY, p);
-export const loadPortfolios = (): Portfolio[] | null =>
-  lsGet<Portfolio[] | null>(STORAGE_KEY, null);
-export const saveParameters = (p: BacktestParameters): void => lsSet(PARAMS_KEY, p);
-export const loadParameters = (): BacktestParameters | null =>
-  lsGet<BacktestParameters | null>(PARAMS_KEY, null);
 
 export interface SavedPortfolio {
   id: string;
@@ -115,15 +99,6 @@ export function deleteNamedConfig(id: string): void {
     SAVED_KEY,
     loadNamedConfigs().filter((c) => c.id !== id),
   );
-}
-
-export function clearAllData(): void {
-  try {
-    localStorage.removeItem(STORAGE_KEY);
-    localStorage.removeItem(PARAMS_KEY);
-    localStorage.removeItem(SAVED_KEY);
-    // eslint-disable-next-line no-empty -- 存储不可用时无需处理
-  } catch {}
 }
 
 const IMPORT_FLAG = 'bt_configs_imported';

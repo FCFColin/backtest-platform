@@ -4,7 +4,6 @@ import {
   decodeState,
   readStateFromURL,
   writeStateToURL,
-  clearStateFromURL,
   type ShareableState,
 } from '../../../packages/frontend/src/utils/portfolioStorage.js';
 
@@ -160,21 +159,6 @@ describe('writeStateToURL', () => {
     const [state, title] = mockWindow.history.replaceState.mock.calls[0];
     expect(state).toEqual({});
     expect(title).toBe('');
-  });
-});
-
-describe('clearStateFromURL', () => {
-  it('清除 URL 中的 ?d= 参数', () => {
-    mockWindow.location.href = `https://example.com/?d=${encodeState(validState)}`;
-    clearStateFromURL();
-    expect(mockWindow.history.replaceState).toHaveBeenCalledTimes(1);
-    const url = mockWindow.history.replaceState.mock.calls[0][2] as string;
-    expect(url).not.toContain('?d=');
-    expect(url).not.toContain('&d=');
-  });
-  it('URL 无 ?d= 参数时也不抛错', () => {
-    mockWindow.location.href = 'https://example.com/';
-    expect(() => clearStateFromURL()).not.toThrow();
   });
 });
 

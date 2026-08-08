@@ -20,14 +20,6 @@ export const INPUT_WIDTHS = {
   search: 'w-[320px]',
 } as const;
 
-export const CARD_WIDTHS = {
-  portfolio: { min: 320, max: 460 },
-  cashflow: { min: 300, max: 400 },
-  saved: { min: 260, max: 340 },
-  metric: { min: 200, max: 260 },
-  hero: { min: 300, max: 400 },
-} as const;
-
 export const CARD_GRID_CLASSES = {
   portfolio: 'grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-4',
   cashflow: 'grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-4',

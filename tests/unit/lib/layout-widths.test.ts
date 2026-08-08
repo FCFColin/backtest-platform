@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
   INPUT_WIDTHS,
-  CARD_WIDTHS,
   CARD_GRID_CLASSES,
   CONTAINER_WIDTHS,
 } from '../../../packages/frontend/src/utils/constants.js';
@@ -38,28 +37,6 @@ describe('INPUT_WIDTHS', () => {
     ['search', 'w-[320px]'],
   ])('%s 宽度为 %s', (key, cls) => {
     expect((INPUT_WIDTHS as Record<string, string>)[key]).toBe(cls);
-  });
-});
-
-describe('CARD_WIDTHS', () => {
-  it('包含所有必需的卡片宽度键', () => {
-    const expectedKeys = ['portfolio', 'cashflow', 'saved', 'metric', 'hero'];
-    for (const key of expectedKeys) {
-      expect(CARD_WIDTHS).toHaveProperty(key);
-    }
-  });
-
-  it('每个卡片宽度包含 min/max 属性', () => {
-    for (const value of Object.values(CARD_WIDTHS)) {
-      expect(value).toHaveProperty('min');
-      expect(value).toHaveProperty('max');
-      expect(value.min).toBeLessThanOrEqual(value.max);
-    }
-  });
-
-  it('portfolio 卡片宽度范围为 320-460px', () => {
-    expect(CARD_WIDTHS.portfolio.min).toBe(320);
-    expect(CARD_WIDTHS.portfolio.max).toBe(460);
   });
 });
 
