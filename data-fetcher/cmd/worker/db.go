@@ -33,37 +33,14 @@ func initDB(ctx context.Context, databaseURL string) (*pgxpool.Pool, error) {
 	return pool, nil
 }
 func ensureSchema(ctx context.Context, pool *pgxpool.Pool) error {
-	schema := `
-	CREATE TABLE IF NOT EXISTS prices (
-		ticker TEXT NOT NULL,
-		date   DATE NOT NULL,
-		open   DOUBLE PRECISION,
-		high   DOUBLE PRECISION,
-		low    DOUBLE PRECISION,
-		close  DOUBLE PRECISION,
-		volume BIGINT,
-		adjusted_close DOUBLE PRECISION,
-		open_numeric DOUBLE PRECISION,
-		high_numeric DOUBLE PRECISION,
-		low_numeric DOUBLE PRECISION,
-		close_numeric DOUBLE PRECISION,
-		adjusted_close_numeric DOUBLE PRECISION,
-		PRIMARY KEY (ticker, date)
-	);
-	CREATE INDEX IF NOT EXISTS idx_prices_ticker_date ON prices (ticker, date);
-	CREATE TABLE IF NOT EXISTS tickers (
-		ticker TEXT PRIMARY KEY,
-		category TEXT NOT NULL DEFAULT '',
-		market TEXT NOT NULL DEFAULT '',
-		exchange TEXT NOT NULL DEFAULT ''
-	);
+	// prices/tickers 由 001_initial_schema.sql 统一建表（唯一权威源），此处仅建 worker 私有进度表。
+	_, err := pool.Exec(ctx, `
 	CREATE TABLE IF NOT EXISTS worker_progress (
 		ticker   TEXT PRIMARY KEY,
 		last_date DATE,
 		updated_at  TIMESTAMP DEFAULT NOW()
 	);
-	`
-	_, err := pool.Exec(ctx, schema)
+	`)
 	return err
 }
 func loadTickerList(ctx context.Context, pool *pgxpool.Pool) ([]string, error) {

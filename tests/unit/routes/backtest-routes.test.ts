@@ -108,7 +108,13 @@ const engineCases: EngineCase[] = [
     validBody: () => ({
       portfolio: createValidPortfolio(),
       parameters: createValidParameters(),
-      mcParams: { numSimulations: 100, seed: 42 },
+      mcParams: {
+        numSimulations: 100,
+        numYears: 20,
+        minBlockYears: 1,
+        maxBlockYears: 3,
+        successThreshold: 1.0,
+      },
     }),
     invalidBodies: [['缺少 portfolio（zod refine）', { parameters: createValidParameters() }]],
     specials: [
@@ -118,7 +124,10 @@ const engineCases: EngineCase[] = [
           await postJson(url, c.validBody());
           expect((m.callEngineStrict.mock.calls[0][1] as { mcParams: unknown }).mcParams).toEqual({
             numSimulations: 100,
-            seed: 42,
+            numYears: 20,
+            minBlockYears: 1,
+            maxBlockYears: 3,
+            successThreshold: 1.0,
           });
         },
       ],

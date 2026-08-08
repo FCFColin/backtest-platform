@@ -13,7 +13,6 @@
   --fg: 222 47% 11%;
   --fg-secondary: 217 19% 35%;
   --fg-tertiary: 217 20% 45%;
-  --fg-disabled: 217 20% 65%;
 
   --brand: 217 91% 53%;
   --brand-hover: 221 83% 48%;
@@ -26,13 +25,13 @@
   --pos: 142 71% 36%;
   --neg: 0 72% 51%;
 
-  --bg-elevated: #ffffff;
-  --bg-subtle: #f1f5f9;
-  --text-strong: #0f172a;
-  --text-body: #475569;
-  --text-muted: #94a3b8;
-  --border-soft: #e2e8f0;
-  --color-brand-soft: #dbeafe;
+  --bg-elevated: hsl(var(--surface));
+  --bg-subtle: hsl(var(--hover));
+  --text-strong: hsl(var(--fg));
+  --text-body: hsl(var(--fg-secondary));
+  --text-muted: hsl(var(--fg-tertiary));
+  --border-soft: hsl(var(--border-subtle));
+  --color-brand-soft: hsl(var(--brand) / 12%);
 
   --surface-sunken: 210 40% 94%;
 
@@ -44,8 +43,15 @@
   --chart-6: 24 95% 50%;
   --chart-7: 180 66% 38%;
   --chart-8: 43 96% 48%;
-  --chart-grid: 214 20% 88%;
   --chart-tooltip-bg: 0 0% 100%;
+
+  --rebalance-daily: 216 62% 44%;
+  --rebalance-weekly: 188 94% 43%;
+  --rebalance-monthly: 147 50% 36%;
+  --rebalance-quarterly: 24 95% 53%;
+  --rebalance-annual: 0 54% 54%;
+  --rebalance-none: 215 20% 65%;
+  --rebalance-threshold: 269 91% 65%;
 
   --corr-pos-1: 142 71% 33%;
   --corr-pos-2: 142 55% 40%;
@@ -59,6 +65,7 @@
 
   --shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.08), 0 2px 4px -2px rgba(15, 23, 42, 0.06);
   --shadow-card: 0 1px 3px rgba(15, 23, 42, 0.08), 0 1px 2px rgba(15, 23, 42, 0.04);
+  --tooltip-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.3);
   --radius-card: 12px;
   --radius-control: 8px;
 }
@@ -78,21 +85,12 @@
   --fg: 220 10% 92%;
   --fg-secondary: 220 9% 66%;
   --fg-tertiary: 220 9% 52%;
-  --fg-disabled: 220 9% 33%;
 
   --success: 160 84% 39%;
   --danger: 0 84% 60%;
   --warning: 38 92% 50%;
   --pos: 142 71% 45%;
   --neg: 0 91% 71%;
-
-  --bg-elevated: #111b2a;
-  --bg-subtle: #1e293b;
-  --text-strong: #f1f5f9;
-  --text-body: #cbd5e1;
-  --text-muted: #64748b;
-  --border-soft: rgba(148, 163, 184, 0.2);
-  --color-brand-soft: #1e3a5f;
 
   --surface-sunken: 224 20% 3%;
 
@@ -108,8 +106,15 @@
   --chart-6: 24 95% 53%;
   --chart-7: 180 66% 45%;
   --chart-8: 43 96% 56%;
-  --chart-grid: 222 15% 14%;
   --chart-tooltip-bg: 222 20% 8%;
+
+  --rebalance-daily: 216 62% 55%;
+  --rebalance-weekly: 188 94% 55%;
+  --rebalance-monthly: 147 50% 45%;
+  --rebalance-quarterly: 24 95% 60%;
+  --rebalance-annual: 0 60% 65%;
+  --rebalance-none: 215 15% 60%;
+  --rebalance-threshold: 269 91% 72%;
 
   --corr-pos-1: 142 65% 42%;
   --corr-pos-2: 142 55% 34%;

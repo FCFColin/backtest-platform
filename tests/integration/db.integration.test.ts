@@ -1,12 +1,10 @@
-﻿import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
-import { loggerMocks } from '../helpers/loggerFixture.js';
+import '../helpers/loggerMock.js';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import {
   isDockerAvailable,
   setupTestContainer,
   type TestContainerContext,
 } from '../helpers/testcontainersPg.js';
-
-vi.mock('../../packages/backend/src/utils/logger.js', () => ({ logger: loggerMocks }));
 
 import { initSchema, rollbackSchema } from '../../packages/backend/src/db/migrations.js';
 import { getPool, healthCheck } from '../../packages/backend/src/db/pool.js';

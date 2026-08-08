@@ -5,8 +5,8 @@ import { Button, Input, Label, RadioGroup, RadioGroupItem } from '@/components/u
 import { Field, FieldLabel, FieldDescription } from '@/components/form/Field';
 import { DateField } from '@/components/form/sharedFields';
 import { IndicatorSelect, RunAnalysisButton, TickerField } from './SignalParamsPanel.js';
-import type { UseMultiSignalStateResult } from './hooks/useMultiSignalState.js';
-import type { AggregationMethod, SignalItem } from './signalTypes.js';
+import type { UseMultiSignalStateResult } from './signalState.js';
+import type { AggregationMethod, SignalItem } from './signalState.js';
 const AGGREGATION_METHODS: { value: AggregationMethod; label: string }[] = [
   { value: 'weighted', label: 'signal.multi.aggregationWeighted' },
   { value: 'voting', label: 'signal.multi.aggregationVoting' },

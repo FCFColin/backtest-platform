@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { PCARequest, GoalOptimizerRequest } from '@backtest/shared';
-import type { LETFRequest } from '@backtest/shared/types/letf.js';
+import type { LETFRequest } from '@backtest/shared';
 import { loggerMocks } from '../../helpers/loggerFixture.js';
 import { engineMocks, engineModuleMock } from '../../helpers/engineFixture.js';
 

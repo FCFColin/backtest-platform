@@ -469,13 +469,39 @@ describe('extended scenarios', () => {
       [
         'Go 补齐全部缺失（degraded=false）',
         ['AAPL', 'MSFT'],
-        { valid: ['AAPL'], result: d('AAPL', 100), missing: ['MSFT'], go: d('MSFT', 200) },
+        {
+          valid: ['AAPL'],
+          result: d('AAPL', 100),
+          missing: ['MSFT'],
+          go: { result: d('MSFT', 200), degraded: false },
+        },
         { data: { ...d('AAPL', 100), ...d('MSFT', 200) }, degraded: false, goArgs: ['MSFT'] },
+      ],
+      [
+        'Go 返回 degraded 标记（数据齐全但来自实时源）',
+        ['AAPL', 'MSFT'],
+        {
+          valid: ['AAPL'],
+          result: d('AAPL', 100),
+          missing: ['MSFT'],
+          go: { result: d('MSFT', 200), degraded: true },
+        },
+        {
+          data: { ...d('AAPL', 100), ...d('MSFT', 200) },
+          degraded: true,
+          warningContains: '实时源',
+          goArgs: ['MSFT'],
+        },
       ],
       [
         'Go 仍无法获取部分（degraded=true）',
         ['AAPL', 'MSFT', 'GOOG'],
-        { valid: ['AAPL'], result: {}, missing: ['MSFT', 'GOOG'], go: d('MSFT', 200) },
+        {
+          valid: ['AAPL'],
+          result: {},
+          missing: ['MSFT', 'GOOG'],
+          go: { result: d('MSFT', 200), degraded: false },
+        },
         {
           data: d('MSFT', 200),
           degraded: true,
@@ -486,7 +512,7 @@ describe('extended scenarios', () => {
       [
         'start/end 为空时使用默认日期范围',
         ['NEW'],
-        { unknown: ['NEW'], go: d('NEW', 50) },
+        { unknown: ['NEW'], go: { result: d('NEW', 50), degraded: false } },
         { data: d('NEW', 50), defaultDates: true },
       ],
     ])('%s', async (_n, tickers, o, e) => {

@@ -165,7 +165,7 @@ const TAB_RENDERERS: Record<string, (c: TabCtx) => ReactNode> = {
               name: p.name,
               growthCurve: p.growthCurve ?? [],
             }))}
-            baseCurrency={baseCurrency}
+            currency={baseCurrency}
           />
           <DrawdownChart portfolios={mapDrawdown(pf)} />
           <StatisticsTable

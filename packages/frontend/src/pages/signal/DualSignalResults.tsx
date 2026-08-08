@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
@@ -6,6 +6,7 @@ import { fmtPct, fmtRatio, downsample } from '@/utils/format';
 import { CHART_COLORS } from '@backtest/shared';
 import type { SignalAnalysisResult } from '@backtest/shared/types/signal';
 import { CollapsibleSection } from '@/components/cards';
+import { Button } from '@/components/ui/uiComponents.js';
 import {
   SortableTable,
   type Column,
@@ -15,7 +16,7 @@ import {
 import { TimeSeriesLineChart } from '@/components/charts/TimeSeriesLineChart.js';
 import { ResultsShell } from '@/components/resultsShell.js';
 import { TableEmpty } from '@/components/stateDisplay.js';
-import type { DualSignalResponse, SignalDir } from './signalTypes.js';
+import type { DualSignalResponse, SignalDir } from './signalState.js';
 interface DualSignalResultsProps {
   results: DualSignalResponse | null;
   error: string | null;
@@ -147,22 +148,24 @@ function DualSignalResultsBody({
                 {Math.min((comparisonPage + 1) * pageSize, comparison.length)} / {comparison.length}
               </span>
               <span className="flex gap-2">
-                <button
+                <Button
                   type="button"
+                  variant="ghost"
+                  size="sm"
                   onClick={prevPage}
                   disabled={comparisonPage === 0}
-                  className="btn-ghost btn-sm"
                 >
                   {t('Prev')}
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
+                  variant="ghost"
+                  size="sm"
                   onClick={nextPage}
                   disabled={comparisonPage >= Math.ceil(comparison.length / pageSize) - 1}
-                  className="btn-ghost btn-sm"
                 >
                   {t('Next')}
-                </button>
+                </Button>
               </span>
             </div>
             <SortableTable
@@ -199,6 +202,7 @@ export function DualSignalResultsPanel({ results, error, isLoading }: DualSignal
   const { t } = useTranslation();
   const comparisonColumns = buildComparisonColumns(t);
   const [comparisonPage, setComparisonPage] = useState(0);
+  useEffect(() => setComparisonPage(0), [results]);
   const comparison = results
     ? results.comparison.filter((r) => r.signal1 || r.signal2 || r.combined)
     : [];

@@ -5,13 +5,12 @@ import type {
   Asset,
   BacktestParameters,
   Statistics,
-  RebalanceFrequency,
 } from '@backtest/shared';
 import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
 import { validatePortfolioCore } from '@/utils/validation';
 import { getErrorI18nKey, reportError } from '../utils/errorReporter.js';
 import { useToastStore } from './toastStore.js';
-import { PRESET_PORTFOLIOS, findPresetPortfolio } from './presetPortfolios.js';
+import { findPresetPortfolio } from './presetPortfolios.js';
 export function extractApiErrorDetail(json: unknown): string {
   if (!json || typeof json !== 'object')
     return i18n.t('Backtest failed. Please check ticker symbols and parameters.');
@@ -77,26 +76,6 @@ export const createEmptyPortfolio = (counter: number): Portfolio => {
     totalReturn: true,
   };
 };
-interface PortfolioPresetAsset {
-  ticker: string;
-  weight: number;
-}
-interface PortfolioPreset {
-  id: string;
-  labelKey: string;
-  descriptionKey: string;
-  assets: PortfolioPresetAsset[];
-  rebalanceFrequency: RebalanceFrequency;
-}
-// D1 合并：预设数据统一来自 store/presetPortfolios.ts（唯一权威源），
-// 此处为兼容旧编辑器（components/PortfolioEditor.tsx）的派生视图。
-export const PORTFOLIO_PRESETS: readonly PortfolioPreset[] = PRESET_PORTFOLIOS.map((p) => ({
-  id: p.id,
-  labelKey: p.nameKey,
-  descriptionKey: p.descriptionKey,
-  assets: p.assets,
-  rebalanceFrequency: p.rebalanceFrequency ?? 'quarterly',
-}));
 export const toAssetsWithIds = (
   assets: { ticker: string; weight: number }[],
   now = Date.now(),

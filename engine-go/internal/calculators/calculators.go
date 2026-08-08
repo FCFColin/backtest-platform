@@ -41,9 +41,18 @@ type SWRResult struct {
 	SafeWithdrawal float64 `json:"safeWithdrawal"`
 }
 
+const (
+	maxSWRYears       = 100
+	maxFrontierPoints = 1000
+)
+
 func CalcSWR(req SWRRequest) SWRResult {
 	if req.InitialAmount <= 0 || req.Years <= 0 {
 		return SWRResult{}
+	}
+	years := int(req.Years)
+	if years > maxSWRYears {
+		years = maxSWRYears
 	}
 	numSims := 1000
 	survivalCount := 0
@@ -52,7 +61,7 @@ func CalcSWR(req SWRRequest) SWRResult {
 	rnd := rand.New(rand.NewSource(42))
 	for s := 0; s < numSims; s++ {
 		portfolio := req.InitialAmount
-		for y := 0; y < int(req.Years); y++ {
+		for y := 0; y < years; y++ {
 			ret := mathutil.GaussianRandom(rnd, req.MeanReturn, req.Stdev)
 			portfolio = portfolio*(1+ret) - req.AnnualWithdrawal
 			if portfolio <= 0 {
@@ -94,6 +103,9 @@ func CalcTwoFundFrontier(req TwoFundFrontierRequest) []FrontierPoint {
 	n := req.NumPoints
 	if n <= 0 {
 		n = 20
+	}
+	if n > maxFrontierPoints {
+		n = maxFrontierPoints
 	}
 	result := make([]FrontierPoint, n+1)
 	for i := 0; i <= n; i++ {

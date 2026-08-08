@@ -1,17 +1,18 @@
 import type { CSSProperties, ReactNode } from 'react';
+import { CHART_COLORS } from '@backtest/shared';
+import { formatCurrency } from '@/utils/format.js';
 export const CHART_TOOLTIP_STYLE: CSSProperties = {
   backgroundColor: 'hsl(var(--chart-tooltip-bg) / 0.95)',
   border: '1px solid hsl(var(--border-strong))',
   borderRadius: '8px',
   padding: '12px',
   color: 'hsl(var(--fg))',
-  boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.3)',
+  boxShadow: 'var(--tooltip-shadow)',
   backdropFilter: 'blur(8px)',
   WebkitBackdropFilter: 'blur(8px)',
 } as const;
 export const CHART_MARGIN = { top: 20, right: 40, bottom: 20, left: 80 } as const;
 export const CHART_GRID_PROPS = {
-  stroke: 'hsl(var(--chart-grid))',
   strokeWidth: 1,
   strokeDasharray: '3 3',
   vertical: true,
@@ -29,16 +30,7 @@ export const CHART_LINE_STYLE = {
   isAnimationActive: false,
 } as const;
 export const LEGEND_WRAPPER_STYLE = { fontSize: '12px', color: 'hsl(var(--fg-tertiary))' } as const;
-export const PORTFOLIO_COLORS = [
-  'hsl(var(--chart-1))',
-  'hsl(var(--chart-2))',
-  'hsl(var(--chart-3))',
-  'hsl(var(--chart-4))',
-  'hsl(var(--chart-5))',
-  'hsl(var(--chart-6))',
-  'hsl(var(--chart-7))',
-  'hsl(var(--chart-8))',
-] as const;
+export const PORTFOLIO_COLORS = CHART_COLORS;
 export function getPortfolioColor(index: number): string {
   return PORTFOLIO_COLORS[index % PORTFOLIO_COLORS.length];
 }
@@ -52,18 +44,8 @@ export function SMART_DATE_INTERVAL(totalMonths: number): number {
   if (totalMonths <= 240) return 24;
   return 60;
 }
-export function currencyFormatter(
-  value: number,
-  currency: string = 'USD',
-  digits: number = 0,
-): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency,
-    minimumFractionDigits: digits,
-    maximumFractionDigits: digits,
-  }).format(value);
-}
+export const currencyFormatter = (value: number, currency = 'USD', digits = 0) =>
+  formatCurrency(value, currency, digits);
 const CORR_COLORS = {
   strongPositive: 'hsl(var(--corr-pos-1))',
   moderatePositive: 'hsl(var(--corr-pos-2))',

@@ -3,7 +3,7 @@ import { Input } from '@/components/ui/uiComponents';
 import { Field, FieldLabel, FieldDescription } from '@/components/form/Field';
 import { LabeledField, RunButton, SelectField } from '@/components/form/sharedFields';
 import { ParamSection } from './TacticalSignalEditor';
-import { INDICATOR_OPTIONS } from './sharedTacticalConstants';
+import { INDICATOR_OPTIONS } from './TacticalUtils';
 import { BacktestParamsFields } from './sharedBacktestParams';
 import { OBJECTIVE_OPTIONS } from './tacticalGridUtils';
 import type { IndicatorType, ObjectiveType, GridParamRange } from './tacticalGridUtils';

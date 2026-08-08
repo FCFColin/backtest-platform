@@ -1,13 +1,10 @@
+import '../../helpers/loggerMock.js';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createMockPool } from '../../helpers/mockFactories.js';
 import { loggerMocks } from '../../helpers/loggerFixture.js';
 
 const dbMocks = vi.hoisted(() => ({ getReadPool: vi.fn() }));
 vi.mock('../../../packages/backend/src/db/pool.js', () => ({ getReadPool: dbMocks.getReadPool }));
-vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
-  logger: loggerMocks,
-}));
-
 import {
   bytesToMb,
   getMarketDataStorageBytes,

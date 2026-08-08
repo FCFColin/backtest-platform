@@ -141,9 +141,11 @@ describe('monteCarloSchema', () => {
           parameters: validParams(),
           mcParams: {
             numSimulations: 1000,
-            blockSize: 21,
+            numYears: 20,
+            minBlockYears: 1,
+            maxBlockYears: 3,
+            successThreshold: 1.0,
             withReplacement: true,
-            confidenceLevel: 0.95,
             seed: 42,
           },
         },

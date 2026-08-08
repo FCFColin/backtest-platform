@@ -33,7 +33,6 @@ const FE_PACKAGES = [
   'lucide-react',
   'i18next',
   'react-i18next',
-  'i18next-browser-languagedetector',
 ];
 const frontendAlias: Record<string, string> = {
   '@': path.resolve(projectRoot, 'packages/frontend/src'),
@@ -125,6 +124,7 @@ export default defineConfig(async ({ command }) => {
           resolve: {
             alias: {
               ...sharedTypeAliases,
+              '@': path.resolve(projectRoot, './packages/frontend/src'),
               ...Object.fromEntries(
                 [
                   'express',
@@ -288,7 +288,7 @@ export default defineConfig(async ({ command }) => {
                 'tailwindcss-animate',
               ],
               'icon-vendor': ['lucide-react'],
-              'i18n-vendor': ['i18next', 'i18next-browser-languagedetector', 'react-i18next'],
+              'i18n-vendor': ['i18next', 'react-i18next'],
               'util-vendor': ['zod', 'web-vitals'],
             };
             for (const [chunk, pkgs] of Object.entries(CHUNKS))

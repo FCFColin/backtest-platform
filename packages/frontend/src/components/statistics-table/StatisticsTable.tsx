@@ -19,7 +19,12 @@ import { CHART_COLORS, type PortfolioResult, type Statistics } from '@backtest/s
 import { formatCurrency, fmtPct, formatDuration, fmtNum } from '@/utils/format.js';
 import { getColorClass } from '@/components/charts/chartUtils.js';
 import { STAT_KEY_TO_TESTID } from './types.js';
-import { SortableTable, SimpleTable, type SimpleTableColumn } from '@/components/tables.js';
+import {
+  SortableTable,
+  SimpleTable,
+  TableFrame,
+  type SimpleTableColumn,
+} from '@/components/tables.js';
 interface StatColumn {
   key: string;
   label: string;
@@ -105,7 +110,7 @@ export function StatisticsTable({
         <div className="flex items-center gap-2">
           <span
             className="w-2 h-2 rounded-full flex-shrink-0"
-            style={{ background: colors[i] ?? '#888' }}
+            style={{ background: colors[i] ?? 'hsl(var(--fg-tertiary))' }}
           />
           <span className="truncate">{p.name}</span>
         </div>
@@ -164,9 +169,9 @@ export function StatisticsTable({
           )}
         </div>
       </div>
-      <div className="border border-border rounded-lg overflow-hidden">
+      <TableFrame>
         <SortableTable columns={columns} data={portfolios} rowKey={(p) => p.id} />
-      </div>
+      </TableFrame>
       {expanded && extendedTable}
     </div>
   );
@@ -218,9 +223,9 @@ export function ExtendedMetricsTable({ portfolios }: { portfolios: PortfolioStat
     })),
   ];
   return (
-    <div className="mt-4 border border-border rounded-lg overflow-hidden">
+    <TableFrame className="mt-4">
       <SimpleTable columns={columns} data={portfolios} rowKey={(p) => p.id} />
-    </div>
+    </TableFrame>
   );
 }
 const HORIZON_LABELS = [

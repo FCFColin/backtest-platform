@@ -60,7 +60,7 @@ async function fetchFromGoWithDegradation(
     effectiveEnd = toDateStr(new Date());
   }
 
-  const goResult = await fetchMissingFromGoService(
+  const { result: goResult, degraded: goDegraded } = await fetchMissingFromGoService(
     tickersToFetch,
     effectiveStart,
     effectiveEnd,
@@ -77,6 +77,9 @@ async function fetchFromGoWithDegradation(
       degraded: true,
       degradedWarning: `Go 数据服务无法获取 ${stillMissing.length} 个标的的数据`,
     };
+  }
+  if (goDegraded) {
+    return { degraded: true, degradedWarning: '部分数据来自实时源（降级模式）' };
   }
   return { degraded: false };
 }

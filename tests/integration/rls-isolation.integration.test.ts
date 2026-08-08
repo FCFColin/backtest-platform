@@ -1,7 +1,5 @@
-﻿import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
-import { loggerMocks } from '../helpers/loggerFixture.js';
-
-vi.mock('../../packages/backend/src/utils/logger.js', () => ({ logger: loggerMocks }));
+import '../helpers/loggerMock.js';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 
 import {
   isDockerAvailable,

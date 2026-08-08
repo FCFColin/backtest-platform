@@ -197,6 +197,22 @@ func TestCalcPWR(t *testing.T) {
 		}
 	})
 }
+func TestPWRAllYearsRespectsHorizon(t *testing.T) {
+	annualReturns := make([]float64, 50)
+	for i := range annualReturns {
+		annualReturns[i] = 0.08
+	}
+	for i := 0; i < 50; i += 5 {
+		annualReturns[i] = -0.15
+	}
+	pwr10y, _, pwr20y, _, pwr30y, _, pwr40y, _ := CalcPWRAllYears(annualReturns)
+	if pwr10y == pwr20y || pwr10y == pwr30y || pwr20y == pwr40y {
+		t.Errorf("CalcPWRAllYears must vary by horizon, got pwr10y=%v pwr20y=%v pwr30y=%v pwr40y=%v", pwr10y, pwr20y, pwr30y, pwr40y)
+	}
+	if pwr10y <= 0 || pwr40y <= 0 {
+		t.Errorf("CalcPWRAllYears values must be positive, got %v", pwr10y)
+	}
+}
 func TestCalcDrawdownCurve(t *testing.T) {
 	values := []float64{100, 110, 90, 80, 110}
 	dates := []string{"2024-01-01", "2024-01-02", "2024-01-03", "2024-01-04", "2024-01-05"}

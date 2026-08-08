@@ -1,5 +1,5 @@
+import '../../helpers/loggerMock.js';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { loggerMocks } from '../../helpers/loggerFixture.js';
 
 const dbMocks = vi.hoisted(() => ({ query: vi.fn() }));
 const redisMocks = vi.hoisted(() => ({
@@ -15,10 +15,6 @@ vi.mock('../../../packages/backend/src/db/pool.js', () => ({
   getPool: () => ({ query: dbMocks.query }),
   withTenant: async (_orgId: string, fn: (client: { query: typeof dbMocks.query }) => unknown) =>
     fn({ query: dbMocks.query }),
-}));
-
-vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
-  logger: loggerMocks,
 }));
 
 vi.mock('../../../packages/backend/src/repositories/apiKeyRepo.js', () => ({

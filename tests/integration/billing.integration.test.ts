@@ -1,8 +1,6 @@
+import '../helpers/loggerMock.js';
 import { describe, it, expect, vi } from 'vitest';
-import { loggerMocks } from '../helpers/loggerFixture.js';
 import { useTestServer } from '../helpers/expressApp.js';
-
-vi.mock('../../packages/backend/src/utils/logger.js', () => ({ logger: loggerMocks }));
 
 const {
   billingEnabledMock,

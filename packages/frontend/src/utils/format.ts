@@ -34,9 +34,13 @@ function fmtMoney(v: number, currency?: string): string {
 
 export const fmtDollar = (v: number): string => fmtMoney(v);
 
-export function formatCurrency(value: number | null | undefined, currency = 'USD'): string {
+export function formatCurrency(
+  value: number | null | undefined,
+  currency = 'USD',
+  fixedDigits?: number,
+): string {
   if (invalid(value)) return NULL;
-  const maxFrac = Math.abs(value) >= 1_000_000 ? 0 : 2;
+  const maxFrac = fixedDigits ?? (Math.abs(value) >= 1_000_000 ? 0 : 2);
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency,

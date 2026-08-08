@@ -46,7 +46,7 @@ function UserInfoCard({
   const { t } = useTranslation();
   return (
     <div className="flex items-center gap-4 mb-6 p-4 bg-[var(--bg-subtle)] rounded-[var(--radius-control)]">
-      <div className="h-16 w-16 shrink-0 rounded-full bg-brand text-white flex items-center justify-center text-[26px] font-bold">
+      <div className="h-16 w-16 shrink-0 rounded-full bg-brand text-brand-fg flex items-center justify-center text-[26px] font-bold">
         {initials}
       </div>
       <div className="flex-1 min-w-0">
@@ -170,7 +170,7 @@ function SubscriptionSection({ plan }: { plan: string | undefined }) {
         title={t('Subscription Information')}
       />
       <div className="p-5 bg-[var(--color-brand-soft)] rounded-[var(--radius-control)] border border-[var(--border-soft)] flex items-center gap-4 flex-wrap">
-        <div className="h-12 w-12 rounded-full bg-brand text-white flex items-center justify-center shrink-0">
+        <div className="h-12 w-12 rounded-full bg-brand text-brand-fg flex items-center justify-center shrink-0">
           <Crown className="w-5 h-5" />
         </div>
         <div className="flex-1 min-w-[160px]">

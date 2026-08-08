@@ -6,7 +6,6 @@ export interface StatRow {
   label: string;
   fmt: FmtType;
   importance?: MetricImportance;
-  higherIsBetter?: boolean;
   description?: string;
 }
 export const STAT_KEY_TO_TESTID: Record<string, string> = {

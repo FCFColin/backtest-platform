@@ -107,8 +107,6 @@ export function useTheme() {
   );
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
-    document.documentElement.classList.remove('light', 'dark');
-    document.documentElement.classList.add(theme);
     localStorage.setItem('theme', theme);
   }, [theme]);
   return {

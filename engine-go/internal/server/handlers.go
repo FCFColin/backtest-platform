@@ -208,8 +208,8 @@ func handleMonteCarlo(c *gin.Context) {
 	bindCompute(c, "MONTE_CARLO_BAD_REQUEST", "请求解析失败", "蒙特卡洛模拟失败", "montecarlo.simulate", nil, montecarlo.RunMonteCarlo)
 }
 func handleGoalOptimize(c *gin.Context) {
-	bindCompute(c, "GOAL_BAD_REQUEST", "请求解析失败", "目标优化计算失败", "", nil, func(_ context.Context, req goaloptimizer.GoalOptimizerRequest) (*goaloptimizer.GoalOptimizerResult, error) {
-		return goaloptimizer.OptimizeGoals(req)
+	bindCompute(c, "GOAL_BAD_REQUEST", "请求解析失败", "目标优化计算失败", "", nil, func(ctx context.Context, req goaloptimizer.GoalOptimizerRequest) (*goaloptimizer.GoalOptimizerResult, error) {
+		return goaloptimizer.OptimizeGoals(ctx, req)
 	})
 }
 func handleTacticalBacktest(c *gin.Context) {
@@ -229,28 +229,27 @@ func handleCalculators(c *gin.Context) {
 	if !bindJSON(c, "CALC_BAD_REQUEST", "请求解析失败", &req) {
 		return
 	}
-	switch req.Type {
-	case "cagr":
-		if req.CAGR == nil {
-			sharedhttp.NewProblem(c, http.StatusBadRequest, "CALC_MISSING_CAGR", "Bad Request", "cagr 类型需要 cagr 参数")
-			return
+	withComputeHandler(c, "计算器计算失败", func(_ context.Context) (any, error) {
+		switch req.Type {
+		case "cagr":
+			if req.CAGR == nil {
+				return nil, engineutil.NewInputError("cagr 类型需要 cagr 参数")
+			}
+			return calculators.CalcCAGR(*req.CAGR), nil
+		case "swr":
+			if req.SWR == nil {
+				return nil, engineutil.NewInputError("swr 类型需要 swr 参数")
+			}
+			return calculators.CalcSWR(*req.SWR), nil
+		case "frontier":
+			if req.Frontier == nil {
+				return nil, engineutil.NewInputError("frontier 类型需要 frontier 参数")
+			}
+			return calculators.CalcTwoFundFrontier(*req.Frontier), nil
+		default:
+			return nil, engineutil.NewInputError("type 必须是 cagr/swr/frontier")
 		}
-		okJSON(c, calculators.CalcCAGR(*req.CAGR))
-	case "swr":
-		if req.SWR == nil {
-			sharedhttp.NewProblem(c, http.StatusBadRequest, "CALC_MISSING_SWR", "Bad Request", "swr 类型需要 swr 参数")
-			return
-		}
-		okJSON(c, calculators.CalcSWR(*req.SWR))
-	case "frontier":
-		if req.Frontier == nil {
-			sharedhttp.NewProblem(c, http.StatusBadRequest, "CALC_MISSING_FRONTIER", "Bad Request", "frontier 类型需要 frontier 参数")
-			return
-		}
-		okJSON(c, calculators.CalcTwoFundFrontier(*req.Frontier))
-	default:
-		sharedhttp.NewProblem(c, http.StatusBadRequest, "CALC_INVALID_TYPE", "Bad Request", "type 必须是 cagr/swr/frontier")
-	}
+	})
 }
 
 func handleSignalAnalyze(c *gin.Context) {

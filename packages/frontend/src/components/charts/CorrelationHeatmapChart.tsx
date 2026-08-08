@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Spinner } from '@/components/ui/uiComponents';
+import { TableEmpty } from '@/components/stateDisplay.js';
 import { TimeSeriesLineChart } from './TimeSeriesLineChart.js';
 import { CorrelationMatrixTable } from './tables.js';
 import { SimpleTable, type SimpleTableColumn } from '../tables.js';
@@ -158,16 +159,6 @@ function RollingCorrelationLineChart({
     />
   );
 }
-function EmptyState({ message }: { message: string }) {
-  return (
-    <div
-      className="text-caption"
-      style={{ color: 'var(--text-muted)', padding: '20px 0', textAlign: 'center' }}
-    >
-      {message}
-    </div>
-  );
-}
 function RollingCorrelationSection({
   portfolios,
   selectedPair,
@@ -210,10 +201,11 @@ function RollingCorrelationSection({
           <Spinner />
         </div>
       ) : !selectedPair ? (
-        <EmptyState message={t('Please select two portfolios')} />
+        <TableEmpty message={t('Please select two portfolios')} className="text-caption py-5" />
       ) : !rollingCorrelationData?.length ? (
-        <EmptyState
+        <TableEmpty
           message={t('Insufficient data (window: {{window}})', { window: rollingWindow })}
+          className="text-caption py-5"
         />
       ) : (
         <RollingCorrelationLineChart data={rollingCorrelationData} pairName={pairName} />
@@ -244,7 +236,7 @@ export default function CorrelationWithBeta({
   if (!hasAssetCorrelation && !hasPortfolioCorrelation) {
     return (
       <div className="chart-card">
-        <EmptyState message={t('At least 2 assets required')} />
+        <TableEmpty message={t('At least 2 assets required')} className="text-caption py-5" />
       </div>
     );
   }

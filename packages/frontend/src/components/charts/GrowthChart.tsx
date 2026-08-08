@@ -20,8 +20,6 @@ interface GrowthChartProps {
     growthCurve: Array<{ date: string; value: number }>;
   }>;
   currency?: string;
-  benchmark?: { name: string; growthCurve: Array<{ date: string; value: number }> };
-  onExport?: (format: 'png' | 'svg' | 'csv') => void;
 }
 const TIME_RANGES = ['1Y', '5Y', '10Y', 'MAX'] as const;
 function GrowthHeader({
@@ -87,13 +85,11 @@ function GrowthHeader({
 }
 function ChartLegend({
   portfolios,
-  benchmark,
   hiddenIds,
   onToggle,
   currency,
 }: {
   portfolios: GrowthChartProps['portfolios'];
-  benchmark: GrowthChartProps['benchmark'];
   hiddenIds: Set<string>;
   onToggle: (id: string) => void;
   currency: string;
@@ -125,19 +121,12 @@ function ChartLegend({
           </button>
         );
       })}
-      {benchmark && (
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-0.5 border-t-2 border-dashed border-fg-tertiary" />
-          <span className="text-caption text-fg">{benchmark.name}</span>
-        </div>
-      )}
     </div>
   );
 }
 function GrowthLines({
   filteredData,
   portfolios,
-  benchmark,
   currency,
   logScale,
   hiddenIds,
@@ -145,12 +134,19 @@ function GrowthLines({
 }: {
   filteredData: Array<Record<string, string | number>>;
   portfolios: GrowthChartProps['portfolios'];
-  benchmark: GrowthChartProps['benchmark'];
   currency: string;
   logScale: boolean;
   hiddenIds: Set<string>;
   t: ReturnType<typeof useTranslation>['t'];
 }) {
+  const totalMonths = useMemo(() => {
+    const first = new Date(String(filteredData[0].date));
+    const last = new Date(String(filteredData[filteredData.length - 1].date));
+    return Math.max(
+      1,
+      (last.getFullYear() - first.getFullYear()) * 12 + last.getMonth() - first.getMonth(),
+    );
+  }, [filteredData]);
   return (
     <SimpleChart
       type="line"
@@ -159,7 +155,7 @@ function GrowthLines({
       margin={{ top: 20, right: 32, bottom: 20, left: 32 }}
       xDataKey="date"
       xTickFormatter={YEAR_ONLY_TICK_FORMATTER as (v: number | string) => string}
-      xTickInterval={SMART_DATE_INTERVAL(filteredData.length)}
+      xTickInterval={SMART_DATE_INTERVAL(totalMonths)}
       yTickFormatter={(v: number) => currencyFormatter(v, currency)}
       yDomain={logScale ? [1, 'auto'] : ['auto', 'auto']}
       yScale={logScale ? 'log' : 'linear'}
@@ -182,29 +178,11 @@ function GrowthLines({
           />
         ),
       )}
-      {benchmark && (
-        <Line
-          type="monotone"
-          dataKey="benchmark"
-          name={benchmark.name}
-          stroke="hsl(var(--fg-tertiary))"
-          strokeDasharray="4 4"
-          strokeWidth={1.5}
-          dot={false}
-          isAnimationActive={false}
-        />
-      )}
     </SimpleChart>
   );
 }
-export function GrowthChart({
-  portfolios,
-  currency = 'USD',
-  benchmark,
-  onExport,
-}: GrowthChartProps) {
+export function GrowthChart({ portfolios, currency = 'USD' }: GrowthChartProps) {
   const { t } = useTranslation();
-  void onExport;
   const [logScale, setLogScale] = useState(false);
   const [timeRange, setTimeRange] = useState<(typeof TIME_RANGES)[number]>('MAX');
   const [hidden, setHidden] = useState(false);
@@ -219,15 +197,14 @@ export function GrowthChart({
   };
   const chartData = useMemo(() => {
     const merged: Record<string, Record<string, string | number>> = {};
-    const add = (id: string, curve: Array<{ date: string; value: number }>) =>
-      curve.forEach((p) => {
-        if (!merged[p.date]) merged[p.date] = { date: p.date };
-        merged[p.date][id] = p.value;
-      });
-    portfolios.forEach((p) => add(p.id, p.growthCurve));
-    if (benchmark) add('benchmark', benchmark.growthCurve);
+    portfolios.forEach((p) =>
+      p.growthCurve.forEach((point) => {
+        if (!merged[point.date]) merged[point.date] = { date: point.date };
+        merged[point.date][p.id] = point.value;
+      }),
+    );
     return Object.values(merged).sort((a, b) => String(a.date).localeCompare(String(b.date)));
-  }, [portfolios, benchmark]);
+  }, [portfolios]);
   const filteredData = useMemo(() => {
     if (timeRange === 'MAX' || chartData.length === 0) return chartData;
     const cutoff = new Date(String(chartData[chartData.length - 1].date));
@@ -254,7 +231,6 @@ export function GrowthChart({
             <GrowthLines
               filteredData={filteredData}
               portfolios={portfolios}
-              benchmark={benchmark}
               currency={currency}
               logScale={logScale}
               hiddenIds={hiddenIds}
@@ -262,7 +238,6 @@ export function GrowthChart({
             />
             <ChartLegend
               portfolios={portfolios}
-              benchmark={benchmark}
               hiddenIds={hiddenIds}
               onToggle={toggleVisibility}
               currency={currency}

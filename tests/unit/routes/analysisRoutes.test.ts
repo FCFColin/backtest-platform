@@ -1,3 +1,4 @@
+import '../../helpers/loggerMock.js';
 import { describe, it, expect, vi } from 'vitest';
 import {
   startExpressApp,
@@ -7,7 +8,6 @@ import {
 } from '../../helpers/expressApp.js';
 import { withServer } from '../../helpers/serverLifecycle.js';
 import { mockBacktestQueue, mockConfigModule } from '../../helpers/mockFactories.js';
-import { loggerMocks } from '../../helpers/loggerFixture.js';
 import { engineModuleMock, engineMocks } from '../../helpers/engineFixture.js';
 import { createMockPriceData, mockPortfolioResult } from '../../helpers/storeFixtures.js';
 
@@ -28,10 +28,6 @@ vi.mock('../../../packages/backend/src/config/index.js', () =>
   mockConfigModule({ NODE_ENV: 'test', SYNC_COMPUTE_TIMEOUT_MS: 500 }),
 );
 import '../../helpers/middlewareMocks.js';
-vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
-  logger: loggerMocks,
-  sanitizeLog: (s: string) => s.replace(/[\n\r]/g, '').substring(0, 50),
-}));
 vi.mock('../../../packages/backend/src/utils/metrics.js', async (importOriginal) => {
   const actual =
     await importOriginal<typeof import('../../../packages/backend/src/utils/metrics.js')>();

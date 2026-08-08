@@ -1,13 +1,10 @@
+import '../../helpers/loggerMock.js';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { loggerMocks } from '../../helpers/loggerFixture.js';
 
 const mocks = vi.hoisted(() => ({
   countActivePlatformAdminKeys: vi.fn(),
   createPlatformAdminKey: vi.fn(),
-}));
-
-vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
-  logger: loggerMocks,
 }));
 
 vi.mock('../../../packages/backend/src/repositories/apiKeyRepo.js', () => ({

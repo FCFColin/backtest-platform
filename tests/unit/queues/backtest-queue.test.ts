@@ -1,3 +1,4 @@
+import '../../helpers/loggerMock.js';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createConfigMocks } from '../../helpers/mockFactories.js';
 import { loggerMocks } from '../../helpers/loggerFixture.js';
@@ -12,8 +13,6 @@ const workerInstanceMocks = vi.hoisted(() => ({
 
 const QueueMock = vi.hoisted(() => vi.fn(() => queueInstanceMocks));
 const WorkerMock = vi.hoisted(() => vi.fn(() => workerInstanceMocks));
-
-vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: loggerMocks }));
 
 vi.mock('../../../packages/backend/src/config/env.js', () => ({
   config: createConfigMocks({ REDIS_URL: 'redis://localhost:6379' }),

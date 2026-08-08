@@ -3,6 +3,7 @@ import crypto from 'crypto';
 const poolMocks = vi.hoisted(() => ({ pool: { query: vi.fn().mockResolvedValue({ rows: [] }) } }));
 vi.mock('../../../packages/backend/src/db/pool.js', () => ({
   getPool: vi.fn(() => poolMocks.pool),
+  withPlatformContext: vi.fn((fn) => fn(poolMocks.pool)),
 }));
 const minioMocks = vi.hoisted(() => ({
   ensureBucketExists: vi.fn().mockResolvedValue(undefined),
@@ -20,7 +21,6 @@ import {
   writeAuditLog,
   getUnexportedAuditLogs,
   markExported,
-  queryAuditLogs,
   verifyAuditIntegrity,
   type AuditLogEntry,
 } from '../../../packages/backend/src/application/auditStorageService.js';
@@ -196,62 +196,6 @@ describe('auditStorageService', () => {
     it('空 ID 数组应直接返回（不调用 query）', async () => {
       await markExported([], 'audit/key');
       expect(poolMocks.pool.query).not.toHaveBeenCalled();
-    });
-  });
-  describe('queryAuditLogs', () => {
-    it('无过滤条件时应查询全部（无 WHERE 子句）', async () => {
-      poolMocks.pool.query
-        .mockResolvedValueOnce({ rows: [makeDbRow()] })
-        .mockResolvedValueOnce({ rows: [{ total: 1 }] });
-      const result = await queryAuditLogs({}, 1, 50);
-      expect(result).toMatchObject({ total: 1, page: 1, limit: 50 });
-      expect(result.logs).toHaveLength(1);
-      expect(callSql(0)).not.toContain('WHERE');
-      expect(callSql(0)).toContain('ORDER BY created_at DESC');
-      expect(callSql(0)).toContain('LIMIT');
-      expect(callSql(0)).toContain('OFFSET');
-    });
-    it.each([
-      ['org_id', { orgId: ORG_ID }, 'org_id = $1', [ORG_ID]],
-      [
-        '多过滤条件组合',
-        {
-          orgId: ORG_ID,
-          eventType: 'AuditEvent',
-          userId: USER_ID,
-          action: 'CREATE',
-          startDate: '2026-07-01',
-          endDate: '2026-07-31',
-        },
-        'org_id = $1',
-        [ORG_ID],
-      ],
-    ])('应支持 %s 过滤', async (_n, filter, expectedSql) => {
-      poolMocks.pool.query
-        .mockResolvedValueOnce({ rows: [] })
-        .mockResolvedValueOnce({ rows: [{ total: 0 }] });
-      await queryAuditLogs(filter);
-      expect(callSql(0)).toContain(expectedSql);
-    });
-    it('分页应正确计算 OFFSET（page=3, limit=20 → offset=40）', async () => {
-      poolMocks.pool.query
-        .mockResolvedValueOnce({ rows: [] })
-        .mockResolvedValueOnce({ rows: [{ total: 100 }] });
-      const result = await queryAuditLogs({}, 3, 20);
-      expect(result).toMatchObject({ page: 3, limit: 20 });
-      const params = callArgs(0);
-      expect(params[params.length - 2]).toBe(20);
-      expect(params[params.length - 1]).toBe(40);
-    });
-    it('总数查询应使用相同的 WHERE 条件', async () => {
-      poolMocks.pool.query
-        .mockResolvedValueOnce({ rows: [] })
-        .mockResolvedValueOnce({ rows: [{ total: 5 }] });
-      await queryAuditLogs({ orgId: ORG_ID });
-      const countSql = callSql(1);
-      expect(countSql).toContain('SELECT COUNT(*)');
-      expect(countSql).toContain('WHERE');
-      expect(countSql).toContain('org_id = $1');
     });
   });
   describe('verifyAuditIntegrity', () => {

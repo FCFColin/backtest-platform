@@ -5,7 +5,7 @@ import { Plus, X, ChevronDown, FolderOpen, GitCompare } from 'lucide-react';
 import { useBacktestStore } from '@/store/backtestStore';
 import { ALL_REBALANCE_FREQUENCIES, type BacktestParameters } from '@backtest/shared';
 import { useToastStore } from '@/store/toastStore';
-import { PORTFOLIO_PRESETS } from '@/store/backtestHelpers.js';
+import { PRESET_PORTFOLIOS } from '@/store/presetPortfolios.js';
 import { validateAssetWeights } from '@/utils/validation';
 import type { StorePortfolio, TFunc } from './portfolioEditor/portfolioEditor.js';
 import {
@@ -152,10 +152,10 @@ function AddPortfolioMenu(props: AddMenuActions) {
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="min-w-[200px]">
         <DropdownMenuItem onClick={props.onAdd}>{t('Add Empty')}</DropdownMenuItem>
-        {PORTFOLIO_PRESETS.map((preset) => (
+        {PRESET_PORTFOLIOS.map((preset) => (
           <DropdownMenuItem key={preset.id} onClick={() => props.onAddPreset(preset.id)}>
             <div className="flex flex-col gap-0.5">
-              <span className="text-caption font-medium text-fg">{t(preset.labelKey)}</span>
+              <span className="text-caption font-medium text-fg">{t(preset.nameKey)}</span>
               <span className="text-caption text-fg-tertiary">{t(preset.descriptionKey)}</span>
             </div>
           </DropdownMenuItem>

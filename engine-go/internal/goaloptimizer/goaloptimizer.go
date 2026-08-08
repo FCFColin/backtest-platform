@@ -1,6 +1,7 @@
 package goaloptimizer
 
 import (
+	"context"
 	"engine-go/internal/engine"
 	"engine-go/internal/engineutil"
 	"engine-go/internal/mathutil"
@@ -9,6 +10,13 @@ import (
 )
 
 const tradingDaysPerYear = engineutil.TradingDaysPerYear
+
+// 资源预算（防恶意超大入参拖垮计算，ADR-031 fail-closed 配套）：
+// years 上限 100 年；numSims × 交易日总天数上限，超出按预算降采样。
+const (
+	maxGoalOptimizeYears = 100
+	maxSimulatedDays     = 50_000_000
+)
 
 type Asset struct {
 	Ticker string  `json:"ticker"`
@@ -68,7 +76,14 @@ func calcPortfolioDailyReturns(assets []Asset, priceData map[string]map[string]f
 	}
 	return engineutil.PortfolioDailyReturns(tickers, weights, priceData, startDate, endDate, false, false)
 }
-func OptimizeGoals(req GoalOptimizerRequest) (*GoalOptimizerResult, error) {
+func OptimizeGoals(ctx context.Context, req GoalOptimizerRequest) (*GoalOptimizerResult, error) {
+	if req.Years <= 0 {
+		return nil, engineutil.NewInputError("years 必须为正数")
+	}
+	years := req.Years
+	if years > maxGoalOptimizeYears {
+		years = maxGoalOptimizeYears
+	}
 	validAssets := make([]Asset, 0, len(req.Assets))
 	for _, a := range req.Assets {
 		if a.Ticker != "" {
@@ -83,11 +98,17 @@ func OptimizeGoals(req GoalOptimizerRequest) (*GoalOptimizerResult, error) {
 	if req.NumSimulations != nil && *req.NumSimulations > 0 {
 		numSims = max(1, min(*req.NumSimulations, 10000))
 	}
-	totalDays := int(math.Round(req.Years * tradingDaysPerYear))
+	totalDays := int(math.Round(years * tradingDaysPerYear))
+	if maxSimsByBudget := maxSimulatedDays / max(totalDays, 1); numSims > maxSimsByBudget {
+		numSims = max(1, maxSimsByBudget)
+	}
 	rnd := rand.New(rand.NewSource(42)) // 确定性种子保证可复现
 	paths := make([][]float64, numSims)
 	metrics := make([]pathMetrics, numSims)
 	for s := 0; s < numSims; s++ {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 		path := make([]float64, 0, totalDays+1)
 		path = append(path, req.InitialAmount)
 		var dailyRets []float64
@@ -133,9 +154,9 @@ func OptimizeGoals(req GoalOptimizerRequest) (*GoalOptimizerResult, error) {
 	}
 	successProbability := float64(successCount) / float64(len(finalValues))
 	probabilityCurve := buildProbabilityCurve(finalValues)
-	optimalPath := buildOptimalPath(filteredPaths, req.Years)
+	optimalPath := buildOptimalPath(filteredPaths, years)
 	medianFinalValue := mathutil.Percentile(finalValues, 0.5)
-	requiredContribution := calcRequiredContribution(req.InitialAmount, req.TargetAmount, req.Years, medianFinalValue)
+	requiredContribution := calcRequiredContribution(req.InitialAmount, req.TargetAmount, years, medianFinalValue)
 	return &GoalOptimizerResult{
 		SuccessProbability: successProbability, ProbabilityCurve: probabilityCurve,
 		OptimalPath: optimalPath, Recommendation: Recommendation{ExpectedReturn: annualMeanReturn,

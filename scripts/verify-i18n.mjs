@@ -106,8 +106,25 @@ const sourceFiles = walkDir(srcDir, ['.tsx', '.ts']);
 const usedKeys = new Set();
 const keyRegex = /\bt\(['"]([a-zA-Z0-9_.-]+)['"]/g;
 const i18nKeyRegex = /i18nKey=['"]([a-zA-Z0-9_.-]+)['"]/g;
+// t(`legal.${prefix}.title`) 模板 key 无法静态解析，转成正则模式后与现有 key 匹配校验
+const templateKeyRegex = /\bt\(`((?:[^$`]|\${[^}]+})+?)`/g;
 // Also catch useTranslation namespace prefix: t('foo.bar') within ns 'baz' → baz.foo.bar
 // Simple approach: just collect literal keys; namespace resolution handled elsewhere.
+
+function escapeRegex(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+function templateKeyPattern(tmpl) {
+  let pattern = '';
+  let last = 0;
+  const dynRe = /\$\{[^}]+\}/g;
+  let m;
+  while ((m = dynRe.exec(tmpl)) !== null) {
+    pattern += escapeRegex(tmpl.slice(last, m.index)) + '[^.]+';
+    last = m.index + m[0].length;
+  }
+  return pattern + escapeRegex(tmpl.slice(last));
+}
 
 for (const file of sourceFiles) {
   let content;
@@ -123,13 +140,21 @@ for (const file of sourceFiles) {
   while ((match = i18nKeyRegex.exec(content)) !== null) {
     usedKeys.add(match[1]);
   }
+  while ((match = templateKeyRegex.exec(content)) !== null) {
+    usedKeys.add(`~${templateKeyPattern(match[1])}`);
+  }
 }
 
 // Use allPaths (includes intermediate object keys) so that keys referenced via
 // `t(key, { returnObjects: true })` — which point to nested objects, not leaf
 // strings — are not falsely flagged as undefined.
 const zhAllPaths = allPaths(zh);
-const undefinedInSource = [...usedKeys].filter((k) => !zhAllPaths.has(k));
+const undefinedInSource = [...usedKeys].filter(
+  (k) =>
+    !(k.startsWith('~')
+      ? [...zhAllPaths].some((p) => new RegExp(`^${k.slice(1)}$`).test(p))
+      : zhAllPaths.has(k)),
+);
 const unusedZh = [...zhKeys].filter((k) => !usedKeys.has(k) && !k.startsWith('_'));
 
 const report = {

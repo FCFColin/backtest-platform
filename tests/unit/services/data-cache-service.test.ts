@@ -1,5 +1,5 @@
+import '../../helpers/loggerMock.js';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { loggerMocks } from '../../helpers/loggerFixture.js';
 
 const { redisStub, healthMock } = vi.hoisted(() => {
   const store = new Map<string, string>();
@@ -28,10 +28,6 @@ const { redisStub, healthMock } = vi.hoisted(() => {
   const healthMock = { getRedisHealth: vi.fn().mockResolvedValue(true) };
   return { redisStub, healthMock };
 });
-
-vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
-  logger: loggerMocks,
-}));
 
 vi.mock('../../../packages/backend/src/utils/metrics.js', () => ({
   recordCacheHit: vi.fn(),

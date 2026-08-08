@@ -10,6 +10,7 @@ import {
   YAxis,
 } from 'recharts';
 import { Card } from '@/components/ui/uiComponents';
+import { TableEmpty } from '@/components/stateDisplay.js';
 import { CHART_COLORS } from '@backtest/shared';
 import { AXIS_TICK_STYLE, CHART_GRID_PROPS, CHART_TOOLTIP_STYLE } from '@/lib/chart-theme.js';
 import { useReducedMotion } from '@/hooks/miscHooks.js';
@@ -18,7 +19,7 @@ export function NoDataCard() {
   const { t } = useTranslation();
   return (
     <Card className="p-5">
-      <div className="py-6 text-center text-caption text-fg-tertiary">{t('No data')}</div>
+      <TableEmpty message={t('No data')} className="text-caption" />
     </Card>
   );
 }

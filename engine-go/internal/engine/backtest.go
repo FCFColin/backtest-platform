@@ -39,11 +39,7 @@ func RunBacktest(ctx context.Context, req BacktestRequest) (*BacktestResult, err
 		ddCurve := CalcDrawdownCurve(extractValues(curve), extractDates(curve))
 		episodes := detectDrawdownEpisodes(curve)
 		stats := computeStatistics(curve, episodes, benchmarkGrowth, mwrrCashflows)
-		rawRR := CalcRollingReturns(extractValues(curve), extractDates(curve), req.Params.RollingWindowMonths)
-		rollingReturns := make([]DataPoint, len(rawRR))
-		for i, r := range rawRR {
-			rollingReturns[i] = DataPoint{Date: r.Date, Value: r.Return}
-		}
+		rollingReturns := CalcRollingReturns(extractValues(curve), extractDates(curve), req.Params.RollingWindowMonths)
 		portfolioResults = append(portfolioResults, PortfolioResult{Name: pf.Name, GrowthCurve: curve, DrawdownCurve: ddCurve, RollingReturns: rollingReturns, AnnualReturns: annualReturnsFromCurve(curve), MonthlyReturns: monthlyReturnsFromCurve(curve), Statistics: stats, DrawdownEpisodes: episodes, AllocationHistory: allocHist})
 		portfolioDailyReturns = append(portfolioDailyReturns, mathutil.DailyReturns(extractValues(curve)))
 	}
@@ -229,7 +225,6 @@ func computeStatistics(curve []DataPoint, episodes []DrawdownEpisode, benchCurve
 	values := extractValues(curve)
 	dates := extractDates(curve)
 	startValue := curve[0].Value
-	endValue := curve[len(curve)-1].Value
 	annualRets := annualReturnsFromCurve(curve)
 	monthlyRets := monthlyReturnsFromCurve(curve)
 	annualReturnValues := make([]float64, len(annualRets))
@@ -248,9 +243,6 @@ func computeStatistics(curve []DataPoint, episodes []DrawdownEpisode, benchCurve
 		benchmarkCagr = &c
 	}
 	result := CalculateStatisticsFromRequest(StatisticsRequest{Values: values, Dates: dates, StartingValue: startValue, DailyReturns: mathutil.DailyReturns(values), AnnualReturnValues: annualReturnValues, MonthlyReturnValues: monthlyReturnValues, MwrrCashflows: mwrrCashflows, BenchmarkDailyReturns: benchDailyReturns, BenchmarkCagr: benchmarkCagr})
-	if endValue <= 0 {
-		result.MWRR = 0
-	}
 	return result
 }
 func CalcCorrelationMatrix(dailyReturnsList [][]float64) [][]float64 {

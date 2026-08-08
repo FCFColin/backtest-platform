@@ -1,6 +1,6 @@
+import '../../helpers/loggerMock.js';
 import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest';
 import http, { type Server } from 'http';
-import { loggerMocks } from '../../helpers/loggerFixture.js';
 
 vi.hoisted(() => {
   process.env.MAX_RESPONSE_BODY_SIZE = '100';
@@ -18,10 +18,6 @@ vi.mock('../../../packages/backend/src/config/index.js', () => ({
 
 vi.mock('../../../packages/backend/src/utils/metrics.js', () => ({
   registerSemaphoreMetrics: vi.fn(),
-}));
-
-vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
-  logger: loggerMocks,
 }));
 
 import { callGoDataService } from '../../../packages/backend/src/infrastructure/goDataServiceClient.js';

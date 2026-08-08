@@ -1,3 +1,4 @@
+import '../helpers/loggerMock.js';
 /**
  * 优化器全链路集成测试（RO-049 SubTask 33.1）
  *
@@ -5,10 +6,7 @@
  * 重点覆盖 ADR-034 异步任务携带租户/owner 归属，与 ADR-031 fail-closed。
  */
 import { describe, it, expect, vi } from 'vitest';
-import { loggerMocks } from '../helpers/loggerFixture.js';
 import { useTestServer } from '../helpers/expressApp.js';
-
-vi.mock('../../packages/backend/src/utils/logger.js', () => ({ logger: loggerMocks }));
 
 const { queueAddMock } = vi.hoisted(() => ({
   queueAddMock: vi.fn(),

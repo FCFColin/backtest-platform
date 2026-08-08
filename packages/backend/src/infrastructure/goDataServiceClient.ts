@@ -124,7 +124,11 @@ export async function callGoDataService(path: string, orgId?: string): Promise<s
 export async function fetchGoJson(
   path: string,
   orgId?: string,
-): Promise<{ success: boolean; data?: unknown }> {
+): Promise<{ success: boolean; data?: unknown; degraded?: boolean }> {
   const parsed = JSON.parse(await callGoDataService(path, orgId));
-  return { success: Boolean(parsed.success), data: parsed.data };
+  return {
+    success: Boolean(parsed.success),
+    data: parsed.data,
+    degraded: Boolean(parsed.degraded),
+  };
 }

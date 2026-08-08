@@ -143,6 +143,10 @@ spec:
         - name: data-fetcher
           image: backtest-platform/data-fetcher:v1.0.0
           ports: [{ containerPort: 5003 }]
+          envFrom:
+            - { configMapRef: { name: backtest-config } }
+            - { secretRef: { name: postgres-secret } }
+            - { secretRef: { name: auth-tokens } }
           resources:
             requests: { memory: '256Mi', cpu: '0.5' }
             limits: { memory: '512Mi', cpu: '1' }

@@ -18,6 +18,15 @@ const portfolioSchema = z
     rebalanceFrequency: z.enum(ALL_REBALANCE_FREQUENCIES),
     rebalanceThreshold: z.number().optional(),
     rebalanceOffset: z.number().optional(),
+    rebalanceBands: z
+      .object({
+        enabled: z.boolean(),
+        absoluteBand: z.number().optional(),
+        relativeBand: z.number().optional(),
+        upperBand: z.number().optional(),
+        lowerBand: z.number().optional(),
+      })
+      .optional(),
     drag: z.number().optional(),
     totalReturn: z.boolean().optional(),
     isGlidepath: z.boolean().optional(),
@@ -113,10 +122,11 @@ export const monteCarloSchema = z
     mcParams: z
       .object({
         numSimulations: z.number().optional(),
-        blockSize: z.number().optional(),
+        numYears: z.number().optional(),
+        minBlockYears: z.number().optional(),
+        maxBlockYears: z.number().optional(),
+        successThreshold: z.number().optional(),
         withReplacement: z.boolean().optional(),
-        confidenceLevel: z.number().optional(),
-        distribution: z.string().optional(),
         seed: z.number().optional(),
       })
       .optional(),

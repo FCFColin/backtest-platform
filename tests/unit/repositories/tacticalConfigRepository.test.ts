@@ -1,5 +1,5 @@
+import '../../helpers/loggerMock.js';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { loggerMocks } from '../../helpers/loggerFixture.js';
 
 const dbMocks = vi.hoisted(() => {
   const mockClient = { query: vi.fn(), release: vi.fn() };
@@ -20,10 +20,6 @@ vi.mock('../../../packages/backend/src/db/pool.js', () => ({
     dbMocks.withTenantReadOnly(tenantId);
     return fn(dbMocks.mockClient);
   },
-}));
-
-vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
-  logger: loggerMocks,
 }));
 
 import {

@@ -1,5 +1,5 @@
 import { Router, type Request, type Response } from 'express';
-import { pool, getReadPool } from '../db/pool.js';
+import { getReadPool, withPlatformContext } from '../db/pool.js';
 import { sendProblem } from '../utils/errors.js';
 import { logger } from '../utils/logger.js';
 import type { AuthenticatedRequest } from '../middleware/jwtAuth.js';
@@ -56,21 +56,19 @@ router.post(
   asyncRouteHandler(
     async (req: Request, res: Response): Promise<void> => {
       const { title, body, category, severity } = req.body;
-      if (!pool) {
-        sendProblem(res, 503, 'DATABASE_UNAVAILABLE');
-        return;
-      }
-      const result = await pool.query(
-        `INSERT INTO announcements (title, body, category, severity, created_by)
-         VALUES ($1, $2, $3, $4, $5)
-         RETURNING id, title, published_at`,
-        [
-          title,
-          body,
-          category ?? 'general',
-          severity ?? 'info',
-          (req as AuthenticatedRequest).user?.sub,
-        ],
+      const result = await withPlatformContext((client) =>
+        client.query(
+          `INSERT INTO announcements (title, body, category, severity, created_by)
+           VALUES ($1, $2, $3, $4, $5)
+           RETURNING id, title, published_at`,
+          [
+            title,
+            body,
+            category ?? 'general',
+            severity ?? 'info',
+            (req as AuthenticatedRequest).user?.sub,
+          ],
+        ),
       );
       announcementCache.clear();
       sendData(res, result.rows[0]);

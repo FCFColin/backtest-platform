@@ -21,6 +21,7 @@ import SinglePortfolioEditor from '@/components/PortfolioEditor.js';
 import { RunButton } from '@/components/form/sharedFields';
 import { StatCard } from '@/components/cards.js';
 import { ResultsShell } from '@/components/resultsShell.js';
+import { TableEmpty } from '@/components/stateDisplay.js';
 import { SortableTable } from '../../components/tables.js';
 import { SimpleChart } from '@/components/charts/sharedChartContent.js';
 import {
@@ -387,9 +388,7 @@ function ComparisonTableSection({ results, objective }: ComparisonTableSectionPr
           initialSortDir="desc"
         />
       ) : (
-        <div className="py-6 text-center text-body text-fg-tertiary">
-          {t('No portfolio matches the constraints')}
-        </div>
+        <TableEmpty message={t('No portfolio matches the constraints')} />
       )}
     </>
   );

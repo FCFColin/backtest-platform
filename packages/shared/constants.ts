@@ -6,14 +6,16 @@ export const MAX_TICKERS = 50;
 
 export const TRADING_DAYS_PER_YEAR = 252;
 
-/** 图表序列色板：与前端 chart-theme 的 PORTFOLIO_COLORS 同序，暗色模式经 CSS 变量自动切换 */
+/** 图表序列色板唯一事实源（chart-1..8），暗色模式经 CSS 变量自动切换 */
 export const CHART_COLORS = [
   'hsl(var(--chart-1))',
   'hsl(var(--chart-2))',
   'hsl(var(--chart-3))',
   'hsl(var(--chart-4))',
   'hsl(var(--chart-5))',
-  'hsl(var(--fg-tertiary))',
+  'hsl(var(--chart-6))',
+  'hsl(var(--chart-7))',
+  'hsl(var(--chart-8))',
 ] as const;
 
 export const REBALANCE_FREQUENCIES = [
@@ -46,13 +48,13 @@ export const TECHNICAL_INDICATORS = [
 export const SIGNAL_TYPES = ['entry', 'exit', 'both'] as const satisfies readonly SignalType[];
 
 export const REBALANCE_FREQUENCY_COLORS: Record<RebalanceFrequency, string> = {
-  daily: '#2b63b8',
-  weekly: '#06b6d4',
-  monthly: '#2e8b57',
-  quarterly: '#f97316',
-  annual: '#c94a4a',
-  none: '#94a3b8',
-  threshold: '#a855f7',
+  daily: 'hsl(var(--rebalance-daily))',
+  weekly: 'hsl(var(--rebalance-weekly))',
+  monthly: 'hsl(var(--rebalance-monthly))',
+  quarterly: 'hsl(var(--rebalance-quarterly))',
+  annual: 'hsl(var(--rebalance-annual))',
+  none: 'hsl(var(--rebalance-none))',
+  threshold: 'hsl(var(--rebalance-threshold))',
 };
 
 export const REBALANCE_LABELS: Record<RebalanceFrequency, string> = {

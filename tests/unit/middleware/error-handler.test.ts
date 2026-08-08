@@ -1,3 +1,4 @@
+import '../../helpers/loggerMock.js';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { loggerMocks } from '../../helpers/loggerFixture.js';
 
@@ -7,10 +8,6 @@ const configMocks = vi.hoisted(() => ({
 
 vi.mock('../../../packages/backend/src/config/index.js', () => ({
   config: configMocks,
-}));
-
-vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
-  logger: loggerMocks,
 }));
 
 import {

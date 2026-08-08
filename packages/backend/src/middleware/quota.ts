@@ -10,12 +10,22 @@ import { quotaEnforcementFailures } from '../utils/metrics.js';
 
 function extractTickerCount(body: unknown): number {
   if (!body || typeof body !== 'object') return 0;
+  const countList = (v: unknown): number =>
+    Array.isArray(v)
+      ? v.length
+      : typeof v === 'string'
+        ? v.split(/[\s,]+/).filter(Boolean).length
+        : 0;
   const b = body as Record<string, unknown>;
-  for (const field of ['tickers', 'symbols', 'assets']) {
-    const v = b[field];
-    if (Array.isArray(v)) return v.length;
+  const portfolios = [b.portfolio, ...(Array.isArray(b.portfolios) ? b.portfolios : [])];
+  let count = 0;
+  for (const entry of [
+    b,
+    ...portfolios.filter((p): p is Record<string, unknown> => !!p && typeof p === 'object'),
+  ]) {
+    for (const field of ['tickers', 'symbols', 'assets']) count += countList(entry[field]);
   }
-  return 0;
+  return count;
 }
 
 export function enforceQuota(metric: string) {
@@ -35,6 +45,13 @@ export function enforceQuota(metric: string) {
       try {
         const org = await getOrg(tenantId);
         plan = org?.plan ?? null;
+        if (org?.status === 'suspended') {
+          quotaEnforcementFailures.inc({ quota_key: metric, reason: 'org_suspended' });
+          sendProblem(res, 402, 'ORG_SUSPENDED', 'Organization suspended', {
+            detail: 'Billing suspended. Please renew your subscription.',
+          });
+          return;
+        }
       } catch (err) {
         // P0-04：组织查询失败时 fail-closed（不再 fail-open）
         logger.error({ err: String(err), tenantId }, '[quota] 组织查询失败，fail-closed');

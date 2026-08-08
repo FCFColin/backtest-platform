@@ -1,7 +1,7 @@
+import '../../helpers/loggerMock.js';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useTestServer } from '../../helpers/expressApp.js';
 import { createConfigMocks } from '../../helpers/mockFactories.js';
-import { loggerMocks } from '../../helpers/loggerFixture.js';
 
 const callServiceMock = vi.hoisted(() => vi.fn());
 
@@ -29,8 +29,6 @@ vi.mock('../../../packages/backend/src/config/index.js', () => ({
 }));
 
 import '../../helpers/middlewareMocks.js';
-vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: loggerMocks }));
-
 const apiKeyServiceMocks = vi.hoisted(() => ({
   createApiKey: vi.fn(),
   listApiKeys: vi.fn(),

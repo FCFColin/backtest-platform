@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import { getPool, withTenant, withTransaction } from '../db/pool.js';
+import { getPool, withTenant, withPlatformContext } from '../db/pool.js';
 import { logger } from '../utils/logger.js';
 import { sha256Hex, hashApiKeyArgon2id } from '../utils/crypto.js';
 import { rowMapper, iso, toIso } from './rowMapper.js';
@@ -156,13 +156,15 @@ export async function createPlatformAdminKey(
   expiresInDays: number,
   createdBy: string | null,
 ): Promise<CreatedApiKey> {
-  return insertPlatformAdminKey(getPool(), {
-    plaintext,
-    name,
-    expiresInDays,
-    createdBy,
-    action: '已创建',
-  });
+  return withPlatformContext((client) =>
+    insertPlatformAdminKey(client, {
+      plaintext,
+      name,
+      expiresInDays,
+      createdBy,
+      action: '已创建',
+    }),
+  );
 }
 
 export async function rotatePlatformAdminKey(
@@ -171,7 +173,7 @@ export async function rotatePlatformAdminKey(
   expiresInDays: number,
   createdBy: string | null,
 ): Promise<CreatedApiKey> {
-  return withTransaction(async (client) => {
+  return withPlatformContext(async (client) => {
     const { rows } = await client.query(
       `SELECT id FROM api_keys WHERE id = $1 AND is_platform_admin = TRUE AND revoked_at IS NULL AND (expires_at IS NULL OR expires_at > NOW()) FOR UPDATE`,
       [oldKeyId],
@@ -197,13 +199,15 @@ export async function listPlatformAdminKeys(): Promise<ApiKeyRecord[]> {
 }
 
 export async function revokePlatformAdminKey(keyId: string): Promise<boolean> {
-  const { rowCount } = await getPool().query(
-    `UPDATE api_keys SET revoked_at = NOW() WHERE id = $1 AND is_platform_admin = TRUE AND revoked_at IS NULL`,
-    [keyId],
-  );
-  const ok = (rowCount ?? 0) > 0;
-  if (ok) logger.warn({ keyId }, '[apiKeyService] 已吊销平台 break-glass 密钥');
-  return ok;
+  return withPlatformContext(async (client) => {
+    const { rowCount } = await client.query(
+      `UPDATE api_keys SET revoked_at = NOW() WHERE id = $1 AND is_platform_admin = TRUE AND revoked_at IS NULL`,
+      [keyId],
+    );
+    const ok = (rowCount ?? 0) > 0;
+    if (ok) logger.warn({ keyId }, '[apiKeyService] 已吊销平台 break-glass 密钥');
+    return ok;
+  });
 }
 
 export async function countActivePlatformAdminKeys(): Promise<number> {

@@ -1,5 +1,5 @@
+import '../../helpers/loggerMock.js';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { loggerMocks } from '../../helpers/loggerFixture.js';
 import { engineModuleMock } from '../../helpers/engineFixture.js';
 
 const mocks = vi.hoisted(() => ({
@@ -15,8 +15,6 @@ vi.mock('../../../packages/backend/src/utils/engineClient.js', () => ({
 vi.mock('../../../packages/backend/src/infrastructure/dataFacade.js', () => ({
   fetchHistoryData: mocks.fetchHistoryData,
 }));
-
-vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: loggerMocks }));
 
 vi.mock('../../../packages/backend/src/utils/misc.js', () => ({
   withTimeout: vi.fn((promise: Promise<unknown>) => promise),

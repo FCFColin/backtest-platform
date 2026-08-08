@@ -1,9 +1,7 @@
+import '../../helpers/loggerMock.js';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { loggerMocks } from '../../helpers/loggerFixture.js';
 
-vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
-  logger: loggerMocks,
-}));
 const poolMocks = vi.hoisted(() => ({ query: vi.fn() }));
 vi.mock('../../../packages/backend/src/db/pool.js', () => ({
   getPool: vi.fn(() => poolMocks),

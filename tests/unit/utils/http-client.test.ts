@@ -1,3 +1,4 @@
+import '../../helpers/loggerMock.js';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { loggerMocks } from '../../helpers/loggerFixture.js';
 
@@ -11,8 +12,6 @@ vi.mock('../../../packages/backend/src/utils/requestContext.js', () => ({
   getRequestId: mocks.getRequestId,
   getTracePropagationHeaders: mocks.getTracePropagationHeaders,
 }));
-vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: loggerMocks }));
-
 import { callService } from '../../../packages/backend/src/utils/httpClient.js';
 
 const originalFetch = globalThis.fetch;

@@ -1,6 +1,6 @@
+import '../../helpers/loggerMock.js';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createRedisModuleMock } from '../../helpers/mockFactories.js';
-import { loggerMocks } from '../../helpers/loggerFixture.js';
 
 const redisMocks = vi.hoisted(() => ({}));
 const dbMocks = vi.hoisted(() => ({
@@ -17,10 +17,6 @@ vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () =>
     redisMocks,
   ),
 );
-
-vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
-  logger: loggerMocks,
-}));
 
 vi.mock('../../../packages/backend/src/db/pool.js', () => ({
   getPool: () => ({ query: dbMocks.query }),

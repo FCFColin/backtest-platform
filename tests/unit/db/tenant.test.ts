@@ -1,16 +1,12 @@
-﻿import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
+import '../../helpers/loggerMock.js';
+import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { execSync } from 'node:child_process';
 import pg from 'pg';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { loggerMocks } from '../../helpers/loggerFixture.js';
 
 // tenant.ts 依赖 logger（仅错误日志）与 pool.ts 的 getPool。
-vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
-  logger: loggerMocks,
-}));
-
 const poolHolder = vi.hoisted(() => ({ pool: null as pg.Pool | null }));
 
 // 不能用 importOriginal — 真实 withTenant 闭包捕获真实 getPool，会绕过 mock

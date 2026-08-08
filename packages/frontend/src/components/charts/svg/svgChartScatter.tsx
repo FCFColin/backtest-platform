@@ -170,7 +170,6 @@ export function SvgScatterChart({
         ticks={xTicks.map((t) => ({ value: xScale(t), label: t.toFixed(2) }))}
         label={xLabel ? { value: xLabel } : undefined}
         gridLines
-        gridColor="hsl(var(--chart-grid))"
         tickLine={false}
         offset={plotBottom}
         hideLine

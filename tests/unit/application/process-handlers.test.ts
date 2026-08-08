@@ -1,9 +1,6 @@
+import '../../helpers/loggerMock.js';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { loggerMocks } from '../../helpers/loggerFixture.js';
-
-vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
-  logger: loggerMocks,
-}));
 
 vi.mock('../../../packages/backend/src/tracing.js', () => ({
   initTracing: vi.fn(),

@@ -459,11 +459,10 @@ func rollingWindowSuccessRate(annualReturns []float64, years int, withdrawalRate
 	return float64(successes) / float64(numWindows)
 }
 func CalcPWRAllYears(annualReturns []float64) (pwr10y, swr10y, pwr20y, swr20y, pwr30y, swr30y, pwr40y, swr40y float64) {
-	pwr := CalcPWR(annualReturns)
 	ptrs := [8]*float64{&pwr10y, &swr10y, &pwr20y, &swr20y, &pwr30y, &swr30y, &pwr40y, &swr40y}
 	for i, y := range []int{10, 20, 30, 40} {
 		if len(annualReturns) >= y {
-			*ptrs[i*2] = pwr
+			*ptrs[i*2] = CalcSWR(annualReturns, y, 1.0)
 			*ptrs[i*2+1] = CalcSWR(annualReturns, y, 0.95)
 		}
 	}

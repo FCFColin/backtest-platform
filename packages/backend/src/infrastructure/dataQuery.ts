@@ -135,17 +135,19 @@ export async function fetchMissingFromGoService(
   endDate: string,
   cacheKey: string,
   orgId?: string,
-): Promise<Record<string, Record<string, number>>> {
+): Promise<{ result: Record<string, Record<string, number>>; degraded: boolean }> {
   let [s, e] = [startDate, endDate];
   if (s === '' && e === '') [s, e] = defaultDateRange();
   const goResult: Record<string, Record<string, number>> = {};
+  let degraded = false;
   await Promise.all(
     stillMissing.map(async (ticker) => {
       try {
-        const { success, data } = await fetchGoJson(
-          `/api/data/price/${ticker}?start=${s}&end=${e}`,
-          orgId,
-        );
+        const {
+          success,
+          data,
+          degraded: tickerDegraded,
+        } = await fetchGoJson(`/api/data/price/${ticker}?start=${s}&end=${e}`, orgId);
         if (success && Array.isArray(data)) {
           const priceMap = Object.fromEntries(
             (data as Array<{ date: string; close: number }>).map((p) => [p.date, p.close]),
@@ -154,6 +156,7 @@ export async function fetchMissingFromGoService(
             goResult[ticker] = priceMap;
             await setPriceCache(ticker, priceMap);
           }
+          if (tickerDegraded) degraded = true;
         }
       } catch (e) {
         logger.warn(`[dataService] Go data service failed for ${ticker}: ${(e as Error).message}`);
@@ -161,7 +164,7 @@ export async function fetchMissingFromGoService(
     }),
   );
   if (Object.keys(goResult).length > 0) await writeCache(cacheKey, goResult, HISTORY_CACHE_TTL_SEC);
-  return goResult;
+  return { result: goResult, degraded };
 }
 
 export function validateSearchQuery(query: string, market?: string): boolean {

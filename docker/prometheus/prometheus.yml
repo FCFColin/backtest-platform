@@ -22,7 +22,9 @@ scrape_configs:
       - targets: ['localhost:9090']
 
   - job_name: 'api'
-    metrics_path: /metrics
+    metrics_path: /api/metrics
+    authorization:
+      credentials: 'dev-metrics-token'
     static_configs:
       - targets: ['api:5001']
         labels:

@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Card } from '@/components/ui/uiComponents.js';
+import { TableFrame } from '@/components/tables.js';
 import { formatPercentSigned } from '@/utils/format.js';
 import { getPortfolioColor } from '@/lib/chart-theme.js';
 import { getColorClass } from '@/components/charts/chartUtils.js';
@@ -149,7 +150,7 @@ export function YearlyReturnsTable({
           })}
         </span>
       </div>
-      <div className="border border-border rounded-lg overflow-hidden">
+      <TableFrame>
         <div className="overflow-x-auto">
           <table className="w-full text-caption">
             <thead>
@@ -175,7 +176,7 @@ export function YearlyReturnsTable({
             <TableBody rows={rows} portfolios={portfolios} hasBenchmark={hasBenchmark} />
           </table>
         </div>
-      </div>
+      </TableFrame>
     </Card>
   );
 }

@@ -1,3 +1,4 @@
+import '../../helpers/loggerMock.js';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 const poolMocks = vi.hoisted(() => {
@@ -35,10 +36,6 @@ const configMocks = vi.hoisted(() => ({
 }));
 
 vi.mock('../../../packages/backend/src/config/index.js', () => ({ config: configMocks }));
-
-import { loggerMocks } from '../../helpers/loggerFixture.js';
-
-vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: loggerMocks }));
 
 vi.mock('../../../packages/backend/src/utils/metrics.js', () => ({
   registerPgPoolMetrics: vi.fn(),
@@ -134,10 +131,10 @@ describe('db/pool', () => {
     expect(result).toBe('ok');
     expect(poolMocks.primaryPool.connect).toHaveBeenCalled();
     expect(poolMocks.mockClient.query).toHaveBeenCalledWith('BEGIN');
-    expect(poolMocks.mockClient.query).toHaveBeenCalledWith(
-      "SELECT set_config('app.current_tenant_id', $1, true)",
-      ['00000000-0000-0000-0000-000000000001'],
-    );
+    expect(poolMocks.mockClient.query).toHaveBeenCalledWith('SELECT set_config($1, $2, true)', [
+      'app.current_tenant_id',
+      '00000000-0000-0000-0000-000000000001',
+    ]);
     expect(poolMocks.mockClient.query).toHaveBeenCalledWith('COMMIT');
   });
 
@@ -181,6 +178,20 @@ describe('db/pool', () => {
       }),
     ).rejects.toThrow('boom');
     expect(poolMocks.mockClient.query).toHaveBeenCalledWith('ROLLBACK');
+  });
+
+  it('withPlatformContext 应注入平台 admin GUC', async () => {
+    const { withPlatformContext } = await import(POOL_MODULE);
+    const result = await withPlatformContext(async () => 'platform-ok');
+    expect(result).toBe('platform-ok');
+    expect(poolMocks.mockClient.query).toHaveBeenCalledWith('SELECT set_config($1, $2, true)', [
+      'app.is_platform_admin',
+      'true',
+    ]);
+    expect(poolMocks.mockClient.query).toHaveBeenCalledWith('SELECT set_config($1, $2, true)', [
+      'app.current_user_role',
+      'admin',
+    ]);
   });
 });
 

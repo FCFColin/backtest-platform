@@ -22,7 +22,9 @@ function FreqSelector({ s }: { s: RebalancingState }) {
               className="flex cursor-pointer items-center gap-1.5 rounded-lg border px-3 py-1.5 text-caption font-semibold transition-colors"
               style={{
                 borderColor: selected ? opt.color : 'hsl(var(--border))',
-                backgroundColor: selected ? `${opt.color}18` : 'transparent',
+                backgroundColor: selected
+                  ? `color-mix(in srgb, ${opt.color} 10%, transparent)`
+                  : 'transparent',
                 color: selected ? opt.color : 'hsl(var(--fg-tertiary))',
               }}
             >

@@ -10,6 +10,7 @@ import type { BacktestParameters, Portfolio } from '@backtest/shared';
 import type { SavedPortfolio } from '@/utils/portfolioStorage';
 import { useBacktestPageState } from './hooks/useBacktestPageState.js';
 import { RunButton } from '@/components/form/sharedFields';
+import { TableEmpty } from '@/components/stateDisplay.js';
 import { ResultsContent } from './BacktestResults.js';
 import { BacktestHero } from './BacktestHero.js';
 export interface BacktestPageState {
@@ -109,9 +110,7 @@ function LoadListPanel({
   return (
     <div className="mt-2 max-h-[240px] overflow-y-auto rounded-md border border-border-subtle bg-elevated">
       {savedConfigs.length === 0 ? (
-        <div className="px-3 py-3 text-center text-caption text-fg-tertiary">
-          {t('No saved schemes')}
-        </div>
+        <TableEmpty message={t('No saved schemes')} className="px-3 py-3 text-caption" />
       ) : (
         savedConfigs.map((config) => (
           <div

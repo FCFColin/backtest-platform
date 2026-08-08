@@ -4,7 +4,7 @@
   PCAResult,
   BacktestParameters,
 } from '@backtest/shared/types/index';
-import type { LETFRequest } from '@backtest/shared/types/letf';
+import type { LETFRequest } from '@backtest/shared';
 import { fetchHistoryData } from '../infrastructure/dataFacade.js';
 import { callEngineStrict, unwrapEngineData } from '../utils/engineClient.js';
 import { logger } from '../utils/logger.js';

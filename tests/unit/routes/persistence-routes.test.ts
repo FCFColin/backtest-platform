@@ -1,3 +1,4 @@
+import '../../helpers/loggerMock.js';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   startExpressApp,
@@ -5,7 +6,6 @@ import {
   type TestServer,
   type TestRequest,
 } from '../../helpers/expressApp.js';
-import { loggerMocks } from '../../helpers/loggerFixture.js';
 
 const mocks = vi.hoisted(() => ({
   repos: {
@@ -34,8 +34,6 @@ vi.mock('../../../packages/backend/src/repositories/backtestRunRepo.js', () => (
   createRun: mocks.repos.runs.create,
   deleteRun: mocks.repos.runs.del,
 }));
-vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: loggerMocks }));
-
 import '../../helpers/middlewareMocks.js';
 import workspaceRoutes from '../../../packages/backend/src/routes/workspaceRoutes.js';
 

@@ -1,8 +1,6 @@
+import '../../helpers/loggerMock.js';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { Response } from 'express';
-import { loggerMocks } from '../../helpers/loggerFixture.js';
-
-vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: loggerMocks }));
 
 import {
   resolveTenant,

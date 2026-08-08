@@ -21,6 +21,11 @@ const migrations: Array<{ version: number; upFile: string; downFile: string }> =
     upFile: '002_fama_french_factors.sql',
     downFile: '002_fama_french_factors_down.sql',
   },
+  {
+    version: 3,
+    upFile: '003_platform_rls_escape.sql',
+    downFile: '003_platform_rls_escape_down.sql',
+  },
 ];
 
 export async function initSchema(): Promise<void> {

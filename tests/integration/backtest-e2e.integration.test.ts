@@ -1,3 +1,4 @@
+import '../helpers/loggerMock.js';
 /**
  * 回测端到端集成测试（RO-049 SubTask 33.1）
  *
@@ -6,11 +7,8 @@
  * 引擎与数据服务被 mock 以避免真实外部依赖。
  */
 import { describe, it, expect, vi } from 'vitest';
-import { loggerMocks } from '../helpers/loggerFixture.js';
 import { useTestServer } from '../helpers/expressApp.js';
 import { engineModuleMock } from '../helpers/engineFixture.js';
-
-vi.mock('../../packages/backend/src/utils/logger.js', () => ({ logger: loggerMocks }));
 
 const { callEngineStrictMock, fetchHistoryDataMock, searchTickersMock } = vi.hoisted(() => ({
   callEngineStrictMock: vi.fn(),

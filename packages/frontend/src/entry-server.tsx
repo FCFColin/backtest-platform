@@ -2,8 +2,7 @@ import { renderToPipeableStream } from 'react-dom/server';
 import { StaticRouter } from 'react-router';
 import ErrorBoundary from './components/errorBoundaries.js';
 import AppShell from './AppShell.js';
-import i18n from './i18n/index.js';
-import './i18n';
+import './i18n/index.js';
 if (typeof globalThis.localStorage === 'undefined') {
   const store: Record<string, string> = {};
   globalThis.localStorage = {
@@ -35,58 +34,7 @@ if (typeof globalThis.matchMedia === 'undefined') {
     dispatchEvent: () => false,
   });
 }
-const ANALYSIS_PREFIXES = [
-  '/monte-carlo',
-  '/optimizer',
-  '/analysis',
-  '/efficient-frontier',
-  '/data-engine',
-  '/rebalancing',
-  '/lumpsum',
-  '/factor-regression',
-  '/calculators',
-  '/tactical',
-  '/backtest-optimizer',
-  '/pca',
-  '/signal',
-  '/letf',
-  '/goal-optimizer',
-  '/portfolio-comparison',
-  '/prototype',
-];
-const PREFIX_NS: ReadonlyArray<readonly [readonly string[], string]> = [
-  [['/about', '/contact', '/help', '/changelog', '/pricing', '/limits', '/upgrade'], 'pages'],
-  [['/login', '/signup', '/verify', '/accept'], 'auth'],
-  [['/legal'], 'legal'],
-  [['/account', '/org', '/billing'], 'account'],
-  [['/admin'], 'admin'],
-];
-function nsForUrl(url: string): string {
-  if (url === '/' || url.startsWith('/?')) return 'backtest';
-  if (ANALYSIS_PREFIXES.some((p) => url.startsWith(p))) return 'analysis';
-  for (const [prefixes, ns] of PREFIX_NS) {
-    if (prefixes.some((p) => url.startsWith(p))) return ns;
-  }
-  return 'common';
-}
 export async function render(url: string, nonce: string) {
-  const ns = nsForUrl(url);
-  if (ns !== 'common' && !i18n.hasResourceBundle(i18n.language, ns)) {
-    try {
-      const fs = await import('node:fs');
-      const path = await import('node:path');
-      const urlMod = await import('node:url');
-      const __dirname = urlMod.fileURLToPath(import.meta.url);
-      const dir = path.default.dirname(__dirname);
-      const localePath = path.default.resolve(dir, `./locales/${i18n.language}/${ns}.json`);
-      if (fs.default.existsSync(localePath)) {
-        const data = JSON.parse(fs.default.readFileSync(localePath, 'utf-8'));
-        i18n.addResourceBundle(i18n.language, ns, data, true, true);
-      }
-    } catch {
-      /* locale file not found */
-    }
-  }
   return renderToPipeableStream(
     <StaticRouter location={url}>
       <ErrorBoundary>

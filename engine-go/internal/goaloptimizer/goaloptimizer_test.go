@@ -1,8 +1,10 @@
 package goaloptimizer
 
 import (
+	"context"
 	"engine-go/internal/enginetest"
 	"math"
+	"strings"
 	"testing"
 )
 
@@ -12,7 +14,7 @@ func TestOptimizeGoals_EmptyAssets(t *testing.T) {
 		Assets:    []Asset{{Ticker: "", Weight: 1}}, // 空 ticker 被过滤
 		PriceData: map[string]map[string]float64{}, StartDate: "2024-01-01", EndDate: "2024-12-31",
 	}
-	r, err := OptimizeGoals(req)
+	r, err := OptimizeGoals(context.Background(), req)
 	if err != nil {
 		t.Fatalf("不应报错: %v", err)
 	}
@@ -32,11 +34,11 @@ func TestOptimizeGoals_Deterministic(t *testing.T) {
 		Assets: []Asset{{Ticker: "A", Weight: 1}}, PriceData: pd, StartDate: "2024-01-01",
 		EndDate: "2024-12-31", NumSimulations: &numSims,
 	}
-	r1, err := OptimizeGoals(req)
+	r1, err := OptimizeGoals(context.Background(), req)
 	if err != nil {
 		t.Fatalf("不应报错: %v", err)
 	}
-	r2, err := OptimizeGoals(req)
+	r2, err := OptimizeGoals(context.Background(), req)
 	if err != nil {
 		t.Fatalf("不应报错: %v", err)
 	}
@@ -56,7 +58,7 @@ func TestOptimizeGoals_GuaranteedSuccess(t *testing.T) {
 		Assets: []Asset{{Ticker: "A", Weight: 1}}, PriceData: pd, StartDate: "2024-01-01",
 		EndDate: "2024-12-31", NumSimulations: &numSims,
 	}
-	r, err := OptimizeGoals(req)
+	r, err := OptimizeGoals(context.Background(), req)
 	if err != nil {
 		t.Fatalf("不应报错: %v", err)
 	}
@@ -73,7 +75,7 @@ func TestOptimizeGoals_StrictConstraintFiltersAll(t *testing.T) {
 		Assets: []Asset{{Ticker: "A", Weight: 1}}, Constraints: &Constraints{MaxDrawdown: &maxDD},
 		PriceData: pd, StartDate: "2024-01-01", EndDate: "2024-12-31", NumSimulations: &numSims,
 	}
-	r, err := OptimizeGoals(req)
+	r, err := OptimizeGoals(context.Background(), req)
 	if err != nil {
 		t.Fatalf("不应报错: %v", err)
 	}
@@ -92,7 +94,7 @@ func TestOptimizeGoals_ResultStructure(t *testing.T) {
 		Assets: []Asset{{Ticker: "A", Weight: 1}}, PriceData: pd, StartDate: "2024-01-01",
 		EndDate: "2024-12-31", NumSimulations: &numSims,
 	}
-	r, err := OptimizeGoals(req)
+	r, err := OptimizeGoals(context.Background(), req)
 	if err != nil {
 		t.Fatalf("不应报错: %v", err)
 	}
@@ -140,7 +142,7 @@ func TestOptimizeGoals_NumSimulationsClamped(t *testing.T) {
 			Assets: []Asset{{Ticker: "A", Weight: 1}}, PriceData: pd, StartDate: "2024-01-01",
 			EndDate: "2024-12-31", NumSimulations: &huge,
 		}
-		r, err := OptimizeGoals(req)
+		r, err := OptimizeGoals(context.Background(), req)
 		if err != nil {
 			t.Fatalf("不应报错: %v", err)
 		}
@@ -155,12 +157,50 @@ func TestOptimizeGoals_NumSimulationsClamped(t *testing.T) {
 			Assets: []Asset{{Ticker: "A", Weight: 1}}, PriceData: pd, StartDate: "2024-01-01",
 			EndDate: "2024-12-31", NumSimulations: &neg,
 		}
-		r, err := OptimizeGoals(req)
+		r, err := OptimizeGoals(context.Background(), req)
 		if err != nil {
 			t.Fatalf("不应报错: %v", err)
 		}
 		if len(r.ProbabilityCurve) == 0 {
 			t.Error("ProbabilityCurve 不应为空")
+		}
+	})
+	t.Run("Years 超界被截断到 100 且不 panic", func(t *testing.T) {
+		req := GoalOptimizerRequest{
+			TargetAmount: 15000, InitialAmount: 10000, Years: 1e9,
+			Assets: []Asset{{Ticker: "A", Weight: 1}}, PriceData: pd, StartDate: "2024-01-01",
+			EndDate: "2024-12-31",
+		}
+		r, err := OptimizeGoals(context.Background(), req)
+		if err != nil {
+			t.Fatalf("不应报错: %v", err)
+		}
+		if r == nil {
+			t.Fatal("应返回非 nil 结果")
+		}
+	})
+	t.Run("Years<=0 返回 InputError", func(t *testing.T) {
+		req := GoalOptimizerRequest{
+			TargetAmount: 15000, InitialAmount: 10000, Years: -1,
+			Assets: []Asset{{Ticker: "A", Weight: 1}}, PriceData: pd, StartDate: "2024-01-01",
+			EndDate: "2024-12-31",
+		}
+		_, err := OptimizeGoals(context.Background(), req)
+		if err == nil || !strings.Contains(err.Error(), "years") {
+			t.Errorf("应返回 years InputError, got %v", err)
+		}
+	})
+	t.Run("ctx 取消应中止", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+		req := GoalOptimizerRequest{
+			TargetAmount: 15000, InitialAmount: 10000, Years: 1,
+			Assets: []Asset{{Ticker: "A", Weight: 1}}, PriceData: pd, StartDate: "2024-01-01",
+			EndDate: "2024-12-31",
+		}
+		_, err := OptimizeGoals(ctx, req)
+		if err == nil {
+			t.Error("ctx 取消后应返回错误")
 		}
 	})
 }

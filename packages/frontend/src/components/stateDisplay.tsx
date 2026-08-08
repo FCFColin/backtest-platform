@@ -56,8 +56,10 @@ export function EmptyState({
   );
 }
 
-export function TableEmpty({ message }: { message: string }) {
-  return <div className="py-6 text-center text-body text-fg-tertiary">{message}</div>;
+export function TableEmpty({ message, className }: { message: string; className?: string }) {
+  return (
+    <div className={cn('py-6 text-center text-body text-fg-tertiary', className)}>{message}</div>
+  );
 }
 
 export function LoadingState({

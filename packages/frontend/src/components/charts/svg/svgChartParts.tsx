@@ -44,7 +44,7 @@ export function SvgAxis({
   ticks,
   label,
   gridLines = false,
-  gridColor = 'var(--chart-grid)',
+  gridColor = 'var(--border-soft)',
   tickLine = { length: 5 },
   tickStyle = AXIS_TICK_STYLE,
   offset,
@@ -131,7 +131,7 @@ interface SvgTooltipProps {
   offset?: number;
 }
 const TOOLTIP_CLS =
-  'fixed pointer-events-none z-[1000] rounded-lg p-3 text-xs leading-relaxed whitespace-nowrap backdrop-blur-md bg-chart-tooltip-bg/95 border border-border-strong text-fg shadow-[0_10px_25px_-5px_rgba(0,0,0,0.5),0_4px_6px_-2px_rgba(0,0,0,0.3)]';
+  'fixed pointer-events-none z-[1000] rounded-lg p-3 text-xs leading-relaxed whitespace-nowrap backdrop-blur-md bg-chart-tooltip-bg/95 border border-border-strong text-fg shadow-[var(--tooltip-shadow)]';
 function SvgTooltip({ active, position, data, label, offset = 20 }: SvgTooltipProps) {
   const ref = useRef<HTMLDivElement | null>(null);
   useLayoutEffect(() => {
@@ -374,12 +374,4 @@ export function useChartScaffold(seriesNames: string[]) {
 }
 export const LeftAxis = (
   p: Omit<SvgAxisProps, 'orientation' | 'gridLines' | 'gridColor' | 'tickLine'>,
-) => (
-  <SvgAxis
-    {...p}
-    orientation="left"
-    gridLines
-    gridColor="hsl(var(--chart-grid))"
-    tickLine={false}
-  />
-);
+) => <SvgAxis {...p} orientation="left" gridLines tickLine={false} />;

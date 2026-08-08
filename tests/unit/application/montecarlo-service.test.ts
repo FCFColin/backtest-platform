@@ -1,7 +1,7 @@
+import '../../helpers/loggerMock.js';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { BacktestParameters } from '@backtest/shared';
 import type { Warning } from '../../../packages/backend/src/application/backtest-helpers.js';
-import { loggerMocks } from '../../helpers/loggerFixture.js';
 import { engineMocks, engineModuleMock } from '../../helpers/engineFixture.js';
 import {
   mockParameters,
@@ -71,10 +71,6 @@ vi.mock('../../../packages/backend/src/application/backtest-helpers.js', async (
         : parameters,
   };
 });
-
-vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
-  logger: loggerMocks,
-}));
 
 import { runMonteCarlo } from '../../../packages/backend/src/application/montecarlo-service.js';
 

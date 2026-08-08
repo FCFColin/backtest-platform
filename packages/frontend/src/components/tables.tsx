@@ -9,6 +9,14 @@ const TH_BASE =
 const TD_BASE = 'py-2 px-3 text-body text-fg';
 const rowClass = (idx: number) => cn(idx % 2 === 1 && 'bg-elevated/40');
 
+export function TableFrame({ className, children }: { className?: string; children: ReactNode }) {
+  return (
+    <div className={cn('border border-border rounded-lg overflow-hidden', className)}>
+      {children}
+    </div>
+  );
+}
+
 export interface TableColumn<T> {
   key: keyof T | string;
   label: ReactNode;

@@ -1,7 +1,7 @@
+import '../helpers/loggerMock.js';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createConfigMocks } from '../helpers/mockFactories.js';
 import { engineModuleMock } from '../helpers/engineFixture.js';
-import { loggerMocks } from '../helpers/loggerFixture.js';
 import {
   configurePortfolioBacktestMocks,
   configureTickerHelpersMocks,
@@ -53,10 +53,6 @@ const queueMocks = vi.hoisted(() => ({
   getJob: vi.fn(),
 }));
 
-vi.mock('../../packages/backend/src/utils/logger.js', () => ({
-  logger: loggerMocks,
-  httpLogger: vi.fn(),
-}));
 vi.mock('../../packages/backend/src/application/backtest-service.js', () => ({
   runPortfolioBacktest: m.runPortfolioBacktest,
   runBacktest: m.runBacktest,

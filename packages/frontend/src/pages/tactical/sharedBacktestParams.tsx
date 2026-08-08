@@ -4,7 +4,7 @@ import type { RebalanceFrequency } from '@backtest/shared';
 import { Input, AffixInput } from '@/components/ui/uiComponents';
 import { LabeledField, SelectField } from '@/components/form/sharedFields';
 import { ParamSection } from './TacticalSignalEditor';
-import { REBALANCE_OPTIONS } from './sharedTacticalConstants';
+import { REBALANCE_OPTIONS } from './TacticalUtils';
 
 export function BacktestParamsFields({
   idPrefix,

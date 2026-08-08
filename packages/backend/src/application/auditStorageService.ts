@@ -3,7 +3,7 @@ import crypto from 'crypto';
 import type { PoolClient } from 'pg';
 import { config } from '../config/index.js';
 import { logger } from '../utils/logger.js';
-import { getPool } from '../db/pool.js';
+import { getPool, withPlatformContext } from '../db/pool.js';
 import { rowMapper, iso, toIso } from '../repositories/rowMapper.js';
 
 export type AuditAction =
@@ -35,20 +35,6 @@ export interface AuditLogRow {
   objectKey: string | null;
   exportedAt: string | null;
   createdAt: string;
-}
-interface AuditLogQueryFilters {
-  orgId?: string;
-  eventType?: string;
-  userId?: string;
-  action?: string;
-  startDate?: string;
-  endDate?: string;
-}
-interface PaginatedAuditLogs {
-  logs: AuditLogRow[];
-  total: number;
-  page: number;
-  limit: number;
 }
 
 const UNEXPORTED_BATCH_LIMIT = 100;
@@ -110,18 +96,22 @@ export async function writeAuditLog(entry: AuditLogEntry, client?: PoolClient): 
 export async function getUnexportedAuditLogs(
   limit: number = UNEXPORTED_BATCH_LIMIT,
 ): Promise<AuditLogRow[]> {
-  const { rows } = await getPool().query(
-    `SELECT ${AUDIT_LOG_COLUMNS} FROM audit_logs WHERE exported_at IS NULL ORDER BY created_at ASC LIMIT $1`,
-    [limit],
+  const { rows } = await withPlatformContext((client) =>
+    client.query(
+      `SELECT ${AUDIT_LOG_COLUMNS} FROM audit_logs WHERE exported_at IS NULL ORDER BY created_at ASC LIMIT $1`,
+      [limit],
+    ),
   );
   return rows.map(mapAuditLogRow);
 }
 
 export async function markExported(ids: string[], objectKey: string): Promise<void> {
   if (ids.length === 0) return;
-  await getPool().query(
-    `UPDATE audit_logs SET exported_at = NOW(), object_key = $2 WHERE id = ANY($1::uuid[])`,
-    [ids, objectKey],
+  await withPlatformContext((client) =>
+    client.query(
+      `UPDATE audit_logs SET exported_at = NOW(), object_key = $2 WHERE id = ANY($1::uuid[])`,
+      [ids, objectKey],
+    ),
   );
   logger.info(
     { module: 'auditStorage', count: ids.length, objectKey },
@@ -129,52 +119,11 @@ export async function markExported(ids: string[], objectKey: string): Promise<vo
   );
 }
 
-export async function queryAuditLogs(
-  filters: AuditLogQueryFilters,
-  page: number = 1,
-  limit: number = 50,
-): Promise<PaginatedAuditLogs> {
-  const conditions: string[] = [];
-  const params: unknown[] = [];
-  let paramIdx = 1;
-  const allFilters: Array<[string, string | undefined, string]> = [
-    ['org_id', filters.orgId, '='],
-    ['event_type', filters.eventType, '='],
-    ['user_id', filters.userId, '='],
-    ['action', filters.action, '='],
-    ['created_at', filters.startDate, '>='],
-    ['created_at', filters.endDate, '<='],
-  ];
-  for (const [col, val, op] of allFilters) {
-    if (val) {
-      conditions.push(`${col} ${op} $${paramIdx++}`);
-      params.push(val);
-    }
-  }
-  const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
-  const offset = (page - 1) * limit;
-  const pool = getPool();
-  const [dataResult, countResult] = await Promise.all([
-    pool.query(
-      `SELECT ${AUDIT_LOG_COLUMNS} FROM audit_logs ${whereClause} ORDER BY created_at DESC LIMIT $${paramIdx} OFFSET $${paramIdx + 1}`,
-      [...params, limit, offset],
-    ),
-    pool.query(`SELECT COUNT(*)::int AS total FROM audit_logs ${whereClause}`, params),
-  ]);
-  return {
-    logs: dataResult.rows.map(mapAuditLogRow),
-    total: countResult.rows[0].total as number,
-    page,
-    limit,
-  };
-}
-
 export async function verifyAuditIntegrity(
   logId: string,
 ): Promise<{ valid: boolean; expected: string; actual: string }> {
-  const { rows } = await getPool().query(
-    `SELECT payload, hmac_signature FROM audit_logs WHERE id = $1`,
-    [logId],
+  const { rows } = await withPlatformContext((client) =>
+    client.query(`SELECT payload, hmac_signature FROM audit_logs WHERE id = $1`, [logId]),
   );
   if (rows.length === 0) return { valid: false, expected: '', actual: '' };
   const storedSignature = rows[0].hmac_signature as string;

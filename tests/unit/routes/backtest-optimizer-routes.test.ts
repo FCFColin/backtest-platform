@@ -1,6 +1,6 @@
+import '../../helpers/loggerMock.js';
 import { describe, it, expect, vi } from 'vitest';
 import { useTestServer } from '../../helpers/expressApp.js';
-import { loggerMocks } from '../../helpers/loggerFixture.js';
 import { mockConfigModule, mockBacktestQueue } from '../../helpers/mockFactories.js';
 
 const queueMocks = vi.hoisted(() => ({
@@ -9,10 +9,6 @@ const queueMocks = vi.hoisted(() => ({
 vi.mock('../../../packages/backend/src/queues/backtestQueue.js', () =>
   mockBacktestQueue(queueMocks.add),
 );
-
-vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
-  logger: loggerMocks,
-}));
 
 vi.mock('../../../packages/backend/src/config/index.js', () =>
   mockConfigModule({ SYNC_COMPUTE_TIMEOUT_MS: 500 }),

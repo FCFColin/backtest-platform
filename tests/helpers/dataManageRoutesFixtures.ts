@@ -1,6 +1,6 @@
+import '../helpers/loggerMock.js';
 import { vi } from 'vitest';
 import { startExpressApp, type TestServer, type TestRequest } from './expressApp.js';
-import { loggerMocks } from './loggerFixture.js';
 
 // vi.hoisted 结果不能直接 export，统一放入 internalMocks 容器
 const internalMocks = vi.hoisted(() => ({
@@ -27,8 +27,6 @@ vi.mock('../../packages/backend/src/db/marketStats.js', () => ({
 vi.mock('../../packages/backend/src/infrastructure/dataFacade.js', () => ({
   searchTickers: internalMocks.engine.searchTickers,
 }));
-vi.mock('../../packages/backend/src/utils/logger.js', () => ({ logger: loggerMocks }));
-
 import dataManageRoutes from '../../packages/backend/src/routes/dataManageRoutes.js';
 
 export const engineServiceMocks = internalMocks.engine;

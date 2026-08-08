@@ -46,7 +46,7 @@ describe('useTheme', () => {
 
     expect(result.current.theme).toBe('dark');
     expect(result.current.isDark).toBe(true);
-    expect(document.documentElement.classList.contains('dark')).toBe(true);
+    expect(document.documentElement.dataset.theme).toBe('dark');
   });
 
   it('无 localStorage 时应跟随 prefers-color-scheme: dark', () => {
@@ -55,7 +55,7 @@ describe('useTheme', () => {
     const { result } = renderHook(() => useTheme());
 
     expect(result.current.theme).toBe('dark');
-    expect(document.documentElement.classList.contains('dark')).toBe(true);
+    expect(document.documentElement.dataset.theme).toBe('dark');
   });
 
   it('无 localStorage 且 prefer-color-scheme light 时默认 light', () => {
@@ -67,12 +67,11 @@ describe('useTheme', () => {
     expect(result.current.isDark).toBe(false);
   });
 
-  it('挂载时 light 主题应设置正确的 document class', () => {
+  it('挂载时 light 主题应设置正确的 data-theme', () => {
     storage.set('theme', 'light');
     renderHook(() => useTheme());
 
-    expect(document.documentElement.classList.contains('light')).toBe(true);
-    expect(document.documentElement.classList.contains('dark')).toBe(false);
+    expect(document.documentElement.dataset.theme).toBe('light');
   });
 
   it('切换主题后 localStorage 应更新', () => {
@@ -118,8 +117,7 @@ describe('useTheme', () => {
     expect(result.current.theme).toBe('dark');
     expect(result.current.isDark).toBe(true);
     expect(storage.get('theme')).toBe('dark');
-    expect(document.documentElement.classList.contains('dark')).toBe(true);
-    expect(document.documentElement.classList.contains('light')).toBe(false);
+    expect(document.documentElement.dataset.theme).toBe('dark');
 
     act(() => {
       result.current.toggleTheme();
@@ -127,6 +125,6 @@ describe('useTheme', () => {
 
     expect(result.current.theme).toBe('light');
     expect(storage.get('theme')).toBe('light');
-    expect(document.documentElement.classList.contains('light')).toBe(true);
+    expect(document.documentElement.dataset.theme).toBe('light');
   });
 });

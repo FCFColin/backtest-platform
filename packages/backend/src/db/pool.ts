@@ -107,7 +107,25 @@ export async function withTransaction<T>(
   }
 }
 
-// 租户上下文（RLS 强制点，ADR-032）：通过 SET LOCAL 注入 tenant_id 使 RLS 策略生效。
+// RLS GUC 注入（ADR-032）：SET LOCAL 使 RLS 策略在事务内生效，提交后自动清除。
+export async function withGucContext<T>(
+  gucs: Record<string, string>,
+  fn: (client: pg.PoolClient) => Promise<T>,
+  sourcePool: pg.Pool = getPool(),
+): Promise<T> {
+  return withTransaction(async (client) => {
+    for (const [name, value] of Object.entries(gucs)) {
+      await client.query('SELECT set_config($1, $2, true)', [name, value]);
+    }
+    return fn(client);
+  }, sourcePool);
+}
+
+// 平台运维上下文：绕过租户隔离并扮演 admin（break-glass key、审计导出、Stripe webhook 等无租户路径）。
+export function withPlatformContext<T>(fn: (client: pg.PoolClient) => Promise<T>): Promise<T> {
+  return withGucContext({ 'app.is_platform_admin': 'true', 'app.current_user_role': 'admin' }, fn);
+}
+
 async function withTenantContext<T>(
   tenantId: string,
   sourcePool: pg.Pool,
@@ -116,10 +134,7 @@ async function withTenantContext<T>(
   if (!isUuid(tenantId)) {
     throw new Error(`withTenant: 非法 tenantId（需为 UUID）: ${tenantId}`);
   }
-  return withTransaction(async (client) => {
-    await client.query("SELECT set_config('app.current_tenant_id', $1, true)", [tenantId]);
-    return fn(client);
-  }, sourcePool);
+  return withGucContext({ 'app.current_tenant_id': tenantId }, fn, sourcePool);
 }
 
 export async function withTenant<T>(

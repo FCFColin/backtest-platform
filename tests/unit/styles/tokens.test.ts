@@ -22,7 +22,7 @@ describe('tokens.css P0-2 CSS 变量', () => {
   describe('亮色主题（:root）', () => {
     it.each([
       ['表面层扩展变量', ['--surface-sunken:']],
-      ['chart-grid 与 chart-tooltip-bg', ['--chart-grid:', '--chart-tooltip-bg:']],
+      ['chart-tooltip-bg', ['--chart-tooltip-bg:']],
     ])('%s', (_name, vars) => {
       for (const v of vars) expect(tokensContent).toMatch(new RegExp(v.replace(':', '\\:')));
     });
@@ -62,7 +62,6 @@ describe('tailwind.config.cjs P0-2 colors 映射', () => {
     ['brand-subtle 复用 --brand', /subtle:\s*'hsl\(var\(--brand\)/],
     ['success-subtle 复用 --success', /'success-subtle':\s*'hsl\(var\(--success\)/],
     ['warning-subtle 复用 --warning', /'warning-subtle':\s*'hsl\(var\(--warning\)/],
-    ['chart-grid', /'chart-grid'/],
     ['sticky-bg 复用 --surface', /'sticky-bg':\s*'hsl\(var\(--surface\)/],
   ])('%s 映射存在', (_name, re) => {
     expect(tailwindConfigContent).toMatch(re);

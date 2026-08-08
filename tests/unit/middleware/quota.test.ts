@@ -1,3 +1,4 @@
+import '../../helpers/loggerMock.js';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
@@ -52,10 +53,6 @@ vi.mock('../../../packages/backend/src/utils/metrics.js', () => ({
   registerCircuitBreakerMetrics: vi.fn(),
   getPrometheusRegister: vi.fn(() => ({ contentType: 'text/plain', metrics: vi.fn() })),
 }));
-vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
-  logger: mocks.loggerMocks,
-}));
-
 import type { Request } from 'express';
 import { enforceQuota } from '../../../packages/backend/src/middleware/quota.js';
 

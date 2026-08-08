@@ -173,9 +173,7 @@ export default function CustomMetricsTable({ portfolios }: CustomMetricsTablePro
   if (portfolios.length === 0) {
     return (
       <ChartCard title={t('My Metrics')}>
-        <div className="text-label" style={{ color: 'var(--text-muted)' }}>
-          {t('No data')}
-        </div>
+        <div className="text-label text-fg-tertiary">{t('No data')}</div>
       </ChartCard>
     );
   }
@@ -185,10 +183,7 @@ export default function CustomMetricsTable({ portfolios }: CustomMetricsTablePro
       headerExtra={<MetricSelector selectedKeys={selectedKeys} onToggle={toggleKey} />}
     >
       {visibleMetrics.length === 0 ? (
-        <div
-          className="text-label"
-          style={{ color: 'var(--text-muted)', padding: '20px 0', textAlign: 'center' }}
-        >
+        <div className="text-label py-5 text-center text-fg-tertiary">
           {t('Please select at least one metric')}
         </div>
       ) : (

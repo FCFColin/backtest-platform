@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	sharedhttp "github.com/backtest/go-shared/http"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/time/rate"
 	"net/http"
@@ -54,7 +55,7 @@ func RateLimitMiddleware(rps float64, burst int) gin.HandlerFunc {
 		limiter := getLimiter(ip, rps, burst)
 		if !limiter.Allow() {
 			c.Header("Retry-After", "2")
-			c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{"error": "请求过于频繁，请稍后重试"})
+			sharedhttp.NewProblem(c, http.StatusTooManyRequests, "RATE_LIMITED", "Rate Limited", "请求过于频繁，请稍后重试")
 			return
 		}
 		c.Next()

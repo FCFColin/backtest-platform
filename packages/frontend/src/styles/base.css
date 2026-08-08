@@ -37,6 +37,21 @@ textarea {
   font-family: inherit;
 }
 
+.main-action-btn {
+  background: hsl(var(--brand));
+  color: hsl(var(--brand-fg));
+  border-radius: 0.5rem;
+  text-decoration: none;
+  transition: background-color 0.15s ease;
+}
+.main-action-btn:hover {
+  background: hsl(var(--brand-hover));
+}
+.main-action-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .card,
 .chart-card {
   background: var(--bg-elevated);
@@ -302,12 +317,6 @@ a:hover {
 }
 .stat-table tr:last-child td {
   border-bottom: none;
-}
-.stat-value-positive {
-  color: hsl(var(--success));
-}
-.stat-value-negative {
-  color: hsl(var(--danger));
 }
 
 .stat-row-primary {

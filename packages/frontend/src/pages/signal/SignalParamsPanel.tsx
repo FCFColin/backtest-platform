@@ -11,8 +11,11 @@ import {
   SelectValue,
 } from '@/components/ui/uiComponents';
 import { LabeledField, SectionHeader, RunButton, DateField } from '@/components/form/sharedFields';
-import type { SignalCfg, UseDualSignalStateResult } from './useDualSignalState.js';
-import type { UseSignalAnalyzerStateResult } from './useSignalAnalyzerState.js';
+import type {
+  SignalCfg,
+  UseDualSignalStateResult,
+  UseSignalAnalyzerStateResult,
+} from './signalState.js';
 
 const INDICATORS = ['SMA', 'EMA', 'RSI', 'MACD', 'Bollinger'] as const;
 

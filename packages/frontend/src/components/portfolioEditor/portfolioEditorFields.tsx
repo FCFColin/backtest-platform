@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Portfolio, RebalanceFrequency, RebalanceBands } from '@backtest/shared';
 import { X } from 'lucide-react';
@@ -13,20 +13,13 @@ import {
 } from '@/components/ui/uiComponents';
 import { useTickerMeta } from '@/hooks/miscHooks.js';
 import { cn } from '@/lib/utils';
+import { ParamCard } from '@/components/params/paramsLayout.js';
 import { INPUT_WIDTHS } from '@/utils/constants';
 import type { StorePortfolio } from './portfolioEditor.js';
 
 const numCls = 'h-8 w-[70px] font-mono tabular-nums';
 const FIELDS_ROW = 'flex flex-wrap gap-2 items-end';
 
-function FieldLabel({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div className="flex flex-col gap-0.5">
-      <label className="text-[11px] text-text-muted">{label}</label>
-      {children}
-    </div>
-  );
-}
 function PortfolioSelect({
   value,
   onChange,
@@ -63,13 +56,13 @@ function GlidepathTargetWeights({
   const { t } = useTranslation();
   return (
     <>
-      <div className="mt-1.5 text-[11px] text-text-muted">{t('Target Weights')}</div>
+      <div className="mt-1.5 text-[11px] text-[var(--text-muted)]">{t('Target Weights')}</div>
       <div className="flex flex-wrap gap-1.5 mt-1">
         {portfolio.assets.map((asset, ai) => {
           const w = portfolio.glidepathToWeights?.[ai];
           return (
             <div key={ai} className="flex flex-col gap-0.5 min-w-[90px]">
-              <label className="text-[10px] text-text-muted whitespace-nowrap overflow-hidden text-ellipsis">
+              <label className="text-[10px] text-[var(--text-muted)] whitespace-nowrap overflow-hidden text-ellipsis">
                 {asset.ticker || `${t('Asset')} ${ai + 1}`}
               </label>
               <div className="flex items-center gap-1 h-7">
@@ -118,13 +111,13 @@ function GlidepathFields({
   const { t } = useTranslation();
   return (
     <>
-      <FieldLabel label={t('Source Portfolio')}>
+      <ParamCard label={t('Source Portfolio')}>
         <PortfolioSelect value={from} onChange={onFromChange} portfolios={portfolios} />
-      </FieldLabel>
-      <FieldLabel label={t('Target Portfolio')}>
+      </ParamCard>
+      <ParamCard label={t('Target Portfolio')}>
         <PortfolioSelect value={to} onChange={onToChange} portfolios={portfolios} />
-      </FieldLabel>
-      <FieldLabel label={t('Transition Years')}>
+      </ParamCard>
+      <ParamCard label={t('Transition Years')}>
         <Input
           type="number"
           value={years}
@@ -133,7 +126,7 @@ function GlidepathFields({
           max={50}
           className="h-8 w-[60px] font-mono tabular-nums"
         />
-      </FieldLabel>
+      </ParamCard>
     </>
   );
 }
@@ -152,16 +145,18 @@ export function GlidepathForm({
   const canConfirm = gp.from && gp.to && gp.from !== gp.to;
   return (
     <div className="p-3 mb-2 bg-elevated rounded-[var(--radius-control)] border border-border-subtle">
-      <div className="text-[13px] font-semibold text-text-strong mb-2">{t('New Glide Path')}</div>
+      <div className="text-[13px] font-semibold text-[var(--text-strong)] mb-2">
+        {t('New Glide Path')}
+      </div>
       <div className={FIELDS_ROW}>
-        <FieldLabel label={t('Name')}>
+        <ParamCard label={t('Name')}>
           <Input
             type="text"
             value={gp.name}
             onChange={(e) => setGp((p) => ({ ...p, name: e.target.value }))}
             className="h-8 w-[120px]"
           />
-        </FieldLabel>
+        </ParamCard>
         <GlidepathFields
           from={gp.from}
           to={gp.to}
@@ -200,7 +195,7 @@ export function GlidepathConfig({
   const { t } = useTranslation();
   return (
     <div className="p-2 mb-1.5 bg-elevated rounded-md border border-border-subtle">
-      <div className="text-[11px] font-semibold text-accent mb-1.5 tracking-tight">
+      <div className="text-[11px] font-semibold text-brand mb-1.5 tracking-tight">
         {t('Glide Path Configuration')}
       </div>
       <div className={FIELDS_ROW}>

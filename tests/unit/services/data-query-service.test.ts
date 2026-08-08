@@ -1,5 +1,5 @@
+import '../../helpers/loggerMock.js';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { loggerMocks } from '../../helpers/loggerFixture.js';
 
 vi.hoisted(() => {
   process.env.MAX_RESPONSE_BODY_SIZE = '100';
@@ -37,10 +37,6 @@ const cacheMocks = vi.hoisted(() => ({
 const queueMocks = vi.hoisted(() => ({
   add: vi.fn(),
   getActiveUpdateJobs: vi.fn().mockResolvedValue([]),
-}));
-
-vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
-  logger: loggerMocks,
 }));
 
 vi.mock('../../../packages/backend/src/config/index.js', () => ({
@@ -236,15 +232,29 @@ describe('fetchMissingFromGoService', () => {
   it('Go 服务返回有效数据时应写入缓存', async () => {
     mockFetchResponse({ data: goBody([{ date: '2024-01-02', close: 400 }]) });
     const r = await fetchMissingFromGoService(['SPY'], '2024-01-01', '2024-01-31', 'test-key');
-    expect(r.SPY).toBeDefined();
-    expect(r.SPY['2024-01-02']).toBe(400);
-    expect(cacheMocks.writeCache).toHaveBeenCalledWith('test-key', r, 86400);
+    expect(r.result.SPY).toBeDefined();
+    expect(r.result.SPY['2024-01-02']).toBe(400);
+    expect(r.degraded).toBe(false);
+    expect(cacheMocks.writeCache).toHaveBeenCalledWith('test-key', r.result, 86400);
+  });
+
+  it('Go 服务返回带 degraded 标记的数据时应透传降级状态', async () => {
+    mockFetchResponse({
+      data: JSON.stringify({
+        success: true,
+        data: [{ date: '2024-01-02', close: 400 }],
+        degraded: true,
+      }),
+    });
+    const r = await fetchMissingFromGoService(['SPY'], '2024-01-01', '2024-01-31', 'test-key');
+    expect(r.result.SPY['2024-01-02']).toBe(400);
+    expect(r.degraded).toBe(true);
   });
 
   it('Go 服务返回空数据时缓存不应写入', async () => {
     mockFetchResponse({ data: '{}' });
     const r = await fetchMissingFromGoService(['SPY'], '2024-01-01', '2024-01-31', 'test-key');
-    expect(Object.keys(r)).toHaveLength(0);
+    expect(Object.keys(r.result)).toHaveLength(0);
     expect(cacheMocks.writeCache).not.toHaveBeenCalled();
   });
 });

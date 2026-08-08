@@ -1,11 +1,13 @@
 import { ComputeToolShell } from '@/components/shells/index.js';
 import type { ComputeToolConfig } from '@/components/shells/index.js';
-import { useSignalAnalyzerState } from './useSignalAnalyzerState.js';
-import type { UseSignalAnalyzerStateResult } from './useSignalAnalyzerState.js';
-import { useDualSignalState } from './useDualSignalState.js';
-import type { UseDualSignalStateResult } from './useDualSignalState.js';
-import { useMultiSignalState } from './hooks/useMultiSignalState.js';
-import type { UseMultiSignalStateResult } from './hooks/useMultiSignalState.js';
+import {
+  useSignalAnalyzerState,
+  useDualSignalState,
+  useMultiSignalState,
+  type UseSignalAnalyzerStateResult,
+  type UseDualSignalStateResult,
+  type UseMultiSignalStateResult,
+} from './signalState.js';
 import { SignalAnalyzerParamsPanel, DualSignalParamsPanel } from './SignalParamsPanel.js';
 import { MultiSignalParamsPanel } from './SignalSelector.js';
 import { SignalAnalyzerResultsPanel, MultiSignalResultsPanel } from './SignalAnalyzerResults.js';

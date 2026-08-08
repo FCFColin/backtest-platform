@@ -20,6 +20,7 @@ metadata:
 data:
   01-init.sql: |
     GRANT ALL PRIVILEGES ON DATABASE backtest TO backtest;
+    CREATE EXTENSION IF NOT EXISTS timescaledb;
     CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
     CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 ---
@@ -46,7 +47,7 @@ spec:
         fsGroup: 70
       containers:
         - name: postgres
-          image: postgres:16-alpine
+          image: timescale/timescaledb:latest-pg16
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:

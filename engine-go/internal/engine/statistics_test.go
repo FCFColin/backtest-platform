@@ -43,6 +43,16 @@ func TestCalcMWRR(t *testing.T) {
 		})
 	}
 }
+func TestMWRRWipeout(t *testing.T) {
+	stats := CalculateStatisticsFromRequest(StatisticsRequest{
+		Values:        []float64{100, 50, 0},
+		Dates:         []string{"2024-01-01", "2024-06-01", "2025-01-01"},
+		StartingValue: 100,
+	})
+	if stats.MWRR != -1 {
+		t.Errorf("MWRR on total loss must be -1 (not 0), got %v", stats.MWRR)
+	}
+}
 func TestCalcAnnualizedStdev(t *testing.T) {
 	cases := []struct {
 		name         string

@@ -64,9 +64,9 @@ describe('Portfolio.toEngineBody', () => {
       undefinedFields: ['rebalanceBands'],
     },
     {
-      name: 'rebalanceBands.enabled=true 时应映射 absolute/relative',
+      name: 'rebalanceBands.enabled=true 时应映射 absoluteBand/relativeBand',
       overrides: { rebalanceBands: { enabled: true, absoluteBand: 5, relativeBand: 20 } },
-      toEqual: { absolute: 5, relative: 20 },
+      toEqual: { absoluteBand: 5, relativeBand: 20 },
     },
     {
       name: 'rebalanceBands 未设置时应为 undefined',

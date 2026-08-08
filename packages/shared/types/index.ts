@@ -3,14 +3,9 @@
 export * from './portfolio.js';
 export * from './backtest.js';
 export * from './statistics.js';
-export * from './monte-carlo.js';
-export * from './optimizer.js';
+export * from './analysis.js';
 export * from './tactical.js';
 export * from './signal.js';
-export * from './pca.js';
-export * from './letf.js';
-export * from './goal.js';
-export * from './marketStats.js';
 export * from './org.js';
 export {
   CHART_COLORS,

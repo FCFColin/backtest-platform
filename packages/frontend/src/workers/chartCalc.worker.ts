@@ -63,14 +63,6 @@ function buildRollingCorrelationData(
 }
 
 const HANDLERS: Record<string, (payload: unknown[]) => unknown> = {
-  computeRollingMetric: ([a, b, c, d]) =>
-    computeRollingMetric(a as number[], b as string[], c as number, d as RollingMetricKey),
-  computeRollingExcessReturn: ([a, b, c, d]) =>
-    computeRollingExcessReturn(a as number[], b as number[], c as string[], d as number),
-  computeBeta: ([a, b]) => computeBeta(a as number[], b as number[]),
-  computeRollingCorrelation: ([a, b, c, d]) =>
-    computeRollingCorrelation(a as number[], b as number[], c as string[], d as number),
-  computeDailyReturns: ([a]) => computeDailyReturns(a as Point[]),
   buildRollingChartData: ([a, b, c]) =>
     buildRollingChartData(a as TickerData[], b as string, c as number),
   buildBetaData: ([a]) => buildBetaData(a as Parameters<typeof buildBetaData>[0]),

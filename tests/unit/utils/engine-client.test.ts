@@ -1,6 +1,6 @@
+import '../../helpers/loggerMock.js';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createConfigMocks } from '../../helpers/mockFactories.js';
-import { loggerMocks } from '../../helpers/loggerFixture.js';
 
 const cbMocks = vi.hoisted(() => {
   const goCB = {
@@ -35,10 +35,6 @@ vi.mock('opossum', () => ({
 
 vi.mock('../../../packages/backend/src/utils/httpClient.js', () => ({
   callService: callServiceMocks.callService,
-}));
-
-vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
-  logger: loggerMocks,
 }));
 
 vi.mock('../../../packages/backend/src/config/index.js', () => ({

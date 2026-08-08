@@ -300,7 +300,13 @@ function useParamField() {
   const handleNum = (
     key: 'startingValue' | 'rollingWindowMonths',
     e: ChangeEvent<HTMLInputElement>,
-  ) => updateParameter(key, Math.max(1, Number(e.target.value) || 0));
+  ) => {
+    const clamped =
+      key === 'rollingWindowMonths'
+        ? Math.min(Number(e.target.value) || 0, 120)
+        : Number(e.target.value) || 0;
+    updateParameter(key, Math.max(1, clamped));
+  };
   return {
     t,
     parameters,

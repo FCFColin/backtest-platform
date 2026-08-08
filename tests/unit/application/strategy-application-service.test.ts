@@ -1,3 +1,4 @@
+import '../../helpers/loggerMock.js';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { engineMocks, engineModuleMock } from '../../helpers/engineFixture.js';
 import { loggerMocks } from '../../helpers/loggerFixture.js';
@@ -9,13 +10,6 @@ import type {
 import type { TacticalStrategy } from '@backtest/shared/types/tactical.js';
 
 const dataMocks = vi.hoisted(() => ({ fetchHistoryData: vi.fn() }));
-
-const sanitizeMocks = vi.hoisted(() => ({ sanitizeLog: vi.fn((v: string) => v) }));
-
-vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
-  logger: loggerMocks,
-  sanitizeLog: sanitizeMocks.sanitizeLog,
-}));
 
 vi.mock('../../../packages/backend/src/utils/engineClient.js', () => engineModuleMock);
 

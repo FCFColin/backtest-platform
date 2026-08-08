@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { RefreshCw, Play, Zap, Database, BarChart3, Clock, HardDrive } from 'lucide-react';
 import { Card, Button, Progress, Skeleton } from '@/components/ui/uiComponents';
+import { TableEmpty } from '@/components/stateDisplay.js';
 import { apiFetch } from '../../utils/apiClient.js';
 import { useAuthStore } from '@/store/authStore';
 import { fmt, Panel } from './dataEngineDistribution.js';
@@ -254,9 +255,7 @@ export function RecentUpdatesCard() {
           ))}
         </div>
       ) : updates.length === 0 ? (
-        <div className="text-caption text-fg-tertiary text-center py-6">
-          {t('No recent updates')}
-        </div>
+        <TableEmpty message={t('No recent updates')} className="text-caption" />
       ) : (
         <div className="space-y-1">
           {updates.map((u) => (

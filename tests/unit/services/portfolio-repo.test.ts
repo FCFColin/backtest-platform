@@ -1,3 +1,4 @@
+import '../../helpers/loggerMock.js';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createConfigMocks, createPoolModuleMock } from '../../helpers/mockFactories.js';
 import { loggerMocks } from '../../helpers/loggerFixture.js';
@@ -8,8 +9,6 @@ const dbMocks = vi.hoisted(() => ({
 }));
 
 vi.mock('../../../packages/backend/src/db/pool.js', () => createPoolModuleMock(dbMocks));
-
-vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: loggerMocks }));
 
 vi.mock('../../../packages/backend/src/config/env.js', () => ({
   config: createConfigMocks({ REDIS_URL: 'redis://localhost:6379' }),

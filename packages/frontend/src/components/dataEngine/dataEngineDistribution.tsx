@@ -7,7 +7,6 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
-  Cell,
   LabelList,
   ResponsiveContainer,
 } from 'recharts';
@@ -27,7 +26,7 @@ export function Panel({
     </Card>
   );
 }
-const BAR_FILL = '#3b82f6'; // Blue-500 from PORTFOLIO_COLORS
+const BAR_FILL = 'hsl(var(--chart-1))';
 const AXIS_TICK_COLOR = 'var(--text-muted)';
 const DECADE_ORDER = ['1960s', '1970s', '1980s', '1990s', '2000s', '2010s', '2020s'];
 function sortAgeBucketEntries(entries: [string, number][]): [string, number][] {
@@ -184,9 +183,6 @@ function DistributionBarCard({
                 style={{ fontSize: 11, fill: 'var(--text-muted)', fontFamily: 'monospace' }}
                 formatter={(v: number) => fmt(v)}
               />
-              {data.map((entry) => (
-                <Cell key={entry.bucket} fill={BAR_FILL} />
-              ))}
             </RechartsBar>
           </BarChart>
         </ResponsiveContainer>

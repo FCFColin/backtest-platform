@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { Info } from 'lucide-react';
 import type { PortfolioResult } from '@backtest/shared';
 import { CHART_COLORS } from '@backtest/shared';
+import { getColorClass } from '@/components/charts/chartUtils.js';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/uiComponents.js';
 import type { StatRow, MetricImportance, FmtType } from './types.js';
 import { fmtPct, fmtRatio, fmtNum } from '@/utils/format';
@@ -51,13 +52,6 @@ interface MetricsRowsProps {
   rows: StatRow[];
   portfolios: PortfolioResult[];
 }
-function getValueColorClass(val: number | undefined, higherIsBetter?: boolean): string {
-  if (val == null) return '';
-  const positiveIsGood = higherIsBetter !== false;
-  if (val > 0) return positiveIsGood ? 'stat-value-positive' : 'stat-value-negative';
-  if (val < 0) return positiveIsGood ? 'stat-value-negative' : 'stat-value-positive';
-  return '';
-}
 function getRowClassName(importance?: MetricImportance): string {
   const baseClass = 'stat-table-data-row';
   if (!importance) return baseClass;
@@ -96,7 +90,7 @@ export function MetricsRows({ rows, portfolios }: MetricsRowsProps) {
             </td>
             {portfolios.map((p) => {
               const val = p.statistics[row.key] as number | undefined;
-              const colorClass = getValueColorClass(val, row.higherIsBetter);
+              const colorClass = val == null ? '' : getColorClass(val);
               return (
                 <td
                   key={p.name}

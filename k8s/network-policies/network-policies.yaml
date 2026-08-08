@@ -6,6 +6,7 @@ spec:
   podSelector: {}
   policyTypes: [Ingress, Egress]
 ---
+# ── Ingress（目标侧）──
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -43,58 +44,80 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: allow-api-egress
+  name: allow-ingress-to-engine-go
 spec:
   podSelector:
-    matchLabels: { app: api }
-  policyTypes: [Egress]
-  egress:
-    - to: [{ podSelector: { matchLabels: { app: engine-go } } }]
-      ports: [{ protocol: TCP, port: 5004 }]
-    - to: [{ podSelector: { matchLabels: { app: data-fetcher } } }]
-      ports: [{ protocol: TCP, port: 5003 }]
-    - to: [{ podSelector: { matchLabels: { app: pgbouncer } } }]
-      ports: [{ protocol: TCP, port: 5432 }]
-    - to: [{ podSelector: { matchLabels: { app: redis-sentinel } } }]
-      ports: [{ protocol: TCP, port: 26379 }]
-    - to:
-        - ipBlock:
-            cidr: 0.0.0.0/0
-            except: [10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16]
-      ports: [{ protocol: TCP, port: 443 }]
+    matchLabels: { app: engine-go }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels: { app: api }
+      ports:
+        - protocol: TCP
+          port: 5004
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: allow-pgbouncer-egress
+  name: allow-ingress-to-data-fetcher
 spec:
-  podSelector: { matchLabels: { app: pgbouncer } }
-  policyTypes: [Egress]
-  egress:
-    - to: [{ podSelector: { matchLabels: { app: postgres } } }]
-      ports: [{ protocol: TCP, port: 5432 }]
+  podSelector:
+    matchLabels: { app: data-fetcher }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels: { app: api }
+        - podSelector:
+            matchLabels: { app: engine-go }
+      ports:
+        - protocol: TCP
+          port: 5003
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: allow-redis-sentinel-egress
+  name: allow-ingress-to-postgres
 spec:
-  podSelector: { matchLabels: { app: redis-sentinel } }
-  policyTypes: [Egress]
-  egress:
-    - to: [{ podSelector: { matchLabels: { app: redis } } }]
-      ports: [{ protocol: TCP, port: 6379 }]
+  podSelector:
+    matchLabels: { app: postgres }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels: { app: api }
+        - podSelector:
+            matchLabels: { app: pgbouncer }
+        - podSelector:
+            matchLabels: { app: data-fetcher }
+        - podSelector:
+            matchLabels: { app: backtest-worker }
+      ports:
+        - protocol: TCP
+          port: 5432
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: allow-engine-go-egress
+  name: allow-ingress-to-redis
 spec:
-  podSelector: { matchLabels: { app: engine-go } }
-  policyTypes: [Egress]
-  egress:
-    - to: [{ podSelector: { matchLabels: { app: data-fetcher } } }]
-      ports: [{ protocol: TCP, port: 5003 }]
+  podSelector:
+    matchLabels: { app: redis }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels: { app: api }
+        - podSelector:
+            matchLabels: { app: backtest-worker }
+        - podSelector:
+            matchLabels: { app: redis }
+      ports:
+        - protocol: TCP
+          port: 6379
+        - protocol: TCP
+          port: 26379
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -113,6 +136,109 @@ spec:
         - { protocol: TCP, port: 5001 }
         - { protocol: TCP, port: 5003 }
         - { protocol: TCP, port: 5004 }
+---
+# ── Egress（源侧）──
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-api-egress
+spec:
+  podSelector:
+    matchLabels: { app: api }
+  policyTypes: [Egress]
+  egress:
+    - to: [{ podSelector: { matchLabels: { app: engine-go } } }]
+      ports: [{ protocol: TCP, port: 5004 }]
+    - to: [{ podSelector: { matchLabels: { app: data-fetcher } } }]
+      ports: [{ protocol: TCP, port: 5003 }]
+    - to: [{ podSelector: { matchLabels: { app: postgres } } }]
+      ports: [{ protocol: TCP, port: 5432 }]
+    - to: [{ podSelector: { matchLabels: { app: redis } } }]
+      ports:
+        - { protocol: TCP, port: 6379 }
+        - { protocol: TCP, port: 26379 }
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except: [10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16]
+      ports: [{ protocol: TCP, port: 443 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-frontend-egress
+spec:
+  podSelector:
+    matchLabels: { app: frontend }
+  policyTypes: [Egress]
+  egress:
+    - to: [{ podSelector: { matchLabels: { app: api } } }]
+      ports: [{ protocol: TCP, port: 5001 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-engine-go-egress
+spec:
+  podSelector:
+    matchLabels: { app: engine-go }
+  policyTypes: [Egress]
+  egress:
+    - to: [{ podSelector: { matchLabels: { app: data-fetcher } } }]
+      ports: [{ protocol: TCP, port: 5003 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-data-fetcher-egress
+spec:
+  podSelector:
+    matchLabels: { app: data-fetcher }
+  policyTypes: [Egress]
+  egress:
+    - to: [{ podSelector: { matchLabels: { app: postgres } } }]
+      ports: [{ protocol: TCP, port: 5432 }]
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except: [10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16]
+      ports: [{ protocol: TCP, port: 443 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-worker-egress
+spec:
+  podSelector:
+    matchLabels: { app: backtest-worker }
+  policyTypes: [Egress]
+  egress:
+    - to: [{ podSelector: { matchLabels: { app: postgres } } }]
+      ports: [{ protocol: TCP, port: 5432 }]
+    - to: [{ podSelector: { matchLabels: { app: redis } } }]
+      ports: [{ protocol: TCP, port: 6379 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-pgbouncer-egress
+spec:
+  podSelector: { matchLabels: { app: pgbouncer } }
+  policyTypes: [Egress]
+  egress:
+    - to: [{ podSelector: { matchLabels: { app: postgres } } }]
+      ports: [{ protocol: TCP, port: 5432 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-redis-egress
+spec:
+  podSelector: { matchLabels: { app: redis } }
+  policyTypes: [Egress]
+  egress:
+    - to: [{ podSelector: { matchLabels: { app: redis } } }]
+      ports: [{ protocol: TCP, port: 6379 }]
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy

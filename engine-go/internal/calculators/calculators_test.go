@@ -99,6 +99,12 @@ func TestCalcSWR(t *testing.T) {
 			t.Errorf("低提取率高收益应高成功率, got %v", r.SuccessRate)
 		}
 	})
+	t.Run("Years 超界被截断到 100", func(t *testing.T) {
+		r := CalcSWR(SWRRequest{InitialAmount: 100000, AnnualWithdrawal: 4000, Years: 1e9, MeanReturn: 0.07, Stdev: 0.12})
+		if r.SuccessRate < 0 || r.SuccessRate > 1 {
+			t.Errorf("SuccessRate 应在 [0,1], got %v", r.SuccessRate)
+		}
+	})
 }
 func TestCalcTwoFundFrontier(t *testing.T) {
 	t.Run("NumPoints<=0默认20", func(t *testing.T) {
@@ -149,6 +155,12 @@ func TestCalcTwoFundFrontier(t *testing.T) {
 			if p.Stdev < 0 {
 				t.Errorf("点 %d Stdev 不应为负: %v", i, p.Stdev)
 			}
+		}
+	})
+	t.Run("NumPoints 超界被截断到 1000", func(t *testing.T) {
+		r := CalcTwoFundFrontier(TwoFundFrontierRequest{NumPoints: 1e8})
+		if len(r) != maxFrontierPoints+1 {
+			t.Errorf("应返回 %d 个点, got %d", maxFrontierPoints+1, len(r))
 		}
 	})
 }

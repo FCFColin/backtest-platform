@@ -63,12 +63,7 @@ func HandlePriceData(ds *store.DataStore) gin.HandlerFunc {
 			sharedhttp.NewProblem(c, http.StatusNotFound, "DATA_NOT_FOUND", "Data Not Found", "标的数据不存在")
 			return
 		}
-		if degraded {
-			c.Header("Retry-After", "30")
-			sharedhttp.NewProblem(c, http.StatusServiceUnavailable, "DEGRADED", "Degraded", "数据从实时源获取（降级模式），请稍后重试")
-			return
-		}
-		c.JSON(http.StatusOK, gin.H{"success": true, "data": prices})
+		c.JSON(http.StatusOK, gin.H{"success": true, "data": prices, "degraded": degraded})
 	}
 }
 func HandleBatchPriceData(ds *store.DataStore) gin.HandlerFunc {
@@ -116,12 +111,7 @@ func HandleBatchPriceData(ds *store.DataStore) gin.HandlerFunc {
 			}(ticker)
 		}
 		wg.Wait()
-		if degradedCount > 0 {
-			c.Header("Retry-After", "30")
-			sharedhttp.NewProblem(c, http.StatusServiceUnavailable, "DEGRADED", "Degraded", "部分数据从实时源获取（降级模式），请稍后重试")
-			return
-		}
-		c.JSON(http.StatusOK, gin.H{"success": true, "data": result})
+		c.JSON(http.StatusOK, gin.H{"success": true, "data": result, "degraded": degradedCount > 0})
 	}
 }
 func HandleValidateTickers(ds *store.DataStore) gin.HandlerFunc {

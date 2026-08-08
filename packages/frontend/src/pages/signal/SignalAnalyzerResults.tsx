@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { fmtPct, fmtRatio, fmtDollar, downsample } from '@/utils/format';
 import type { SignalAnalysisResult } from '@backtest/shared/types/signal';
-import type { MultiSignalResponse } from './signalTypes.js';
+import type { MultiSignalResponse } from './signalState.js';
 import { Card, Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/uiComponents';
 import { CollapsibleSection } from '@/components/cards';
 import { SortableTable, type Column } from '../../components/tables.js';

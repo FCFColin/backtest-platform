@@ -25,9 +25,9 @@ import {
   CHART_GRID_PROPS,
   CHART_MARGIN,
   CHART_TOOLTIP_STYLE,
-  pickByThreshold,
-  type ThresholdBand,
+  getCorrelationColor,
 } from '@/lib/chart-theme.js';
+import { getCorrelationTextColor } from '@/components/charts/chartUtils.js';
 import { TimeSeriesLineChart } from '@/components/charts/TimeSeriesLineChart.js';
 import { MatrixHeatmap } from '@/components/charts/tables.js';
 import { Field, FieldLabel, FieldDescription } from '../../components/form/Field.js';
@@ -90,20 +90,6 @@ function usePcaPageState() {
   };
 }
 type PCAState = ReturnType<typeof usePcaPageState>;
-const LOADING_COLOR_BANDS: ReadonlyArray<ThresholdBand> = [
-  { threshold: 0.8, value: '#1a7a3a' },
-  { threshold: 0.6, value: '#2e8b57' },
-  { threshold: 0.4, value: '#6abf7e' },
-  { threshold: 0.2, value: '#b8e0c4' },
-  { threshold: -0.2, value: 'var(--surface)' },
-  { threshold: -0.4, value: '#f0c8c8' },
-  { threshold: -0.6, value: '#d47070' },
-  { threshold: -0.8, value: '#b04040' },
-];
-const DEFAULT_LOADING_COLOR = '#8b2020';
-function getLoadingColor(loading: number): string {
-  return pickByThreshold(loading, LOADING_COLOR_BANDS, DEFAULT_LOADING_COLOR);
-}
 function PCAParamsPanel({ state: s }: { state: PCAState }) {
   const { t } = useTranslation();
   const handleTagChange = useTagDiff(s.tickers, s.addTicker, s.removeTicker, s.updateTicker);
@@ -209,8 +195,8 @@ function LoadingMatrix({ results }: { results: PCAResult }) {
         rowLabels={results.tickers}
         columnLabels={results.eigenvalues.map((_, j) => `PC${j + 1}`)}
         matrix={results.loadings}
-        getBackgroundColor={getLoadingColor}
-        getTextColor={(loading) => (Math.abs(loading) > 0.6 ? '#fff' : '#000')}
+        getBackgroundColor={getCorrelationColor}
+        getTextColor={getCorrelationTextColor}
         formatValue={(v) => v.toFixed(2)}
         formatTitle={(v, rowLabel, colLabel) => `${rowLabel} · ${colLabel}: ${v.toFixed(3)}`}
         minCellWidth={56}

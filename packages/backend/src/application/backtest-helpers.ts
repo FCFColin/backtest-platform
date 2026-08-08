@@ -234,13 +234,13 @@ export async function loadMacroData(
   return { cpiData, exchangeRates };
 }
 
+// 与 Go 引擎 MCSimParams 保持一致（engine-go/internal/montecarlo/types.go）
 const MC_PARAMS_ALLOWED_KEYS = new Set([
   'numSimulations',
-  'blockSize',
-  'withReplacement',
-  'confidenceLevel',
-  'distribution',
-  'seed',
+  'numYears',
+  'minBlockYears',
+  'maxBlockYears',
+  'successThreshold',
 ]);
 
 export function sanitizeMcParams(

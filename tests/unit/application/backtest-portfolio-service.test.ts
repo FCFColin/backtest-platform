@@ -1,7 +1,7 @@
+import '../../helpers/loggerMock.js';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { BacktestParameters } from '@backtest/shared';
 import type { Warning } from '../../../packages/backend/src/application/backtest-helpers.js';
-import { loggerMocks } from '../../helpers/loggerFixture.js';
 import { engineMocks, engineModuleMock } from '../../helpers/engineFixture.js';
 import {
   mockParameters as parametersFixture,
@@ -84,10 +84,6 @@ vi.mock('../../../packages/backend/src/db/pool.js', () => ({}));
 
 vi.mock('../../../packages/backend/src/infrastructure/outboxWriter.js', () => ({
   writeEventInTransaction: outboxMocks.writeEventInTransaction,
-}));
-
-vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
-  logger: loggerMocks,
 }));
 
 vi.mock('../../../packages/backend/src/application/backtest/backtestResultUtils.js', () => ({

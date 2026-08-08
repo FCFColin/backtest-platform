@@ -23,9 +23,7 @@ export default function PortfolioPiesChart({ portfolios }: PortfolioPiesChartPro
   if (portfolios.length === 0) {
     return (
       <ChartCard>
-        <div className="text-label" style={{ color: 'var(--text-muted)' }}>
-          {t('No data')}
-        </div>
+        <div className="text-label text-fg-tertiary">{t('No data')}</div>
       </ChartCard>
     );
   }
@@ -33,9 +31,7 @@ export default function PortfolioPiesChart({ portfolios }: PortfolioPiesChartPro
   if (portfoliosWithAssets.length === 0) {
     return (
       <ChartCard title={t('Allocation Pies')}>
-        <div className="text-label" style={{ color: 'var(--text-muted)' }}>
-          {t('No assets')}
-        </div>
+        <div className="text-label text-fg-tertiary">{t('No assets')}</div>
       </ChartCard>
     );
   }
@@ -215,9 +211,7 @@ export function PortfolioAllocationChart({ portfolios }: PortfolioAllocationChar
   if (portfolios.length === 0) {
     return (
       <div className="chart-card">
-        <div className="text-label" style={{ color: 'var(--text-muted)' }}>
-          {t('No data')}
-        </div>
+        <div className="text-label text-fg-tertiary">{t('No data')}</div>
       </div>
     );
   }
@@ -227,9 +221,7 @@ export function PortfolioAllocationChart({ portfolios }: PortfolioAllocationChar
     return (
       <div className="chart-card">
         <div className="chart-card-title">{t('Portfolio Allocation')}</div>
-        <div className="text-label" style={{ color: 'var(--text-muted)' }}>
-          {t('No assets')}
-        </div>
+        <div className="text-label text-fg-tertiary">{t('No assets')}</div>
       </div>
     );
   }

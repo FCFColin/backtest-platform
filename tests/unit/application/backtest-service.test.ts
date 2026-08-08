@@ -1,3 +1,4 @@
+import '../../helpers/loggerMock.js';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { Portfolio, BacktestParameters, BacktestResult } from '@backtest/shared';
 import { engineMocks, engineModuleMock } from '../../helpers/engineFixture.js';
@@ -35,10 +36,6 @@ vi.mock('../../../packages/backend/src/db/pool.js', () => ({
 vi.mock('../../../packages/backend/src/infrastructure/outbox.js', () => ({
   writeEventInTransaction: outboxMocks.writeEventInTransaction,
 }));
-vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
-  logger: loggerMocks,
-}));
-
 import { runBacktest } from '../../../packages/backend/src/application/backtest-service.js';
 
 const mockPortfolio = portfolioFixture();

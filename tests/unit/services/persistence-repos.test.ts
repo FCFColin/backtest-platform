@@ -1,12 +1,10 @@
+import '../../helpers/loggerMock.js';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const dbMocks = vi.hoisted(() => ({ query: vi.fn(), withTenant: vi.fn() }));
 vi.mock('../../../packages/backend/src/db/pool.js', () => createPoolModuleMock(dbMocks));
 
 import { createPoolModuleMock } from '../../helpers/mockFactories.js';
-import { loggerMocks } from '../../helpers/loggerFixture.js';
-vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: loggerMocks }));
-
 import {
   createConfig,
   listConfigs,

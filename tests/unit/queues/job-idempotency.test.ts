@@ -1,5 +1,5 @@
+import '../../helpers/loggerMock.js';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { loggerMocks } from '../../helpers/loggerFixture.js';
 import { RedisUnavailableError } from '../../../packages/backend/src/utils/errors.js';
 
 const redisMocks = vi.hoisted(() => ({
@@ -18,8 +18,6 @@ vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () => ({
   markRedisUnhealthy: redisMocks.markRedisUnhealthy,
   bullmqConnectionOptions: {},
 }));
-
-vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: loggerMocks }));
 
 import {
   tryClaimJobProcessing,

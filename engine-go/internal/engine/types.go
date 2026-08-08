@@ -189,7 +189,7 @@ type PortfolioResult struct {
 	Name              string            `json:"name"`
 	GrowthCurve       []DataPoint       `json:"growthCurve"`
 	DrawdownCurve     []DrawdownPoint   `json:"drawdownCurve"`
-	RollingReturns    []DataPoint       `json:"rollingReturns"`
+	RollingReturns    []RollingReturn   `json:"rollingReturns"`
 	AnnualReturns     []AnnualReturn    `json:"annualReturns"`
 	MonthlyReturns    []MonthlyReturn   `json:"monthlyReturns"`
 	Statistics        Statistics        `json:"statistics"`

@@ -27,7 +27,7 @@ export default function AuthPageLayout({
         {centered ? (
           <>
             {icon}
-            <h1 className={cn('text-[20px] font-bold text-text-strong', icon && 'mb-2')}>
+            <h1 className={cn('text-[20px] font-bold text-[var(--text-strong)]', icon && 'mb-2')}>
               {title}
             </h1>
           </>
@@ -78,7 +78,7 @@ export function BrandIconBadge({ icon, size = 'sm', style }: BrandIconBadgeProps
   const dims = SIZE_DIMENSIONS[size];
   return (
     <div
-      className="flex items-center justify-center bg-[var(--brand)] text-white"
+      className="flex items-center justify-center bg-[var(--brand)] text-brand-fg"
       style={{ ...dims, ...style }}
     >
       {icon}

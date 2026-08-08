@@ -122,8 +122,8 @@ export class Portfolio {
       totalReturn: this.totalReturn,
       rebalanceBands: this.rebalanceBands?.enabled
         ? {
-            absolute: this.rebalanceBands.absoluteBand,
-            relative: this.rebalanceBands.relativeBand,
+            absoluteBand: this.rebalanceBands.absoluteBand,
+            relativeBand: this.rebalanceBands.relativeBand,
           }
         : undefined,
       glidepathToWeights: this.isGlidepath ? this.glidepathToWeights : undefined,

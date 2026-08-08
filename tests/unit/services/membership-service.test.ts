@@ -1,3 +1,4 @@
+import '../../helpers/loggerMock.js';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const dbMocks = vi.hoisted(() => ({
@@ -8,7 +9,6 @@ const dbMocks = vi.hoisted(() => ({
   },
 }));
 
-import { loggerMocks } from '../../helpers/loggerFixture.js';
 import { createWithTransactionMock } from '../../helpers/poolFixture.js';
 
 vi.mock('../../../packages/backend/src/db/pool.js', () => ({
@@ -16,8 +16,6 @@ vi.mock('../../../packages/backend/src/db/pool.js', () => ({
   withTransaction: createWithTransactionMock(() => dbMocks.client),
   withTenant: (_t: string, fn: (c: unknown) => Promise<unknown>) => fn(dbMocks.client),
 }));
-
-vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: loggerMocks }));
 
 import {
   orgRoleToGlobalRole,

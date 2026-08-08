@@ -40,6 +40,7 @@ x-base:
     DATABASE_URL: postgresql://backtest_app:backtest_app_dev@postgres:5432/backtest
     ENGINE_AUTH_TOKEN: ${ENGINE_AUTH_TOKEN:-dev-engine-auth-token}
     DATA_SERVICE_AUTH_TOKEN: ${DATA_SERVICE_AUTH_TOKEN:-dev-data-service-auth-token}
+    METRICS_AUTH_TOKEN: ${METRICS_AUTH_TOKEN:-dev-metrics-token}
     REDIS_URL: redis://redis-master:6379
     REDIS_SENTINELS: redis-sentinel-1:26379,redis-sentinel-2:26379,redis-sentinel-3:26379
     REDIS_SENTINEL_NAME: mymaster

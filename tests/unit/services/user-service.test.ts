@@ -1,5 +1,5 @@
+import '../../helpers/loggerMock.js';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { loggerMocks } from '../../helpers/loggerFixture.js';
 import { createWithTransactionMock } from '../../helpers/poolFixture.js';
 import { mockUserRecord, mockUserRecordWithPassword } from '../../helpers/authFixtures.js';
 
@@ -25,8 +25,6 @@ vi.mock('../../../packages/backend/src/db/pool.js', () => ({
   getPool: () => mocks.pool,
   withTransaction: createWithTransactionMock(() => mocks.pool.connect()),
 }));
-vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: loggerMocks }));
-
 import {
   createUser,
   getUserById,

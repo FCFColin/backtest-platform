@@ -122,10 +122,6 @@ describe('CHART_GRID_PROPS', () => {
   ] as const)('%s', (_label, key, expected) => {
     expect(CHART_GRID_PROPS[key]).toBe(expected);
   });
-
-  it('使用 chart-grid CSS 变量', () => {
-    expect(CHART_GRID_PROPS.stroke).toContain('chart-grid');
-  });
 });
 
 describe('AXIS_TICK_STYLE', () => {

@@ -1,6 +1,6 @@
+import '../../helpers/loggerMock.js';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createConfigMocks } from '../../helpers/mockFactories.js';
-import { loggerMocks } from '../../helpers/loggerFixture.js';
 import { redisMocks, redisModuleMock } from '../../helpers/redisFixture.js';
 
 const dbMocks = vi.hoisted(() => ({
@@ -55,9 +55,8 @@ vi.mock('../../../packages/backend/src/db/pool.js', () => ({
     dbMocks.withTenant(tenantId, fn),
   withTenantReadOnly: (tenantId: string, fn: (c: unknown) => Promise<unknown>) =>
     dbMocks.withTenant(tenantId, fn),
+  withPlatformContext: (fn: (c: unknown) => Promise<unknown>) => fn({ query: dbMocks.query }),
 }));
-
-vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: loggerMocks }));
 
 vi.mock('stripe', () => ({
   default: class {

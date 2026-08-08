@@ -34,7 +34,6 @@ module.exports = {
           DEFAULT: 'hsl(var(--fg))',
           secondary: 'hsl(var(--fg-secondary))',
           tertiary: 'hsl(var(--fg-tertiary))',
-          disabled: 'hsl(var(--fg-disabled))',
         },
         brand: {
           DEFAULT: 'hsl(var(--brand))',
@@ -59,7 +58,6 @@ module.exports = {
         'chart-6': 'hsl(var(--chart-6))',
         'chart-7': 'hsl(var(--chart-7))',
         'chart-8': 'hsl(var(--chart-8))',
-        'chart-grid': 'hsl(var(--chart-grid))',
         'chart-tooltip-bg': 'hsl(var(--chart-tooltip-bg) / <alpha-value>)',
         'sticky-bg': 'hsl(var(--surface) / <alpha-value>)',
       },

@@ -1,3 +1,4 @@
+import '../../helpers/loggerMock.js';
 import { describe, it, expect, vi } from 'vitest';
 import { startExpressApp } from '../../helpers/expressApp.js';
 import { withServer } from '../../helpers/serverLifecycle.js';
@@ -28,9 +29,6 @@ vi.mock('../../../packages/backend/src/infrastructure/dataServices.js', () => ({
 vi.mock('../../../packages/backend/src/utils/httpClient.js', () => ({
   callService: httpClientMocks.callService,
 }));
-
-import { loggerMocks } from '../../helpers/loggerFixture.js';
-vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: loggerMocks }));
 
 import dataRoutes from '../../../packages/backend/src/routes/dataRoutes.js';
 

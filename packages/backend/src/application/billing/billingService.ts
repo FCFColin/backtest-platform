@@ -1,6 +1,6 @@
 import Stripe from 'stripe';
 import { config } from '../../config/index.js';
-import { getPool, withTenant } from '../../db/pool.js';
+import { withTenant, withPlatformContext } from '../../db/pool.js';
 import { logger } from '../../utils/logger.js';
 
 type BillablePlan = 'pro' | 'enterprise';
@@ -98,9 +98,8 @@ export function constructWebhookEvent(rawBody: Buffer, signature: string): Strip
 }
 
 async function orgIdForCustomer(customerId: string): Promise<string | null> {
-  const { rows } = await getPool().query(
-    'SELECT org_id FROM stripe_customers WHERE stripe_customer_id = $1',
-    [customerId],
+  const { rows } = await withPlatformContext((client) =>
+    client.query('SELECT org_id FROM stripe_customers WHERE stripe_customer_id = $1', [customerId]),
   );
   return rows.length > 0 ? (rows[0].org_id as string) : null;
 }

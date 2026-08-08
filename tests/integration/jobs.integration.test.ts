@@ -1,4 +1,4 @@
-﻿/**
+import '../helpers/loggerMock.js'; /**
  * 异步任务状态查询集成测试（RO-049）
  *
  * 验证 ADR-019 IDOR 防护：任务结果仅提交者本人或 admin 可读，且需通过多租户隔离。
@@ -7,9 +7,6 @@
  */
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import type { Request, Response, NextFunction } from 'express';
-import { loggerMocks } from '../helpers/loggerFixture.js';
-
-vi.mock('../../packages/backend/src/utils/logger.js', () => ({ logger: loggerMocks }));
 
 const fakeJobs = new Map<string, FakeJob>();
 

@@ -186,8 +186,8 @@ async function invalidateTickerCache(
           'COUNT',
           REDIS_SCAN_COUNT,
         );
-        const toDelete = keys.filter(
-          (k) => k.includes(`tickers=${tickerTok}`) || k.includes(`=${tickerTok}&`),
+        const toDelete = keys.filter((k) =>
+          k.split('tickers=')[1]?.split('&')[0]?.split('_').includes(tickerTok),
         );
         if (toDelete.length > 0) await appRedis.del(...toDelete);
         cursor = nextCursor;
