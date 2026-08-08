@@ -14,6 +14,7 @@ import { createWithTransactionMock } from '../../helpers/poolFixture.js';
 vi.mock('../../../packages/backend/src/db/pool.js', () => ({
   getPool: () => ({ query: dbMocks.query, connect: () => Promise.resolve(dbMocks.client) }),
   withTransaction: createWithTransactionMock(() => dbMocks.client),
+  withTenant: (_t: string, fn: (c: unknown) => Promise<unknown>) => fn(dbMocks.client),
 }));
 
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: loggerMocks }));
@@ -267,15 +268,15 @@ describe('updateOrgName', () => {
 
 describe('createInvitation', () => {
   it('应先清理同邮箱待处理邀请，再插入并返回一次性令牌', async () => {
-    dbMocks.query
+    dbMocks.client.query
       .mockResolvedValueOnce({ rowCount: 0 }) // DELETE 历史待处理
       .mockResolvedValueOnce({ rows: [invRow()] }); // INSERT RETURNING
     const created = await createInvitation(ORG, 'a@b.com', 'analyst', USER);
 
     expect(created.token).toMatch(/^[A-Za-z0-9_-]+$/);
     expect(created.id).toBe(INV_ID);
-    expect(dbMocks.query.mock.calls[0][0]).toContain('DELETE FROM invitations');
-    const insertParams = dbMocks.query.mock.calls[1][1] as unknown[];
+    expect(dbMocks.client.query.mock.calls[0][0]).toContain('DELETE FROM invitations');
+    const insertParams = dbMocks.client.query.mock.calls[1][1] as unknown[];
     const tokenHash = insertParams[3] as string;
     expect(tokenHash).toMatch(/^[0-9a-f]{64}$/);
     expect(tokenHash).not.toContain(created.token);

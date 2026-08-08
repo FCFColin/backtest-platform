@@ -24,6 +24,8 @@ func TestEngineBadRequestScenarios(t *testing.T) {
 		{"optimize bad JSON", "POST", "/api/engine/optimize", testAuthToken, stringReader("not-json")},
 		{"monte-carlo bad JSON", "POST", "/api/engine/monte-carlo", testAuthToken, stringReader("not-json")},
 		{"efficient-frontier bad JSON", "POST", "/api/engine/efficient-frontier", testAuthToken, stringReader("not-json")},
+		{"backtest date range with no trading data", "POST", "/api/engine/backtest", testAuthToken, stringReader(`{"portfolios":[{"name":"test","assets":[{"ticker":"SPY","weight":100}],"rebalanceFrequency":"quarterly"}],"priceData":{"SPY":{"2024-01-02":100,"2024-01-03":101}},"params":{"startDate":"2025-01-01","endDate":"2025-12-31"}}`)},
+		{"monte-carlo insufficient history", "POST", "/api/engine/monte-carlo", testAuthToken, stringReader(`{"portfolio":{"name":"test","assets":[{"ticker":"SPY","weight":100}]},"priceData":{"SPY":{"2024-01-02":100,"2024-01-03":101}},"params":{"startDate":"2024-01-01","endDate":"2024-12-31"}}`)},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

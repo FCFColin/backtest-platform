@@ -1,21 +1,28 @@
 import {
   useState,
-  startTransition,
   forwardRef,
   type ElementRef,
   type ComponentPropsWithoutRef,
   type ReactNode,
 } from 'react';
-import { Link } from 'react-router';
-import { Sun, Languages, MoonStar, X, ArrowRight, Bell, ChevronDown } from 'lucide-react';
+import { Link, useNavigate } from 'react-router';
+import { Sun, MoonStar, X, ArrowRight, Bell, ChevronDown } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useShallow } from 'zustand/react/shallow';
 import * as SheetPrimitive from '@radix-ui/react-dialog';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { useTheme, useAnnouncements } from '@/hooks/miscHooks';
 import { useBacktestStore } from '@/store/backtestStore';
-import { Button } from '@/components/ui/uiComponents';
+import { useAuthStore } from '@/store/authStore';
+import {
+  Button,
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from '@/components/ui/uiComponents';
 import { cn } from '@/lib/utils';
+import { PLAN_BADGES, planTier, type PlanTier } from '@/utils/orgPlan';
 
 const Sheet = SheetPrimitive.Root;
 const SheetTrigger = SheetPrimitive.Trigger;
@@ -127,30 +134,18 @@ function NotificationBell() {
 }
 
 export function NavbarActions() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const { theme, toggleTheme } = useTheme();
   const baseCurrency = useBacktestStore(useShallow((s) => s.parameters.baseCurrency));
   const updateParameter = useBacktestStore((s) => s.updateParameter);
+  const user = useAuthStore((s) => s.user);
+  const org = useAuthStore((s) => s.org);
+  const logout = useAuthStore((s) => s.logout);
+  const navigate = useNavigate();
   const toggleCurrency = () =>
     updateParameter('baseCurrency', baseCurrency === 'usd' ? 'cny' : 'usd');
   return (
     <div className="flex items-center gap-1">
-      <Button
-        variant="icon"
-        size="sm"
-        onClick={() =>
-          startTransition(
-            () => void i18n.changeLanguage(i18n.language === 'zh-CN' ? 'en' : 'zh-CN'),
-          )
-        }
-        title={t('Switch Language')}
-        aria-label={`${t('Switch Language')} (${i18n.language === 'zh-CN' ? 'ZH' : 'EN'})`}
-        className="gap-1 px-2"
-        data-testid="language-selector"
-      >
-        <Languages className="size-4" />
-        <span className="text-caption">{i18n.language === 'zh-CN' ? 'ZH' : 'EN'}</span>
-      </Button>
       <Button
         variant="icon"
         size="icon"
@@ -175,27 +170,47 @@ export function NavbarActions() {
       <div className="w-px h-6 bg-border mx-1" />
       <NotificationBell />
       <div className="w-px h-6 bg-border mx-1" />
-      <Link to="/login">
-        <Button variant="ghost" size="sm">
-          {t('Log In')}
-        </Button>
-      </Link>
-      <Link to="/signup">
-        <Button variant="secondary" size="sm">
-          {t('Sign Up')}
-        </Button>
-      </Link>
+      {user ? (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="sm" className="gap-1.5" data-testid="account-menu">
+              <PlanBadge tier={planTier(org?.plan)} />
+              <ChevronDown className="size-3" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="min-w-[11rem]">
+            <DropdownMenuItem asChild>
+              <Link to="/account">{t('Account')}</Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link to="/billing">{t('Billing')}</Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link to="/org/members">{t('Org Members')}</Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => void logout().then(() => navigate('/'))}>
+              {t('Sign Out')}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ) : (
+        <>
+          <Link to="/login">
+            <Button variant="ghost" size="sm">
+              {t('Log In')}
+            </Button>
+          </Link>
+          <Link to="/signup">
+            <Button variant="secondary" size="sm">
+              {t('Sign Up')}
+            </Button>
+          </Link>
+        </>
+      )}
     </div>
   );
 }
 
-type PlanTier = 'free' | 'pro' | 'pro-plus' | 'public';
-const PLAN_BADGES: Record<PlanTier, { label: string; className: string }> = {
-  free: { label: 'FREE', className: 'border-brand/40 bg-brand-subtle/8 text-brand' },
-  pro: { label: 'PRO', className: 'border-warning/40 bg-warning-subtle/8 text-warning' },
-  'pro-plus': { label: 'PRO+', className: 'border-success/40 bg-success-subtle/8 text-success' },
-  public: { label: 'PUBLIC', className: 'border-fg-tertiary/40 bg-fg-tertiary/8 text-fg-tertiary' },
-};
 export function PlanBadge({ tier, className }: { tier: PlanTier; className?: string }) {
   const { label, className: badgeClass } = PLAN_BADGES[tier];
   return (

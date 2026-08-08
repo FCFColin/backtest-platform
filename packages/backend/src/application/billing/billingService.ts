@@ -1,6 +1,6 @@
 import Stripe from 'stripe';
 import { config } from '../../config/index.js';
-import { getPool } from '../../db/pool.js';
+import { getPool, withTenant } from '../../db/pool.js';
 import { logger } from '../../utils/logger.js';
 
 type BillablePlan = 'pro' | 'enterprise';
@@ -31,21 +31,23 @@ export function planForPriceId(priceId: string | null | undefined): 'free' | Bil
 export async function ensureCustomer(orgId: string, email?: string | null): Promise<string> {
   const s = getStripe();
   if (!s) throw new Error('billing_disabled');
-  const pool = getPool();
-  const { rows } = await pool.query(
-    'SELECT stripe_customer_id FROM stripe_customers WHERE org_id = $1',
-    [orgId],
+  const existing = await withTenant(orgId, (client) =>
+    client.query('SELECT stripe_customer_id FROM stripe_customers WHERE org_id = $1', [orgId]),
   );
-  if (rows.length > 0) return rows[0].stripe_customer_id as string;
-  const orgRow = await pool.query('SELECT name FROM organizations WHERE id = $1', [orgId]);
+  if (existing.rows.length > 0) return existing.rows[0].stripe_customer_id as string;
+  const orgRow = await withTenant(orgId, (client) =>
+    client.query('SELECT name FROM organizations WHERE id = $1', [orgId]),
+  );
   const customer = await s.customers.create({
     email: email ?? undefined,
     name: orgRow.rows[0]?.name ?? undefined,
     metadata: { org_id: orgId },
   });
-  await pool.query(
-    `INSERT INTO stripe_customers (org_id, stripe_customer_id) VALUES ($1, $2) ON CONFLICT (org_id) DO UPDATE SET stripe_customer_id = EXCLUDED.stripe_customer_id, updated_at = NOW()`,
-    [orgId, customer.id],
+  await withTenant(orgId, (client) =>
+    client.query(
+      `INSERT INTO stripe_customers (org_id, stripe_customer_id) VALUES ($1, $2) ON CONFLICT (org_id) DO UPDATE SET stripe_customer_id = EXCLUDED.stripe_customer_id, updated_at = NOW()`,
+      [orgId, customer.id],
+    ),
   );
   return customer.id;
 }
@@ -77,10 +79,8 @@ export async function createCheckoutSession(input: {
 export async function createPortalSession(orgId: string, returnUrl: string): Promise<string> {
   const s = getStripe();
   if (!s) throw new Error('billing_disabled');
-  const pool = getPool();
-  const { rows } = await pool.query(
-    'SELECT stripe_customer_id FROM stripe_customers WHERE org_id = $1',
-    [orgId],
+  const { rows } = await withTenant(orgId, (client) =>
+    client.query('SELECT stripe_customer_id FROM stripe_customers WHERE org_id = $1', [orgId]),
   );
   if (rows.length === 0) throw new Error('no_customer');
   const session = await s.billingPortal.sessions.create({
@@ -115,24 +115,25 @@ async function syncSubscription(orgId: string, sub: Stripe.Subscription): Promis
   const priceId = sub.items.data[0]?.price?.id ?? null;
   const plan = planForPriceId(priceId);
   const periodEnd = sub.current_period_end ?? null;
-  const pool = getPool();
-  await pool.query(
-    `INSERT INTO subscriptions (org_id, stripe_subscription_id, plan, status, current_period_end, cancel_at_period_end) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (stripe_subscription_id) DO UPDATE SET plan = EXCLUDED.plan, status = EXCLUDED.status, current_period_end = EXCLUDED.current_period_end, cancel_at_period_end = EXCLUDED.cancel_at_period_end, updated_at = NOW()`,
-    [
-      orgId,
-      sub.id,
-      plan,
-      sub.status,
-      periodEnd ? new Date(periodEnd * 1000) : null,
-      sub.cancel_at_period_end ?? false,
-    ],
-  );
   const orgStatus = orgStatusFromSub(sub.status);
   const effectivePlan = orgStatus === 'canceled' ? 'free' : plan;
-  await pool.query(
-    'UPDATE organizations SET plan = $2, status = $3, updated_at = NOW() WHERE id = $1',
-    [orgId, effectivePlan, orgStatus],
-  );
+  await withTenant(orgId, async (client) => {
+    await client.query(
+      `INSERT INTO subscriptions (org_id, stripe_subscription_id, plan, status, current_period_end, cancel_at_period_end) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (stripe_subscription_id) DO UPDATE SET plan = EXCLUDED.plan, status = EXCLUDED.status, current_period_end = EXCLUDED.current_period_end, cancel_at_period_end = EXCLUDED.cancel_at_period_end, updated_at = NOW()`,
+      [
+        orgId,
+        sub.id,
+        plan,
+        sub.status,
+        periodEnd ? new Date(periodEnd * 1000) : null,
+        sub.cancel_at_period_end ?? false,
+      ],
+    );
+    await client.query(
+      'UPDATE organizations SET plan = $2, status = $3, updated_at = NOW() WHERE id = $1',
+      [orgId, effectivePlan, orgStatus],
+    );
+  });
   logger.info(
     { orgId, plan: effectivePlan, status: orgStatus, subStatus: sub.status },
     '[billingService] 订阅已同步',
@@ -182,9 +183,11 @@ export async function getSubscriptionSummary(orgId: string): Promise<{
   currentPeriodEnd: string | null;
   cancelAtPeriodEnd: boolean;
 } | null> {
-  const { rows } = await getPool().query(
-    `SELECT plan, status, current_period_end, cancel_at_period_end FROM subscriptions WHERE org_id = $1 ORDER BY updated_at DESC LIMIT 1`,
-    [orgId],
+  const { rows } = await withTenant(orgId, (client) =>
+    client.query(
+      `SELECT plan, status, current_period_end, cancel_at_period_end FROM subscriptions WHERE org_id = $1 ORDER BY updated_at DESC LIMIT 1`,
+      [orgId],
+    ),
   );
   if (rows.length === 0) return null;
   return {

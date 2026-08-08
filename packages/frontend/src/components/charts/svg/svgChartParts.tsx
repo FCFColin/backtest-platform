@@ -132,9 +132,7 @@ function SvgTooltip({ active, position, data, label, offset = 20 }: SvgTooltipPr
       className={TOOLTIP_CLS}
       style={{ left: `${position.x + offset}px`, top: `${position.y - 10}px` }}
     >
-      {label != null && (
-        <div className="mb-1.5 font-semibold text-[hsl(var(--fg-strong))]">{label}</div>
-      )}
+      {label != null && <div className="mb-1.5 font-semibold text-fg">{label}</div>}
       {data.map((item, idx) => (
         <div key={idx} className="flex items-center gap-2 py-0.5">
           <span

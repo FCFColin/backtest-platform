@@ -3,7 +3,6 @@ package analysis
 import (
 	"engine-go/internal/engineutil"
 	"engine-go/internal/mathutil"
-	"errors"
 	"math"
 )
 
@@ -77,7 +76,7 @@ func calcRollingBeta(letfReturns, benchReturns []float64) (float64, bool) {
 func AnalyzeSlippage(req LETFRequest) (*LETFResult, error) {
 	aligned := alignSeries(req.LETFSeries, req.BenchSeries)
 	if len(aligned) < 2 {
-		return nil, errors.New("有效价格数据不足，至少需要 2 个交易日")
+		return nil, engineutil.NewInputError("有效价格数据不足，至少需要 2 个交易日")
 	}
 	var slippageCurve []SlippagePoint
 	var effectiveLeverage []*float64

@@ -94,7 +94,7 @@ Go 引擎/PostgreSQL: opossum（fail-closed 503 / 降级）；BaoStock: gobreake
 
 ## 12. 多架构与配置
 
-multi-stage（scratch/alpine）+ amd64/arm64（buildx）；SBOM(syft)+cosign（ADR-052）。config/: env.ts（Zod）、limits.ts（ADR-036）。
+multi-stage（scratch/alpine）+ amd64/arm64（buildx）；SBOM(CycloneDX, nightly)（ADR-052）。config/: env.ts（Zod）、limits.ts（ADR-036）。
 
 ## 13. 关键约束
 

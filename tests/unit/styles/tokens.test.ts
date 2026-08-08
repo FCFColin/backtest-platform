@@ -21,12 +21,7 @@ const tailwindConfigContent = readFileSync(tailwindConfigPath, 'utf-8');
 describe('tokens.css P0-2 CSS 变量', () => {
   describe('亮色主题（:root）', () => {
     it.each([
-      ['表面层扩展变量', ['--surface-raised:', '--surface-sunken:']],
-      ['品牌色 subtle/glow 变体', ['--brand-subtle:', '--brand-glow:']],
-      [
-        '语义色 subtle 变体',
-        ['--success-subtle:', '--warning-subtle:', '--danger-subtle:', '--info-subtle:'],
-      ],
+      ['表面层扩展变量', ['--surface-sunken:']],
       ['chart-grid 与 chart-tooltip-bg', ['--chart-grid:', '--chart-tooltip-bg:']],
     ])('%s', (_name, vars) => {
       for (const v of vars) expect(tokensContent).toMatch(new RegExp(v.replace(':', '\\:')));
@@ -37,10 +32,6 @@ describe('tokens.css P0-2 CSS 变量', () => {
         expect(tokensContent).toMatch(new RegExp(`--chart-${i}:`));
       }
     });
-
-    it('包含 sticky-bg', () => {
-      expect(tokensContent).toMatch(/--sticky-bg:/);
-    });
   });
 
   describe('暗色主题（.dark / [data-theme="dark"]）', () => {
@@ -48,7 +39,6 @@ describe('tokens.css P0-2 CSS 变量', () => {
 
     it('暗色主题块包含表面层扩展变量', () => {
       expect(darkBlock()).toBeTruthy();
-      expect(darkBlock()!).toMatch(/--surface-raised:/);
       expect(darkBlock()!).toMatch(/--surface-sunken:/);
     });
 
@@ -63,26 +53,17 @@ describe('tokens.css P0-2 CSS 变量', () => {
         expect(darkBlock()!).toMatch(new RegExp(`--chart-${i}:`));
       }
     });
-
-    it('暗色主题包含 sticky-bg', () => {
-      expect(darkBlock()).toBeTruthy();
-      expect(darkBlock()!).toMatch(/--sticky-bg:/);
-    });
   });
 });
 
 describe('tailwind.config.cjs P0-2 colors 映射', () => {
   it.each([
-    ['surface-raised', /'surface-raised':\s*'hsl\(var\(--surface-raised\)\)'/],
     ['surface-sunken', /'surface-sunken':\s*'hsl\(var\(--surface-sunken\)\)'/],
-    ['brand-subtle', /subtle:\s*'hsl\(var\(--brand-subtle\)/],
-    ['brand-glow', /glow:\s*'hsl\(var\(--brand-glow\)/],
-    ['success-subtle', /'success-subtle'/],
-    ['danger-subtle', /'danger-subtle'/],
-    ['warning-subtle', /'warning-subtle'/],
-    ['info-subtle', /'info-subtle'/],
+    ['brand-subtle 复用 --brand', /subtle:\s*'hsl\(var\(--brand\)/],
+    ['success-subtle 复用 --success', /'success-subtle':\s*'hsl\(var\(--success\)/],
+    ['warning-subtle 复用 --warning', /'warning-subtle':\s*'hsl\(var\(--warning\)/],
     ['chart-grid', /'chart-grid'/],
-    ['sticky-bg', /'sticky-bg'/],
+    ['sticky-bg 复用 --surface', /'sticky-bg':\s*'hsl\(var\(--surface\)/],
   ])('%s 映射存在', (_name, re) => {
     expect(tailwindConfigContent).toMatch(re);
   });

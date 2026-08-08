@@ -157,6 +157,9 @@ func TestCalcDailyReturns(t *testing.T) {
 		{"two prices", []float64{100, 110}, []float64{0.1}},
 		{"three prices", []float64{100, 110, 121}, []float64{0.1, 0.1}},
 		{"declining", []float64{100, 90, 81}, []float64{-0.1, -0.1}},
+		{"缺失缺口应按无变动", []float64{100, 0, 110}, []float64{0}},
+		{"真实清零应记 -100%", []float64{100, 0, 0}, []float64{-1}},
+		{"缺口后恢复应正常", []float64{100, 0, 110, 121}, []float64{0, 0.1}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -166,6 +169,29 @@ func TestCalcDailyReturns(t *testing.T) {
 			}
 			for i := range got {
 				assertFloatApprox(t, got[i], tc.want[i], "DailyReturns[i]")
+			}
+		})
+	}
+}
+func TestCalcDailyReturnsWithZeros(t *testing.T) {
+	cases := []struct {
+		name   string
+		prices []float64
+		want   []float64
+	}{
+		{"insufficient data", []float64{100}, nil},
+		{"regular", []float64{100, 110, 121}, []float64{0.1, 0.1}},
+		{"缺失缺口应按无变动", []float64{100, 0, 110}, []float64{0, 0}},
+		{"真实清零应记 -100%", []float64{100, 0, 0}, []float64{-1, 0}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := mathutil.DailyReturnsWithZeros(tc.prices)
+			if len(got) != len(tc.want) {
+				t.Fatalf("len = %v, want %v", len(got), len(tc.want))
+			}
+			for i := range got {
+				assertFloatApprox(t, got[i], tc.want[i], "DailyReturnsWithZeros[i]")
 			}
 		})
 	}

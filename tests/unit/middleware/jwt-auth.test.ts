@@ -223,7 +223,7 @@ describe('jwtAuth 与相关中间件', () => {
     await new Promise<void>((r) => setTimeout(r, 10));
     if (skip) {
       expect(next).toHaveBeenCalled();
-      expect(req.user).toMatchObject({ role: 'readonly', sub: 'dev-user' });
+      expect(req.user).toMatchObject({ role: 'analyst', sub: 'dev-user' });
     } else {
       expect(next).not.toHaveBeenCalled();
       expect(res.status).toHaveBeenCalledWith(401);

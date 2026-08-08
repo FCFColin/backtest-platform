@@ -12,6 +12,7 @@ import (
 	"engine-go/internal/montecarlo"
 	"engine-go/internal/optimizer"
 	"engine-go/internal/signal"
+	"errors"
 	sharedhttp "github.com/backtest/go-shared/http"
 	gosharedmw "github.com/backtest/go-shared/middleware"
 	"github.com/gin-gonic/gin"
@@ -44,6 +45,11 @@ func withComputeHandler[T any](c *gin.Context, errMsg string, fn func(ctx contex
 	defer cancel()
 	result, err := fn(ctx)
 	if err != nil {
+		var inputErr *engineutil.InputError
+		if errors.As(err, &inputErr) {
+			sharedhttp.NewProblem(c, http.StatusBadRequest, "COMPUTE_INPUT_ERROR", "Bad Request", inputErr.Error())
+			return
+		}
 		slog.Error("计算处理器失败", "path", c.Request.URL.Path, "error", err)
 		sharedhttp.NewProblem(c, http.StatusInternalServerError, "COMPUTE_FAILED", "Computation Failed", errMsg)
 		return
@@ -307,9 +313,16 @@ func handleSignalAnalyze(c *gin.Context) {
 
 const computeTimeout = 90 * time.Second
 
+// maxBodyBytes 计算负载上限（priceData 通常 <1MB，10MB 足够且防超大 payload 拖垮解码）。
+const maxBodyBytes = 10 << 20
+
 func SetupRouter(metricsHandler http.Handler) *gin.Engine {
 	r := gin.New()
 	r.Use(gin.Recovery(), gosharedmw.SecurityHeadersMiddleware(), otelgin.Middleware("engine-go"), middleware.RateLimitMiddleware(0.5, 30))
+	r.Use(func(c *gin.Context) {
+		c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxBodyBytes)
+		c.Next()
+	})
 	r.GET("/api/engine/health", handleHealth)
 	r.GET("/api/ready", handleReady)
 	if metricsHandler != nil {

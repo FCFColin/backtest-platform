@@ -1,6 +1,6 @@
 package engine
 
-import "fmt"
+import "engine-go/internal/engineutil"
 
 var cashflowFreqDays = map[string]int{"weekly": 5, "monthly": 21, "quarterly": 63, "yearly": 252}
 
@@ -16,7 +16,7 @@ func buildPeriodicCashflowMap(legs []CashflowLeg, dates []string) (map[string]fl
 		}
 		freqDays, ok := cashflowFreqDays[leg.Frequency]
 		if !ok {
-			return nil, fmt.Errorf("不支持的现金流频率 %q（支持：weekly/monthly/quarterly/yearly）", leg.Frequency)
+			return nil, engineutil.NewInputError("不支持的现金流频率 %q（支持：weekly/monthly/quarterly/yearly）", leg.Frequency)
 		}
 		until := leg.Until
 		if until == "" {

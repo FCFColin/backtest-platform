@@ -26,7 +26,7 @@ func PerformPCA(req PCARequest) (*PCAResult, error) {
 	priceData := req.PriceData
 	commonDates := engineutil.AlignDates(tickers, priceData)
 	if len(commonDates) < 2 {
-		return nil, errors.New("有效价格数据不足，至少需要 2 个交易日")
+		return nil, engineutil.NewInputError("有效价格数据不足，至少需要 2 个交易日")
 	}
 	nTickers := len(tickers)
 	nDates := len(commonDates)

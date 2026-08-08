@@ -5,6 +5,8 @@ import { asyncRouteHandler, sendData, sendDegraded } from './routeUtils.js';
 import { getReadPool } from '../db/pool.js';
 import { rowMapper, toIso } from '../repositories/rowMapper.js';
 import { createTtlCache } from '../utils/ttlCache.js';
+import { callService } from '../utils/httpClient.js';
+import { config } from '../config/index.js';
 
 interface RecentUpdateRow {
   ticker: string;
@@ -49,6 +51,23 @@ export async function warmMetaCache(): Promise<void> {
 }
 
 const router = Router();
+
+router.get(
+  '/health',
+  asyncRouteHandler(
+    async (_req: Request, res: Response): Promise<void> => {
+      const result = (await callService(
+        config.GO_DATA_SERVICE_URL,
+        '/api/data/health',
+        undefined,
+        5000,
+      )) as { status?: string } | null;
+      if (result?.status === 'ok') sendData(res, { status: 'ok' });
+      else sendProblem(res, 503, 'DATA_SERVICE_UNAVAILABLE');
+    },
+    { logMsg: 'Go data service health check failed', code: 'DATA_SERVICE_UNAVAILABLE' },
+  ),
+);
 
 router.get(
   '/cpi/:country',

@@ -36,7 +36,7 @@
 >
 > **Node-canonical 功能**：`tactical`/`tacticalGrid`/`signal`/`goalOptimizer`/`pca`/`letf` 无引擎实现，Node 即权威实现（非降级），直接在 Node 计算。
 >
-> **数据策略**：PostgreSQL 为持久化主存储；Go 数据服务提供缺失标的实时拉取，结果回写 PostgreSQL。本地 JSON 文件仅用于批量导入（`pnpm import:market-data`），非运行时降级。
+> **数据策略**：PostgreSQL 为持久化主存储；Go 数据服务提供缺失标的实时拉取（yfinance），结果回写 PostgreSQL，数据查询走 DB 缓存。
 >
 > **单引擎说明**：Rust 引擎（`engine-rs/`）与 Python 数据 CLI（`api/python/`）已退役删除（完成 Go↔Rust parity 验证后，见 ADR-008）。回测/分析/优化/蒙特卡洛由 Go 引擎独立承担，引擎不可用时 fail-closed 返回 503（ADR-031）。
 
@@ -142,7 +142,7 @@ pnpm check        # TypeScript 类型检查
 pnpm lint         # ESLint
 pnpm test         # 运行所有测试
 pnpm test:unit    # 仅单元测试
-pnpm test:e2e     # 仅 E2E 测试
+pnpm test:e2e:ui  # 仅 E2E 测试
 ```
 
 ## 环境变量
@@ -174,8 +174,7 @@ pnpm test:e2e     # 仅 E2E 测试
 
 ## 文档
 
-- [架构详解](docs/ARCHITECTURE.md) - 服务拓扑、降级链、数据流
+- [架构详解](docs/ARCHITECTURE.md) - 服务拓扑、降级链、数据流、引擎端点与职责
 - [应用层契约](docs/application-layer-contract.md) - 应用层结构与依赖规则
-- [引擎架构](docs/engine-architecture.md) - Go 引擎端点与职责
 - [ADR 索引](docs/adr/README.md) - 全部架构决策记录
 - [运维手册](docs/wiki/ops-guide.md) - 缓存 / 降级 / 故障排查

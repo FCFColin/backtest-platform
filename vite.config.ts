@@ -104,7 +104,6 @@ export default defineConfig(async ({ command }) => {
               'tests/unit/utils/**/*.test.ts',
               'tests/integration/**/*.test.ts',
               'tests/contract/**/*.test.ts',
-              'tests/fuzz/**/*.test.ts',
               'tests/property/**/*.{test,pbt}.ts',
               'packages/shared/**/*.test.ts',
             ],
@@ -230,39 +229,6 @@ export default defineConfig(async ({ command }) => {
         : []),
       react(),
       (await import('vite-tsconfig-paths')).default(),
-      ...(command === 'build'
-        ? [
-            (await import('vite-plugin-pwa')).VitePWA({
-              registerType: 'autoUpdate',
-              includeAssets: ['favicon.svg'],
-              manifest: {
-                name: 'testfolio - Portfolio Backtester',
-                short_name: 'testfolio',
-                description: '面向个人投资者的专业组合回测工具',
-                theme_color: '#0b0c0f',
-                background_color: '#0b0c0f',
-                display: 'standalone',
-                icons: [{ src: '/favicon.svg', sizes: 'any', type: 'image/svg+xml' }],
-              },
-              workbox: {
-                globPatterns: ['**/*.{js,css,html,svg,woff2}'],
-                navigateFallback: '/index.html',
-                navigationPreload: true,
-                runtimeCaching: [
-                  {
-                    urlPattern: /^https?:\/\/.*\/api\/v1\/data\/meta/,
-                    handler: 'NetworkFirst',
-                    options: {
-                      cacheName: 'api-meta',
-                      expiration: { maxEntries: 1, maxAgeSeconds: 1800 },
-                    },
-                  },
-                  { urlPattern: /^https?:\/\/.*\/api\/.*/, handler: 'NetworkOnly' },
-                ],
-              },
-            }),
-          ]
-        : []),
       ...(enableCoverage && command === 'serve'
         ? [
             (await import('vite-plugin-istanbul')).default({

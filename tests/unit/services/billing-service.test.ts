@@ -114,7 +114,7 @@ function makeSub(overrides: Record<string, unknown> = {}) {
   };
 }
 const findOrgUpdate = () =>
-  dbMocks.query.mock.calls.find((c) => String(c[0]).includes('UPDATE organizations'));
+  dbMocks.client.query.mock.calls.find((c) => String(c[0]).includes('UPDATE organizations'));
 describe('plan/price 映射', () => {
   it.each<[string, (x: string | null) => string, string | null, string]>([
     ['priceIdForPlan 返回配置的 Price', priceIdForPlan, 'pro', 'price_pro'],
@@ -189,7 +189,7 @@ describe('getSubscriptionSummary', () => {
       },
     ],
   ])('%s', async (_n, rows, expected) => {
-    dbMocks.query.mockResolvedValueOnce(rows);
+    dbMocks.client.query.mockResolvedValueOnce(rows);
     const summary = await getSubscriptionSummary(ORG);
     if (expected === null) {
       expect(summary).toBeNull();
@@ -224,14 +224,14 @@ describe('handleWebhookEvent', () => {
     if (event.type === 'checkout.session.completed') {
       stripeMocks.subscriptions.retrieve.mockResolvedValueOnce(makeSub());
     }
-    dbMocks.query.mockResolvedValue({ rows: [], rowCount: 1 });
+    dbMocks.client.query.mockResolvedValue({ rows: [], rowCount: 1 });
     await handleWebhookEvent(event as never);
-    const calls = dbMocks.query.mock.calls.map((c) => String(c[0]));
+    const calls = dbMocks.client.query.mock.calls.map((c) => String(c[0]));
     expect(calls.some((s) => s.includes('INSERT INTO subscriptions'))).toBe(true);
     expect(findOrgUpdate()?.[1]).toEqual(expectedOrgUpdate);
   });
   it('无 org 映射时跳过（按 customer 反查未命中）', async () => {
-    dbMocks.query.mockResolvedValueOnce({ rows: [] }); // orgIdForCustomer
+    dbMocks.query.mockResolvedValueOnce({ rows: [] }); // orgIdForCustomer（无法租户化，按 customer 反查）
     await handleWebhookEvent({
       type: 'customer.subscription.updated',
       data: { object: makeSub({ customer: 'cus_unknown', metadata: {} }) },
@@ -241,6 +241,7 @@ describe('handleWebhookEvent', () => {
   it('默认事件类型应记录 debug 日志', async () => {
     await handleWebhookEvent({ type: 'invoice.paid', data: { object: {} } } as never);
     expect(dbMocks.query).not.toHaveBeenCalled();
+    expect(dbMocks.client.query).not.toHaveBeenCalled();
   });
 });
 describe('getStripe', () => {
@@ -254,22 +255,22 @@ describe('getStripe', () => {
 describe('ensureCustomer', () => {
   beforeEach(() => vi.clearAllMocks());
   it('已有 customer 记录时直接返回', async () => {
-    dbMocks.query.mockResolvedValueOnce({ rows: [{ stripe_customer_id: 'cus_existing' }] });
+    dbMocks.client.query.mockResolvedValueOnce({ rows: [{ stripe_customer_id: 'cus_existing' }] });
     const id = await ensureCustomer(ORG, 'test@test.com');
     expect(id).toBe('cus_existing');
     expect(stripeMocks.customers.create).not.toHaveBeenCalled();
   });
   it('无记录时创建新 customer 并持久化', async () => {
-    dbMocks.query.mockResolvedValueOnce({ rows: [] }); // SELECT stripe_customer_id
-    dbMocks.query.mockResolvedValueOnce({ rows: [{ name: 'Test Org' }] }); // SELECT org name
+    dbMocks.client.query.mockResolvedValueOnce({ rows: [] }); // SELECT stripe_customer_id
+    dbMocks.client.query.mockResolvedValueOnce({ rows: [{ name: 'Test Org' }] }); // SELECT org name
     stripeMocks.customers.create.mockResolvedValueOnce({ id: 'cus_new' });
-    dbMocks.query.mockResolvedValueOnce({ rowCount: 1 }); // UPSERT
+    dbMocks.client.query.mockResolvedValueOnce({ rowCount: 1 }); // UPSERT
     const id = await ensureCustomer(ORG, 'admin@test.com');
     expect(id).toBe('cus_new');
     expect(stripeMocks.customers.create).toHaveBeenCalledWith(
       expect.objectContaining({ email: 'admin@test.com', metadata: { org_id: ORG } }),
     );
-    expect(dbMocks.query.mock.calls[2][0]).toContain('INSERT INTO stripe_customers');
+    expect(dbMocks.client.query.mock.calls[2][0]).toContain('INSERT INTO stripe_customers');
   });
 });
 describe('createCheckoutSession', () => {
@@ -284,7 +285,7 @@ describe('createCheckoutSession', () => {
     ],
     ['Stripe 返回无 url 时应抛出', { url: null }, undefined, true],
   ])('%s', async (_n, createResult, expectedUrl, throws) => {
-    dbMocks.query.mockResolvedValueOnce({ rows: [{ stripe_customer_id: 'cus_1' }] }); // ensureCustomer
+    dbMocks.client.query.mockResolvedValueOnce({ rows: [{ stripe_customer_id: 'cus_1' }] }); // ensureCustomer
     stripeMocks.checkout.sessions.create.mockResolvedValueOnce(createResult);
     const args = { orgId: ORG, plan: 'pro', successUrl: 'http://ok', cancelUrl: 'http://cancel' };
     if (throws) {
@@ -309,7 +310,7 @@ describe('createPortalSession', () => {
     ],
     ['无 customer 记录时应抛出', { rows: [] }, undefined, true],
   ])('%s', async (_n, customerRows, expectedUrl, throws) => {
-    dbMocks.query.mockResolvedValueOnce(customerRows);
+    dbMocks.client.query.mockResolvedValueOnce(customerRows);
     if (throws) {
       await expect(createPortalSession(ORG, 'http://return')).rejects.toThrow('no_customer');
     } else {

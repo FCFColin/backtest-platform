@@ -69,7 +69,7 @@ function nsForUrl(url: string): string {
   }
   return 'common';
 }
-export async function render(url: string) {
+export async function render(url: string, nonce: string) {
   const ns = nsForUrl(url);
   if (ns !== 'common' && !i18n.hasResourceBundle(i18n.language, ns)) {
     try {
@@ -93,5 +93,6 @@ export async function render(url: string) {
         <AppShell />
       </ErrorBoundary>
     </StaticRouter>,
+    { nonce },
   );
 }

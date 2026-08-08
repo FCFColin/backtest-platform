@@ -113,10 +113,13 @@ describe('useTickerMeta', () => {
     expect(result.current).toBeNull();
   });
 
-  it('应延迟请求 ticker meta', async () => {
+  it('应延迟请求并返回解包后的 ticker meta', async () => {
     apiFetchMock.mockResolvedValue({
       ok: true,
-      json: async () => ({ ticker: 'AAPL', name: 'Apple', exchange: 'NASDAQ', currency: 'usd' }),
+      json: async () => ({
+        success: true,
+        data: { ticker: 'AAPL', name: 'Apple', exchange: 'NASDAQ', currency: 'usd' },
+      }),
     });
     const { result } = renderHook(() => useTickerMeta('AAPL'));
     expect(result.current).toBeNull();
@@ -127,6 +130,12 @@ describe('useTickerMeta', () => {
       expect.stringContaining('/api/v1/data/ticker-meta?ticker=AAPL'),
       { silent: true },
     );
+    expect(result.current).toEqual({
+      ticker: 'AAPL',
+      name: 'Apple',
+      exchange: 'NASDAQ',
+      currency: 'usd',
+    });
   });
 
   it('API 失败时应返回 null', async () => {

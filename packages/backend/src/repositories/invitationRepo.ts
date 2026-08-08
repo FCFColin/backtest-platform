@@ -1,6 +1,6 @@
-// ADR-035: 令牌仅存哈希、有过期、可吊销；accept 跨"受邀者尚不属于组织"边界，不启用 RLS
+// ADR-035: 令牌仅存哈希、有过期、可吊销；创建走 withTenant（invitations 的 WITH CHECK 无逃逸），列表/撤销靠 USING 逃逸放行
 import crypto from 'crypto';
-import { getPool } from '../db/pool.js';
+import { getPool, withTenant } from '../db/pool.js';
 import { logger } from '../utils/logger.js';
 import { sha256Hex } from '../utils/crypto.js';
 import type { OrgRole } from '../middleware/jwtAuth.js';
@@ -43,17 +43,18 @@ export async function createInvitation(
   const token = crypto.randomBytes(32).toString('base64url');
   const tokenHash = sha256Hex(token);
   const expiresAt = new Date(Date.now() + INVITE_TTL_MS);
-  const pool = getPool();
-  await pool.query(
-    `DELETE FROM invitations WHERE org_id = $1 AND lower(email) = lower($2) AND accepted_at IS NULL`,
-    [orgId, email],
-  );
-  const { rows } = await pool.query(
-    `INSERT INTO invitations (org_id, email, role, token_hash, invited_by, expires_at)
-     VALUES ($1, $2, $3, $4, $5, $6)
-     RETURNING id, org_id, email, role, invited_by, expires_at, accepted_at, created_at`,
-    [orgId, email, role, tokenHash, invitedBy, expiresAt],
-  );
+  const { rows } = await withTenant(orgId, async (client) => {
+    await client.query(
+      `DELETE FROM invitations WHERE org_id = $1 AND lower(email) = lower($2) AND accepted_at IS NULL`,
+      [orgId, email],
+    );
+    return client.query(
+      `INSERT INTO invitations (org_id, email, role, token_hash, invited_by, expires_at)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING id, org_id, email, role, invited_by, expires_at, accepted_at, created_at`,
+      [orgId, email, role, tokenHash, invitedBy, expiresAt],
+    );
+  });
   logger.info({ orgId, email, role }, '[invitationService] 已创建邀请');
   return { ...mapRow(rows[0]), token };
 }

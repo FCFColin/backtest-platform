@@ -41,6 +41,6 @@ pnpm test:chaos
 | experiment-4-redis-outage       | Redis 故障          | `backtest-redis`                      | 限流/会话降级到内存                    |
 | experiment-5-go-engine-outage   | Go 引擎故障         | `backtest-engine-go`                  | fail-closed 503 + Retry-After(ADR-031) |
 
-## CI 集成
+## 运行方式
 
-CI chaos job 由 Task 1.4 配置(使用 Docker service container),本目录不维护 CI 配置。
+通过 `pnpm test:chaos` 在本地 Docker 环境中手动执行，本目录不包含 CI 配置。

@@ -12,12 +12,17 @@ import (
 	"strings"
 )
 
+const (
+	maxRangePoints = 500
+	maxGridCombos  = 1000
+)
+
 func generateRange(min, max, step float64) []float64 {
 	if step <= 0 {
 		return []float64{min}
 	}
-	var result []float64
-	for v := min; v <= max+step/2; v += step {
+	result := make([]float64, 0, maxRangePoints)
+	for v := min; v <= max+step/2 && len(result) < maxRangePoints; v += step {
 		result = append(result, math.Round(v*1000)/1000)
 	}
 	if len(result) == 0 {
@@ -96,6 +101,9 @@ func RunGridSearch(ctx context.Context, req TacticalGridRequest) (*TacticalGridR
 	p1Vals := generateRange(req.Param1.Min, req.Param1.Max, req.Param1.Step)
 	p2Vals := generateRange(req.Param2.Min, req.Param2.Max, req.Param2.Step)
 	total := len(p1Vals) * len(p2Vals)
+	if total > maxGridCombos {
+		return nil, engineutil.NewInputError("网格组合数 %d 超过上限 %d", total, maxGridCombos)
+	}
 	allMetrics := make([]GridCombinationMetrics, 0, total)
 	allResults := make([]TopCombinationResult, 0, total)
 	for _, p1 := range p1Vals {

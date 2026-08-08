@@ -20,7 +20,7 @@ func RunBacktest(ctx context.Context, req BacktestRequest) (*BacktestResult, err
 	}
 	tradingDates = engineutil.FilterByDateRange(tradingDates, req.Params.StartDate, req.Params.EndDate)
 	if len(tradingDates) == 0 {
-		return nil, fmt.Errorf("日期范围内无交易数据")
+		return nil, engineutil.NewInputError("日期范围内无交易数据")
 	}
 	assetTickers := slices.Sorted(maps.Keys(req.PriceData))
 	benchmarkGrowth := computeBenchmarkGrowth(req.Params.BenchmarkTicker, req.PriceData, tradingDates, req.Params)
@@ -32,13 +32,13 @@ func RunBacktest(ctx context.Context, req BacktestRequest) (*BacktestResult, err
 			return nil, ctx.Err()
 		default:
 		}
-		curve, allocHist, err := computeGrowthCurve(pf, req.PriceData, req.CPIData, req.ExchangeRates, tradingDates, req.Params)
+		curve, allocHist, mwrrCashflows, err := computeGrowthCurve(pf, req.PriceData, req.CPIData, req.ExchangeRates, tradingDates, req.Params)
 		if err != nil {
 			return nil, fmt.Errorf("组合 %s 计算失败: %w", pf.Name, err)
 		}
 		ddCurve := CalcDrawdownCurve(extractValues(curve), extractDates(curve))
 		episodes := detectDrawdownEpisodes(curve)
-		stats := computeStatistics(curve, episodes, benchmarkGrowth)
+		stats := computeStatistics(curve, episodes, benchmarkGrowth, mwrrCashflows)
 		rawRR := CalcRollingReturns(extractValues(curve), extractDates(curve), req.Params.RollingWindowMonths)
 		rollingReturns := make([]DataPoint, len(rawRR))
 		for i, r := range rawRR {
@@ -82,11 +82,11 @@ func computeBenchmarkGrowth(benchmarkTicker string, priceData PriceDataMap, trad
 	return curve
 }
 
-func computeGrowthCurve(pf PortfolioInput, priceData PriceDataMap, cpiData map[string]float64, exchangeRates map[string]float64, tradingDates []time.Time, params BacktestParams) ([]DataPoint, []AllocationPoint, error) {
+func computeGrowthCurve(pf PortfolioInput, priceData PriceDataMap, cpiData map[string]float64, exchangeRates map[string]float64, tradingDates []time.Time, params BacktestParams) ([]DataPoint, []AllocationPoint, []Cashflow, error) {
 	startValue := engineutil.DefaultStartingValue(params.StartingValue)
 	n := len(pf.Assets)
 	if n == 0 {
-		return nil, nil, fmt.Errorf("组合 %s 无资产", pf.Name)
+		return nil, nil, nil, engineutil.NewInputError("组合 %s 无资产", pf.Name)
 	}
 	weights := normalizeWeights(pf.Assets)
 	dates := make([]string, len(tradingDates))
@@ -131,11 +131,12 @@ func computeGrowthCurve(pf PortfolioInput, priceData PriceDataMap, cpiData map[s
 	}
 	cfMap, err := buildPeriodicCashflowMap(params.CashflowLegs, dates)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	curve := make([]DataPoint, 0, len(dates))
 	allocHistory := make([]AllocationPoint, 0)
 	vals := make([]float64, 0, len(dates))
+	mwrrCashflows := []Cashflow{{Value: -startValue, Time: 0}}
 	liquidated := false
 	prev := dates[0]
 	lastRebalanceDi := 0
@@ -149,6 +150,9 @@ func computeGrowthCurve(pf PortfolioInput, priceData PriceDataMap, cpiData map[s
 		pv := 0.0
 		for i := range holdings {
 			if lastPrices[i] > 0 {
+				if shares[i] == 0 && holdings[i] > 0 {
+					shares[i] = holdings[i] / lastPrices[i]
+				}
 				holdings[i] = shares[i] * lastPrices[i]
 			}
 			if dailyDrag != 1.0 {
@@ -159,6 +163,7 @@ func computeGrowthCurve(pf PortfolioInput, priceData PriceDataMap, cpiData map[s
 		currentWeights := glidepathWeights(weights, glidepathTo, di, glidepathYears)
 		cfAmount := cfMap[date] + otcMap[date]
 		if cfAmount != 0 {
+			mwrrCashflows = append(mwrrCashflows, Cashflow{Value: cfAmount, Time: float64(di) / tradingDaysPerYear})
 			pv += cfAmount
 			if pv > 0 {
 				recalculateShares(holdings, &shares, lastPrices, currentWeights, pv, pf, gp, date)
@@ -189,7 +194,7 @@ func computeGrowthCurve(pf PortfolioInput, priceData PriceDataMap, cpiData map[s
 		prev = date
 	}
 	adjustForInflation(curve, vals, dates, cpiData, params.AdjustForInflation)
-	return curve, allocHistory, nil
+	return curve, allocHistory, mwrrCashflows, nil
 }
 
 func updatePrices(pf PortfolioInput, gp func(string, string) float64, date string, lastPrices []float64) {
@@ -217,7 +222,7 @@ func appendZeroDay(curve []DataPoint, vals []float64, date string) ([]DataPoint,
 }
 func zeroHoldings(holdings []float64) { clear(holdings) }
 
-func computeStatistics(curve []DataPoint, episodes []DrawdownEpisode, benchCurve []DataPoint) Statistics {
+func computeStatistics(curve []DataPoint, episodes []DrawdownEpisode, benchCurve []DataPoint, mwrrCashflows []Cashflow) Statistics {
 	if len(curve) < 2 {
 		return Statistics{}
 	}
@@ -242,7 +247,7 @@ func computeStatistics(curve []DataPoint, episodes []DrawdownEpisode, benchCurve
 		c := CalcCAGR(benchCurve[0].Value, benchCurve[len(benchCurve)-1].Value, float64(len(benchCurve))/tradingDaysPerYear)
 		benchmarkCagr = &c
 	}
-	result := CalculateStatisticsFromRequest(StatisticsRequest{Values: values, Dates: dates, StartingValue: startValue, DailyReturns: mathutil.DailyReturns(values), AnnualReturnValues: annualReturnValues, MonthlyReturnValues: monthlyReturnValues, MwrrCashflows: []Cashflow{{Value: -startValue, Time: 0}}, BenchmarkDailyReturns: benchDailyReturns, BenchmarkCagr: benchmarkCagr})
+	result := CalculateStatisticsFromRequest(StatisticsRequest{Values: values, Dates: dates, StartingValue: startValue, DailyReturns: mathutil.DailyReturns(values), AnnualReturnValues: annualReturnValues, MonthlyReturnValues: monthlyReturnValues, MwrrCashflows: mwrrCashflows, BenchmarkDailyReturns: benchDailyReturns, BenchmarkCagr: benchmarkCagr})
 	if endValue <= 0 {
 		result.MWRR = 0
 	}

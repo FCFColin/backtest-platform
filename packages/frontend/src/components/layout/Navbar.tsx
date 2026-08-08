@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/uiComponents';
 import { cn } from '@/lib/utils';
 import { preloadPage } from '@/routes/pageLoaders.js';
+import { useAuthStore } from '@/store/authStore';
 import {
   Sheet,
   SheetTrigger,
@@ -20,6 +21,7 @@ import {
   NavbarActions,
   PlanBadge,
 } from './navbarParts.js';
+import { planTier } from '@/utils/orgPlan';
 
 const navLinkClass =
   'px-3 py-2 text-body font-medium text-fg-secondary hover:text-fg rounded-md hover:bg-hover transition-colors duration-150';
@@ -35,7 +37,7 @@ const NAV_GROUP_KEYS = [
       { to: '/', key: 'portfolioBacktest' },
       { to: '/backtest-optimizer', key: 'backtestOptimizer' },
       { to: '/rebalancing-sensitivity', key: 'rebalancingSensitivity' },
-      { to: '/lumpsum-vs-dca', key: 'lumpSumDca' },
+      { to: '/lumpsum-vs-dca', key: 'lumpsumVsDca' },
       { to: '/portfolio-comparison', key: 'portfolioComparison' },
     ],
   },
@@ -93,7 +95,6 @@ function NavGroup({
             groupActive && 'text-fg',
           )}
           onMouseEnter={() => {
-            if (!isOpen) onToggle(group.key);
             preloadGroup(group);
           }}
         >
@@ -193,6 +194,7 @@ export default function Navbar() {
   const [openGroup, setOpenGroup] = useState<string>('');
   const [mobileOpen, setMobileOpen] = useState(false);
   const { t } = useTranslation();
+  const org = useAuthStore((s) => s.org);
   useEffect(() => {
     setMobileOpen(false);
     setOpenGroup('');
@@ -218,7 +220,7 @@ export default function Navbar() {
               {t('Backtest Platform')}
             </span>
           </Link>
-          <PlanBadge tier="free" />
+          <PlanBadge tier={planTier(org?.plan)} />
         </div>
         <div className="flex-1" />
         <div className="hidden md:flex items-center gap-1">

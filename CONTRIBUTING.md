@@ -236,7 +236,7 @@ Test<功能>_<场景>_<预期结果>
 
 ## 8. 供应链安全
 
-> 依赖方向强制（dependency-cruiser）、SBOM(syft) 与 cosign Keyless 签名策略见 ADR-052。
+> 依赖方向强制（dependency-cruiser）、SBOM(CycloneDX, nightly) 见 ADR-052。
 
 - 新增依赖须在 PR 中说明理由，禁止引入功能重复或带已知漏洞的包
 - 本地依赖审计：`pnpm audit:supply`（`pnpm audit --audit-level=high --prod`）

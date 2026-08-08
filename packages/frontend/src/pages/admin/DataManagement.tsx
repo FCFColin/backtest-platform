@@ -108,18 +108,20 @@ function ActionBar({
   loading: boolean;
   actionMsg: string;
   onRefresh: () => void;
-  onAction: (url: string, label: string) => void;
+  onAction: (url: string, method: string, label: string) => void;
 }) {
   const { t } = useTranslation();
   const actions = [
     {
       url: '/api/v1/data/manage/update/inc',
+      method: 'PATCH',
       label: t('Incremental Update'),
       icon: Play,
       cls: 'bg-success hover:bg-success/90',
     },
     {
       url: '/api/v1/data/manage/update/full',
+      method: 'PUT',
       label: t('Full Update'),
       icon: Zap,
       cls: 'bg-brand text-brand-fg hover:bg-brand-hover',
@@ -134,7 +136,7 @@ function ActionBar({
       {actions.map((a) => (
         <button
           key={a.url}
-          onClick={() => onAction(a.url, a.label)}
+          onClick={() => onAction(a.url, a.method, a.label)}
           className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium ${a.cls}`}
         >
           <a.icon className="h-4 w-4" /> {a.label}
@@ -335,10 +337,10 @@ export default function DataManagement() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
-  const doAction = async (url: string, label: string) => {
+  const doAction = async (url: string, method: string, label: string) => {
     setActionMsg(t('{{label}} in progress...', { label }));
     try {
-      const res = await apiFetch(url, { method: 'POST' });
+      const res = await apiFetch(url, { method });
       const json = await res.json();
       setActionMsg(
         json.success

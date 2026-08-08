@@ -56,7 +56,6 @@ describe('Run Aggregate', () => {
       (e: { payload: Record<string, unknown> }[]) =>
         expect(e[0].payload.failureReason).toBe('engine unavailable'),
     ],
-    ['cancel', undefined, 'cancelled', 'RunCancelled', false, () => {}, () => {}],
   ])(
     '%s 后进入终态并产生 %s 事件',
     async (_method, arg, status, eventType, fromStart, state, event) => {
@@ -141,17 +140,16 @@ describe('Run Aggregate', () => {
     if (msg) expect(() => invoke(run)).toThrow(msg);
   });
 
-  it('running → cancelled 合法', () => {
+  it('running → completed 合法', () => {
     const run = startedRun();
     run.pullEvents();
-    run.cancel();
-    expect(run.status).toBe('cancelled');
+    run.complete({});
+    expect(run.status).toBe('completed');
   });
 
   it.each([
     ['start', (r: Run) => r.start()],
     ['complete', (r: Run) => r.complete({})],
-    ['cancel', (r: Run) => r.cancel()],
   ])('completed → %s 抛错（终态不可转换）', (_op, invoke) => {
     const run = startedRun();
     run.complete({});

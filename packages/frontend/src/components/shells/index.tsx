@@ -54,7 +54,7 @@ export function StandardPageShell({
   return (
     <div className="bt-page">
       <div className="bt-page-header">
-        <h1 className="bt-page-title">{t(config.titleKey)}</h1>
+        <h1 className="page-title-slim">{t(config.titleKey)}</h1>
         {config.headerExtra}
       </div>
       {children}
@@ -74,14 +74,9 @@ function PageHeaderActions({
 }) {
   return (
     <div className="page-header-actions">
-      {showAbout && (
+      {(showAbout || showRelated) && (
         <button className="text-link-subtle" onClick={onToggle}>
-          {t('About')}
-        </button>
-      )}
-      {showRelated && (
-        <button className="text-link-subtle" onClick={onToggle}>
-          {t('Related Tools:')}
+          {showAbout ? t('About') : t('Related Tools:')}
         </button>
       )}
     </div>
@@ -98,7 +93,7 @@ function PresetsCard({ presets }: { presets: PresetButtonProps[] }) {
   const { t } = useTranslation();
   return (
     <div className="preset-chips">
-      <span className="preset-label">{t('Presets')}：</span>
+      <span className="preset-label">{t('Presets')}:</span>
       {presets.map((preset) => (
         <PresetButton key={preset.label} label={preset.label} onClick={preset.onClick} />
       ))}

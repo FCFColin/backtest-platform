@@ -128,23 +128,23 @@
 
 ## Key ADR References
 
-| ADR     | Decision                                                        |
-| ------- | --------------------------------------------------------------- |
-| ADR-004 | Express over Fastify/NestJS                                     |
-| ADR-007 | PostgreSQL over SQLite for horizontal scaling                   |
-| ADR-008 | Go + TypeScript over 4-language architecture                    |
-| ADR-013 | DDD aggregates + event sourcing in domain layer                 |
-| ADR-014 | Outbox (LISTEN/NOTIFY + CDC) + consumer idempotency             |
-| ADR-015 | OTel + pino + prom-client, SaaS backend (go-shared)             |
-| ADR-016 | Circuit breakers + rate-limit fail-closed tiering               |
-| ADR-017 | JWT + RBAC + task ownership + per-org API keys                  |
-| ADR-018 | Redis + Sentinel HA (no memory degradation)                     |
-| ADR-031 | Single Go engine fail-closed (no Node/Rust fallback)            |
-| ADR-032 | Multi-tenant SaaS (RLS + persistence + BFF auth + registration) |
-| ADR-036 | Stripe billing + per-plan quota + fair scheduling               |
-| ADR-047 | Backend code organization (package merge + modularization)      |
-| ADR-052 | CI tiering + dependency enforcement + SBOM + cosign             |
-| ADR-053 | Node layer libraries (Pino + Zod + BullMQ)                      |
+| ADR     | Decision                                                         |
+| ------- | ---------------------------------------------------------------- |
+| ADR-004 | Express over Fastify/NestJS                                      |
+| ADR-007 | PostgreSQL over SQLite for horizontal scaling                    |
+| ADR-008 | Go + TypeScript over 4-language architecture                     |
+| ADR-013 | DDD aggregates + event sourcing in domain layer                  |
+| ADR-014 | Outbox (LISTEN/NOTIFY + CDC) + consumer idempotency              |
+| ADR-015 | OTel + pino + prom-client, SaaS backend (go-shared)              |
+| ADR-016 | Circuit breakers + rate-limit fail-closed tiering                |
+| ADR-017 | JWT + RBAC + task ownership + per-org API keys                   |
+| ADR-018 | Redis + Sentinel HA (no memory degradation)                      |
+| ADR-031 | Single Go engine fail-closed (no Node/Rust fallback)             |
+| ADR-032 | Multi-tenant SaaS (RLS + persistence + BFF auth + registration)  |
+| ADR-036 | Stripe billing + per-plan quota + fair scheduling                |
+| ADR-047 | Backend code organization (package merge + modularization)       |
+| ADR-052 | CI tiering + dependency enforcement + SBOM（CycloneDX，nightly） |
+| ADR-053 | Node layer libraries (Pino + Zod + BullMQ)                       |
 
 ## API Patterns
 

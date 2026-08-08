@@ -4,6 +4,7 @@ import (
 	"context"
 	"engine-go/internal/enginetest"
 	"engine-go/internal/engineutil"
+	"math"
 	"testing"
 	"time"
 )
@@ -112,7 +113,7 @@ func BenchmarkComputeGrowthCurve(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		_, _, err := computeGrowthCurve(
+		_, _, _, err := computeGrowthCurve(
 			req.Portfolios[0],
 			req.PriceData,
 			req.CPIData,
@@ -133,7 +134,7 @@ func BenchmarkComputeStatistics(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		computeStatistics(curve, episodes, nil)
+		computeStatistics(curve, episodes, nil, nil)
 	}
 }
 func TestComputeFingerprint_Deterministic(t *testing.T) {
@@ -155,6 +156,67 @@ func TestComputeFingerprint_Deterministic(t *testing.T) {
 	}
 	if fp1 != fp2 {
 		t.Fatalf("fingerprint not deterministic: %s vs %s", fp1, fp2)
+	}
+}
+func TestMWRRCashflowSchedule(t *testing.T) {
+	dates := enginetest.Dates("2023-01-02", 30)
+	prices := make(map[string]float64, len(dates))
+	for _, d := range dates {
+		prices[d] = 100
+	}
+	priceData := PriceDataMap{"VTI": prices}
+	tradingDates := make([]time.Time, len(dates))
+	for i, d := range dates {
+		tradingDates[i], _ = time.Parse("2006-01-02", d)
+	}
+	pf := PortfolioInput{Name: "t", Assets: []AssetInput{{Ticker: "VTI", Weight: 100}}}
+	params := BacktestParams{
+		StartingValue:    1000,
+		OneTimeCashflows: []OneTimeCashflow{{Date: dates[5], Amount: 500, Type: "deposit"}},
+		CashflowLegs:     []CashflowLeg{{Amount: 100, Frequency: "monthly", Type: "deposit"}},
+	}
+	_, _, cfs, err := computeGrowthCurve(pf, priceData, nil, nil, tradingDates, params)
+	if err != nil {
+		t.Fatalf("computeGrowthCurve 返回错误: %v", err)
+	}
+	want := []Cashflow{
+		{Value: -1000, Time: 0},
+		{Value: 500, Time: 5.0 / tradingDaysPerYear},
+		{Value: 100, Time: 21.0 / tradingDaysPerYear},
+	}
+	if len(cfs) != len(want) {
+		t.Fatalf("现金流数量 = %d，期望 %d", len(cfs), len(want))
+	}
+	for i := range cfs {
+		assertFloatApprox(t, cfs[i].Value, want[i].Value, "cashflow value")
+		assertFloatApprox(t, cfs[i].Time, want[i].Time, "cashflow time")
+	}
+}
+func TestMissingAssetBuysAtFirstPrice(t *testing.T) {
+	dates := enginetest.Dates("2023-01-02", 10)
+	pricesA := make(map[string]float64, len(dates))
+	pricesB := make(map[string]float64, len(dates))
+	for i, d := range dates {
+		pricesA[d] = 100
+		if i >= 3 {
+			pricesB[d] = 100 * math.Pow(1.01, float64(i-3))
+		}
+	}
+	priceData := PriceDataMap{"A": pricesA, "B": pricesB}
+	tradingDates := make([]time.Time, len(dates))
+	for i, d := range dates {
+		tradingDates[i], _ = time.Parse("2006-01-02", d)
+	}
+	pf := PortfolioInput{Name: "t", Assets: []AssetInput{{Ticker: "A", Weight: 50}, {Ticker: "B", Weight: 50}}}
+	params := BacktestParams{StartingValue: 1000}
+	curve, _, _, err := computeGrowthCurve(pf, priceData, nil, nil, tradingDates, params)
+	if err != nil {
+		t.Fatalf("computeGrowthCurve 返回错误: %v", err)
+	}
+	final := curve[len(curve)-1].Value
+	want := 500 + 500*math.Pow(1.01, 6) // B 延迟到首个有价日买入并增长 6 个交易日
+	if math.Abs(final-want) > 0.01 {
+		t.Errorf("终值 = %.4f，期望 %.4f（缺失资产应延迟买入而非丢失分配）", final, want)
 	}
 }
 func TestSampleEvenly(t *testing.T) {

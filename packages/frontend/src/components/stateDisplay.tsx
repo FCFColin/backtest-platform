@@ -80,7 +80,7 @@ export function LoadingState({
 const BACK_ONLINE_MS = 3000;
 export function OfflineBanner() {
   const { t } = useTranslation();
-  const [isOffline, setIsOffline] = useState(!navigator.onLine);
+  const [isOffline, setIsOffline] = useState(typeof window !== 'undefined' && !navigator.onLine);
   const [justCameBack, setJustCameBack] = useState(false);
   const timerRef = useRef<number | undefined>(undefined);
   useEffect(() => {

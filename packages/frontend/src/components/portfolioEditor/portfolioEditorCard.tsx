@@ -84,7 +84,7 @@ export function PortfolioCard({
       data-testid="portfolio-card"
       className={cn(
         'relative group p-3 pt-8',
-        isGp && 'border-l-[3px] border-l-accent bg-input-bg/30',
+        isGp && 'border-l-[3px] border-l-brand bg-input-bg/30',
       )}
       style={{ borderTop: `3px solid ${color}` }}
     >

@@ -3,6 +3,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 import { PassThrough } from 'node:stream';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { randomBytes } from 'node:crypto';
 import { config } from './config/index.js';
 import { logger } from './utils/logger.js';
 
@@ -46,7 +47,7 @@ interface PipeableStream {
   abort: (reason?: unknown) => void;
 }
 
-type RenderFn = (url: string) => PipeableStream | Promise<PipeableStream>;
+type RenderFn = (url: string, nonce: string) => PipeableStream | Promise<PipeableStream>;
 
 let renderFn: RenderFn | null = null;
 let htmlTemplate: { head: string; tail: string } | null = null;
@@ -101,7 +102,7 @@ async function loadSsrRenderFn(): Promise<RenderFn | null> {
   }
 }
 
-function buildSsrHead(templateHead: string): string {
+function buildSsrHead(templateHead: string, nonce: string): string {
   let head = templateHead;
 
   if (cssContent) {
@@ -158,7 +159,7 @@ function buildSsrHead(templateHead: string): string {
   if (metaCache) {
     head = head.replace(
       '</head>',
-      `    <script>window.__INITIAL_DATA__=${metaCache}</script>\n  </head>`,
+      `    <script nonce="${nonce}">window.__INITIAL_DATA__=${metaCache}</script>\n  </head>`,
     );
   }
   return head;
@@ -166,6 +167,7 @@ function buildSsrHead(templateHead: string): string {
 
 export async function ssrMiddleware(req: Request, res: Response): Promise<void> {
   if (req.path.startsWith('/api/') || req.path.startsWith('/assets/')) return;
+  res.setHeader('Cache-Control', 'no-cache');
 
   const startTotal = performance.now();
   const url = req.originalUrl || req.url;
@@ -190,10 +192,11 @@ export async function ssrMiddleware(req: Request, res: Response): Promise<void> 
 
   try {
     const t0 = performance.now();
-    const stream = await renderFn(url);
+    const nonce = res.locals.nonce ?? randomBytes(16).toString('base64');
+    const stream = await renderFn(url, nonce);
     const renderMs = Math.round(performance.now() - t0);
 
-    const head = buildSsrHead(htmlTemplate.head);
+    const head = buildSsrHead(htmlTemplate.head, nonce);
 
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('X-Rendered-By', 'ssr');

@@ -1,6 +1,7 @@
 package engineutil
 
 import (
+	"fmt"
 	"maps"
 	"math"
 	"slices"
@@ -8,6 +9,15 @@ import (
 	"strings"
 	"time"
 )
+
+// InputError 标记客户端入参导致的失败（映射为 4xx，不触发熔断器，ADR-031）。
+type InputError struct{ msg string }
+
+func (e *InputError) Error() string { return e.msg }
+
+func NewInputError(format string, args ...any) error {
+	return &InputError{msg: fmt.Sprintf(format, args...)}
+}
 
 type RebalanceBands struct {
 	Enabled      bool     `json:"enabled"`
@@ -111,6 +121,14 @@ func DefaultStartingValue(v float64) float64 {
 		return 10000
 	}
 	return v
+}
+
+// BoundedInt 限制整型参数：v<=0 时回退 def，超过 max 时截断（防恶意超大输入 OOM/CPU DoS）。
+func BoundedInt(v, def, max int) int {
+	if v <= 0 {
+		return def
+	}
+	return min(v, max)
 }
 
 func IterDrawdowns(values []float64, fn func(idx, peakIdx int, peak float64)) {

@@ -87,7 +87,7 @@ function MetricDropdownItems({
               type="checkbox"
               checked={checked}
               onChange={() => onToggle(m.key)}
-              style={{ accentColor: 'var(--accent)' }}
+              style={{ accentColor: 'hsl(var(--brand))' }}
             />
             {t(m.label)}
           </label>

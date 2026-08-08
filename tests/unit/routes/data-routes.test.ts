@@ -11,6 +11,10 @@ const cpiServiceMocks = vi.hoisted(() => ({
   fetchCpiForRoute: vi.fn(),
 }));
 
+const httpClientMocks = vi.hoisted(() => ({
+  callService: vi.fn(),
+}));
+
 vi.mock('../../../packages/backend/src/infrastructure/dataFacade.js', () => ({
   fetchHistoryData: dataServiceMocks.fetchHistoryData,
   searchTickers: dataServiceMocks.searchTickers,
@@ -19,6 +23,10 @@ vi.mock('../../../packages/backend/src/infrastructure/dataFacade.js', () => ({
 vi.mock('../../../packages/backend/src/infrastructure/dataServices.js', () => ({
   fetchCpiForRoute: cpiServiceMocks.fetchCpiForRoute,
   SYNTHETIC_TICKERS: [],
+}));
+
+vi.mock('../../../packages/backend/src/utils/httpClient.js', () => ({
+  callService: httpClientMocks.callService,
 }));
 
 import { loggerMocks } from '../../helpers/loggerFixture.js';
@@ -81,5 +89,35 @@ describe('dataRoutes - GET /api/data/cpi/:country', () => {
 
     const res = await fetch(`${getServer().url}/api/data/cpi/cn`);
     expect(res.status).toBe(404);
+  });
+});
+
+describe('dataRoutes - GET /api/data/health', () => {
+  const getServer = withServer(() => {
+    vi.clearAllMocks();
+    return startExpressApp((app) => app.use('/api/data', dataRoutes));
+  });
+
+  it('Go 数据服务健康时应返回 ok', async () => {
+    httpClientMocks.callService.mockResolvedValue({ status: 'ok' });
+
+    const res = await fetch(`${getServer().url}/api/data/health`);
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.data.status).toBe('ok');
+    expect(httpClientMocks.callService).toHaveBeenCalledWith(
+      expect.any(String),
+      '/api/data/health',
+      undefined,
+      5000,
+    );
+  });
+
+  it('Go 数据服务不可达时应返回 503', async () => {
+    httpClientMocks.callService.mockResolvedValue(null);
+
+    const res = await fetch(`${getServer().url}/api/data/health`);
+    expect(res.status).toBe(503);
   });
 });

@@ -68,10 +68,10 @@ function PlanCard({
   return (
     <div className={cn('card p-[18px]', active ? 'border-2 border-brand' : 'border border-border')}>
       <div className="flex justify-between items-baseline">
-        <h3 className="text-base font-bold text-fg-strong m-0">{plan.name}</h3>
+        <h3 className="text-base font-bold text-fg m-0">{plan.name}</h3>
         {active && <span className="text-[11px] text-brand font-semibold">{t('Current')}</span>}
       </div>
-      <div className="text-lg font-bold text-fg-strong my-2">{plan.price}</div>
+      <div className="text-lg font-bold text-fg my-2">{plan.price}</div>
       <ul className="list-none p-0 m-0 mb-3.5 flex flex-col gap-1.5">
         {plan.features.map((f) => (
           <li key={f} className="flex items-center gap-1.5 text-[13px] text-fg">

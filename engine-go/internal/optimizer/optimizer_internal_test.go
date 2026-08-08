@@ -2,6 +2,7 @@ package optimizer
 
 import (
 	"engine-go/internal/mathutil"
+	"fmt"
 	"math"
 	"testing"
 )
@@ -145,6 +146,36 @@ func TestIsValidPortfolio(t *testing.T) {
 			result := isValidPortfolio(tt.weights)
 			if result != tt.expected {
 				t.Errorf("期望 %v，实际 %v", tt.expected, result)
+			}
+		})
+	}
+}
+func TestSolveFrontierPoint(t *testing.T) {
+	mu := []float64{0.10, 0.05}
+	sigma := [][]float64{{0.04, 0.01}, {0.01, 0.02}}
+	c := Constraints{MinWeight: 0, MaxWeight: 1}
+	cases := []struct {
+		targetRet float64
+		want      []float64
+	}{
+		{0.08, []float64{0.6, 0.4}},
+		{0.095, []float64{0.9, 0.1}},
+	}
+	for _, tc := range cases {
+		t.Run(fmt.Sprintf("targetRet=%.3f", tc.targetRet), func(t *testing.T) {
+			w := solveFrontierPoint(mu, sigma, tc.targetRet, c)
+			for i := range w {
+				if math.Abs(w[i]-tc.want[i]) > 1e-6 {
+					t.Errorf("权重 %d = %.6f，期望 %.6f", i, w[i], tc.want[i])
+				}
+			}
+			sumW := w[0] + w[1]
+			ret := w[0]*mu[0] + w[1]*mu[1]
+			if math.Abs(sumW-1.0) > 1e-6 {
+				t.Errorf("权重和应为 1，实际 %.6f", sumW)
+			}
+			if math.Abs(ret-tc.targetRet) > 1e-6 {
+				t.Errorf("组合收益 %.6f 应等于目标 %.6f", ret, tc.targetRet)
 			}
 		})
 	}

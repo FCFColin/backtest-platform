@@ -8,7 +8,7 @@ export function getProbColor(prob: number | undefined): string {
   if (prob === undefined) return 'var(--text-strong)';
   if (prob >= 0.7) return 'var(--success)';
   if (prob >= 0.4) return CHART_COLORS[1];
-  return 'var(--error)';
+  return 'var(--danger)';
 }
 interface GoalInputs {
   validAssets: GoalAsset[];

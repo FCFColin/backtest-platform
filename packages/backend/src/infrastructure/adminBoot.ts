@@ -72,7 +72,7 @@ export async function bootstrapPlatformAdminKey(): Promise<boolean> {
   } catch (err) {
     logger.error(
       { err: String(err) },
-      '[bootstrap] 平台 break-glass 密钥 bootstrap 失败，请检查 DB 与迁移 v17',
+      '[bootstrap] 平台 break-glass 密钥 bootstrap 失败，请检查 DB 与迁移状态',
     );
     return false;
   }

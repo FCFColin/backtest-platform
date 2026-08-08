@@ -42,10 +42,19 @@ export async function writeOutboxEvent(
   const conn = client ?? getPool();
   const payload = JSON.stringify(auditEntry);
   const signature = signPayload(payload);
+  const eventId = crypto.createHash('sha256').update(payload).digest('hex');
   try {
     await conn.query(
-      'INSERT INTO outbox (aggregate_type, aggregate_id, event_type, payload) VALUES ($1, $2, $3, $4)',
-      ['audit', String(auditEntry.userId || 'unknown'), 'AuditEvent', { ...auditEntry, signature }],
+      `INSERT INTO outbox (aggregate_type, aggregate_id, event_type, payload, event_id, created_at)
+       VALUES ($1, $2, $3, $4, $5, NOW())
+       ON CONFLICT (event_id) WHERE event_id IS NOT NULL DO NOTHING`,
+      [
+        'audit',
+        String(auditEntry.userId || 'unknown'),
+        'AuditEvent',
+        { ...auditEntry, signature },
+        eventId,
+      ],
     );
     if (!client) await conn.query('NOTIFY outbox_channel');
     logger.debug(

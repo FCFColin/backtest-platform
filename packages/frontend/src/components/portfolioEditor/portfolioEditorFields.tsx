@@ -151,7 +151,7 @@ export function GlidepathForm({
   const [gp, setGp] = useState({ name: '', from: '', to: '', years: 10 });
   const canConfirm = gp.from && gp.to && gp.from !== gp.to;
   return (
-    <div className="p-3 mb-2 bg-bg-subtle rounded-[var(--radius-control)] border border-border-soft">
+    <div className="p-3 mb-2 bg-elevated rounded-[var(--radius-control)] border border-border-subtle">
       <div className="text-[13px] font-semibold text-text-strong mb-2">{t('New Glide Path')}</div>
       <div className={FIELDS_ROW}>
         <FieldLabel label={t('Name')}>
@@ -199,7 +199,7 @@ export function GlidepathConfig({
 }) {
   const { t } = useTranslation();
   return (
-    <div className="p-2 mb-1.5 bg-bg-elevated rounded-md border border-border-soft">
+    <div className="p-2 mb-1.5 bg-elevated rounded-md border border-border-subtle">
       <div className="text-[11px] font-semibold text-accent mb-1.5 tracking-tight">
         {t('Glide Path Configuration')}
       </div>

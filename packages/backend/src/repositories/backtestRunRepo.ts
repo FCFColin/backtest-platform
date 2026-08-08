@@ -11,7 +11,6 @@ const DOMAIN_TO_DB_STATUS: Record<RunStatus, BacktestRunStatus> = {
   running: 'running',
   completed: 'completed',
   failed: 'failed',
-  cancelled: 'failed',
 };
 
 export interface BacktestRunRecord {

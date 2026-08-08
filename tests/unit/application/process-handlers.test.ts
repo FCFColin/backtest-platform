@@ -70,7 +70,6 @@ vi.mock('../../../packages/backend/src/domain/events/events.js', () => ({
   RUN_COMPLETED_EVENT: 'RunCompleted',
   RUN_STARTED_EVENT: 'RunStarted',
   RUN_FAILED_EVENT: 'RunFailed',
-  RUN_CANCELLED_EVENT: 'RunCancelled',
   RUN_AGGREGATE_TYPE: 'Run',
   DomainEventDispatcher: vi.fn(),
 }));

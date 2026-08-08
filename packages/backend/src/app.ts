@@ -3,6 +3,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import { createServer } from 'node:http';
+import { randomBytes } from 'node:crypto';
 import { config } from './config/index.js';
 import { jwtAuth, auditLog, idempotencyKey } from './middleware/jwtAuth.js';
 import { resolveTenant } from './middleware/tenantContext.js';
@@ -77,17 +78,24 @@ app.use(createEarlyHintsMiddleware());
 
 app.use(
   helmet({
-    contentSecurityPolicy: {
-      directives: {
-        defaultSrc: ["'self'"],
-        scriptSrc: ["'self'"],
-        styleSrc: ["'self'", "'unsafe-inline'"],
-        imgSrc: ["'self'", 'data:'],
-      },
-    },
+    contentSecurityPolicy: false, // CSP 按请求生成 nonce，见下方中间件
     referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
   }),
 );
+app.use((req: Request, res: Response, next: NextFunction) => {
+  const nonce = randomBytes(16).toString('base64');
+  res.locals.nonce = nonce;
+  const isPage =
+    !req.path.startsWith('/api/') &&
+    !req.path.startsWith('/assets/') &&
+    req.path !== '/favicon.svg';
+  const scriptSrc = isPage ? `'self' 'nonce-${nonce}'` : "'self'";
+  res.setHeader(
+    'Content-Security-Policy',
+    `default-src 'self'; script-src ${scriptSrc}; style-src 'self' 'unsafe-inline'; img-src 'self' data:;`,
+  );
+  next();
+});
 app.use((_req: Request, res: Response, next: NextFunction) => {
   res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
   next();
@@ -182,14 +190,7 @@ setupOpenApiUi(app);
 // 静态文件 — 只匹配 /assets/ 等非 HTML 路径（HTML 由 SSR 或 SPA fallback 处理）
 if (config.NODE_ENV === 'production' || config.SERVE_STATIC) {
   app.use((req, res, next) => {
-    if (
-      req.path.startsWith('/assets/') ||
-      req.path === '/favicon.svg' ||
-      req.path === '/manifest.webmanifest' ||
-      req.path === '/registerSW.js' ||
-      req.path === '/sw.js' ||
-      req.path.startsWith('/workbox-')
-    ) {
+    if (req.path.startsWith('/assets/') || req.path === '/favicon.svg') {
       express.static(config.FRONTEND_DIST_DIR, {
         maxAge: config.NODE_ENV === 'production' ? '1y' : 0,
       })(req, res, next);
@@ -202,9 +203,10 @@ if (config.NODE_ENV === 'production' || config.SERVE_STATIC) {
 if (config.NODE_ENV === 'production' || config.SERVE_STATIC) {
   const { ssrMiddleware } = await import('./ssrMiddleware.js');
   app.get(/^\/(?!api\/)(?!assets\/)(?!favicon)/, ssrMiddleware);
-  app.get(/^\/(?!api\/)(?!assets\/)(?!favicon)/, (_req: Request, res: Response) =>
-    res.sendFile(config.FRONTEND_DIST_DIR + '/index.html'),
-  );
+  app.get(/^\/(?!api\/)(?!assets\/)(?!favicon)/, (_req: Request, res: Response) => {
+    res.setHeader('Cache-Control', 'no-cache');
+    res.sendFile(config.FRONTEND_DIST_DIR + '/index.html');
+  });
 }
 
 app.use(errorHandler);

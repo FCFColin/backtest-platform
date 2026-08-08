@@ -214,11 +214,11 @@ function tryDevBypass(req: AuthenticatedRequest, next: NextFunction): boolean {
     config.JWT_SECRET === 'dev-only-jwt-secret-change-in-production'
   ))
     return false;
-  authLog('info', 'jwtAuth', req, '开发旁路认证（readonly）');
+  authLog('info', 'jwtAuth', req, '开发旁路认证（analyst）');
   const now = Math.floor(Date.now() / 1000);
   req.user = {
     sub: 'dev-user',
-    role: 'readonly',
+    role: 'analyst',
     iat: now,
     exp: now + ACCESS_TOKEN_EXPIRES_IN_SEC,
   };

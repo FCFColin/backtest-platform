@@ -4,6 +4,8 @@ import type { Duplex } from 'node:stream';
 import IORedis from 'ioredis';
 import client from 'prom-client';
 import { verifyToken } from '../middleware/jwtAuth.js';
+import { jobAccessGranted } from '../routes/jobSubmission.js';
+import { backtestQueue } from '../queues/backtestQueue.js';
 import { buildRedisBaseOptions } from '../infrastructure/redisClient.js';
 import { logger } from '../utils/logger.js';
 import { getPrometheusRegister } from '../utils/metrics.js';
@@ -158,13 +160,20 @@ export function setupBacktestWebSocket(server: Server): void {
       return;
     }
     verifyToken(token)
-      .then((payload) => {
+      .then(async (payload) => {
         if (!payload) {
           logger.warn({ jobId }, '[ws] JWT 验证失败');
           rejectHandshake(socket, 401, 'Unauthorized');
           return;
         }
         if (socket.destroyed) return;
+        // ADR-019 IDOR 防护：仅任务所有者/同租户可订阅进度（与 /runs/:jobId 同判定）
+        const job = await backtestQueue.getJob(jobId);
+        if (!job || !jobAccessGranted(job, payload, payload.tenant_id)) {
+          logger.warn({ jobId, userId: payload.sub }, '[ws] 越权订阅被拒绝');
+          rejectHandshake(socket, 403, 'Forbidden');
+          return;
+        }
         wss.handleUpgrade(req, socket, head, (ws) => handleConnection(ws, jobId, payload.sub));
       })
       .catch((err) => {

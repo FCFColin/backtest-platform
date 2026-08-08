@@ -224,9 +224,9 @@ export function useTickerMeta(ticker: string): TickerMeta | null {
           silent: true,
         });
         if (!res.ok) return;
-        const data = (await res.json()) as TickerMeta;
-        tickerMetaCache.set(upper, data);
-        setMeta(data);
+        const json = (await res.json()) as { data: TickerMeta };
+        tickerMetaCache.set(upper, json.data);
+        setMeta(json.data);
       } catch {
         setMeta(null);
       }
@@ -403,6 +403,7 @@ export function useChartCalcWorker<T>(task: WorkerTask | null) {
   const [isPending, setIsPending] = useState(false);
   const workerRef = useRef<Worker | null>(null);
   const idRef = useRef(0);
+  const lastIdRef = useRef<number | null>(null);
   const lastKeyRef = useRef('');
   useEffect(() => {
     const w = new Worker(new URL('../workers/chartCalc.worker.ts', import.meta.url), {
@@ -412,6 +413,7 @@ export function useChartCalcWorker<T>(task: WorkerTask | null) {
     let terminated = false;
     w.onmessage = (e: MessageEvent<{ id: number; result: T; error?: string }>) => {
       if (terminated) return;
+      if (e.data.id !== lastIdRef.current) return;
       setIsPending(false);
       if (e.data.error) {
         setError(e.data.error);
@@ -432,7 +434,9 @@ export function useChartCalcWorker<T>(task: WorkerTask | null) {
     if (key === lastKeyRef.current) return;
     lastKeyRef.current = key;
     setIsPending(true);
-    workerRef.current.postMessage({ id: idRef.current++, type: task.type, payload: task.payload });
+    const id = idRef.current++;
+    lastIdRef.current = id;
+    workerRef.current.postMessage({ id, type: task.type, payload: task.payload });
   }, [task]);
   return { data, isPending, error };
 }

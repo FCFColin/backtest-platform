@@ -2,9 +2,9 @@ import { randomUUID } from 'crypto';
 import { DomainValidationError } from '../value-objects/index.js';
 import type { DomainEvent } from '../events/events.js';
 
-export type RunStatus = 'queued' | 'running' | 'completed' | 'failed' | 'cancelled';
+export type RunStatus = 'queued' | 'running' | 'completed' | 'failed';
 
-const TERMINAL_STATES: ReadonlySet<RunStatus> = new Set(['completed', 'failed', 'cancelled']);
+const TERMINAL_STATES: ReadonlySet<RunStatus> = new Set(['completed', 'failed']);
 
 interface RunProps {
   id: string;
@@ -147,23 +147,6 @@ export class Run {
       portfolioId: this.portfolioId,
       ownerUserId: this.ownerUserId,
       failureReason: reason,
-    });
-  }
-
-  cancel(): void {
-    if (TERMINAL_STATES.has(this._status)) {
-      throw new DomainValidationError(
-        `Run cannot cancel from terminal status '${this._status}'`,
-        'status',
-        this._status,
-      );
-    }
-    this._status = 'cancelled';
-    this._completedAt = new Date();
-    this.pushRunEvent('RunCancelled', {
-      name: this.name,
-      portfolioId: this.portfolioId,
-      ownerUserId: this.ownerUserId,
     });
   }
 

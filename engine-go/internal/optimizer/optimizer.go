@@ -4,7 +4,6 @@ import (
 	"context"
 	"engine-go/internal/engineutil"
 	"engine-go/internal/mathutil"
-	"fmt"
 	"math"
 	"math/rand"
 )
@@ -13,7 +12,9 @@ const (
 	riskFreeRate       = engineutil.RiskFreeRate
 	tradingDaysPerYear = engineutil.TradingDaysPerYear
 	defaultIterations  = 10000
+	maxIterations      = 200000
 	defaultFrontierPts = 20
+	maxFrontierPts     = 500
 	regStart           = 1e-8
 	regMaxAttempts     = 20
 	projIterations     = 500
@@ -22,7 +23,7 @@ const (
 
 func prepareInputs(tickers []string, priceData map[string]map[string]float64) ([]float64, [][]float64, error) {
 	if len(tickers) == 0 {
-		return nil, nil, fmt.Errorf("tickers 不能为空")
+		return nil, nil, engineutil.NewInputError("tickers 不能为空")
 	}
 	mu, sigma, err := computeReturnCovariance(tickers, priceData)
 	if err != nil {
@@ -31,9 +32,7 @@ func prepareInputs(tickers []string, priceData map[string]map[string]float64) ([
 	return mu, ensurePD(sigma), nil
 }
 func Optimize(ctx context.Context, req OptimizeRequest) (*OptimizeResponse, error) {
-	if req.NumIterations <= 0 {
-		req.NumIterations = defaultIterations
-	}
+	req.NumIterations = engineutil.BoundedInt(req.NumIterations, defaultIterations, maxIterations)
 	if req.Constraints.MinWeight < 0 {
 		req.Constraints.MinWeight = 0
 	}
@@ -58,15 +57,13 @@ func Optimize(ctx context.Context, req OptimizeRequest) (*OptimizeResponse, erro
 	case "maxReturn":
 		weights = optimizeMaxReturn(mu, req.Constraints)
 	default:
-		return nil, fmt.Errorf("不支持的优化目标: %s", req.Objective)
+		return nil, engineutil.NewInputError("不支持的优化目标: %s", req.Objective)
 	}
 	ret, vol, sharpe := portfolioMetrics(weights, mu, sigma)
 	return &OptimizeResponse{OptimalWeights: makeWeightMap(req.Tickers, weights), ExpectedReturn: ret, ExpectedVolatility: vol, SharpeRatio: sharpe}, nil
 }
 func ComputeEfficientFrontier(ctx context.Context, req FrontierRequest) (*FrontierResponse, error) {
-	if req.NumPoints <= 0 {
-		req.NumPoints = defaultFrontierPts
-	}
+	req.NumPoints = engineutil.BoundedInt(req.NumPoints, defaultFrontierPts, maxFrontierPts)
 	mu, sigma, err := prepareInputs(req.Tickers, req.PriceData)
 	if err != nil {
 		return nil, err
@@ -97,10 +94,10 @@ func computeReturnCovariance(tickers []string, priceData map[string]map[string]f
 	if len(alignedDates) < 2 {
 		for _, t := range tickers {
 			if len(priceData[t]) > 0 {
-				return nil, nil, fmt.Errorf("对齐后交易日不足2天，无法计算收益率")
+				return nil, nil, engineutil.NewInputError("对齐后交易日不足2天，无法计算收益率")
 			}
 		}
-		return nil, nil, fmt.Errorf("价格数据为空")
+		return nil, nil, engineutil.NewInputError("价格数据为空")
 	}
 	m := len(alignedDates)
 	prices := make([][]float64, n)
@@ -157,8 +154,8 @@ func solveFrontierPoint(mu []float64, sigma [][]float64, targetRet float64, c Co
 	if math.Abs(det) < 1e-15 {
 		return randomSearch(mu, sigma, c, "minVolatility", defaultIterations)
 	}
-	lambda1 := (-cc + b*targetRet) / det
-	lambda2 := (b - a*targetRet) / det
+	lambda1 := (cc - b*targetRet) / det
+	lambda2 := (a*targetRet - b) / det
 	weights := make([]float64, n)
 	for i := 0; i < n; i++ {
 		weights[i] = lambda1*sigmaInvOnes[i] + lambda2*sigmaInvMu[i]

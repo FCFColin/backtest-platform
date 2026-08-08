@@ -1,4 +1,4 @@
-// ADR-035: accept 凭高熵令牌完成，跨"受邀者尚不属于组织"边界，不启用 RLS
+// ADR-035: accept 凭高熵令牌跨组织边界读取，随后注入租户上下文（RLS WITH CHECK 需 org_id 匹配）
 import { withTransaction } from '../../db/pool.js';
 import { logger } from '../../utils/logger.js';
 import type { OrgRole } from '../../middleware/jwtAuth.js';
@@ -31,6 +31,7 @@ export async function acceptInvitation(token: string, userId: string): Promise<A
       if (new Date(inv.expires_at).getTime() <= Date.now()) {
         return { ok: false, reason: 'expired' };
       }
+      await client.query("SELECT set_config('app.current_tenant_id', $1, true)", [inv.org_id]);
       await client.query(
         `INSERT INTO memberships (org_id, user_id, role) VALUES ($1, $2, $3)
          ON CONFLICT (org_id, user_id) DO NOTHING`,

@@ -74,7 +74,7 @@ func DailyReturns(prices []float64) []float64 {
 	rets := make([]float64, 0, len(prices)-1)
 	for i := 1; i < len(prices); i++ {
 		if prices[i-1] > 0 {
-			rets = append(rets, (prices[i]-prices[i-1])/prices[i-1])
+			rets = append(rets, dailyReturn(prices[i-1], prices[i], nextPrice(prices, i+1)))
 		}
 	}
 	return rets
@@ -86,10 +86,27 @@ func DailyReturnsWithZeros(prices []float64) []float64 {
 	rets := make([]float64, len(prices)-1)
 	for i := 1; i < len(prices); i++ {
 		if prices[i-1] > 0 {
-			rets[i-1] = (prices[i] - prices[i-1]) / prices[i-1]
+			rets[i-1] = dailyReturn(prices[i-1], prices[i], nextPrice(prices, i+1))
 		}
 	}
 	return rets
+}
+
+// dailyReturn 把 0 视为缺失而非真实清零：后续仍有报价判定为缺口（记 0），否则为清算（记 -100%）。
+func dailyReturn(prev, cur, next float64) float64 {
+	if cur > 0 {
+		return (cur - prev) / prev
+	}
+	if next > 0 {
+		return 0
+	}
+	return -1.0
+}
+func nextPrice(prices []float64, i int) float64 {
+	if i < len(prices) {
+		return prices[i]
+	}
+	return 0
 }
 
 func DownsideDeviation(returns []float64, mar float64) float64 {

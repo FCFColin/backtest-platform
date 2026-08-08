@@ -15,6 +15,9 @@ const (
 	mcHistogramBins = 50
 	mcDefaultSims   = 1000
 	mcDefaultYears  = 20
+	mcMaxSims       = 20000
+	mcMaxYears      = 100
+	mcMaxSimYears   = 100_000
 )
 
 func RunMonteCarlo(ctx context.Context, req MonteCarloRequest) (*MonteCarloResult, error) {
@@ -24,7 +27,7 @@ func RunMonteCarlo(ctx context.Context, req MonteCarloRequest) (*MonteCarloResul
 		return nil, fmt.Errorf("计算组合日收益率失败: %w", err)
 	}
 	if len(dailyReturns) < mcTradingDays {
-		return nil, fmt.Errorf("历史数据不足：需要至少1年(%d天)的日收益率，实际%d天", mcTradingDays, len(dailyReturns))
+		return nil, engineutil.NewInputError("历史数据不足：需要至少1年(%d天)的日收益率，实际%d天", mcTradingDays, len(dailyReturns))
 	}
 	select {
 	case <-ctx.Done():
@@ -49,11 +52,11 @@ func RunMonteCarlo(ctx context.Context, req MonteCarloRequest) (*MonteCarloResul
 }
 
 func applyDefaults(req *MonteCarloRequest) {
-	if req.MCParams.NumSimulations <= 0 {
-		req.MCParams.NumSimulations = mcDefaultSims
-	}
-	if req.MCParams.NumYears <= 0 {
-		req.MCParams.NumYears = mcDefaultYears
+	req.MCParams.NumSimulations = engineutil.BoundedInt(req.MCParams.NumSimulations, mcDefaultSims, mcMaxSims)
+	req.MCParams.NumYears = engineutil.BoundedInt(req.MCParams.NumYears, mcDefaultYears, mcMaxYears)
+	// 内存预算：sims×years 决定保留路径总量，超限则压低 sims（单请求不因 OOM 打垮引擎）
+	if req.MCParams.NumSimulations*req.MCParams.NumYears > mcMaxSimYears {
+		req.MCParams.NumSimulations = max(mcDefaultSims, mcMaxSimYears/req.MCParams.NumYears)
 	}
 	if req.MCParams.MinBlockYears <= 0 {
 		req.MCParams.MinBlockYears = 1
@@ -72,7 +75,7 @@ func applyDefaults(req *MonteCarloRequest) {
 
 func computePortfolioDailyReturns(portfolio MCPortfolioInput, priceData PriceDataMap, params MCBacktestParams) ([]float64, error) {
 	if len(portfolio.Assets) == 0 {
-		return nil, fmt.Errorf("组合无资产")
+		return nil, engineutil.NewInputError("组合无资产")
 	}
 	tradingDates, err := engineutil.ParseTradingDates(priceData)
 	if err != nil {
@@ -80,7 +83,7 @@ func computePortfolioDailyReturns(portfolio MCPortfolioInput, priceData PriceDat
 	}
 	tradingDates = engineutil.FilterByDateRange(tradingDates, params.StartDate, params.EndDate)
 	if len(tradingDates) == 0 {
-		return nil, fmt.Errorf("日期范围内无交易数据")
+		return nil, engineutil.NewInputError("日期范围内无交易数据")
 	}
 	tickers := make([]string, len(portfolio.Assets))
 	weights := make([]float64, len(portfolio.Assets))

@@ -107,21 +107,22 @@ function TabBar() {
   };
   return (
     <div className="flex items-center justify-between gap-2 border-b border-border-subtle pb-2 mb-3">
-      <div className="flex flex-wrap items-center gap-1">
+      <div className="flex items-center gap-1 overflow-x-auto">
         {ALL_TABS.map((tab) => (
           <Button
             key={tab.key}
             variant={activeTab === tab.key ? 'secondary' : 'ghost'}
             size="sm"
+            className="shrink-0"
             onClick={() => setActiveTab(tab.key)}
           >
             {t(tab.labelKey)}
           </Button>
         ))}
       </div>
-      <Button variant="ghost" size="sm" onClick={handleExport}>
+      <Button variant="ghost" size="sm" className="shrink-0" onClick={handleExport}>
         <Download />
-        Export CSV
+        {t('Export CSV')}
       </Button>
     </div>
   );
@@ -136,6 +137,7 @@ function LoadingFallback() {
 type TabCtx = {
   pf: PortfolioResult[];
   pfs: Portfolio[];
+  baseCurrency: string | undefined;
   r: {
     assetTickers?: string[];
     assetCorrelations?: number[][];
@@ -145,7 +147,7 @@ type TabCtx = {
   };
 };
 const TAB_RENDERERS: Record<string, (c: TabCtx) => ReactNode> = {
-  summary: ({ pf }) => {
+  summary: ({ pf, baseCurrency }) => {
     const firstPf = pf[0];
     const annualReturns = firstPf?.annualReturns ?? [];
     const positiveYears = annualReturns.filter((r) => r.return > 0).length;
@@ -163,6 +165,7 @@ const TAB_RENDERERS: Record<string, (c: TabCtx) => ReactNode> = {
               name: p.name,
               growthCurve: p.growthCurve ?? [],
             }))}
+            baseCurrency={baseCurrency}
           />
           <DrawdownChart portfolios={mapDrawdown(pf)} />
           <StatisticsTable
@@ -254,6 +257,7 @@ export function ResultsContent() {
   const isLoading = useBacktestStore((s) => s.isLoading);
   const activeTab = useBacktestStore((s) => s.activeTab);
   const portfolios = useBacktestStore((s) => s.portfolios);
+  const baseCurrency = useBacktestStore((s) => s.parameters.baseCurrency);
   const enrichSeries = useBacktestStore((s) => s.enrichSeries);
   useEffect(() => {
     if (!results) return;
@@ -287,7 +291,14 @@ export function ResultsContent() {
         <TabBar />
         <Suspense fallback={<LoadingFallback />}>
           {renderer && (
-            <>{renderer({ pf: results.portfolios, pfs: portfolios, r: results as TabCtx['r'] })}</>
+            <>
+              {renderer({
+                pf: results.portfolios,
+                pfs: portfolios,
+                baseCurrency,
+                r: results as TabCtx['r'],
+              })}
+            </>
           )}
         </Suspense>
       </Card>
