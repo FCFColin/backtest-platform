@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useTranslation, type UseTranslationOptions } from 'react-i18next';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import i18n from '@/i18n/index.js';
 import { apiFetch, apiPostJSON } from '@/utils/apiClient';
@@ -75,10 +75,6 @@ export function useAssetList<T extends { ticker: string; weight: number | string
     updateAsset,
     totalWeight: items.reduce((sum, a) => sum + (Number(a.weight) || 0), 0),
   };
-}
-
-export function useNsT(ns: string, options?: UseTranslationOptions<string>) {
-  return useTranslation(ns, options);
 }
 
 export function useReducedMotion(): boolean {

@@ -20,7 +20,6 @@ vi.mock('../../../packages/frontend/src/utils/apiClient', () => ({
 import {
   useListState,
   usePolling,
-  useNsT,
   useTickerMeta,
   useAnnouncements,
 } from '../../../packages/frontend/src/hooks/miscHooks';
@@ -91,13 +90,6 @@ describe('usePolling', () => {
     unmount();
     act(() => vi.advanceTimersByTime(5000));
     expect(fn).toHaveBeenCalledTimes(1);
-  });
-});
-
-describe('useNsT', () => {
-  it('应返回翻译函数', () => {
-    const { result } = renderHook(() => useNsT('common'));
-    expect(typeof result.current.t).toBe('function');
   });
 });
 
