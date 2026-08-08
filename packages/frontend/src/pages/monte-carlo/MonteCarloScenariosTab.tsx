@@ -158,7 +158,7 @@ export function MonteCarloScenariosTab({
 }) {
   const { t } = useTranslation();
   const { data } = buildScenarioData(r, startingValue);
-  const animate = useChartAnimation(data.length >= 100);
+  const anim = useChartAnimation(data.length >= 100);
   if (data.length === 0) return <NoDataCard />;
   return (
     <Card className="p-5">
@@ -176,11 +176,10 @@ export function MonteCarloScenariosTab({
             formatter={fmtDollar}
             labelFormatter={(l: number) => yearLabelFormatter(t, l)}
             contentStyle={CHART_TOOLTIP_STYLE}
-            isAnimationActive={animate}
-            animationDuration={animate ? 150 : 0}
+            {...anim}
           />
           <Legend wrapperStyle={{ fontSize: 12, color: 'hsl(var(--fg-tertiary))' }} />
-          <ScenarioLines isAnimationActive={animate} />
+          <ScenarioLines isAnimationActive={anim.isAnimationActive} />
         </LineChart>
       </ResponsiveContainer>
     </Card>

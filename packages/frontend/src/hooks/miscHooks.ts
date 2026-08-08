@@ -92,9 +92,10 @@ export function useReducedMotion(): boolean {
   return reduced;
 }
 
-export function useChartAnimation(isLargeDataset: boolean): boolean {
+export function useChartAnimation(isLargeDataset: boolean) {
   const reducedMotion = useReducedMotion();
-  return !isLargeDataset && !reducedMotion;
+  const animated = !isLargeDataset && !reducedMotion;
+  return { isAnimationActive: animated, animationDuration: animated ? 150 : 0 };
 }
 
 export function useTheme() {

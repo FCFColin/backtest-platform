@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { fmtPct, formatDuration } from '@/utils/format.js';
+import { getColorClass } from '@/components/charts/chartUtils.js';
 import { cn } from '@/lib/utils.js';
 import type { DrawdownEpisode } from '@backtest/shared/types/backtest.js';
 interface DrawdownEpisodesProps {
@@ -228,14 +229,7 @@ function DetailField({
   value: string;
   colorValue?: number;
 }) {
-  const cls =
-    colorValue === undefined
-      ? undefined
-      : colorValue > 0
-        ? 'text-pos'
-        : colorValue < 0
-          ? 'text-neg'
-          : 'text-fg';
+  const cls = colorValue === undefined ? undefined : getColorClass(colorValue);
   return (
     <div>
       <div className="text-label-tiny text-fg-tertiary">{label}</div>

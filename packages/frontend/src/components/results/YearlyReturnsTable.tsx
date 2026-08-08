@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Card } from '@/components/ui/uiComponents.js';
 import { formatPercentSigned } from '@/utils/format.js';
 import { getPortfolioColor } from '@/lib/chart-theme.js';
+import { getColorClass } from '@/components/charts/chartUtils.js';
 import { cn } from '@/lib/utils.js';
 import type { PortfolioResult, TimeSeriesPoint } from '@backtest/shared';
 interface YearlyReturnsTableProps {
@@ -34,10 +35,7 @@ function computeBenchmarkAnnualReturns(benchmarkGrowth: TimeSeriesPoint[]): Map<
   return result;
 }
 function valueColorClass(value: number | undefined): string {
-  if (value === undefined) return 'text-fg-tertiary';
-  if (value > 0) return 'text-pos';
-  if (value < 0) return 'text-neg';
-  return 'text-fg';
+  return value === undefined ? 'text-fg-tertiary' : getColorClass(value);
 }
 function buildYearlyRows(
   portfolios: PortfolioResult[],

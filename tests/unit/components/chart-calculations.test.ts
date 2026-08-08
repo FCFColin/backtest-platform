@@ -108,7 +108,7 @@ describe('correlationDataTransforms', () => {
 
   it('getCorrelationTextColor 应按 0.6 阈值切换前景色令牌', () => {
     expect(getCorrelationTextColor(0.7)).toBe('hsl(var(--corr-text-strong))');
-    expect(getCorrelationTextColor(0.5)).toBe('hsl(var(--corr-text-weak))');
+    expect(getCorrelationTextColor(0.5)).toBe('hsl(var(--fg))');
     expect(getCorrelationTextColor(-0.7)).toBe('hsl(var(--corr-text-strong))');
   });
 });

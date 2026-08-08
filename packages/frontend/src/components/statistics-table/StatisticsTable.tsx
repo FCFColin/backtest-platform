@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/uiComponents.js';
 import { CHART_COLORS, type PortfolioResult, type Statistics } from '@backtest/shared';
 import { formatCurrency, fmtPct, formatDuration, fmtNum } from '@/utils/format.js';
+import { getColorClass } from '@/components/charts/chartUtils.js';
 import { STAT_KEY_TO_TESTID } from './types.js';
 import { SortableTable, SimpleTable, type SimpleTableColumn } from '@/components/tables.js';
 interface StatColumn {
@@ -74,8 +75,6 @@ const FORMAT_FN: Record<string, (v: number) => string> = {
   duration: formatDuration,
   number: fmtNum,
 };
-const getColorClass = (value: number): string =>
-  value > 0 ? 'text-pos' : value < 0 ? 'text-neg' : 'text-fg';
 function renderStatValue(col: StatColumn, p: PortfolioStatsRow): React.ReactNode {
   const raw = p.stats[col.key];
   if (raw == null) return '—';

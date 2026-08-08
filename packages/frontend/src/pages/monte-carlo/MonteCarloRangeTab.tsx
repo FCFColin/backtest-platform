@@ -85,7 +85,7 @@ function MonteCarloTerminalHistogram({
 export function MonteCarloSuccessTab({ r }: { r: MonteCarloResult }) {
   const { t } = useTranslation();
   const data = buildSuccessData(r);
-  const seriesAnimationActive = useChartAnimation(data.length >= 100);
+  const anim = useChartAnimation(data.length >= 100);
   if (data.length === 0) return <NoDataCard />;
   const successLines = [
     { key: 'survival', color: CHART_COLORS[2], nameKey: 'monteCarlo.results.survivalProb' },
@@ -116,8 +116,7 @@ export function MonteCarloSuccessTab({ r }: { r: MonteCarloResult }) {
           <Tooltip
             formatter={(v: number) => `${v}%`}
             contentStyle={CHART_TOOLTIP_STYLE}
-            isAnimationActive={seriesAnimationActive}
-            animationDuration={seriesAnimationActive ? 150 : 0}
+            {...anim}
           />
           <Legend wrapperStyle={{ fontSize: 12, color: 'hsl(var(--fg-tertiary))' }} />
           {successLines.map((l) => (
@@ -129,7 +128,7 @@ export function MonteCarloSuccessTab({ r }: { r: MonteCarloResult }) {
               strokeWidth={2}
               dot={false}
               name={t(l.nameKey)}
-              isAnimationActive={seriesAnimationActive}
+              isAnimationActive={anim.isAnimationActive}
             />
           ))}
         </LineChart>

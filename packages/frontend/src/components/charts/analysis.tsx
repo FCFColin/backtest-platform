@@ -215,7 +215,7 @@ function HeatmapTable({ data }: { data: Array<{ year: number; months: (number | 
                       color:
                         val !== null && Math.abs(val) > 2
                           ? 'hsl(var(--corr-text-strong))'
-                          : 'hsl(var(--corr-text-weak))',
+                          : 'hsl(var(--fg))',
                     }}
                   >
                     {val !== null ? val.toFixed(1) : '-'}

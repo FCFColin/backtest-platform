@@ -223,8 +223,7 @@ export function ChartTooltip({
       formatter={wrapTooltipFormatter(formatter)}
       labelFormatter={labelFormatter}
       cursor={cursorProp}
-      isAnimationActive={animated}
-      animationDuration={animated ? 150 : 0}
+      {...animated}
       wrapperStyle={{ zIndex: 1000, outline: 'none', pointerEvents: 'none' }}
       allowEscapeViewBox={allowEscapeViewBox}
       offset={offset}

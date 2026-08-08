@@ -86,8 +86,7 @@ function LETFKpiCards({ results }: { results: LETFResult }) {
 }
 function SlippageCurveChart({ data }: { data: SlippageCurveDataPoint[] }) {
   const { t } = useTranslation();
-  const isLargeDataset = data.length >= 100;
-  const seriesAnimationActive = useChartAnimation(isLargeDataset);
+  const anim = useChartAnimation(data.length >= 100);
   return (
     <ChartCard title={t('Slippage Curve')}>
       <ResponsiveContainer width="100%" height={350}>
@@ -99,8 +98,7 @@ function SlippageCurveChart({ data }: { data: SlippageCurveDataPoint[] }) {
             contentStyle={CHART_TOOLTIP_STYLE}
             labelFormatter={(label: string) => t('Date: {{date}}', { date: label })}
             formatter={(value: number) => [`${value.toFixed(2)}%`, '']}
-            isAnimationActive={seriesAnimationActive}
-            animationDuration={seriesAnimationActive ? 150 : 0}
+            {...anim}
           />
           <Legend wrapperStyle={LEGEND_WRAPPER_STYLE} />
           <ReferenceLine y={0} stroke="var(--fg-tertiary)" strokeDasharray="4 4" />
@@ -112,7 +110,7 @@ function SlippageCurveChart({ data }: { data: SlippageCurveDataPoint[] }) {
             strokeWidth={2}
             dot={false}
             activeDot={{ r: 4 }}
-            isAnimationActive={seriesAnimationActive}
+            isAnimationActive={anim.isAnimationActive}
           />
           <Line
             type="monotone"
@@ -123,7 +121,7 @@ function SlippageCurveChart({ data }: { data: SlippageCurveDataPoint[] }) {
             dot={false}
             activeDot={{ r: 3 }}
             strokeOpacity={0.6}
-            isAnimationActive={seriesAnimationActive}
+            isAnimationActive={anim.isAnimationActive}
           />
         </LineChart>
       </ResponsiveContainer>
@@ -138,8 +136,7 @@ function LeverageComparisonChart({
   leverage: number;
 }) {
   const { t } = useTranslation();
-  const isLargeDataset = data.length >= 100;
-  const seriesAnimationActive = useChartAnimation(isLargeDataset);
+  const anim = useChartAnimation(data.length >= 100);
   return (
     <ChartCard title={t('Effective vs Nominal Leverage')}>
       <ResponsiveContainer width="100%" height={300}>
@@ -151,8 +148,7 @@ function LeverageComparisonChart({
             contentStyle={CHART_TOOLTIP_STYLE}
             labelFormatter={(label: string) => t('Date: {{date}}', { date: label })}
             formatter={(value: number) => [`${value.toFixed(2)}x`, '']}
-            isAnimationActive={seriesAnimationActive}
-            animationDuration={seriesAnimationActive ? 150 : 0}
+            {...anim}
           />
           <Legend wrapperStyle={LEGEND_WRAPPER_STYLE} />
           <Line
@@ -163,7 +159,7 @@ function LeverageComparisonChart({
             strokeWidth={1.5}
             strokeDasharray="6 3"
             dot={false}
-            isAnimationActive={seriesAnimationActive}
+            isAnimationActive={anim.isAnimationActive}
           />
           <Line
             type="monotone"
@@ -174,7 +170,7 @@ function LeverageComparisonChart({
             dot={false}
             activeDot={{ r: 3 }}
             connectNulls
-            isAnimationActive={seriesAnimationActive}
+            isAnimationActive={anim.isAnimationActive}
           />
         </LineChart>
       </ResponsiveContainer>
