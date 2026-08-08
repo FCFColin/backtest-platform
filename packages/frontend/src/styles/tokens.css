@@ -47,6 +47,17 @@
   --chart-grid: 214 20% 88%;
   --chart-tooltip-bg: 0 0% 100%;
 
+  --corr-pos-1: 142 71% 33%;
+  --corr-pos-2: 142 55% 40%;
+  --corr-pos-3: 142 45% 56%;
+  --corr-pos-4: 142 40% 84%;
+  --corr-neg-1: 0 62% 33%;
+  --corr-neg-2: 0 58% 47%;
+  --corr-neg-3: 0 55% 62%;
+  --corr-neg-4: 0 50% 86%;
+  --corr-text-strong: 0 0% 100%;
+  --corr-text-weak: 222 47% 11%;
+
   --shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.08), 0 2px 4px -2px rgba(15, 23, 42, 0.06);
   --shadow-card: 0 1px 3px rgba(15, 23, 42, 0.08), 0 1px 2px rgba(15, 23, 42, 0.04);
   --radius-card: 12px;
@@ -100,6 +111,17 @@
   --chart-8: 43 96% 56%;
   --chart-grid: 222 15% 14%;
   --chart-tooltip-bg: 222 20% 8%;
+
+  --corr-pos-1: 142 65% 42%;
+  --corr-pos-2: 142 55% 34%;
+  --corr-pos-3: 142 45% 22%;
+  --corr-pos-4: 142 35% 14%;
+  --corr-neg-1: 0 65% 55%;
+  --corr-neg-2: 0 60% 45%;
+  --corr-neg-3: 0 55% 30%;
+  --corr-neg-4: 0 40% 18%;
+  --corr-text-strong: 0 0% 8%;
+  --corr-text-weak: 220 10% 92%;
 
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.25);
   --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.25), 0 1px 3px rgba(0, 0, 0, 0.15);

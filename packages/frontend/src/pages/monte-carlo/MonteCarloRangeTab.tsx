@@ -13,6 +13,7 @@ import { Card } from '@/components/ui/uiComponents';
 import { CHART_COLORS, type MonteCarloResult } from '@backtest/shared';
 import { CHART_GRID_PROPS, CHART_TOOLTIP_STYLE } from '@/lib/chart-theme.js';
 import { fmtDollar } from '@/utils/format';
+import { useChartAnimation } from '@/hooks/miscHooks';
 import { HistogramChart, NoDataCard } from './HistogramChart.js';
 import {
   buildFanChartData,
@@ -84,9 +85,8 @@ function MonteCarloTerminalHistogram({
 export function MonteCarloSuccessTab({ r }: { r: MonteCarloResult }) {
   const { t } = useTranslation();
   const data = buildSuccessData(r);
+  const seriesAnimationActive = useChartAnimation(data.length >= 100);
   if (data.length === 0) return <NoDataCard />;
-  const isLargeDataset = data.length >= 100;
-  const seriesAnimationActive = !isLargeDataset;
   const successLines = [
     { key: 'survival', color: CHART_COLORS[2], nameKey: 'monteCarlo.results.survivalProb' },
     {
@@ -116,8 +116,8 @@ export function MonteCarloSuccessTab({ r }: { r: MonteCarloResult }) {
           <Tooltip
             formatter={(v: number) => `${v}%`}
             contentStyle={CHART_TOOLTIP_STYLE}
-            isAnimationActive={!isLargeDataset}
-            animationDuration={isLargeDataset ? 0 : 150}
+            isAnimationActive={seriesAnimationActive}
+            animationDuration={seriesAnimationActive ? 150 : 0}
           />
           <Legend wrapperStyle={{ fontSize: 12, color: 'hsl(var(--fg-tertiary))' }} />
           {successLines.map((l) => (

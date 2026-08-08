@@ -14,6 +14,7 @@ import { CHART_COLORS, type MonteCarloResult } from '@backtest/shared';
 import { AXIS_TICK_STYLE, CHART_GRID_PROPS, CHART_TOOLTIP_STYLE } from '@/lib/chart-theme.js';
 import { cn } from '@/lib/utils';
 import { fmtDollar } from '@/utils/format';
+import { useChartAnimation } from '@/hooks/miscHooks';
 import { HistogramChart, NoDataCard } from './HistogramChart.js';
 import {
   METRIC_FORMAT,
@@ -157,8 +158,8 @@ export function MonteCarloScenariosTab({
 }) {
   const { t } = useTranslation();
   const { data } = buildScenarioData(r, startingValue);
+  const animate = useChartAnimation(data.length >= 100);
   if (data.length === 0) return <NoDataCard />;
-  const isLargeDataset = data.length >= 100;
   return (
     <Card className="p-5">
       <ResponsiveContainer width="100%" height={450}>
@@ -175,11 +176,11 @@ export function MonteCarloScenariosTab({
             formatter={fmtDollar}
             labelFormatter={(l: number) => yearLabelFormatter(t, l)}
             contentStyle={CHART_TOOLTIP_STYLE}
-            isAnimationActive={!isLargeDataset}
-            animationDuration={isLargeDataset ? 0 : 150}
+            isAnimationActive={animate}
+            animationDuration={animate ? 150 : 0}
           />
           <Legend wrapperStyle={{ fontSize: 12, color: 'hsl(var(--fg-tertiary))' }} />
-          <ScenarioLines isAnimationActive={!isLargeDataset} />
+          <ScenarioLines isAnimationActive={animate} />
         </LineChart>
       </ResponsiveContainer>
     </Card>

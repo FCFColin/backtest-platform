@@ -28,7 +28,7 @@ export const CHART_LINE_STYLE = {
   activeDot: { r: 4, strokeWidth: 2 },
   isAnimationActive: false,
 } as const;
-export const LEGEND_WRAPPER_STYLE = { fontSize: '12px', color: 'var(--fg-tertiary)' } as const;
+export const LEGEND_WRAPPER_STYLE = { fontSize: '12px', color: 'hsl(var(--fg-tertiary))' } as const;
 export const PORTFOLIO_COLORS = [
   'hsl(var(--chart-1))',
   'hsl(var(--chart-2))',
@@ -65,15 +65,15 @@ export function currencyFormatter(
   }).format(value);
 }
 const CORR_COLORS = {
-  strongPositive: '#1a7a3a',
-  moderatePositive: '#2e8b57',
-  weakPositive: '#6abf7e',
-  faintPositive: '#b8e0c4',
-  neutral: 'var(--surface)',
-  faintNegative: '#f0c8c8',
-  weakNegative: '#d47070',
-  moderateNegative: '#b04040',
-  strongNegative: '#8b2020',
+  strongPositive: 'hsl(var(--corr-pos-1))',
+  moderatePositive: 'hsl(var(--corr-pos-2))',
+  weakPositive: 'hsl(var(--corr-pos-3))',
+  faintPositive: 'hsl(var(--corr-pos-4))',
+  neutral: 'hsl(var(--surface))',
+  faintNegative: 'hsl(var(--corr-neg-4))',
+  weakNegative: 'hsl(var(--corr-neg-3))',
+  moderateNegative: 'hsl(var(--corr-neg-2))',
+  strongNegative: 'hsl(var(--corr-neg-1))',
 } as const;
 const POS_CORR_THRESHOLDS = [0.8, 0.6, 0.4, 0.2] as const;
 const POS_CORR_COLORS = [
@@ -131,25 +131,15 @@ export function wrapTooltipFormatter(
     }
   };
 }
-const HEAT_COLORS = {
-  strongPositive: '#1a7a3a',
-  moderatePositive: '#2e8b57',
-  weakPositive: '#8bc9a3',
-  faintNegative: '#f5d5d5',
-  weakNegative: '#e8a0a0',
-  moderateNegative: '#d47070',
-  strongNegative: '#c94a4a',
-  neutral: 'var(--bg-subtle)',
-} as const;
 export function getHeatColor(val: number | null): string {
-  if (val === null) return HEAT_COLORS.neutral;
-  if (val > 5) return HEAT_COLORS.strongPositive;
-  if (val > 2) return HEAT_COLORS.moderatePositive;
-  if (val > 0) return HEAT_COLORS.weakPositive;
-  if (val > -1) return HEAT_COLORS.faintNegative;
-  if (val > -2) return HEAT_COLORS.weakNegative;
-  if (val > -5) return HEAT_COLORS.moderateNegative;
-  return HEAT_COLORS.strongNegative;
+  if (val === null) return CORR_COLORS.neutral;
+  if (val > 5) return CORR_COLORS.strongPositive;
+  if (val > 2) return CORR_COLORS.moderatePositive;
+  if (val > 0) return CORR_COLORS.weakPositive;
+  if (val > -1) return CORR_COLORS.faintNegative;
+  if (val > -2) return CORR_COLORS.weakNegative;
+  if (val > -5) return CORR_COLORS.moderateNegative;
+  return CORR_COLORS.strongNegative;
 }
 export interface ThresholdBand<T = string> {
   threshold: number;

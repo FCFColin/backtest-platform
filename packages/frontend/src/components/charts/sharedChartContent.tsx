@@ -31,6 +31,7 @@ import {
 } from '@/lib/chart-theme.js';
 import type { TooltipValueFormatter } from '@/lib/chart-theme.js';
 import { SvgBarChart, SvgScatterChart } from './svg/svgCharts.js';
+import { useChartAnimation } from '@/hooks/miscHooks.js';
 
 type SeriesNames = string[];
 type ChartDataPoint = Record<string, number | string>;
@@ -211,6 +212,7 @@ export function ChartTooltip({
   offset = 20,
   isLargeDataset = false,
 }: ChartTooltipProps) {
+  const animated = useChartAnimation(isLargeDataset);
   const cursorProp =
     cursor === undefined
       ? { stroke: 'var(--border-soft)', strokeWidth: 1, strokeDasharray: '4 4' }
@@ -221,8 +223,8 @@ export function ChartTooltip({
       formatter={wrapTooltipFormatter(formatter)}
       labelFormatter={labelFormatter}
       cursor={cursorProp}
-      isAnimationActive={!isLargeDataset}
-      animationDuration={isLargeDataset ? 0 : 150}
+      isAnimationActive={animated}
+      animationDuration={animated ? 150 : 0}
       wrapperStyle={{ zIndex: 1000, outline: 'none', pointerEvents: 'none' }}
       allowEscapeViewBox={allowEscapeViewBox}
       offset={offset}

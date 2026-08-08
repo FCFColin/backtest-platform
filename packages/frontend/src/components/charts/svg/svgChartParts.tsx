@@ -1,5 +1,12 @@
 /* eslint-disable react-refresh/only-export-components -- SVG 图表共享工具库 */
-import { useCallback, useState, type CSSProperties, type ReactNode } from 'react';
+import {
+  useCallback,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from 'react';
 import { CHART_COLORS } from '@backtest/shared';
 import { AXIS_TICK_STYLE } from '@/lib/chart-theme';
 
@@ -126,9 +133,17 @@ interface SvgTooltipProps {
 const TOOLTIP_CLS =
   'fixed pointer-events-none z-[1000] rounded-lg p-3 text-xs leading-relaxed whitespace-nowrap backdrop-blur-md bg-chart-tooltip-bg/95 border border-border-strong text-fg shadow-[0_10px_25px_-5px_rgba(0,0,0,0.5),0_4px_6px_-2px_rgba(0,0,0,0.3)]';
 function SvgTooltip({ active, position, data, label, offset = 20 }: SvgTooltipProps) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el || !active || data.length === 0) return;
+    el.style.left = `${Math.min(position.x + offset, window.innerWidth - el.offsetWidth - 8)}px`;
+    el.style.top = `${Math.min(Math.max(position.y - 10, 8), window.innerHeight - el.offsetHeight - 8)}px`;
+  }, [active, position.x, position.y, data, offset]);
   if (!active || data.length === 0) return null;
   return (
     <div
+      ref={ref}
       className={TOOLTIP_CLS}
       style={{ left: `${position.x + offset}px`, top: `${position.y - 10}px` }}
     >

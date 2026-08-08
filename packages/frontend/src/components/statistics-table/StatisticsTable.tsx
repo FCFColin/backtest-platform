@@ -48,8 +48,8 @@ const DEFAULT_COLUMNS: StatColumn[] = [
     format: 'percent',
     colorize: true,
   },
-  { key: 'cagr', label: 'CAGR', format: 'percent', colorize: true },
-  { key: 'mwrr', label: 'MWRR', format: 'percent', colorize: true },
+  { key: 'cagr', label: 'stats.cagr', format: 'percent', colorize: true },
+  { key: 'mwrr', label: 'stats.mwrr', format: 'percent', colorize: true },
   { key: 'maxDrawdown', label: 'Max Drawdown', format: 'percent', colorize: true },
   { key: 'avgDrawdown', label: 'Avg Drawdown', format: 'percent', colorize: true },
   { key: 'longestDrawdown', label: 'statsTable.longestDrawdown', format: 'duration' },
@@ -57,7 +57,7 @@ const DEFAULT_COLUMNS: StatColumn[] = [
   { key: 'sharpe', label: 'backtest.sharpeRatio', format: 'number' },
   { key: 'sortino', label: 'lumpSumDca.stats.sortino', format: 'number' },
   { key: 'calmar', label: 'lumpSumDca.stats.calmar', format: 'number' },
-  { key: 'ulcerIndex', label: 'Ulcer', format: 'number' },
+  { key: 'ulcerIndex', label: 'statsTable.ulcerIndex', format: 'number' },
   { key: 'upi', label: 'UPI', format: 'number' },
   { key: 'diversificationRatio', label: 'statsTable.diversificationRatio', format: 'number' },
   { key: 'beta', label: 'Beta', format: 'number' },
@@ -76,6 +76,13 @@ const FORMAT_FN: Record<string, (v: number) => string> = {
 };
 const getColorClass = (value: number): string =>
   value > 0 ? 'text-pos' : value < 0 ? 'text-neg' : 'text-fg';
+function renderStatValue(col: StatColumn, p: PortfolioStatsRow): React.ReactNode {
+  const raw = p.stats[col.key];
+  if (raw == null) return '—';
+  const value = Number(raw);
+  const text = FORMAT_FN[col.format]?.(value) ?? String(raw);
+  return col.colorize ? <span className={getColorClass(value)}>{text}</span> : text;
+}
 export function StatisticsTable({
   portfolios,
   colors,
@@ -103,14 +110,8 @@ export function StatisticsTable({
           />
           <span className="truncate">{p.name}</span>
         </div>
-      ) : p.stats[col.key] == null ? (
-        '—'
       ) : (
-        (() => {
-          const value = Number(p.stats[col.key]);
-          const text = FORMAT_FN[col.format]?.(value) ?? String(p.stats[col.key]);
-          return col.colorize ? <span className={getColorClass(value)}>{text}</span> : text;
-        })()
+        renderStatValue(col, p)
       ),
   }));
   return (
@@ -130,7 +131,9 @@ export function StatisticsTable({
             onClick={() => setExpanded(!expanded)}
             className="text-caption"
           >
-            {expanded ? t('Collapse extended metrics') : t('Expand extended metrics (+30)')}
+            {expanded
+              ? t('Collapse extended metrics')
+              : t('Expand extended metrics ({{count}})', { count: EXTENDED_COLUMNS.length })}
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -155,9 +158,11 @@ export function StatisticsTable({
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
-          <Button variant="ghost" size="sm" onClick={onExport}>
-            <Download className="h-4 w-4" />
-          </Button>
+          {onExport && (
+            <Button variant="ghost" size="sm" onClick={onExport} aria-label={t('Export')}>
+              <Download className="h-4 w-4" />
+            </Button>
+          )}
         </div>
       </div>
       <div className="border border-border rounded-lg overflow-hidden">
@@ -168,29 +173,39 @@ export function StatisticsTable({
   );
 }
 const EXTENDED_COLUMNS: StatColumn[] = [
-  { key: 'var95', label: 'VaR 95%', format: 'percent' },
-  { key: 'var99', label: 'VaR 99%', format: 'percent' },
-  { key: 'cvar95', label: 'CVaR 95%', format: 'percent' },
-  { key: 'cvar99', label: 'CVaR 99%', format: 'percent' },
-  { key: 'sortinoBear', label: 'Sortino Bear', format: 'number' },
-  { key: 'sortinoBull', label: 'Sortino Bull', format: 'number' },
-  { key: 'sharpeBear', label: 'Sharpe Bear', format: 'number' },
-  { key: 'sharpeBull', label: 'Sharpe Bull', format: 'number' },
-  { key: 'skewness', label: 'Skewness', format: 'number' },
-  { key: 'kurtosis', label: 'Kurtosis', format: 'number' },
-  { key: 'kelly', label: 'Kelly', format: 'percent' },
-  { key: 'alpha', label: 'Alpha', format: 'percent' },
-  { key: 'r2', label: 'R²', format: 'number' },
-  { key: 'trackingError', label: 'Tracking Error', format: 'percent' },
-  { key: 'infoRatio', label: 'Info Ratio', format: 'number' },
-  { key: 'bestYear', label: 'Best Year', format: 'percent' },
-  { key: 'worstYear', label: 'Worst Year', format: 'percent' },
-  { key: 'bestMonth', label: 'Best Month', format: 'percent' },
-  { key: 'worstMonth', label: 'Worst Month', format: 'percent' },
-  { key: 'upCapture', label: 'Up Capture', format: 'percent' },
-  { key: 'downCapture', label: 'Down Capture', format: 'percent' },
-  { key: 'positiveMonthsPct', label: 'Positive Months %', format: 'percent' },
-  { key: 'negativeMonthsPct', label: 'Negative Months %', format: 'percent' },
+  { key: 'var95', label: 'statsTable.vaR95', format: 'percent', colorize: true },
+  { key: 'var99', label: 'statsTable.vaR99', format: 'percent', colorize: true },
+  { key: 'cvar95', label: 'statsTable.cvaR95', format: 'percent', colorize: true },
+  { key: 'cvar99', label: 'statsTable.cvaR99', format: 'percent', colorize: true },
+  { key: 'sortinoBear', label: 'statsTable.sortinoBear', format: 'number' },
+  { key: 'sortinoBull', label: 'statsTable.sortinoBull', format: 'number' },
+  { key: 'sharpeBear', label: 'statsTable.sharpeBear', format: 'number' },
+  { key: 'sharpeBull', label: 'statsTable.sharpeBull', format: 'number' },
+  { key: 'skewness', label: 'statsTable.skewness', format: 'number' },
+  { key: 'kurtosis', label: 'statsTable.kurtosis', format: 'number' },
+  { key: 'kelly', label: 'statsTable.kelly', format: 'percent', colorize: true },
+  { key: 'alpha', label: 'stats.alpha', format: 'percent', colorize: true },
+  { key: 'r2', label: 'stats.rSquared', format: 'number' },
+  { key: 'trackingError', label: 'stats.trackingError', format: 'percent', colorize: true },
+  { key: 'infoRatio', label: 'stats.informationRatio', format: 'number' },
+  { key: 'bestYear', label: 'summarySidebar.bestYear', format: 'percent', colorize: true },
+  { key: 'worstYear', label: 'summarySidebar.worstYear', format: 'percent', colorize: true },
+  { key: 'bestMonth', label: 'statsTable.bestMonth', format: 'percent', colorize: true },
+  { key: 'worstMonth', label: 'statsTable.worstMonth', format: 'percent', colorize: true },
+  { key: 'upCapture', label: 'stats.upsideCapture', format: 'percent', colorize: true },
+  { key: 'downCapture', label: 'stats.downsideCapture', format: 'percent', colorize: true },
+  {
+    key: 'positiveMonthsPct',
+    label: 'statsTable.positiveMonths',
+    format: 'percent',
+    colorize: true,
+  },
+  {
+    key: 'negativeMonthsPct',
+    label: 'statsTable.negativeMonths',
+    format: 'percent',
+    colorize: true,
+  },
 ];
 export function ExtendedMetricsTable({ portfolios }: { portfolios: PortfolioStatsRow[] }) {
   const { t } = useTranslation();
@@ -198,22 +213,9 @@ export function ExtendedMetricsTable({ portfolios }: { portfolios: PortfolioStat
     { key: 'name', label: t('Portfolio'), render: (p) => p.name },
     ...EXTENDED_COLUMNS.map((col) => ({
       key: col.key,
-      label: col.label,
+      label: t(col.label),
       align: 'right' as const,
-      render: (p: PortfolioStatsRow) => {
-        const value = Number(p.stats[col.key]) || 0;
-        const cls =
-          col.format === 'percent'
-            ? value < 0
-              ? 'text-neg'
-              : value > 0
-                ? 'text-pos'
-                : undefined
-            : undefined;
-        return (
-          <span className={cls}>{col.format === 'percent' ? fmtPct(value) : fmtNum(value)}</span>
-        );
-      },
+      render: (p: PortfolioStatsRow) => renderStatValue(col, p),
     })),
   ];
   return (

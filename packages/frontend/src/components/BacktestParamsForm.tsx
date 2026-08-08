@@ -102,19 +102,20 @@ export const FloatingField = forwardRef<HTMLInputElement, FloatingFieldProps>(
           />
         </div>
         {error ? (
-          <p className="mt-1 text-caption text-danger">{error}</p>
+          <p id={`${inputId}-error`} className="mt-1 text-caption text-danger">
+            {error}
+          </p>
         ) : hint ? (
-          <p className="mt-1 text-caption text-fg-tertiary">{hint}</p>
+          <p id={`${inputId}-hint`} className="mt-1 text-caption text-fg-tertiary">
+            {hint}
+          </p>
         ) : null}
       </div>
     );
   },
 );
 FloatingField.displayName = 'FloatingField';
-type FieldControlProps = Omit<
-  FloatingFieldProps,
-  'containerClassName' | 'error' | 'hint' | 'id'
-> & {
+type FieldControlProps = Omit<FloatingFieldProps, 'containerClassName' | 'id'> & {
   inputId: string;
   inputRef: Ref<HTMLInputElement>;
 };
@@ -130,14 +131,19 @@ function FieldControl({
   suffix,
   className,
   type,
+  error,
+  hint,
   ...inputProps
 }: FieldControlProps) {
+  const describedBy = error ? `${inputId}-error` : hint ? `${inputId}-hint` : undefined;
   if (type === 'select') {
     return (
       <Select value={inputProps.value as string} onValueChange={onValueChange} disabled={disabled}>
         <SelectTrigger
           id={inputId}
           aria-label={label}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={describedBy}
           className="w-full h-full pt-6 pb-2 px-3 pr-9 flex items-center justify-between text-body text-fg text-left border-0 bg-transparent focus:outline-none focus:ring-0 [&>svg]:absolute [&>svg]:right-3 [&>svg]:bottom-3.5 [&>svg]:opacity-100"
         >
           <SelectValue placeholder={inputProps.placeholder as string} />
@@ -164,6 +170,8 @@ function FieldControl({
         id={inputId}
         type={type}
         disabled={disabled}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={describedBy}
         className={cn(
           'w-full h-full pt-6 pb-2 bg-transparent text-body text-fg font-mono tabular-nums focus:outline-none placeholder:text-fg-tertiary',
           prefix ? 'pl-7' : 'pl-3',

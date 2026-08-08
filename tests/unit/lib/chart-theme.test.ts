@@ -157,9 +157,9 @@ describe('CHART_LINE_STYLE', () => {
 
 describe('getCorrelationColor', () => {
   it.each([
-    ['强正相关', 0.9, '#1a7a3a'],
-    ['强负相关', -0.9, '#8b2020'],
-    ['0（中性）', 0, 'var(--surface)'],
+    ['强正相关', 0.9, 'hsl(var(--corr-pos-1))'],
+    ['强负相关', -0.9, 'hsl(var(--corr-neg-1))'],
+    ['0（中性）', 0, 'hsl(var(--surface))'],
   ] as const)('%s 应返回 %s', (_label, value, expected) => {
     expect(getCorrelationColor(value)).toBe(expected);
   });

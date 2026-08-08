@@ -118,7 +118,7 @@ function TableBody({
             <ValueCell key={p.name} value={row.returns[p.name]} />
           ))}
           {hasBenchmark && <ValueCell value={row.benchmarkReturn} />}
-          {hasBenchmark && <ValueCell value={row.vsBenchmark} />}
+          {hasBenchmark && portfolios.length === 1 && <ValueCell value={row.vsBenchmark} />}
         </tr>
       ))}
     </tbody>
@@ -134,6 +134,7 @@ export function YearlyReturnsTable({
     () => buildYearlyRows(portfolios, benchmarkGrowth),
     [portfolios, benchmarkGrowth],
   );
+  const showVsBenchmark = hasBenchmark && portfolios.length === 1;
   const positiveYears = useMemo(
     () => rows.filter((r) => (r.returns[portfolios[0]?.name] ?? 0) > 0).length,
     [rows, portfolios],
@@ -166,7 +167,7 @@ export function YearlyReturnsTable({
                     {benchmarkName ?? t('Benchmark')}
                   </th>
                 )}
-                {hasBenchmark && (
+                {hasBenchmark && showVsBenchmark && (
                   <th className="h-10 px-3 text-right text-fg-tertiary text-label-tiny">
                     {t('vs Benchmark')}
                   </th>

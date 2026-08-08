@@ -12,6 +12,7 @@ import {
 import { Card } from '@/components/ui/uiComponents';
 import { CHART_COLORS } from '@backtest/shared';
 import { AXIS_TICK_STYLE, CHART_GRID_PROPS, CHART_TOOLTIP_STYLE } from '@/lib/chart-theme.js';
+import { useReducedMotion } from '@/hooks/miscHooks.js';
 
 export function NoDataCard() {
   const { t } = useTranslation();
@@ -36,6 +37,7 @@ export function HistogramChart({
   referenceLines?: { label: string; color: string; value: string }[];
 }) {
   const { t } = useTranslation();
+  const reducedMotion = useReducedMotion();
   if (data.length === 0) return null;
   return (
     <ResponsiveContainer width="100%" height={height}>
@@ -49,7 +51,7 @@ export function HistogramChart({
         <YAxis tick={AXIS_TICK_STYLE} />
         <Tooltip
           contentStyle={CHART_TOOLTIP_STYLE}
-          isAnimationActive={!disableTooltipAnimation}
+          isAnimationActive={!disableTooltipAnimation && !reducedMotion}
           formatter={tooltipFormatter}
         />
         <Bar

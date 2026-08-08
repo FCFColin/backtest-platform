@@ -6,13 +6,14 @@ export const MAX_TICKERS = 50;
 
 export const TRADING_DAYS_PER_YEAR = 252;
 
+/** 图表序列色板：与前端 chart-theme 的 PORTFOLIO_COLORS 同序，暗色模式经 CSS 变量自动切换 */
 export const CHART_COLORS = [
-  '#3b82f6', // 蓝 - 主色
-  '#8b5cf6', // 紫 - 第二组合
-  '#f59e0b', // 琥珀色 - 第三组合
-  '#06b6d4', // 青色 - 第四
-  '#ec4899', // 粉 - 第五
-  '#a3a3a3', // 中灰 - 基准线/参考线
+  'hsl(var(--chart-1))',
+  'hsl(var(--chart-2))',
+  'hsl(var(--chart-3))',
+  'hsl(var(--chart-4))',
+  'hsl(var(--chart-5))',
+  'hsl(var(--fg-tertiary))',
 ] as const;
 
 export const REBALANCE_FREQUENCIES = [

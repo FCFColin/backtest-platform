@@ -106,10 +106,10 @@ describe('correlationDataTransforms', () => {
     expect(computeRollingCorrelation([0.01, 0.02], [0.01, 0.02], ['d1', 'd2'], 20)).toEqual([]);
   });
 
-  it('getCorrelationTextColor 应按 0.6 阈值切换前景色', () => {
-    expect(getCorrelationTextColor(0.7)).toBe('#fff');
-    expect(getCorrelationTextColor(0.5)).toBe('#000');
-    expect(getCorrelationTextColor(-0.7)).toBe('#fff');
+  it('getCorrelationTextColor 应按 0.6 阈值切换前景色令牌', () => {
+    expect(getCorrelationTextColor(0.7)).toBe('hsl(var(--corr-text-strong))');
+    expect(getCorrelationTextColor(0.5)).toBe('hsl(var(--corr-text-weak))');
+    expect(getCorrelationTextColor(-0.7)).toBe('hsl(var(--corr-text-strong))');
   });
 });
 

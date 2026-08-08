@@ -26,6 +26,7 @@ import {
   LEGEND_WRAPPER_STYLE,
 } from '@/lib/chart-theme.js';
 import { cn } from '@/lib/utils';
+import { useChartAnimation } from '@/hooks/miscHooks.js';
 import ChartCard from '../../components/ChartCard.js';
 import { SortableTable, type Column } from '../../components/tables.js';
 interface SlippageCurveDataPoint {
@@ -86,7 +87,7 @@ function LETFKpiCards({ results }: { results: LETFResult }) {
 function SlippageCurveChart({ data }: { data: SlippageCurveDataPoint[] }) {
   const { t } = useTranslation();
   const isLargeDataset = data.length >= 100;
-  const seriesAnimationActive = !isLargeDataset;
+  const seriesAnimationActive = useChartAnimation(isLargeDataset);
   return (
     <ChartCard title={t('Slippage Curve')}>
       <ResponsiveContainer width="100%" height={350}>
@@ -98,8 +99,8 @@ function SlippageCurveChart({ data }: { data: SlippageCurveDataPoint[] }) {
             contentStyle={CHART_TOOLTIP_STYLE}
             labelFormatter={(label: string) => t('Date: {{date}}', { date: label })}
             formatter={(value: number) => [`${value.toFixed(2)}%`, '']}
-            isAnimationActive={!isLargeDataset}
-            animationDuration={isLargeDataset ? 0 : 150}
+            isAnimationActive={seriesAnimationActive}
+            animationDuration={seriesAnimationActive ? 150 : 0}
           />
           <Legend wrapperStyle={LEGEND_WRAPPER_STYLE} />
           <ReferenceLine y={0} stroke="var(--fg-tertiary)" strokeDasharray="4 4" />
@@ -138,7 +139,7 @@ function LeverageComparisonChart({
 }) {
   const { t } = useTranslation();
   const isLargeDataset = data.length >= 100;
-  const seriesAnimationActive = !isLargeDataset;
+  const seriesAnimationActive = useChartAnimation(isLargeDataset);
   return (
     <ChartCard title={t('Effective vs Nominal Leverage')}>
       <ResponsiveContainer width="100%" height={300}>
@@ -150,8 +151,8 @@ function LeverageComparisonChart({
             contentStyle={CHART_TOOLTIP_STYLE}
             labelFormatter={(label: string) => t('Date: {{date}}', { date: label })}
             formatter={(value: number) => [`${value.toFixed(2)}x`, '']}
-            isAnimationActive={!isLargeDataset}
-            animationDuration={isLargeDataset ? 0 : 150}
+            isAnimationActive={seriesAnimationActive}
+            animationDuration={seriesAnimationActive ? 150 : 0}
           />
           <Legend wrapperStyle={LEGEND_WRAPPER_STYLE} />
           <Line

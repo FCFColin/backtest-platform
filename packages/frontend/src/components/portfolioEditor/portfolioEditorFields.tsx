@@ -297,7 +297,10 @@ export function NumField({
           step={step}
           className={width}
           title={title}
-          onChange={(e) => onChange(Number(e.target.value))}
+          onChange={(e) => {
+            const v = Number(e.target.value);
+            onChange(e.target.value === '' || Number.isNaN(v) ? min : v);
+          }}
         />
         <span className="text-caption text-fg-tertiary shrink-0">{suffix}</span>
       </div>

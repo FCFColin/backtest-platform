@@ -1,6 +1,8 @@
 import { Check, X, Star, Zap, Crown } from 'lucide-react';
+import { Link } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import type { ComponentType } from 'react';
+import { useAuthStore } from '@/store/authStore';
 import pricingData from './pricing/pricingData.json';
 const PLAN_ICONS: Record<string, ComponentType<{ className?: string }>> = { Star, Zap, Crown };
 const STATIC_SYMBOLS = new Set(['-', '✓']);
@@ -188,8 +190,13 @@ function PricingNotice() {
 }
 function PlanCard({ plan }: { plan: Plan }) {
   const isRecommended = plan.recommended;
+  const isCurrentPlan = plan.name === 'Free';
+  const isAuthenticated = useAuthStore((s) => s.user !== null);
   const brandColor = 'hsl(var(--brand))';
   const ctaStyle: React.CSSProperties = {
+    display: 'block',
+    textAlign: 'center',
+    textDecoration: 'none',
     marginTop: 24,
     padding: '10px 16px',
     background: isRecommended ? brandColor : 'transparent',
@@ -198,7 +205,8 @@ function PlanCard({ plan }: { plan: Plan }) {
     borderRadius: 6,
     fontSize: 13,
     fontWeight: 600,
-    cursor: 'pointer',
+    cursor: isCurrentPlan ? 'not-allowed' : 'pointer',
+    opacity: isCurrentPlan ? 0.6 : 1,
     fontFamily: 'inherit',
     transition: 'background 0.15s',
   };
@@ -271,7 +279,15 @@ function PlanCard({ plan }: { plan: Plan }) {
           );
         })}
       </div>
-      <button style={ctaStyle}>{plan.cta}</button>
+      {isCurrentPlan ? (
+        <button style={ctaStyle} disabled>
+          {plan.cta}
+        </button>
+      ) : (
+        <Link to={isAuthenticated ? '/billing' : '/signup'} style={ctaStyle}>
+          {plan.cta}
+        </Link>
+      )}
     </div>
   );
 }

@@ -97,6 +97,10 @@ export default tseslint.config(
     languageOptions: { globals: globals.node },
   },
   {
+    files: ['public/assets/*.js'],
+    languageOptions: { globals: globals.browser },
+  },
+  {
     files: ['tests/**/*.{js,jsx}'],
     rules: { 'no-undef': 'off' },
   },

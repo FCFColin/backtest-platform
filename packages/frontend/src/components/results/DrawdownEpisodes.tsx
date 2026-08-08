@@ -163,7 +163,11 @@ function DrawdownEpisodeRow({ episode, testId }: { episode: DrawdownEpisode; tes
             <DetailField label={t('Recovery Factor')} value={episode.recoveryFactor.toFixed(2)} />
           )}
           {episode.cagrDuring !== undefined && (
-            <DetailField label={t('Period CAGR')} value={fmtPct(episode.cagrDuring)} colorize />
+            <DetailField
+              label={t('Period CAGR')}
+              value={fmtPct(episode.cagrDuring)}
+              colorValue={episode.cagrDuring}
+            />
           )}
           <DetailField label={t('Period Ulcer')} value={episode.ulcerDuring.toFixed(2)} />
         </div>
@@ -218,24 +222,24 @@ function TimelineViz({ episode }: { episode: DrawdownEpisode }) {
 function DetailField({
   label,
   value,
-  colorize,
+  colorValue,
 }: {
   label: string;
   value: string;
-  colorize?: boolean;
+  colorValue?: number;
 }) {
+  const cls =
+    colorValue === undefined
+      ? undefined
+      : colorValue > 0
+        ? 'text-pos'
+        : colorValue < 0
+          ? 'text-neg'
+          : 'text-fg';
   return (
     <div>
       <div className="text-label-tiny text-fg-tertiary">{label}</div>
-      <div
-        className={cn(
-          'text-body font-mono tabular-nums',
-          colorize && value.startsWith('-') && 'text-neg',
-          colorize && !value.startsWith('-') && 'text-pos',
-        )}
-      >
-        {value}
-      </div>
+      <div className={cn('text-body font-mono tabular-nums', cls)}>{value}</div>
     </div>
   );
 }

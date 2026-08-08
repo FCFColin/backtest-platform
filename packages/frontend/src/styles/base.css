@@ -288,7 +288,7 @@ a:hover {
   white-space: nowrap;
 }
 .stat-table-num {
-  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Consolas', monospace;
+  font-family: 'Geist Mono Variable', 'JetBrains Mono', monospace;
   font-variant-numeric: tabular-nums;
   font-feature-settings: 'tnum';
   color: var(--text-strong);

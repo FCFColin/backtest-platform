@@ -60,13 +60,17 @@ export function SvgScatterChart({
       if (yv < yMin) yMin = yv;
       if (yv > yMax) yMax = yv;
     }
-    if (xMin === xMax) {
-      xMin -= 1;
-      xMax += 1;
-    }
-    if (yMin === yMax) {
-      yMin -= 1;
-      yMax += 1;
+    if (data.length === 0) {
+      [xMin, xMax, yMin, yMax] = [0, 1, 0, 1];
+    } else {
+      if (xMin === xMax) {
+        xMin -= 1;
+        xMax += 1;
+      }
+      if (yMin === yMax) {
+        yMin -= 1;
+        yMax += 1;
+      }
     }
     const xTicks = computeTicks(xMin, xMax);
     const yTicks = computeTicks(yMin, yMax);

@@ -89,10 +89,10 @@ export function MatrixHeatmap({
   );
 }
 const BETA_COLORS = {
-  high: '#f0c8c8',
-  medium: '#f5e0d0',
-  low: '#d8e8f0',
-  neutral: 'var(--bg-subtle)',
+  high: 'hsl(var(--corr-neg-2))',
+  medium: 'hsl(var(--corr-neg-3))',
+  low: 'hsl(var(--corr-pos-3))',
+  neutral: 'hsl(var(--surface))',
 } as const;
 function getBetaColor(val: number): string {
   const absVal = Math.abs(val);
@@ -100,9 +100,6 @@ function getBetaColor(val: number): string {
   if (absVal > 1) return BETA_COLORS.medium;
   if (absVal > 0.5) return BETA_COLORS.low;
   return BETA_COLORS.neutral;
-}
-function getBetaTextColor(): string {
-  return 'var(--text-body)';
 }
 export const BetaMatrixTable = memo(function BetaMatrixTable({
   tickers,
@@ -119,7 +116,7 @@ export const BetaMatrixTable = memo(function BetaMatrixTable({
         columnLabels={tickers}
         matrix={betaMatrix}
         getBackgroundColor={getBetaColor}
-        getTextColor={getBetaTextColor}
+        getTextColor={(val) => getCorrelationTextColor(val / 2)}
         formatValue={(v) => v.toFixed(2)}
         formatTitle={(v, r, c) => `${r} vs ${c}: Beta = ${v.toFixed(2)}`}
       />

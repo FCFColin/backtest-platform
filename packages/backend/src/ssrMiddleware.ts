@@ -53,7 +53,7 @@ let renderFn: RenderFn | null = null;
 let htmlTemplate: { head: string; tail: string } | null = null;
 
 const ssrCache = new Map<string, { html: string; ts: number }>();
-const CACHE_TTL = 5_000;
+const CACHE_TTL = 60_000;
 const CACHE_MAX = 20;
 function getCached(key: string): string | null {
   const entry = ssrCache.get(key);

@@ -159,5 +159,5 @@ export function computeRollingCorrelation(
 }
 
 export function getCorrelationTextColor(val: number): string {
-  return pickByAbsThreshold(val, 0.6, '#fff', '#000');
+  return pickByAbsThreshold(val, 0.6, 'hsl(var(--corr-text-strong))', 'hsl(var(--corr-text-weak))');
 }

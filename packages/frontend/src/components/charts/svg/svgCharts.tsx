@@ -62,7 +62,7 @@ export function SvgBarChart({
     () => linearScale(yMin, yMax, plotBottom, -plotHeight),
     [yMin, yMax, plotBottom, plotHeight],
   );
-  const groupWidth = plotWidth / data.length;
+  const groupWidth = data.length ? plotWidth / data.length : 0;
   const barWidth = useMemo(
     () => Math.max(4, (groupWidth * 0.7) / (visibleSeries.length || 1)),
     [groupWidth, visibleSeries.length],

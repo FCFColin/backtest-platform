@@ -212,7 +212,10 @@ function HeatmapTable({ data }: { data: Array<{ year: number; months: (number | 
                   <span
                     className="text-micro inline-block w-[34px] leading-[24px]"
                     style={{
-                      color: val !== null && Math.abs(val) > 5 ? '#fff' : 'var(--text-muted)',
+                      color:
+                        val !== null && Math.abs(val) > 2
+                          ? 'hsl(var(--corr-text-strong))'
+                          : 'hsl(var(--corr-text-weak))',
                     }}
                   >
                     {val !== null ? val.toFixed(1) : '-'}

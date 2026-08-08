@@ -11,7 +11,6 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Switch,
 } from '@/components/ui/uiComponents';
 import type { TFunctionProp } from './BacktestParamsForm.js';
 import type { CashflowLeg } from '@backtest/shared';
@@ -37,25 +36,6 @@ export function CashflowLegsSection() {
   const addCashflowLeg = useBacktestStore((s) => s.addCashflowLeg);
   return (
     <ParamGroup title={t('Cashflow Legs')} badge={parameters.cashflowLegs?.length || 0}>
-      <ParamRow>
-        <div className="flex h-10 items-center gap-2">
-          <Switch id="cf-inflation-adjust" />
-          <label
-            htmlFor="cf-inflation-adjust"
-            className="cursor-pointer text-caption text-fg-secondary"
-          >
-            {t('Adjust Fixed Cashflows for Inflation')}
-          </label>
-        </div>
-        <ParamCard label={t('Annual Cashflow Growth')}>
-          <AffixInput
-            type="number"
-            defaultValue={0}
-            suffix="%"
-            className="w-[104px] font-mono tabular-nums"
-          />
-        </ParamCard>
-      </ParamRow>
       {(parameters.cashflowLegs || []).map((leg) => (
         <CashflowLegRow key={leg.id} leg={leg} currency={parameters.baseCurrency} t={t} />
       ))}
@@ -222,12 +202,10 @@ export function OneTimeCashflowSection() {
           <RowDeleteButton onClick={() => removeOneTimeCashflow(cf.id)} t={t} />
         </ParamRow>
       ))}
-      {(parameters.oneTimeCashflows || []).length === 0 && (
-        <Button variant="ghost" size="sm" onClick={addOneTimeCashflow}>
-          <Plus />
-          {t('Add One-Time Cashflow')}
-        </Button>
-      )}
+      <Button variant="ghost" size="sm" onClick={addOneTimeCashflow}>
+        <Plus />
+        {t('Add One-Time Cashflow')}
+      </Button>
     </ParamGroup>
   );
 }

@@ -50,12 +50,16 @@ export async function runPortfolioBacktest(opts: {
   onProgress?.(5);
   const { allTickers, warnings } = preparePortfolioBacktest(portfolios, parameters);
   onProgress?.(10);
-  const { priceData, effectiveStartDate, effectiveEndDate, degraded, degradedWarning } =
-    await fetchPriceDataWithRange(Array.from(allTickers), parameters.startDate, parameters.endDate);
+  const [
+    { priceData, effectiveStartDate, effectiveEndDate, degraded, degradedWarning },
+    { cpiData, exchangeRates },
+  ] = await Promise.all([
+    fetchPriceDataWithRange(Array.from(allTickers), parameters.startDate, parameters.endDate),
+    loadMacroData(parameters),
+  ]);
   onProgress?.(30);
   const invalidTickers = collectInvalidTickerWarnings(allTickers, priceData, warnings);
   pushDegradedWarning(warnings, degraded, degradedWarning);
-  const { cpiData, exchangeRates } = await loadMacroData(parameters);
   onProgress?.(35);
   const effectiveParameters = clampParametersToDataRange(
     parameters,
