@@ -1,4 +1,4 @@
-// ADR-037 / P0-04: Redis/组织查询失败时 fail-closed 503（防免费用户绕过）
+// ADR-036 / P0-04: 组织查询失败时 fail-closed 503（防免费用户绕过）；月度用量以 usage_counters（DB 权威）为准
 import { type Response, type NextFunction } from 'express';
 import { sendProblem } from '../utils/errors.js';
 import { logger } from '../utils/logger.js';
@@ -6,7 +6,6 @@ import { type AuthenticatedRequest } from './jwtAuth.js';
 import { getOrg } from '../application/org/membershipService.js';
 import { getPlanLimits } from '../application/billing/planLimitsService.js';
 import { getMonthlyUsage, recordUsage } from '../application/billing/usageService.js';
-import { appRedis } from '../infrastructure/redisClient.js';
 import { quotaEnforcementFailures } from '../utils/metrics.js';
 
 function extractTickerCount(body: unknown): number {
@@ -17,27 +16,6 @@ function extractTickerCount(body: unknown): number {
     if (Array.isArray(v)) return v.length;
   }
   return 0;
-}
-
-/** Lua 原子 INCR+EXPIRE（首增设 TTL，后续不重置）；Redis 单线程保证无并发竞态 */
-const QUOTA_ATOMIC_SCRIPT = `
-  local current = redis.call('INCR', KEYS[1])
-  if current == 1 then
-    redis.call('EXPIRE', KEYS[1], ARGV[2])
-  end
-  return {current, tonumber(ARGV[1])}
-`;
-
-const QUOTA_WINDOW_SECONDS = 60;
-
-async function atomicQuotaIncrement(key: string, limit: number): Promise<[number, number]> {
-  return (await appRedis.eval(
-    QUOTA_ATOMIC_SCRIPT,
-    1,
-    key,
-    String(limit),
-    String(QUOTA_WINDOW_SECONDS),
-  )) as [number, number];
 }
 
 export function enforceQuota(metric: string) {
@@ -82,22 +60,6 @@ export function enforceQuota(metric: string) {
         return;
       }
 
-      const quotaKey = `quota:${tenantId}:${metric}`;
-      const [current, effectiveLimit] = await atomicQuotaIncrement(
-        quotaKey,
-        limits.backtestsPerMonth,
-      );
-
-      if (current > effectiveLimit) {
-        const ttl = await appRedis.ttl(quotaKey);
-        quotaEnforcementFailures.inc({ quota_key: metric, reason: 'quota_exceeded' });
-        sendProblem(res, 429, 'QUOTA_EXCEEDED', undefined, {
-          detail: `Quota exceeded: ${current}/${effectiveLimit} ${metric}`,
-          headers: { 'Retry-After': String(Math.max(ttl, 1)) },
-        });
-        return;
-      }
-
       if (Number.isFinite(limits.backtestsPerMonth)) {
         const used = await getMonthlyUsage(tenantId, metric);
         if (used >= limits.backtestsPerMonth) {
@@ -109,13 +71,13 @@ export function enforceQuota(metric: string) {
       void recordUsage(tenantId, metric, 1, { path: req.path });
       next();
     } catch (err) {
-      // P0-04：Redis 不可用时 fail-closed（返回 503，不是 next()）
+      // P0-04：用量校验失败时 fail-closed（返回 503，不是 next()）
       logger.error(
         { err: String(err), tenantId, metric },
-        '[quota] 配额校验失败：Redis 不可用，fail-closed 返回 503',
+        '[quota] 配额校验失败：fail-closed 返回 503',
       );
 
-      quotaEnforcementFailures.inc({ quota_key: metric, reason: 'redis_unavailable' });
+      quotaEnforcementFailures.inc({ quota_key: metric, reason: 'usage_check_failed' });
 
       sendProblem(res, 503, 'SERVICE_TEMPORARILY_UNAVAILABLE', 'Service temporarily unavailable', {
         detail: 'Service temporarily unavailable. Please try again later.',

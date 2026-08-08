@@ -99,17 +99,15 @@ describe('enforceQuota', () => {
       { plan: 'free' },
       { tickers: Array.from({ length: 11 }, (_, i) => `T${i}`) },
       undefined,
-      undefined,
       422,
       false,
     ],
-    ['月度用量达上限返回 402', { plan: 'free' }, { tickers: ['A'] }, [1, 100], 100, 402, false],
-    ['未超限放行并计量', { plan: 'pro' }, { tickers: ['A', 'B'] }, [1, 100000], 3, undefined, true],
+    ['月度用量达上限返回 402', { plan: 'free' }, { tickers: ['A'] }, 100, 402, false],
+    ['未超限放行并计量', { plan: 'pro' }, { tickers: ['A', 'B'] }, 3, undefined, true],
     [
       'enterprise 无限月度配额时不查询用量直接放行',
       { plan: 'enterprise' },
       { tickers: ['A'] },
-      [1, 100000],
       undefined,
       undefined,
       true,
@@ -118,26 +116,13 @@ describe('enforceQuota', () => {
       '请求体无 ticker 字段时 tickerCount=0 放行',
       { plan: 'free' },
       { name: 'test' },
-      [1, 100000],
       undefined,
       undefined,
       true,
     ],
-    [
-      'P0-04: Redis 超限时返回 429 + Retry-After',
-      { plan: 'free' },
-      { tickers: ['A'] },
-      [101, 100],
-      undefined,
-      429,
-      false,
-      45,
-    ],
-  ])('%s', async (_n, org, body, evalResult, usage, status, pass, ttl) => {
+  ])('%s', async (_n, org, body, usage, status, pass) => {
     mocks.getOrg.mockResolvedValueOnce(org);
-    if (evalResult) mocks.appRedis.eval.mockResolvedValueOnce(evalResult);
     if (usage !== undefined) mocks.getMonthlyUsage.mockResolvedValueOnce(usage);
-    if (ttl) mocks.appRedis.ttl.mockResolvedValueOnce(ttl);
     const { res, next } = await callQuota({ tenantId: TENANT, user: {}, body, path: '/x' });
     if (status) expect(res.status).toHaveBeenCalledWith(status);
     if (pass) {
@@ -163,9 +148,9 @@ describe('enforceQuota', () => {
     );
   });
 
-  it('P0-04: Redis 不可用时 fail-closed 返回 503（不放行）', async () => {
+  it('P0-04: 用量校验抛错时 fail-closed 返回 503（不放行）', async () => {
     mocks.getOrg.mockResolvedValueOnce({ plan: 'free' });
-    mocks.appRedis.eval.mockRejectedValueOnce(new Error('Redis connection refused'));
+    mocks.getMonthlyUsage.mockRejectedValueOnce(new Error('usage check failed'));
     const { res, next } = await callQuota({
       tenantId: TENANT,
       user: {},
@@ -175,7 +160,7 @@ describe('enforceQuota', () => {
     expect(res.status).toHaveBeenCalledWith(503);
     expect(next).not.toHaveBeenCalled();
     expect(mocks.quotaEnforcementFailures.inc).toHaveBeenCalledWith(
-      expect.objectContaining({ reason: 'redis_unavailable' }),
+      expect.objectContaining({ reason: 'usage_check_failed' }),
     );
   });
 });
