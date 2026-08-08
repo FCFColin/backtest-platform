@@ -39,13 +39,13 @@
 
 ## 5. 顶层目录结构
 
-| 目录                                  | 内容                                             |
-| ------------------------------------- | ------------------------------------------------ |
-| packages/frontend/, backend/, shared/ | React 前端 / Express API + 领域层 / 共享类型     |
-| engine-go/ / data-fetcher/            | Go 回测·MC·优化引擎 / Go 数据服务                |
-| packages/go-shared/                   | Go 共享包(observability)                         |
-| data/                                 | 标的行情 JSON（仅 import:tickers, 非运行时降级） |
-| migrations/ / tests/                  | 版本化迁移 / 全量测试                            |
+| 目录                                  | 内容                                         |
+| ------------------------------------- | -------------------------------------------- |
+| packages/frontend/, backend/, shared/ | React 前端 / Express API + 领域层 / 共享类型 |
+| engine-go/ / data-fetcher/            | Go 回测·MC·优化引擎 / Go 数据服务            |
+| packages/go-shared/                   | Go 共享包(observability)                     |
+| data/                                 | 运行期缓存（gitignored，非运行时降级源）     |
+| migrations/ / tests/                  | 版本化迁移 / 全量测试                        |
 
 ## 6. 后端分层
 
@@ -84,7 +84,7 @@ Trace: 各服务 → OTLP HTTP → SaaS 后端。Go OTel 收口到 packages/go-s
 
 ## 10. 数据存储演进
 
-JSON(ADR-002) → SQLite(ADR-006) → PostgreSQL(ADR-007)。JSON 仅用于 `pnpm import:tickers`。
+JSON(ADR-002) → SQLite(ADR-006) → PostgreSQL(ADR-007)。行情持久化于 PostgreSQL，data/ 仅作运行期缓存。
 
 ## 11. ADR 索引
 

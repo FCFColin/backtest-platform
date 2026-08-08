@@ -1,4 +1,5 @@
 x-base:
+  # 本地 dev 编排：镜像用浮动 tag + pull_policy 保可用，生产版本以 k8s/*.yaml 钉版为准
   timescale: &timescale
     image: timescale/timescaledb:latest-pg16
     pull_policy: if_not_present
@@ -110,16 +111,6 @@ services:
       - ./docker/postgres-init:/docker-entrypoint-initdb.d
       - ./docker/wal-g/env:/etc/wal-g.d/env:ro
       - ./scripts/install-walg.sh:/docker-entrypoint-initdb.d/00-install-walg.sh:ro
-    healthcheck: *hc-pg
-
-  postgres-replica:
-    <<: *timescale
-    container_name: backtest-postgres-replica
-    environment: { POSTGRES_USER: backtest, POSTGRES_PASSWORD: backtest, PGUSER: replicator }
-    command: ['postgres', '-c', 'hot_standby=on', '-c', 'hot_standby_feedback=on']
-    depends_on: { postgres: { condition: service_healthy } }
-    volumes:
-      - pgdata-replica:/var/lib/postgresql/data
     healthcheck: *hc-pg
 
   redis:
@@ -340,8 +331,8 @@ services:
     image: oliver006/redis_exporter:v1.66.0
     container_name: backtest-redis-exporter
     ports: ['127.0.0.1:9121:9121']
-    environment: { REDIS_ADDR: 'redis://redis:6379' }
-    depends_on: { redis: { condition: service_healthy } }
+    environment: { REDIS_ADDR: 'redis://redis-master:6379' }
+    depends_on: { redis-master: { condition: service_healthy } }
     <<: *restart-unless
 
   ofelia:
@@ -476,7 +467,6 @@ services:
 
 volumes:
   pgdata:
-  pgdata-replica:
   redis-sentinel-1-data:
   redis-sentinel-2-data:
   redis-sentinel-3-data:
