@@ -210,6 +210,8 @@ describe('writeOutboxEvent 事务双写', () => {
       expect.stringContaining('INSERT INTO outbox'),
       expect.arrayContaining(['audit', 'user-123', 'AuditEvent']),
     );
+    const paramsArg = mockClient.query.mock.calls[0][1] as unknown[];
+    expect(paramsArg[4]).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
   });
   it('事务模式异常应向上传播（触发调用方 ROLLBACK）并记录 error 日志', async () => {
     const mockClient = createMockClient();

@@ -80,10 +80,9 @@ describe('AuditEventHandler', () => {
     expect(loggerMocks.warn).toHaveBeenCalled();
   });
 
-  it('writeAuditLog 抛错时不应向外抛出', async () => {
+  it('writeAuditLog 抛错时应向外传播（供 outbox 消费端重试）', async () => {
     vi.mocked(writeAuditLog).mockRejectedValueOnce(new Error('db down'));
 
-    await expect(handler.handle(makeEvent())).resolves.toBeUndefined();
-    expect(loggerMocks.error).toHaveBeenCalled();
+    await expect(handler.handle(makeEvent())).rejects.toThrow('db down');
   });
 });

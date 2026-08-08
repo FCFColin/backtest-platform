@@ -86,6 +86,7 @@ export class OutboxKafkaConsumer implements OutboxConsumer {
               { module: 'outboxKafkaConsumer', err: (err as Error).message },
               'eachMessage 处理异常',
             );
+            throw err;
           }
         },
       });

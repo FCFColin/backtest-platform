@@ -299,12 +299,14 @@ describe('DomainEventDispatcher', () => {
       'No handlers registered for event',
     );
   });
-  it('dispatch() 单个处理器失败时不应阻塞其他处理器', async () => {
+  it('dispatch() 单个处理器失败时不应阻塞其他处理器，但应向上传播错误', async () => {
     const failingHandler = createHandler('TestEvent', true);
     const successHandler = createHandler('TestEvent');
     dispatcher.register(failingHandler);
     dispatcher.register(successHandler);
-    await dispatcher.dispatch(createEvent('TestEvent'));
+    await expect(dispatcher.dispatch(createEvent('TestEvent'))).rejects.toThrow(
+      'Event dispatch failed for TestEvent',
+    );
     expect(failingHandler.handle).toHaveBeenCalledTimes(1);
     expect(successHandler.handle).toHaveBeenCalledTimes(1);
     expect(loggerMocks.error).toHaveBeenCalledWith(
@@ -344,10 +346,12 @@ describe('DomainEventDispatcher', () => {
     expect(targetHandler.handle).toHaveBeenCalledTimes(1);
     expect(otherHandler.handle).not.toHaveBeenCalled();
   });
-  it('dispatch() 所有处理器均失败时应记录警告且不抛错', async () => {
+  it('dispatch() 所有处理器均失败时应记录警告并向上抛出 AggregateError', async () => {
     dispatcher.register(createHandler('AllFailEvent', true));
     dispatcher.register(createHandler('AllFailEvent', true));
-    await expect(dispatcher.dispatch(createEvent('AllFailEvent'))).resolves.toBeUndefined();
+    await expect(dispatcher.dispatch(createEvent('AllFailEvent'))).rejects.toThrow(
+      'Event dispatch failed for AllFailEvent',
+    );
     expect(loggerMocks.error).toHaveBeenCalledTimes(2);
     expect(loggerMocks.warn).toHaveBeenCalledWith(
       expect.objectContaining({ eventType: 'AllFailEvent', errorCount: 2 }),

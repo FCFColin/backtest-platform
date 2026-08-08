@@ -42,7 +42,7 @@ export async function writeOutboxEvent(
   const conn = client ?? getPool();
   const payload = JSON.stringify(auditEntry);
   const signature = signPayload(payload);
-  const eventId = crypto.createHash('sha256').update(payload).digest('hex');
+  const eventId = crypto.randomUUID();
   try {
     await conn.query(
       `INSERT INTO outbox (aggregate_type, aggregate_id, event_type, payload, event_id, created_at)

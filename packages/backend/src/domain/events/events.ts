@@ -68,6 +68,8 @@ export class DomainEventDispatcher {
         },
         'Some event handlers failed',
       );
+      // 向上传播失败，使 outbox 消费端不误标 processed_at（补偿扫描会重试）
+      throw new AggregateError(errors, `Event dispatch failed for ${event.eventType}`);
     }
   }
 }

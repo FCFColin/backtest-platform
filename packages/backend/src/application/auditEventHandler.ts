@@ -41,13 +41,6 @@ export class AuditEventHandler implements EventHandler {
         timestamp: p.timestamp,
       },
     };
-    try {
-      await withTenant(orgId, (client) => writeAuditLog(entry, client));
-    } catch (err) {
-      logger.error(
-        { err, aggregateId: event.aggregateId },
-        '[AuditEventHandler] 持久化审计日志失败',
-      );
-    }
+    await withTenant(orgId, (client) => writeAuditLog(entry, client));
   }
 }

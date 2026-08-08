@@ -17,6 +17,8 @@
 
 审计另发现：同一 BacktestCompleted 事件被双写（application 层事务写 + handler 非事务写）形成反馈环；outbox 无去重键；BullMQ 消费者无幂等契约；重试策略缺乏幂等边界。此外 LISTEN/NOTIFY 是单实例进程内通知，多 Pod 部署下每个监听进程都收到同一通知并独立扫描 outbox 表，导致重复处理，无法跨 Pod 分区消费。
 
+2026-08 修订：审计发现 auditMiddleware 曾用 sha256 hex（64 字符）作为 outbox.event_id 写入 UUID 列，类型不匹配（invalid input syntax for type uuid）导致审计事件从未进入 outbox——已改为 crypto.randomUUID()。同时 DomainEventDispatcher 曾吞掉 handler 异常导致 outbox 消费端误标 processed_at（事件静默丢失）——现改为向上传播，消费端 allSettled 后仅 fulfilled 事件被标记，失败交给补偿扫描重试。
+
 ## Decision
 
 ### 1. PostgreSQL LISTEN/NOTIFY + Outbox 表（默认通路）
@@ -40,9 +42,11 @@ Outbox 的唯一写入点为 backtest-service 的事务写入。BacktestComplete
 - (+) 无新依赖——PostgreSQL 已是主数据库，LISTEN/NOTIFY 满足当前规模（单实例 < 1000 events/s）
 - (+) 单一写入点消除重复事件与反馈环；event_id 去重使写入幂等；分层纯净
 - (+) 重试边界明确，非幂等操作不会被自动重试
+- (+) 消费端失败向上传播（dispatch rethrow + handler 不吞错），outbox 不误标 processed_at，由补偿扫描重试——审计事件不再静默丢失
 - (+) CDC 通路支持多 Pod 水平扩展，写入侧零改动，通路可切换（环境变量门控）
 - (+) 未来可平滑迁移——消费者接口不变，只需替换投递通路
 - (-) LISTEN/NOTIFY 不支持跨进程负载均衡，多实例需行级锁（SELECT FOR UPDATE SKIP LOCKED）或启用 CDC
 - (-) CDC 模式运维开销增加（Kafka + Zookeeper + Debezium Connect，3 服务），outbox 表需定期清理
 - (-) event_id 可空以兼容历史行——新代码应始终提供
+- (-) 已知缺口：audit_logs 无 event_id 唯一键，outbox 重试与审计写入之间非严格幂等（审计防篡改链已保证完整性）；如需严格幂等需迁移为 audit_logs 增加唯一 event_id 列
 - (-) 放弃 pg-boss——功能完整但抽象层过厚，与 BullMQ（ADR-053）职责重叠；放弃 NATS——CDC 通路采用更成熟的 Kafka 生态
