@@ -52,23 +52,5 @@
       "valueKey": "about.limits.concurrentValue",
       "descKey": "about.limits.concurrentDesc"
     }
-  ],
-  "plans": [
-    {
-      "titleKey": "Free Plan",
-      "priceKey": "about.upgrade.freePlanPrice",
-      "featuresKey": "about.upgrade.freePlanFeatures",
-      "current": true
-    },
-    {
-      "titleKey": "about.upgrade.dataPlanTitle",
-      "priceKey": "about.upgrade.dataPlanPrice",
-      "featuresKey": "about.upgrade.dataPlanFeatures"
-    },
-    {
-      "titleKey": "about.upgrade.perfPlanTitle",
-      "priceKey": "$29/mo",
-      "featuresKey": "about.upgrade.perfPlanFeatures"
-    }
   ]
 }

@@ -53,12 +53,12 @@ export const REBALANCE_FREQUENCY_COLORS: Record<RebalanceFrequency, string> = {
 
 export const REBALANCE_LABELS: Record<RebalanceFrequency, string> = {
   none: 'monteCarlo.params.rebalanceNone',
-  annual: 'monteCarlo.params.rebalanceYearly',
-  quarterly: 'monteCarlo.params.rebalanceQuarterly',
-  monthly: 'monteCarlo.params.rebalanceMonthly',
-  weekly: 'portfolio.rebalanceWeekly',
-  daily: 'portfolio.rebalanceDaily',
-  threshold: 'portfolio.rebalanceThreshold',
+  annual: 'Annual',
+  quarterly: 'Quarterly',
+  monthly: 'Monthly',
+  weekly: 'Weekly',
+  daily: 'Daily',
+  threshold: 'Threshold',
 };
 
 export const REBALANCE_FREQUENCY_OPTIONS: Array<{ value: RebalanceFrequency; label: string }> =

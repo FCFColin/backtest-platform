@@ -93,7 +93,7 @@ export function DisclaimerPage() {
         <Link to="/help" className="text-brand hover:underline">
           {t('Methodology documentation')}
         </Link>
-        {t('.')}
+        。
       </div>
     </LegalPage>
   );

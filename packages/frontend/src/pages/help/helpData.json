@@ -8,22 +8,22 @@
     {
       "name": "Sharpe Ratio",
       "formula": "Sharpe = (R_p - R_f) / σ_p",
-      "i18nKey": "help.methodology.metrics.sharpe"
+      "i18nKey": "backtest.sharpeRatio"
     },
     {
       "name": "Sortino Ratio",
       "formula": "Sortino = (R_p - R_f) / σ_downside",
-      "i18nKey": "help.methodology.metrics.sortino"
+      "i18nKey": "lumpSumDca.stats.sortino"
     },
     {
       "name": "Max Drawdown",
       "formula": "MDD = min((V_t - max(V_0..t)) / max(V_0..t))",
-      "i18nKey": "help.methodology.metrics.mdd"
+      "i18nKey": "Max Drawdown"
     },
     {
       "name": "Volatility",
       "formula": "σ_annual = σ_daily × √252",
-      "i18nKey": "help.methodology.metrics.volatility"
+      "i18nKey": "Volatility"
     },
     {
       "name": "Calmar Ratio",

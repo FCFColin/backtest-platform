@@ -15,9 +15,7 @@
     "资产相关性与 Beta 矩阵",
     "提款成功率与退休统计"
   ],
-  "": "个",
   " has a higher final value ({{dcaValue}} vs {{lsValue}}), exceeding by {{pct}}%. DCA reduces average cost through batch purchases, achieving better returns in falling markets.": "的终值更高（{{dcaValue}} vs {{lsValue}}），高出{{pct}}%。定投通过分批买入降低了平均成本，在下跌市场中获得了更好的回报。",
-  ".": "。",
   "10 years of historical data": "10 年历史数据",
   "10+ Years Data": "10年以上数据",
   "20+ Years Data": "20年以上数据",
