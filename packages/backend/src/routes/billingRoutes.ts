@@ -154,6 +154,8 @@ export async function billingWebhookHandler(req: Request, res: Response): Promis
     await handleWebhookEvent(event);
   } catch (err) {
     logger.error({ err: String(err), eventType: event.type }, '[billingRoutes] webhook 处理失败');
+    // P2-4: 处理失败时删除去重键，否则 Stripe 重试会被当作已处理而吞掉
+    await appRedis.del(`${STRIPE_EVENT_KEY_PREFIX}${event.id}`).catch(() => {});
     res.status(500).json({ received: false });
     return;
   }

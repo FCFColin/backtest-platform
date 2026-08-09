@@ -114,6 +114,7 @@ function createRedisMocks(
   target.get = makeFn();
   target.set = makeFn();
   target.del = makeFn();
+  target.getdel = makeFn();
   target.expire = makeFn();
   if (withSets) {
     target.sadd = makeFn();
@@ -143,7 +144,7 @@ function createRedisMocks(
     target.useMemoryFallback = () => {
       (target.resetStore as () => void | undefined)?.();
       const err = new Error(memoryFallbackErrorMessage);
-      for (const k of ['ping', 'get', 'set', 'del', 'expire']) reject(k, err);
+      for (const k of ['ping', 'get', 'set', 'del', 'getdel', 'expire']) reject(k, err);
       if (target.sadd) reject('sadd', err);
       if (target.smembers) reject('smembers', err);
       if (target.emit) (target.emit as (e: string, ...a: unknown[]) => void)('error');
@@ -161,6 +162,11 @@ function createRedisMocks(
       (target.del as ReturnType<typeof vi.fn>).mockImplementation((key: string) => {
         store!.delete(key);
         return Promise.resolve(1);
+      });
+      (target.getdel as ReturnType<typeof vi.fn>).mockImplementation((key: string) => {
+        const value = store!.get(key) ?? null;
+        store!.delete(key);
+        return Promise.resolve(value);
       });
       if (target.sadd)
         (target.sadd as ReturnType<typeof vi.fn>).mockImplementation(

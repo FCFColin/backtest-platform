@@ -269,7 +269,7 @@ describe('jwtAuth 与相关中间件', () => {
     const t = await generateRefreshToken('disabled-redis-refresh', 'admin');
     mockUser(false, 'readonly');
     expect(await refreshAccessToken(t)).toBeNull();
-    expect(redisMocks.del).toHaveBeenCalled();
+    expect(redisMocks.store.get(`refresh_token:${t}`)).toBeUndefined();
   });
   it('optionalJwtAuth：有效 Bearer 应设置 req.user 并放行', async () => {
     const token = await generateToken('user-1', 'analyst');

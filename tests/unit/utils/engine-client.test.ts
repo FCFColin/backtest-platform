@@ -51,7 +51,6 @@ import CircuitBreakerDefault from 'opossum';
 import { z } from 'zod';
 import {
   callEngineStrict,
-  resetEngineAvailability,
   EngineUnavailableError,
 } from '../../../packages/backend/src/utils/engineClient.js';
 import { UpstreamProblemError } from '../../../packages/backend/src/utils/errors.js';
@@ -201,15 +200,5 @@ describe('熔断器事件回调', () => {
     cbEventHandlers.halfOpen();
     cbEventHandlers.close();
     expect(metricsMocks.recordEngineUnavailable).not.toHaveBeenCalled();
-  });
-});
-describe('resetEngineAvailability', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    cbMocks.reset();
-  });
-  it('应关闭 Go 引擎熔断器', () => {
-    resetEngineAvailability();
-    expect(cbMocks.goCB.close).toHaveBeenCalled();
   });
 });

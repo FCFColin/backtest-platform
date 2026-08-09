@@ -3,7 +3,6 @@ import { startExpressApp, type TestServer } from './expressApp.js';
 import { mockBacktestResult } from './storeFixtures.js';
 import { ValidationError } from '../../packages/backend/src/utils/errors.js';
 import {
-  clearBacktestResultCache,
   setBacktestResultCache,
   backtestCacheKey,
   compressBacktestResultForSync,
@@ -208,8 +207,6 @@ export function configureTickerHelpersMocks(m: BacktestMockHandles): void {
   m.loadMacroData.mockImplementation(async () => ({ cpiData: {}, exchangeRates: {} }));
 }
 
-export { clearBacktestResultCache };
-
 const VALID_PARAMS = { startDate: '2024-01-01', endDate: '2024-06-30', startingValue: 10000 };
 const VALID_ASSETS = [
   { ticker: 'AAPL', weight: 60 },
@@ -241,7 +238,6 @@ export async function setupPortfolioServer(
 ): Promise<TestServer> {
   const { vi } = await import('vitest');
   vi.clearAllMocks();
-  clearBacktestResultCache();
   m.fetchHistoryData.mockResolvedValue(DEFAULT_PRICE_DATA);
   m.runBacktest.mockResolvedValue({
     result: mockBacktestResult({

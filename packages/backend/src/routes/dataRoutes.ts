@@ -220,6 +220,6 @@ router.get(
   ),
 );
 
-setInterval(() => void warmMetaCache(), 25 * 60 * 1000);
+setInterval(() => void warmMetaCache(), 25 * 60 * 1000).unref();
 
 export default router;

@@ -41,7 +41,7 @@ export function formatCurrency(
 ): string {
   if (invalid(value)) return NULL;
   const maxFrac = fixedDigits ?? (Math.abs(value) >= 1_000_000 ? 0 : 2);
-  return new Intl.NumberFormat('en-US', {
+  return new Intl.NumberFormat(currency === 'CNY' ? 'zh-CN' : 'en-US', {
     style: 'currency',
     currency,
     minimumFractionDigits: maxFrac,

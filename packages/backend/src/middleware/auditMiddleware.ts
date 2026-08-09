@@ -4,6 +4,7 @@ import { config } from '../config/index.js';
 import { logger } from '../utils/logger.js';
 import type { PoolClient } from 'pg';
 import { getPool } from '../db/pool.js';
+import { writeEventInTransaction } from '../infrastructure/outbox.js';
 import { auditOutboxWriteFailures } from '../utils/metrics.js';
 import type { AuthenticatedRequest } from './jwtAuth.js';
 
@@ -45,18 +46,13 @@ export async function writeOutboxEvent(
   const signature = signPayload(payload);
   const eventId = crypto.randomUUID();
   try {
-    await conn.query(
-      `INSERT INTO outbox (aggregate_type, aggregate_id, event_type, payload, event_id, created_at)
-       VALUES ($1, $2, $3, $4, $5, NOW())
-       ON CONFLICT (event_id) WHERE event_id IS NOT NULL DO NOTHING`,
-      [
-        'audit',
-        String(auditEntry.userId || 'unknown'),
-        'AuditEvent',
-        { ...auditEntry, signature },
-        eventId,
-      ],
-    );
+    await writeEventInTransaction(conn, {
+      aggregateType: 'audit',
+      aggregateId: String(auditEntry.userId || 'unknown'),
+      eventType: 'AuditEvent',
+      payload: { ...auditEntry, signature },
+      eventId,
+    });
     if (!client) await conn.query('NOTIFY outbox_channel');
     logger.debug(
       { middleware: 'auditLog', transactional: !!client },

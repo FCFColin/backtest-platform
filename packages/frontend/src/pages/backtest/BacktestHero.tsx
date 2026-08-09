@@ -1,6 +1,6 @@
 import { useState, useEffect, memo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { BarChart3, ChevronDown } from 'lucide-react';
+import { BarChart3, ChevronDown, Check } from 'lucide-react';
 import { Settings, Rocket, ChevronUp, ArrowRight, FlaskConical } from 'lucide-react';
 import { Link } from 'react-router';
 import { Button, Card } from '@/components/ui/uiComponents';
@@ -162,7 +162,7 @@ function CapabilityCard({
         <ul className="space-y-2 mb-4">
           {items.map((item, i) => (
             <li key={i} className="text-body text-fg-secondary flex items-start gap-2">
-              <span className="text-success mt-0.5">&#10003;</span>
+              <Check className="size-3.5 text-success mt-0.5 shrink-0" />
               <span>{item}</span>
             </li>
           ))}

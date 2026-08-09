@@ -9,7 +9,6 @@ import {
   createValidRequestBody,
   createBacktestApp,
   setupPortfolioServer,
-  clearBacktestResultCache,
   startEngineRouteServer,
   EngineUnavailableErrorStub,
 } from '../../helpers/backtestRoutesFixtures.js';
@@ -478,8 +477,10 @@ describe('backtestRoutes - POST /api/backtest/portfolio/series', () => {
   });
   it('缓存未命中时应返回 404', async () => {
     const body = createValidRequestBody();
+    // 与缓存命中用例的 body 保持差异，避免命中前置用例写入的同键缓存（缓存为模块级）
     const { res } = await postJson(`${getServer().url}/api/backtest/portfolio/series`, {
       ...body,
+      parameters: { ...body.parameters, startingValue: 99999 },
       series: ['rollingReturns'],
     });
     expect(res.status).toBe(404);
@@ -489,7 +490,6 @@ describe('backtestRoutes - POST /api/backtest/portfolio/series', () => {
 describe('backtestRoutes - GET /api/backtest/search', () => {
   const getServer = withServer(() => {
     vi.clearAllMocks();
-    clearBacktestResultCache();
     return createBacktestApp(backtestRoutes);
   });
   it('应返回搜索结果', async () => {

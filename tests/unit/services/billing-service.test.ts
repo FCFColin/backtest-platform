@@ -29,21 +29,18 @@ vi.mock('../../../packages/backend/src/config/index.js', () => ({
       backtestsPerMonth: 100,
       maxTickers: 10,
       asyncConcurrency: 1,
-      rateLimitPerMin: 10,
       maxTacticalConfigs: 10,
     },
     pro: {
       backtestsPerMonth: 5000,
       maxTickers: 50,
       asyncConcurrency: 5,
-      rateLimitPerMin: 60,
       maxTacticalConfigs: 100,
     },
     enterprise: {
       backtestsPerMonth: Number.POSITIVE_INFINITY,
       maxTickers: 200,
       asyncConcurrency: 20,
-      rateLimitPerMin: 300,
       maxTacticalConfigs: Number.POSITIVE_INFINITY,
     },
   },
@@ -130,14 +127,14 @@ describe('plan/price 映射', () => {
 describe('getPlanLimits', () => {
   it.each<[string, number, number, number, number]>([
     ['free', 100, 10, 1, 10],
-    ['pro', 5000, 50, 5, 60],
-    ['enterprise', Number.POSITIVE_INFINITY, 200, 20, 300],
-  ])('%s 计划应返回对应限额', (plan, backtests, tickers, concurrency, rateLimit) => {
+    ['pro', 5000, 50, 5, 100],
+    ['enterprise', Number.POSITIVE_INFINITY, 200, 20, Number.POSITIVE_INFINITY],
+  ])('%s 计划应返回对应限额', (plan, backtests, tickers, concurrency, configs) => {
     const limits = getPlanLimits(plan);
     expect(limits.backtestsPerMonth).toBe(backtests);
     expect(limits.maxTickers).toBe(tickers);
     expect(limits.asyncConcurrency).toBe(concurrency);
-    expect(limits.rateLimitPerMin).toBe(rateLimit);
+    expect(limits.maxTacticalConfigs).toBe(configs);
   });
 
   it('未知计划应回到 free（fail-safe）', () => {

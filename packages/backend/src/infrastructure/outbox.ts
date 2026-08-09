@@ -1,4 +1,4 @@
-import type { PoolClient } from 'pg';
+import type { Pool, PoolClient } from 'pg';
 import { logger } from '../utils/logger.js';
 
 export interface OutboxConsumer {
@@ -15,7 +15,7 @@ export interface OutboxEvent {
 }
 
 export async function writeEventInTransaction(
-  client: PoolClient,
+  client: Pool | PoolClient,
   event: OutboxEvent,
 ): Promise<void> {
   await client.query(

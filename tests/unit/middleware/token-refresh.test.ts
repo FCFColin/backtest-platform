@@ -201,9 +201,8 @@ describe('Refresh Token 生命周期与 Redis', () => {
 });
 
 describe('isUserSessionValid 与 isAccessTokenRevokedForUser', () => {
-  it('系统用户 ID（dev-user/api-key-user）应视为有效且不查 DB', async () => {
-    for (const sysUser of ['dev-user', 'api-key-user'])
-      expect(await isUserSessionValid(sysUser)).toBe(true);
+  it('系统用户 ID（dev-user）应视为有效且不查 DB', async () => {
+    expect(await isUserSessionValid('dev-user')).toBe(true);
     expect(getUserById).not.toHaveBeenCalled();
   });
   it('活跃用户有效；停用/不存在/异常用户无效', async () => {

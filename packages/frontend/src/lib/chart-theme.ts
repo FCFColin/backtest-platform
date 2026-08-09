@@ -123,21 +123,6 @@ export function getHeatColor(val: number | null): string {
   if (val > -5) return CORR_COLORS.moderateNegative;
   return CORR_COLORS.strongNegative;
 }
-export interface ThresholdBand<T = string> {
-  threshold: number;
-  value: T;
-}
-export function pickByThreshold<T>(
-  value: number,
-  bands: ReadonlyArray<ThresholdBand<T>>,
-  defaultValue: T,
-): T {
-  for (const band of bands) {
-    const matches = band.threshold >= 0 ? value >= band.threshold : value > band.threshold;
-    if (matches) return band.value;
-  }
-  return defaultValue;
-}
 export function pickByAbsThreshold<T>(
   value: number,
   threshold: number,

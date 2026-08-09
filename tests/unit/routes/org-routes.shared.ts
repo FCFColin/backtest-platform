@@ -10,6 +10,8 @@ const internalMocks = vi.hoisted(() => ({
     createCheckoutSession: vi.fn(),
     createPortalSession: vi.fn(),
     getSubscriptionSummary: vi.fn(),
+    constructWebhookEvent: vi.fn(),
+    handleWebhookEvent: vi.fn(),
   },
   membership: {
     getOrg: vi.fn(),

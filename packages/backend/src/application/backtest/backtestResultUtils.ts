@@ -7,7 +7,7 @@ import type {
 } from '@backtest/shared/types';
 import { recordCacheHit } from '../../utils/metrics.js';
 import { appRedis, getRedisHealth } from '../../infrastructure/redisClient.js';
-import { silentRedis, scanDelKeys } from '../../infrastructure/redisGuard.js';
+import { silentRedis } from '../../infrastructure/redisGuard.js';
 
 export const MAX_SYNC_CHART_POINTS = 400;
 const MAX_CHART_POINTS = 800;
@@ -112,7 +112,6 @@ interface CacheEntry {
   expiresAt: number;
 }
 const cache = new Map<string, CacheEntry>();
-const inFlight = new Map<string, Promise<BacktestResult>>();
 
 export function backtestCacheKey(
   portfolios: Portfolio[],
@@ -177,35 +176,7 @@ export async function getBacktestResultCache(key: string): Promise<BacktestResul
   return null;
 }
 
-export async function getOrCompute(
-  key: string,
-  compute: () => Promise<BacktestResult>,
-): Promise<BacktestResult> {
-  const cached = await getBacktestResultCache(key);
-  if (cached) return cached;
-  const existing = inFlight.get(key);
-  if (existing) return existing;
-  const promise = (async () => {
-    const result = await compute();
-    await setBacktestResultCache(key, result);
-    return result;
-  })().finally(() => {
-    inFlight.delete(key);
-  });
-  inFlight.set(key, promise);
-  return promise;
-}
-
-export function clearBacktestResultCache(): void {
-  cache.clear();
-  inFlight.clear();
-  void getRedisHealth().then((ok) => {
-    if (!ok) return;
-    void scanDelKeys(`${BACKTEST_CACHE_REDIS_PREFIX}*`).catch(() => {});
-  });
-}
-
-function evictExpired(): void {
+export function evictExpired(): void {
   const now = Date.now();
   for (const [key, entry] of cache) {
     if (now > entry.expiresAt) cache.delete(key);

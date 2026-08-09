@@ -9,7 +9,7 @@ import { generateToken, hashUserId } from './jwtAuth.js';
 import type { Role, TenantContext } from './jwtAuth.js';
 import type { OrgRole } from '@backtest/shared/types/org';
 
-const SYSTEM_USER_IDS = new Set(['dev-user', 'api-key-user']);
+const SYSTEM_USER_IDS = new Set(['dev-user']);
 export async function isUserSessionValid(userId: string): Promise<boolean> {
   if (SYSTEM_USER_IDS.has(userId)) return true;
   try {
@@ -183,15 +183,13 @@ async function refreshAccessTokenRedis(
   refreshToken: string,
 ): Promise<{ accessToken: string; refreshToken: string } | null> {
   const tokenKey = redisKeys.refreshToken(refreshToken);
-  const entry = await readEntry<RefreshTokenEntry>(tokenKey);
-  if (!entry) return checkReuseAndRevoke(refreshToken);
+  // P0: GETDEL 原子认领——并发/重放同一 token 时仅一个请求拿到 entry，其余进入复用检测
+  const claimed = await appRedis.getdel(tokenKey);
+  if (claimed === null) return checkReuseAndRevoke(refreshToken);
+  const entry = JSON.parse(claimed as string) as RefreshTokenEntry;
   const now = Math.floor(Date.now() / 1000);
-  if (entry.expiresAt < now) {
-    await appRedis.del(tokenKey);
-    return null;
-  }
+  if (entry.expiresAt < now) return null;
   if (!(await isUserSessionValid(entry.userId))) {
-    await appRedis.del(tokenKey);
     logger.warn({ userId: hashUserId(entry.userId) }, '[jwtAuth] 用户已停用，拒绝 refresh');
     return null;
   }
@@ -201,7 +199,6 @@ async function refreshAccessTokenRedis(
       { familyId: entry.familyId },
       '[jwtAuth] Token family 已被撤销（复用检测触发），拒绝刷新',
     );
-    await appRedis.del(tokenKey);
     return null;
   }
   const usedKey = redisKeys.usedRefreshToken(refreshToken);
@@ -211,7 +208,6 @@ async function refreshAccessTokenRedis(
     'EX',
     REFRESH_TOKEN_EXPIRES_IN_SEC,
   );
-  await appRedis.del(tokenKey);
   return issueRotatedTokens(entry);
 }
 async function checkReuseAndRevoke(refreshToken: string): Promise<null> {

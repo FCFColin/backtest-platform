@@ -73,12 +73,6 @@ server.listen(PORT, async () => {
     }
     const { warmMetaCache } = await import('./routes/dataRoutes.js');
     await warmMetaCache();
-    const { fetchHistoryData } = await import('./infrastructure/dataFacade.js');
-    void fetchHistoryData(
-      ['VTI', 'BND', 'SPY', 'QQQ', 'GLD', 'TLT', 'AGG', 'VXUS'],
-      '2010-01-01',
-      '2024-12-31',
-    ).catch(() => {});
   } catch (err) {
     logger.warn({ err }, '[startup] 数据库初始化失败');
   }

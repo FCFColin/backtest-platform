@@ -99,20 +99,20 @@ describe('rateLimiter — keyGenerator（Redis 可用路径）', () => {
       'tenant:org-123',
     ],
     [
-      'computeRateLimitKey: Bearer JWT tenant_id 优先于 IP',
+      'computeRateLimitKey: Bearer token 按原始 token 哈希分桶（不信任可伪造的 JWT payload）',
       computeOpts,
       {
         headers: {
           authorization: `Bearer header.${encodeJwtPayload({ tenant_id: 'tenant-from-jwt' })}.sig`,
         },
       },
-      'tenant:tenant-from-jwt',
+      hashKey('token', `header.${encodeJwtPayload({ tenant_id: 'tenant-from-jwt' })}.sig`),
     ],
     [
-      'computeRateLimitKey: Bearer JWT sub 作为 fallback',
+      'computeRateLimitKey: 不同 token 永不落入同一桶（伪造 token 无法污染目标配额）',
       computeOpts,
       { headers: { authorization: `Bearer header.${encodeJwtPayload({ sub: 'user-abc' })}.sig` } },
-      'user:user-abc',
+      hashKey('token', `header.${encodeJwtPayload({ sub: 'user-abc' })}.sig`),
     ],
     [
       'computeRateLimitKey: x-api-key 哈希后作为 key',

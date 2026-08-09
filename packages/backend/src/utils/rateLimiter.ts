@@ -42,31 +42,17 @@ function createRateLimiterStore(prefix: string): RedisStore | undefined {
   }
 }
 
-function extractJwtIdentifier(authHeader: string): string | null {
-  try {
-    const segment = authHeader.slice(7).trim().split('.')[1];
-    if (!segment) return null;
-    const payload = JSON.parse(Buffer.from(segment, 'base64url').toString('utf8')) as {
-      sub?: string;
-      tenant_id?: string;
-    };
-    if (payload.tenant_id) return `tenant:${payload.tenant_id}`;
-    if (payload.sub) return `user:${payload.sub}`;
-    return null;
-  } catch {
-    return null;
-  }
-}
-
 function computeRateLimitKey(req: Request): string {
   const user = (req as { user?: { sub?: string } }).user;
   if (user?.sub) return `${user.sub}:${req.ip ?? ''}`;
   const tenantId = (req as { tenantId?: string }).tenantId;
   if (typeof tenantId === 'string' && tenantId.length > 0) return `tenant:${tenantId}`;
+  // 限流先于认证执行，JWT payload 可被伪造，不得信任——按原始 token 哈希分桶，
+  // 伪造 token 只会烧自己桶，无法污染目标用户配额
   const authHeader = req.headers.authorization;
   if (typeof authHeader === 'string' && authHeader.startsWith('Bearer ')) {
-    const jwtId = extractJwtIdentifier(authHeader);
-    if (jwtId) return jwtId;
+    const token = authHeader.slice(7).trim();
+    return `token:${crypto.createHash('sha256').update(token).digest('hex').slice(0, 16)}`;
   }
   const apiKey = req.headers['x-api-key'];
   if (typeof apiKey === 'string' && apiKey.length > 0)

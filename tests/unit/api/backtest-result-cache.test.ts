@@ -21,8 +21,6 @@ import {
   backtestCacheKey,
   setBacktestResultCache,
   getBacktestResultCache,
-  getOrCompute,
-  clearBacktestResultCache,
 } from '../../../packages/backend/src/application/backtest/backtestResultUtils.js';
 import type { BacktestResult, Portfolio, BacktestParameters } from '@backtest/shared';
 
@@ -61,7 +59,6 @@ const TENANT_B = '00000000-0000-4000-8000-000000000002';
 
 describe('backtestResultCache', () => {
   beforeEach(() => {
-    clearBacktestResultCache();
     vi.clearAllMocks();
     redisMocks.ping.mockResolvedValue('PONG');
     redisMocks.get.mockResolvedValue(null);
@@ -147,43 +144,5 @@ describe('backtestResultCache', () => {
     const a = backtestCacheKey(portfolios, parameters, undefined);
     const b = backtestCacheKey(portfolios, parameters, undefined);
     expect(a).toBe(b);
-  });
-
-  it('singleflight: 100 个相同 key 的并发请求只触发 1 次 compute', async () => {
-    const key = backtestCacheKey(portfolios, parameters, TENANT_A);
-    const sfResult: BacktestResult = {
-      portfolios: [{ id: 'sf', name: 'Singleflight', assets: [] }],
-      correlations: [],
-    };
-    const compute = vi.fn(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 50));
-      return sfResult;
-    });
-
-    const promises = Array.from({ length: 100 }, () => getOrCompute(key, compute));
-    const results = await Promise.all(promises);
-
-    expect(compute).toHaveBeenCalledTimes(1);
-    expect(results).toHaveLength(100);
-    for (const r of results) {
-      expect(r).toBe(sfResult);
-    }
-  });
-
-  it('singleflight: compute 异常后清理 inFlight，后续请求可重试', async () => {
-    const key = backtestCacheKey(portfolios, parameters, TENANT_A);
-    let callCount = 0;
-    const compute = vi.fn(async () => {
-      callCount++;
-      if (callCount === 1) throw new Error('engine down');
-      return stubResult;
-    });
-
-    await expect(getOrCompute(key, compute)).rejects.toThrow('engine down');
-    expect(compute).toHaveBeenCalledTimes(1);
-
-    const result = await getOrCompute(key, compute);
-    expect(result).toBe(stubResult);
-    expect(compute).toHaveBeenCalledTimes(2);
   });
 });

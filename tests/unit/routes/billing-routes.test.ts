@@ -1,7 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { mocks, startApp, jsonFetch } from './org-routes.shared.js';
 import type { TestServer } from '../../helpers/expressApp.js';
-import billingRoutes from '../../../packages/backend/src/routes/billingRoutes.js';
+import { startExpressApp } from '../../helpers/expressApp.js';
+import billingRoutes, {
+  billingWebhookHandler,
+} from '../../../packages/backend/src/routes/billingRoutes.js';
+import { appRedis } from '../../../packages/backend/src/infrastructure/redisClient.js';
 
 describe('billingRoutes', () => {
   let server: TestServer;
@@ -72,5 +76,60 @@ describe('billingRoutes', () => {
     server = await startApp('/api/v1/billing', billingRoutes, { sub: 'user-1' });
     const res = await fetch(`${server.url}/api/v1/billing/portal`, { method: 'POST' });
     expect(res.status).toBe(404);
+  });
+});
+
+describe('billingWebhookHandler', () => {
+  let server: TestServer;
+  const post = (url: string) =>
+    fetch(url, { method: 'POST', headers: { 'stripe-signature': 'sig' } });
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.svc.isBillingEnabled.mockReturnValue(true);
+  });
+  afterEach(async () => {
+    if (server) await server.close();
+  });
+  const mount = async () => {
+    server = await startExpressApp((app) => {
+      app.use('/api/v1/billing/webhook', billingWebhookHandler);
+    });
+  };
+
+  it('处理失败返回 500 并删除去重键，避免 Stripe 重试被吞掉', async () => {
+    mocks.svc.constructWebhookEvent.mockReturnValue({
+      id: 'evt_fail',
+      type: 'checkout.session.completed',
+    });
+    mocks.svc.handleWebhookEvent.mockRejectedValueOnce(new Error('boom'));
+    await mount();
+    const res = await post(`${server.url}/api/v1/billing/webhook`);
+    expect(res.status).toBe(500);
+    expect(appRedis.del).toHaveBeenCalledWith('stripe:event:evt_fail');
+  });
+
+  it('处理成功返回 200 且不删除去重键', async () => {
+    mocks.svc.constructWebhookEvent.mockReturnValue({
+      id: 'evt_ok',
+      type: 'checkout.session.completed',
+    });
+    mocks.svc.handleWebhookEvent.mockResolvedValueOnce(undefined);
+    await mount();
+    const res = await post(`${server.url}/api/v1/billing/webhook`);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ received: true });
+    expect(appRedis.del).not.toHaveBeenCalled();
+  });
+
+  it('去重命中（事件已处理）跳过 handleWebhookEvent 并返回 200', async () => {
+    mocks.svc.constructWebhookEvent.mockReturnValue({
+      id: 'evt_dup',
+      type: 'checkout.session.completed',
+    });
+    (appRedis.set as ReturnType<typeof vi.fn>).mockResolvedValueOnce(null);
+    await mount();
+    const res = await post(`${server.url}/api/v1/billing/webhook`);
+    expect(res.status).toBe(200);
+    expect(mocks.svc.handleWebhookEvent).not.toHaveBeenCalled();
   });
 });

@@ -79,10 +79,6 @@ async function retryWithBackoff<T>(
   throw lastError;
 }
 
-export function resetEngineAvailability(): void {
-  goCircuitBreaker.close();
-}
-
 export class EngineUnavailableError extends Error {
   readonly retryAfterSeconds: number;
   readonly code = 'ENGINE_UNAVAILABLE';

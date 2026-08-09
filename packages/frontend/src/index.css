@@ -2,8 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-/* 主题变量已迁移至 styles/tokens.css（P3-3 CSS 主题系统统一） */
-
 @layer base {
   html {
     color-scheme: light dark;
