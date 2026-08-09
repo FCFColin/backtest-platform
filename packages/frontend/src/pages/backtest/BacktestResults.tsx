@@ -13,7 +13,6 @@ import { ResultsActionBar } from '@/components/results/ResultsActionBar.js';
 import { SummarySidebar } from '@/components/results/SummarySidebar.js';
 import { getPortfolioColor } from '@/lib/chart-theme.js';
 import { downloadFile, downloadJSON, dateSuffixedFilename } from '@/utils/format';
-import { REBALANCE_LBL } from '@/utils/constants';
 import { SimpleTable, type SimpleTableColumn } from '@/components/tables.js';
 import ChartCard from '@/components/ChartCard.js';
 import { lazyNamed } from '@/utils/lazyImport';
@@ -23,6 +22,7 @@ import {
   type BacktestResult,
   type TimeSeriesPoint,
   CHART_COLORS,
+  REBALANCE_LABELS,
   toStatsRecord,
   createEmptyStatistics,
 } from '@backtest/shared';
@@ -350,7 +350,7 @@ function RebalancingStats({ portfolios }: RebalancingStatsProps) {
     {
       key: 'rebalanceFrequency',
       label: t('Rebalancing Frequency'),
-      render: (p) => t(REBALANCE_LBL[p.rebalanceFrequency] || p.rebalanceFrequency),
+      render: (p) => t(REBALANCE_LABELS[p.rebalanceFrequency] || p.rebalanceFrequency),
     },
     {
       key: 'rebalanceOffset',

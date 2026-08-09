@@ -12,7 +12,7 @@ import i18n from '../../i18n/index.js';
 import { DEFAULT_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
 
 export type SignalDir = 'buy' | 'sell' | null;
-export function buildSignalRequest(
+function buildSignalRequest(
   ticker: string,
   cfg: Pick<SignalAnalysisRequest, 'indicator' | 'period' | 'threshold'>,
   signalType: SignalType,

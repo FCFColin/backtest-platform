@@ -3,7 +3,11 @@ import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus, X, ChevronDown, FolderOpen, GitCompare } from 'lucide-react';
 import { useBacktestStore } from '@/store/backtestStore';
-import { ALL_REBALANCE_FREQUENCIES, type BacktestParameters } from '@backtest/shared';
+import {
+  ALL_REBALANCE_FREQUENCIES,
+  REBALANCE_LABELS,
+  type BacktestParameters,
+} from '@backtest/shared';
 import { useToastStore } from '@/store/toastStore';
 import { PRESET_PORTFOLIOS } from '@/store/presetPortfolios.js';
 import { validateAssetWeights } from '@/utils/validation';
@@ -16,7 +20,6 @@ import {
 } from './portfolioEditor/portfolioEditor.js';
 import { getPortfolioColor } from '@/lib/chart-theme.js';
 import { downloadJSON } from '@/utils/format';
-import { REBALANCE_LBL } from '@/utils/constants';
 import {
   AffixInput,
   Badge,
@@ -129,7 +132,7 @@ function handleSavePortfolio(portfolio: StorePortfolio, parameters: BacktestPara
   useToastStore.getState().addToast('success', t('Portfolio saved as JSON file'));
 }
 const buildRebalanceOptions = (t: TFunc) =>
-  ALL_REBALANCE_FREQUENCIES.map((value) => ({ value, label: t(REBALANCE_LBL[value]) }));
+  ALL_REBALANCE_FREQUENCIES.map((value) => ({ value, label: t(REBALANCE_LABELS[value]) }));
 interface AddMenuActions {
   t: TFunc;
   onAdd: () => void;

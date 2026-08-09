@@ -1,7 +1,6 @@
 ﻿import { useState } from 'react';
 import i18n from '@/i18n/index.js';
 import {
-  REBALANCE_FREQUENCY_OPTIONS,
   REBALANCE_LABELS,
   type BacktestOptimizerObjective as Objective,
   type BestResultItem,
@@ -14,7 +13,6 @@ import { apiPostJSON } from '@/utils/apiClient';
 import { useAssetList } from '../../hooks/miscHooks.js';
 import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
 export type { Objective };
-export const FREQ_OPTIONS = REBALANCE_FREQUENCY_OPTIONS;
 export const OBJECTIVE_SORT_KEY: Record<Objective, keyof OptimizeResultItem> = {
   maxCagr: 'cagr',
   minMaxDrawdown: 'maxDrawdown',
@@ -41,7 +39,7 @@ export const TABLE_COLUMNS: TableColumn<OptimizeResultItem>[] = [
     render: (r) =>
       r.rebalanceFrequency === 'threshold'
         ? i18n.t('Threshold ({{value}}%)', { value: r.rebalanceThreshold })
-        : (REBALANCE_LABELS[r.rebalanceFrequency] ?? r.rebalanceFrequency),
+        : i18n.t(REBALANCE_LABELS[r.rebalanceFrequency]) || r.rebalanceFrequency,
   },
   {
     key: 'rebalanceThreshold',
@@ -210,7 +208,7 @@ export function buildBestMetrics(
       value:
         best.rebalanceFrequency === 'threshold'
           ? `阈值(${best.rebalanceThreshold}%)`
-          : (REBALANCE_LABELS[best.rebalanceFrequency] ?? best.rebalanceFrequency),
+          : i18n.t(REBALANCE_LABELS[best.rebalanceFrequency]) || best.rebalanceFrequency,
     },
     { label: '初始资金', value: fmtDollar(best.initialCapital) },
     ...BEST_METRIC_DEFS.map(([key, label, fmt]) => ({ label, value: fmt(best[key] as number) })),

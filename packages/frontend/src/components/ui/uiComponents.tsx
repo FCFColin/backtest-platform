@@ -169,11 +169,6 @@ export const Alert = React.forwardRef<
 >(({ className, variant, ...props }, ref) => (
   <div ref={ref} role="alert" className={cn(alertVariants({ variant }), className)} {...props} />
 ));
-export const AlertTitle = wrapPrimitive(
-  'h5',
-  'text-h3 text-fg font-medium leading-none tracking-tight',
-  'AlertTitle',
-);
 export const AlertDescription = wrapPrimitive(
   'div',
   'text-body text-fg-secondary [&_p]:leading-relaxed',

@@ -144,7 +144,7 @@ for (const [key, codes] of Object.entries(ERROR_I18N_GROUPS)) {
   for (const code of codes) ERROR_I18N_MAP[code] = key;
 }
 
-export interface WarningInfo {
+interface WarningInfo {
   code?: string;
   message?: string;
   tickers?: string[];
@@ -156,9 +156,8 @@ export interface WarningInfo {
 
 const getI18nKey = (code?: string): string => (code && ERROR_I18N_MAP[code]) || 'errors.unknown';
 export const getErrorI18nKey = getI18nKey;
-export const getWarningI18nKey = getI18nKey;
 
-export function getWarningInterpolationParams(warning: WarningInfo): Record<string, ReactNode> {
+function getWarningInterpolationParams(warning: WarningInfo): Record<string, ReactNode> {
   const params: Record<string, ReactNode> = {};
   if (warning.tickers?.length) params.tickers = warning.tickers.join(', ');
   for (const k of ['requestedStart', 'requestedEnd', 'actualStart', 'actualEnd'] as const) {
@@ -177,7 +176,7 @@ export function processResponseWarnings(json: Record<string, unknown>): WarningI
     } else if (w && typeof w === 'object') {
       const warn = w as WarningInfo;
       warningsList.push(warn);
-      const message = i18n.t(getWarningI18nKey(warn.code), getWarningInterpolationParams(warn));
+      const message = i18n.t(getI18nKey(warn.code), getWarningInterpolationParams(warn));
       useToastStore
         .getState()
         .addToast('warning', warn.message ? `${message} - ${warn.message}` : message);

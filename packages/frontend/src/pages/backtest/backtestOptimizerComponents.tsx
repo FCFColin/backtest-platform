@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { Line } from 'recharts';
-import { CHART_COLORS } from '@backtest/shared';
+import { CHART_COLORS, REBALANCE_FREQUENCY_OPTIONS } from '@backtest/shared';
 import {
   ParamsPanel,
   ParamsSection,
@@ -25,7 +25,6 @@ import { TableEmpty } from '@/components/stateDisplay.js';
 import { SortableTable } from '../../components/tables.js';
 import { SimpleChart } from '@/components/charts/sharedChartContent.js';
 import {
-  FREQ_OPTIONS,
   OBJECTIVE_SORT_KEY,
   TABLE_COLUMNS,
   buildBestMetrics,
@@ -217,7 +216,7 @@ function FreqMultiSelect({ s }: OptimizerSectionProps) {
         {t('Rebalancing Frequency')}
       </div>
       <div className="flex flex-wrap gap-2">
-        {FREQ_OPTIONS.map((opt) => {
+        {REBALANCE_FREQUENCY_OPTIONS.map((opt) => {
           const active = s.frequencies.includes(opt.value);
           return (
             <Button
@@ -226,7 +225,7 @@ function FreqMultiSelect({ s }: OptimizerSectionProps) {
               size="sm"
               onClick={() => s.toggleFreq(opt.value)}
             >
-              {opt.label}
+              {t(opt.label)}
             </Button>
           );
         })}

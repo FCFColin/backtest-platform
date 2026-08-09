@@ -10,7 +10,7 @@ import { buildBacktestParameters, buildSinglePortfolioBody } from '@/utils/const
 export const REBALANCE_OPTIONS: { value: RebalanceFrequency; label: string; color: string }[] =
   REBALANCE_FREQUENCIES.map((value) => ({
     value,
-    label: REBALANCE_LABELS[value],
+    label: i18n.t(REBALANCE_LABELS[value]),
     color: REBALANCE_FREQUENCY_COLORS[value],
   }));
 export interface FreqResult {

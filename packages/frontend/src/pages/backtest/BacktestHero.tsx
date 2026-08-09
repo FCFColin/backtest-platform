@@ -4,7 +4,6 @@ import { BarChart3, ChevronDown, Check } from 'lucide-react';
 import { Settings, Rocket, ChevronUp, ArrowRight, FlaskConical } from 'lucide-react';
 import { Link } from 'react-router';
 import { Button, Card } from '@/components/ui/uiComponents';
-import { CONTAINER_WIDTHS, CARD_GRID_CLASSES } from '@/utils/constants';
 import { cn } from '@/lib/utils';
 const HERO_STORAGE_KEY = 'backtest-hero-visit-count';
 const RESEARCH_TOOLS = [
@@ -25,7 +24,7 @@ function HeroDetails() {
         )}
       </p>
       {/* 三栏能力展示 */}
-      <div className={CARD_GRID_CLASSES.hero}>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* 可建模内容 */}
         <CapabilityCard
           icon={Settings}
@@ -97,7 +96,7 @@ export const BacktestHero = memo(function BacktestHero() {
     }
   }, []);
   return (
-    <section className={cn(CONTAINER_WIDTHS.page, 'pt-4 pb-6')} data-testid="page-hero">
+    <section className={cn('max-w-[1440px] mx-auto px-6', 'pt-4 pb-6')} data-testid="page-hero">
       {/* 标题行 - 始终显示 */}
       <div className="flex items-start justify-between mb-4">
         <div>

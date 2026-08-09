@@ -18,14 +18,6 @@ export const CHART_COLORS = [
   'hsl(var(--chart-8))',
 ] as const;
 
-export const REBALANCE_FREQUENCIES = [
-  'daily',
-  'weekly',
-  'monthly',
-  'quarterly',
-  'annual',
-] as const satisfies readonly RebalanceFrequency[];
-
 export const ALL_REBALANCE_FREQUENCIES = [
   'daily',
   'weekly',
@@ -35,6 +27,8 @@ export const ALL_REBALANCE_FREQUENCIES = [
   'none',
   'threshold',
 ] as const satisfies readonly RebalanceFrequency[];
+
+export const REBALANCE_FREQUENCIES = ALL_REBALANCE_FREQUENCIES.slice(0, 5);
 
 export const TECHNICAL_INDICATORS = [
   'sma',
@@ -58,13 +52,13 @@ export const REBALANCE_FREQUENCY_COLORS: Record<RebalanceFrequency, string> = {
 };
 
 export const REBALANCE_LABELS: Record<RebalanceFrequency, string> = {
-  daily: '每日',
-  weekly: '每周',
-  monthly: '每月',
-  quarterly: '每季度',
-  annual: '每年',
-  none: '不调仓',
-  threshold: '阈值',
+  none: 'monteCarlo.params.rebalanceNone',
+  annual: 'monteCarlo.params.rebalanceYearly',
+  quarterly: 'monteCarlo.params.rebalanceQuarterly',
+  monthly: 'monteCarlo.params.rebalanceMonthly',
+  weekly: 'portfolio.rebalanceWeekly',
+  daily: 'portfolio.rebalanceDaily',
+  threshold: 'portfolio.rebalanceThreshold',
 };
 
 export const REBALANCE_FREQUENCY_OPTIONS: Array<{ value: RebalanceFrequency; label: string }> =

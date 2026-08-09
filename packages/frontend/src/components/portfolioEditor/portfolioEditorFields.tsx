@@ -14,7 +14,6 @@ import {
 import { useTickerMeta } from '@/hooks/miscHooks.js';
 import { cn } from '@/lib/utils';
 import { ParamCard } from '@/components/params/paramsLayout.js';
-import { INPUT_WIDTHS } from '@/utils/constants';
 import type { StorePortfolio } from './portfolioEditor.js';
 
 const numCls = 'h-8 w-[70px] font-mono tabular-nums';
@@ -231,13 +230,13 @@ export function AssetWeightRow({
           value={asset.ticker}
           onChange={(e) => onUpdate({ ...asset, ticker: e.target.value.toUpperCase() })}
           placeholder="VTI"
-          className={cn(INPUT_WIDTHS.ticker, 'font-mono uppercase h-9')}
+          className={cn('w-[220px]', 'font-mono uppercase h-9')}
         />
         <Input
           type="number"
           value={asset.weight}
           onChange={(e) => onUpdate({ ...asset, weight: Number(e.target.value) })}
-          className={cn(INPUT_WIDTHS.weight, 'font-mono tabular-nums text-right h-9')}
+          className={cn('w-[100px]', 'font-mono tabular-nums text-right h-9')}
           min={0}
           max={100}
           step={0.1}
