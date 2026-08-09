@@ -66,12 +66,26 @@ func RunBacktest(ctx context.Context, req BacktestRequest) (*BacktestResult, err
 
 func computeBenchmarkGrowth(benchmarkTicker string, priceData PriceDataMap, tradingDates []time.Time, params BacktestParams) []DataPoint {
 	startValue := engineutil.DefaultStartingValue(params.StartingValue)
-	prices := engineutil.ExtractPrices(priceData, benchmarkTicker, tradingDates)
-	if len(prices) < 2 || prices[0] <= 0 {
+	tickerData, ok := priceData[benchmarkTicker]
+	if !ok {
 		return nil
 	}
+	prices := make([]float64, len(tradingDates))
+	last, firstIdx := 0.0, -1
+	for i, d := range tradingDates {
+		if p, exists := tickerData[d.Format("2006-01-02")]; exists {
+			last = p
+			if firstIdx < 0 {
+				firstIdx = i
+			}
+		}
+		prices[i] = last
+	}
+	if firstIdx < 0 {
+		return nil
+	}
+	startPrice := prices[firstIdx]
 	curve := make([]DataPoint, len(prices))
-	startPrice := prices[0]
 	for i, p := range prices {
 		curve[i] = DataPoint{Date: tradingDates[i].Format("2006-01-02"), Value: startValue * (p / startPrice)}
 	}

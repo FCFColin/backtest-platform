@@ -3,6 +3,7 @@ package montecarlo
 import (
 	"context"
 	"engine-go/internal/enginetest"
+	"math"
 	"testing"
 	"time"
 )
@@ -49,6 +50,19 @@ func TestComputePortfolioDailyReturns(t *testing.T) {
 		}
 		if len(returns) == 0 {
 			t.Error("收益率序列不应为空")
+		}
+	})
+	t.Run("drag 为年化百分比按日复利摊薄（与回测口径一致，非原始百分比直减）", func(t *testing.T) {
+		portfolio := MCPortfolioInput{Name: "test", Assets: []AssetInput{{Ticker: "VTI", Weight: 100}}, RebalanceFrequency: "none", Drag: 100, TotalReturn: true}
+		params := MCBacktestParams{StartDate: "2020-01-02", EndDate: "2021-06-30", StartingValue: 10000}
+		returns, err := computePortfolioDailyReturns(portfolio, enginetest.PriceData([]string{"VTI"}, []float64{100}, time.Date(2020, 1, 2, 0, 0, 0, 0, time.UTC), 300, 0), params)
+		if err != nil {
+			t.Fatalf("computePortfolioDailyReturns 返回错误: %v", err)
+		}
+		for i, r := range returns {
+			if got := math.Abs(r + 1.0); got > 1e-9 {
+				t.Errorf("Drag=100 时日收益应完全回撤（%v），第 %d 天为 %v", r, i, r)
+			}
 		}
 	})
 }

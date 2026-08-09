@@ -45,6 +45,40 @@ func TestRunBacktest(t *testing.T) {
 		}
 	})
 }
+func TestComputeBenchmarkGrowth(t *testing.T) {
+	t.Run("基准缺口日应沿用最近价而非归零", func(t *testing.T) {
+		priceData := PriceDataMap{
+			"VTI": {"2023-01-03": 100, "2023-01-04": 101, "2023-01-05": 102, "2023-01-06": 103, "2023-01-09": 104},
+			"SPY": {"2023-01-03": 400, "2023-01-04": 402, "2023-01-06": 405, "2023-01-09": 408},
+		}
+		dates, err := engineutil.ParseTradingDates(priceData)
+		if err != nil {
+			t.Fatalf("ParseTradingDates 返回错误: %v", err)
+		}
+		curve := computeBenchmarkGrowth("SPY", priceData, dates, BacktestParams{StartingValue: 10000})
+		if len(curve) != 5 {
+			t.Fatalf("基准曲线应对齐全部交易日，实际 %d 点", len(curve))
+		}
+		for _, dp := range curve {
+			if dp.Value <= 0 {
+				t.Errorf("缺口日不应归零：%s=%v", dp.Date, dp.Value)
+			}
+		}
+		if curve[2].Date != "2023-01-05" || math.Abs(curve[2].Value-10000*402.0/400.0) > 1e-6 {
+			t.Errorf("2023-01-05 缺口应沿用 2023-01-04 的 402，实际 %v", curve[2])
+		}
+	})
+	t.Run("基准无任何价格应返回 nil", func(t *testing.T) {
+		priceData := PriceDataMap{"VTI": {"2023-01-03": 100, "2023-01-04": 101}}
+		dates, err := engineutil.ParseTradingDates(priceData)
+		if err != nil {
+			t.Fatalf("ParseTradingDates 返回错误: %v", err)
+		}
+		if curve := computeBenchmarkGrowth("SPY", priceData, dates, BacktestParams{}); curve != nil {
+			t.Fatalf("无价格基准应返回 nil，实际 %v", curve)
+		}
+	})
+}
 func TestParseTradingDates(t *testing.T) {
 	t.Run("正常数据应返回排序日期", func(t *testing.T) {
 		priceData := PriceDataMap{"VTI": {"2023-01-03": 100, "2023-01-04": 101, "2023-01-05": 102}}
