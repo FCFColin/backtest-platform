@@ -22,7 +22,7 @@ function toneClass(tone: MetricItem['tone']): string {
 function buildMetrics(stats: Statistics, totalYears: number, positiveYears: number): MetricItem[] {
   return [
     {
-      labelKey: 'lumpSumDca.stats.cagr',
+      labelKey: 'stats.cagr',
       value: fmtPct(stats.cagr),
       tone: stats.cagr >= 0 ? 'pos' : 'neg',
       testId: 'summary-cagr',
@@ -101,7 +101,7 @@ export function SummarySidebar({ stats, totalYears, positiveYears }: SummarySide
         ))}
       </div>
       {/* 桌面端：sticky 指标卡片 */}
-      <Card className="hidden lg:block p-4 lg:sticky lg:top-20" data-testid="summary-sidebar">
+      <Card className="hidden lg:block p-4 lg:sticky lg:top-15" data-testid="summary-sidebar">
         <h3 className="text-h3 mb-3">{t('Key Metrics')}</h3>
         <dl className="space-y-2.5">
           {metrics.map((m) => (

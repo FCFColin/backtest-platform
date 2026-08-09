@@ -225,7 +225,7 @@ export default function RegressionChart({ portfolios }: RegressionChartProps) {
   }, [portfolios, basePortfolio]);
   if (portfolios.length < 2) {
     return (
-      <ChartCard title={t('Regression Analysis')}>
+      <ChartCard title={t('tabs.regression')}>
         <div
           style={{
             color: 'var(--text-muted)',

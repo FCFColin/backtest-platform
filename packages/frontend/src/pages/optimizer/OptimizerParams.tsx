@@ -17,7 +17,7 @@ import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants
 
 const OBJECTIVES = [
   { value: 'maxSharpe', labelKey: 'backtest.optimizer.maxSharpe' },
-  { value: 'minVolatility', labelKey: 'optimizer.minVolatility' },
+  { value: 'minVolatility', labelKey: 'Minimize Volatility' },
   { value: 'maxReturn', labelKey: 'optimizer.maxReturn' },
 ] as const;
 const SOLVERS = [

@@ -43,9 +43,9 @@ function PortfolioHeader({
 }) {
   const { t } = useTranslation();
   const rebalanceItems = [
-    { value: 'yearly', labelKey: 'monteCarlo.params.rebalanceYearly' },
-    { value: 'quarterly', labelKey: 'monteCarlo.params.rebalanceQuarterly' },
-    { value: 'monthly', labelKey: 'monteCarlo.params.rebalanceMonthly' },
+    { value: 'yearly', labelKey: 'Annual' },
+    { value: 'quarterly', labelKey: 'Quarterly' },
+    { value: 'monthly', labelKey: 'Monthly' },
     { value: 'none', labelKey: 'monteCarlo.params.rebalanceNone' },
   ];
   return (

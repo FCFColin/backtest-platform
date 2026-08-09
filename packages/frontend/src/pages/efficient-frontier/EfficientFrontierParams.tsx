@@ -21,7 +21,7 @@ const rebalanceFreqOptions = (t: TFunction): { value: string; label: string }[] 
   { value: 'yearly', label: t('Annual') },
 ];
 const returnObjOptions = (t: TFunction): { value: ReturnObjective; label: string }[] => [
-  { value: 'maxCagr', label: t('Maximize CAGR') },
+  { value: 'maxCagr', label: t('backtest.optimizer.maxCagr') },
   { value: 'minVolatility', label: t('Minimize Volatility') },
 ];
 const solverOptions = (t: TFunction): { value: FrontierSolver; label: string }[] => [

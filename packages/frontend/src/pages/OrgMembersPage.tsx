@@ -51,7 +51,7 @@ export default function OrgMembersPage() {
   return (
     <StandardPageShell
       config={{
-        titleKey: 'orgMembers.title',
+        titleKey: 'Org Members',
         headerExtra: <Users className="w-5 h-5 text-brand" />,
       }}
     >

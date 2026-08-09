@@ -34,7 +34,7 @@ export interface TacticalGridResponse {
 }
 export const OBJECTIVE_OPTIONS: Array<{ value: ObjectiveType; label: string }> = [
   { value: 'maxCAGR', label: 'backtest.optimizer.maxCagr' },
-  { value: 'minDrawdown', label: 'tacticalGrid.objectives.minDrawdown' },
+  { value: 'minDrawdown', label: 'backtest.optimizer.minMaxDrawdown' },
   { value: 'maxSharpe', label: 'backtest.optimizer.maxSharpe' },
 ];
 export function getParamLabelKeys(indicator: IndicatorType): { p1: string; p2: string } {
@@ -71,9 +71,9 @@ export function computeHeatmapRange(matrix: (number | null)[][]): { min: number;
   return { min: min === Infinity ? 0 : min, max: max === -Infinity ? 0 : max };
 }
 export function getObjectiveLabelKey(objective: ObjectiveType): string {
-  if (objective === 'maxCAGR') return 'tacticalGrid.objectiveLabels.maxCAGR';
-  if (objective === 'minDrawdown') return 'tacticalGrid.objectiveLabels.minDrawdown';
-  return 'tacticalGrid.objectiveLabels.maxSharpe';
+  if (objective === 'maxCAGR') return 'backtest.optimizer.maxCagr';
+  if (objective === 'minDrawdown') return 'backtest.optimizer.minMaxDrawdown';
+  return 'backtest.optimizer.maxSharpe';
 }
 export function getCellDisplayValue(cell: number, objective: ObjectiveType): string {
   if (objective === 'minDrawdown') return fmtPct(-cell);

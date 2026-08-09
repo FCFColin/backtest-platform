@@ -38,7 +38,7 @@ function buildStatRows(
     label: string;
     fmt: 'pct' | 'ratio';
   }> = [
-    { key: 'cagr', label: 'lumpSumDca.stats.cagr', fmt: 'pct' },
+    { key: 'cagr', label: 'stats.cagr', fmt: 'pct' },
     { key: 'totalReturn', label: 'stats.totalReturn', fmt: 'pct' },
     { key: 'stdev', label: 'backtest.stdev', fmt: 'pct' },
     { key: 'sharpe', label: 'backtest.sharpeRatio', fmt: 'ratio' },

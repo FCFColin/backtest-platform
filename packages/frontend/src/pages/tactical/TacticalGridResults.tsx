@@ -81,7 +81,7 @@ function buildTopColumns(
     col('sharpe', 'Sharpe', (v) => fmtNum(v, 3)),
     col('stdev', t('Volatility'), fmtPct),
     col('calmar', 'Calmar', (v) => fmtNum(v, 3)),
-    col('totalReturn', t('Total Return'), fmtPct),
+    col('totalReturn', t('stats.totalReturn'), fmtPct),
   ];
 }
 function TopCombinationsTable({

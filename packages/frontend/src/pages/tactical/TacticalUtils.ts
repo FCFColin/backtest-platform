@@ -46,7 +46,7 @@ export const AGGREGATION_OPTIONS: Array<{
   label: string;
 }> = [
   { value: 'voting', label: 'signal.multi.aggregationVoting' },
-  { value: 'weighted_average', label: 'tactical.aggregation.weighted_average' },
+  { value: 'weighted_average', label: 'signal.multi.aggregationWeighted' },
   { value: 'rank', label: 'signal.multi.aggregationRank' },
 ];
 interface BacktestResponse {

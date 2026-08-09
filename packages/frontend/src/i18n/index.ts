@@ -1,8 +1,6 @@
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 
-const NS = ['common', 'backtest'] as const;
-
 const modules = import.meta.glob('./locales/*/*.json', { eager: true }) as Record<
   string,
   { default: unknown }
@@ -17,7 +15,6 @@ i18n.use(initReactI18next).init({
   resources,
   fallbackLng: 'zh-CN',
   supportedLngs: ['zh-CN'],
-  fallbackNS: NS.filter((n) => n !== 'common'),
   ns: ['common'],
   defaultNS: 'common',
   partialBundledLanguages: true,

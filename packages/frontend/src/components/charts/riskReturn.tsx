@@ -44,7 +44,7 @@ export const RiskReturnChart = memo(function RiskReturnChart({
     { key: 'stdev' as const, label: t('Annualized Volatility') },
     { key: 'maxDrawdown' as const, label: t('Max Drawdown') },
     { key: 'avgDrawdown' as const, label: t('Avg Drawdown') },
-    { key: 'ulcerIndex' as const, label: t('Ulcer Index') },
+    { key: 'ulcerIndex' as const, label: t('analysis.ulcerIndex') },
   ];
   const [riskMetric, setRiskMetric] = useState<RiskMetricKey>('stdev');
   const scatterData = useMemo(

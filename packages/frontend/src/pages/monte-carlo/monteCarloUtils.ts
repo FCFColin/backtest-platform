@@ -227,7 +227,7 @@ export function useMonteCarloState() {
 export type McState = ReturnType<typeof useMonteCarloState>;
 const DIST_METRICS: Array<{ key: DistMetric; labelKey: string; format: (v: number) => string }> = [
   { key: 'finalValue', labelKey: 'lumpSumDca.stats.finalValue', format: fmtDollar },
-  { key: 'cagr', labelKey: 'lumpSumDca.stats.cagr', format: fmtPct },
+  { key: 'cagr', labelKey: 'stats.cagr', format: fmtPct },
   { key: 'maxDrawdown', labelKey: 'Max Drawdown', format: fmtPct },
   { key: 'volatility', labelKey: 'Volatility', format: fmtPct },
   { key: 'sharpe', labelKey: 'backtest.sharpeRatio', format: fmtNum },

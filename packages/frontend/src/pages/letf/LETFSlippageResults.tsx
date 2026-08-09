@@ -203,7 +203,7 @@ function buildStatRows(results: LETFResult): StatRow[] {
   return [
     { metric: 'Benchmark Return', value: results.stats.benchmarkReturn },
     { metric: 'LETF Return', value: results.stats.letfReturn },
-    { metric: 'letf.stats.expectedReturn', value: results.stats.expectedReturn },
+    { metric: 'Expected Return', value: results.stats.expectedReturn },
     { metric: 'letf.stats.slippage', value: results.stats.slippage },
     { metric: 'letf.stats.annualDecay', value: results.annualDecay },
   ];

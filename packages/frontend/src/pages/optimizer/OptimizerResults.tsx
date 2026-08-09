@@ -29,7 +29,7 @@ const METRICS_ROWS: { key: keyof Statistics; label: string; fmt: 'pct' | 'num' }
   { key: 'sharpe', label: 'Sharpe', fmt: 'num' },
   { key: 'sortino', label: 'Sortino', fmt: 'num' },
   { key: 'calmar', label: 'Calmar', fmt: 'num' },
-  { key: 'ulcerIndex', label: 'Ulcer Index', fmt: 'num' },
+  { key: 'ulcerIndex', label: 'analysis.ulcerIndex', fmt: 'num' },
   { key: 'ulcerPerformanceIndex', label: 'UPI', fmt: 'num' },
 ];
 function ConstraintsSummary({ s }: { s: EfficientFrontierState }) {

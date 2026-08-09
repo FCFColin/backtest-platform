@@ -70,8 +70,7 @@ const CashflowsLog = lazy(() => import('@/components/CashflowsLog'));
 const TurnoverTaxReport = lazy(() => import('@/components/TurnoverTaxReport'));
 const ALL_TABS = [
   { key: 'summary', labelKey: 'tabs.summary' },
-  { key: 'metrics', labelKey: 'Metric' },
-  { key: 'myMetrics', labelKey: 'tabs.myMetrics' },
+  { key: 'myMetrics', labelKey: 'My Metrics' },
   { key: 'returns', labelKey: 'tabs.returnsDist' },
   { key: 'yearlyReturns', labelKey: 'Annual Returns' },
   { key: 'rolling', labelKey: 'tabs.rolling' },
@@ -179,13 +178,6 @@ const TAB_RENDERERS: Record<string, (c: TabCtx) => ReactNode> = {
       </div>
     );
   },
-  metrics: ({ pf, baseCurrency }) => (
-    <StatisticsTable
-      {...COMMON_STATS_PROPS(pf)}
-      currency={baseCurrency}
-      extendedTable={<ExtendedMetricsTable {...COMMON_STATS_PROPS(pf)} />}
-    />
-  ),
   myMetrics: ({ pf }) => <CustomMetricsTable portfolios={pf} />,
   returns: ({ pf }) => (
     <>

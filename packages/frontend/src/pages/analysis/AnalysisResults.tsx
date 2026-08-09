@@ -163,7 +163,7 @@ const AnalysisResultsPanel = memo(function AnalysisResultsPanel({
       hasResults={!!results}
       errorPrefix={`${t('Analysis failed')}：`}
       loadingLabel={t('Analyzing...')}
-      emptyTitle={t('Set parameters and click "Run Analysis" to see results')}
+      emptyTitle={t('Set parameters and click "Run Analysis" to view results')}
       emptyIcon={LineChart}
     >
       {results && (
@@ -191,7 +191,7 @@ const config: ComputeToolConfig<AnalysisPageState> = {
   seoDescKey: 'analysis.seoDesc',
   hideParamsTitle: true,
   seoFeatures: [
-    { titleKey: 'analysis.seoAnalyzable', descKey: 'analysis.seoAnalyzableDesc' },
+    { titleKey: 'analysis.seoAnalyzable', descKey: 'analysis.seoDesc' },
     { titleKey: 'analysis.seoViewable', descKey: 'analysis.seoViewableDesc' },
   ],
   relatedTools: [

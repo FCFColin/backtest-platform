@@ -4,7 +4,7 @@ import type { BacktestOptimizerState } from './backtestOptimizerUtils.js';
 import { OptimizerParams, OptimizerResults } from './backtestOptimizerComponents.js';
 const config: ComputeToolConfig<BacktestOptimizerState> = {
   titleKey: 'backtest.optimizer.pageTitle',
-  seoDescKey: 'backtest.optimizer.seoDesc',
+  seoDescKey: 'optimizer.seoDesc',
   seoFeatures: [
     {
       titleKey: 'backtest.optimizer.featureParamSpaceTitle',

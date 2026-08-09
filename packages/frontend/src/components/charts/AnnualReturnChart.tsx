@@ -21,8 +21,8 @@ const SUMMARY_ROWS: Array<{ labelKey: string; key: string }> = [
   { labelKey: 'charts.annualReturn.max', key: 'max' },
   { labelKey: 'charts.annualReturn.mean', key: 'mean' },
   { labelKey: 'backtest.stdev', key: 'std' },
-  { labelKey: 'charts.annualReturn.skewness', key: 'skewness' },
-  { labelKey: 'charts.annualReturn.kurtosis', key: 'kurtosis' },
+  { labelKey: 'statsTable.skewness', key: 'skewness' },
+  { labelKey: 'statsTable.kurtosis', key: 'kurtosis' },
   { labelKey: 'charts.annualReturn.pctPositive', key: 'pctPositive' },
 ];
 function PortfolioSummaryStats({

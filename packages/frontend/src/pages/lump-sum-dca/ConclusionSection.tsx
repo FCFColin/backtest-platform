@@ -48,7 +48,7 @@ function GrowthCurveChart({ results }: { results: CompareResult[] }) {
 }
 const STATS_ROWS = [
   { key: 'finalValue' as const, label: 'lumpSumDca.stats.finalValue' },
-  { key: 'cagr' as const, label: 'lumpSumDca.stats.cagr' },
+  { key: 'cagr' as const, label: 'stats.cagr' },
   { key: 'stdev' as const, label: 'backtest.stdev' },
   { key: 'maxDrawdown' as const, label: 'Max Drawdown' },
   { key: 'sharpe' as const, label: 'backtest.sharpeRatio' },

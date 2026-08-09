@@ -255,7 +255,7 @@ const config: ComputeToolConfig<FactorRegressionState> = {
   seoFeatures: [
     {
       titleKey: 'analysis.seoAnalyzable',
-      descKey: 'factorRegression.seo.analyzableDesc',
+      descKey: 'factorRegression.seo.desc',
     },
     {
       titleKey: 'factorRegression.seo.factorTitle',

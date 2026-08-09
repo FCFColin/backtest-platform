@@ -33,12 +33,11 @@ interface DataStats {
   marketBreakdown: Record<string, number>;
 }
 
-const DK = 'adminPage.dataManagement.';
+const TABLE_COLS = ['Data Source', 'Type', 'Status', 'Record Count', 'Last Updated'];
 const defaultDataSources: DataSource[] = (
   [
-    [`${DK}rustEngine`, 'api'],
-    [`${DK}goDataService`, 'api'],
-    [`${DK}localCache`, 'local'],
+    ['Go Data Service', 'api'],
+    ['Local Cache', 'local'],
   ] as const
 ).map(([name, type]) => ({
   name,
@@ -54,13 +53,6 @@ const defaultDataStats: DataStats = {
   totalSizeMB: 0,
   marketBreakdown: {},
 };
-const TABLE_COLS = [
-  `${DK}dataSource`,
-  `${DK}type`,
-  `${DK}status`,
-  `${DK}recordCount`,
-  `${DK}lastUpdated`,
-];
 const getYearDiff = (start: string, end: string) =>
   Math.round(
     (new Date(end).getTime() - new Date(start).getTime()) / (365.25 * 24 * 60 * 60 * 1000),
@@ -91,8 +83,7 @@ function buildSources(stats: DataStats): DataSource[] {
   });
   return [
     upd(0, { status: 'active', recordCount: stats.totalDataPoints }),
-    defaultDataSources[1],
-    upd(2, {
+    upd(1, {
       status: stats.totalTickers > 0 ? 'active' : 'inactive',
       recordCount: stats.totalTickers,
     }),
@@ -189,7 +180,7 @@ function DataSourceTable({ sources }: { sources: DataSource[] }) {
                   </td>
                   <td className="py-2.5">
                     <span className="rounded-full bg-elevated px-2 py-0.5 text-xs text-fg-secondary">
-                      {t(source.type === 'api' ? `${DK}typeApi` : `${DK}typeLocal`)}
+                      {t(source.type === 'api' ? 'API' : 'Local')}
                     </span>
                   </td>
                   <td className="py-2.5">
@@ -231,22 +222,15 @@ function MarketAndDateSection({ stats }: { stats: DataStats }) {
       {stats.dateRange.earliest !== '-' && (
         <Card className="p-4">
           <h2 className="mb-4 text-sm font-semibold text-fg">{t('Data Coverage Range')}</h2>
-          <div className="flex items-center gap-4">
-            <div className="flex-1">
-              <div className="mb-2 flex justify-between text-xs text-fg-tertiary">
-                <span>{stats.dateRange.earliest}</span>
-                <span>{stats.dateRange.latest}</span>
-              </div>
-              <div className="h-3 overflow-hidden rounded-full bg-input-bg">
-                <div className="h-full rounded-full bg-brand" style={{ width: '100%' }} />
-              </div>
-              <p className="mt-2 text-xs text-fg-tertiary">
-                {t('Covers {{years}} years', {
-                  years: getYearDiff(stats.dateRange.earliest, stats.dateRange.latest),
-                })}
-              </p>
-            </div>
+          <div className="mb-1 flex justify-between text-xs text-fg-tertiary">
+            <span>{stats.dateRange.earliest}</span>
+            <span>{stats.dateRange.latest}</span>
           </div>
+          <p className="text-xs text-fg-tertiary">
+            {t('Covers {{years}} years', {
+              years: getYearDiff(stats.dateRange.earliest, stats.dateRange.latest),
+            })}
+          </p>
         </Card>
       )}
     </>
@@ -328,9 +312,9 @@ export default function DataManagement() {
         goOk
           ? { ...s, status: 'active', lastUpdated: new Date().toISOString().slice(0, 19) }
           : { ...s, status: 'inactive' };
-      setSources((prev) => prev.map((s, i) => (i === 1 ? goSource(s) : s)));
+      setSources((prev) => prev.map((s, i) => (i === 0 ? goSource(s) : s)));
     } catch {
-      setSources((prev) => prev.map((s, i) => (i === 1 ? { ...s, status: 'inactive' } : s)));
+      setSources((prev) => prev.map((s, i) => (i === 0 ? { ...s, status: 'inactive' } : s)));
     }
     setLoading(false);
   }, [t]);

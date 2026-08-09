@@ -18,7 +18,7 @@ const ALL_METRICS: StatRow[] = [
   { label: 'Max Drawdown', key: 'maxDrawdown', fmt: 'pct' },
   { label: 'analysis.ulcerIndex', key: 'ulcerIndex', fmt: 'num' },
   { label: 'Beta', key: 'beta', fmt: 'num' },
-  { label: 'stats.alpha', key: 'alpha', fmt: 'num' },
+  { label: 'stats.alpha', key: 'alpha', fmt: 'pct' },
   { label: 'stats.rSquared', key: 'rSquared', fmt: 'num' },
   { label: 'stats.trackingError', key: 'trackingError', fmt: 'pct' },
   { label: 'stats.informationRatio', key: 'informationRatio', fmt: 'num' },

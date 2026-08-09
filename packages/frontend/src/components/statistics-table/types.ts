@@ -19,7 +19,4 @@ export const STAT_KEY_TO_TESTID: Record<string, string> = {
   beta: 'stat-beta',
   stdev: 'stat-volatility',
   ulcerPerformanceIndex: 'stat-upi',
-  endingValue: 'stat-ending-value',
-  volatility: 'stat-volatility',
-  upi: 'stat-upi',
 };

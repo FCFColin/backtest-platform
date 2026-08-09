@@ -123,7 +123,7 @@ export function PortfolioCard({
             checked={portfolio.totalReturn ?? true}
             onCheckedChange={(v) => onUpdate(portfolio.id, { totalReturn: v })}
           />
-          <span className="text-caption text-fg-secondary">{t('Total Return')}</span>
+          <span className="text-caption text-fg-secondary">{t('stats.totalReturn')}</span>
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
           <Switch

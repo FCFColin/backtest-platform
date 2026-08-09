@@ -154,7 +154,7 @@ const config: ComputeToolConfig<RebalancingStateResult> = {
     { titleKey: 'nav.portfolioOptimize', href: '/optimizer' },
     { titleKey: 'nav.lumpsumVsDca', href: '/lumpsum-vs-dca' },
   ],
-  paramsTitleKey: 'rebalancingSensitivity.params.title',
+  paramsTitleKey: 'Parameters',
   params: ({ state }) => <RebalancingSensitivityParamsForm s={state} />,
   results: ({ state }) => <ResultsPanel s={state} />,
 };
