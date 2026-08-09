@@ -11,7 +11,12 @@ import {
   getPortfolioColor,
   CHART_LINE_STYLE,
 } from '@/lib/chart-theme.js';
-import { formatCurrency } from '@/utils/format.js';
+import {
+  formatCurrency,
+  downsample,
+  DOWNSAMPLE_THRESHOLD,
+  DOWNSAMPLE_TARGET,
+} from '@/utils/format.js';
 import { cn } from '@/lib/utils.js';
 interface GrowthChartProps {
   portfolios: Array<{
@@ -206,10 +211,13 @@ export function GrowthChart({ portfolios, currency = 'USD' }: GrowthChartProps) 
     return Object.values(merged).sort((a, b) => String(a.date).localeCompare(String(b.date)));
   }, [portfolios]);
   const filteredData = useMemo(() => {
-    if (timeRange === 'MAX' || chartData.length === 0) return chartData;
-    const cutoff = new Date(String(chartData[chartData.length - 1].date));
-    cutoff.setFullYear(cutoff.getFullYear() - parseInt(timeRange));
-    return chartData.filter((d) => new Date(String(d.date)) >= cutoff);
+    let data = chartData;
+    if (timeRange !== 'MAX' && chartData.length > 0) {
+      const cutoff = new Date(String(chartData[chartData.length - 1].date));
+      cutoff.setFullYear(cutoff.getFullYear() - parseInt(timeRange));
+      data = chartData.filter((d) => new Date(String(d.date)) >= cutoff);
+    }
+    return data.length > DOWNSAMPLE_THRESHOLD ? downsample(data, DOWNSAMPLE_TARGET) : data;
   }, [chartData, timeRange]);
   return (
     <div className="bg-surface border border-border rounded-xl">

@@ -157,25 +157,16 @@ await runCheck(results, 'C-002', async () => {
 });
 
 await runCheck(results, 'C-018', () => {
-  // 原单飞(singleflight)已随同步路径退役，改为 BullMQ 队列（ADR-045）+ 结果缓存
-  const hasQueue =
-    grepInCode(/submitQueueJob\(|createBacktestWorker\(/, 'packages/backend/src', {
-      extensions: ['.ts'],
-    }).length > 0;
-  const hasCache =
-    grepInCode(/getBacktestResultCache|setBacktestResultCache/, 'packages/backend/src', {
-      extensions: ['.ts'],
-    }).length > 0;
-  const hasConcurrency =
-    grepInCode(/WORKER_CONCURRENCY/, 'packages/backend/src', {
-      extensions: ['.ts'],
-    }).length > 0;
-  const ok = hasQueue && hasCache && hasConcurrency;
+  // 单飞已退役（ADR-045）：BullMQ 队列 + 结果缓存 + 并发控制
+  const missing = [
+    [/submitQueueJob\(|createBacktestWorker\(/, 'queue'],
+    [/getBacktestResultCache|setBacktestResultCache/, 'cache'],
+    [/WORKER_CONCURRENCY/, 'concurrency'],
+  ].filter(([re]) => !grepInCode(re, 'packages/backend/src', { extensions: ['.ts'] }).length);
+  const ok = missing.length === 0;
   return {
     status: ok ? 'PASS' : 'FAIL',
-    summary: ok
-      ? 'backtest 队列 + 结果缓存 + 并发控制齐备'
-      : `queue=${hasQueue}, cache=${hasCache}, concurrency=${hasConcurrency}`,
+    summary: ok ? '队列+缓存+并发齐备' : `缺失: ${missing.map(([, n]) => n).join('/')}`,
   };
 });
 
@@ -184,25 +175,19 @@ await runCheck(results, 'C-020', () => {
   const f = 'packages/backend/src/config/env.ts';
   if (!fileExists(f)) return { status: 'FAIL', summary: `${f} 不存在` };
   const content = readFileContent(f);
-  let timeoutMs = null;
-  for (const re of [
-    /ENGINE_TIMEOUT_MS\s*[=:]\s*(\d+)/,
-    /ENGINE_TIMEOUT_MS\s*:\s*parseInt\([^)]*?\|\|\s*['"](\d+)['"]/,
-    /ENGINE_TIMEOUT_MS\s*[=:]\s*\w+\([^)]*['"](\d+)['"]\)/,
-    /ENGINE_TIMEOUT_MS\s*[=:]\s*[^;]*?\|\|\s*['"](\d+)['"]/,
-  ]) {
-    const m = content.match(re);
-    if (m) {
-      timeoutMs = parseInt(m[1], 10);
-      break;
-    }
-  }
+  const timeoutMs =
+    content
+      .match(
+        /ENGINE_TIMEOUT_MS\s*[=:]\s*(\d+)|ENGINE_TIMEOUT_MS\s*[=:]\s*\w+\([^)]*['"](\d+)['"]\)|ENGINE_TIMEOUT_MS\s*[=:]\s*[^;]*?\|\|\s*['"](\d+)['"]/,
+      )
+      ?.slice(1)
+      .find((v) => v !== undefined) || null;
   if (timeoutMs === null) return { status: 'FAIL', summary: `${f} 中未找到 ENGINE_TIMEOUT_MS` };
-  const ok = timeoutMs >= 120000;
+  const ok = parseInt(timeoutMs, 10) >= 120000;
   return {
     status: ok ? 'PASS' : 'FAIL',
     summary: `ENGINE_TIMEOUT_MS = ${timeoutMs}ms (${ok ? '>=' : '<'} 120000ms)`,
-    details: { timeoutMs },
+    details: { timeoutMs: parseInt(timeoutMs, 10) },
   };
 });
 
@@ -238,18 +223,15 @@ await runCheck(results, 'C-022', () => {
 // ── C-023: ADR-031 degraded 字段验证 ──────────────────────────
 // engine/compute 端点 fail-closed 503 无 degraded（ADR-031）；degraded 仅限数据端点(Go data-fetcher 降级)
 await runCheck(results, 'C-023', () => {
-  const computeRefs = grepInCode(/degraded/, 'packages/backend/src/routes', {
+  const refs = grepInCode(/degraded/, 'packages/backend/src/routes', {
     extensions: ['.ts'],
   }).filter((m) => !m.file.includes('dataRoutes') && !m.file.includes('routeUtils'));
-  const pass = computeRefs.length === 0;
+  const pass = refs.length === 0;
   return {
     status: pass ? 'PASS' : 'FAIL',
     summary: pass
       ? 'compute 路由无 degraded 字段 (ADR-031)'
-      : `${computeRefs.length} 处 compute 路由 degraded 引用: ${computeRefs
-          .map((r) => `${r.file}:${r.line}`)
-          .join(', ')}`,
-    details: { matches: computeRefs.slice(0, 10) },
+      : `${refs.length} 处 compute degraded 引用`,
   };
 });
 

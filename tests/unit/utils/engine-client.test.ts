@@ -99,7 +99,7 @@ describe('callEngineStrict（fail-closed）', () => {
     });
     const error = await settle(callEngineStrict('/api/engine/backtest', {}));
     expect(error).toBeInstanceOf(EngineUnavailableError);
-    expect(metricsMocks.recordEngineCall).toHaveBeenCalledWith(false, expect.any(String));
+    expect(metricsMocks.recordEngineCall).toHaveBeenCalledWith(false);
   });
   it('Go 引擎 4xx 应透传 UpstreamProblemError（不包装、不重试）', async () => {
     const upstreamErr = new UpstreamProblemError(

@@ -4,7 +4,7 @@
 import { spawnSync } from 'node:child_process';
 
 // Windows 下 pnpm 是 .cmd/.ps1 shim，需经 shell 解析
-const res = spawnSync('pnpm audit --prod --json --ignore-registry-errors', {
+const res = spawnSync('pnpm audit --prod --json', {
   encoding: 'utf-8',
   shell: true,
 });

@@ -9,8 +9,6 @@ const { Pool } = pg;
 let pool: pg.Pool | null = null;
 let readPool: pg.Pool | null = null;
 
-export { pool };
-
 export async function closeDb(): Promise<void> {
   if (pool) {
     await pool.end().catch((err: Error) => logger.error({ err }, '[db] 主连接池关闭失败'));
@@ -108,7 +106,7 @@ export async function withTransaction<T>(
 }
 
 // RLS GUC 注入（ADR-032）：SET LOCAL 使 RLS 策略在事务内生效，提交后自动清除。
-export async function withGucContext<T>(
+async function withGucContext<T>(
   gucs: Record<string, string>,
   fn: (client: pg.PoolClient) => Promise<T>,
   sourcePool: pg.Pool = getPool(),

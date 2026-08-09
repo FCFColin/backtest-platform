@@ -24,11 +24,9 @@ function useDataEngineState(): DataEngineAction {
   tRef.current = t as TFunc;
   const [stats, setStats] = useState<Stats | null>(null);
   const [universe, setUniverse] = useState<UniverseStats | null>(null);
-  const [, setLoading] = useState(true);
   const [actionMsg, setActionMsg] = useState('');
   const [error, setError] = useState('');
   const [loadStage, setLoadStage] = useState(t('Connecting...'));
-  const [, setScanning] = useState(false);
   const pollCountRef = useRef(0);
   const fetchStartRef = useRef(0);
   const fetchStats = useCallback(
@@ -37,7 +35,7 @@ function useDataEngineState(): DataEngineAction {
         tRef.current,
         force,
         { pollCountRef, fetchStartRef },
-        { setStats, setUniverse, setLoading, setError, setLoadStage, setScanning },
+        { setStats, setUniverse, setError, setLoadStage },
       ),
     [],
   );

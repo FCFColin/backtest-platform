@@ -25,7 +25,6 @@ const circuitBreakerMetrics = vi.hoisted(() => vi.fn());
 
 const cacheMocks = vi.hoisted(() => ({
   writeCache: vi.fn(),
-  setPriceCache: vi.fn(),
   getCacheKey: vi.fn(
     (type: string, params: Record<string, string>) => `test-${type}-${JSON.stringify(params)}`,
   ),

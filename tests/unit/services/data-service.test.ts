@@ -20,7 +20,6 @@ import {
   validateTickers,
   initDb,
   searchTickers,
-  invalidateTickerCache,
   invalidateAllCache,
 } from '../../../packages/backend/src/infrastructure/dataFacade.js';
 
@@ -248,16 +247,6 @@ describe('normal scenarios', () => {
       redisMocks.ping.mockResolvedValue('PONG');
       redisMocks.scan.mockResolvedValue(['0', []]);
     });
-    it('按 ticker 失效时应删除 Redis 价格缓存及相关 key', async () => {
-      redisMocks.scan.mockImplementation(async (...args: unknown[]) => {
-        const pattern = String(args[2]);
-        if (pattern.includes(':price:')) return ['0', ['cache:org:shared:price:AAPL']];
-        return ['0', []];
-      });
-      await invalidateTickerCache('AAPL');
-      expect(loggerMocks.info).toHaveBeenCalledWith(expect.stringContaining('ticker=AAPL'));
-      expect(redisMocks.del).toHaveBeenCalledWith('cache:org:shared:price:ticker=AAPL');
-    });
     it('全量失效时应清空 L1 并删除 Redis 缓存', async () => {
       redisMocks.scan.mockResolvedValue([
         '0',
@@ -270,21 +259,10 @@ describe('normal scenarios', () => {
       );
       expect(loggerMocks.info).toHaveBeenCalledWith(expect.stringContaining('全量失效'));
     });
-    it('Redis 删除失败时应降级且不抛出', async () => {
-      redisMocks.scan.mockResolvedValue(['0', ['cache:org:shared:price:AAPL']]);
-      redisMocks.del.mockRejectedValueOnce(new Error('redis del failed'));
-      await expect(invalidateTickerCache('AAPL')).resolves.toBeUndefined();
-      expect(loggerMocks.warn).toHaveBeenCalled();
-    });
     it('Redis scan 失败时全量失效仍应完成', async () => {
       redisMocks.scan.mockRejectedValue(new Error('scan failed'));
       await expect(invalidateAllCache()).resolves.toBeUndefined();
       expect(loggerMocks.warn).toHaveBeenCalled();
-    });
-    it('Redis 不可用时按 ticker 失效应降级且不调用 del', async () => {
-      redisMocks.ping.mockRejectedValue(new Error('redis unavailable'));
-      await expect(invalidateTickerCache('AAPL')).resolves.toBeUndefined();
-      expect(redisMocks.del).not.toHaveBeenCalled();
     });
   });
 });
@@ -554,7 +532,6 @@ describe('extended scenarios', () => {
     it('直接暴露 dataQuery / dataCache 的函数（去除包装层）', () => {
       expect(facade.validateTickers).toBe(dataQueryMocks.validateTickers);
       expect(facade.searchTickers).toBe(dataQueryMocks.searchTickers);
-      expect(facade.invalidateTickerCache).toBe(dataCacheMocks.invalidateTickerCache);
       expect(facade.invalidateAllCache).toBe(dataCacheMocks.invalidateAllCache);
     });
   });

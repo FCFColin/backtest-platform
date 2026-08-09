@@ -6,10 +6,9 @@ import { emptyBodySchema } from '../schemas/analysisSchemas.js';
 import { sendProblem } from '../utils/errors.js';
 import { logger } from '../utils/logger.js';
 import { config } from '../config/index.js';
-import { type AuthenticatedRequest } from '../middleware/jwtAuth.js';
 import { requireTenant } from '../middleware/tenantContext.js';
 import { requirePermission, Permission } from '../middleware/rbac.js';
-import { requireTenantId, sendData } from './routeUtils.js';
+import { requireTenantId, sendData, crudRouteHandler } from './routeUtils.js';
 import { appRedis } from '../infrastructure/redisClient.js';
 import {
   isBillingEnabled,
@@ -34,70 +33,82 @@ function requireBillingEnabled(res: Response): boolean {
 
 router.use(requireTenant);
 
-router.get('/subscription', async (req: AuthenticatedRequest, res: Response) => {
-  const tenantId = requireTenantId(req, res);
-  if (!tenantId) return;
-  const summary = await getSubscriptionSummary(tenantId);
-  sendData(res, {
-    enabled: isBillingEnabled(),
-    publishableKey: config.STRIPE_PUBLISHABLE_KEY || null,
-    subscription: summary,
-  });
-});
+router.get(
+  '/subscription',
+  crudRouteHandler(
+    async (req, res) => {
+      const tenantId = requireTenantId(req, res);
+      if (!tenantId) return;
+      const summary = await getSubscriptionSummary(tenantId);
+      sendData(res, {
+        enabled: isBillingEnabled(),
+        publishableKey: config.STRIPE_PUBLISHABLE_KEY || null,
+        subscription: summary,
+      });
+    },
+    { logMsg: '[billingRoutes] 获取订阅信息失败', code: 'BILLING_SUBSCRIPTION_FETCH_FAILED' },
+  ),
+);
 
 const checkoutSchema = z.object({ plan: z.enum(['pro', 'enterprise']) });
 router.post(
   '/checkout',
   requireAdmin,
   validate(checkoutSchema),
-  async (req: AuthenticatedRequest, res: Response) => {
-    if (!requireBillingEnabled(res)) return;
-    const { plan } = req.body as { plan: 'pro' | 'enterprise' };
-    const base = config.APP_BASE_URL;
-    try {
-      const tenantId = requireTenantId(req, res);
-      if (!tenantId) return;
-      const url = await createCheckoutSession({
-        orgId: tenantId,
-        plan,
-        email: undefined,
-        successUrl: `${base}/account?billing=success`,
-        cancelUrl: `${base}/pricing?billing=cancel`,
-      });
-      sendData(res, { url });
-    } catch (err) {
-      const msg = String(err);
-      if (msg.includes('price_not_configured')) {
-        sendProblem(res, 503, 'PRICE_NOT_CONFIGURED');
-        return;
+  crudRouteHandler(
+    async (req, res) => {
+      if (!requireBillingEnabled(res)) return;
+      const { plan } = req.body as { plan: 'pro' | 'enterprise' };
+      const base = config.APP_BASE_URL;
+      try {
+        const tenantId = requireTenantId(req, res);
+        if (!tenantId) return;
+        const url = await createCheckoutSession({
+          orgId: tenantId,
+          plan,
+          email: undefined,
+          successUrl: `${base}/account?billing=success`,
+          cancelUrl: `${base}/pricing?billing=cancel`,
+        });
+        sendData(res, { url });
+      } catch (err) {
+        const msg = String(err);
+        if (msg.includes('price_not_configured')) {
+          sendProblem(res, 503, 'PRICE_NOT_CONFIGURED');
+          return;
+        }
+        logger.error({ err: msg, orgId: req.tenantId }, '[billingRoutes] 创建 Checkout 失败');
+        sendProblem(res, 502, 'CHECKOUT_FAILED');
       }
-      logger.error({ err: msg, orgId: req.tenantId }, '[billingRoutes] 创建 Checkout 失败');
-      sendProblem(res, 502, 'CHECKOUT_FAILED');
-    }
-  },
+    },
+    { logMsg: '[billingRoutes] 创建 Checkout 失败', code: 'CHECKOUT_FAILED' },
+  ),
 );
 
 router.post(
   '/portal',
   requireAdmin,
   validate(emptyBodySchema),
-  async (req: AuthenticatedRequest, res: Response) => {
-    if (!requireBillingEnabled(res)) return;
-    try {
-      const tenantId = requireTenantId(req, res);
-      if (!tenantId) return;
-      const url = await createPortalSession(tenantId, `${config.APP_BASE_URL}/account`);
-      sendData(res, { url });
-    } catch (err) {
-      const msg = String(err);
-      if (msg.includes('no_customer')) {
-        sendProblem(res, 404, 'NO_CUSTOMER');
-        return;
+  crudRouteHandler(
+    async (req, res) => {
+      if (!requireBillingEnabled(res)) return;
+      try {
+        const tenantId = requireTenantId(req, res);
+        if (!tenantId) return;
+        const url = await createPortalSession(tenantId, `${config.APP_BASE_URL}/account`);
+        sendData(res, { url });
+      } catch (err) {
+        const msg = String(err);
+        if (msg.includes('no_customer')) {
+          sendProblem(res, 404, 'NO_CUSTOMER');
+          return;
+        }
+        logger.error({ err: msg, orgId: req.tenantId }, '[billingRoutes] 创建 Portal 失败');
+        sendProblem(res, 502, 'PORTAL_FAILED');
       }
-      logger.error({ err: msg, orgId: req.tenantId }, '[billingRoutes] 创建 Portal 失败');
-      sendProblem(res, 502, 'PORTAL_FAILED');
-    }
-  },
+    },
+    { logMsg: '[billingRoutes] 创建 Portal 失败', code: 'PORTAL_FAILED' },
+  ),
 );
 
 const STRIPE_EVENT_DEDUP_TTL_SECONDS = 24 * 60 * 60;

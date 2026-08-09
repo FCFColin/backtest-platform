@@ -3,10 +3,15 @@ import { z } from 'zod';
 import { validate } from '../middleware/miscMiddleware.js';
 import { sendProblem } from '../utils/errors.js';
 import { logger } from '../utils/logger.js';
-import { type AuthenticatedRequest } from '../middleware/jwtAuth.js';
 import { requireTenant } from '../middleware/tenantContext.js';
 import { requirePermission, Permission } from '../middleware/rbac.js';
-import { tenantHandler, requireTenantId, requireUuidParam, sendData } from './routeUtils.js';
+import {
+  tenantHandler,
+  requireTenantId,
+  requireUuidParam,
+  sendData,
+  crudRouteHandler,
+} from './routeUtils.js';
 import {
   getOrg,
   listOrgMembers,
@@ -31,28 +36,37 @@ const acceptSchema = z.object({ token: z.string().min(1).max(256) });
 router.post(
   '/invitations/accept',
   validate(acceptSchema),
-  async (req: AuthenticatedRequest, res: Response) => {
-    if (!req.user) {
-      sendProblem(res, 401, 'UNAUTHORIZED');
-      return;
-    }
-    const { token } = req.body as { token: string };
-    const result = await acceptInvitation(token, req.user.sub);
-    if (!result.ok) {
-      sendProblem(res, 400, `INVITATION_${result.reason.toUpperCase()}`);
-      return;
-    }
-    sendData(res, { orgId: result.orgId, role: result.role });
-  },
+  crudRouteHandler(
+    async (req, res) => {
+      if (!req.user) {
+        sendProblem(res, 401, 'UNAUTHORIZED');
+        return;
+      }
+      const { token } = req.body as { token: string };
+      const result = await acceptInvitation(token, req.user.sub);
+      if (!result.ok) {
+        sendProblem(res, 400, `INVITATION_${result.reason.toUpperCase()}`);
+        return;
+      }
+      sendData(res, { orgId: result.orgId, role: result.role });
+    },
+    { logMsg: '[orgRoutes] 接受邀请失败', code: 'INVITATION_ACCEPT_FAILED' },
+  ),
 );
 
 router.use(requireTenant);
 
-router.get('/members', async (req: AuthenticatedRequest, res: Response) => {
-  const tenantId = requireTenantId(req, res);
-  if (!tenantId) return;
-  sendData(res, await listOrgMembers(tenantId));
-});
+router.get(
+  '/members',
+  crudRouteHandler(
+    async (req, res) => {
+      const tenantId = requireTenantId(req, res);
+      if (!tenantId) return;
+      sendData(res, await listOrgMembers(tenantId));
+    },
+    { logMsg: '[orgRoutes] 获取成员列表失败', code: 'ORG_MEMBERS_LIST_FAILED' },
+  ),
+);
 
 const roleSchema = z.object({ role: ROLE_ENUM });
 const sendMemberOutcome = (
@@ -75,38 +89,51 @@ router.patch(
   '/members/:userId',
   requireAdmin,
   validate(roleSchema),
-  async (req: AuthenticatedRequest, res: Response) => {
-    if (!requireUuidParam(res, req.params.userId)) return;
-    const tenantId = requireTenantId(req, res);
-    if (!tenantId) return;
-    sendMemberOutcome(
-      res,
-      await updateMemberRole(
-        tenantId,
-        req.params.userId,
-        (req.body as { role: 'owner' | 'admin' | 'analyst' | 'readonly' }).role,
-      ),
-      { updated: true },
-    );
-  },
+  crudRouteHandler(
+    async (req, res) => {
+      if (!requireUuidParam(res, req.params.userId)) return;
+      const tenantId = requireTenantId(req, res);
+      if (!tenantId) return;
+      sendMemberOutcome(
+        res,
+        await updateMemberRole(
+          tenantId,
+          req.params.userId,
+          (req.body as { role: 'owner' | 'admin' | 'analyst' | 'readonly' }).role,
+        ),
+        { updated: true },
+      );
+    },
+    { logMsg: '[orgRoutes] 更新成员角色失败', code: 'ORG_MEMBER_ROLE_UPDATE_FAILED' },
+  ),
 );
 
 router.delete(
   '/members/:userId',
   requireAdmin,
-  async (req: AuthenticatedRequest, res: Response) => {
-    if (!requireUuidParam(res, req.params.userId)) return;
-    const tenantId = requireTenantId(req, res);
-    if (!tenantId) return;
-    sendMemberOutcome(res, await removeMember(tenantId, req.params.userId), { removed: true });
-  },
+  crudRouteHandler(
+    async (req, res) => {
+      if (!requireUuidParam(res, req.params.userId)) return;
+      const tenantId = requireTenantId(req, res);
+      if (!tenantId) return;
+      sendMemberOutcome(res, await removeMember(tenantId, req.params.userId), { removed: true });
+    },
+    { logMsg: '[orgRoutes] 移除成员失败', code: 'ORG_MEMBER_REMOVE_FAILED' },
+  ),
 );
 
-router.get('/invitations', requireAdmin, async (req: AuthenticatedRequest, res: Response) => {
-  const tenantId = requireTenantId(req, res);
-  if (!tenantId) return;
-  sendData(res, await listInvitations(tenantId));
-});
+router.get(
+  '/invitations',
+  requireAdmin,
+  crudRouteHandler(
+    async (req, res) => {
+      const tenantId = requireTenantId(req, res);
+      if (!tenantId) return;
+      sendData(res, await listInvitations(tenantId));
+    },
+    { logMsg: '[orgRoutes] 获取邀请列表失败', code: 'ORG_INVITATIONS_LIST_FAILED' },
+  ),
+);
 
 const inviteSchema = z.object({
   email: z.string().email(),
@@ -133,17 +160,20 @@ router.post(
 router.delete(
   '/invitations/:id',
   requireAdmin,
-  async (req: AuthenticatedRequest, res: Response) => {
-    if (!requireUuidParam(res, req.params.id)) return;
-    const tenantId = requireTenantId(req, res);
-    if (!tenantId) return;
-    const ok = await revokeInvitation(tenantId, req.params.id);
-    if (!ok) {
-      sendProblem(res, 404, 'INVITATION_NOT_FOUND');
-      return;
-    }
-    sendData(res, { revoked: true });
-  },
+  crudRouteHandler(
+    async (req, res) => {
+      if (!requireUuidParam(res, req.params.id)) return;
+      const tenantId = requireTenantId(req, res);
+      if (!tenantId) return;
+      const ok = await revokeInvitation(tenantId, req.params.id);
+      if (!ok) {
+        sendProblem(res, 404, 'INVITATION_NOT_FOUND');
+        return;
+      }
+      sendData(res, { revoked: true });
+    },
+    { logMsg: '[orgRoutes] 撤销邀请失败', code: 'ORG_INVITATION_REVOKE_FAILED' },
+  ),
 );
 
 export default router;

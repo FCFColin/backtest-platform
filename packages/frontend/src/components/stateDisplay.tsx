@@ -6,22 +6,15 @@ import {
   AlertCircle,
   AlertTriangle,
   Info,
-  X,
   XCircle,
   CheckCircle2,
   Wifi,
   WifiOff,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { Alert, AlertDescription, AlertTitle, Button } from '@/components/ui/uiComponents';
+import { Alert, AlertDescription } from '@/components/ui/uiComponents';
 import { cn } from '@/lib/utils';
 import { useToastStore, type ToastItem } from '../store/toastStore.js';
-import {
-  getErrorI18nKey,
-  getWarningI18nKey,
-  getWarningInterpolationParams,
-  type WarningInfo,
-} from '../utils/errorReporter.js';
 
 function CenteredCol({ children, className }: { children: ReactNode; className?: string }) {
   return (
@@ -128,7 +121,6 @@ export function OfflineBanner() {
   );
 }
 
-const ERROR_TYPE_BASE = 'https://backtest.platform/errors';
 const VARIANT_META: Record<string, { icon: typeof AlertCircle; cls: string }> = {
   error: { icon: AlertCircle, cls: '' },
   warning: {
@@ -138,109 +130,15 @@ const VARIANT_META: Record<string, { icon: typeof AlertCircle; cls: string }> = 
   info: { icon: Info, cls: 'bg-brand/10 border-brand/30 text-brand [&>svg]:text-brand' },
 };
 
-function CloseBtn({ onClose, className }: { onClose: () => void; className?: string }) {
-  const { t } = useTranslation();
-  return (
-    <Button
-      variant="icon"
-      size="icon"
-      onClick={onClose}
-      aria-label={t('Close')}
-      className={cn('absolute right-2 top-2 h-6 w-6 [&_svg]:size-3.5', className)}
-    >
-      <X />
-    </Button>
-  );
-}
-
 export function ErrorBanner({
   message,
-  errorCode,
-  warning,
   style,
   variant = 'error',
-  isDegraded,
-  retryAfter,
-  onClose,
 }: {
   message?: ReactNode;
-  errorCode?: string;
-  warning?: WarningInfo;
   style?: CSSProperties;
   variant?: 'error' | 'warning' | 'info';
-  isDegraded?: boolean;
-  retryAfter?: number;
-  onClose?: () => void;
 }) {
-  const { t } = useTranslation();
-  const [remaining, setRemaining] = useState(retryAfter ?? 0);
-  useEffect(() => {
-    if (!retryAfter || retryAfter <= 0) return;
-    setRemaining(retryAfter);
-    const id = window.setInterval(() => setRemaining((r) => (r > 0 ? r - 1 : 0)), 1000);
-    return () => window.clearInterval(id);
-  }, [retryAfter]);
-
-  if (isDegraded)
-    return (
-      <Alert
-        variant="default"
-        className="bg-warning/10 border-warning/30 text-warning [&>svg]:text-warning relative"
-        style={style}
-      >
-        <AlertTriangle className="size-4" />
-        <AlertTitle className="text-warning">{t('Degraded mode:')}</AlertTitle>
-        <AlertDescription className="text-warning/90">
-          {message ?? t('Some features may be unavailable or using fallback data.')}
-        </AlertDescription>
-        {onClose && <CloseBtn onClose={onClose} />}
-      </Alert>
-    );
-
-  if (warning) {
-    const meta = VARIANT_META[warning.code === 'DATE_RANGE_CLAMPED' ? 'info' : 'warning'];
-    return (
-      <Alert variant="default" className={cn('relative', meta.cls)} style={style}>
-        {meta.icon && <meta.icon className="size-4" />}
-        <AlertDescription>
-          {t(getWarningI18nKey(warning.code), getWarningInterpolationParams(warning))}
-          {warning.message ? ` - ${warning.message}` : ''}
-        </AlertDescription>
-        {onClose && <CloseBtn onClose={onClose} />}
-      </Alert>
-    );
-  }
-
-  if (errorCode) {
-    const uri = `${ERROR_TYPE_BASE}/${errorCode}`;
-    return (
-      <Alert variant="destructive" className="relative" style={style}>
-        <AlertCircle className="size-4" />
-        <AlertTitle>{t(getErrorI18nKey(errorCode))}</AlertTitle>
-        <AlertDescription>
-          {message && typeof message === 'string' ? ` - ${message}` : message}
-          {retryAfter && retryAfter > 0 && (
-            <span className="mt-1 flex items-center gap-1 text-danger">
-              {t('Retry in {{seconds}}s', {
-                seconds: remaining,
-                defaultValue: 'Retry in {{seconds}}s',
-              })}
-            </span>
-          )}
-          <a
-            href={uri}
-            target="_blank"
-            rel="noreferrer"
-            className="mt-1 inline-flex items-center text-caption text-danger/80 underline-offset-2 hover:underline"
-          >
-            {uri}
-          </a>
-        </AlertDescription>
-        {onClose && <CloseBtn onClose={onClose} className="text-danger" />}
-      </Alert>
-    );
-  }
-
   if (!message) return null;
   const meta = VARIANT_META[variant];
   return (
@@ -251,7 +149,6 @@ export function ErrorBanner({
     >
       {meta.icon && <meta.icon className="size-4" />}
       <AlertDescription>{message}</AlertDescription>
-      {onClose && <CloseBtn onClose={onClose} />}
     </Alert>
   );
 }

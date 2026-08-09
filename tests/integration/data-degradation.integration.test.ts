@@ -35,15 +35,9 @@ vi.mock('../../packages/backend/src/infrastructure/dataCache.js', () => ({
   readCache: vi.fn(async () => null),
   getCacheKey: vi.fn(() => 'cache-key'),
   writeCache: vi.fn(),
-  setPriceCache: vi.fn(),
-  deletePriceCache: vi.fn(),
-  clearPriceCache: vi.fn(),
-  invalidateTickerCache: vi.fn(),
   invalidateAllCache: vi.fn(),
   HISTORY_CACHE_TTL_SEC: 86400,
   SEARCH_CACHE_TTL_SEC: 3600,
-  PRICE_CACHE_TTL_SEC: 86400,
-  REALTIME_CACHE_TTL_SEC: 300,
   DEFAULT_ORG_ID: 'shared',
 }));
 
@@ -91,7 +85,10 @@ describe('数据降级链路集成测试', () => {
       missing: ['AAPL'],
       dbDegraded: true,
     });
-    fetchMissingFromGoServiceMock.mockResolvedValueOnce({ AAPL: { '2020-01-01': 100 } });
+    fetchMissingFromGoServiceMock.mockResolvedValueOnce({
+      result: { AAPL: { '2020-01-01': 100 } },
+      degraded: false,
+    });
 
     const res = await fetchHistoryData(['AAPL'], '2020-01-01', '2023-12-31');
     expect(res.degraded).toBe(true);
@@ -104,7 +101,10 @@ describe('数据降级链路集成测试', () => {
       missing: ['MSFT'],
       dbDegraded: false,
     });
-    fetchMissingFromGoServiceMock.mockResolvedValueOnce({ MSFT: { '2020-01-01': 200 } });
+    fetchMissingFromGoServiceMock.mockResolvedValueOnce({
+      result: { MSFT: { '2020-01-01': 200 } },
+      degraded: false,
+    });
 
     const res = await fetchHistoryData(['AAPL', 'MSFT'], '2020-01-01', '2023-12-31');
     expect(res.degraded).toBe(false);
@@ -117,7 +117,10 @@ describe('数据降级链路集成测试', () => {
       missing: ['UNKNOWN1', 'UNKNOWN2'],
       dbDegraded: false,
     });
-    fetchMissingFromGoServiceMock.mockResolvedValueOnce({ UNKNOWN1: { '2020-01-01': 50 } });
+    fetchMissingFromGoServiceMock.mockResolvedValueOnce({
+      result: { UNKNOWN1: { '2020-01-01': 50 } },
+      degraded: false,
+    });
 
     const res = await fetchHistoryData(
       ['AAPL', 'UNKNOWN1', 'UNKNOWN2'],

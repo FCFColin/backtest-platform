@@ -70,7 +70,7 @@ function HeroDetails() {
           </div>
         </div>
         <Link
-          to="/data-engine#synthetic"
+          to="/data-engine"
           className="text-caption text-brand hover:underline flex items-center gap-1"
         >
           {t('View all')} <ArrowRight className="h-3 w-3" />

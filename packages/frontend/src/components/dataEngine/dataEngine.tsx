@@ -60,10 +60,8 @@ interface StatsRefs {
 interface StatsSetters {
   setStats: (v: Stats | null) => void;
   setUniverse: (v: UniverseStats | null) => void;
-  setLoading: (v: boolean) => void;
   setError: (v: string) => void;
   setLoadStage: (v: string) => void;
-  setScanning: (v: boolean) => void;
 }
 export async function doFetchStats(
   t: TFunc,
@@ -74,11 +72,9 @@ export async function doFetchStats(
   const t0 = Date.now();
   refs.fetchStartRef.current = t0;
   refs.pollCountRef.current = 0;
-  setters.setLoading(true);
   setters.setError('');
   setters.setLoadStage(t('Connecting...'));
   const fail = (msg: string) => {
-    setters.setLoading(false);
     setters.setError(msg);
   };
   const poll = async (): Promise<void> => {
@@ -102,11 +98,9 @@ export async function doFetchStats(
       }
       const data = json.data as Record<string, unknown> | undefined;
       if (data?.scanning) {
-        setters.setScanning(true);
         refs.pollCountRef.current += 1;
         setters.setLoadStage(getLoadStage(t, refs.pollCountRef.current));
         if (refs.pollCountRef.current >= MAX_POLL) {
-          setters.setScanning(false);
           fail(t('Data engine load timeout, please confirm backend service is running and retry'));
           return;
         }
@@ -114,9 +108,7 @@ export async function doFetchStats(
       } else {
         setters.setStats((data?.stats ?? null) as Stats | null);
         setters.setUniverse((data?.universe ?? null) as UniverseStats | null);
-        setters.setScanning(false);
         setters.setLoadStage(t('Ready'));
-        setters.setLoading(false);
       }
     } catch (e) {
       reportError(e, { component: 'DataEngine', action: 'fetchStats' });

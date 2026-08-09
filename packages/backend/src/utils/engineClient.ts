@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { callService } from './httpClient.js';
 import { config } from '../config/index.js';
 import { logger } from './logger.js';
-import { errorMessage, UpstreamProblemError } from './errors.js';
+import { UpstreamProblemError } from './errors.js';
 import {
   recordEngineCall,
   recordEngineUnavailable,
@@ -124,13 +124,12 @@ export async function callEngineStrict<T>(
   } catch (err) {
     const elapsed = Date.now() - t0;
     if (err instanceof UpstreamProblemError) {
-      recordEngineCall(false, err.code);
+      recordEngineCall(false);
       engineCallDuration.observe({ result: 'client_error' }, elapsed / 1000);
       logger.warn(`[callEngineStrict] ${endpoint} Go 引擎返回 4xx: ${err.status} ${err.code}`);
       throw err;
     }
-    const errMsg = errorMessage(err);
-    recordEngineCall(false, errMsg);
+    recordEngineCall(false);
     engineCallDuration.observe({ result: 'unavailable' }, elapsed / 1000);
     logger.error({ err }, `[callEngineStrict] ${endpoint} Go 引擎不可用，fail-closed 返回 503`);
     throw new EngineUnavailableError(endpoint);

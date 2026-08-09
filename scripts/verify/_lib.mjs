@@ -12,8 +12,8 @@ mkdirSync(OUTPUT_DIR, { recursive: true });
 mkdirSync(join(OUTPUT_DIR, 'screenshots'), { recursive: true });
 
 // pg 只存在于 backend workspace（pnpm 不提升到根），经 backend 的 require 解析
-const requireFromBackend = createRequire(join(PROJECT_ROOT, 'packages/backend/package.json'));
-export const loadPg = () => requireFromBackend('pg');
+export const loadPg = () =>
+  createRequire(join(PROJECT_ROOT, 'packages/backend/package.json'))('pg');
 
 export function writeAggregatedResult(aggregateId, results) {
   const timestamp = new Date().toISOString();

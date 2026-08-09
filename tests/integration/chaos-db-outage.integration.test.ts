@@ -9,15 +9,9 @@ vi.mock('../../packages/backend/src/infrastructure/dataCache.js', () => ({
   readCache: vi.fn(async () => null),
   getCacheKey: vi.fn(() => 'chaos-test-cache-key'),
   writeCache: vi.fn(),
-  setPriceCache: vi.fn(),
-  deletePriceCache: vi.fn(),
-  clearPriceCache: vi.fn(),
-  invalidateTickerCache: vi.fn(),
   invalidateAllCache: vi.fn(),
   HISTORY_CACHE_TTL_SEC: 86400,
   SEARCH_CACHE_TTL_SEC: 3600,
-  PRICE_CACHE_TTL_SEC: 86400,
-  REALTIME_CACHE_TTL_SEC: 300,
   DEFAULT_ORG_ID: 'shared',
 }));
 

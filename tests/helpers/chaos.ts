@@ -1,4 +1,4 @@
-import { exec } from 'child_process';
+import { exec, execSync } from 'child_process';
 import { promisify } from 'util';
 import { beforeAll, afterAll } from 'vitest';
 
@@ -24,6 +24,16 @@ export const reconnectContainer = networkAction('connect');
 async function isDockerAvailable(): Promise<boolean> {
   try {
     await execAsync('docker info');
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// skipIf 在收集期求值（beforeAll 尚未运行），故需同步探测 docker，否则实验恒被跳过
+function isDockerAvailableSync(): boolean {
+  try {
+    execSync('docker info', { stdio: 'ignore' });
     return true;
   } catch {
     return false;
@@ -158,7 +168,7 @@ export function setupChaosLifecycle(containerName: string, recoverFn = startCont
   }, 30000);
   return {
     get dockerAvailable() {
-      return current.dockerAvailable;
+      return isDockerAvailableSync();
     },
     get containerRunning() {
       return current.containerRunning;

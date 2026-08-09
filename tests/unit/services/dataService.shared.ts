@@ -61,7 +61,6 @@ const internalMocks = vi.hoisted(() => ({
   dataCache: {
     getCacheKey: vi.fn(),
     readCache: vi.fn(),
-    invalidateTickerCache: vi.fn(),
     invalidateAllCache: vi.fn(),
   },
   dateUtils: { toDateStr: vi.fn() },

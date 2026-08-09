@@ -7,7 +7,7 @@ import {
   CHART_MARGIN,
   getPortfolioColor,
 } from '@/lib/chart-theme.js';
-import { fmtPct } from '@/utils/format.js';
+import { fmtPct, downsample, DOWNSAMPLE_THRESHOLD, DOWNSAMPLE_TARGET } from '@/utils/format.js';
 import { ChartEmptyState, SimpleAreaChart } from '@/components/charts/sharedChartContent.js';
 
 interface DrawdownChartProps {
@@ -26,7 +26,8 @@ function useDrawdownData(portfolios: DrawdownChartProps['portfolios']) {
         merged[point.date][p.id] = -Math.abs(point.drawdown);
       });
     });
-    return Object.values(merged).sort((a, b) => String(a.date).localeCompare(String(b.date)));
+    const rows = Object.values(merged).sort((a, b) => String(a.date).localeCompare(String(b.date)));
+    return rows.length > DOWNSAMPLE_THRESHOLD ? downsample(rows, DOWNSAMPLE_TARGET) : rows;
   }, [portfolios]);
 }
 function useTotalMonths(chartData: Array<Record<string, string | number>>) {

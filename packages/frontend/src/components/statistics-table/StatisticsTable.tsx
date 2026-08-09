@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Download, Settings2, Info } from 'lucide-react';
+import { Settings2, Info } from 'lucide-react';
 import { Button } from '@/components/ui/uiComponents.js';
 import {
   DropdownMenu,
@@ -72,7 +72,6 @@ const DEFAULT_COLUMNS: StatColumn[] = [
 interface StatisticsTableProps {
   portfolios: PortfolioStatsRow[];
   colors: string[];
-  onExport?: () => void;
   extendedTable?: React.ReactNode;
   currency?: string;
 }
@@ -102,7 +101,6 @@ function renderStatValue(
 export function StatisticsTable({
   portfolios,
   colors,
-  onExport,
   extendedTable,
   currency,
 }: StatisticsTableProps) {
@@ -175,11 +173,6 @@ export function StatisticsTable({
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
-          {onExport && (
-            <Button variant="ghost" size="sm" onClick={onExport} aria-label={t('Export')}>
-              <Download className="h-4 w-4" />
-            </Button>
-          )}
         </div>
       </div>
       <TableFrame>

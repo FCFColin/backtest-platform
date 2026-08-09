@@ -8,7 +8,6 @@ import { SimpleTable, type SimpleTableColumn } from '../tables.js';
 import { type RollingCorrelationPoint, type BetaRow } from './chartUtils.js';
 import { CHART_COLORS, type PortfolioResult } from '@backtest/shared';
 import ChartCard from '../ChartCard.js';
-import { downsample, DOWNSAMPLE_THRESHOLD, DOWNSAMPLE_TARGET } from '../../utils/format.js';
 import { useChartCalcWorker, type WorkerTask } from '../../hooks/miscHooks.js';
 interface CorrelationWithBetaProps {
   portfolios: PortfolioResult[];
@@ -144,10 +143,9 @@ function RollingCorrelationLineChart({
   pairName: string;
 }) {
   const { t } = useTranslation();
-  const chartData = data.length > DOWNSAMPLE_THRESHOLD ? downsample(data, DOWNSAMPLE_TARGET) : data;
   return (
     <TimeSeriesLineChart
-      data={chartData}
+      data={data}
       series={[{ dataKey: 'correlation', legendName: pairName, strokeWidth: 1.5 }]}
       height={300}
       yTickFormatter={(v: number) => v.toFixed(1)}

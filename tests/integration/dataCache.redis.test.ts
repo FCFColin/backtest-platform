@@ -64,9 +64,7 @@ import {
   getCacheKey,
   readCache,
   writeCache,
-  setPriceCache,
   invalidateAllCache,
-  PRICE_CACHE_TTL_SEC,
   HISTORY_CACHE_TTL_SEC,
 } from '../../packages/backend/src/infrastructure/dataCache.js';
 
@@ -158,19 +156,8 @@ describe('P0-01 dataCache Redis L1+L2', () => {
     });
   });
 
-  describe('价格缓存 TTL 与失效', () => {
-    it('setPriceCache 写入带 24h TTL', async () => {
-      await setPriceCache('SPY', { '2024-01-02': 400 });
-      expect(redisStub.set).toHaveBeenCalledWith(
-        getCacheKey('price', { ticker: 'SPY' }),
-        JSON.stringify({ '2024-01-02': 400 }),
-        'EX',
-        PRICE_CACHE_TTL_SEC,
-      );
-    });
-
+  describe('缓存失效', () => {
     it('invalidateAllCache 清空所有 cache:org:* key', async () => {
-      await setPriceCache('SPY', { '2024-01-02': 400 });
       await writeCache(getCacheKey('history', { tickers: 'SPY' }), { x: 1 }, HISTORY_CACHE_TTL_SEC);
       await invalidateAllCache();
       expect(redisStub.store.size).toBe(0);

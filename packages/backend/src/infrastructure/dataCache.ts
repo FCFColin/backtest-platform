@@ -1,11 +1,11 @@
 // P0-01: L1 LRU + L2 Redis 两级缓存；Redis 不可用时 L2 静默跳过（ADR-031）；多租户 key 前缀（ADR-032）
 import { gzipSync, gunzipSync } from 'node:zlib';
+import { createHash } from 'node:crypto';
 import { logger } from '../utils/logger.js';
 import { recordCacheHit, recordCacheEviction } from '../utils/metrics.js';
 import { appRedis, getRedisHealth, markRedisUnhealthy } from './redisClient.js';
 import { silentRedis, scanDelKeys } from './redisGuard.js';
 
-const PRICE_CACHE_TTL_SEC = 86400;
 const HISTORY_CACHE_TTL_SEC = 86400;
 const SEARCH_CACHE_TTL_SEC = 3600;
 const L1_MAX_ENTRIES = 1000;
@@ -14,7 +14,6 @@ const COMPRESS_THRESHOLD_BYTES = 1024;
 const GZIP_PREFIX = 'gzip:';
 const CACHE_KEY_PREFIX = 'cache:org:';
 const DEFAULT_ORG_ID = 'shared';
-const REDIS_SCAN_COUNT = 100;
 
 interface L1Entry {
   data: unknown;
@@ -43,9 +42,6 @@ function l1Set(key: string, data: unknown): void {
   }
   l1Cache.set(key, { data, expiresAt: Date.now() + L1_TTL_MS });
 }
-function l1Delete(key: string): void {
-  l1Cache.delete(key);
-}
 function l1Clear(): void {
   l1Cache.clear();
 }
@@ -55,7 +51,10 @@ function evictExpiredL1(): void {
 }
 
 function sanitize(s: string): string {
-  return s.replace(/[^a-zA-Z0-9._-]/g, '_').substring(0, 50);
+  // 非法字符用 ~ 替换（不在 [a-zA-Z0-9._-] 内），避免 tickers=SPY,AAPL 与 SPY_AAPL 撞 key
+  const cleaned = s.replace(/[^a-zA-Z0-9._-]/g, '~');
+  if (cleaned.length <= 50) return cleaned;
+  return `${cleaned.slice(0, 41)}~${createHash('sha1').update(s).digest('hex').slice(0, 8)}`;
 }
 function getCacheKey(
   type: string,
@@ -67,9 +66,6 @@ function getCacheKey(
     .map(([k, v]) => `${sanitize(k)}=${sanitize(v)}`)
     .join('&');
   return `${CACHE_KEY_PREFIX}${sanitize(orgId)}:${sanitize(type)}:${paramStr}`;
-}
-function priceKey(ticker: string, orgId: string = DEFAULT_ORG_ID): string {
-  return getCacheKey('price', { ticker }, orgId);
 }
 
 function serialize(data: unknown): string {
@@ -146,63 +142,6 @@ async function scanDel(pattern: string): Promise<void> {
   });
 }
 
-async function deletePriceCache(ticker: string, orgId: string = DEFAULT_ORG_ID): Promise<void> {
-  const key = priceKey(ticker, orgId);
-  l1Delete(key);
-  if (!(await getRedisHealth())) return;
-  await silentRedis(() => appRedis.del(key), '[cache] Redis 删除价格缓存失败', {
-    key,
-    service: 'dataService',
-  });
-}
-
-async function setPriceCache(
-  ticker: string,
-  data: Record<string, number>,
-  orgId: string = DEFAULT_ORG_ID,
-): Promise<void> {
-  await writeCache(priceKey(ticker, orgId), data, PRICE_CACHE_TTL_SEC);
-}
-
-async function invalidateTickerCache(
-  ticker: string,
-  orgId: string = DEFAULT_ORG_ID,
-): Promise<void> {
-  await deletePriceCache(ticker, orgId);
-  const tickerTok = sanitize(ticker);
-  const orgPrefix = `${CACHE_KEY_PREFIX}${sanitize(orgId)}`;
-  if (!(await getRedisHealth())) {
-    logger.info(`[dataService] invalidateCache: ticker=${ticker} (Redis 不可用，仅清 L1 价格)`);
-    return;
-  }
-  try {
-    for (const type of ['history', 'search']) {
-      let cursor = '0';
-      do {
-        const [nextCursor, keys] = await appRedis.scan(
-          cursor,
-          'MATCH',
-          `${orgPrefix}:${type}:*`,
-          'COUNT',
-          REDIS_SCAN_COUNT,
-        );
-        const toDelete = keys.filter((k) =>
-          k.split('tickers=')[1]?.split('&')[0]?.split('_').includes(tickerTok),
-        );
-        if (toDelete.length > 0) await appRedis.del(...toDelete);
-        cursor = nextCursor;
-      } while (cursor !== '0');
-    }
-  } catch (err) {
-    logger.warn(
-      { err, ticker, service: 'dataService' },
-      '[cache] 失效 ticker 缓存时 Redis 扫描失败',
-    );
-    markRedisUnhealthy();
-  }
-  logger.info(`[dataService] invalidateCache: ticker=${ticker}`);
-}
-
 async function invalidateAllCache(): Promise<void> {
   l1Clear();
   await scanDel(`${CACHE_KEY_PREFIX}*`);
@@ -210,14 +149,10 @@ async function invalidateAllCache(): Promise<void> {
 }
 
 export {
-  PRICE_CACHE_TTL_SEC,
   HISTORY_CACHE_TTL_SEC,
   SEARCH_CACHE_TTL_SEC,
   getCacheKey,
   readCache,
   writeCache,
-  deletePriceCache,
-  setPriceCache,
-  invalidateTickerCache,
   invalidateAllCache,
 };

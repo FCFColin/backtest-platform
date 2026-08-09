@@ -44,11 +44,7 @@ import {
   getCacheKey,
   readCache,
   writeCache,
-  deletePriceCache,
-  setPriceCache,
-  invalidateTickerCache,
   invalidateAllCache,
-  PRICE_CACHE_TTL_SEC,
   HISTORY_CACHE_TTL_SEC,
 } from '../../../packages/backend/src/infrastructure/dataCache.js';
 
@@ -79,6 +75,12 @@ describe('getCacheKey', () => {
     const key = getCacheKey('test', { bad: '<script>alert(1)</script>' });
     expect(key).not.toContain('<');
     expect(key).not.toContain('>');
+  });
+
+  it('列表分隔符与真实 ticker 不应撞 key', () => {
+    const listKey = getCacheKey('history', { tickers: 'SPY,AAPL' });
+    const singleKey = getCacheKey('history', { tickers: 'SPY_AAPL' });
+    expect(listKey).not.toBe(singleKey);
   });
 
   it('应支持自定义 orgId 隔离不同租户', () => {
@@ -167,52 +169,16 @@ describe('writeCache', () => {
   });
 });
 
-describe('price cache', () => {
-  it('setPriceCache 写入 L1+L2，deletePriceCache 删除两者', async () => {
-    await setPriceCache('SPY', { '2024-01-02': 400 });
-    const key = getCacheKey('price', { ticker: 'SPY' });
-    expect(redisStub.set).toHaveBeenCalledWith(
-      key,
-      JSON.stringify({ '2024-01-02': 400 }),
-      'EX',
-      PRICE_CACHE_TTL_SEC,
-    );
-
-    await deletePriceCache('SPY');
-    expect(redisStub.store.has(key)).toBe(false);
-  });
-});
-
 describe('invalidateAllCache', () => {
   it('应清空 L1 并删除所有 cache:org:* key', async () => {
-    await setPriceCache('SPY', { '2024-01-02': 400 });
     await writeCache(getCacheKey('history', { tickers: 'SPY' }), { x: 1 }, HISTORY_CACHE_TTL_SEC);
     expect(redisStub.store.size).toBeGreaterThan(0);
 
     await invalidateAllCache();
     expect(redisStub.store.size).toBe(0);
     redisStub.get.mockClear();
-    const got = await readCache(getCacheKey('price', { ticker: 'SPY' }));
+    const got = await readCache(getCacheKey('history', { tickers: 'SPY' }));
     expect(got).toBeNull();
     expect(redisStub.get).toHaveBeenCalled();
-  });
-});
-
-describe('invalidateTickerCache', () => {
-  it('应删除该 ticker 的价格缓存并 best-effort 清理 history key', async () => {
-    const priceKey = getCacheKey('price', { ticker: 'SPY' });
-    const histKey = getCacheKey('history', { tickers: 'SPY,AAPL' });
-    await setPriceCache('SPY', { '2024-01-02': 400 });
-    await writeCache(histKey, { SPY: { '2024-01-02': 400 } }, HISTORY_CACHE_TTL_SEC);
-
-    await invalidateTickerCache('SPY');
-
-    expect(redisStub.store.has(priceKey)).toBe(false);
-    expect(redisStub.store.has(histKey)).toBe(false);
-  });
-
-  it('Redis 不可用时仅清 L1 价格缓存且不抛出', async () => {
-    healthMock.getRedisHealth.mockResolvedValue(false);
-    await expect(invalidateTickerCache('SPY')).resolves.toBeUndefined();
   });
 });

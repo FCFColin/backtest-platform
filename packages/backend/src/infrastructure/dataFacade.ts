@@ -185,4 +185,4 @@ async function fetchHistoryDataImpl(
 }
 
 export { validateTickers, searchTickers } from './dataQuery.js';
-export { invalidateTickerCache, invalidateAllCache } from './dataCache.js';
+export { invalidateAllCache } from './dataCache.js';

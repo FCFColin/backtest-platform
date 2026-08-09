@@ -176,7 +176,7 @@ export async function getBacktestResultCache(key: string): Promise<BacktestResul
   return null;
 }
 
-export function evictExpired(): void {
+function evictExpired(): void {
   const now = Date.now();
   for (const [key, entry] of cache) {
     if (now > entry.expiresAt) cache.delete(key);

@@ -7,7 +7,6 @@ import { registerCircuitBreakerMetrics } from '../utils/metrics.js';
 import { isValidTicker } from '../utils/tickerValidation.js';
 import {
   writeCache,
-  setPriceCache,
   getCacheKey,
   readCache,
   HISTORY_CACHE_TTL_SEC,
@@ -154,7 +153,6 @@ export async function fetchMissingFromGoService(
           );
           if (Object.keys(priceMap).length > 0) {
             goResult[ticker] = priceMap;
-            await setPriceCache(ticker, priceMap);
           }
           if (tickerDegraded) degraded = true;
         }

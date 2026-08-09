@@ -2,7 +2,7 @@ import { Router, type Response } from 'express';
 import { randomBytes } from 'node:crypto';
 import { logger } from '../utils/logger.js';
 import { sendProblem } from '../utils/errors.js';
-import { asyncRouteHandler } from './routeUtils.js';
+import { asyncRouteHandler, crudRouteHandler } from './routeUtils.js';
 import { authConfig } from '../config/index.js';
 import {
   generateToken,
@@ -160,64 +160,78 @@ router.post(
   ),
 );
 
-router.post('/register', validate(registerSchema), async (req, res) => {
-  const { username, password, email, orgName } = req.body;
+router.post(
+  '/register',
+  validate(registerSchema),
+  crudRouteHandler(
+    async (req, res) => {
+      const { username, password, email, orgName } = req.body;
 
-  const existing = await getUserByEmail(email);
-  if (existing) {
-    sendProblem(res, 409, 'EMAIL_TAKEN');
-    return;
-  }
+      const existing = await getUserByEmail(email);
+      if (existing) {
+        sendProblem(res, 409, 'EMAIL_TAKEN');
+        return;
+      }
 
-  let userId = '';
-  try {
-    await withTransaction(async (client) => {
-      const user = await createUserTx(client, username, password, email, 'admin');
-      userId = user.id;
-      const slug = `${slugify(orgName)}-${randomBytes(3).toString('hex')}`;
-      const orgRes = await client.query(
-        'INSERT INTO organizations (name, slug) VALUES ($1, $2) RETURNING id',
-        [orgName, slug],
-      );
-      const orgId = orgRes.rows[0].id as string;
-      await client.query(
-        "INSERT INTO memberships (org_id, user_id, role) VALUES ($1, $2, 'owner')",
-        [orgId, userId],
-      );
-    });
-  } catch (err) {
-    const msg = String(err);
-    if (msg.includes('duplicate key') || msg.includes('unique')) {
-      sendProblem(res, 409, 'ACCOUNT_CONFLICT');
-      return;
-    }
-    logger.error({ err: msg }, '[auth] 注册失败');
-    sendProblem(res, 500, 'REGISTER_FAILED');
-    return;
-  }
+      let userId = '';
+      try {
+        await withTransaction(async (client) => {
+          const user = await createUserTx(client, username, password, email, 'admin');
+          userId = user.id;
+          const slug = `${slugify(orgName)}-${randomBytes(3).toString('hex')}`;
+          const orgRes = await client.query(
+            'INSERT INTO organizations (name, slug) VALUES ($1, $2) RETURNING id',
+            [orgName, slug],
+          );
+          const orgId = orgRes.rows[0].id as string;
+          await client.query(
+            "INSERT INTO memberships (org_id, user_id, role) VALUES ($1, $2, 'owner')",
+            [orgId, userId],
+          );
+        });
+      } catch (err) {
+        const msg = String(err);
+        if (msg.includes('duplicate key') || msg.includes('unique')) {
+          sendProblem(res, 409, 'ACCOUNT_CONFLICT');
+          return;
+        }
+        logger.error({ err: msg }, '[auth] 注册失败');
+        sendProblem(res, 500, 'REGISTER_FAILED');
+        return;
+      }
 
-  try {
-    await sendVerificationEmail(email, await issueEmailVerificationToken(userId));
-  } catch (err) {
-    logger.warn({ err: String(err), userId }, '[auth] 验证邮件发送失败');
-  }
+      try {
+        await sendVerificationEmail(email, await issueEmailVerificationToken(userId));
+      } catch (err) {
+        logger.warn({ err: String(err), userId }, '[auth] 验证邮件发送失败');
+      }
 
-  logger.info({ userId }, '[auth] 注册成功');
-  res.status(201).json({
-    success: true,
-    data: { userId, message: '注册成功，请查收验证邮件以完成邮箱验证' },
-  });
-});
+      logger.info({ userId }, '[auth] 注册成功');
+      res.status(201).json({
+        success: true,
+        data: { userId, message: '注册成功，请查收验证邮件以完成邮箱验证' },
+      });
+    },
+    { logMsg: '[auth] 注册失败', code: 'REGISTER_FAILED' },
+  ),
+);
 
-router.post('/verify-email', validate(verifyEmailSchema), async (req, res) => {
-  const { token } = req.body;
-  const userId = await verifyEmailToken(token);
-  if (!userId) {
-    sendProblem(res, 400, 'INVALID_OR_EXPIRED_TOKEN');
-    return;
-  }
-  res.json({ success: true, data: { userId, verified: true } });
-});
+router.post(
+  '/verify-email',
+  validate(verifyEmailSchema),
+  crudRouteHandler(
+    async (req, res) => {
+      const { token } = req.body;
+      const userId = await verifyEmailToken(token);
+      if (!userId) {
+        sendProblem(res, 400, 'INVALID_OR_EXPIRED_TOKEN');
+        return;
+      }
+      res.json({ success: true, data: { userId, verified: true } });
+    },
+    { logMsg: '[auth] 邮箱验证失败', code: 'VERIFY_EMAIL_FAILED' },
+  ),
+);
 
 router.post(
   '/refresh',
