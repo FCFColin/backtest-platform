@@ -3,10 +3,6 @@
 @tailwind utilities;
 
 @layer base {
-  html {
-    color-scheme: light dark;
-  }
-
   body {
     @apply bg-app text-fg font-sans antialiased;
     font-feature-settings: 'cv11', 'ss01', 'ss03';
@@ -27,11 +23,6 @@
     background-position: right 12px center;
     background-size: 14px;
     padding-right: 36px;
-  }
-
-  input[type='date']::-webkit-calendar-picker-indicator {
-    filter: invert(0.6);
-    cursor: pointer;
   }
 
   @media (prefers-reduced-motion: reduce) {

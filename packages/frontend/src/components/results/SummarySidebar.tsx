@@ -76,7 +76,6 @@ export function SummarySidebar({ stats, totalYears, positiveYears }: SummarySide
   const metrics = buildMetrics(stats, totalYears, positiveYears);
   return (
     <>
-      {/* 移动端：横向滚动指标行 */}
       <div
         className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1 lg:hidden"
         role="list"
@@ -100,7 +99,6 @@ export function SummarySidebar({ stats, totalYears, positiveYears }: SummarySide
           </Card>
         ))}
       </div>
-      {/* 桌面端：sticky 指标卡片 */}
       <Card className="hidden lg:block p-4 lg:sticky lg:top-15" data-testid="summary-sidebar">
         <h3 className="text-h3 mb-3">{t('Key Metrics')}</h3>
         <dl className="space-y-2.5">

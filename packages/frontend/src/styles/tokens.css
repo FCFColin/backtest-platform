@@ -1,5 +1,6 @@
 /* P3-3: HSL 通道变量供 Tailwind，Hex 变量供组件 CSS；暗色经 [data-theme="dark"] 切换 */
 :root {
+  color-scheme: light;
   --app: 213 33% 96%;
   --surface: 0 0% 100%;
   --elevated: 210 40% 96%;
@@ -71,6 +72,7 @@
 
 :root[data-theme='dark'],
 .dark {
+  color-scheme: dark;
   --app: 224 15% 5%;
   --surface: 222 14% 8%;
   --elevated: 222 13% 10%;

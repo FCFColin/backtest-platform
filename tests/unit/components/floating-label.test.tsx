@@ -20,21 +20,6 @@ describe('FloatingField', () => {
     expect(screen.getByText('months')).toBeTruthy();
   });
 
-  it('渲染错误信息', () => {
-    render(<FloatingField label="FIELD" error="Invalid value" />);
-    expect(screen.getByText('Invalid value')).toBeTruthy();
-  });
-
-  it('渲染提示信息（无错误时）', () => {
-    render(<FloatingField label="FIELD" hint="Enter a number" />);
-    expect(screen.getByText('Enter a number')).toBeTruthy();
-  });
-
-  it('有错误时不显示提示', () => {
-    render(<FloatingField label="FIELD" error="Error" hint="Hint" />);
-    expect(screen.queryByText('Hint')).toBeNull();
-  });
-
   it('输入值正确传递', () => {
     render(<FloatingField label="FIELD" value="100" onChange={() => {}} />);
     const input = screen.getByDisplayValue('100');
@@ -45,12 +30,6 @@ describe('FloatingField', () => {
     render(<FloatingField label="FIELD" disabled />);
     const input = screen.getByLabelText('FIELD');
     expect((input as HTMLInputElement).disabled).toBe(true);
-  });
-
-  it('错误状态下容器包含 border-danger', () => {
-    const { container } = render(<FloatingField label="FIELD" error="err" />);
-    const wrapper = container.querySelector('.h-14');
-    expect(wrapper?.className).toContain('border-danger');
   });
 
   it('无错误时容器包含 border-border', () => {

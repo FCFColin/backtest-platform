@@ -31,7 +31,7 @@ export function ResultsActionBar({ timeRange, onExport }: ResultsActionBarProps)
         className={cn(
           'transition-all duration-200',
           sticky
-            ? 'sticky top-0 z-40 h-14 bg-sticky-bg/95 backdrop-blur-md border-b border-border shadow-md'
+            ? 'sticky top-15 z-40 h-14 bg-sticky-bg/95 backdrop-blur-md border-b border-border shadow-md'
             : 'h-14 bg-transparent border-b border-border-subtle',
         )}
       >

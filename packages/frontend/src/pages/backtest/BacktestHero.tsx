@@ -5,7 +5,7 @@ import { Settings, Rocket, ChevronUp, ArrowRight, FlaskConical } from 'lucide-re
 import { Link } from 'react-router';
 import { Button, Card } from '@/components/ui/uiComponents';
 import { cn } from '@/lib/utils';
-const HERO_STORAGE_KEY = 'backtest-hero-visit-count';
+const HERO_STORAGE_KEY = 'backtest-hero-expanded';
 const RESEARCH_TOOLS = [
   { labelKey: 'nav.monteCarlo', path: '/monte-carlo' },
   { labelKey: 'nav.portfolioOptimize', path: '/optimizer' },
@@ -82,19 +82,19 @@ export const BacktestHero = memo(function BacktestHero() {
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState(() => {
     try {
-      return parseInt(localStorage.getItem(HERO_STORAGE_KEY) ?? '0') < 3;
+      const stored = localStorage.getItem(HERO_STORAGE_KEY);
+      return stored === null || stored === '1';
     } catch {
       return true;
     }
   });
   useEffect(() => {
     try {
-      const count = parseInt(localStorage.getItem(HERO_STORAGE_KEY) ?? '0');
-      localStorage.setItem(HERO_STORAGE_KEY, String(count + 1));
+      localStorage.setItem(HERO_STORAGE_KEY, expanded ? '1' : '0');
     } catch {
       /* localStorage not available */
     }
-  }, []);
+  }, [expanded]);
   return (
     <section className={cn('max-w-[1440px] mx-auto px-6', 'pt-4 pb-6')} data-testid="page-hero">
       {/* 标题行 - 始终显示 */}

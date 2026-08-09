@@ -8,6 +8,7 @@ import { buildServiceHealths, type ServiceHealthView } from '../../utils/adminSt
 interface SystemResource {
   memoryMB: number;
   heapUsedMB: number;
+  heapTotalMB: number;
   uptime: string;
   uptimeSeconds: number;
 }
@@ -23,7 +24,7 @@ interface MonitorData {
 }
 const defaultMonitorData: MonitorData = {
   services: buildServiceHealths({}),
-  system: { memoryMB: 0, heapUsedMB: 0, uptime: '-', uptimeSeconds: 0 },
+  system: { memoryMB: 0, heapUsedMB: 0, heapTotalMB: 0, uptime: '-', uptimeSeconds: 0 },
   dataDir: { totalSizeMB: 0, tickerCount: 0, totalDataPoints: 0 },
 };
 function buildMonitorData(d: Record<string, unknown>, services: ServiceHealthView[]): MonitorData {
@@ -35,6 +36,7 @@ function buildMonitorData(d: Record<string, unknown>, services: ServiceHealthVie
     system: {
       memoryMB: mem?.rss_mb || 0,
       heapUsedMB: mem?.heap_used_mb || 0,
+      heapTotalMB: mem?.heap_total_mb || 0,
       uptime: (up?.formatted as string) || '-',
       uptimeSeconds: (up?.seconds as number) || 0,
     },
@@ -62,14 +64,9 @@ export default function SystemMonitor() {
   usePolling(fetchMonitorData, 10000, { enabled: autoRefresh, deps: [autoRefresh] });
   const memBars = [
     {
-      label: t('RSS Memory'),
-      valueMB: data.system.memoryMB,
-      totalMB: data.system.memoryMB,
-    },
-    {
       label: t('Heap Used'),
       valueMB: data.system.heapUsedMB,
-      totalMB: data.system.memoryMB,
+      totalMB: data.system.heapTotalMB,
     },
   ];
   return (

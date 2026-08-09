@@ -39,20 +39,30 @@ describe('BacktestHero', () => {
     ).toBeTruthy();
   });
 
-  it('前 3 次访问默认展开', () => {
-    localStorage.setItem('backtest-hero-visit-count', '0');
+  it('首次访问默认展开', () => {
     render(<BacktestHero />);
     expect(screen.getByText(HERO_DESCRIPTION)).toBeTruthy();
   });
 
-  it('第 4 次访问默认折叠', () => {
-    localStorage.setItem('backtest-hero-visit-count', '3');
+  it('记住折叠选择，重新渲染仍折叠', () => {
+    const first = render(<BacktestHero />);
+    fireEvent.click(first.getByText('Hide Intro'));
+    first.unmount();
     render(<BacktestHero />);
     expect(screen.queryByText(HERO_DESCRIPTION)).not.toBeTruthy();
   });
 
+  it('记住展开选择，重新渲染仍展开', () => {
+    localStorage.setItem('backtest-hero-expanded', '0');
+    const first = render(<BacktestHero />);
+    fireEvent.click(first.getByText('Show Intro'));
+    first.unmount();
+    render(<BacktestHero />);
+    expect(screen.getByText(HERO_DESCRIPTION)).toBeTruthy();
+  });
+
   it('点击展开按钮显示详情', () => {
-    localStorage.setItem('backtest-hero-visit-count', '3');
+    localStorage.setItem('backtest-hero-expanded', '0');
     render(<BacktestHero />);
     const expandBtn = screen.getByText('Show Intro');
     fireEvent.click(expandBtn);
@@ -60,7 +70,6 @@ describe('BacktestHero', () => {
   });
 
   it('点击折叠按钮隐藏详情', () => {
-    localStorage.setItem('backtest-hero-visit-count', '0');
     render(<BacktestHero />);
     const collapseBtn = screen.getByText('Hide Intro');
     fireEvent.click(collapseBtn);
@@ -68,7 +77,6 @@ describe('BacktestHero', () => {
   });
 
   it('展开时显示三栏能力卡片标题', () => {
-    localStorage.setItem('backtest-hero-visit-count', '0');
     render(<BacktestHero />);
     expect(screen.getByText('What You Can Model')).toBeTruthy();
     expect(screen.getByText('Metrics You Can Inspect')).toBeTruthy();
@@ -76,16 +84,9 @@ describe('BacktestHero', () => {
   });
 
   it('展开时显示研究工具链接', () => {
-    localStorage.setItem('backtest-hero-visit-count', '0');
     render(<BacktestHero />);
     expect(screen.getByText('nav.monteCarlo')).toBeTruthy();
     expect(screen.getByText('nav.portfolioOptimize')).toBeTruthy();
     expect(screen.getByText('nav.efficientFrontier')).toBeTruthy();
-  });
-
-  it('每次渲染增加访问计数', () => {
-    localStorage.setItem('backtest-hero-visit-count', '5');
-    render(<BacktestHero />);
-    expect(localStorage.getItem('backtest-hero-visit-count')).toBe('6');
   });
 });

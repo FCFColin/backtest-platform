@@ -12,12 +12,8 @@ export const CHART_TOOLTIP_STYLE: CSSProperties = {
   WebkitBackdropFilter: 'blur(8px)',
 } as const;
 export const CHART_MARGIN = { top: 20, right: 40, bottom: 20, left: 80 } as const;
-export const CHART_GRID_PROPS = {
-  strokeWidth: 1,
-  strokeDasharray: '3 3',
-  vertical: true,
-  horizontal: true,
-} as const;
+// 网格外观（stroke/opacity/dasharray）由 base.css 统一强制，此处只控制启停
+export const CHART_GRID_PROPS = { vertical: true, horizontal: true } as const;
 export const AXIS_TICK_STYLE = {
   fill: 'hsl(var(--fg-tertiary))',
   fontSize: 11,
