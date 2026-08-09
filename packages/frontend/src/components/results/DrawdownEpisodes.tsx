@@ -85,8 +85,9 @@ function DrawdownSummary({ episodes }: { episodes: DrawdownEpisode[] }) {
   const { t } = useTranslation();
   const summary = {
     total: episodes.length,
-    maxDepth: Math.min(...episodes.map((e) => e.depth), 0),
-    avgDepth: episodes.length > 0 ? episodes.reduce((s, e) => s + e.depth, 0) / episodes.length : 0,
+    maxDepth: episodes.length > 0 ? Math.min(...episodes.map((e) => e.depth)) : null,
+    avgDepth:
+      episodes.length > 0 ? episodes.reduce((s, e) => s + e.depth, 0) / episodes.length : null,
     avgRecovery:
       episodes.filter((e) => e.recoveryTime > 0).reduce((s, e) => s + e.recoveryTime, 0) /
       Math.max(episodes.filter((e) => e.recoveryTime > 0).length, 1),
@@ -239,7 +240,7 @@ function DetailField({
 }
 function getSeverity(depth: number): 'severe' | 'moderate' | 'mild' {
   const abs = Math.abs(depth);
-  if (abs >= 20) return 'severe';
-  if (abs >= 10) return 'moderate';
+  if (abs >= 0.2) return 'severe';
+  if (abs >= 0.1) return 'moderate';
   return 'mild';
 }

@@ -2,12 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { FloatingField } from '../../../packages/frontend/src/components/BacktestParamsForm.js';
 
-vi.mock('react-i18next', () => ({
-  useTranslation: () => ({
-    t: (key: string) => key,
-    i18n: { language: 'zh-CN', changeLanguage: vi.fn() },
-  }),
-}));
+vi.mock('react-i18next', async () => (await import('../../helpers/i18nMock.js')).i18nMock);
 
 describe('FloatingField', () => {
   it('渲染标签文本', () => {

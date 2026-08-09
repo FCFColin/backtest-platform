@@ -5,16 +5,7 @@ vi.mock('@backtest/shared', () => ({
   CHART_COLORS: ['#8884d8', '#82ca9d', '#ffc658'],
 }));
 
-vi.mock('react-i18next', () => ({
-  useTranslation: () => ({
-    t: (key: string, params?: Record<string, unknown>) => {
-      if (!params) return key;
-      return key.replace(/\{\{(\w+)\}\}/g, (_, k) => String(params[k] ?? ''));
-    },
-    i18n: { language: 'zh-CN', changeLanguage: vi.fn() },
-  }),
-  Trans: ({ i18nKey }: { i18nKey: string }) => i18nKey,
-}));
+vi.mock('react-i18next', async () => (await import('../../helpers/i18nMock.js')).i18nMock);
 
 vi.mock('@/utils/format', () => ({
   fmtPct: (v: number) => `${(v * 100).toFixed(2)}%`,
@@ -33,16 +24,14 @@ function createPortfolio(name: string, stats: Record<string, number | undefined>
 }
 
 const ROWS: StatRow[] = [
-  { key: 'cagr', label: 'CAGR', fmt: 'pct', importance: 'primary' },
-  { key: 'sharpe', label: '夏普', fmt: 'ratio', importance: 'primary' },
+  { key: 'cagr', label: 'CAGR', fmt: 'pct' },
+  { key: 'sharpe', label: '夏普', fmt: 'ratio' },
   {
     key: 'maxDrawdown',
     label: '最大回撤',
     fmt: 'pct',
-    importance: 'secondary',
-    higherIsBetter: false,
   },
-  { key: 'ulcerIndex', label: 'Ulcer', fmt: 'num', importance: 'detailed' },
+  { key: 'ulcerIndex', label: 'Ulcer', fmt: 'num' },
 ];
 
 describe('StatisticsTableHeader', () => {

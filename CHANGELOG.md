@@ -7,7 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-_暂无未发布变更。最新发布见 [0.4.0]。_
+_暂无未发布变更。最新发布见 [0.4.1]。_
+
+## [0.4.1] - 2026-08-09
+
+### Changed（收敛与修复）
+
+- 全仓库行数缩减至 ~100k 基线（死代码/死导出/冗余收敛，多轮 sweep）
+- 同步计算请求超时按端点差异化（compute 125s，其余 30s，C-020）
+- outbox 消费失败向上传播（不误标 processed_at）+ 修复 audit event_id 类型 bug（P1 审计数据丢失，ADR-014）
+- refresh token GETDEL 原子认领防重放；限流按原始 token 哈希分桶
+- Stripe webhook 处理失败删除去重键；dataUpdateWorker 更新完成后失效缓存
+- 数据管理契约对齐（`/api/v1/data/health` 路由 + 更新动作 PUT/PATCH）
+- Go engine 蒙特卡洛取消时 nil-path 守卫（fail-closed）
+
+### Added
+
+- CI：Trivy 容器安全扫描（C-025 门禁，SHA-pin）；govulncheck 覆盖 Go 服务
+- knip 死代码门禁生效；验证脚本门禁（`pnpm verify:critical`）
+- pnpm audit 归零（CVE 升级 + react-router v7→v8 迁移）
 
 ## [0.4.0] - 2026-07-28
 

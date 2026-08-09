@@ -359,7 +359,6 @@ describe('getMonthlyUsage', () => {
     ['DB 无记录返回 0', null, { rows: [] }, 0, null],
     ['Redis get 异常应回退 DB', new Error('get down'), { rows: [{ count: 3 }] }, 3, null],
     ['回填 Redis 失败应忽略', null, { rows: [{ count: 7 }] }, 7, new Error('set failed')],
-    ['DB 查询失败应返回 0 并记录错误', null, new Error('db error'), 0, null],
     ['Redis 缓存值为非数字应回退 DB', 'NaN', { rows: [{ count: 5 }] }, 5, null],
   ])('%s', async (_n, redisVal, dbVal, expected, setVal) => {
     if (redisVal instanceof Error) redisMocks.get.mockRejectedValueOnce(redisVal);
@@ -370,5 +369,10 @@ describe('getMonthlyUsage', () => {
     else if (setVal !== null) redisMocks.set.mockResolvedValueOnce(setVal);
     expect(await getMonthlyUsage(ORG, 'backtest')).toBe(expected);
     if (setVal !== null) expect(redisMocks.set).toHaveBeenCalled();
+  });
+
+  it('DB 查询失败应向上抛错（fail-closed，由 quota 中间件返回 503）', async () => {
+    dbMocks.client.query.mockRejectedValueOnce(new Error('db error'));
+    await expect(getMonthlyUsage(ORG, 'backtest')).rejects.toThrow('db error');
   });
 });

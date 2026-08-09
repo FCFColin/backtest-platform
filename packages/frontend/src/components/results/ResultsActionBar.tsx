@@ -11,7 +11,7 @@ import {
 import { cn } from '@/lib/utils.js';
 interface ResultsActionBarProps {
   timeRange: { start: string; end: string; years: number };
-  onExport?: (format: 'csv' | 'json' | 'png' | 'pdf') => void;
+  onExport?: (format: 'csv' | 'json') => void;
 }
 export function ResultsActionBar({ timeRange, onExport }: ResultsActionBarProps) {
   const { t } = useTranslation();
@@ -60,12 +60,6 @@ export function ResultsActionBar({ timeRange, onExport }: ResultsActionBarProps)
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => onExport?.('json')}>
                 {t('JSON (Full Config + Results)')}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onExport?.('png')}>
-                {t('PNG (Chart)')}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onExport?.('pdf')}>
-                {t('PDF (Report)')}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

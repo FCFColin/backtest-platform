@@ -4,7 +4,7 @@ import type { PortfolioResult } from '@backtest/shared';
 import { CHART_COLORS } from '@backtest/shared';
 import { getColorClass } from '@/components/charts/chartUtils.js';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/uiComponents.js';
-import type { StatRow, MetricImportance, FmtType } from './types.js';
+import type { StatRow, FmtType } from './types.js';
 import { fmtPct, fmtRatio, fmtNum } from '@/utils/format';
 import { STAT_KEY_TO_TESTID } from './types.js';
 function formatValue(v: number | undefined, fmt: FmtType): string {
@@ -12,8 +12,7 @@ function formatValue(v: number | undefined, fmt: FmtType): string {
   if (fmt === 'pct') return fmtPct(v);
   if (fmt === 'ratio') return fmtRatio(v);
   if (fmt === 'num') return fmtNum(v, 2);
-  if (fmt === 'int') return `${Math.round(v)}d`;
-  if (fmt === 'duration') return `${Math.round(v)}d`;
+  if (fmt === 'int' || fmt === 'duration') return `${Math.round(v)}d`;
   return v.toString();
 }
 interface StatisticsTableHeaderProps {
@@ -26,18 +25,12 @@ export function StatisticsTableHeader({
 }: StatisticsTableHeaderProps) {
   const { t } = useTranslation();
   return (
-    <tr className="stat-table-header-row">
-      <th
-        className="stat-table-header-cell stat-table-metric-cell text-caption text-left"
-        style={{ minWidth }}
-      >
+    <tr>
+      <th className="stat-table-metric-cell text-caption text-left" style={{ minWidth }}>
         {t('Metric')}
       </th>
       {portfolios.map((p, idx) => (
-        <th
-          key={p.name}
-          className="stat-table-header-cell stat-table-value-cell text-caption text-right"
-        >
+        <th key={p.name} className="stat-table-value-cell text-caption text-right">
           <span
             className="inline-block w-2.5 h-2.5 rounded-full mr-1.5 align-middle"
             style={{ backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] }}
@@ -51,11 +44,6 @@ export function StatisticsTableHeader({
 interface MetricsRowsProps {
   rows: StatRow[];
   portfolios: PortfolioResult[];
-}
-function getRowClassName(importance?: MetricImportance): string {
-  const baseClass = 'stat-table-data-row';
-  if (!importance) return baseClass;
-  return `${baseClass} stat-row-${importance}`;
 }
 function MetricLabel({ row }: { row: StatRow }) {
   const { t } = useTranslation();
@@ -82,9 +70,8 @@ export function MetricsRows({ rows, portfolios }: MetricsRowsProps) {
       {rows.map((row) => {
         const hasAnyValue = portfolios.some((p) => p.statistics[row.key] != null);
         if (!hasAnyValue) return null;
-        const rowClass = getRowClassName(row.importance);
         return (
-          <tr key={row.key} className={rowClass}>
+          <tr key={row.key} className="stat-table-data-row">
             <td className="stat-table-metric-cell">
               <MetricLabel row={row} />
             </td>

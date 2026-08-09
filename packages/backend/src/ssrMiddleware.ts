@@ -6,11 +6,13 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { randomBytes } from 'node:crypto';
 import { config } from './config/index.js';
 import { logger } from './utils/logger.js';
+import { RT_COOKIE } from './routes/authRoutes.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = path.resolve(__dirname, '..', '..', '..');
 const SSR_DIST = path.resolve(PROJECT_ROOT, 'dist-ssr');
 const FRONTEND_DIST = config.FRONTEND_DIST_DIR;
+const SSR_RENDER_TIMEOUT_MS = 10_000;
 
 let cssContent: string | null = null;
 try {
@@ -165,6 +167,18 @@ function buildSsrHead(templateHead: string, nonce: string): string {
   return head;
 }
 
+async function withRenderTimeout<T>(p: T | Promise<T>): Promise<T> {
+  let timer: NodeJS.Timeout;
+  const timeout = new Promise<never>((_resolve, reject) => {
+    timer = setTimeout(() => reject(new Error('SSR render timeout')), SSR_RENDER_TIMEOUT_MS);
+  });
+  try {
+    return await Promise.race([p, timeout]);
+  } finally {
+    clearTimeout(timer!);
+  }
+}
+
 export async function ssrMiddleware(req: Request, res: Response): Promise<void> {
   if (req.path.startsWith('/api/') || req.path.startsWith('/assets/')) return;
   res.setHeader('Cache-Control', 'no-cache');
@@ -193,7 +207,7 @@ export async function ssrMiddleware(req: Request, res: Response): Promise<void> 
   try {
     const t0 = performance.now();
     const nonce = res.locals.nonce ?? randomBytes(16).toString('base64');
-    const stream = await renderFn(url, nonce);
+    const stream = await withRenderTimeout(renderFn(url, nonce));
     const renderMs = Math.round(performance.now() - t0);
 
     const head = buildSsrHead(htmlTemplate.head, nonce);
@@ -219,7 +233,7 @@ export async function ssrMiddleware(req: Request, res: Response): Promise<void> 
     passThrough.on('end', () => {
       body += tail;
       res.end(tail);
-      if (!req.headers.authorization && !req.headers.cookie?.includes('refreshToken')) {
+      if (!req.headers.authorization && !req.cookies?.[RT_COOKIE]) {
         setCache(url, body);
       }
     });

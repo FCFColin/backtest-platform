@@ -45,20 +45,27 @@ const sheetVariants = cva(
 const SheetContent = forwardRef<
   ElementRef<typeof SheetPrimitive.Content>,
   ComponentPropsWithoutRef<typeof SheetPrimitive.Content> & VariantProps<typeof sheetVariants>
->(({ side = 'right', className, children, ...props }, ref) => (
-  <SheetPrimitive.Portal>
-    <SheetPrimitive.Overlay className="fixed inset-0 z-50 bg-app/80 backdrop-blur-sm data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=closed]:animate-out data-[state=closed]:fade-out-0" />
-    <SheetPrimitive.Content ref={ref} className={cn(sheetVariants({ side }), className)} {...props}>
-      {children}
-      <SheetPrimitive.Close
-        className="absolute right-4 top-4 rounded-sm text-fg-tertiary opacity-70 transition-opacity hover:text-fg hover:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/50 focus-visible:ring-offset-2 focus-visible:ring-offset-app disabled:pointer-events-none"
-        aria-label="Close"
+>(({ side = 'right', className, children, ...props }, ref) => {
+  const { t } = useTranslation();
+  return (
+    <SheetPrimitive.Portal>
+      <SheetPrimitive.Overlay className="fixed inset-0 z-50 bg-app/80 backdrop-blur-sm data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=closed]:animate-out data-[state=closed]:fade-out-0" />
+      <SheetPrimitive.Content
+        ref={ref}
+        className={cn(sheetVariants({ side }), className)}
+        {...props}
       >
-        <X className="size-4" />
-      </SheetPrimitive.Close>
-    </SheetPrimitive.Content>
-  </SheetPrimitive.Portal>
-));
+        {children}
+        <SheetPrimitive.Close
+          className="absolute right-4 top-4 rounded-sm text-fg-tertiary opacity-70 transition-opacity hover:text-fg hover:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/50 focus-visible:ring-offset-2 focus-visible:ring-offset-app disabled:pointer-events-none"
+          aria-label={t('Close')}
+        >
+          <X className="size-4" />
+        </SheetPrimitive.Close>
+      </SheetPrimitive.Content>
+    </SheetPrimitive.Portal>
+  );
+});
 SheetContent.displayName = SheetPrimitive.Content.displayName;
 const SheetTitle = ({ className, children }: { className?: string; children: ReactNode }) => (
   <SheetPrimitive.Title className={cn('text-h2 text-fg', className)}>
@@ -73,7 +80,7 @@ function NotificationBell() {
   const [open, setOpen] = useState(false);
   const handleOpenChange = (v: boolean) => {
     setOpen(v);
-    if (v && unreadCount > 0) markAllRead();
+    if (!v && open) markAllRead();
   };
   return (
     <Sheet open={open} onOpenChange={handleOpenChange}>
@@ -82,7 +89,7 @@ function NotificationBell() {
           variant="ghost"
           size="icon"
           className="h-8 w-8 relative"
-          aria-label="Notifications"
+          aria-label={t('Notifications')}
           data-testid="notification-bell"
         >
           <Bell className="h-4 w-4" />
@@ -248,6 +255,7 @@ export function PromoBar({
   dismissible?: boolean;
 }) {
   const storageKey = `promo-dismissed-${id}`;
+  const { t } = useTranslation();
   const [dismissed, setDismissed] = useState(() => {
     try {
       return localStorage.getItem(storageKey) === '1';
@@ -283,7 +291,7 @@ export function PromoBar({
           <button
             onClick={handleDismiss}
             className="ml-auto p-1 hover:bg-hover rounded-md transition-colors"
-            aria-label="Close announcement"
+            aria-label={t('Close announcement')}
           >
             <X className="h-4 w-4 text-fg-tertiary" />
           </button>

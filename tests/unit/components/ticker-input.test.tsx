@@ -6,20 +6,17 @@ vi.mock('../../../packages/frontend/src/i18n/index.js', () => ({
   default: { t: (key: string) => key },
 }));
 
-vi.mock('react-i18next', () => ({
-  useTranslation: () => ({
-    t: (key: string, params?: Record<string, unknown>) => {
-      if (!params) return key;
-      return key.replace(/\{\{(\w+)\}\}/g, (_, k) => String(params[k] ?? ''));
-    },
-    i18n: { language: 'zh-CN', changeLanguage: vi.fn() },
-  }),
-  Trans: ({ i18nKey }: { i18nKey: string }) => i18nKey,
-}));
+vi.mock('react-i18next', async () => (await import('../../helpers/i18nMock.js')).i18nMock);
 
 beforeEach(() => {
   vi.stubGlobal('fetch', vi.fn());
 });
+
+const typeIn = (value: string) => {
+  const input = screen.getByPlaceholderText('Enter ticker, e.g. VTI') as HTMLInputElement;
+  fireEvent.focus(input);
+  fireEvent.change(input, { target: { value } });
+};
 
 describe('TickerInput', () => {
   it('使用初始值渲染', () => {
@@ -30,8 +27,7 @@ describe('TickerInput', () => {
   it('onChange 在输入时被调用', () => {
     const onChange = vi.fn();
     render(<TickerInput value="" onChange={onChange} />);
-    const input = screen.getByPlaceholderText('Enter ticker, e.g. VTI');
-    fireEvent.change(input, { target: { value: 'AAPL' } });
+    typeIn('AAPL');
     expect(onChange).toHaveBeenCalledWith('AAPL');
   });
 
@@ -53,13 +49,21 @@ describe('TickerInput', () => {
     });
     vi.stubGlobal('fetch', fetchMock);
     render(<TickerInput value="" onChange={() => {}} />);
-    const input = screen.getByPlaceholderText('Enter ticker, e.g. VTI') as HTMLInputElement;
-    fireEvent.focus(input);
-    fireEvent.change(input, { target: { value: 'SPY' } });
+    typeIn('SPY');
     await screen.findByText('S&P 500 ETF');
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringContaining('/api/backtest/search?query=SPY'),
       expect.anything(),
     );
+  });
+
+  it('远端无结果时显示空状态', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({ ok: true, json: async () => ({ success: true, data: [] }) }),
+    );
+    render(<TickerInput value="" onChange={() => {}} />);
+    typeIn('ZZZ');
+    await screen.findByText('No matching tickers');
   });
 });

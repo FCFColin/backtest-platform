@@ -2,25 +2,13 @@ import { useMemo } from 'react';
 import { TRADING_DAYS_PER_YEAR } from '@backtest/shared/constants';
 import type { AssetAnalysisResult } from '@backtest/shared';
 import { mergePortfolioSeries } from '@/utils/format.js';
-function computeSingleBeta(pr: number[], br: number[]): number {
-  const len = Math.min(pr.length, br.length);
-  if (len < 2) return 0;
-  const meanP = pr.slice(0, len).reduce((s, v) => s + v, 0) / len;
-  const meanB = br.slice(0, len).reduce((s, v) => s + v, 0) / len;
-  let cov = 0,
-    varB = 0;
-  for (let k = 0; k < len; k++) {
-    cov += (pr[k] - meanP) * (br[k] - meanB);
-    varB += (br[k] - meanB) ** 2;
-  }
-  return varB > 0 ? cov / varB : 0;
-}
+import { computeBeta } from '@/components/charts/chartUtils.js';
 function computeBetaMatrix(allReturns: number[][]): number[][] {
   const n = allReturns.length;
   const matrix: number[][] = Array.from({ length: n }, () => Array(n).fill(0));
   for (let i = 0; i < n; i++) {
     for (let j = 0; j < n; j++) {
-      matrix[i][j] = i === j ? 1 : computeSingleBeta(allReturns[i], allReturns[j]);
+      matrix[i][j] = i === j ? 1 : computeBeta(allReturns[j], allReturns[i]);
     }
   }
   return matrix;

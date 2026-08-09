@@ -8,6 +8,13 @@ const TH_BASE =
   'text-caption text-fg-tertiary uppercase tracking-wide font-semibold py-2.5 px-3 whitespace-nowrap';
 const TD_BASE = 'py-2 px-3 text-body text-fg';
 const rowClass = (idx: number) => cn(idx % 2 === 1 && 'bg-elevated/40');
+const handleSortKey =
+  (onSort: (key: string) => void, colKey: string) => (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      onSort(colKey);
+    }
+  };
 
 export function TableFrame({ className, children }: { className?: string; children: ReactNode }) {
   return (
@@ -64,7 +71,13 @@ function BaseTable<T extends Record<string, any>>({
               return (
                 <th
                   key={colKey}
+                  scope="col"
+                  aria-sort={
+                    isSorted ? (sortDir === 'asc' ? 'ascending' : 'descending') : undefined
+                  }
                   onClick={onSort ? () => onSort(colKey) : undefined}
+                  onKeyDown={onSort ? handleSortKey(onSort, colKey) : undefined}
+                  tabIndex={onSort ? 0 : undefined}
                   className={cn(
                     TH_BASE,
                     onSort &&

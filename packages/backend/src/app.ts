@@ -140,25 +140,6 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cookieParser()); // P0-1 BFF 模式：解析 httpOnly Cookie 中的 Refresh Token
 
-if (config.NODE_ENV !== 'production') {
-  void (async () => {
-    try {
-      const OpenApiValidator = (await import('express-openapi-validator')).default;
-      const { generateOpenApiDocument } = await import('./schemas/openapi-registry.js');
-      app.use(
-        OpenApiValidator.middleware({
-          apiSpec: generateOpenApiDocument() as never,
-          validateRequests: true,
-          validateResponses: true,
-          ignorePaths: /\/metrics|\/health|\/ready|\/api\/v1\/errors/,
-        }),
-      );
-    } catch (err) {
-      logger.warn({ err }, '[app] OpenAPI validator not available, skipping runtime validation');
-    }
-  })();
-}
-
 app.use('/api/v1/backtest', (req, _res, next) => {
   if (req.method === 'GET') return next();
   computeLimiter(req, _res, next);

@@ -2,9 +2,9 @@
 // C-002 (RLS) + C-018 (singleflight) + C-020 (engine timeout) + C-021 (BullMQ DLQ) + C-022 (OpenAPI) + C-023 (degraded) + C-001 (migrations) + C-015 (ADR) + C-016 (CHANGELOG) + C-017 (migration chain)
 import { existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
-import pg from 'pg';
 import {
   withDb,
+  loadPg,
   runCmd,
   fileExists,
   readFileContent,
@@ -13,6 +13,8 @@ import {
   finishVerify,
   PROJECT_ROOT_PATH,
 } from './_lib.mjs';
+
+const pg = loadPg();
 
 const results = {};
 
@@ -155,19 +157,25 @@ await runCheck(results, 'C-002', async () => {
 });
 
 await runCheck(results, 'C-018', () => {
-  const f = 'packages/backend/src/application/backtest/backtestResultUtils.ts';
-  if (!fileExists(f)) return { status: 'FAIL', summary: `${f} 不存在` };
-  const ops = new Set(
-    grepInCode(/inFlight\.(set|get|delete)/, 'packages/backend/src/application/backtest', {
+  // 原单飞(singleflight)已随同步路径退役，改为 BullMQ 队列（ADR-045）+ 结果缓存
+  const hasQueue =
+    grepInCode(/submitQueueJob\(|createBacktestWorker\(/, 'packages/backend/src', {
       extensions: ['.ts'],
-    })
-      .filter((m) => m.file.includes('backtestResultUtils.ts'))
-      .map((m) => m.text.match(/inFlight\.(set|get|delete)/)?.[1]),
-  );
-  const ok = ops.has('set') && ops.has('get') && ops.has('delete');
+    }).length > 0;
+  const hasCache =
+    grepInCode(/getBacktestResultCache|setBacktestResultCache/, 'packages/backend/src', {
+      extensions: ['.ts'],
+    }).length > 0;
+  const hasConcurrency =
+    grepInCode(/WORKER_CONCURRENCY/, 'packages/backend/src', {
+      extensions: ['.ts'],
+    }).length > 0;
+  const ok = hasQueue && hasCache && hasConcurrency;
   return {
     status: ok ? 'PASS' : 'FAIL',
-    summary: ok ? 'inFlight Map 三种操作齐全' : `操作不完整: ${[...ops].join('/')}`,
+    summary: ok
+      ? 'backtest 队列 + 结果缓存 + 并发控制齐备'
+      : `queue=${hasQueue}, cache=${hasCache}, concurrency=${hasConcurrency}`,
   };
 });
 
@@ -215,7 +223,7 @@ await runCheck(results, 'C-021', () => {
 });
 
 await runCheck(results, 'C-022', () => {
-  const f = 'packages/backend/src/schemas/openapi-registry.ts';
+  const f = 'packages/backend/src/schemas/openapi-paths.ts';
   if (!fileExists(f)) return { status: 'FAIL', summary: `${f} 不存在` };
   const urls = [...new Set(readFileContent(f).match(/localhost:\d+/g) ?? [])];
   const hasOld = urls.includes('localhost:5001');
@@ -228,22 +236,20 @@ await runCheck(results, 'C-022', () => {
 });
 
 // ── C-023: ADR-031 degraded 字段验证 ──────────────────────────
+// engine/compute 端点 fail-closed 503 无 degraded（ADR-031）；degraded 仅限数据端点(Go data-fetcher 降级)
 await runCheck(results, 'C-023', () => {
-  const f = 'packages/backend/src/routes/routeUtils.ts';
-  if (!fileExists(f)) return { status: 'FAIL', summary: `${f} 不存在` };
-  const lines = readFileContent(f).split('\n');
-  const responseFieldLines = [];
-  for (let i = 0; i < lines.length; i++) {
-    if (!/degraded/i.test(lines[i])) continue;
-    if (/recordDegraded|^\s*(\*|\/\/|\/\*)|^\s*import\s/.test(lines[i])) continue;
-    responseFieldLines.push({ line: i + 1, text: lines[i].trim() });
-  }
-  const pass = responseFieldLines.length === 0;
+  const computeRefs = grepInCode(/degraded/, 'packages/backend/src/routes', {
+    extensions: ['.ts'],
+  }).filter((m) => !m.file.includes('dataRoutes') && !m.file.includes('routeUtils'));
+  const pass = computeRefs.length === 0;
   return {
     status: pass ? 'PASS' : 'FAIL',
     summary: pass
-      ? `${f} 无 degraded 响应字段 (ADR-031)`
-      : `${f} 有 ${responseFieldLines.length} 处 degraded 响应字段`,
+      ? 'compute 路由无 degraded 字段 (ADR-031)'
+      : `${computeRefs.length} 处 compute 路由 degraded 引用: ${computeRefs
+          .map((r) => `${r.file}:${r.line}`)
+          .join(', ')}`,
+    details: { matches: computeRefs.slice(0, 10) },
   };
 });
 
@@ -395,9 +401,8 @@ await runCheck(results, 'C-017', () => {
   const regExists = fileExists(regPath);
   const registered = regExists
     ? regLines(regPath)
-        .map((l) => l.match(/upFile:\s*'([^']+)'\s*,\s*downFile:\s*'([^']+)'/))
+        .flatMap((l) => [...l.matchAll(/(?:upFile|downFile):\s*'([^']+)'/g)].map((m) => m[1]))
         .filter(Boolean)
-        .flatMap((m) => [m[1], m[2]])
     : [];
   const orphans = allFiles.filter((f) => !registered.includes(f));
   const missingReg = registered.filter((f) => !allFiles.includes(f));

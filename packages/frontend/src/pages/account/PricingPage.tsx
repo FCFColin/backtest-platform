@@ -214,7 +214,7 @@ function PlanCard({ plan }: { plan: Plan }) {
     <div
       style={{
         padding: 24,
-        background: isRecommended ? 'var(--color-brand-soft)' : 'var(--bg-subtle)',
+        background: isRecommended ? 'hsl(var(--brand) / 10%)' : 'var(--bg-subtle)',
         borderRadius: 'var(--radius-control)',
         border: isRecommended ? '2px solid var(--brand)' : '1px solid var(--border-soft)',
         position: 'relative',

@@ -64,6 +64,8 @@ jobs:
       - run: pnpm exec eslint . --max-warnings 10
       - run: pnpm format:check
       - run: pnpm check
+      # i18n 键完整性门禁：防止收敛误删仍被引用的键（历史回归：e8a0d805 / 83f9be11）
+      - run: pnpm run audit:i18n
       # 供应链门禁：prod 依赖 CRITICAL/HIGH 漏洞阻断，moderate/low 仅告警（scripts/audit-supply.mjs）
       - run: pnpm run audit:supply
 

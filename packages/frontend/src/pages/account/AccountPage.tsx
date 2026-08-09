@@ -52,7 +52,7 @@ function UserInfoCard({
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-1">
           <span className="text-[18px] font-bold text-[var(--text-strong)]">{displayName}</span>
-          <span className="text-[11px] font-semibold text-brand bg-[var(--color-brand-soft)] px-2 py-0.5 rounded-[10px]">
+          <span className="text-[11px] font-semibold text-brand bg-brand/10 px-2 py-0.5 rounded-[10px]">
             {roleLabel}
           </span>
         </div>
@@ -169,7 +169,7 @@ function SubscriptionSection({ plan }: { plan: string | undefined }) {
         icon={<CreditCard className="w-5 h-5" />}
         title={t('Subscription Information')}
       />
-      <div className="p-5 bg-[var(--color-brand-soft)] rounded-[var(--radius-control)] border border-[var(--border-soft)] flex items-center gap-4 flex-wrap">
+      <div className="p-5 bg-brand/10 rounded-[var(--radius-control)] border border-[var(--border-soft)] flex items-center gap-4 flex-wrap">
         <div className="h-12 w-12 rounded-full bg-brand text-brand-fg flex items-center justify-center shrink-0">
           <Crown className="w-5 h-5" />
         </div>

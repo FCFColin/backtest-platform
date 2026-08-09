@@ -30,6 +30,7 @@ interface StatColumn {
   label: string;
   format: 'currency' | 'percent' | 'duration' | 'number' | 'text';
   colorize?: boolean;
+  invert?: boolean;
   sticky?: 'left' | 'right';
   minWidth?: string;
 }
@@ -73,25 +74,37 @@ interface StatisticsTableProps {
   colors: string[];
   onExport?: () => void;
   extendedTable?: React.ReactNode;
+  currency?: string;
 }
 const FORMAT_FN: Record<string, (v: number) => string> = {
-  currency: formatCurrency,
   percent: fmtPct,
   duration: formatDuration,
   number: fmtNum,
 };
-function renderStatValue(col: StatColumn, p: PortfolioStatsRow): React.ReactNode {
+function renderStatValue(
+  col: StatColumn,
+  p: PortfolioStatsRow,
+  currency?: string,
+): React.ReactNode {
   const raw = p.stats[col.key];
   if (raw == null) return '—';
   const value = Number(raw);
-  const text = FORMAT_FN[col.format]?.(value) ?? String(raw);
-  return col.colorize ? <span className={getColorClass(value)}>{text}</span> : text;
+  const text =
+    col.format === 'currency'
+      ? formatCurrency(value, currency)
+      : (FORMAT_FN[col.format]?.(value) ?? String(raw));
+  return col.colorize ? (
+    <span className={getColorClass(col.invert ? -value : value)}>{text}</span>
+  ) : (
+    text
+  );
 }
 export function StatisticsTable({
   portfolios,
   colors,
   onExport,
   extendedTable,
+  currency,
 }: StatisticsTableProps) {
   const { t } = useTranslation();
   const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(new Set());
@@ -104,7 +117,7 @@ export function StatisticsTable({
     sticky: col.sticky === 'left' ? 'left' : undefined,
     testId: STAT_KEY_TO_TESTID[col.key],
     style: col.minWidth ? { minWidth: col.minWidth } : undefined,
-    sortValue: col.key === 'name' ? () => 0 : (p) => p.stats[col.key] as number,
+    sortValue: col.key === 'name' ? (p) => p.name : (p) => p.stats[col.key] as number,
     render: (p, i) =>
       col.key === 'name' ? (
         <div className="flex items-center gap-2">
@@ -115,7 +128,7 @@ export function StatisticsTable({
           <span className="truncate">{p.name}</span>
         </div>
       ) : (
-        renderStatValue(col, p)
+        renderStatValue(col, p, currency)
       ),
   }));
   return (
@@ -209,6 +222,7 @@ const EXTENDED_COLUMNS: StatColumn[] = [
     label: 'statsTable.negativeMonths',
     format: 'percent',
     colorize: true,
+    invert: true,
   },
 ];
 export function ExtendedMetricsTable({ portfolios }: { portfolios: PortfolioStatsRow[] }) {

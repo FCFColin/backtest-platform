@@ -73,6 +73,9 @@ function TickerDropdown({
       {fetchingRemote && (
         <div className="px-3 py-1.5 text-caption text-fg-tertiary">{t('Searching...')}</div>
       )}
+      {!fetchingRemote && suggestions.length === 0 && (
+        <div className="px-3 py-1.5 text-caption text-fg-tertiary">{t('No matching tickers')}</div>
+      )}
     </div>
   );
 }
@@ -129,6 +132,7 @@ function useTickerSearch() {
 export default function TickerInput({ value, onChange, placeholder, className }: TickerInputProps) {
   const { t } = useTranslation();
   const [focused, setFocused] = useState(false);
+  const [query, setQuery] = useState(value);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const {
@@ -178,10 +182,12 @@ export default function TickerInput({ value, onChange, placeholder, className }:
         value={value}
         onChange={(e) => {
           onChange(e.target.value);
+          setQuery(e.target.value);
           updateSuggestions(e.target.value);
         }}
         onFocus={() => {
           setFocused(true);
+          setQuery(value);
           if (value) updateSuggestions(value);
         }}
         onKeyDown={handleKeyDown}
@@ -190,7 +196,7 @@ export default function TickerInput({ value, onChange, placeholder, className }:
         spellCheck={false}
         className={className}
       />
-      {focused && suggestions.length > 0 && (
+      {focused && query.trim().length >= 2 && (
         <TickerDropdown
           suggestions={suggestions}
           selectedIndex={selectedIndex}

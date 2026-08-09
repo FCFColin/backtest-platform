@@ -36,10 +36,10 @@ async function runSignalMode(
     engineBody = { mode: 'dual', dual: b };
   } else {
     const b = body as MultiSignalConfig;
-    tickers = [b.signals[0].ticker];
+    tickers = Array.from(new Set(b.signals.map((s) => s.ticker)));
     startDate = b.signals[0].startDate;
     endDate = b.signals[0].endDate;
-    validation = (history) => ensureTickerHasData(b.signals[0].ticker, history, 'signal/multi');
+    validation = (history) => ensurePriceDataExists(tickers, history, 'signal/multi');
     engineBody = { mode: 'multi', multi: b };
   }
 

@@ -15,6 +15,7 @@ export function SegmentedControl<T extends string | number>({
         <button
           key={String(opt.value)}
           type="button"
+          aria-pressed={value === opt.value}
           className={`mini-tab ${value === opt.value ? 'active' : ''}`}
           onClick={() => onChange(opt.value)}
         >

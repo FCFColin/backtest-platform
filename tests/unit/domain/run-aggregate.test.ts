@@ -1,10 +1,10 @@
 import '../../helpers/loggerMock.js';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type { Mock } from 'vitest';
 import { loggerMocks } from '../../helpers/loggerFixture.js';
 
-const poolMocks = vi.hoisted(() => ({ query: vi.fn() }));
-vi.mock('../../../packages/backend/src/db/pool.js', () => ({
-  getPool: vi.fn(() => poolMocks),
+vi.mock('../../../packages/backend/src/repositories/backtestRunRepo.js', () => ({
+  createRun: vi.fn(),
 }));
 import { Run } from '../../../packages/backend/src/domain/aggregates/run.js';
 import { Portfolio } from '../../../packages/backend/src/domain/aggregates/portfolio.js';
@@ -19,6 +19,7 @@ import type {
   EventHandler,
 } from '../../../packages/backend/src/domain/events/events.js';
 import { BacktestCompletedHandler } from '../../../packages/backend/src/application/completedHandlers.js';
+import * as repoModule from '../../../packages/backend/src/repositories/backtestRunRepo.js';
 
 function makeHolding(ticker: string, weight: number) {
   return { ticker: Ticker.create(ticker), weight: Weight.create(weight) };
@@ -364,6 +365,8 @@ function makeEvent(payload: Record<string, unknown> = {}): DomainEvent {
     aggregateType: 'Portfolio',
     aggregateId: 'portfolio-1',
     payload: {
+      tenantId: 'tenant-1',
+      ownerUserId: 'user-1',
       totalReturn: 0.15,
       maxDrawdown: -0.2,
       sharpeRatio: 1.2,
@@ -379,7 +382,7 @@ describe('BacktestCompletedHandler', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     handler = new BacktestCompletedHandler();
-    poolMocks.query.mockResolvedValue(undefined);
+    (repoModule.createRun as Mock).mockResolvedValue({ id: 'run-1' });
   });
 
   it('应订阅 BacktestCompleted 事件类型', () => {
@@ -398,13 +401,21 @@ describe('BacktestCompletedHandler', () => {
       expect.stringContaining('回测完成事件已接收'),
     );
   });
-  it('handle 不应访问数据库（不写 outbox、不发 NOTIFY）', async () => {
+  it('handle 应通过 createRun 持久化摘要，且不访问 outbox/NOTIFY', async () => {
     await handler.handle(makeEvent());
-    // ADR-024：处理器为纯观测副作用，不得调用 pool.query。
-    expect(poolMocks.query).not.toHaveBeenCalled();
+    expect(repoModule.createRun).toHaveBeenCalledTimes(1);
+    expect(loggerMocks.info).toHaveBeenCalledWith(
+      expect.objectContaining({ aggregateId: 'portfolio-1' }),
+      expect.stringContaining('已持久化'),
+    );
   });
-  it('handle 不应抛出错误', async () => {
-    await expect(handler.handle(makeEvent())).resolves.toBeUndefined();
+  it('createRun 失败时向上抛错（ADR-014 不吞错）', async () => {
+    (repoModule.createRun as Mock).mockRejectedValueOnce(new Error('db down'));
+    await expect(handler.handle(makeEvent())).rejects.toThrow('db down');
+    expect(loggerMocks.error).toHaveBeenCalledWith(
+      expect.objectContaining({ aggregateId: 'portfolio-1' }),
+      expect.stringContaining('持久化回测运行摘要失败'),
+    );
   });
   it('payload 缺少指标字段时也应正常处理', async () => {
     const event = makeEvent();

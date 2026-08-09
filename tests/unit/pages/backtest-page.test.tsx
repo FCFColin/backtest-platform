@@ -1,13 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 
-vi.mock('react-i18next', () => ({
-  useTranslation: () => ({
-    t: (key: string) => key,
-    i18n: { language: 'zh-CN', changeLanguage: vi.fn() },
-  }),
-  Trans: ({ i18nKey }: { i18nKey: string }) => i18nKey,
-}));
+vi.mock('react-i18next', async () => (await import('../../helpers/i18nMock.js')).i18nMock);
 
 const pageState = vi.hoisted(() => ({
   portfolios: [{ name: 'SPY', assets: [] }] as unknown[],

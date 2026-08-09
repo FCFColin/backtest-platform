@@ -55,10 +55,12 @@ export class BacktestCompletedHandler implements EventHandler {
         '[BacktestCompletedHandler] 回测运行摘要已持久化到 backtest_runs',
       );
     } catch (err) {
+      // ADR-014：handler 必须向上抛错，否则 worker 收不到 ack，outbox 消息会重试
       logger.error(
         { err, aggregateId: event.aggregateId },
         '[BacktestCompletedHandler] 持久化回测运行摘要失败',
       );
+      throw err;
     }
   }
 }

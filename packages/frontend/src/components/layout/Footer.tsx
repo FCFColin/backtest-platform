@@ -83,7 +83,7 @@ function FooterBrand() {
           href="https://github.com"
           target="_blank"
           rel="noreferrer"
-          aria-label="GitHub"
+          aria-label={t('GitHub')}
           className="text-fg-tertiary hover:text-fg"
         >
           <Github className="h-4 w-4" aria-hidden="true" />
@@ -92,7 +92,7 @@ function FooterBrand() {
           href="https://twitter.com"
           target="_blank"
           rel="noreferrer"
-          aria-label="Twitter"
+          aria-label={t('Twitter')}
           className="text-fg-tertiary hover:text-fg"
         >
           <Twitter className="h-4 w-4" aria-hidden="true" />
@@ -178,7 +178,7 @@ export function Footer() {
             links={[
               { to: '/help', label: t('Documentation') },
               { href: '/api/docs', label: t('API Reference') },
-              { to: '/help', label: t('Changelog') },
+              { to: '/changelog', label: t('Changelog') },
               { to: '/help', label: t('Help Center') },
               { to: '/help', label: t('Feedback') },
               { to: '/help', label: t('Methodology') },
@@ -189,7 +189,7 @@ export function Footer() {
             links={[
               { to: '/about', label: t('About') },
               { to: '/pricing', label: t('Pricing') },
-              { to: '/about', label: t('Contact Us') },
+              { to: '/contact', label: t('Contact Us') },
               { to: '/legal/privacy', label: t('Privacy Policy') },
               { to: '/legal/terms', label: t('Terms of Service') },
               { to: '/legal/disclaimer', label: t('Disclaimer') },

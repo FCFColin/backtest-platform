@@ -1,11 +1,9 @@
 import type { Statistics } from '@backtest/shared';
 export type FmtType = 'pct' | 'ratio' | 'num' | 'int' | 'duration';
-export type MetricImportance = 'primary' | 'secondary' | 'detailed';
 export interface StatRow {
   key: keyof Statistics;
   label: string;
   fmt: FmtType;
-  importance?: MetricImportance;
   description?: string;
 }
 export const STAT_KEY_TO_TESTID: Record<string, string> = {

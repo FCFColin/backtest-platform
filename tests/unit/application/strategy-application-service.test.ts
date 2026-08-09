@@ -126,7 +126,7 @@ const signalCases = [
     run: () => executeMultiSignalAnalyze(multiReq),
     payload: { multi: multiReq },
     history: { AAPL: { '2020-01-02': 100 } },
-    errorMsg: '未找到',
+    errorMsg: '[signal/multi] Price data not found for',
   },
 ];
 
@@ -159,6 +159,21 @@ describe('strategy-application-services', () => {
       });
     },
   );
+
+  it("'multi' 任一信号缺价都应抛错（不只校验首个信号）", async () => {
+    const req: MultiSignalConfig = {
+      ...multiReq,
+      signals: [
+        { ...multiReq.signals[0], ticker: 'AAPL' },
+        { ...multiReq.signals[1], ticker: 'MSFT' },
+      ],
+    };
+    dataMocks.fetchHistoryData.mockResolvedValue({
+      data: { AAPL: { '2020-01-02': 100 } },
+      degraded: false,
+    });
+    await expect(executeMultiSignalAnalyze(req)).rejects.toThrow('MSFT');
+  });
 
   describe('tactical-application-service', () => {
     const strategy: TacticalStrategy = {

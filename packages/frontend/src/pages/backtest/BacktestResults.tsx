@@ -12,7 +12,7 @@ import {
 import { ResultsActionBar } from '@/components/results/ResultsActionBar.js';
 import { SummarySidebar } from '@/components/results/SummarySidebar.js';
 import { getPortfolioColor } from '@/lib/chart-theme.js';
-import { downloadFile, dateSuffixedFilename } from '@/utils/format';
+import { downloadFile, downloadJSON, dateSuffixedFilename } from '@/utils/format';
 import { REBALANCE_LBL } from '@/utils/constants';
 import { SimpleTable, type SimpleTableColumn } from '@/components/tables.js';
 import ChartCard from '@/components/ChartCard.js';
@@ -170,6 +170,7 @@ const TAB_RENDERERS: Record<string, (c: TabCtx) => ReactNode> = {
           <DrawdownChart portfolios={mapDrawdown(pf)} />
           <StatisticsTable
             {...COMMON_STATS_PROPS(pf)}
+            currency={baseCurrency}
             extendedTable={<ExtendedMetricsTable {...COMMON_STATS_PROPS(pf)} />}
           />
           <WithdrawalRatesCard portfolios={pf} />
@@ -178,9 +179,10 @@ const TAB_RENDERERS: Record<string, (c: TabCtx) => ReactNode> = {
       </div>
     );
   },
-  metrics: ({ pf }) => (
+  metrics: ({ pf, baseCurrency }) => (
     <StatisticsTable
       {...COMMON_STATS_PROPS(pf)}
+      currency={baseCurrency}
       extendedTable={<ExtendedMetricsTable {...COMMON_STATS_PROPS(pf)} />}
     />
   ),
@@ -285,7 +287,11 @@ export function ResultsContent() {
     <div className="space-y-4">
       <ResultsActionBar
         timeRange={computeTimeRange(results)}
-        onExport={() => exportResultsCSV(results)}
+        onExport={(format) => {
+          if (format === 'json')
+            downloadJSON(results, dateSuffixedFilename('backtest-results', 'json'));
+          else exportResultsCSV(results);
+        }}
       />
       <Card className="p-5">
         <TabBar />

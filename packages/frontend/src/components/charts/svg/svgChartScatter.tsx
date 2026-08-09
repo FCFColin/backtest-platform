@@ -26,6 +26,7 @@ interface SvgScatterChartProps {
   width: number;
   height: number;
   margin: ChartMargin;
+  ariaLabel?: string;
   tooltipFormatter?: (value: number | string, name: string) => [string, string];
   tooltipLabelFormatter?: (label: string) => string;
 }
@@ -41,6 +42,7 @@ export function SvgScatterChart({
   width,
   height,
   margin,
+  ariaLabel,
   tooltipFormatter,
   tooltipLabelFormatter,
 }: SvgScatterChartProps) {
@@ -156,6 +158,7 @@ export function SvgScatterChart({
       tooltip={tooltip}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeaveScatter}
+      ariaLabel={ariaLabel ?? `${xName} vs ${yName}`}
     >
       <LeftAxis
         range={plotHeight}

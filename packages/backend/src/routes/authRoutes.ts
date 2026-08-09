@@ -48,7 +48,7 @@ import {
   type Membership,
 } from '../application/org/membershipService.js';
 
-const RT_COOKIE = 'rt';
+export const RT_COOKIE = 'rt';
 const RT_COOKIE_BASE = {
   httpOnly: true,
   secure: process.env.NODE_ENV === 'production',

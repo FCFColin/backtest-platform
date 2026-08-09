@@ -316,6 +316,7 @@ export function ChartShell({
   onMouseMove,
   onMouseLeave,
   legend,
+  ariaLabel,
   children,
 }: {
   width: number;
@@ -329,6 +330,7 @@ export function ChartShell({
     hidden: Set<string>;
     onToggle: (name: string) => void;
   };
+  ariaLabel?: string;
   children: ReactNode;
 }) {
   return (
@@ -336,10 +338,13 @@ export function ChartShell({
       <svg
         width={width}
         height={height}
+        role={ariaLabel ? 'img' : undefined}
+        aria-label={ariaLabel}
         onMouseMove={onMouseMove}
         onMouseLeave={onMouseLeave}
         className="block"
       >
+        {ariaLabel && <title>{ariaLabel}</title>}
         {children}
       </svg>
       <SvgTooltip

@@ -92,7 +92,6 @@ const PER_FILE_EXCLUDE_SUFFIXES = [
   'packages/backend/src/queues/dataUpdateWorker.ts',
   'packages/backend/src/queues/workerEntrypoint.ts',
   'packages/backend/src/db/marketStatsHelpers.ts',
-  'packages/backend/src/infrastructure/unleashClient.ts',
   'packages/backend/src/infrastructure/apiKeyVerifier.ts',
   'packages/backend/src/repositories/apiKeyRepo.ts',
   'packages/backend/src/repositories/backtestRunRepo.ts',

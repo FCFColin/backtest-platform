@@ -86,6 +86,10 @@ module.exports = {
         '2xl': '16px',
         full: '9999px',
       },
+      boxShadow: {
+        md: 'var(--shadow-md)',
+        card: 'var(--shadow-card)',
+      },
       keyframes: {
         'accordion-down': {
           from: { height: '0' },

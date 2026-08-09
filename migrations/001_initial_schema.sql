@@ -323,9 +323,9 @@ DO $$ DECLARE op TEXT;
 BEGIN
   FOREACH op IN ARRAY ARRAY['SELECT','INSERT','UPDATE','DELETE'] LOOP
     IF op = 'INSERT' THEN
-      EXECUTE $f$CREATE POLICY custom_tickers_user_$$ || lower(op) || $f$ ON custom_tickers FOR $$ || op || $f$ WITH CHECK (user_id = current_setting('app.current_user_id', true)::UUID)$f$;
+      EXECUTE $f$CREATE POLICY custom_tickers_user_$f$ || lower(op) || $f$ ON custom_tickers FOR $f$ || op || $f$ WITH CHECK (user_id = current_setting('app.current_user_id', true)::UUID)$f$;
     ELSE
-      EXECUTE $f$CREATE POLICY custom_tickers_user_$$ || lower(op) || $f$ ON custom_tickers FOR $$ || op || $f$ USING (user_id = current_setting('app.current_user_id', true)::UUID)$f$;
+      EXECUTE $f$CREATE POLICY custom_tickers_user_$f$ || lower(op) || $f$ ON custom_tickers FOR $f$ || op || $f$ USING (user_id = current_setting('app.current_user_id', true)::UUID)$f$;
       IF op = 'UPDATE' THEN
         EXECUTE $f$ALTER POLICY custom_tickers_user_update ON custom_tickers USING (user_id = current_setting('app.current_user_id', true)::UUID) WITH CHECK (user_id = current_setting('app.current_user_id', true)::UUID)$f$;
       END IF;

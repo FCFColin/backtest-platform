@@ -15,7 +15,11 @@ vi.mock('../../../packages/backend/src/db/pool.js', () => ({
   getPool: () => ({ query: dbMocks.query, connect: () => Promise.resolve(dbMocks.client) }),
   withTransaction: createWithTransactionMock(() => dbMocks.client),
   withTenant: (_t: string, fn: (c: unknown) => Promise<unknown>) => fn(dbMocks.client),
+  withTenantReadOnly: vi.fn((_t: string, fn: (c: unknown) => Promise<unknown>) =>
+    fn(dbMocks.client),
+  ),
 }));
+import * as poolModule from '../../../packages/backend/src/db/pool.js';
 
 import {
   orgRoleToGlobalRole,
@@ -282,12 +286,17 @@ describe('createInvitation', () => {
 });
 
 describe('listInvitations / revokeInvitation', () => {
-  it('list 应以 org_id 过滤并映射记录', async () => {
-    dbMocks.query.mockResolvedValueOnce({ rows: [invRow()] });
+  it('list 应经 withTenantReadOnly（RLS 隔离）并按 org_id 过滤映射记录', async () => {
+    dbMocks.client.query.mockResolvedValueOnce({ rows: [invRow()] });
     const list = await listInvitations(ORG);
     expect(list).toHaveLength(1);
     expect(list[0]).toMatchObject({ id: INV_ID, orgId: ORG, email: 'a@b.com', role: 'analyst' });
-    expect(dbMocks.query.mock.calls[0][1]).toEqual([ORG]);
+    expect(vi.mocked(poolModule.withTenantReadOnly)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(poolModule.withTenantReadOnly)).toHaveBeenCalledWith(
+      ORG,
+      expect.any(Function),
+    );
+    expect(dbMocks.client.query.mock.calls[0][1]).toEqual([ORG]);
   });
 
   it('revoke 应以 org_id 收敛且仅作用于未接受邀请', async () => {

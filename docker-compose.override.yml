@@ -11,10 +11,12 @@
 
 services:
   postgres:
-    image: postgres:16-alpine
-    pull_policy: never
+    image: timescale/timescaledb:latest-pg16
+    pull_policy: if_not_present
     command:
       - postgres
+      - -c
+      - shared_preload_libraries=timescaledb
       - -c
       - wal_level=replica
       - -c

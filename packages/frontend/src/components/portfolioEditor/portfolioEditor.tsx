@@ -15,11 +15,7 @@ export function AllocationBar({
 }) {
   const scale = tw > 100 ? 100 / tw : 1;
   return (
-    <div
-      className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-input-bg"
-      role="img"
-      aria-label="allocation"
-    >
+    <div className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-input-bg">
       <div className="flex h-full">
         {assets.map((a, i) =>
           a.weight > 0 ? (

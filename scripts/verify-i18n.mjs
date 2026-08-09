@@ -101,11 +101,12 @@ function walkDir(dir, exts) {
 const zhFlat = flatten(zh);
 const zhKeys = new Set(Object.keys(zhFlat));
 
-// Collect all t('xxx') / t("xxx") / i18nKey="xxx" usages from source
+// Collect all t('xxx') / t("xxx") / i18nKey="xxx" / titleKey / descKey usages from source
+// 覆盖点分键、英文句子键与含 {{}}/空格/中文的键名（[a-zA-Z0-9_.-] 字符集过窄会漏检）
 const sourceFiles = walkDir(srcDir, ['.tsx', '.ts']);
 const usedKeys = new Set();
-const keyRegex = /\bt\(['"]([a-zA-Z0-9_.-]+)['"]/g;
-const i18nKeyRegex = /i18nKey=['"]([a-zA-Z0-9_.-]+)['"]/g;
+const keyRegex = /(?<![\w$])t\(('([^'\n]+)'|"([^"\n]+)")/g;
+const propKeyRegex = /\b(?:i18nKey|titleKey|descKey)=('([^'\n]+)'|"([^"\n]+)")/g;
 // t(`legal.${prefix}.title`) 模板 key 无法静态解析，转成正则模式后与现有 key 匹配校验
 const templateKeyRegex = /\bt\(`((?:[^$`]|\${[^}]+})+?)`/g;
 // Also catch useTranslation namespace prefix: t('foo.bar') within ns 'baz' → baz.foo.bar
@@ -135,10 +136,10 @@ for (const file of sourceFiles) {
   }
   let match;
   while ((match = keyRegex.exec(content)) !== null) {
-    usedKeys.add(match[1]);
+    usedKeys.add((match[2] ?? match[3]).replace(/\\n/g, '\n'));
   }
-  while ((match = i18nKeyRegex.exec(content)) !== null) {
-    usedKeys.add(match[1]);
+  while ((match = propKeyRegex.exec(content)) !== null) {
+    usedKeys.add((match[2] ?? match[3]).replace(/\\n/g, '\n'));
   }
   while ((match = templateKeyRegex.exec(content)) !== null) {
     usedKeys.add(`~${templateKeyPattern(match[1])}`);

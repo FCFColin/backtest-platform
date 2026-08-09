@@ -3,12 +3,17 @@ try {
 } catch {}
 import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, statSync } from 'node:fs';
 import { execSync } from 'node:child_process';
+import { createRequire } from 'node:module';
 import { join, resolve, sep } from 'node:path';
 
 const PROJECT_ROOT = resolve(process.cwd());
 const OUTPUT_DIR = join(PROJECT_ROOT, 'docs', 'audit', 'verify');
 mkdirSync(OUTPUT_DIR, { recursive: true });
 mkdirSync(join(OUTPUT_DIR, 'screenshots'), { recursive: true });
+
+// pg 只存在于 backend workspace（pnpm 不提升到根），经 backend 的 require 解析
+const requireFromBackend = createRequire(join(PROJECT_ROOT, 'packages/backend/package.json'));
+export const loadPg = () => requireFromBackend('pg');
 
 export function writeAggregatedResult(aggregateId, results) {
   const timestamp = new Date().toISOString();
@@ -27,7 +32,7 @@ export function writeAggregatedResult(aggregateId, results) {
 }
 
 export async function withDb(fn, opts = {}) {
-  const { default: pg } = await import('pg');
+  const pg = loadPg();
   const url = opts.useAppRole
     ? process.env.APP_DATABASE_URL || process.env.DATABASE_URL
     : process.env.DATABASE_URL || process.env.APP_DATABASE_URL;

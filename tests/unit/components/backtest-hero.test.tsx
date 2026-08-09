@@ -2,18 +2,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { BacktestHero } from '../../../packages/frontend/src/pages/backtest/BacktestHero.js';
 
-vi.mock('react-i18next', () => ({
-  useTranslation: () => ({
-    t: (key: string, params?: Record<string, unknown>) => {
-      if (key === 'backtest.hero.model.items' || key === 'backtest.hero.inspect.items') {
-        return ['Item 1', 'Item 2', 'Item 3'];
-      }
-      if (!params) return key;
-      return key;
-    },
-    i18n: { language: 'zh-CN', changeLanguage: vi.fn() },
-  }),
-}));
+vi.mock('react-i18next', async () => {
+  const { i18nMock, t } = await import('../../helpers/i18nMock.js');
+  const tOverride = (key: string) =>
+    ['backtest.hero.model.items', 'backtest.hero.inspect.items'].includes(key)
+      ? ['Item 1', 'Item 2', 'Item 3']
+      : t(key);
+  return { ...i18nMock, useTranslation: () => ({ ...i18nMock.useTranslation(), t: tOverride }) };
+});
 
 vi.mock('react-router', () => ({
   Link: ({ children, to }: { children: React.ReactNode; to: string }) => (

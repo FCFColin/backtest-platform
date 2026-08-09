@@ -127,9 +127,6 @@ select option {
   color: var(--text-muted) !important;
   font-size: 12px !important;
 }
-input[type='date']::-webkit-calendar-picker-indicator {
-  cursor: pointer;
-}
 
 a {
   color: hsl(var(--brand));
@@ -317,36 +314,4 @@ a:hover {
 }
 .stat-table tr:last-child td {
   border-bottom: none;
-}
-
-.stat-row-primary {
-  --rp: 10px 16px;
-  --rfs: 14px;
-  --rfw: 600;
-  --rc: var(--text-strong);
-}
-.stat-row-secondary {
-  --rp: 7px 12px;
-  --rfs: 13px;
-  --rfw: 400;
-}
-.stat-row-detailed {
-  --rp: 6px 12px;
-  --rfs: 12px;
-  --rfw: 400;
-  --rc: var(--text-muted);
-}
-:is(.stat-row-primary, .stat-row-secondary, .stat-row-detailed) td {
-  padding: var(--rp);
-}
-:is(.stat-row-primary, .stat-row-secondary, .stat-row-detailed) .stat-table-metric-cell {
-  font-size: var(--rfs);
-  font-weight: var(--rfw);
-  color: var(--rc, var(--text-body));
-}
-:is(.stat-row-primary, .stat-row-secondary, .stat-row-detailed)
-  :is(.stat-table-value-cell, .stat-table-num) {
-  font-size: var(--rfs);
-  font-weight: var(--rfw);
-  color: var(--rc, var(--text-strong));
 }

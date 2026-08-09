@@ -32,6 +32,7 @@ interface SvgBarChartProps {
   signColorSingleSeries?: boolean;
   xTickFontSize?: number;
   xTickInterval?: number;
+  ariaLabel?: string;
   tooltipValueFormatter?: (value: number, name: string) => [string, string] | string;
 }
 export function SvgBarChart({
@@ -49,6 +50,7 @@ export function SvgBarChart({
   signColorSingleSeries = false,
   xTickFontSize,
   xTickInterval,
+  ariaLabel,
   tooltipValueFormatter,
 }: SvgBarChartProps) {
   const { tooltip, setTooltip, hiddenSeries, visibleSeries, handleMouseLeave, handleLegendToggle } =
@@ -110,7 +112,7 @@ export function SvgBarChart({
     ? {
         fill: 'hsl(var(--fg-tertiary))',
         fontSize: xTickFontSize,
-        fontFamily: 'Geist Mono Variable',
+        fontFamily: AXIS_TICK_STYLE.fontFamily,
       }
     : AXIS_TICK_STYLE;
   return (
@@ -120,6 +122,7 @@ export function SvgBarChart({
       tooltip={tooltip}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
+      ariaLabel={ariaLabel ?? seriesNames.join(', ')}
       legend={
         showLegend
           ? { names: seriesNames, colorOf, hidden: hiddenSeries, onToggle: handleLegendToggle }

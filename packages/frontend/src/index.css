@@ -34,12 +34,6 @@
     cursor: pointer;
   }
 
-  .num,
-  .tabular {
-    font-family: 'Geist Mono Variable', 'JetBrains Mono', monospace;
-    font-variant-numeric: tabular-nums;
-  }
-
   @media (prefers-reduced-motion: reduce) {
     *,
     *::before,

@@ -38,7 +38,6 @@ const NAV_GROUP_KEYS = [
       { to: '/backtest-optimizer', key: 'backtestOptimizer' },
       { to: '/rebalancing-sensitivity', key: 'rebalancingSensitivity' },
       { to: '/lumpsum-vs-dca', key: 'lumpsumVsDca' },
-      { to: '/portfolio-comparison', key: 'portfolioComparison' },
     ],
   },
   {

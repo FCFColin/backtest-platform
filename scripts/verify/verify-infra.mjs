@@ -55,7 +55,6 @@ await runCheck(results, 'C-008', () => {
   const WHITELIST = {
     'alertmanager-deployment.yaml': '/-/ready',
     'deployments.yaml': '/', // frontend readinessProbe（合并后单文件）
-    'unleash-deployment.yaml': '/health',
   };
   const probeMatches = grepInCode(/^\s*readinessProbe\s*:\s*$/, 'k8s', {
     extensions: ['.yaml', '.yml'],

@@ -101,11 +101,13 @@ function LoadListPanel({
   handleLoadConfig,
   handleDeleteConfig,
   t,
+  locale,
 }: {
   savedConfigs: SavedPortfolio[];
   handleLoadConfig: (config: SavedPortfolio) => void;
   handleDeleteConfig: (id: string) => Promise<void>;
   t: TFunc;
+  locale: string;
 }) {
   return (
     <div className="mt-2 max-h-[240px] overflow-y-auto rounded-md border border-border-subtle bg-elevated">
@@ -123,7 +125,7 @@ function LoadListPanel({
             >
               <div className="text-body font-medium text-fg">{config.name}</div>
               <div className="text-caption text-fg-tertiary">
-                {new Date(config.savedAt).toLocaleString('zh-CN')} · {config.portfolios.length}{' '}
+                {new Date(config.savedAt).toLocaleString(locale)} · {config.portfolios.length}{' '}
                 {t('portfolios')}
               </div>
             </button>
@@ -143,7 +145,7 @@ function LoadListPanel({
   );
 }
 function BacktestToolbar(props: BacktestToolbarProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const isLoading = useBacktestStore((s) => s.isLoading);
   const portfolioCount = useBacktestStore((s) => s.portfolios.length);
   return (
@@ -178,6 +180,7 @@ function BacktestToolbar(props: BacktestToolbarProps) {
           handleLoadConfig={props.handleLoadConfig}
           handleDeleteConfig={props.handleDeleteConfig}
           t={t}
+          locale={i18n.language}
         />
       )}
     </div>

@@ -69,7 +69,8 @@ export async function getMonthlyUsage(orgId: string, metric: string): Promise<nu
       return count;
     });
   } catch (err) {
+    // 配额权威读取失败时向上抛错，由 quota 中间件 fail-closed（503）兜底，避免放行超额用量
     logger.error({ err: String(err), orgId, metric }, '[usageService] 读取用量失败');
-    return 0;
+    throw err;
   }
 }
