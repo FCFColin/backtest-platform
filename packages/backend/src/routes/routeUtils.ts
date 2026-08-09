@@ -11,7 +11,11 @@ import { hasTenant } from '../middleware/tenantContext.js';
 import { validate } from '../middleware/miscMiddleware.js';
 import type { Warning } from '../application/backtest-helpers.js';
 
-type BacktestResult = { data: unknown; warnings?: (Warning | string)[]; dateRange?: unknown };
+type BacktestResult = {
+  data: unknown;
+  warnings?: (Warning | string)[];
+  dateRange?: unknown;
+} & { degraded?: boolean; degradedWarning?: string };
 
 function translateError(res: Response, error: unknown): 'engine' | 'app' | null {
   if (error instanceof EngineUnavailableError) {
@@ -114,17 +118,22 @@ type SyncComputeOpts = {
   logMsg?: string;
 };
 
-function buildBacktestResponse(
-  data: unknown,
-  warnings: (Warning | string)[] = [],
-  dateRange?: unknown,
-): Record<string, unknown> {
-  const response: Record<string, unknown> = { success: true, data };
-  if (warnings.length > 0)
-    response.warnings = warnings.map((w: Warning | string): Warning =>
+// 服务返回 { data, degraded? } 形态时（与 dataRoutes 的 sendDegraded 契约一致），
+// 在响应顶层透出 degraded，供前端 apiClient 全局提示（ADR-031 数据降级可观测性）。
+// 判别依据：plainCompute 服务统一返回 DegradedResult（恒带 degraded key）；引擎 envelope 只有 success/data。
+function isBacktestResult(r: unknown): r is BacktestResult {
+  return typeof r === 'object' && r !== null && 'data' in r && 'degraded' in r;
+}
+
+function buildBacktestResponse(result: BacktestResult): Record<string, unknown> {
+  const response: Record<string, unknown> = { success: true, data: result.data };
+  if (result.warnings && result.warnings.length > 0)
+    response.warnings = result.warnings.map((w: Warning | string): Warning =>
       typeof w === 'string' ? { code: 'WARNING', message: w } : w,
     );
-  if (dateRange) response.dateRange = dateRange;
+  if (result.dateRange) response.dateRange = result.dateRange;
+  if (result.degraded) response.degraded = true;
+  if (result.degradedWarning) response.degradedWarning = result.degradedWarning;
   return response;
 }
 
@@ -141,7 +150,13 @@ function syncCompute(
       if (opts.startLog) logger.info(opts.startLog(req));
       const result = await fn(req);
       if (opts.recordSuccess) recordBacktestRequest(metric, 'sync', 'success');
-      res.json(opts.shape ? opts.shape(result) : { success: true, data: result });
+      res.json(
+        opts.shape
+          ? opts.shape(result)
+          : isBacktestResult(result)
+            ? buildBacktestResponse(result)
+            : { success: true, data: result },
+      );
       logger.info(`[${metric}] completed in ${Date.now() - startTime}ms`);
     },
     { logMsg: opts.logMsg ?? `[${metric}] 失败`, code, endpoint: metric },
@@ -159,10 +174,7 @@ export function computeRoute(
   return syncCompute(metric, code, fn, {
     logMsg,
     recordSuccess: true,
-    shape: (r) => {
-      const { data, warnings, dateRange } = r as BacktestResult;
-      return buildBacktestResponse(data, warnings, dateRange);
-    },
+    shape: (r) => buildBacktestResponse(r as BacktestResult),
   });
 }
 

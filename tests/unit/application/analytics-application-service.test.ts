@@ -226,7 +226,7 @@ describe('analysis-service', () => {
   ])('%s 应先获取数据再调用引擎', async (_n, fn, result, data) => {
     mockFetchData(data);
     mockEngine(result);
-    expect(await fn()).toBe(result);
+    expect((await fn()).data).toBe(result);
     expect(dataMocks.fetchHistoryData).toHaveBeenCalled();
     expect(engineMocks.callEngineStrict).toHaveBeenCalled();
   });

@@ -149,7 +149,7 @@ describe('strategy-application-services', () => {
           ...payload,
           priceData: history,
         });
-        expect(result).toBe(mockSignalResult);
+        expect((result as { data: unknown }).data).toBe(mockSignalResult);
       });
 
       it('无价格数据时应抛出错误', async () => {
@@ -224,8 +224,8 @@ describe('strategy-application-services', () => {
         .mockResolvedValueOnce({ portfolios: [emptyPortfolio('bench')] });
 
       const result = await executeTacticalBacktest(backtestParams);
-      expect(result.portfolio).toBeDefined();
-      expect(result.benchmark).toBeDefined();
+      expect(result.data.portfolio).toBeDefined();
+      expect(result.data.benchmark).toBeDefined();
     });
 
     it('executeTacticalWhatIf 应返回最近信号权重', async () => {
@@ -241,9 +241,9 @@ describe('strategy-application-services', () => {
       });
 
       const result = await executeTacticalWhatIf(['SPY'], strategy);
-      expect(result).toHaveLength(1);
-      expect(result[0].ticker).toBe('SPY');
-      expect(result[0].weight).toBe(100);
+      expect(result.data).toHaveLength(1);
+      expect(result.data[0].ticker).toBe('SPY');
+      expect(result.data[0].weight).toBe(100);
     });
 
     it('benchmark 回测失败时应降级为空结果', async () => {
@@ -253,9 +253,9 @@ describe('strategy-application-services', () => {
         .mockRejectedValueOnce(new Error('benchmark error'));
 
       const result = await executeTacticalBacktest(backtestParams);
-      expect(result.benchmark).toBeDefined();
-      expect(result.benchmark.growthCurve).toEqual([]);
-      expect(result.benchmark.name).toBe('等权基准');
+      expect(result.data.benchmark).toBeDefined();
+      expect(result.data.benchmark.growthCurve).toEqual([]);
+      expect(result.data.benchmark.name).toBe('等权基准');
     });
 
     it.each([

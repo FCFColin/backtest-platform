@@ -37,6 +37,8 @@ export interface Warning {
   message?: string;
   tickers?: string[];
 }
+/** 数据服务降级时随结果透出（ADR-031），路由层据此置顶层 degraded 字段。 */
+export type DegradedResult<T> = { data: T; degraded: boolean; degradedWarning?: string };
 export interface DateRangeInfo {
   requested: { start: string; end: string };
   actual: { start: string; end: string };

@@ -1,5 +1,5 @@
 // 分析类路由合并入口（ADR-042）：letf/calculators/pca/goal-optimizer/factor-regression/tactical/signal
-import { Router, type Request, type Response } from 'express';
+import { Router } from 'express';
 import { z } from 'zod';
 import type { LETFRequest, PCARequest, GoalOptimizerRequest } from '@backtest/shared/types';
 import { logger, sanitizeLog } from '../utils/logger.js';
@@ -33,7 +33,8 @@ import {
   executeDualSignalAnalyze,
   executeMultiSignalAnalyze,
 } from '../application/signal-orchestrator.js';
-import { asyncRouteHandler, plainCompute } from './routeUtils.js';
+import { plainCompute } from './routeUtils.js';
+import type { DegradedResult } from '../application/backtest-helpers.js';
 
 const analysisRouter = Router();
 
@@ -160,16 +161,11 @@ analysisRouter.post(
 
 type SignalMode = 'analyze' | 'dual' | 'multi';
 
-function runSignalAnalysis(mode: SignalMode, body: unknown): Promise<unknown> {
-  switch (mode) {
-    case 'analyze':
-      return executeSignalAnalyze(body as never);
-    case 'dual':
-      return executeDualSignalAnalyze(body as never);
-    case 'multi':
-      return executeMultiSignalAnalyze(body as never);
-  }
-}
+const SIGNAL_RUNNERS: Record<SignalMode, (body: never) => Promise<DegradedResult<unknown>>> = {
+  analyze: executeSignalAnalyze,
+  dual: executeDualSignalAnalyze,
+  multi: executeMultiSignalAnalyze,
+};
 
 function logSignalContext(mode: SignalMode, body: Record<string, unknown>): void {
   switch (mode) {
@@ -194,34 +190,20 @@ function logSignalContext(mode: SignalMode, body: Record<string, unknown>): void
   }
 }
 
-const ERROR_CONFIGS: Record<SignalMode, { logMsg: string; code: string; endpoint: string }> = {
-  analyze: {
-    logMsg: '[signal/analyze] 信号分析失败',
-    code: 'SIGNAL_ANALYZE_ERROR',
-    endpoint: 'signal-analyze',
-  },
-  dual: {
-    logMsg: '[signal/dual] 双重信号分析失败',
-    code: 'SIGNAL_DUAL_ERROR',
-    endpoint: 'signal-dual',
-  },
-  multi: {
-    logMsg: '[signal/multi] 多信号分析失败',
-    code: 'SIGNAL_MULTI_ERROR',
-    endpoint: 'signal-multi',
-  },
-};
-
 function registerSignalRoute(mode: SignalMode, path: string, schema: z.ZodTypeAny) {
   analysisRouter.post(
     path,
     ...computeMiddlewareNoQuota(Permission.SIGNAL_READ),
     validate(schema),
-    asyncRouteHandler(async (req: Request, res: Response): Promise<void> => {
-      logSignalContext(mode, req.body as Record<string, unknown>);
-      const result = await runSignalAnalysis(mode, req.body);
-      res.json({ success: true, data: result });
-    }, ERROR_CONFIGS[mode]),
+    plainCompute(
+      `signal-${mode}`,
+      `SIGNAL_${mode.toUpperCase()}_ERROR`,
+      async (req) => {
+        logSignalContext(mode, req.body as Record<string, unknown>);
+        return SIGNAL_RUNNERS[mode](req.body as never);
+      },
+      { logMsg: `[signal/${mode}] 信号分析失败` },
+    ),
   );
 }
 

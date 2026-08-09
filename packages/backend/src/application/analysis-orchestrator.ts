@@ -21,7 +21,7 @@ import {
   calculateDateRange,
   pushDegradedWarning,
 } from './backtest-helpers.js';
-import type { Warning, DateRangeInfo } from './backtest-helpers.js';
+import type { Warning, DateRangeInfo, DegradedResult } from './backtest-helpers.js';
 
 export async function runAnalysis(
   tickers: string[],
@@ -41,7 +41,8 @@ export async function runAnalysis(
     throw new ValidationError(`Price data unavailable for all tickers: ${tickers.join(', ')}`);
   }
   const missing = tickers.filter((t) => !validTickers.includes(t));
-  if (missing.length > 0) {
+  const hasMissing = missing.length > 0;
+  if (hasMissing) {
     logger.warn(`[analysis] 部分标的价格数据缺失，已忽略: ${missing.join(', ')}`);
     warnings.push({ code: 'TICKER_NOT_FOUND', tickers: missing });
   }
@@ -56,7 +57,7 @@ export async function runAnalysis(
     parameters.startDate,
     parameters.endDate,
     priceData,
-    missing.length > 0 ? missing : undefined,
+    hasMissing ? missing : undefined,
   );
 
   const engineData = (result as { data?: { assets?: unknown[]; correlations?: unknown[][] } }).data;
@@ -76,7 +77,7 @@ export function executePcaAnalyze(
     tickers,
     priceData,
     numComponents,
-  }).then((r) => ((r as { data?: PCAResult })?.data ?? r) as PCAResult);
+  }).then(unwrapEngineData);
 }
 
 async function runAnalysisWithFetch<T>(
@@ -84,9 +85,13 @@ async function runAnalysisWithFetch<T>(
   startDate: string,
   endDate: string,
   run: (priceData: Record<string, Record<string, number>>) => Promise<T>,
-): Promise<T> {
-  const { data: priceData } = await fetchHistoryData(tickers, startDate, endDate);
-  return run(priceData);
+): Promise<DegradedResult<T>> {
+  const {
+    data: priceData,
+    degraded,
+    degradedWarning,
+  } = await fetchHistoryData(tickers, startDate, endDate);
+  return { data: await run(priceData), degraded, degradedWarning };
 }
 
 export function validatePcaRequest(req: PCARequest): string[] {
@@ -126,7 +131,7 @@ export function executeLetfAnalyze(
     benchmarkTicker: cleanBench,
     leverage: lev,
     priceData,
-  }).then((r) => unwrapEngineData(r));
+  }).then(unwrapEngineData);
 }
 
 export async function executeLetfAnalyzeWithFetch(req: LETFRequest) {
@@ -160,7 +165,7 @@ export function executeGoalOptimize(
     priceData,
     startDate,
     endDate,
-  }).then((r) => unwrapEngineData(r));
+  }).then(unwrapEngineData);
 }
 
 export async function executeGoalOptimizeWithFetch(request: GoalOptimizerRequest) {

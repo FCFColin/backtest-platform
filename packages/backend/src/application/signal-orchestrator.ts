@@ -7,11 +7,12 @@ import type {
 import { fetchHistoryData } from '../infrastructure/dataFacade.js';
 import { callEngineStrict, unwrapEngineData } from '../utils/engineClient.js';
 import { ensurePriceDataExists, ensureTickerHasData } from './backtest/backtestEngineUtils.js';
+import type { DegradedResult } from './backtest-helpers.js';
 
 async function runSignalMode(
   mode: 'single' | 'dual' | 'multi',
   body: SignalAnalysisRequest | DualSignalConfig | MultiSignalConfig,
-) {
+): Promise<DegradedResult<unknown>> {
   let tickers: string[];
   let startDate: string;
   let endDate: string;
@@ -43,25 +44,19 @@ async function runSignalMode(
     engineBody = { mode: 'multi', multi: b };
   }
 
-  const { data: history } = await fetchHistoryData(tickers, startDate, endDate);
+  const {
+    data: history,
+    degraded,
+    degradedWarning,
+  } = await fetchHistoryData(tickers, startDate, endDate);
   validation(history);
   return callEngineStrict('/api/engine/signal-analyze', {
     ...engineBody,
     priceData: history,
-  }).then((r) => unwrapEngineData(r));
+  }).then((r) => ({ data: unwrapEngineData(r), degraded, degradedWarning }));
 }
 
 // @throws {DataNotFoundError} {EngineUnavailableError}
-export function executeSignalAnalyze(body: SignalAnalysisRequest) {
-  return runSignalMode('single', body);
-}
-
-// @throws {DataNotFoundError} {EngineUnavailableError}
-export function executeDualSignalAnalyze(body: DualSignalConfig) {
-  return runSignalMode('dual', body);
-}
-
-// @throws {DataNotFoundError} {EngineUnavailableError}
-export function executeMultiSignalAnalyze(body: MultiSignalConfig) {
-  return runSignalMode('multi', body);
-}
+export const executeSignalAnalyze = (body: SignalAnalysisRequest) => runSignalMode('single', body);
+export const executeDualSignalAnalyze = (body: DualSignalConfig) => runSignalMode('dual', body);
+export const executeMultiSignalAnalyze = (body: MultiSignalConfig) => runSignalMode('multi', body);

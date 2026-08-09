@@ -25,6 +25,18 @@ import { EngineUnavailableError } from '../utils/engineClient.js';
 import type { Job } from 'bullmq';
 
 const inflightKey = (tenantId: string): string => `inflight:${tenantId}`;
+const DEFER_DELAY_MS = 10_000;
+
+// 延迟重试：先 moveToDelayed 再把 job 移出 active，避免 DelayedError 让 job 停在 active
+// 而走 stalled 检查（maxStalledCount=1 时二次即永久失败，BullMQ 5.79 语义，ADR-037 公平调度失效）。
+async function deferJob(job: Job<BacktestJobData>, reason: string): Promise<never> {
+  try {
+    await job.moveToDelayed(Date.now() + DEFER_DELAY_MS, job.token);
+  } catch (err) {
+    throw new Error(`延迟重试标记失败（${reason}）: ${errorMessage(err)}`);
+  }
+  throw new DelayedError(reason);
+}
 
 async function tenantConcurrencyCap(tenantId: string): Promise<number> {
   try {
@@ -36,7 +48,9 @@ async function tenantConcurrencyCap(tenantId: string): Promise<number> {
   }
 }
 
-async function acquireTenantSlot(tenantId: string, jobId: string): Promise<boolean> {
+async function acquireTenantSlot(job: Job<BacktestJobData>): Promise<boolean> {
+  const tenantId = job.data.tenantId!;
+  const jobId = String(job.id);
   const cap = await tenantConcurrencyCap(tenantId);
   const key = inflightKey(tenantId);
   let inflight = 0;
@@ -57,7 +71,7 @@ async function acquireTenantSlot(tenantId: string, jobId: string): Promise<boole
       /* ignore */
     }
     logger.info({ jobId, tenantId, cap }, '[worker] 租户在途任务已达上限，延迟重试');
-    throw new DelayedError('Tenant concurrency cap reached');
+    return deferJob(job, 'Tenant concurrency cap reached');
   }
   return true;
 }
@@ -113,11 +127,11 @@ async function dispatchJob(job: Job<BacktestJobData>): Promise<BacktestJobResult
       return { status: 'completed', result: cached };
     }
     logger.warn({ jobId, type }, '[worker] 已处理标记存在但无缓存结果，延迟重试');
-    throw new DelayedError('Processed marker without cached result');
+    return deferJob(job, 'Processed marker without cached result');
   }
   if (claim === 'in_progress') {
     logger.info({ jobId, type }, '[worker] 任务正在处理中，延迟重试');
-    throw new DelayedError('Job already being processed');
+    return deferJob(job, 'Job already being processed');
   }
 
   logger.info({ type, jobId }, '[worker] 开始处理任务');
@@ -195,10 +209,9 @@ async function persistRunIfTenant(
 
 export async function processBacktestJob(job: Job<BacktestJobData>): Promise<BacktestJobResult> {
   const { tenantId } = job.data;
-  const jobId = String(job.id);
   // Tenant-fair 调度（ADR-037）：限制单租户在途任务数
   let slotAcquired = false;
-  if (tenantId) slotAcquired = await acquireTenantSlot(tenantId, jobId);
+  if (tenantId) slotAcquired = await acquireTenantSlot(job);
   try {
     return await dispatchJob(job);
   } finally {

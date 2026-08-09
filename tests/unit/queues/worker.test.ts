@@ -71,7 +71,12 @@ import type {
 } from '../../../packages/backend/src/queues/backtestQueue.js';
 import type { Job } from 'bullmq';
 function makeJob(data: BacktestJobData, id = 'job-1'): Job<BacktestJobData> {
-  return { id, data } as unknown as Job<BacktestJobData>;
+  return {
+    id,
+    data,
+    token: 'tok',
+    moveToDelayed: vi.fn().mockResolvedValue(undefined),
+  } as unknown as Job<BacktestJobData>;
 }
 const TENANT = '11111111-1111-1111-1111-111111111111';
 function mockOrg(plan = 'pro') {
@@ -174,9 +179,9 @@ describe('processBacktestJob - 任务分发', () => {
       const result = await processBacktestJob(makeJob({ type: 'optimizer', payload: {} }));
       expect(result).toEqual<BacktestJobResult>({ status: 'completed', result: { score: 0.9 } });
     } else {
-      await expect(
-        processBacktestJob(makeJob({ type: 'optimizer', payload: {} })),
-      ).rejects.toBeInstanceOf(DelayedError);
+      const job = makeJob({ type: 'optimizer', payload: {} });
+      await expect(processBacktestJob(job)).rejects.toBeInstanceOf(DelayedError);
+      expect(job.moveToDelayed).toHaveBeenCalledWith(expect.any(Number), 'tok');
       expect(releaseJobClaim).not.toHaveBeenCalled();
       expect(markJobProcessed).not.toHaveBeenCalled();
     }
@@ -271,9 +276,9 @@ describe('processBacktestJob - 任务分发', () => {
     mockOrg('free');
     vi.mocked(appRedis.incr).mockResolvedValueOnce(2);
     if (decrFails) vi.mocked(appRedis.decr).mockRejectedValueOnce(new Error('Redis 关闭中'));
-    await expect(
-      processBacktestJob(makeJob({ type: 'optimizer', payload: {}, tenantId: TENANT })),
-    ).rejects.toBeInstanceOf(DelayedError);
+    const job = makeJob({ type: 'optimizer', payload: {}, tenantId: TENANT });
+    await expect(processBacktestJob(job)).rejects.toBeInstanceOf(DelayedError);
+    expect(job.moveToDelayed).toHaveBeenCalledWith(expect.any(Number), 'tok');
     expect(appRedis.decr).toHaveBeenCalledWith(`inflight:${TENANT}`);
     expect(executeOptimization).not.toHaveBeenCalled();
     expect(tryClaimJobProcessing).not.toHaveBeenCalled();
