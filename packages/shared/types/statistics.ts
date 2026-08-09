@@ -216,8 +216,13 @@ export function toStatsRecord(stats: Statistics): Record<string, number> {
   if (stats.var) {
     record.varDaily5 = stats.var.daily?.[5] ?? 0;
     record.cvarDaily5 = stats.cvar?.daily?.[5] ?? 0;
+    record.varAnnual1 = stats.var.annual?.[1] ?? 0;
+    record.varAnnual5 = stats.var.annual?.[5] ?? 0;
+    record.cvarAnnual1 = stats.cvar?.annual?.[1] ?? 0;
+    record.cvarAnnual5 = stats.cvar?.annual?.[5] ?? 0;
   }
   if (stats.skewness) record.skewnessDaily = stats.skewness.daily ?? 0;
   if (stats.excessKurtosis) record.excessKurtosisDaily = stats.excessKurtosis.daily ?? 0;
+  record.negativeMonthsPct = 1 - stats.pctPositiveMonths;
   return record;
 }
