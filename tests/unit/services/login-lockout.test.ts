@@ -30,7 +30,6 @@ import {
   clearFailures,
   isIpBlocked,
   recordIpFailure,
-  checkLoginRestriction,
 } from '../../../packages/backend/src/application/auth/loginLockout.js';
 import {
   createApiKey,
@@ -170,22 +169,6 @@ describe('loginLockout', () => {
     expect(expireCalls[0][0]).toBe('login_ip_fail:' + hashIp('1.1.1.1'));
     expect(expireCalls[1][0]).toBe('login_ip_fail:' + hashIp('2.2.2.2'));
     expect(expireCalls[0][0]).not.toBe(expireCalls[1][0]);
-  });
-
-  it.each<[string, number, number, { locked: boolean; reason: string; ttlSec: number }]>([
-    [
-      '账户锁定时返回 account_locked',
-      600,
-      -2,
-      { locked: true, reason: 'account_locked', ttlSec: 600 },
-    ],
-    ['IP 封锁时返回 ip_blocked', -2, 1800, { locked: true, reason: 'ip_blocked', ttlSec: 1800 }],
-    ['未受限时返回 locked=false', -2, -2, { locked: false, reason: '', ttlSec: 0 }],
-  ])('checkLoginRestriction %s', async (_n, userTtl, ipTtl, expected) => {
-    redisMocks.ttl.mockResolvedValueOnce(userTtl);
-    redisMocks.ttl.mockResolvedValueOnce(ipTtl);
-    const result = await checkLoginRestriction('alice', '1.2.3.4');
-    expect(result).toEqual(expected);
   });
 });
 

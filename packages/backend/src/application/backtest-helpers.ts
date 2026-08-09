@@ -223,9 +223,14 @@ export async function preparePriceDataAndWarnings(
   return { priceData, warnings, invalidTickers, effectiveStartDate, effectiveEndDate, allTickers };
 }
 
+export interface MacroData {
+  cpiData: Record<string, number>;
+  exchangeRates: Record<string, number>;
+}
+
 export async function loadMacroData(
-  parameters: BacktestParameters,
-): Promise<{ cpiData: Record<string, number>; exchangeRates: Record<string, number> }> {
+  parameters: Partial<Pick<BacktestParameters, 'baseCurrency' | 'adjustForInflation'>>,
+): Promise<MacroData> {
   const baseCurrency = parameters.baseCurrency || 'usd';
   const cpiData = parameters.adjustForInflation
     ? await loadCpiMap(baseCurrency === 'cny' ? 'cn' : 'us')

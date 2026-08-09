@@ -28,7 +28,6 @@ export interface TableColumn<T> {
   testId?: string;
 }
 export type SimpleTableColumn<T> = TableColumn<T>;
-export type Column<T> = TableColumn<T>;
 
 interface TableProps<T> {
   columns: TableColumn<T>[];

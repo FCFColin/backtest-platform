@@ -1,26 +1,14 @@
 import { useTranslation } from 'react-i18next';
-import {
-  lazy,
-  Suspense,
-  useEffect,
-  createElement,
-  type ReactNode,
-  type ComponentType,
-} from 'react';
+import { Suspense, useEffect, createElement, type ReactNode } from 'react';
 import { Route, Routes, useLocation } from 'react-router';
 import { RouteErrorBoundary } from '@/components/errorBoundaries';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { Spinner } from '@/components/ui/uiComponents';
 import { onNavEnd } from '../utils/performanceReporter.js';
+import { lazyDefault, lazyNamed } from '@/utils/lazyImport';
 import { PlaceholderPage } from '@/pages/errors/ErrorPages';
 import NotFoundPage from '@/pages/errors/ErrorPages';
 import { PAGE_LOADERS, type PageName } from './pageLoaders.js';
-
-const lazyDefault = (imp: () => Promise<{ default: ComponentType }>) => lazy(imp);
-const lazyNamed = <T,>(imp: () => Promise<T>, name: keyof T) =>
-  lazy(() =>
-    imp().then((m) => ({ default: m[name] as unknown as ComponentType<Record<string, unknown>> })),
-  );
 
 const page = (name: PageName) => createElement(PAGE_LOADERS[name]);
 const LoginPage = lazyDefault(() => import('@/pages/auth/LoginPage'));

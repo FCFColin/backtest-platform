@@ -93,18 +93,3 @@ export async function recordIpFailure(ip: string): Promise<void> {
     }
   });
 }
-
-export async function checkLoginRestriction(
-  username: string,
-  ip: string,
-): Promise<{ locked: boolean; reason: string; ttlSec: number }> {
-  const userTtl = await isLockedOut(username);
-  if (userTtl > 0) {
-    return { locked: true, reason: 'account_locked', ttlSec: userTtl };
-  }
-  const ipTtl = await isIpBlocked(ip);
-  if (ipTtl > 0) {
-    return { locked: true, reason: 'ip_blocked', ttlSec: ipTtl };
-  }
-  return { locked: false, reason: '', ttlSec: 0 };
-}

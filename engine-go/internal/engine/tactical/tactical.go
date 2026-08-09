@@ -206,6 +206,9 @@ func RunTacticalBacktest(ctx context.Context, req TacticalBacktestRequest) (*Tac
 		}
 		if !initialized || engineutil.ShouldRebalance(req.RebalanceFrequency, prevDate, date, 0, nil, nil, 0, nil) {
 			weights := aggregateSignals(strategy, activeFlags, i, allTickers)
+			for t := range holdings {
+				holdings[t] = 0
+			}
 			for _, w := range weights {
 				holdings[w.Ticker] = portfolioValue * w.Weight
 			}

@@ -3,6 +3,7 @@ import { logger } from '../utils/logger.js';
 import { sendProblem } from '../utils/errors.js';
 import { appRedis, getRedisHealth, markRedisUnhealthy } from '../infrastructure/redisClient.js';
 import { readEntry, redisKeys } from './tokenStore.js';
+import type { AuthenticatedRequest } from './jwtAuth.js';
 
 interface CachedResult {
   statusCode: number;
@@ -42,7 +43,8 @@ async function handleWithRedis(
   res: Response,
   next: NextFunction,
 ): Promise<void> {
-  const redisKey = redisKeys.idempotency(key);
+  const principal = (req as AuthenticatedRequest).user?.tenant_id ?? req.ip ?? 'anonymous';
+  const redisKey = redisKeys.idempotency(`${principal}:${key}`);
   if (!(await getRedisHealth())) return redisUnavailable(res);
   try {
     const cached = await readEntry<CachedResult>(redisKey);

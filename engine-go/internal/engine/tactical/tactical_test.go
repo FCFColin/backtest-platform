@@ -66,6 +66,33 @@ func TestRunTacticalBacktest_NoSignals(t *testing.T) {
 		t.Error("daily 再平衡应产生 SignalHistory 条目")
 	}
 }
+func TestRunTacticalBacktest_RankClearsUnselected(t *testing.T) {
+	dates := enginetest.Dates("2024-01-01", 10)
+	pd := map[string]map[string]float64{
+		"A": enginetest.PriceMap("2024-01-01", []float64{100, 100, 100, 100, 100, 100, 100, 100, 100, 100}),
+		"B": enginetest.PriceMap("2024-01-01", []float64{100, 100, 100, 100, 100, 100, 100, 100, 100, 100}),
+	}
+	strategy := TacticalStrategy{
+		ID: "s1", Name: "rank-top1", AggregationMethod: "rank", RankingConfig: &RankingConfig{Method: "fixed_share", TopN: 1},
+		Signals: []TradingSignal{{ID: "sig1", Name: "信号1",
+			Conditions:    []SignalCondition{{Indicator: IndSMA, Period: 5, Operator: "gt", Threshold: 0}},
+			TargetWeights: []WeightEntry{{Ticker: "A", Weight: 1}, {Ticker: "B", Weight: 1}},
+		}},
+	}
+	req := TacticalBacktestRequest{Strategy: strategy, PriceData: pd, Dates: dates, StartingValue: 10000, RebalanceFrequency: "daily"}
+	r, err := RunTacticalBacktest(context.Background(), req)
+	if err != nil {
+		t.Fatalf("不应报错: %v", err)
+	}
+	for i, g := range r.Portfolio.GrowthCurve {
+		if math.Abs(g.Value-10000) > 1e-6 {
+			t.Errorf("GrowthCurve[%d]=%v, want 10000（未选中持仓应清零）", i, g.Value)
+		}
+	}
+	if len(r.SignalHistory) == 0 || r.SignalHistory[0].Weights[0].Ticker != "A" {
+		t.Errorf("rank topN=1 应选中单一 ticker, got %+v", r.SignalHistory)
+	}
+}
 func TestRunTacticalBacktest_WithSignal(t *testing.T) {
 	req := baseTacticalReq(TacticalStrategy{
 		ID: "s1", Name: "sma-cross", Signals: []TradingSignal{{ID: "sig1", Name: "SMA交叉",

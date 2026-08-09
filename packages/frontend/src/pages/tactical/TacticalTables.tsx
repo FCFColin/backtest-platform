@@ -1,16 +1,16 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Search } from 'lucide-react';
 import type { WhatIfResult, TacticalStrategy } from '@backtest/shared/types/tactical';
 import type { TFunction } from 'i18next';
 import { Button, Card, Input } from '@/components/ui/uiComponents';
 import { EmptyState } from '@/components/stateDisplay';
-import { SortableTable, type Column } from '@/components/tables';
+import { SortableTable, type TableColumn } from '@/components/tables';
 import { useAsyncAction } from '@/hooks/miscHooks';
 import { apiPostJSON } from '@/utils/apiClient';
 import { fmtPrice, whatIfSignalColor, whatIfSignalLabel } from './tacticalResultUtils';
 import type { BacktestResponse } from './TacticalUtils';
-function buildWhatIfColumns(t: TFunction): Column<WhatIfResult>[] {
+function buildWhatIfColumns(t: TFunction): TableColumn<WhatIfResult>[] {
   return [
     { key: 'ticker', label: t('Ticker'), sortValue: (r) => r.ticker },
     {

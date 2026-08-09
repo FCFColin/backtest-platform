@@ -1,11 +1,11 @@
-import { useTranslation } from 'react-i18next';
+﻿import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { fmtPct, fmtRatio, fmtDollar, downsample } from '@/utils/format';
 import type { SignalAnalysisResult } from '@backtest/shared/types/signal';
 import type { MultiSignalResponse } from './signalState.js';
 import { Card, Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/uiComponents';
 import { CollapsibleSection } from '@/components/cards';
-import { SortableTable, type Column } from '../../components/tables.js';
+import { SortableTable, type TableColumn } from '../../components/tables.js';
 import { TimeSeriesLineChart } from '@/components/charts/TimeSeriesLineChart.js';
 import { ResultsShell } from '@/components/resultsShell.js';
 import { TableEmpty } from '@/components/stateDisplay.js';
@@ -37,7 +37,7 @@ function StatGrid({ rows }: { rows: { label: string; value: string }[] }) {
     </div>
   );
 }
-function buildSignalColumns(t: (key: string) => string): Column<SignalRow>[] {
+function buildSignalColumns(t: (key: string) => string): TableColumn<SignalRow>[] {
   return [
     { key: 'date', label: t('Date'), sortValue: (r) => r.date },
     {
@@ -60,7 +60,7 @@ function buildSignalColumns(t: (key: string) => string): Column<SignalRow>[] {
 }
 interface SignalListSectionProps {
   results: SignalAnalysisResult;
-  signalColumns: Column<SignalRow>[];
+  signalColumns: TableColumn<SignalRow>[];
 }
 function SignalListSection({ results, signalColumns }: SignalListSectionProps) {
   const { t } = useTranslation();
@@ -94,7 +94,7 @@ function EquityCurveSection({ equityCurve: data }: EquityCurveSectionProps) {
 }
 interface SignalResultsContentProps {
   results: SignalAnalysisResult;
-  signalColumns: Column<SignalRow>[];
+  signalColumns: TableColumn<SignalRow>[];
 }
 function SignalResultsContent({ results, signalColumns }: SignalResultsContentProps) {
   const { t } = useTranslation();
@@ -158,7 +158,7 @@ interface AggStatRow {
 }
 function buildContributionColumns(
   t: TFunction,
-): Column<MultiSignalResponse['contributions'][number]>[] {
+): TableColumn<MultiSignalResponse['contributions'][number]>[] {
   return [
     { key: 'index', label: '#', sortValue: (r) => r.index },
     { key: 'indicator', label: t('Metric'), sortValue: (r) => r.indicator },

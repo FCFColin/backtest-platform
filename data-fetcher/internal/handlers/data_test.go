@@ -93,19 +93,6 @@ func TestHandlePriceData_InvalidTicker(t *testing.T) {
 		t.Errorf("HandlePriceData invalid ticker = %d, want 400", w.Code)
 	}
 }
-func TestHandleValidateTickers_BadJSON(t *testing.T) {
-	w := runHandler("POST", "/api/data/validate", "/api/data/validate", "{invalid", HandleValidateTickers(nil))
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("HandleValidateTickers bad JSON = %d, want 400", w.Code)
-	}
-}
-func TestHandleValidateTickers_InvalidTicker(t *testing.T) {
-	body := `{"tickers":["AAPL","../../etc/passwd"]}`
-	w := runHandler("POST", "/api/data/validate", "/api/data/validate", body, HandleValidateTickers(nil))
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("HandleValidateTickers invalid ticker = %d, want 400", w.Code)
-	}
-}
 func TestHandleCPI_InvalidCountry(t *testing.T) {
 	w := runHandler("GET", "/api/data/cpi/:country", "/api/data/cpi/jp", "", HandleCPI(nil))
 	if w.Code != http.StatusBadRequest {

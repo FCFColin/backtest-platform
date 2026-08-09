@@ -213,6 +213,10 @@ spec:
     matchLabels: { app: backtest-worker }
   policyTypes: [Egress]
   egress:
+    - to: [{ podSelector: { matchLabels: { app: engine-go } } }]
+      ports: [{ protocol: TCP, port: 5004 }]
+    - to: [{ podSelector: { matchLabels: { app: data-fetcher } } }]
+      ports: [{ protocol: TCP, port: 5003 }]
     - to: [{ podSelector: { matchLabels: { app: postgres } } }]
       ports: [{ protocol: TCP, port: 5432 }]
     - to: [{ podSelector: { matchLabels: { app: redis } } }]

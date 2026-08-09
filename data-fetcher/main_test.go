@@ -29,7 +29,7 @@ func TestPricePointJSON(t *testing.T) {
 		t.Errorf("Close = %f, want 103.0", pp2.Close)
 	}
 }
-func TestHandleValidateTickers_PathTraversal(t *testing.T) {
+func TestIsValidTicker_PathTraversal(t *testing.T) {
 	maliciousTickers := []string{
 		"../../etc/passwd",
 		"..%2F..%2Fetc%2Fpasswd",

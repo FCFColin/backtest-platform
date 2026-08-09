@@ -1,9 +1,9 @@
-import { useTranslation } from 'react-i18next';
+﻿import { useTranslation } from 'react-i18next';
 import { Grid3x3 } from 'lucide-react';
 import { fmtPct, fmtNum } from '@/utils/format';
 import { Card } from '@/components/ui/uiComponents';
 import { ResultsShell } from '@/components/resultsShell';
-import { SortableTable, type Column } from '@/components/tables';
+import { SortableTable, type TableColumn } from '@/components/tables';
 import { TimeSeriesLineChart } from '@/components/charts/TimeSeriesLineChart';
 import {
   computeHeatmapRange,
@@ -60,13 +60,13 @@ type RankedResult = TopCombinationResult & { rank: number };
 function buildTopColumns(
   t: (k: string) => string,
   paramLabels: { p1: string; p2: string },
-): Column<RankedResult>[] {
+): TableColumn<RankedResult>[] {
   const num = (v: number | string) => <span className="font-mono tabular-nums">{v}</span>;
   const col = (
     key: keyof RankedResult,
     label: string,
     fmt?: (v: number) => string | number,
-  ): Column<RankedResult> => ({
+  ): TableColumn<RankedResult> => ({
     key,
     label,
     sortValue: (r) => r[key] as number,

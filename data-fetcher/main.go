@@ -88,12 +88,7 @@ func main() {
 		authed.GET("/api/data/search", handlers.HandleSearch(ds))
 		authed.GET("/api/data/price/:ticker", handlers.HandlePriceData(ds))
 		authed.POST("/api/data/price/batch", handlers.HandleBatchPriceData(ds))
-		authed.POST("/api/data/validate", handlers.HandleValidateTickers(ds))
 		authed.GET("/api/data/cpi/:country", handlers.HandleCPI(ds))
-		authed.GET("/api/baostock/test", handlers.HandleBaoStockTest())
-		authed.GET("/api/baostock/kline", handlers.HandleBaoStockKLine())
-		authed.GET("/api/baostock/all-stock", handlers.HandleBaoStockAllStock())
-		authed.GET("/api/baostock/trade-dates", handlers.HandleBaoStockTradeDates())
 	}
 	gosharedhttp.StartPprofServerIfEnabled("127.0.0.1:6060")
 	srv := &http.Server{

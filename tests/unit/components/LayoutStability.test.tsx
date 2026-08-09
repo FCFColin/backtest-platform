@@ -10,7 +10,7 @@ const loadersSource = readFileSync(loadersPath, 'utf-8');
 describe('C-006 Layout Stability — lazy() + fallback 预留高度', () => {
   it('BacktestPage（首屏 `/`）使用 lazy() 懒加载', () => {
     expect(loadersSource).toMatch(/\bbacktest:\s*\(\)\s*=>\s*import\([^)]*BacktestPage/);
-    expect(loadersSource).toMatch(/lazy\(imp\)/);
+    expect(loadersSource).toMatch(/lazyNamed/);
   });
 
   it('Suspense fallback 必须预留 minHeight >= 70vh 以消除布局偏移', () => {

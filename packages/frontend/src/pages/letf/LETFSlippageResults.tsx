@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+﻿import { useMemo } from 'react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
@@ -28,7 +28,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useChartAnimation } from '@/hooks/miscHooks.js';
 import ChartCard from '../../components/ChartCard.js';
-import { SortableTable, type Column } from '../../components/tables.js';
+import { SortableTable, type TableColumn } from '../../components/tables.js';
 interface SlippageCurveDataPoint {
   date: string;
   cumulative: number;
@@ -181,7 +181,7 @@ interface StatRow {
   metric: string;
   value: number;
 }
-function buildStatColumns(t: TFunction): Column<StatRow>[] {
+function buildStatColumns(t: TFunction): TableColumn<StatRow>[] {
   return [
     {
       key: 'metric',

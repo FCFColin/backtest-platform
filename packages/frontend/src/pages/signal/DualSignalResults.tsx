@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
@@ -9,7 +9,7 @@ import { CollapsibleSection } from '@/components/cards';
 import { Button } from '@/components/ui/uiComponents.js';
 import {
   SortableTable,
-  type Column,
+  type TableColumn,
   SimpleTable,
   type SimpleTableColumn,
 } from '../../components/tables.js';
@@ -87,7 +87,9 @@ function StatsComparisonTable({ statRows }: { statRows: StatRow[] }) {
     </CollapsibleSection>
   );
 }
-function buildComparisonColumns(t: TFunction): Column<DualSignalResponse['comparison'][number]>[] {
+function buildComparisonColumns(
+  t: TFunction,
+): TableColumn<DualSignalResponse['comparison'][number]>[] {
   return [
     { key: 'date', label: t('Date'), sortValue: (r) => r.date },
     {
@@ -121,7 +123,7 @@ function DualSignalResultsBody({
   equityData,
 }: {
   t: TFunction;
-  comparisonColumns: Column<DualSignalResponse['comparison'][number]>[];
+  comparisonColumns: TableColumn<DualSignalResponse['comparison'][number]>[];
   comparison: DualSignalResponse['comparison'];
   comparisonPage: number;
   prevPage: () => void;

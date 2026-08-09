@@ -1,19 +1,8 @@
 ﻿import { describe, it, expect } from 'vitest';
 import {
-  loginSchema,
   loginPasswordSchema,
   registerSchema,
 } from '../../../packages/backend/src/schemas/tactical.js';
-
-describe('loginSchema', () => {
-  it.each([
-    ['合法 API Key', { apiKey: 'sk-abc123' }, true],
-    ['空 API Key', { apiKey: '' }, false],
-    ['超过 512 字符', { apiKey: 'a'.repeat(513) }, false],
-  ])('%s 应 %s', (_n, data, shouldPass) => {
-    expect(loginSchema.safeParse(data).success).toBe(shouldPass);
-  });
-});
 
 describe('loginPasswordSchema', () => {
   it.each([
@@ -34,14 +23,14 @@ describe('loginPasswordSchema', () => {
 });
 
 describe('registerSchema', () => {
-  const valid = { username: 'newuser', email: 'user@example.com', password: 'password123' };
+  const valid = { username: 'newuser', email: 'user@example.com', password: 'password1234' };
 
   it.each([
     ['合法注册', valid, true],
     ['用户名少于 2 字符', { ...valid, username: 'a' }, false],
     ['用户名超 50 字符', { ...valid, username: 'a'.repeat(51) }, false],
     ['邮箱格式不正确', { ...valid, email: 'not-an-email' }, false],
-    ['密码少于 6 字符', { ...valid, password: '12345' }, false],
+    ['密码少于 12 字符', { ...valid, password: '1234567890' }, false],
     ['密码超 256 字符', { ...valid, password: 'a'.repeat(257) }, false],
     ['邮箱超 254 字符', { ...valid, email: `${'a'.repeat(249)}@b.com` }, false],
   ])('%s 应 %s', (_n, data, shouldPass) => {

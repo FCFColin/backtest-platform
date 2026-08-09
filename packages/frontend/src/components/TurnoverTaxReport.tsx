@@ -1,7 +1,7 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { CHART_COLORS, type PortfolioResult } from '@backtest/shared';
-import { SortableTable, type Column } from './tables.js';
+import { SortableTable, type TableColumn } from './tables.js';
 import { fmtPct } from '@/utils/format';
 import { Input } from '@/components/ui/uiComponents';
 import { cn } from '@/lib/utils';
@@ -43,7 +43,7 @@ function computeTurnover(
 function buildTurnoverColumns(
   portfolios: PortfolioResult[],
   t: (key: string) => string,
-): Column<TurnoverRow>[] {
+): TableColumn<TurnoverRow>[] {
   const rightCell = (children: ReactNode, cls?: string) => (
     <span className={cn('font-mono tabular-nums text-right block', cls)}>{children}</span>
   );

@@ -7,6 +7,8 @@ import {
   filterPriceData,
   translateDomainError,
   calculateDateRange,
+  loadMacroData,
+  type MacroData,
 } from './backtest-helpers.js';
 import type { Warning, DateRangeInfo } from './backtest-helpers.js';
 import { logger } from '../utils/logger.js';
@@ -83,6 +85,7 @@ async function runBacktestGroups(
   portfolio: OptimizeRequest['portfolio'],
   parameters: OptimizeRequest['parameters'],
   priceData: Record<string, Record<string, number>>,
+  macro: MacroData,
 ): Promise<{ items: OptimizeResultItem[] }> {
   const items: OptimizeResultItem[] = [];
   const byCapital = new Map<number, Combo[]>();
@@ -104,6 +107,7 @@ async function runBacktestGroups(
     const btResult = await callEngineStrict<BacktestResult>('/api/engine/backtest', {
       portfolios: portfolios.map(toEngineBody),
       priceData,
+      ...macro,
       params: buildEngineParams(buildBacktestParameters(parameters, capital)),
     });
     for (let j = 0; j < group.length; j++) {
@@ -129,6 +133,7 @@ async function computeBestResult(
   portfolio: OptimizeRequest['portfolio'],
   parameters: OptimizeRequest['parameters'],
   priceData: Record<string, Record<string, number>>,
+  macro: MacroData,
 ): Promise<{
   best: BestResultItem;
   benchmarkGrowth: Array<{ date: string; value: number }> | null;
@@ -148,6 +153,7 @@ async function computeBestResult(
   const bestResult = await callEngineStrict<BacktestResult>('/api/engine/backtest', {
     portfolios: bestPortfolios.map(toEngineBody),
     priceData,
+    ...macro,
     params: buildEngineParams(buildBacktestParameters(parameters, bestItem.initialCapital)),
   });
   return {
@@ -177,6 +183,7 @@ export async function executeOptimization(body: Record<string, unknown>): Promis
   );
   if (invalidTickers.length > 0)
     return { success: false, error: `以下标的代码无效：${invalidTickers.join(', ')}` };
+  const macro = await loadMacroData(parameters);
   const combos = buildCombinations(parameterSpace);
   if (combos.length === 0) return { success: false, error: '参数空间为空，请检查范围与步长' };
   if (combos.length > MAX_OPTIMIZER_COMBINATIONS)
@@ -185,12 +192,12 @@ export async function executeOptimization(body: Record<string, unknown>): Promis
       error: `参数组合数 ${combos.length} 超过上限 ${MAX_OPTIMIZER_COMBINATIONS}，请缩小参数空间`,
     };
   logger.info(`[backtest-optimizer] 开始优化：${combos.length} 个组合，目标=${objective}`);
-  const { items } = await runBacktestGroups(combos, portfolio, parameters, priceData);
+  const { items } = await runBacktestGroups(combos, portfolio, parameters, priceData, macro);
   const filtered = filterByConstraints(items, constraints);
   filtered.sort((a, b) => objectiveValue(b, objective) - objectiveValue(a, objective));
   const computed =
     filtered.length > 0
-      ? await computeBestResult(filtered[0], portfolio, parameters, priceData)
+      ? await computeBestResult(filtered[0], portfolio, parameters, priceData, macro)
       : null;
   logger.info(
     `[backtest-optimizer] 优化完成：${combos.length} 组合，${filtered.length} 通过过滤，耗时 ${Date.now() - startTime}ms`,

@@ -45,12 +45,7 @@ if [ "$BACKUP_COUNT" -gt 0 ]; then
   fi
 fi
 
-# 如果无法解析时间戳，使用文件系统检查时间
-if [ "$LAST_SUCCESS_TS" -eq 0 ] && [ "$BACKUP_COUNT" -gt 0 ]; then
-  # 使用 PostgreSQL 当前时间作为参考（备份刚完成）
-  LAST_SUCCESS_TS=$(docker exec "$CONTAINER_NAME" psql -U backtest -d backtest -tAc \
-    "SELECT EXTRACT(EPOCH FROM now())::bigint" 2>/dev/null || echo "0")
-fi
+# 解析失败时不伪造成功时间戳（保持 0，触发 stale-backup 告警而非掩盖问题）
 
 # 检查归档失败计数
 ARCHIVE_FAILED=$(docker exec "$CONTAINER_NAME" psql -U backtest -d backtest -tAc \

@@ -173,18 +173,12 @@ func (ds *DataStore) writeGoPricesToDB(ctx context.Context, ticker string, price
 	for _, p := range prices {
 		adjClose := p.AdjustedClose
 		batch.Queue(`
-			INSERT INTO prices (ticker, date, open, high, low, close, volume, adjusted_close,
-				open_numeric, high_numeric, low_numeric, close_numeric, adjusted_close_numeric)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8,
-				$9::numeric, $10::numeric, $11::numeric, $12::numeric, $13::numeric)
+			INSERT INTO prices (ticker, date, open, high, low, close, volume, adjusted_close)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 			ON CONFLICT (ticker, date) DO UPDATE SET
 				open = EXCLUDED.open, high = EXCLUDED.high, low = EXCLUDED.low,
-				close = EXCLUDED.close, volume = EXCLUDED.volume, adjusted_close = EXCLUDED.adjusted_close,
-				open_numeric = EXCLUDED.open_numeric, high_numeric = EXCLUDED.high_numeric,
-				low_numeric = EXCLUDED.low_numeric, close_numeric = EXCLUDED.close_numeric,
-				adjusted_close_numeric = EXCLUDED.adjusted_close_numeric
-		`, ticker, p.Date, p.Open, p.High, p.Low, p.Close, p.Volume, adjClose,
-			p.Open, p.High, p.Low, p.Close, adjClose)
+				close = EXCLUDED.close, volume = EXCLUDED.volume, adjusted_close = EXCLUDED.adjusted_close
+		`, ticker, p.Date, p.Open, p.High, p.Low, p.Close, p.Volume, adjClose)
 	}
 	br := ds.pool.SendBatch(ctx, batch)
 	defer br.Close()
@@ -219,34 +213,4 @@ func (ds *DataStore) SearchTickers(ctx context.Context, query string, limit int)
 		results = append(results, r)
 	}
 	return results, nil
-}
-func (ds *DataStore) BatchValidateTickers(ctx context.Context, tickers []string) (valid []string, invalid []string, err error) {
-	if len(tickers) == 0 {
-		return nil, nil, nil
-	}
-	rows, err := ds.pool.Query(ctx, `
-		SELECT DISTINCT ticker FROM prices WHERE ticker = ANY($1)
-	`, tickers)
-	if err != nil {
-		return nil, nil, fmt.Errorf("校验标的失败: %w", err)
-	}
-	defer rows.Close()
-	validSet := make(map[string]bool, len(tickers))
-	for rows.Next() {
-		var t string
-		if err := rows.Scan(&t); err != nil {
-			return nil, nil, fmt.Errorf("扫描校验结果失败: %w", err)
-		}
-		validSet[t] = true
-	}
-	valid = make([]string, 0, len(tickers))
-	invalid = make([]string, 0)
-	for _, t := range tickers {
-		if validSet[t] {
-			valid = append(valid, t)
-		} else {
-			invalid = append(invalid, t)
-		}
-	}
-	return
 }

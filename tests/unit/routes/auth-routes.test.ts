@@ -24,7 +24,6 @@ const mocks = vi.hoisted(() => ({
     clearFailures: vi.fn().mockResolvedValue(undefined),
     isIpBlocked: vi.fn().mockResolvedValue(0),
     recordIpFailure: vi.fn().mockResolvedValue(undefined),
-    checkLoginRestriction: vi.fn().mockResolvedValue({ allowed: true }),
   } as Record<string, unknown>,
   membershipService: {} as Record<string, unknown>,
   registration: {
@@ -373,7 +372,7 @@ describe('authRegistrationRoutes', () => {
   const validRegisterBody = {
     username: 'nu',
     email: EMAIL,
-    password: 'secret123',
+    password: 'secret123456',
     orgName: 'Acme',
   };
   it('注册成功应返回 201 + userId，事务正确提交且发送验证邮件', async () => {

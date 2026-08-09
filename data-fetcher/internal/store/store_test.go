@@ -77,16 +77,3 @@ func TestNew_InvalidDatabaseURL(t *testing.T) {
 		t.Error("New with invalid databaseURL should return error")
 	}
 }
-func TestBatchValidateTickers_EmptyInput(t *testing.T) {
-	var ds *DataStore // nil — 安全，因为空输入会提前返回
-	valid, invalid, err := ds.BatchValidateTickers(context.Background(), nil)
-	if err != nil {
-		t.Errorf("expected nil error for empty input, got: %v", err)
-	}
-	if valid != nil {
-		t.Errorf("expected nil valid for empty input, got: %v", valid)
-	}
-	if invalid != nil {
-		t.Errorf("expected nil invalid for empty input, got: %v", invalid)
-	}
-}

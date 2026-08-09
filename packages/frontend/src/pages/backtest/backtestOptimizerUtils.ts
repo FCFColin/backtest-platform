@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import i18n from '@/i18n/index.js';
 import {
   REBALANCE_FREQUENCY_OPTIONS,
@@ -9,7 +9,7 @@ import {
   type RebalanceFrequency,
 } from '@backtest/shared';
 import { fmtPct, fmtNum, fmtDollar } from '@/utils/format';
-import type { Column } from '../../components/tables.js';
+import type { TableColumn } from '../../components/tables.js';
 import { apiPostJSON } from '@/utils/apiClient';
 import { useAssetList } from '../../hooks/miscHooks.js';
 import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
@@ -21,19 +21,19 @@ export const OBJECTIVE_SORT_KEY: Record<Objective, keyof OptimizeResultItem> = {
   maxSharpe: 'sharpe',
   maxSortino: 'sortino',
 };
-const pctCol = (key: keyof OptimizeResultItem, label: string): Column<OptimizeResultItem> => ({
+const pctCol = (key: keyof OptimizeResultItem, label: string): TableColumn<OptimizeResultItem> => ({
   key,
   label,
   sortValue: (r) => r[key] as number,
   render: (r) => fmtPct(r[key] as number),
 });
-const numCol = (key: keyof OptimizeResultItem, label: string): Column<OptimizeResultItem> => ({
+const numCol = (key: keyof OptimizeResultItem, label: string): TableColumn<OptimizeResultItem> => ({
   key,
   label,
   sortValue: (r) => r[key] as number,
   render: (r) => fmtNum(r[key] as number),
 });
-export const TABLE_COLUMNS: Column<OptimizeResultItem>[] = [
+export const TABLE_COLUMNS: TableColumn<OptimizeResultItem>[] = [
   {
     key: 'rebalanceFrequency',
     label: i18n.t('Rebalancing Frequency'),

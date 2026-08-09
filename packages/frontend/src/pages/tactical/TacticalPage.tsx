@@ -1,9 +1,9 @@
-import { useMemo } from 'react';
+﻿import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LineChart } from 'lucide-react';
 import { Card, Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/uiComponents';
 import { ErrorBanner, EmptyState } from '@/components/stateDisplay';
-import { SortableTable, type Column } from '@/components/tables';
+import { SortableTable, type TableColumn } from '@/components/tables';
 import { TimeSeriesLineChart } from '@/components/charts/TimeSeriesLineChart';
 import { buildGrowthData, buildStatRows, type StatRow } from './tacticalResultUtils';
 import { SignalHistoryTable, WhatIfTab } from './TacticalTables';
@@ -45,7 +45,7 @@ function BacktestResultTab({ results }: { results: BacktestResponse }) {
   const { portfolio, benchmark, signalHistory } = results;
   const growthData = useMemo(() => buildGrowthData(portfolio, benchmark), [portfolio, benchmark]);
   const statRows = useMemo(() => buildStatRows(portfolio, benchmark, t), [portfolio, benchmark, t]);
-  const statColumns: Column<StatRow>[] = [
+  const statColumns: TableColumn<StatRow>[] = [
     { key: 'metric', label: t('Metric') },
     {
       key: 'tactical',

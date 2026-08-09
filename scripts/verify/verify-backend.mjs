@@ -29,7 +29,6 @@ const TENANT_TABLES = [
   'subscriptions',
   'custom_tickers',
   'tactical_configs',
-  'org_memberships',
   'invitations',
 ];
 const WRONG_GUC = [/app\.tenant_id/, /app\.org_id(?!_)/];

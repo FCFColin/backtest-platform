@@ -21,8 +21,8 @@ set -euo pipefail
 BACKUP_NAME="${1:-LATEST}"
 CONTAINER_NAME="${POSTGRES_CONTAINER:-backtest-postgres}"
 PGDATA="${PGDATA:-/var/lib/postgresql/data}"
-# Docker Compose 项目名（影响卷名：{project}_{volume}）
-COMPOSE_PROJECT="${COMPOSE_PROJECT_NAME:-backtest}"
+# Docker Compose 项目名（影响卷名：{project}_{volume}；须与 docker-compose.yml 顶层 name: 一致）
+COMPOSE_PROJECT="${COMPOSE_PROJECT_NAME:-backtest-platform}"
 PGDATA_VOLUME="${COMPOSE_PROJECT}_pgdata"
 
 echo "[backup-restore] !!! WARNING: This will DESTROY and RESTORE the PostgreSQL data directory !!!"

@@ -337,13 +337,15 @@ describe('idempotencyKey 中间件', () => {
     const r1 = createIdempotencyReqRes(key);
     await passOnce(r1, cachedBody);
     if (assertRedis)
-      await vi.waitFor(() => expect(redisMocks.store.has(`idempotency:${key}`)).toBe(true));
+      await vi.waitFor(() =>
+        expect(redisMocks.store.has(`idempotency:127.0.0.1:${key}`)).toBe(true),
+      );
     const r2 = createIdempotencyReqRes(key);
     idempotencyKey(r2.req, r2.res, r2.next);
     await vi.waitFor(() => expect(r2.res.status).toHaveBeenCalledWith(200));
     expect(r2.next).not.toHaveBeenCalled();
     expect(r2.res.json).toHaveBeenCalledWith(cachedBody);
-    if (assertRedis) expect(redisMocks.get).toHaveBeenCalledWith(`idempotency:${key}`);
+    if (assertRedis) expect(redisMocks.get).toHaveBeenCalledWith(`idempotency:127.0.0.1:${key}`);
   });
   it('5xx 响应不应被缓存，重试应再次放行', async () => {
     const key = 'server-error-key';

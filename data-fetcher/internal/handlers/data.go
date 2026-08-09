@@ -114,27 +114,6 @@ func HandleBatchPriceData(ds *store.DataStore) gin.HandlerFunc {
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": result, "degraded": degradedCount > 0})
 	}
 }
-func HandleValidateTickers(ds *store.DataStore) gin.HandlerFunc {
-	type ValidateRequest struct {
-		Tickers []string `json:"tickers"`
-	}
-	return func(c *gin.Context) {
-		var req ValidateRequest
-		if err := c.ShouldBindJSON(&req); err != nil {
-			sharedhttp.NewProblem(c, http.StatusBadRequest, "VALIDATION_ERROR", "Validation Error", "请求格式错误")
-			return
-		}
-		if !validateTickers(c, req.Tickers) {
-			return
-		}
-		valid, invalid, err := ds.BatchValidateTickers(c.Request.Context(), req.Tickers)
-		if err != nil {
-			sharedhttp.NewProblem(c, http.StatusInternalServerError, "VALIDATION_FAILED", "Validation Failed", "校验失败")
-			return
-		}
-		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"valid": valid, "invalid": invalid}})
-	}
-}
 func HandleCPI(ds *store.DataStore) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		country := c.Param("country")

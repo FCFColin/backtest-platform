@@ -1,6 +1,4 @@
-import { lazy, type ComponentType } from 'react';
-
-const lazyDefault = (imp: () => Promise<{ default: ComponentType }>) => lazy(imp);
+import { lazyNamed } from '@/utils/lazyImport';
 
 const loaders = {
   backtest: () => import('@/pages/backtest/BacktestPage'),
@@ -28,5 +26,5 @@ export const preloadPage = (name: string): void => {
 };
 
 export const PAGE_LOADERS = Object.fromEntries(
-  Object.entries(loaders).map(([k, v]) => [k, lazyDefault(v)]),
+  Object.entries(loaders).map(([k, v]) => [k, lazyNamed(v, 'default')]),
 );

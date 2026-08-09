@@ -26,6 +26,11 @@ const migrations: Array<{ version: number; upFile: string; downFile: string }> =
     upFile: '003_platform_rls_escape.sql',
     downFile: '003_platform_rls_escape_down.sql',
   },
+  {
+    version: 4,
+    upFile: '004_remove_dead_schema.sql',
+    downFile: '004_remove_dead_schema_down.sql',
+  },
 ];
 
 export async function initSchema(): Promise<void> {
