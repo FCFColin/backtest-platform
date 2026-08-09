@@ -182,14 +182,12 @@ function SubscriptionSection({ plan }: { plan: string | undefined }) {
             {t('Self-hosted Version')}
           </div>
         </div>
-        <button
-          className="main-action-btn min-h-[38px] px-[18px] text-[13px]"
-          onClick={() => {
-            window.location.hash = '#/pricing';
-          }}
+        <Link
+          to="/pricing"
+          className="main-action-btn min-h-[38px] px-[18px] text-[13px] inline-flex items-center"
         >
           {t('Upgrade Plan')}
-        </button>
+        </Link>
       </div>
     </>
   );
@@ -212,7 +210,7 @@ export default function AccountPage() {
     : t('Local User');
   const initials = displayName.slice(0, 2).toUpperCase();
   return (
-    <StandardPageShell config={{ titleKey: 'account.title' }}>
+    <StandardPageShell config={{ titleKey: 'Account' }}>
       <div className="bt-main-card card" style={{ padding: 24 }}>
         <UserInfoCard
           displayName={displayName}

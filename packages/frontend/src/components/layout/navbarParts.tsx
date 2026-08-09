@@ -8,11 +8,10 @@ import {
 import { Link, useNavigate } from 'react-router';
 import { Sun, MoonStar, X, ArrowRight, Bell, ChevronDown } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { useShallow } from 'zustand/react/shallow';
 import * as SheetPrimitive from '@radix-ui/react-dialog';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { useTheme, useAnnouncements } from '@/hooks/miscHooks';
-import { useBacktestStore } from '@/store/backtestStore';
+import { useSettingsStore } from '@/store/settingsStore';
 import { useAuthStore } from '@/store/authStore';
 import {
   Button,
@@ -143,14 +142,13 @@ function NotificationBell() {
 export function NavbarActions() {
   const { t } = useTranslation();
   const { theme, toggleTheme } = useTheme();
-  const baseCurrency = useBacktestStore(useShallow((s) => s.parameters.baseCurrency));
-  const updateParameter = useBacktestStore((s) => s.updateParameter);
+  const currency = useSettingsStore((s) => s.currency);
   const user = useAuthStore((s) => s.user);
   const org = useAuthStore((s) => s.org);
   const logout = useAuthStore((s) => s.logout);
   const navigate = useNavigate();
   const toggleCurrency = () =>
-    updateParameter('baseCurrency', baseCurrency === 'usd' ? 'cny' : 'usd');
+    useSettingsStore.getState().setCurrency(currency === 'usd' ? 'cny' : 'usd');
   return (
     <div className="flex items-center gap-1">
       <Button
@@ -168,11 +166,10 @@ export function NavbarActions() {
         size="sm"
         onClick={toggleCurrency}
         title={t('Switch currency')}
-        aria-label={`${t('Switch currency')} (${baseCurrency === 'usd' ? 'USD' : 'CNY'})`}
+        aria-label={`${t('Switch currency')} (${currency === 'usd' ? 'USD' : 'CNY'})`}
         data-testid="currency-selector"
       >
-        {baseCurrency === 'usd' ? 'USD' : 'CNY'}
-        <ChevronDown className="size-3" />
+        {currency === 'usd' ? 'USD' : 'CNY'}
       </Button>
       <div className="w-px h-6 bg-border mx-1" />
       <NotificationBell />

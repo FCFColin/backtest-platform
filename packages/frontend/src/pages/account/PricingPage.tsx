@@ -3,32 +3,18 @@ import { Link } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import type { ComponentType } from 'react';
 import { useAuthStore } from '@/store/authStore';
-import pricingData from './pricing/pricingData.json';
+import {
+  PLANS,
+  COMPARISON_ROWS,
+  planPrice,
+  planPeriod,
+  resolveCellValue,
+  type PlanEntry,
+  type ComparisonRowEntry,
+} from '@/lib/pricing';
 const PLAN_ICONS: Record<string, ComponentType<{ className?: string }>> = { Star, Zap, Crown };
-const STATIC_SYMBOLS = new Set(['-', '✓']);
-interface PlanFeatureEntry {
-  key: string;
-  included: boolean;
-}
-interface PlanEntry {
-  name: string;
-  iconName: string;
-  price?: string;
-  priceKey?: string;
-  period?: string;
-  periodKey?: string;
-  descKey: string;
-  ctaKey: string;
-  recommended?: boolean;
-  features: PlanFeatureEntry[];
-}
-interface ComparisonRowEntry {
-  featureKey: string;
-  free: string;
-  pro: string;
-  proPlus: string;
-}
 interface Plan {
+  id: string;
   name: string;
   icon: React.ReactNode;
   price: string;
@@ -40,13 +26,14 @@ interface Plan {
 }
 function usePlans(): Plan[] {
   const { t } = useTranslation();
-  return (pricingData.plans as PlanEntry[]).map((p) => {
+  return (PLANS as PlanEntry[]).map((p) => {
     const Icon = PLAN_ICONS[p.iconName] ?? Star;
     return {
+      id: p.id,
       name: p.name,
       icon: <Icon className="w-5 h-5" />,
-      price: p.priceKey ? t(p.priceKey) : (p.price ?? ''),
-      period: p.periodKey ? t(p.periodKey) : (p.period ?? ''),
+      price: planPrice(p, t),
+      period: planPeriod(p, t),
       desc: t(p.descKey),
       recommended: p.recommended,
       features: p.features.map((f) => ({ text: t(f.key), included: f.included })),
@@ -54,8 +41,6 @@ function usePlans(): Plan[] {
     };
   });
 }
-const resolveCellValue = (value: string, t: (key: string) => string) =>
-  STATIC_SYMBOLS.has(value) ? value : t(value);
 const gridStyle: React.CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
@@ -102,7 +87,7 @@ export default function PricingPage() {
 }
 function ComparisonTable() {
   const { t } = useTranslation();
-  const rows = pricingData.comparisonRows as ComparisonRowEntry[];
+  const rows = COMPARISON_ROWS as ComparisonRowEntry[];
   const ths: { text: string; align: string; color: string; weight: number }[] = [
     {
       text: t('Feature'),
@@ -110,9 +95,12 @@ function ComparisonTable() {
       color: 'var(--text-muted)',
       weight: 600,
     },
-    { text: 'Free', align: 'center', color: 'var(--text-muted)', weight: 600 },
-    { text: 'Pro', align: 'center', color: 'var(--brand)', weight: 700 },
-    { text: 'Pro+', align: 'center', color: 'var(--text-muted)', weight: 600 },
+    ...PLANS.map((p, i) => ({
+      text: p.name,
+      align: 'center' as const,
+      color: i === 1 ? 'var(--brand)' : 'var(--text-muted)',
+      weight: i === 1 ? 700 : 600,
+    })),
   ];
   return (
     <div style={{ marginTop: 16 }}>
@@ -190,7 +178,7 @@ function PricingNotice() {
 }
 function PlanCard({ plan }: { plan: Plan }) {
   const isRecommended = plan.recommended;
-  const isCurrentPlan = plan.name === 'Free';
+  const isCurrentPlan = plan.id === 'free';
   const isAuthenticated = useAuthStore((s) => s.user !== null);
   const brandColor = 'hsl(var(--brand))';
   const ctaStyle: React.CSSProperties = {

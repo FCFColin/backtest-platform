@@ -1,6 +1,7 @@
 {
   "plans": [
     {
+      "id": "free",
       "name": "Free",
       "iconName": "Star",
       "priceKey": "account.pricing.plans.free.price",
@@ -19,9 +20,10 @@
       ]
     },
     {
+      "id": "pro",
       "name": "Pro",
       "iconName": "Zap",
-      "price": "$10",
+      "priceKey": "account.pricing.plans.pro.price",
       "periodKey": "account.pricing.periodMonth",
       "descKey": "account.pricing.plans.pro.desc",
       "ctaKey": "account.pricing.plans.pro.cta",
@@ -38,12 +40,13 @@
       ]
     },
     {
-      "name": "Pro+",
+      "id": "enterprise",
+      "name": "Enterprise",
       "iconName": "Crown",
-      "price": "$25",
+      "priceKey": "account.pricing.plans.enterprise.price",
       "periodKey": "account.pricing.periodMonth",
-      "descKey": "account.pricing.plans.proPlus.desc",
-      "ctaKey": "account.pricing.plans.proPlus.cta",
+      "descKey": "account.pricing.plans.enterprise.desc",
+      "ctaKey": "account.pricing.plans.enterprise.cta",
       "features": [
         { "key": "account.pricing.features.allProFeatures", "included": true },
         { "key": "account.pricing.features.unlimitedPortfolios", "included": true },

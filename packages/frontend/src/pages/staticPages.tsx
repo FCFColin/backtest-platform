@@ -21,6 +21,7 @@ import { Field, FieldLabel } from '@/components/form/Field';
 import { StaticPageShell } from '@/components/layout/ToolPageLayout.js';
 import { useToastStore } from '@/store/toastStore';
 import aboutData from './about/aboutData.json';
+import { PLANS, planPrice, planPeriod } from '@/lib/pricing';
 
 const FEATURE_ICONS: Record<string, ComponentType<{ className?: string }>> = {
   Shield,
@@ -131,19 +132,6 @@ function LimitsContent() {
 }
 function UpgradeContent() {
   const { t } = useTranslation();
-  const plans = (
-    aboutData.plans as {
-      titleKey: string;
-      priceKey: string;
-      featuresKey: string;
-      current?: boolean;
-    }[]
-  ).map((p) => ({
-    title: t(p.titleKey),
-    price: t(p.priceKey),
-    features: t(p.featuresKey, { returnObjects: true }) as string[],
-    current: p.current,
-  }));
   return (
     <div>
       <div className="mb-6 text-body leading-loose text-fg-secondary">
@@ -152,26 +140,32 @@ function UpgradeContent() {
         )}
       </div>
       <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(280px,1fr))]">
-        {plans.map((p) => (
-          <div
-            key={p.title}
-            className={`rounded-lg p-5 ${p.current ? 'border-2 border-brand bg-brand/10' : 'border border-subtle bg-input-bg'}`}
-          >
-            <div className="mb-1 text-h3 font-bold text-fg">{p.title}</div>
-            <div className="mb-4 text-h1 font-bold text-brand">{p.price}</div>
-            {p.features.map((f, i) => (
-              <div key={i} className="relative py-1 pl-4 text-label text-fg-secondary">
-                <span className="absolute left-0 text-success">✓</span>
-                {f}
+        {PLANS.map((p) => {
+          const current = p.id === 'free';
+          const features = p.features.filter((f) => f.included).map((f) => t(f.key));
+          return (
+            <div
+              key={p.id}
+              className={`rounded-lg p-5 ${current ? 'border-2 border-brand bg-brand/10' : 'border border-subtle bg-input-bg'}`}
+            >
+              <div className="mb-1 text-h3 font-bold text-fg">{p.name}</div>
+              <div className="mb-4 text-h1 font-bold text-brand">
+                {`${planPrice(p, t)}${planPeriod(p, t)}`}
               </div>
-            ))}
-            {p.current && (
-              <div className="mt-4 rounded-lg bg-brand py-2 text-center text-label font-semibold text-brand-fg">
-                {t('Current Plan')}
-              </div>
-            )}
-          </div>
-        ))}
+              {features.map((f, i) => (
+                <div key={i} className="relative py-1 pl-4 text-label text-fg-secondary">
+                  <span className="absolute left-0 text-success">✓</span>
+                  {f}
+                </div>
+              ))}
+              {current && (
+                <div className="mt-4 rounded-lg bg-brand py-2 text-center text-label font-semibold text-brand-fg">
+                  {t('Current Plan')}
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

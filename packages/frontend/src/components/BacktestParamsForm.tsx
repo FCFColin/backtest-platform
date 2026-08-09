@@ -1,6 +1,7 @@
 import {
   memo,
   useState,
+  useEffect,
   type ChangeEvent,
   type ReactNode,
   forwardRef,
@@ -12,6 +13,7 @@ import { useTranslation } from 'react-i18next';
 import { useShallow } from 'zustand/react/shallow';
 import { ChevronDown, Calendar } from 'lucide-react';
 import { useBacktestStore } from '@/store/backtestStore';
+import { useSettingsStore } from '@/store/settingsStore';
 import { useToastStore } from '@/store/toastStore';
 import {
   Switch,
@@ -45,8 +47,6 @@ interface FloatingFieldProps extends Omit<InputHTMLAttributes<HTMLInputElement>,
   label: string;
   prefix?: ReactNode;
   suffix?: ReactNode;
-  error?: string;
-  hint?: string;
   containerClassName?: string;
   type?: 'select' | string;
   options?: Array<{ value: string; label: string }>;
@@ -59,8 +59,6 @@ export const FloatingField = forwardRef<HTMLInputElement, FloatingFieldProps>(
       label,
       prefix,
       suffix,
-      error,
-      hint,
       className,
       containerClassName,
       id,
@@ -79,9 +77,7 @@ export const FloatingField = forwardRef<HTMLInputElement, FloatingFieldProps>(
         <div
           className={cn(
             FIELD_SHELL,
-            error
-              ? 'border-danger focus-within:border-danger'
-              : 'border-border focus-within:border-brand hover:border-border-strong',
+            'border-border focus-within:border-brand hover:border-border-strong',
           )}
         >
           <label htmlFor={inputId} className={LABEL_CLS}>
@@ -101,15 +97,6 @@ export const FloatingField = forwardRef<HTMLInputElement, FloatingFieldProps>(
             {...props}
           />
         </div>
-        {error ? (
-          <p id={`${inputId}-error`} className="mt-1 text-caption text-danger">
-            {error}
-          </p>
-        ) : hint ? (
-          <p id={`${inputId}-hint`} className="mt-1 text-caption text-fg-tertiary">
-            {hint}
-          </p>
-        ) : null}
       </div>
     );
   },
@@ -131,19 +118,14 @@ function FieldControl({
   suffix,
   className,
   type,
-  error,
-  hint,
   ...inputProps
 }: FieldControlProps) {
-  const describedBy = error ? `${inputId}-error` : hint ? `${inputId}-hint` : undefined;
   if (type === 'select') {
     return (
       <Select value={inputProps.value as string} onValueChange={onValueChange} disabled={disabled}>
         <SelectTrigger
           id={inputId}
           aria-label={label}
-          aria-invalid={error ? true : undefined}
-          aria-describedby={describedBy}
           className="w-full h-full pt-6 pb-2 px-3 pr-9 flex items-center justify-between text-body text-fg text-left border-0 bg-transparent focus:outline-none focus:ring-0 [&>svg]:absolute [&>svg]:right-3 [&>svg]:bottom-3.5 [&>svg]:opacity-100"
         >
           <SelectValue placeholder={inputProps.placeholder as string} />
@@ -170,8 +152,6 @@ function FieldControl({
         id={inputId}
         type={type}
         disabled={disabled}
-        aria-invalid={error ? true : undefined}
-        aria-describedby={describedBy}
         className={cn(
           'w-full h-full pt-6 pb-2 bg-transparent text-body text-fg font-mono tabular-nums focus:outline-none placeholder:text-fg-tertiary',
           prefix ? 'pl-7' : 'pl-3',
@@ -208,6 +188,10 @@ export function BasicParamsRow({
   onChange,
 }: BasicParamsRowProps) {
   const { t } = useTranslation();
+  const currency = useSettingsStore((s) => s.currency);
+  useEffect(() => {
+    if (baseCurrency !== currency) onChange('baseCurrency', currency);
+  }, [currency, baseCurrency, onChange]);
   const prefix = baseCurrency === 'usd' ? '$' : '¥';
   return (
     <div className="flex flex-wrap items-end gap-3">
@@ -251,7 +235,11 @@ export function BasicParamsRow({
           id="bp-currency"
           className="flex h-10 w-full rounded-md border border-border bg-input-bg px-3 py-2 text-body text-fg transition-colors hover:border-border-strong focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/15 disabled:cursor-not-allowed disabled:opacity-50"
           value={baseCurrency}
-          onChange={(e) => onChange('baseCurrency', e.target.value as 'usd' | 'cny')}
+          onChange={(e) => {
+            const v = e.target.value as 'usd' | 'cny';
+            onChange('baseCurrency', v);
+            useSettingsStore.getState().setCurrency(v);
+          }}
         >
           {CURRENCY_OPTIONS.map((o) => (
             <option key={o.value} value={o.value}>
@@ -265,7 +253,7 @@ export function BasicParamsRow({
           checked={adjustForInflation}
           onCheckedChange={(v) => onChange('adjustForInflation', v)}
         />
-        <span className="text-caption text-fg-secondary">{t('Inflation Adjust')}</span>
+        <span className="text-caption text-fg-secondary">{t('params.adjustForInflation')}</span>
       </div>
     </div>
   );
@@ -275,6 +263,10 @@ function useParamField() {
   const { t } = useTranslation();
   const parameters = useBacktestStore(useShallow((s) => s.parameters));
   const updateParameter = useBacktestStore((s) => s.updateParameter);
+  const currency = useSettingsStore((s) => s.currency);
+  useEffect(() => {
+    if (parameters.baseCurrency !== currency) updateParameter('baseCurrency', currency);
+  }, [currency, parameters.baseCurrency, updateParameter]);
   const dateRangeMode = parameters.startDate === '' && parameters.endDate === '' ? 'all' : 'custom';
   const handleDateRangeChange = (value: string) => {
     updateParameter('startDate', value === 'all' ? '' : DEFAULT_BACKTEST_START_DATE);
@@ -310,6 +302,7 @@ function useParamField() {
   return {
     t,
     parameters,
+    currency,
     updateParameter,
     dateRangeMode,
     handleDateRangeChange,
@@ -327,7 +320,7 @@ function BasicParamsGrid() {
   const {
     t,
     parameters,
-    updateParameter,
+    currency,
     dateRangeMode,
     handleDateRangeChange,
     handleDateChange,
@@ -382,8 +375,8 @@ function BasicParamsGrid() {
       <FloatingField
         label={t('Currency')}
         type="select"
-        value={parameters.baseCurrency}
-        onValueChange={(v) => updateParameter('baseCurrency', v as 'usd' | 'cny')}
+        value={currency}
+        onValueChange={(v) => useSettingsStore.getState().setCurrency(v as 'usd' | 'cny')}
         options={CURRENCY_OPTIONS}
       />
     </div>

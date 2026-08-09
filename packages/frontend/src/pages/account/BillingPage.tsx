@@ -7,6 +7,7 @@ import { apiFetch } from '@/utils/apiClient';
 import { useAuthStore } from '@/store/authStore';
 import { ErrorBanner } from '@/components/stateDisplay';
 import { cn } from '@/lib/utils';
+import { BILLABLE_PLANS, planPrice, planPeriod } from '@/lib/pricing';
 
 interface SubscriptionSummary {
   plan: string;
@@ -27,28 +28,12 @@ interface PlanDef {
 }
 const usePlans = (): PlanDef[] => {
   const { t } = useTranslation();
-  return [
-    {
-      id: 'pro',
-      name: 'Pro',
-      price: t('$29/mo'),
-      features: [
-        t('Advanced backtest features'),
-        t('Unlimited portfolios'),
-        t('10 years of historical data'),
-      ],
-    },
-    {
-      id: 'enterprise',
-      name: 'Enterprise',
-      price: t('Contact Us'),
-      features: [
-        t('Unlimited portfolios and backtests'),
-        t('API access (REST + WebSocket)'),
-        t('24/7 priority support'),
-      ],
-    },
-  ];
+  return BILLABLE_PLANS.map((p) => ({
+    id: p.id,
+    name: p.name,
+    price: `${planPrice(p, t)}${planPeriod(p, t)}`,
+    features: p.features.filter((f) => f.included).map((f) => t(f.key)),
+  }));
 };
 
 function PlanCard({
@@ -228,7 +213,7 @@ export default function BillingPage() {
   return (
     <StandardPageShell
       config={{
-        titleKey: 'account.billing.title',
+        titleKey: 'Billing',
         headerExtra: <CreditCard className="w-5 h-5 text-brand" />,
       }}
     >

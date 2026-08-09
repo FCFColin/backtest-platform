@@ -12,6 +12,7 @@ import type {
   OneTimeCashflow,
 } from '@backtest/shared';
 import { useToastStore } from './toastStore.js';
+import { useSettingsStore } from './settingsStore.js';
 import {
   extractApiErrorDetail,
   normalizeBacktestResult,
@@ -169,6 +170,7 @@ function loadFromShareAction(
   get: GetFn,
   data: { portfolios: Portfolio[]; parameters: BacktestParameters },
 ): void {
+  useSettingsStore.getState().setCurrency(data.parameters.baseCurrency ?? 'usd');
   const maxId = data.portfolios.reduce((max, p) => {
     const match = p.id?.match(/-(\d+)$/);
     return match ? Math.max(max, parseInt(match[1])) : max;
