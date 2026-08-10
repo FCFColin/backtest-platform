@@ -49,7 +49,7 @@ describe('AuditEventHandler', () => {
   });
 
   it('handle 应经 withTenant 写入 writeAuditLog（action 由 method 映射）', async () => {
-    await handler.handle(makeEvent());
+    await handler.handle(makeEvent({ __outboxEventId: 'outbox-1' }));
 
     expect(writeAuditLog).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -61,14 +61,23 @@ describe('AuditEventHandler', () => {
         ipAddress: '127.0.0.1',
       }),
       {},
+      'outbox-1',
     );
   });
 
   it('PUT/PATCH/DELETE 应映射为 UPDATE/DELETE', async () => {
     await handler.handle(makeEvent({ method: 'PUT' }));
-    expect(writeAuditLog).toHaveBeenCalledWith(expect.objectContaining({ action: 'UPDATE' }), {});
+    expect(writeAuditLog).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'UPDATE' }),
+      {},
+      undefined,
+    );
     await handler.handle(makeEvent({ method: 'DELETE' }));
-    expect(writeAuditLog).toHaveBeenCalledWith(expect.objectContaining({ action: 'DELETE' }), {});
+    expect(writeAuditLog).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'DELETE' }),
+      {},
+      undefined,
+    );
   });
 
   it('缺少 orgId 时跳过持久化并告警', async () => {

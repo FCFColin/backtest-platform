@@ -3,8 +3,9 @@ import crypto from 'crypto';
 import type { PoolClient } from 'pg';
 import { config } from '../config/index.js';
 import { logger } from '../utils/logger.js';
-import { getPool, withPlatformContext } from '../db/pool.js';
+import { withPlatformContext } from '../db/pool.js';
 import { rowMapper, iso, toIso } from '../repositories/rowMapper.js';
+import { safeEqual } from '../utils/crypto.js';
 
 export type AuditAction =
   'CREATE' | 'UPDATE' | 'DELETE' | 'LOGIN' | 'LOGOUT' | 'READ' | 'EXPORT' | 'CONFIG';
@@ -53,19 +54,22 @@ function computePrevHash(id: string, signature: string): string {
   return crypto.createHash('sha256').update(`${id}${signature}`).digest('hex');
 }
 
-export async function writeAuditLog(entry: AuditLogEntry, client?: PoolClient): Promise<string> {
-  const conn = client ?? getPool();
+export async function writeAuditLog(
+  entry: AuditLogEntry,
+  client: PoolClient,
+  outboxEventId?: string,
+): Promise<string | null> {
   const payloadStr = JSON.stringify(entry.payload);
   const signature = signAuditEntry(payloadStr);
-  const prevResult = await conn.query(
+  const prevResult = await client.query(
     'SELECT id, hmac_signature FROM audit_logs ORDER BY created_at DESC, id DESC LIMIT 1',
   );
   const prevRow = prevResult.rows[0];
   const prevHash = prevRow
     ? computePrevHash(prevRow.id as string, prevRow.hmac_signature as string)
     : null;
-  const { rows } = await conn.query(
-    `INSERT INTO audit_logs (event_type, user_id, org_id, ip_address, action, resource_type, resource_id, payload, hmac_signature, prev_hash) VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10) RETURNING id`,
+  const { rows } = await client.query(
+    `INSERT INTO audit_logs (event_type, user_id, org_id, ip_address, action, resource_type, resource_id, payload, hmac_signature, prev_hash, outbox_event_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10, $11) ON CONFLICT (outbox_event_id) WHERE outbox_event_id IS NOT NULL DO UPDATE SET outbox_event_id = EXCLUDED.outbox_event_id RETURNING id`,
     [
       entry.eventType,
       entry.userId ?? null,
@@ -77,9 +81,10 @@ export async function writeAuditLog(entry: AuditLogEntry, client?: PoolClient): 
       payloadStr,
       signature,
       prevHash,
+      outboxEventId ?? null,
     ],
   );
-  const id = rows[0].id as string;
+  const id = rows[0]?.id as string | undefined;
   logger.debug(
     {
       module: 'auditStorage',
@@ -90,7 +95,7 @@ export async function writeAuditLog(entry: AuditLogEntry, client?: PoolClient): 
     },
     '[auditStorage] 审计日志已写入（含链式 prev_hash）',
   );
-  return id;
+  return id ?? null;
 }
 
 export async function getUnexportedAuditLogs(
@@ -134,9 +139,7 @@ export async function verifyAuditIntegrity(
     .createHmac('sha256', key)
     .update(typeof payload === 'string' ? payload : JSON.stringify(payload))
     .digest('hex');
-  const sigBuf = Buffer.from(storedSignature);
-  const expBuf = Buffer.from(expected);
-  const valid = sigBuf.length === expBuf.length && crypto.timingSafeEqual(sigBuf, expBuf);
+  const valid = safeEqual(storedSignature, expected);
   if (!valid)
     logger.warn(
       { module: 'auditStorage', logId },

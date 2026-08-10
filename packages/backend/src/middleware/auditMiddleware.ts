@@ -6,6 +6,7 @@ import type { PoolClient } from 'pg';
 import { getPool } from '../db/pool.js';
 import { writeEventInTransaction } from '../infrastructure/outbox.js';
 import { auditOutboxWriteFailures } from '../utils/metrics.js';
+import { safeEqual } from '../utils/crypto.js';
 import type { AuthenticatedRequest } from './jwtAuth.js';
 
 const auditLogger = logger.child({ audit: true, module: 'audit' });
@@ -32,10 +33,7 @@ export function verifyPayload(payload: string, signature: string): boolean {
     'AUDIT_HMAC_KEY not set, audit payload verification fails closed (returns false)',
   );
   if (!expected) return false;
-  const sigBuf = Buffer.from(signature),
-    expBuf = Buffer.from(expected);
-  if (sigBuf.length !== expBuf.length) return false;
-  return crypto.timingSafeEqual(sigBuf, expBuf);
+  return safeEqual(signature, expected);
 }
 export async function writeOutboxEvent(
   auditEntry: Record<string, unknown>,

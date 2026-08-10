@@ -5,6 +5,7 @@ import { RedisUnavailableError } from '../utils/errors.js';
 import { appRedis, getRedisHealth, markRedisUnhealthy } from '../infrastructure/redisClient.js';
 import { requireRedis } from '../utils/redisFallback.js';
 import { getUserById } from '../repositories/userRepo.js';
+import { getMembership, orgRoleToGlobalRole } from '../application/org/membershipService.js';
 import { generateToken, hashUserId } from './jwtAuth.js';
 import type { Role, TenantContext } from './jwtAuth.js';
 import type { OrgRole } from '@backtest/shared/types/org';
@@ -192,6 +193,20 @@ async function refreshAccessTokenRedis(
   if (!(await isUserSessionValid(entry.userId))) {
     logger.warn({ userId: hashUserId(entry.userId) }, '[jwtAuth] 用户已停用，拒绝 refresh');
     return null;
+  }
+  // 刷新时复核当前成员资格（ADR-032）：已移除/降级/组织停用即时生效，不依赖旧 family 吊销
+  if (entry.tenantId) {
+    const membership = await getMembership(entry.userId, entry.tenantId);
+    if (!membership || membership.orgStatus !== 'active') {
+      logger.warn(
+        { userId: hashUserId(entry.userId), tenantId: entry.tenantId },
+        '[jwtAuth] 成员资格已失效，撤销 refresh family 并拒绝刷新',
+      );
+      await revokeFamilyRedis(entry.familyId);
+      return null;
+    }
+    entry.role = orgRoleToGlobalRole(membership.role);
+    entry.orgRole = membership.role;
   }
   const family = await readEntry<TokenFamilyEntry>(redisKeys.family(entry.familyId));
   if (family?.revoked) {

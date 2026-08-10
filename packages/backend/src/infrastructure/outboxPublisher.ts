@@ -144,14 +144,16 @@ export class OutboxPublisher {
   }
 
   private async routeEvent(event: OutboxEventRow): Promise<void> {
+    const payload =
+      typeof event.payload === 'string'
+        ? JSON.parse(event.payload)
+        : (event.payload as Record<string, unknown>);
     await eventDispatcher.dispatch({
       eventType: event.event_type,
       aggregateType: event.aggregate_type,
       aggregateId: event.aggregate_id,
-      payload:
-        typeof event.payload === 'string'
-          ? JSON.parse(event.payload)
-          : (event.payload as Record<string, unknown>),
+      // 透传 outbox 行 id 供消费端幂等（ADR-014）：重复投递不再重复落库
+      payload: { ...payload, __outboxEventId: event.id },
       occurredAt: new Date(event.created_at),
     });
   }

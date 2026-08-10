@@ -130,11 +130,19 @@ export class OutboxKafkaConsumer implements OutboxConsumer {
       );
       return;
     }
+    // Debezium outbox 消息若带行 id，透传供消费端幂等（ADR-014）
+    const outboxEventId =
+      typeof eventPayload.id === 'string'
+        ? eventPayload.id
+        : typeof eventPayload.outboxId === 'string'
+          ? eventPayload.outboxId
+          : null;
     await eventDispatcher.dispatch({
       eventType,
       aggregateType,
       aggregateId,
-      payload: eventPayload,
+      payload:
+        outboxEventId === null ? eventPayload : { ...eventPayload, __outboxEventId: outboxEventId },
       occurredAt,
     });
     logger.info(

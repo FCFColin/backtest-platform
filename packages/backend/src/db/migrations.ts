@@ -36,6 +36,11 @@ const migrations: Array<{ version: number; upFile: string; downFile: string }> =
     upFile: '005_remove_dead_schema.sql',
     downFile: '005_remove_dead_schema_down.sql',
   },
+  {
+    version: 6,
+    upFile: '006_audit_outbox_idempotency.sql',
+    downFile: '006_audit_outbox_idempotency_down.sql',
+  },
 ];
 
 export async function initSchema(): Promise<void> {

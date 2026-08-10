@@ -15,6 +15,10 @@ const internalMocks = vi.hoisted(() => ({
   redis: {} as Record<string, unknown>,
   fs: { readFileSync: vi.fn() },
   apiKey: { verifyApiKey: vi.fn(async () => null) },
+  membership: {
+    getMembership: vi.fn(),
+    orgRoleToGlobalRole: vi.fn((role: string) => (role === 'owner' ? 'admin' : role)),
+  },
 }));
 
 vi.mock('../../../packages/backend/src/config/index.js', () => ({
@@ -34,6 +38,10 @@ vi.mock('../../../packages/backend/src/repositories/userRepo.js', () => ({
 vi.mock('../../../packages/backend/src/infrastructure/apiKeyVerifier.js', () => ({
   verifyApiKey: internalMocks.apiKey.verifyApiKey,
 }));
+vi.mock('../../../packages/backend/src/application/org/membershipService.js', () => ({
+  getMembership: internalMocks.membership.getMembership,
+  orgRoleToGlobalRole: internalMocks.membership.orgRoleToGlobalRole,
+}));
 vi.mock('fs', () => ({
   default: { readFileSync: internalMocks.fs.readFileSync },
   readFileSync: internalMocks.fs.readFileSync,
@@ -43,6 +51,24 @@ export const mocks = internalMocks.configContainer;
 export const redisMocks = internalMocks.redis;
 export const fsMocks = internalMocks.fs;
 export const apiKeyMocks = internalMocks.apiKey;
+export const membershipMocks = internalMocks.membership;
+
+/** 让带 tenantId 的 refresh 通过成员资格复核（默认 owner/admin） */
+export function mockMembershipActive(
+  role: 'owner' | 'admin' | 'analyst' | 'readonly' = 'owner',
+  orgStatus = 'active',
+): void {
+  vi.mocked(membershipMocks.getMembership).mockImplementation(
+    async (_userId: string, orgId: string) => ({
+      orgId,
+      orgName: 'Test Org',
+      orgSlug: 'test-org',
+      orgPlan: 'free',
+      orgStatus,
+      role,
+    }),
+  );
+}
 
 /** 设置 getUserById 的 mock 返回指定用户（默认活跃 admin） */
 export function mockUser(isActive = true, role: 'admin' | 'readonly' = 'admin'): void {

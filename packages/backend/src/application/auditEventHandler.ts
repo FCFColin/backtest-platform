@@ -25,6 +25,7 @@ export class AuditEventHandler implements EventHandler {
       return;
     }
     const method = typeof p.method === 'string' ? p.method : '';
+    const outboxEventId = typeof p.__outboxEventId === 'string' ? p.__outboxEventId : null;
     const entry = {
       eventType: 'AuditEvent',
       userId: typeof p.userId === 'string' ? p.userId : null,
@@ -41,6 +42,6 @@ export class AuditEventHandler implements EventHandler {
         timestamp: p.timestamp,
       },
     };
-    await withTenant(orgId, (client) => writeAuditLog(entry, client));
+    await withTenant(orgId, (client) => writeAuditLog(entry, client, outboxEventId ?? undefined));
   }
 }

@@ -116,7 +116,7 @@ describe('auditStorageService', () => {
         .mockResolvedValueOnce({ rows: [] })
         .mockResolvedValueOnce({ rows: [{ id: LOG_ID }] });
       const entry = makeEntry();
-      expect(await writeAuditLog(entry)).toBe(LOG_ID);
+      expect(await writeAuditLog(entry, poolMocks.pool)).toBe(LOG_ID);
       expect(callSql(1)).toContain('INSERT INTO audit_logs');
       expect(callSql(1)).toContain('RETURNING id');
       const args = callArgs(1);
@@ -131,6 +131,7 @@ describe('auditStorageService', () => {
         .mockResolvedValueOnce({ rows: [{ id: LOG_ID }] });
       await writeAuditLog(
         makeEntry({ userId: null, orgId: null, resourceType: null, resourceId: null }),
+        poolMocks.pool,
       );
       const args = callArgs(1);
       expect(args[1]).toBeNull();
@@ -138,12 +139,13 @@ describe('auditStorageService', () => {
       expect(args[5]).toBeNull();
       expect(args[6]).toBeNull();
     });
-    it('应使用连接池（未传 client 时）', async () => {
+    it('重复 outbox 投递冲突时应返回已有 id（幂等，不重复插入）', async () => {
       poolMocks.pool.query
         .mockResolvedValueOnce({ rows: [] })
         .mockResolvedValueOnce({ rows: [{ id: LOG_ID }] });
-      await writeAuditLog(makeEntry());
-      expect(poolMocks.pool.query).toHaveBeenCalledTimes(2);
+      const result = await writeAuditLog(makeEntry(), poolMocks.pool, 'outbox-1');
+      expect(result).toBe(LOG_ID);
+      expect(poolMocks.pool.query.mock.calls[1][0]).toContain('ON CONFLICT (outbox_event_id)');
     });
   });
   describe('getUnexportedAuditLogs', () => {

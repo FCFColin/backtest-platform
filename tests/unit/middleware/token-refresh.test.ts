@@ -15,11 +15,13 @@ import {
   redisMocks,
   fsMocks,
   mockUser,
+  mockMembershipActive,
   setupRsaKeys,
   resetRsaConfig,
   reloadJwtAuthModule,
 } from './jwtAuth.shared.js';
 import { getUserById } from '../../../packages/backend/src/repositories/userRepo.js';
+import { membershipMocks } from './jwtAuth.shared.js';
 
 import {
   generateRefreshToken,
@@ -35,6 +37,7 @@ redisMocks.useRedisSuccess();
 beforeEach(() => {
   vi.clearAllMocks();
   redisMocks.useRedisSuccess();
+  mockMembershipActive();
 });
 
 async function expiredTokenByFakeTimers(ttlSeconds: number) {
@@ -95,7 +98,7 @@ describe('Refresh Token 生命周期与 Redis', () => {
     expect(r!.refreshToken).not.toBe(t);
     expect(decodeJwt(r!.accessToken)).toMatchObject({
       sub: 'tenant-refresh',
-      role: 'analyst',
+      role: 'admin',
       tenant_id: 'org-42',
       org_role: 'owner',
       platform_admin: true,
@@ -146,6 +149,27 @@ describe('Refresh Token 生命周期与 Redis', () => {
     const t = await generateRefreshToken('db-fail-user', 'admin');
     vi.mocked(getUserById).mockRejectedValueOnce(new Error('database unavailable'));
     expect(await refreshAccessToken(t)).toBeNull();
+  });
+  it('成员资格已移除时应拒绝刷新并撤销 refresh family（P1#1）', async () => {
+    const t = await generateRefreshToken('removed-member', 'admin', undefined, {
+      tenantId: 'org-removed',
+      orgRole: 'admin',
+    });
+    const entry = JSON.parse(redisMocks.store.get(`refresh_token:${t}`)!);
+    mockMembershipActive();
+    vi.mocked(membershipMocks.getMembership).mockResolvedValueOnce(null);
+    expect(await refreshAccessToken(t)).toBeNull();
+    expect(JSON.parse(redisMocks.store.get(`token_family:${entry.familyId}`)!).revoked).toBe(true);
+  });
+  it('成员角色降级应在刷新时即时生效（P1#1）', async () => {
+    const t = await generateRefreshToken('demoted-user', 'admin', undefined, {
+      tenantId: 'org-demote',
+      orgRole: 'admin',
+    });
+    mockMembershipActive('readonly');
+    const r = await refreshAccessToken(t);
+    expect(r).not.toBeNull();
+    expect(decodeJwt(r!.accessToken)).toMatchObject({ role: 'readonly', org_role: 'readonly' });
   });
   it('Redis 可用性应通过 getRedisHealth 动态反映 ping 状态（fail-closed）', async () => {
     redisMocks.useRedisSuccess();

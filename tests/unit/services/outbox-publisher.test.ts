@@ -132,14 +132,14 @@ describe('OutboxPublisher', () => {
         eventType: 'BacktestCompleted',
         aggregateType: 'BacktestSession',
         aggregateId: 'backtest-1700000000000',
-        payload: { totalReturn: 0.2, maxDrawdown: 0.15 },
+        payload: { totalReturn: 0.2, maxDrawdown: 0.15, __outboxEventId: 1 },
         occurredAt: new Date('2024-01-01T00:00:00Z'),
       });
       expect(eventMocks.dispatch).toHaveBeenNthCalledWith(2, {
         eventType: 'AuditEvent',
         aggregateType: 'audit',
         aggregateId: 'user-123',
-        payload: { action: 'login' },
+        payload: { action: 'login', __outboxEventId: 2 },
         occurredAt: new Date('2024-01-01T00:00:00Z'),
       });
     });
@@ -169,7 +169,7 @@ describe('OutboxPublisher', () => {
       [
         'payload 为字符串时应 JSON.parse 后再分发',
         { id: 1, payload: '{"foo":"bar"}' },
-        { foo: 'bar' },
+        { foo: 'bar', __outboxEventId: 1 },
       ],
       ['SELECT 查询失败时应记录错误且不抛出', null, null],
     ])('%s', async (_n, rowOrErr, expectedPayload) => {
