@@ -16,10 +16,22 @@ import { Alert, AlertDescription } from '@/components/ui/uiComponents';
 import { cn } from '@/lib/utils';
 import { useToastStore, type ToastItem } from '../store/toastStore.js';
 
-function CenteredCol({ children, className }: { children: ReactNode; className?: string }) {
+function CenteredCol({
+  children,
+  className,
+  role,
+  'aria-live': ariaLive,
+}: {
+  children: ReactNode;
+  className?: string;
+  role?: string;
+  'aria-live'?: 'polite';
+}) {
   return (
     <div
       className={cn('flex flex-col items-center justify-center text-center py-12 px-4', className)}
+      role={role}
+      aria-live={ariaLive}
     >
       {children}
     </div>
@@ -65,7 +77,7 @@ export function LoadingState({
   className?: string;
 }) {
   return (
-    <CenteredCol className={className}>
+    <CenteredCol role="status" aria-live="polite" className={className}>
       <Loader2 size={size} className="animate-spin text-fg-tertiary mb-4" />
       {label && <p className="text-body text-fg-secondary">{label}</p>}
     </CenteredCol>

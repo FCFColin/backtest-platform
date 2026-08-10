@@ -253,8 +253,17 @@ async function authenticateWithBearer(
   optional: boolean,
 ): Promise<void> {
   const middleware = optional ? 'optionalJwtAuth' : 'jwtAuth';
-  const token = bearerToken(req);
-  const payload = token ? await verifyToken(token) : null;
+  let payload: JwtPayload | null;
+  try {
+    const token = bearerToken(req);
+    payload = token ? await verifyToken(token) : null;
+  } catch (err) {
+    // P0-02：token 校验基础设施（Redis）故障时 fail-closed 拒绝，而非升级为进程崩溃（unhandledRejection → exit）
+    authLog('error', middleware, req, '令牌校验基础设施异常，fail-closed 拒绝', { err });
+    recordAuthFailure(getRoutePattern(req), 'session_check_error');
+    sendProblem(res, 503, 'AUTH_SERVICE_UNAVAILABLE', 'Authentication Service Unavailable');
+    return;
+  }
   if (!payload) {
     if (optional) {
       req.user = null;
@@ -273,12 +282,13 @@ async function authenticateWithBearer(
   try {
     if (await denyIfRevokedOrDisabled(payload, req, res, middleware)) return;
   } catch (err) {
-    if (!optional) throw err;
-    authLog('warn', middleware, req, '会话状态校验异常，fail-closed 拒绝（可选认证路径）', {
+    // P0-02：会话状态校验基础设施故障时 fail-closed 拒绝，而非升级为进程崩溃
+    authLog('error', middleware, req, '会话状态校验异常，fail-closed 拒绝', {
+      err,
       userId: hashUserId(payload.sub),
     });
     recordAuthFailure(getRoutePattern(req), 'session_check_error');
-    sendProblem(res, 401, 'AUTH_CHECK_FAILED');
+    sendProblem(res, 503, 'AUTH_SERVICE_UNAVAILABLE', 'Authentication Service Unavailable');
     return;
   }
   req.user = payload;

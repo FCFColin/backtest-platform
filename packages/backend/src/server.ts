@@ -14,7 +14,7 @@ import { registerTimescaleMetrics, registerQueueMetrics } from './utils/metrics.
 import { backtestQueue } from './queues/backtestQueue.js';
 import { dataUpdateQueue } from './queues/queueDefinitions.js';
 import { eventDispatcher } from './domain/events/events.js';
-import { BacktestCompletedHandler, RunCompletedHandler } from './application/completedHandlers.js';
+import { BacktestCompletedHandler } from './application/completedHandlers.js';
 import { AuditEventHandler } from './application/auditEventHandler.js';
 // P3-05：OutboxConsumer 接口类型——由 createOutboxConsumer 工厂按 CDC_KAFKA_ENABLED 选择实现
 import type { OutboxConsumer } from './infrastructure/outboxPublisher.js';
@@ -23,12 +23,6 @@ validateConfig();
 
 eventDispatcher.register(new BacktestCompletedHandler());
 eventDispatcher.register(new AuditEventHandler());
-// P1-07：RunCompletedHandler——Run 聚合根进入 completed 态时触发（worker 路径）。
-// 仅做观测日志（Run 本身已由 worker save() 持久化，不重复写库）。
-// RunStarted/RunFailed 不需要独立 handler：
-// - RunStarted：worker 已在 job 开始时记录日志 + 更新 backtest_runs.status='running'
-// - RunFailed：worker 已在 catch 中更新 status='failed' + error_message + WebSocket 通知
-eventDispatcher.register(new RunCompletedHandler());
 
 let outboxConsumer: OutboxConsumer | null = null;
 const PORT = config.API_PORT;

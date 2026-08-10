@@ -45,6 +45,7 @@ interface TableProps<T> {
   sortKey?: string;
   sortDir?: 'asc' | 'desc';
   onSort?: (key: string) => void;
+  caption?: ReactNode;
 }
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 泛型约束需要 any 以兼容无索引签名的具体接口
 function BaseTable<T extends Record<string, any>>({
@@ -56,6 +57,7 @@ function BaseTable<T extends Record<string, any>>({
   sortKey,
   sortDir,
   onSort,
+  caption,
 }: TableProps<T>) {
   return (
     <div className="overflow-x-auto">
@@ -63,6 +65,7 @@ function BaseTable<T extends Record<string, any>>({
         className="w-full border-collapse text-body"
         style={maxWidth ? { maxWidth } : undefined}
       >
+        {caption && <caption className="sr-only">{caption}</caption>}
         <thead>
           <tr className="bg-elevated">
             {columns.map((col) => {
@@ -139,6 +142,7 @@ interface SimpleTableProps<T> {
   data: T[];
   maxWidth?: number;
   rowKey?: (row: T, idx: number) => string;
+  caption?: ReactNode;
 }
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 泛型约束需要 any 以兼容无索引签名的具体接口
 export function SimpleTable<T extends Record<string, any>>({
@@ -146,8 +150,17 @@ export function SimpleTable<T extends Record<string, any>>({
   data,
   maxWidth,
   rowKey,
+  caption,
 }: SimpleTableProps<T>) {
-  return <BaseTable columns={columns} data={data} maxWidth={maxWidth} rowKey={rowKey} />;
+  return (
+    <BaseTable
+      columns={columns}
+      data={data}
+      maxWidth={maxWidth}
+      rowKey={rowKey}
+      caption={caption}
+    />
+  );
 }
 interface SortableTableProps<T> {
   columns: TableColumn<T>[];
@@ -155,6 +168,7 @@ interface SortableTableProps<T> {
   initialSortKey?: string;
   initialSortDir?: 'asc' | 'desc';
   rowKey?: (row: T, idx: number) => string;
+  caption?: ReactNode;
 }
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 泛型约束需要 any 以兼容无索引签名的具体接口
 function sortRows<T extends Record<string, any>>(
@@ -179,6 +193,7 @@ export function SortableTable<T extends Record<string, any>>({
   initialSortKey,
   initialSortDir = 'desc',
   rowKey,
+  caption,
 }: SortableTableProps<T>) {
   const [sortKey, setSortKey] = useState<string | undefined>(initialSortKey);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>(initialSortDir);
@@ -202,6 +217,7 @@ export function SortableTable<T extends Record<string, any>>({
       sortDir={sortDir}
       onSort={handleSort}
       rowKey={rowKey}
+      caption={caption}
     />
   );
 }

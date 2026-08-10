@@ -152,6 +152,8 @@ for (const p of [
   '/api/v1/letf',
   '/api/v1/tactical-grid',
   '/api/v1/goal-optimizer',
+  '/api/v1/analysis',
+  '/api/v1/calculators',
 ])
   app.use(p, computeLimiter);
 app.use('/api/v1/admin', adminLimiter);

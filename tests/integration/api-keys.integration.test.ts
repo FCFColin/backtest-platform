@@ -29,9 +29,9 @@ beforeAll(async () => {
   ctx = await setupTestContainer();
   seed = await seedOrgAndUser();
 
-  const server = await startSaasTestServer(seed.orgId, seed.userId, '/api/v1/keys', apiKeyRoutes);
+  const server = await startSaasTestServer(seed.orgId, seed.userId, '/api/v1', apiKeyRoutes);
   baseUrl = server.url;
-}, 120000);
+}, 300000);
 
 afterAll(async () => {
   if (ctx) await ctx.cleanup();

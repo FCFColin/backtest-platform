@@ -39,7 +39,6 @@ interface TimeSeriesLineChartProps {
   yDomain?: [number | 'auto', number | 'auto'];
   referenceY?: number;
   showBrush?: boolean;
-  brushThreshold?: number;
   showLegend?: boolean;
   defaultStrokeWidth?: number;
   colorOffset?: number;
@@ -113,7 +112,6 @@ export function TimeSeriesLineChart({
   yDomain,
   referenceY,
   showBrush = false,
-  brushThreshold = 100,
   showLegend = true,
   defaultStrokeWidth = 2,
   colorOffset = 0,
@@ -126,7 +124,7 @@ export function TimeSeriesLineChart({
   return (
     <ResponsiveContainer width="100%" height={height}>
       <LineChart data={data} margin={CHART_MARGIN}>
-        <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--bg-subtle)" />
+        <CartesianGrid {...CHART_GRID_PROPS} />
         <ChartXAxis dataKey={xDataKey} tickFontSize={xTickFontSize} interval={xTickInterval} />
         <ChartYAxis tickFormatter={yTickFormatter} domain={yDomain} label={yLabel} />
         <ChartTooltip
@@ -139,7 +137,7 @@ export function TimeSeriesLineChart({
           <ReferenceLine y={referenceY} stroke="var(--text-muted)" strokeDasharray="4 4" />
         )}
         {renderLines(normalized, colorOffset, !isLargeDataset)}
-        {showBrush && data.length > brushThreshold && (
+        {showBrush && data.length >= 100 && (
           <Brush
             dataKey={xDataKey}
             height={20}

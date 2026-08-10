@@ -37,40 +37,6 @@ textarea {
   font-family: inherit;
 }
 
-.main-action-btn {
-  background: hsl(var(--brand));
-  color: hsl(var(--brand-fg));
-  border-radius: 0.5rem;
-  text-decoration: none;
-  transition: background-color 0.15s ease;
-}
-.main-action-btn:hover {
-  background: hsl(var(--brand-hover));
-}
-.main-action-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.card,
-.chart-card {
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-soft);
-  border-radius: var(--radius-card);
-}
-.card {
-  padding: 14px 18px;
-  box-shadow: var(--shadow-card);
-}
-.chart-card {
-  padding: 10px 14px;
-}
-.chart-card-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-strong);
-  margin-bottom: 6px;
-}
 select option {
   background-color: var(--bg-elevated);
   color: var(--text-body);
@@ -104,15 +70,6 @@ select option {
 }
 .recharts-tooltip-wrapper {
   outline: none;
-}
-.recharts-default-tooltip {
-  background-color: var(--bg-elevated) !important;
-  border: 1px solid var(--border-soft) !important;
-  border-radius: var(--radius-card) !important;
-  box-shadow: var(--shadow-md) !important;
-  font-size: 12px !important;
-  color: var(--text-strong) !important;
-  padding: 10px 14px !important;
 }
 .recharts-default-tooltip .recharts-tooltip-label {
   color: var(--text-body) !important;
@@ -200,13 +157,6 @@ a:hover {
   line-height: 1.15;
   margin: 0;
 }
-.bt-main-card {
-  margin: 4px;
-  margin-bottom: 20px;
-  padding: 20px;
-  border-radius: var(--radius-card);
-}
-
 @media (max-width: 768px) {
   .bt-page {
     padding: 12px;
@@ -216,7 +166,6 @@ a:hover {
     font-size: 28px;
   }
 }
-
 .mini-tabs {
   display: inline-flex;
   background: var(--bg-subtle);

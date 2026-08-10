@@ -8,6 +8,7 @@ import { useAuthStore } from '@/store/authStore';
 import { ErrorBanner } from '@/components/stateDisplay';
 import { cn } from '@/lib/utils';
 import { BILLABLE_PLANS, planPrice, planPeriod } from '@/lib/pricing';
+import { Button, Card } from '@/components/ui/uiComponents';
 
 interface SubscriptionSummary {
   plan: string;
@@ -51,7 +52,7 @@ function PlanCard({
 }) {
   const { t } = useTranslation();
   return (
-    <div className={cn('card p-[18px]', active ? 'border-2 border-brand' : 'border border-border')}>
+    <Card className={cn('p-[18px]', active ? 'border-2 border-brand' : 'border border-border')}>
       <div className="flex justify-between items-baseline">
         <h3 className="text-base font-bold text-fg m-0">{plan.name}</h3>
         {active && <span className="text-[11px] text-brand font-semibold">{t('Current')}</span>}
@@ -65,16 +66,18 @@ function PlanCard({
         ))}
       </ul>
       {isAdmin && !active && (
-        <button
+        <Button
+          type="button"
+          variant="primary"
+          className="w-full h-[38px]"
           onClick={() => void onCheckout(plan.id)}
           disabled={busy}
-          className="main-action-btn w-full h-[38px] inline-flex items-center justify-center gap-1.5"
         >
-          {busy && <Loader2 className="w-4 h-4 animate-spin" />}{' '}
+          {busy && <Loader2 className="w-4 h-4 animate-spin" />}
           {t('Upgrade to {{name}}', { name: plan.name })}
-        </button>
+        </Button>
       )}
-    </div>
+    </Card>
   );
 }
 function BillingContent({
@@ -126,13 +129,15 @@ function BillingContent({
         ))}
       </div>
       {isAdmin ? (
-        <button
+        <Button
+          type="button"
+          variant="secondary"
+          className="h-[38px] px-4"
           onClick={() => void onOpenPortal()}
           disabled={busy}
-          className="bg-input-bg text-fg border border-border-subtle rounded font-medium h-[38px] px-4 inline-flex items-center gap-1.5 cursor-pointer"
         >
           <ExternalLink className="w-4 h-4" /> {t('Manage Subscription Portal')}
-        </button>
+        </Button>
       ) : (
         <p className="text-[13px] text-fg-tertiary">
           {t('Only administrators can manage subscriptions')}
@@ -194,7 +199,7 @@ export default function BillingPage() {
   if (!isAuthed) {
     return (
       <div className="bt-page max-w-[720px] mx-auto">
-        <div className="bt-main-card card p-7 mt-10 text-center">
+        <Card className="p-7 mt-10 text-center">
           <p className="text-fg-tertiary">
             {t('Please')}{' '}
             <Link to="/login" className="text-brand">
@@ -202,7 +207,7 @@ export default function BillingPage() {
             </Link>{' '}
             {t('to manage your subscription.')}
           </p>
-        </div>
+        </Card>
       </div>
     );
   }
@@ -217,7 +222,7 @@ export default function BillingPage() {
         headerExtra: <CreditCard className="w-5 h-5 text-brand" />,
       }}
     >
-      <div className="bt-main-card card p-6 mt-7">
+      <Card className="p-6 mt-7">
         <p className="text-[13px] text-fg-tertiary mb-4">
           {org ? t('Organization: {{name}}', { name: org.name }) : t('Current Organization')}
           {t('Current plan:')}
@@ -234,7 +239,7 @@ export default function BillingPage() {
           onCheckout={checkout}
           onOpenPortal={openPortal}
         />
-      </div>
+      </Card>
     </StandardPageShell>
   );
 }

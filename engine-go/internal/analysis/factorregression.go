@@ -1,6 +1,7 @@
 package analysis
 
 import (
+	"engine-go/internal/engineutil"
 	"fmt"
 	"gonum.org/v1/gonum/mat"
 	"sort"
@@ -79,7 +80,7 @@ func RunRegression(req FactorRegressionRequest) (*RegressionResult, error) {
 		})
 	}
 	if len(aligned) < 3 {
-		return &RegressionResult{Alpha: 0, Beta: 0, SMB: 0, HML: 0, RSquared: 0, Residuals: []float64{}}, nil
+		return nil, engineutil.NewInputError("因子回归对齐数据不足（需至少 3 个月对齐数据，当前 %d 个）", len(aligned))
 	}
 	activeFactors := []string{}
 	for _, f := range []string{"mktRF", "smb", "hml"} {

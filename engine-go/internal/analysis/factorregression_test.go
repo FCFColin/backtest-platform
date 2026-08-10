@@ -1,8 +1,11 @@
 package analysis
 
 import (
+	"errors"
 	"math"
 	"testing"
+
+	"engine-go/internal/engineutil"
 )
 
 func makeFFData() []FFDataPoint {
@@ -32,15 +35,10 @@ func TestRunRegression_InsufficientData(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			r, err := RunRegression(c.req)
-			if err != nil {
-				t.Fatalf("不应报错: %v", err)
-			}
-			if r.Alpha != 0 || r.Beta != 0 || r.RSquared != 0 {
-				t.Errorf("应返回零值, got alpha=%v beta=%v r2=%v", r.Alpha, r.Beta, r.RSquared)
-			}
-			if len(r.Residuals) != 0 {
-				t.Errorf("Residuals 应为空, got %v", r.Residuals)
+			_, err := RunRegression(c.req)
+			var inputErr *engineutil.InputError
+			if !errors.As(err, &inputErr) {
+				t.Fatalf("数据不足应返回 InputError, got: %v", err)
 			}
 		})
 	}

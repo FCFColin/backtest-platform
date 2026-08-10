@@ -17,6 +17,7 @@ vi.mock('../../packages/backend/src/infrastructure/dataCache.js', () => ({
 
 vi.mock('../../packages/backend/src/utils/tickerValidation.js', () => ({
   validateTickerFormat: vi.fn((tickers: string[]) => ({ valid: tickers, invalid: [] })),
+  isValidTicker: vi.fn((ticker: string) => ticker.length > 0),
 }));
 
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
@@ -35,7 +36,7 @@ const dockerAvailable = isDockerAvailable();
 let container: StartedPostgreSqlContainer;
 
 async function createAndSetupContainer(): Promise<StartedPostgreSqlContainer> {
-  const c = await new PostgreSqlContainer('postgres:16-alpine')
+  const c = await new PostgreSqlContainer('timescale/timescaledb:latest-pg16')
     .withDatabase('backtest_test')
     .withUsername('backtest')
     .withPassword('backtest')
@@ -64,7 +65,7 @@ async function createAndSetupContainer(): Promise<StartedPostgreSqlContainer> {
 beforeAll(async () => {
   if (!dockerAvailable) return;
   container = await createAndSetupContainer();
-}, 60000);
+}, 300000);
 
 afterAll(async () => {
   if (!dockerAvailable) return;
@@ -96,7 +97,7 @@ describe.skipIf(!dockerAvailable)('Chaos: DB Outage via testcontainers', () => {
       // testcontainers 默认 autoRemove=true，stop() 已删除容器，无法 restart。
       container = await createAndSetupContainer();
     }
-  }, 60000);
+  }, 300000);
 
   it('恢复：PG restart 后正常返回数据', async () => {
     pgCircuitBreaker.close();

@@ -40,6 +40,19 @@ function isDockerAvailableSync(): boolean {
   }
 }
 
+// 容器运行态同步探测：skipIf 在收集期求值（beforeAll 尚未运行），
+// 仅同步探测才能让"无容器栈"的 CI 环境正确跳过而非空跑通过
+function isContainerRunningSync(containerName: string): boolean {
+  try {
+    const { stdout } = execSync(`docker inspect -f '{{.State.Running}}' ${containerName}`, {
+      stdio: 'ignore',
+    });
+    return stdout.trim() === 'true';
+  } catch {
+    return false;
+  }
+}
+
 async function isContainerRunning(containerName: string): Promise<boolean> {
   try {
     const { stdout } = await execAsync(`docker inspect -f '{{.State.Running}}' ${containerName}`);
@@ -172,6 +185,10 @@ export function setupChaosLifecycle(containerName: string, recoverFn = startCont
     },
     get containerRunning() {
       return current.containerRunning;
+    },
+    // 收集期同步门控：docker 可用且容器在跑才执行实验，否则显式 skip
+    get containerReady() {
+      return isDockerAvailableSync() && isContainerRunningSync(containerName);
     },
   };
 }

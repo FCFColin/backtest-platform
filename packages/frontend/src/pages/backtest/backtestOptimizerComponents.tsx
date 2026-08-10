@@ -3,7 +3,7 @@ import { Line } from 'recharts';
 import { CHART_COLORS, REBALANCE_FREQUENCY_OPTIONS } from '@backtest/shared';
 import {
   ParamsPanel,
-  ParamsSection,
+  ParamGroup,
   ParamRow,
   ParamCard,
 } from '../../components/params/paramsLayout.js';
@@ -109,7 +109,7 @@ const DATE_FIELDS: Array<{
 function BacktestRangeSection({ s }: OptimizerSectionProps) {
   const { t } = useTranslation();
   return (
-    <ParamsSection
+    <ParamGroup
       title={t('Backtest Range')}
       info={t('Set the backtest time range for parameter search')}
     >
@@ -125,7 +125,7 @@ function BacktestRangeSection({ s }: OptimizerSectionProps) {
           </ParamCard>
         ))}
       </ParamRow>
-    </ParamsSection>
+    </ParamGroup>
   );
 }
 function BestMetricsCard({ best, totalCombos }: BestMetricsCardProps) {
@@ -192,7 +192,7 @@ function PortfolioConfigSection({ s }: OptimizerSectionProps) {
   const { t } = useTranslation();
   const totalWeight = s.assets.reduce((sum, a) => sum + (Number(a.weight) || 0), 0);
   return (
-    <ParamsSection
+    <ParamGroup
       title={t('Portfolio Allocation')}
       info={t('Add tickers and weights for optimization')}
     >
@@ -205,7 +205,7 @@ function PortfolioConfigSection({ s }: OptimizerSectionProps) {
         onUpdate={(i, field, val) => s.updateAsset(i, field, String(val))}
         wrapInSection={false}
       />
-    </ParamsSection>
+    </ParamGroup>
   );
 }
 function FreqMultiSelect({ s }: OptimizerSectionProps) {
@@ -236,7 +236,7 @@ function FreqMultiSelect({ s }: OptimizerSectionProps) {
 function ParameterSpaceSection({ s }: OptimizerSectionProps) {
   const { t } = useTranslation();
   return (
-    <ParamsSection
+    <ParamGroup
       title={t('Parameter Space')}
       info={t('Set the search range for rebalance frequency and thresholds')}
     >
@@ -271,13 +271,13 @@ function ParameterSpaceSection({ s }: OptimizerSectionProps) {
           </div>
         ))}
       </div>
-    </ParamsSection>
+    </ParamGroup>
   );
 }
 function ObjectiveSection({ s }: OptimizerSectionProps) {
   const { t } = useTranslation();
   return (
-    <ParamsSection title={t('Objective')} info={t('Select optimization objective and constraints')}>
+    <ParamGroup title={t('Objective')} info={t('Select optimization objective and constraints')}>
       <ParamRow>
         <ParamCard label={t('Target')}>
           <Select
@@ -324,7 +324,7 @@ function ObjectiveSection({ s }: OptimizerSectionProps) {
           </div>
         ))}
       </div>
-    </ParamsSection>
+    </ParamGroup>
   );
 }
 function GrowthComparisonChart({ best, benchmarkGrowth }: GrowthComparisonChartProps) {

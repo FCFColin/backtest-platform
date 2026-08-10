@@ -72,7 +72,7 @@ export const Badge = ({ className, variant, size, ...props }: BadgeProps) => (
 );
 
 export const buttonVariants = cva(
-  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg font-medium transition-colors duration-150 ease-out-quart focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50 focus-visible:ring-offset-2 focus-visible:ring-offset-app disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0',
+  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg font-medium transition-colors duration-150 ease-out-quart disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0',
   {
     variants: {
       variant: {
@@ -115,7 +115,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
     <input
       type={type}
       className={cn(
-        'flex h-10 w-full rounded-md bg-input-bg border border-border px-3 py-2 text-body text-fg placeholder:text-fg-tertiary hover:border-border-strong focus:outline-none focus:border-brand focus:ring-4 focus:ring-brand/15 transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-50 file:border-0 file:bg-transparent file:text-body file:font-medium',
+        'flex h-10 w-full rounded-md bg-input-bg border border-border px-3 py-2 text-body text-fg placeholder:text-fg-tertiary hover:border-border-strong focus:outline-none focus:border-brand transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-50 file:border-0 file:bg-transparent file:text-body file:font-medium',
         type === 'number' && 'font-mono tabular-nums',
         className,
       )}
@@ -182,7 +182,7 @@ export const CardContent = wrapPrimitive('div', 'p-6 pt-0', 'CardContent');
 
 export const Checkbox = wrapPrimitive(
   CheckboxPrimitive.Root,
-  'peer h-4 w-4 shrink-0 rounded-sm border border-border-strong bg-input-bg transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/15 focus-visible:ring-offset-2 focus-visible:ring-offset-app disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-brand data-[state=checked]:border-brand data-[state=checked]:text-brand-fg',
+  'peer h-4 w-4 shrink-0 rounded-sm border border-border-strong bg-input-bg transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-brand data-[state=checked]:border-brand data-[state=checked]:text-brand-fg',
   'Checkbox',
   () => (
     <CheckboxPrimitive.Indicator className="flex items-center justify-center text-current">
@@ -268,7 +268,7 @@ export const Progress = wrapPrimitive(
 export const RadioGroup = wrapPrimitive(RadioGroupPrimitive.Root, 'grid gap-2', 'RadioGroup');
 export const RadioGroupItem = wrapPrimitive(
   RadioGroupPrimitive.Item,
-  'aspect-square h-4 w-4 rounded-full border border-border-strong text-brand focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/15 disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:border-brand',
+  'aspect-square h-4 w-4 rounded-full border border-border-strong text-brand disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:border-brand',
   'RadioGroupItem',
   () => (
     <RadioGroupPrimitive.Indicator className="flex items-center justify-center">
@@ -281,7 +281,7 @@ export const Select = SelectPrimitive.Root;
 export const SelectValue = SelectPrimitive.Value;
 export const SelectTrigger = wrapPrimitive(
   SelectPrimitive.Trigger,
-  'flex h-10 w-full items-center justify-between rounded-md bg-input-bg border border-border px-3 py-2 text-body text-fg placeholder:text-fg-tertiary hover:border-border-strong focus:outline-none focus:border-brand focus:ring-4 focus:ring-brand/15 transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1',
+  'flex h-10 w-full items-center justify-between rounded-md bg-input-bg border border-border px-3 py-2 text-body text-fg placeholder:text-fg-tertiary hover:border-border-strong focus:outline-none focus:border-brand transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1',
   'SelectTrigger',
   (children) => (
     <>
@@ -374,7 +374,7 @@ export const Skeleton = ({ className, ...props }: React.HTMLAttributes<HTMLDivEl
 
 export const Switch = wrapPrimitive(
   SwitchPrimitive.Root,
-  'peer inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border border-border bg-input-bg transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/15 focus-visible:ring-offset-2 focus-visible:ring-offset-app disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-brand data-[state=checked]:border-brand',
+  'peer inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border border-border bg-input-bg transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-brand data-[state=checked]:border-brand',
   'Switch',
   () => (
     <SwitchPrimitive.Thumb className="pointer-events-none block size-4 rounded-full bg-fg shadow-lg ring-0 transition-transform duration-150 ease-out-quart translate-x-0.5 data-[state=checked]:translate-x-[18px]" />
@@ -389,14 +389,10 @@ export const TabsList = wrapPrimitive(
 );
 export const TabsTrigger = wrapPrimitive(
   TabsPrimitive.Trigger,
-  'inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1 text-body font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-hover data-[state=active]:text-fg data-[state=inactive]:text-fg-tertiary',
+  'inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1 text-body font-medium transition-all disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-hover data-[state=active]:text-fg data-[state=inactive]:text-fg-tertiary',
   'TabsTrigger',
 );
-export const TabsContent = wrapPrimitive(
-  TabsPrimitive.Content,
-  'mt-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50',
-  'TabsContent',
-);
+export const TabsContent = wrapPrimitive(TabsPrimitive.Content, 'mt-2', 'TabsContent');
 
 export const Tooltip = ({ children }: { children: ReactNode }) => (
   <div className="relative inline-flex group">{children}</div>

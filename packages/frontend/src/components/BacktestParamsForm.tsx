@@ -11,7 +11,7 @@ import {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useShallow } from 'zustand/react/shallow';
-import { ChevronDown, Calendar } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import { useBacktestStore } from '@/store/backtestStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useToastStore } from '@/store/toastStore';
@@ -231,22 +231,25 @@ export function BasicParamsRow({
       </Field>
       <Field className="w-28">
         <FieldLabel htmlFor="bp-currency">{t('Currency')}</FieldLabel>
-        <select
-          id="bp-currency"
-          className="flex h-10 w-full rounded-md border border-border bg-input-bg px-3 py-2 text-body text-fg transition-colors hover:border-border-strong focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/15 disabled:cursor-not-allowed disabled:opacity-50"
+        <Select
           value={baseCurrency}
-          onChange={(e) => {
-            const v = e.target.value as 'usd' | 'cny';
-            onChange('baseCurrency', v);
-            useSettingsStore.getState().setCurrency(v);
+          onValueChange={(v) => {
+            const next = v as 'usd' | 'cny';
+            onChange('baseCurrency', next);
+            useSettingsStore.getState().setCurrency(next);
           }}
         >
-          {CURRENCY_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger id="bp-currency">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent position="popper" sideOffset={4}>
+            {CURRENCY_OPTIONS.map((o) => (
+              <SelectItem key={o.value} value={o.value}>
+                {o.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </Field>
       <div className="flex h-10 items-center gap-2">
         <Switch
@@ -340,7 +343,6 @@ function BasicParamsGrid() {
           value={value}
           disabled={dateRangeMode === 'all'}
           onChange={(e) => handleDateChange(field, e)}
-          suffix={<Calendar className="h-4 w-4" />}
         />
       ))}
       <FloatingField

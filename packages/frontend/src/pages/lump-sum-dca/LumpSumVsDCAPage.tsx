@@ -1,7 +1,16 @@
 import { useTranslation } from 'react-i18next';
 import { Play } from 'lucide-react';
 import { ComputeToolShell, type ComputeToolConfig } from '@/components/shells/index.js';
-import { Card, Input, Switch } from '@/components/ui/uiComponents';
+import {
+  Card,
+  Input,
+  Switch,
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from '@/components/ui/uiComponents';
 import { Field, FieldLabel } from '@/components/form/Field';
 import { BasicParamsRow } from '../../components/BacktestParamsForm.js';
 import PortfolioEditor from '../../components/PortfolioEditor.js';
@@ -10,8 +19,6 @@ import { useLumpSumVsDCAState } from '../../hooks/useLumpSumVsDCAState.js';
 import type { DcaFrequency, LumpSumVsDCAState } from '../../hooks/useLumpSumVsDCAState.js';
 import { LsDcaResultsCard } from './ConclusionSection.js';
 import { fmtPct, fmtNum } from '@/utils/format';
-const selectClassName =
-  'flex h-10 w-full rounded-md border border-border bg-input-bg px-3 py-2 text-body text-fg transition-colors hover:border-border-strong focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/15 disabled:cursor-not-allowed disabled:opacity-50';
 function DcaParamsSection({
   dcaFrequency,
   setDcaFrequency,
@@ -41,15 +48,15 @@ function DcaParamsSection({
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Field>
           <FieldLabel htmlFor="lumpsum-dca-frequency">{t('DCA Frequency')}</FieldLabel>
-          <select
-            id="lumpsum-dca-frequency"
-            className={selectClassName}
-            value={dcaFrequency}
-            onChange={(e) => setDcaFrequency(e.target.value as DcaFrequency)}
-          >
-            <option value="monthly">{t('Monthly')}</option>
-            <option value="quarterly">{t('Quarterly')}</option>
-          </select>
+          <Select value={dcaFrequency} onValueChange={(v) => setDcaFrequency(v as DcaFrequency)}>
+            <SelectTrigger id="lumpsum-dca-frequency">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent position="popper" sideOffset={4}>
+              <SelectItem value="monthly">{t('Monthly')}</SelectItem>
+              <SelectItem value="quarterly">{t('Quarterly')}</SelectItem>
+            </SelectContent>
+          </Select>
         </Field>
         <Field>
           <FieldLabel>{t('DCA Periods')}</FieldLabel>

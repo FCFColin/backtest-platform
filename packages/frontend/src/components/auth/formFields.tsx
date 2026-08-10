@@ -2,6 +2,7 @@ import type { CSSProperties, ReactNode } from 'react';
 import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils.js';
 import { Field, FieldLabel } from '@/components/form/Field.js';
+import { Button, Card } from '@/components/ui/uiComponents';
 interface AuthPageLayoutProps {
   icon?: ReactNode;
   title: ReactNode;
@@ -23,7 +24,7 @@ export default function AuthPageLayout({
     : { padding: 28, marginTop: 40 };
   return (
     <div className="bt-page" style={{ maxWidth, margin: '0 auto' }}>
-      <div className="bt-main-card card" style={cardStyle}>
+      <Card style={cardStyle}>
         {centered ? (
           <>
             {icon}
@@ -43,7 +44,7 @@ export default function AuthPageLayout({
         {footer && (
           <div className="mt-4 text-[13px] text-[var(--text-muted)] text-center">{footer}</div>
         )}
-      </div>
+      </Card>
     </div>
   );
 }
@@ -55,14 +56,10 @@ interface AuthSubmitButtonProps {
 }
 export function AuthSubmitButton({ loading, icon, label, loadingLabel }: AuthSubmitButtonProps) {
   return (
-    <button
-      type="submit"
-      disabled={loading}
-      className="main-action-btn flex items-center justify-center gap-2 h-[42px] mt-1"
-    >
+    <Button type="submit" variant="primary" className="mt-1 h-[42px]" disabled={loading}>
       {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : icon}
       {loading ? loadingLabel : label}
-    </button>
+    </Button>
   );
 }
 interface BrandIconBadgeProps {

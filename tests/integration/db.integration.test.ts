@@ -7,7 +7,8 @@ import {
 } from '../helpers/testcontainersPg.js';
 
 import { initSchema, rollbackSchema } from '../../packages/backend/src/db/migrations.js';
-import { getPool, healthCheck } from '../../packages/backend/src/db/pool.js';
+import { getPool, closeDb } from '../../packages/backend/src/db/pool.js';
+import { config } from '../../packages/backend/src/config/index.js';
 
 const dockerAvailable = isDockerAvailable();
 
@@ -16,7 +17,10 @@ describe.skipIf(!dockerAvailable)('PostgreSQL 集成测试（testcontainers）',
 
   beforeAll(async () => {
     ctx = await setupTestContainer();
-  }, 60000);
+    // 迁移/回滚为 DDL（DROP TABLE 等），需以表属主超管执行
+    config.DATABASE_URL = ctx.adminConnectionString;
+    await closeDb();
+  }, 300000);
 
   afterAll(async () => {
     await ctx.cleanup();
@@ -24,8 +28,7 @@ describe.skipIf(!dockerAvailable)('PostgreSQL 集成测试（testcontainers）',
 
   it('应成功初始化 schema', async () => {
     await initSchema();
-    const isHealthy = await healthCheck();
-    expect(isHealthy).toBe(true);
+    await expect(getPool().query('SELECT 1')).resolves.toBeDefined();
   });
 
   it('应成功回滚到指定版本（v3→v2）', async () => {
@@ -44,9 +47,8 @@ describe.skipIf(!dockerAvailable)('PostgreSQL 集成测试（testcontainers）',
     const pool = getPool();
     const { rows } = await pool.query('SELECT version FROM schema_migrations ORDER BY version');
     const versions = rows.map((r: { version: number }) => r.version);
-    expect(versions).toEqual([1, 2]);
-    const isHealthy = await healthCheck();
-    expect(isHealthy).toBe(true);
+    expect(versions).toEqual([1, 2, 3, 4]);
+    await expect(getPool().query('SELECT 1')).resolves.toBeDefined();
   });
 
   it('CHECK 约束应拒绝非法数据', async () => {

@@ -2,8 +2,6 @@ package engine
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"engine-go/internal/engineutil"
 	"engine-go/internal/mathutil"
 	"fmt"
@@ -50,17 +48,6 @@ func RunBacktest(ctx context.Context, req BacktestRequest) (*BacktestResult, err
 	}
 	assetCorrelations := CalcCorrelationMatrix(assetDailyReturns)
 	result := &BacktestResult{Portfolios: portfolioResults, Correlations: correlations, BenchmarkGrowth: benchmarkGrowth, AssetTickers: assetTickers, AssetCorrelations: assetCorrelations}
-	if req.Fingerprint {
-		h := sha256.New()
-		for i := range result.Portfolios {
-			fp, err := ComputeFingerprint(&result.Portfolios[i])
-			if err != nil {
-				return nil, fmt.Errorf("计算指纹失败: %w", err)
-			}
-			h.Write([]byte(fp))
-		}
-		result.Fingerprint = hex.EncodeToString(h.Sum(nil))
-	}
 	return result, nil
 }
 

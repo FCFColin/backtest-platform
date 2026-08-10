@@ -8,13 +8,14 @@ import { useAuthStore } from '@/store/authStore';
 import { ErrorBanner } from '@/components/stateDisplay';
 import { useOrgMembersState } from './org/hooks/useOrgMembersState.js';
 import { ROLES, type Invitation, type Member, type Role } from './org/orgTypes.js';
+import { Button, Card } from '@/components/ui/uiComponents';
 const TH = 'text-left text-xs font-semibold text-[var(--text-muted)] px-[10px] py-2';
 const TD = 'text-[13px] text-[var(--text-body)] py-2 px-[10px]';
 function UnauthedMembers() {
   const { t } = useTranslation();
   return (
     <div className="bt-page max-w-[720px]">
-      <div className="bt-main-card card p-7 mt-10 text-center">
+      <Card className="p-7 mt-10 text-center">
         <p className="text-[var(--text-muted)]">
           {t('Please')}{' '}
           <Link to="/login" className="text-brand">
@@ -22,7 +23,7 @@ function UnauthedMembers() {
           </Link>{' '}
           {t('to manage organization members.')}
         </p>
-      </div>
+      </Card>
     </div>
   );
 }
@@ -55,7 +56,7 @@ export default function OrgMembersPage() {
         headerExtra: <Users className="w-5 h-5 text-brand" />,
       }}
     >
-      <div className="bt-main-card card p-6 mt-7">
+      <Card className="p-6 mt-7">
         <p className="text-[13px] text-[var(--text-muted)] mb-4">
           {org ? `${t('Organization:')}${org.name}` : t('Organization:')}
         </p>
@@ -84,7 +85,7 @@ export default function OrgMembersPage() {
             )}
           </>
         )}
-      </div>
+      </Card>
     </StandardPageShell>
   );
 }
@@ -205,13 +206,9 @@ function InviteDialog({
           onChange={setRole}
           className="bg-input-bg text-fg border border-border-subtle rounded font-medium h-[38px]"
         />
-        <button
-          type="submit"
-          disabled={busy}
-          className="main-action-btn h-[38px] px-4 inline-flex items-center gap-1.5"
-        >
+        <Button type="submit" variant="primary" className="h-[38px] px-4" disabled={busy}>
           <Send className="w-4 h-4" /> {t('Send Invitation')}
-        </button>
+        </Button>
       </form>
       {invitations.length > 0 && (
         <InvitationTable invitations={invitations} busy={busy} onRevokeInvite={onRevokeInvite} />

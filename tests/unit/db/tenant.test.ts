@@ -104,7 +104,7 @@ describe.skipIf(!dockerAvailable)('withTenant RLS 强制点（testcontainers PG,
         ($1, 'Portfolio A', '[{"ticker":"SPY","weight":100}]'::jsonb, 'none')`,
       [ORG_A],
     );
-  }, 120000);
+  }, 300000);
 
   afterAll(async () => {
     if (appPool) await appPool.end();

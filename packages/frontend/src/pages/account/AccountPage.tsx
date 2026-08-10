@@ -14,16 +14,15 @@ import {
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../hooks/miscHooks.js';
 import { useAuthStore } from '@/store/authStore';
+import { useSettingsStore } from '@/store/settingsStore';
 import { importLocalConfigsOnce } from '@/utils/portfolioStorage';
 import { SectionTitle, PrefRow } from '../../components/cards.js';
 import { StandardPageShell } from '../../components/shells/index.js';
+import { Button, Card } from '@/components/ui/uiComponents';
 const SELECT_CLASS = 'bg-input-bg text-fg border border-border-subtle rounded font-medium';
 const CURRENCY_OPTS = [
   ['USD', 'currencyUSD'],
   ['CNY', 'currencyCNY'],
-  ['EUR', 'currencyEUR'],
-  ['JPY', 'currencyJPY'],
-  ['HKD', 'currencyHKD'],
 ] as const;
 const REBALANCE_OPTS = [
   ['none', 'rebalanceBuyHold'],
@@ -62,12 +61,11 @@ function UserInfoCard({
         </div>
       </div>
       {!userId && (
-        <Link
-          to="/login"
-          className="main-action-btn no-underline min-h-[38px] px-4 text-[13px] inline-flex items-center gap-1.5"
-        >
-          <LogIn className="w-4 h-4" /> {t('Log In')}
-        </Link>
+        <Button asChild variant="primary" className="min-h-[38px] px-4 text-[13px]">
+          <Link to="/login" className="no-underline">
+            <LogIn className="w-4 h-4" /> {t('Log In')}
+          </Link>
+        </Button>
       )}
     </div>
   );
@@ -182,12 +180,9 @@ function SubscriptionSection({ plan }: { plan: string | undefined }) {
             {t('Self-hosted Version')}
           </div>
         </div>
-        <Link
-          to="/pricing"
-          className="main-action-btn min-h-[38px] px-[18px] text-[13px] inline-flex items-center"
-        >
-          {t('Upgrade Plan')}
-        </Link>
+        <Button asChild variant="primary" className="min-h-[38px] px-[18px] text-[13px]">
+          <Link to="/pricing">{t('Upgrade Plan')}</Link>
+        </Button>
       </div>
     </>
   );
@@ -195,7 +190,8 @@ function SubscriptionSection({ plan }: { plan: string | undefined }) {
 export default function AccountPage() {
   const { t } = useTranslation();
   const { toggleTheme, isDark } = useTheme();
-  const [currency, setCurrency] = useState('USD');
+  const currency = useSettingsStore((s) => s.currency.toUpperCase());
+  const setCurrency = useSettingsStore((s) => s.setCurrency);
   const [rebalance, setRebalance] = useState('quarterly');
   const user = useAuthStore((s) => s.user);
   const org = useAuthStore((s) => s.org);
@@ -211,7 +207,7 @@ export default function AccountPage() {
   const initials = displayName.slice(0, 2).toUpperCase();
   return (
     <StandardPageShell config={{ titleKey: 'Account' }}>
-      <div className="bt-main-card card" style={{ padding: 24 }}>
+      <Card className="p-6">
         <UserInfoCard
           displayName={displayName}
           roleLabel={roleLabel}
@@ -223,7 +219,7 @@ export default function AccountPage() {
           toggleTheme={toggleTheme}
           currency={currency}
           rebalance={rebalance}
-          onCurrencyChange={setCurrency}
+          onCurrencyChange={(v) => setCurrency(v.toLowerCase() as 'usd' | 'cny')}
           onRebalanceChange={setRebalance}
         />
         <SubscriptionSection plan={org?.plan} />
@@ -231,7 +227,7 @@ export default function AccountPage() {
           <User className="w-3.5 h-3.5 inline mr-1.5 align-[-2px]" />
           {t('You are using the self-hosted version; all features are available.')}
         </div>
-      </div>
+      </Card>
     </StandardPageShell>
   );
 }

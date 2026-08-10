@@ -134,7 +134,6 @@ type BacktestRequest struct {
 	CPIData       map[string]float64 `json:"cpiData"`
 	ExchangeRates map[string]float64 `json:"exchangeRates"`
 	Params        BacktestParams     `json:"params"`
-	Fingerprint   bool               `json:"fingerprint"`
 }
 type BacktestParams struct {
 	StartDate               string            `json:"startDate"`
@@ -183,7 +182,6 @@ type BacktestResult struct {
 	BenchmarkGrowth   []DataPoint       `json:"benchmarkGrowth"`
 	AssetTickers      []string          `json:"assetTickers"`
 	AssetCorrelations [][]float64       `json:"assetCorrelations"`
-	Fingerprint       string            `json:"fingerprint,omitempty"`
 }
 type PortfolioResult struct {
 	Name              string            `json:"name"`

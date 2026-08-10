@@ -27,7 +27,7 @@
 
 ### 2. 单一写入点 + 去重键（强一致）
 
-Outbox 的唯一写入点为 backtest-service 的事务写入。BacktestCompletedHandler 重构为纯观测副作用（仅日志/指标），不再写 outbox。Outbox 新增 event_id UUID + 部分唯一索引（migrations/006），写入侧 ON CONFLICT (event_id) DO NOTHING，使任何重复写入成为幂等 no-op。
+Outbox 的唯一写入点为 backtest-service 的事务写入。BacktestCompletedHandler 重构为纯观测副作用（仅日志/指标），不再写 outbox。Outbox 新增 event_id UUID + 部分唯一索引（migrations/001），写入侧 ON CONFLICT (event_id) DO NOTHING，使任何重复写入成为幂等 no-op。
 
 ### 3. 消费者幂等契约 + 重试边界
 

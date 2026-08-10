@@ -1,7 +1,5 @@
 import { logger } from '../../utils/logger.js';
 
-export const RUN_COMPLETED_EVENT = 'RunCompleted' as const;
-
 export interface DomainEvent {
   eventType: string;
   aggregateType: string;

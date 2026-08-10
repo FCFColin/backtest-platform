@@ -23,9 +23,7 @@ function HeroDetails() {
           'This platform is a portfolio backtesting tool supporting ETFs, stocks, funds, synthetic tickers, and custom sequences. Compare multiple portfolios over the same historical period, test rebalancing rules, and simulate cashflow contributions or withdrawals.',
         )}
       </p>
-      {/* 三栏能力展示 */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* 可建模内容 */}
         <CapabilityCard
           icon={Settings}
           title={t('What You Can Model')}
@@ -33,6 +31,7 @@ function HeroDetails() {
           linkLabel={t('Start Configuring')}
           linkTo="#parameters"
         />
+        {/* 可查看指标 */}
         {/* 可查看指标 */}
         <CapabilityCard
           icon={BarChart3}
@@ -42,7 +41,6 @@ function HeroDetails() {
           linkTo="#results"
           subtitle="60+"
         />
-        {/* 相关研究工具 */}
         <CapabilityCard
           icon={Rocket}
           title={t('Related Research Tools')}
@@ -52,7 +50,6 @@ function HeroDetails() {
           }))}
         />
       </div>
-      {/* 合成标的推广横条 */}
       <div
         className="mt-6 p-4 bg-brand-subtle/6 border border-brand/20 rounded-lg flex items-center gap-4"
         data-testid="synthetic-promo"
@@ -97,7 +94,6 @@ export const BacktestHero = memo(function BacktestHero() {
   }, [expanded]);
   return (
     <section className={cn('max-w-[1440px] mx-auto px-6', 'pt-4 pb-6')} data-testid="page-hero">
-      {/* 标题行 - 始终显示 */}
       <div className="flex items-start justify-between mb-4">
         <div>
           <h1 className="text-display md:text-display-xl text-fg mb-3" data-testid="page-title">
@@ -126,7 +122,6 @@ export const BacktestHero = memo(function BacktestHero() {
           )}
         </Button>
       </div>
-      {/* 可折叠详情 */}
       {expanded && <HeroDetails />}
     </section>
   );

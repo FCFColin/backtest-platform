@@ -112,11 +112,8 @@ func RunGridSearch(ctx context.Context, req TacticalGridRequest) (*TacticalGridR
 			synthetic := buildSyntheticPrices(req.Dates, req.Prices, signals)
 			btReq := engine.BacktestRequest{Portfolios: []engine.PortfolioInput{{Name: "grid-" + ftoa(p1) + "-" + ftoa(p2), Assets: []engine.AssetInput{{Ticker: req.TradingTicker, Weight: 100}}, RebalanceFrequency: "none"}}, PriceData: map[string]map[string]float64{req.TradingTicker: synthetic}, Params: engine.BacktestParams{StartDate: req.StartDate, EndDate: req.EndDate, StartingValue: req.StartingValue, RollingWindowMonths: 12}}
 			btResult, err := engine.RunBacktest(ctx, btReq)
-			if err != nil || len(btResult.Portfolios) == 0 {
-				fallback := GridCombinationMetrics{Param1: p1, Param2: p2}
-				allMetrics = append(allMetrics, fallback)
-				allResults = append(allResults, TopCombinationResult{GridCombinationMetrics: fallback})
-				continue
+			if err != nil {
+				return nil, err
 			}
 			pr := btResult.Portfolios[0]
 			m := GridCombinationMetrics{Param1: p1, Param2: p2, CAGR: pr.Statistics.CAGR, MaxDrawdown: pr.Statistics.MaxDrawdown, Sharpe: pr.Statistics.Sharpe, TotalReturn: pr.Statistics.TotalReturn, Stdev: pr.Statistics.Stdev, Calmar: pr.Statistics.Calmar}

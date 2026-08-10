@@ -13,15 +13,12 @@ export type { OutboxConsumer } from './outbox.js';
 const reg = getPrometheusRegister();
 const mkGauge = (name: string, help: string): client.Gauge =>
   new client.Gauge({ name, help, registers: [reg] });
-const outboxUnprocessedCount = mkGauge(
-  'outbox_unprocessed_count',
-  'Number of unprocessed outbox events',
-);
+const outboxUnprocessedCount = mkGauge('outbox_unprocessed_count', 'Unprocessed outbox events');
 const outboxOldestUnprocessedAgeSeconds = mkGauge(
   'outbox_oldest_unprocessed_age_seconds',
-  'Age in seconds of the oldest unprocessed outbox event',
+  'Age (s) of oldest unprocessed outbox event',
 );
-const outboxTotalRows = mkGauge('outbox_total_rows', 'Total number of rows in the outbox table');
+const outboxTotalRows = mkGauge('outbox_total_rows', 'Total outbox rows');
 
 const OUTBOX_RETENTION_DAYS = parseInt(process.env.OUTBOX_RETENTION_DAYS || '7', 10);
 /** 事件发布并发上限（D3-003：批量并发处理，避免串行阻塞） */
@@ -103,9 +100,12 @@ export class OutboxPublisher {
   }
 
   async handleNotification(): Promise<void> {
+    const client = await this.pool.connect();
     try {
-      const result = await this.pool.query(
-        'SELECT id, aggregate_type, aggregate_id, event_type, payload, created_at, tenant_id FROM outbox WHERE processed_at IS NULL ORDER BY created_at ASC LIMIT 100',
+      await client.query('BEGIN');
+      // FOR UPDATE SKIP LOCKED：多实例同时消费时仅一个实例领取每行，避免重复分发与 lost-update
+      const result = await client.query(
+        'SELECT id, aggregate_type, aggregate_id, event_type, payload, created_at, tenant_id FROM outbox WHERE processed_at IS NULL ORDER BY created_at ASC FOR UPDATE SKIP LOCKED LIMIT 100',
       );
       const events = result.rows as OutboxEventRow[];
       const limit = pLimit(OUTBOX_PUBLISH_CONCURRENCY);
@@ -131,11 +131,15 @@ export class OutboxPublisher {
         }
       });
       if (processedIds.length > 0)
-        await this.pool.query('UPDATE outbox SET processed_at = NOW() WHERE id = ANY($1)', [
+        await client.query('UPDATE outbox SET processed_at = NOW() WHERE id = ANY($1)', [
           processedIds,
         ]);
+      await client.query('COMMIT');
     } catch (err) {
+      await client.query('ROLLBACK').catch(() => {});
       logError(err, 'Error in handleNotification');
+    } finally {
+      client.release();
     }
   }
 

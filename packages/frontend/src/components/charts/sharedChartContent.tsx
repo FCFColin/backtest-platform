@@ -314,7 +314,7 @@ export function SimpleChart({
             </linearGradient>
           </defs>
         )}
-        <CartesianGrid {...CHART_GRID_PROPS} stroke={isArea ? undefined : 'var(--bg-subtle)'} />
+        <CartesianGrid {...CHART_GRID_PROPS} />
         <XAxis
           dataKey={xDataKey}
           type={xType}

@@ -5,10 +5,6 @@ import type { ReactNode } from 'react';
 import { StaticPageShell } from '@/components/layout/ToolPageLayout.js';
 import helpData from './help/helpData.json';
 type Section = 'methodology' | 'data' | 'faq';
-interface MetricInfo {
-  fullName: string;
-  desc: string;
-}
 interface FaqItem {
   q: string;
   a: string;
@@ -140,7 +136,7 @@ function MethodologySection() {
   const metrics = (helpData.metrics as MetricStatic[]).map((m) => ({
     name: m.name,
     formula: m.formula,
-    info: t(m.i18nKey, { returnObjects: true }) as MetricInfo,
+    fullName: t(m.i18nKey),
   }));
   return (
     <HelpSection
@@ -152,13 +148,7 @@ function MethodologySection() {
     >
       <HelpGrid>
         {metrics.map((m) => (
-          <MetricCard
-            key={m.name}
-            name={m.name}
-            fullName={m.info.fullName}
-            formula={m.formula}
-            desc={m.info.desc}
-          />
+          <MetricCard key={m.name} name={m.name} fullName={m.fullName} formula={m.formula} />
         ))}
       </HelpGrid>
       <RebalancingModesInfo />
@@ -213,12 +203,10 @@ function MetricCard({
   name,
   fullName,
   formula,
-  desc,
 }: {
   name: string;
   fullName: string;
   formula: string;
-  desc: string;
 }) {
   return (
     <div className="rounded-lg bg-input-bg p-4">
@@ -226,10 +214,9 @@ function MetricCard({
         <span className="text-h3 font-bold text-brand">{name}</span>
         <span className="text-caption text-fg-tertiary">{fullName}</span>
       </div>
-      <div className="mb-2 overflow-x-auto rounded bg-elevated px-2.5 py-1.5 font-mono text-caption text-fg">
+      <div className="overflow-x-auto rounded bg-elevated px-2.5 py-1.5 font-mono text-caption text-fg">
         {formula}
       </div>
-      <div className="text-caption leading-relaxed text-fg-secondary">{desc}</div>
     </div>
   );
 }

@@ -91,7 +91,7 @@ function NavGroup({
           variant="ghost"
           className={cn(
             'h-9 px-2.5 text-label text-fg-secondary hover:bg-hover hover:text-fg [&_svg]:size-3',
-            groupActive && 'text-fg',
+            groupActive && 'text-brand',
           )}
           onMouseEnter={() => {
             preloadGroup(group);
@@ -175,7 +175,12 @@ function NavbarMobileMenu({
         />
         <div className="mt-4 flex flex-col gap-1">
           {DIRECT_LINKS.map((link) => (
-            <Link key={link.to} to={link.to} className={navLinkClass} data-testid="nav-direct">
+            <Link
+              key={link.to}
+              to={link.to}
+              className={cn(navLinkClass, isActive(link.to) && 'text-brand')}
+              data-testid="nav-direct"
+            >
               {t(`nav.${link.key}`)}
             </Link>
           ))}
@@ -198,7 +203,8 @@ export default function Navbar() {
     setMobileOpen(false);
     setOpenGroup('');
   }, [location.pathname]);
-  const isActive = (to: string) => location.pathname === to;
+  const isActive = (to: string) =>
+    location.pathname === to || (to !== '/' && location.pathname.startsWith(`${to}/`));
   return (
     <nav className="sticky top-0 z-50 h-15 border-b border-border-subtle bg-app/95 backdrop-blur-md">
       <div className="max-w-[1440px] mx-auto h-full px-6 flex items-center gap-4">
@@ -230,7 +236,12 @@ export default function Navbar() {
             t={t}
           />
           {DIRECT_LINKS.map((link) => (
-            <Link key={link.to} to={link.to} className={navLinkClass} data-testid="nav-direct">
+            <Link
+              key={link.to}
+              to={link.to}
+              className={cn(navLinkClass, isActive(link.to) && 'text-brand')}
+              data-testid="nav-direct"
+            >
               {t(`nav.${link.key}`)}
             </Link>
           ))}

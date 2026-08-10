@@ -123,33 +123,9 @@ func fetchAndStore(ctx context.Context, pool *pgxpool.Pool, ticker, startDate, e
 	slog.Info("获取成功", "ticker", ticker, "provider", providerName, "count", len(prices))
 	return writePricesToDB(ctx, pool, ticker, prices)
 }
-func sanitizePrices(prices []dailyPrice) []dailyPrice {
-	valid := make([]dailyPrice, 0, len(prices))
-	for _, p := range prices {
-		if p.High < p.Low {
-			p.High, p.Low = p.Low, p.High
-		}
-		if p.Open < p.Low {
-			p.Open = p.Low
-		}
-		if p.Close < p.Low {
-			p.Close = p.Low
-		}
-		if p.High < p.Open {
-			p.High = p.Open
-		}
-		if p.High < p.Close {
-			p.High = p.Close
-		}
-		if p.Volume < 0 {
-			p.Volume = 0
-		}
-		valid = append(valid, p)
-	}
-	return valid
-}
+
 func writePricesToDB(ctx context.Context, pool *pgxpool.Pool, ticker string, prices []dailyPrice) error {
-	prices = sanitizePrices(prices)
+	prices = provider.SanitizePrices(prices)
 	batch := &pgx.Batch{}
 	for _, p := range prices {
 		batch.Queue(`

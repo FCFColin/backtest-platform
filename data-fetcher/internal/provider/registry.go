@@ -116,6 +116,34 @@ func NewBaseProvider(name string, opts httpclient.Options) BaseProvider {
 
 func (b BaseProvider) Name() string { return b.NameStr }
 
+// SanitizePrices 修复脏 OHLC 数据（akshare/部分数据源偶发 high<low、open/close 越界、负成交量），
+// 保证满足 prices 表 CHECK 约束；worker 与实时回填两条写库路径共用。
+func SanitizePrices(prices []DailyPrice) []DailyPrice {
+	valid := make([]DailyPrice, 0, len(prices))
+	for _, p := range prices {
+		if p.High < p.Low {
+			p.High, p.Low = p.Low, p.High
+		}
+		if p.Open < p.Low {
+			p.Open = p.Low
+		}
+		if p.Close < p.Low {
+			p.Close = p.Low
+		}
+		if p.High < p.Open {
+			p.High = p.Open
+		}
+		if p.High < p.Close {
+			p.High = p.Close
+		}
+		if p.Volume < 0 {
+			p.Volume = 0
+		}
+		valid = append(valid, p)
+	}
+	return valid
+}
+
 func NewProviderBreaker(name string, maxRequests uint32) *gobreaker.CircuitBreaker {
 	return gobreaker.NewCircuitBreaker(gobreaker.Settings{
 		Name:        name,

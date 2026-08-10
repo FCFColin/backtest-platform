@@ -4,7 +4,6 @@ import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-proto';
 import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-proto';
 import { PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics';
 import { diag, DiagConsoleLogger, DiagLogLevel } from '@opentelemetry/api';
-import { PgInstrumentation } from '@opentelemetry/instrumentation-pg';
 import { config } from './config/index.js';
 import { logger } from './utils/logger.js';
 
@@ -45,7 +44,6 @@ const sdk = new NodeSDK({
         ],
       },
     }),
-    new PgInstrumentation({ enhancedDatabaseReporting: true }),
   ],
 });
 

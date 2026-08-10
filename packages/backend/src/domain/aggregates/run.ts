@@ -1,4 +1,3 @@
-import { randomUUID } from 'crypto';
 import { DomainValidationError } from '../value-objects/index.js';
 import type { DomainEvent } from '../events/events.js';
 
@@ -164,9 +163,5 @@ export class Run {
     const events = [...this._events];
     this._events.length = 0;
     return events;
-  }
-
-  static newEventId(): string {
-    return randomUUID();
   }
 }

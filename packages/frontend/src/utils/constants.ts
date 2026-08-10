@@ -7,7 +7,7 @@ import type {
 } from '@backtest/shared';
 
 export const DEFAULT_START_DATE = '2015-01-01';
-export const DEFAULT_END_DATE = '2024-12-31';
+export const DEFAULT_END_DATE = '2026-08-10';
 export const DEFAULT_BACKTEST_START_DATE = '2010-01-01';
 export const DEFAULT_60_40_ASSETS: { ticker: string; weight: number }[] = [
   { ticker: 'VTI', weight: 60 },

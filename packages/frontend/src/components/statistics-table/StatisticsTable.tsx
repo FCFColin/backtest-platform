@@ -138,7 +138,12 @@ export function StatisticsTable({
         </div>
       </div>
       <TableFrame>
-        <SortableTable columns={columns} data={portfolios} rowKey={(p) => p.id} />
+        <SortableTable
+          columns={columns}
+          data={portfolios}
+          rowKey={(p) => p.id}
+          caption={t('Statistics Overview')}
+        />
       </TableFrame>
       {expanded && extendedTable}
     </div>
@@ -163,7 +168,7 @@ export function ExtendedMetricsTable({ portfolios }: { portfolios: PortfolioStat
 }
 const HORIZON_LABELS = [
   'about.limits.backtestRangeValue',
-  'about.limits.backtestRangeValue',
+  'stats.horizon20y',
   'stats.horizon30y',
   'stats.horizon40y',
 ] as const;

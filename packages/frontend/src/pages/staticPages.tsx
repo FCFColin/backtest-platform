@@ -394,7 +394,7 @@ export function ContactPage() {
             value={form.message}
             onChange={(e) => setForm((p) => ({ ...p, message: e.target.value }))}
             placeholder={t('Describe your feedback or issue...')}
-            className="w-full resize-y rounded-md border border-border bg-input-bg px-3 py-2 text-body text-fg placeholder:text-fg-tertiary transition-colors hover:border-border-strong focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/15"
+            className="w-full resize-y rounded-md border border-border bg-input-bg px-3 py-2 text-body text-fg placeholder:text-fg-tertiary transition-colors hover:border-border-strong focus:border-brand focus:outline-none"
             style={{ minHeight: 120 }}
           />
         </Field>

@@ -7,6 +7,7 @@ import AuthPageLayout from '@/components/auth/formFields';
 import { BrandIconBadge } from '@/components/auth/formFields';
 import { useAuthStore } from '@/store/authStore';
 import { ErrorBanner } from '@/components/stateDisplay';
+import { Button } from '@/components/ui/uiComponents';
 type Status = 'pending' | 'success' | 'error';
 const STATUS_ICONS = {
   pending: <Loader2 className="w-10 h-10 animate-spin text-brand" />,
@@ -59,9 +60,9 @@ export default function VerifyEmailPage() {
       <p className="text-sm text-fg-tertiary leading-relaxed">{message}</p>
       {status !== 'pending' && (
         <div className="mt-[18px]">
-          <Link to="/login" className="main-action-btn inline-flex h-10 items-center px-[18px]">
-            {t('Go to Login')}
-          </Link>
+          <Button asChild variant="primary" className="h-10 px-[18px]">
+            <Link to="/login">{t('Go to Login')}</Link>
+          </Button>
         </div>
       )}
     </AuthPageLayout>
@@ -75,19 +76,16 @@ function NotAuthedContent({ token }: { token: string }) {
         {t('Please log in before accepting the invitation')}
       </p>
       <div className="flex gap-2.5 justify-center mt-[18px]">
-        <Link
-          to="/login"
-          state={{ from: `/accept-invite?token=${encodeURIComponent(token)}` }}
-          className="main-action-btn inline-flex h-10 items-center gap-1.5 px-4"
-        >
-          <LogIn className="w-4 h-4" /> {t('Log In')}
-        </Link>
-        <Link
-          to="/signup"
-          className="bg-input-bg text-fg border border-border-subtle rounded font-medium inline-flex h-10 items-center px-4 no-underline"
-        >
-          {t('Sign Up')}
-        </Link>
+        <Button asChild variant="primary" className="h-10 px-4">
+          <Link to="/login" state={{ from: `/accept-invite?token=${encodeURIComponent(token)}` }}>
+            <LogIn className="w-4 h-4" /> {t('Log In')}
+          </Link>
+        </Button>
+        <Button asChild variant="secondary" className="h-10 px-4">
+          <Link to="/signup" className="no-underline">
+            {t('Sign Up')}
+          </Link>
+        </Button>
       </div>
     </>
   );
@@ -100,9 +98,9 @@ function DoneContent({ onNavigate }: { onNavigate: () => void }) {
         {t('Successfully joined the organization')}
       </p>
       <div className="mt-[18px]">
-        <button onClick={onNavigate} className="main-action-btn h-10 px-[18px]">
+        <Button type="button" variant="primary" className="h-10 px-[18px]" onClick={onNavigate}>
           {t('Go to Account')}
-        </button>
+        </Button>
       </div>
     </>
   );
@@ -124,10 +122,12 @@ function InviteFormContent({
       </p>
       <ErrorBanner message={error} style={{ marginTop: 12 }} />
       <div className="mt-[18px]">
-        <button
+        <Button
+          type="button"
+          variant="primary"
+          className="h-[42px] px-[22px]"
           onClick={onAccept}
           disabled={loading}
-          className="main-action-btn h-[42px] px-[22px] inline-flex items-center gap-2"
         >
           {loading ? (
             <Loader2 className="w-4 h-4 animate-spin" />
@@ -135,7 +135,7 @@ function InviteFormContent({
             <UserPlus className="w-4 h-4" />
           )}
           {loading ? t('Running...') : t('Accept Invitation')}
-        </button>
+        </Button>
       </div>
     </>
   );

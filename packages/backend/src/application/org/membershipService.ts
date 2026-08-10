@@ -38,14 +38,16 @@ export async function resolveDefaultOrg(userId: string): Promise<Membership | nu
   return sorted[0];
 }
 
-async function ensureNotLastOwner(orgId: string, isOwner: boolean): Promise<'last_owner' | 'ok'> {
-  if (!isOwner) return 'ok';
-  const pool = getPool();
-  const { rows: owners } = await pool.query(
-    `SELECT COUNT(*)::int AS c FROM memberships WHERE org_id = $1 AND role = 'owner'`,
-    [orgId],
+// 降级/移除 owner 时在单条语句内校验仍留有 owner，check+write 原子化消除 TOCTOU
+async function classifyMembershipFailure(
+  orgId: string,
+  userId: string,
+): Promise<'not_found' | 'last_owner'> {
+  const { rows } = await getPool().query(
+    'SELECT role FROM memberships WHERE org_id = $1 AND user_id = $2',
+    [orgId, userId],
   );
-  return owners[0].c <= 1 ? 'last_owner' : 'ok';
+  return rows.length === 0 ? 'not_found' : 'last_owner';
 }
 
 export async function updateMemberRole(
@@ -54,22 +56,19 @@ export async function updateMemberRole(
   role: OrgRole,
 ): Promise<'ok' | 'not_found' | 'last_owner'> {
   const pool = getPool();
-  const { rows: current } = await pool.query(
-    'SELECT role FROM memberships WHERE org_id = $1 AND user_id = $2',
-    [orgId, userId],
+  const result = await pool.query(
+    `UPDATE memberships m SET role = $3
+     WHERE m.org_id = $1 AND m.user_id = $2
+       AND (m.role <> 'owner' OR $3 = 'owner' OR
+             (SELECT COUNT(*) FROM memberships o WHERE o.org_id = $1 AND o.role = 'owner') > 1)
+     RETURNING m.user_id`,
+    [orgId, userId, role],
   );
-  if (current.length === 0) return 'not_found';
-  if (current[0].role === 'owner' && role !== 'owner') {
-    const check = await ensureNotLastOwner(orgId, true);
-    if (check !== 'ok') return check;
+  if (result.rows.length > 0) {
+    logger.info({ orgId, userId, role }, '[membershipService] 成员角色已更新');
+    return 'ok';
   }
-  await pool.query('UPDATE memberships SET role = $3 WHERE org_id = $1 AND user_id = $2', [
-    orgId,
-    userId,
-    role,
-  ]);
-  logger.info({ orgId, userId, role }, '[membershipService] 成员角色已更新');
-  return 'ok';
+  return classifyMembershipFailure(orgId, userId);
 }
 
 export async function removeMember(
@@ -77,16 +76,19 @@ export async function removeMember(
   userId: string,
 ): Promise<'ok' | 'not_found' | 'last_owner'> {
   const pool = getPool();
-  const { rows: current } = await pool.query(
-    'SELECT role FROM memberships WHERE org_id = $1 AND user_id = $2',
+  const result = await pool.query(
+    `DELETE FROM memberships m
+     WHERE m.org_id = $1 AND m.user_id = $2
+       AND (m.role <> 'owner' OR
+             (SELECT COUNT(*) FROM memberships o WHERE o.org_id = $1 AND o.role = 'owner') > 1)
+     RETURNING m.user_id`,
     [orgId, userId],
   );
-  if (current.length === 0) return 'not_found';
-  const check = await ensureNotLastOwner(orgId, current[0].role === 'owner');
-  if (check !== 'ok') return check;
-  await pool.query('DELETE FROM memberships WHERE org_id = $1 AND user_id = $2', [orgId, userId]);
-  logger.info({ orgId, userId }, '[membershipService] 成员已移除');
-  return 'ok';
+  if (result.rows.length > 0) {
+    logger.info({ orgId, userId }, '[membershipService] 成员已移除');
+    return 'ok';
+  }
+  return classifyMembershipFailure(orgId, userId);
 }
 
 export async function isPlatformAdmin(userId: string): Promise<boolean> {

@@ -135,7 +135,7 @@ export function buildBacktestRequestBody(portfolios: Portfolio[], parameters: Ba
     parameters,
   };
 }
-export function handleBacktestError(error: unknown): void {
+export function handleBacktestError(error: unknown): string {
   reportError(error, { component: 'backtestStore', action: 'handleBacktestError' });
   const isAbort = error instanceof DOMException && error.name === 'AbortError';
   const msg = isAbort
@@ -145,6 +145,7 @@ export function handleBacktestError(error: unknown): void {
       : (error instanceof Error && error.message) ||
         i18n.t('Backtest failed. Please check ticker symbols and parameters.');
   useToastStore.getState().addToast('error', msg);
+  return msg;
 }
 export function cancellableSleep(ms: number, signal: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {

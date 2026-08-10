@@ -160,9 +160,10 @@ async function dispatchJob(job: Job<BacktestJobData>): Promise<BacktestJobResult
       const result = await handler(payload);
       if (result.success && result.data) {
         await markJobProcessed(jobId, type, result.data);
-        await persistRunIfTenant(job, result.data);
+        await persistRunIfTenant(job, (run) => run.complete(result.data!));
         return { status: 'completed', result: result.data };
       }
+      await persistRunIfTenant(job, (run) => run.fail(result.error ?? 'handler failed'));
       await releaseJobClaim(jobId, type);
       return { status: 'failed', error: result.error };
     }
@@ -172,14 +173,16 @@ async function dispatchJob(job: Job<BacktestJobData>): Promise<BacktestJobResult
     return { status: 'failed', error: `Unknown job type: ${type}` };
   } catch (err) {
     if (err instanceof DelayedError) throw err;
-    return await handleEngineError(err, jobId, type);
+    const failed = await handleEngineError(err, jobId, type);
+    await persistRunIfTenant(job, (run) => run.fail(failed.error ?? 'handler failed'));
+    return failed;
   }
 }
 
-// 将成功的异步任务结果落库到 backtest_runs（租户隔离，ADR-034）。
+// 将异步任务最终状态（成功/失败）落库到 backtest_runs（租户隔离，ADR-034）。
 async function persistRunIfTenant(
   job: Job<BacktestJobData>,
-  result: Record<string, unknown>,
+  finalize: (run: Run) => void,
 ): Promise<void> {
   const { tenantId, ownerUserId, type, payload } = job.data;
   if (!tenantId) return;
@@ -192,7 +195,7 @@ async function persistRunIfTenant(
       ownerUserId: ownerUserId ?? null,
     });
     run.start();
-    run.complete(result);
+    finalize(run);
     await save(tenantId, run);
     for (const evt of run.pullEvents()) {
       void eventDispatcher.dispatch(evt).catch((err) => {

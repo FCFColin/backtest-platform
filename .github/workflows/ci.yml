@@ -45,6 +45,8 @@ jobs:
           ignore-unfixed: true
           format: sarif
           output: trivy-results.sarif
+          # 使 CRITICAL/HIGH 漏洞成为门禁失败，而非仅 SARIF 注解
+          exit-code: 1
       - name: Upload Trivy SARIF
         uses: github/codeql-action/upload-sarif@v3
         if: always()
@@ -82,6 +84,8 @@ jobs:
   unit-tests:
     name: Unit Tests
     runs-on: ubuntu-latest
+    env:
+      RUN_TESTCONTAINERS: '1'
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/pnpm-setup

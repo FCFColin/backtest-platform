@@ -1,6 +1,5 @@
 import { logger } from '../utils/logger.js';
 import { createRun } from '../repositories/backtestRunRepo.js';
-import { RUN_COMPLETED_EVENT } from '../domain/events/events.js';
 import type { EventHandler, DomainEvent } from '../domain/events/events.js';
 
 export class BacktestCompletedHandler implements EventHandler {
@@ -62,24 +61,5 @@ export class BacktestCompletedHandler implements EventHandler {
       );
       throw err;
     }
-  }
-}
-
-export class RunCompletedHandler implements EventHandler {
-  readonly eventType = RUN_COMPLETED_EVENT;
-
-  async handle(event: DomainEvent): Promise<void> {
-    const { name, portfolioId, ownerUserId } = event.payload;
-
-    logger.info(
-      {
-        eventType: event.eventType,
-        aggregateId: event.aggregateId,
-        runName: name,
-        portfolioId,
-        ownerUserId,
-      },
-      '[RunCompletedHandler] Run 聚合根已进入 completed 态（持久化由 worker 完成）',
-    );
   }
 }

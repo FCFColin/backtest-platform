@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, X, ChevronDown, FolderOpen, GitCompare } from 'lucide-react';
+import { Plus, X, ChevronDown, GitCompare } from 'lucide-react';
 import { useBacktestStore } from '@/store/backtestStore';
 import {
   ALL_REBALANCE_FREQUENCIES,
@@ -140,7 +140,6 @@ interface AddMenuActions {
   onAddGlidepath: () => void;
   onLoadExample: () => void;
   onLoadCompareExample: () => void;
-  onComingSoon: () => void;
 }
 function AddPortfolioMenu(props: AddMenuActions) {
   const { t } = props;
@@ -163,7 +162,6 @@ function AddPortfolioMenu(props: AddMenuActions) {
             </div>
           </DropdownMenuItem>
         ))}
-        <DropdownMenuItem onClick={props.onComingSoon}>{t('Add Saved')}</DropdownMenuItem>
         <DropdownMenuItem onClick={props.onAddGlidepath}>{t('Add Glidepath')}</DropdownMenuItem>
         <DropdownMenuItem onClick={props.onLoadExample}>{t('Load Example')}</DropdownMenuItem>
         <DropdownMenuItem onClick={props.onLoadCompareExample}>
@@ -190,14 +188,6 @@ function PortfolioEditorHeader({
         )}
       </div>
       <div className="flex items-center gap-1.5">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => useToastStore.getState().addToast('warning', t('Feature coming soon'))}
-        >
-          <FolderOpen className="w-3.5 h-3.5" />
-          {t('Load')}
-        </Button>
         <AddPortfolioMenu t={t} {...menuActions} />
       </div>
     </div>
@@ -249,7 +239,6 @@ function MultiPortfolioEditor() {
         onAddGlidepath={handleAddGlidepath}
         onLoadExample={() => addPortfolio('60-40')}
         onLoadCompareExample={handleLoadCompareExample}
-        onComingSoon={() => useToastStore.getState().addToast('warning', t('Feature coming soon'))}
       />
       {showGlidepathForm && (
         <GlidepathForm

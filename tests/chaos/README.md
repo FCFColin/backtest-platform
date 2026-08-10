@@ -29,7 +29,7 @@ pnpm test:chaos
 
 - **Docker 不可用**(`docker info` 失败)时,5 个 experiment 全部自动 skip(非缺陷,环境限制)
 - **目标容器未运行**(如 `backtest-postgres` 不在 running 状态)时,对应 experiment 自动 skip
-- 跳过由 `tests/helpers/chaos.ts` 的 `setupChaosFixture` 在 `beforeAll` 中检测,通过 `it.skipIf(!fixture.dockerAvailable || !fixture.containerRunning, ...)` 实现
+- 跳过由 `tests/helpers/chaos.ts` 的 `containerReady` getter 在收集期同步探测（docker 可用且容器 running），通过 `it.skipIf(!fixture.containerReady, ...)` 实现；避免 beforeAll 之前的异步探测导致 CI 空跑通过
 
 ## Experiment 列表
 

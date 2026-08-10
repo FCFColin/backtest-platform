@@ -40,7 +40,6 @@ export interface ComputeToolConfig<S> {
 }
 interface StandardPageConfig {
   titleKey: string;
-  breadcrumbs?: { label: string; href?: string }[];
   headerExtra?: ReactNode;
 }
 export function StandardPageShell({

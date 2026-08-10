@@ -27,7 +27,7 @@ describe.skipIf(!dockerAvailable)('RLS 跨租户隔离集成测试（P0-03）', 
     );
     orgA = orgAResult.rows[0].id;
     orgB = orgBResult.rows[0].id;
-  }, 120000);
+  }, 300000);
 
   afterAll(async () => {
     await ctx.cleanup();
@@ -114,14 +114,15 @@ describe.skipIf(!dockerAvailable)('RLS 跨租户隔离集成测试（P0-03）', 
     expect(orgAResults[0].id).toBe(created);
   });
 
-  it('EXPLAIN 输出包含 RLS Filter（tenant_isolation 策略生效）', async () => {
+  it('EXPLAIN 输出包含 RLS 租户限定（tenant_isolation 策略生效）', async () => {
     const explainResult = await withTenantReadOnly(orgA, async (client) => {
       const { rows } = await client.query('EXPLAIN (FORMAT TEXT) SELECT * FROM portfolios');
       return rows.map((r: { 'QUERY PLAN': string }) => r['QUERY PLAN']).join('\n');
     });
 
-    expect(explainResult).toContain('Filter');
+    // RLS 限定会作为 Filter 或 Index Cond 下推，两种形态都须引用 current_setting 与 tenant_id
     expect(explainResult.toLowerCase()).toContain('current_setting');
+    expect(explainResult.toLowerCase()).toContain('tenant_id');
   });
 
   it('未设置租户上下文时查询返回零行（fail-safe，拒绝优于泄露）', async () => {

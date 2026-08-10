@@ -10,6 +10,7 @@ export interface BacktestState {
   portfolios: Portfolio[];
   portfolioCounter: number;
   results: BacktestResult | null;
+  error: string | null;
   isLoading: boolean;
   activeTab: string;
   hasLoadedFromShare: boolean;

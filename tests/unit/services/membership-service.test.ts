@@ -210,22 +210,21 @@ describe('listOrgMembers', () => {
 });
 
 describe.each([
-  ['updateMemberRole', updateMemberRole, 'UPDATE memberships SET role'],
-  ['removeMember', removeMember, 'DELETE FROM memberships'],
+  ['updateMemberRole', updateMemberRole, 'UPDATE memberships m SET role'],
+  ['removeMember', removeMember, 'DELETE FROM memberships m'],
 ] as const)('%s', (_fnName, fn, sqlFrag) => {
-  it.each<[string, unknown[], unknown, unknown, string]>([
-    ['成员存在且非 owner 时返回 ok', [{ role: 'analyst' }], { rowCount: 1 }, undefined, 'ok'],
-    ['成员不存在应返回 not_found', [], undefined, undefined, 'not_found'],
+  it.each<[string, unknown, unknown, unknown, string]>([
+    ['单语句条件更新命中应返回 ok', { rows: [{ id: 'm1' }] }, undefined, undefined, 'ok'],
+    ['成员不存在应返回 not_found', { rows: [] }, { rows: [] }, undefined, 'not_found'],
     [
       '最后一个 owner 应返回 last_owner',
-      [{ role: 'owner' }],
-      { rows: [{ c: 1 }] },
+      { rows: [] },
+      { rows: [{ role: 'owner' }] },
       undefined,
       'last_owner',
     ],
-    ['存在多个 owner 时应成功', [{ role: 'owner' }], { rows: [{ c: 2 }] }, { rowCount: 1 }, 'ok'],
-  ])('%s', async (_n, memberRows, q2, q3, expected) => {
-    dbMocks.query.mockResolvedValueOnce({ rows: memberRows });
+  ])('%s', async (_n, q1, q2, q3, expected) => {
+    dbMocks.query.mockResolvedValueOnce(q1);
     if (q2) dbMocks.query.mockResolvedValueOnce(q2);
     if (q3) dbMocks.query.mockResolvedValueOnce(q3);
     const r = await fn('org-1', 'u1', 'admin');

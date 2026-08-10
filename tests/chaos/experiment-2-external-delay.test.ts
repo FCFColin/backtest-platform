@@ -16,15 +16,9 @@ const DATA_ENDPOINT = `${API_URL}/api/v1/data/meta`;
 const fixture = setupChaosLifecycle(CONTAINERS.dataFetcher);
 
 describe('Chaos Experiment 2: External Service Unreachable', () => {
-  it.skipIf(!fixture.dockerAvailable)(
+  it.skipIf(!fixture.containerReady)(
     '应在 data-fetcher 不可达时降级到本地数据，且熔断器 Open',
     async () => {
-      if (!fixture.containerRunning) {
-        // eslint-disable-next-line no-console -- 混沌实验跳过说明需输出到终端
-        console.warn('skip: backtest-data-fetcher 容器未运行');
-        return;
-      }
-
       const steadyHealthy = await waitForHealthy(HEALTH_URL, 10000);
       expect(steadyHealthy).toBe(true);
 

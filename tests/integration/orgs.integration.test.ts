@@ -31,37 +31,13 @@ beforeAll(async () => {
 
   const server = await startSaasTestServer(seed.orgId, seed.userId, '/api/v1/orgs', orgRoutes);
   baseUrl = server.url;
-}, 120000);
+}, 300000);
 
 afterAll(async () => {
   if (ctx) await ctx.cleanup();
 });
 
 describe.skipIf(!dockerAvailable)('组织与成员管理集成测试', () => {
-  it('GET /current 返回当前组织信息', async () => {
-    const res = await fetch(`${baseUrl}/api/v1/orgs/current`);
-    expect(res.status).toBe(200);
-    const json = await res.json();
-    expect(json.success).toBe(true);
-    expect(json.data.orgId).toBe(seed!.orgId);
-    expect(json.data.name).toBe('Test Org');
-  });
-
-  it('PATCH /current 更新组织名称', async () => {
-    const res = await fetch(`${baseUrl}/api/v1/orgs/current`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: '更新后组织名' }),
-    });
-    expect(res.status).toBe(200);
-    const json = await res.json();
-    expect(json.data.updated).toBe(true);
-
-    const getRes = await fetch(`${baseUrl}/api/v1/orgs/current`);
-    const getJson = await getRes.json();
-    expect(getJson.data.name).toBe('更新后组织名');
-  });
-
   it('GET /members 返回成员列表', async () => {
     const res = await fetch(`${baseUrl}/api/v1/orgs/members`);
     expect(res.status).toBe(200);

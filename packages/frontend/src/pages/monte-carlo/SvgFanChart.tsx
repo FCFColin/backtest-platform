@@ -100,9 +100,11 @@ export default function SvgFanChart({
       <svg
         width={width}
         height={height}
+        role="img"
         onMouseMove={handleMouseMove}
         onMouseLeave={() => setTooltip(null)}
       >
+        <title>{`${band5_95Name} · ${band25_75Name} · ${medianName}`}</title>
         {yTicks.map((t) => (
           <line
             key={'g' + t}
@@ -224,7 +226,10 @@ export default function SvgFanChart({
           <span>{band25_75Name}</span>
         </div>
         <div className="flex items-center gap-1">
-          <span className="w-3 h-[2.5px] rounded-sm" style={{ background: CHART_COLORS[0] }} />
+          <span
+            className="w-3 h-3 rounded-sm"
+            style={{ background: CHART_COLORS[0], opacity: 0.08 }}
+          />
           <span>{band5_95Name}</span>
         </div>
         <div className="flex items-center gap-1">

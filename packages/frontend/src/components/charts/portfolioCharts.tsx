@@ -11,7 +11,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { CHART_COLORS, type Portfolio } from '@backtest/shared';
 import { downsample, DOWNSAMPLE_THRESHOLD, DOWNSAMPLE_TARGET } from '../../utils/format.js';
-import { CHART_MARGIN, CHART_GRID_PROPS } from '@/lib/chart-theme.js';
+import { CHART_MARGIN, CHART_GRID_PROPS, DATE_TICK_FORMATTER } from '@/lib/chart-theme.js';
 import { ChartTooltip, ChartLegend, ChartXAxis, ChartYAxis } from './sharedChartContent.js';
 import ChartCard from '../ChartCard.js';
 
@@ -89,10 +89,6 @@ type AllocationPortfolio = Pick<Portfolio, 'name' | 'assets'> & {
 interface PortfolioAllocationChartProps {
   portfolios: AllocationPortfolio[];
 }
-const dateFormatter = (v: string | number) => {
-  const str = String(v);
-  return str.length > 7 ? str.slice(0, 7) : str;
-};
 function AllocationAreaChart({
   data,
   assets,
@@ -107,8 +103,8 @@ function AllocationAreaChart({
   return (
     <ResponsiveContainer width="100%" height={400}>
       <AreaChart data={data} margin={CHART_MARGIN}>
-        <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--bg-subtle)" />
-        <ChartXAxis dataKey="date" tickFormatter={dateFormatter} />
+        <CartesianGrid {...CHART_GRID_PROPS} />
+        <ChartXAxis dataKey="date" tickFormatter={DATE_TICK_FORMATTER} />
         <ChartYAxis domain={[0, 100]} tickFormatter={(v: number) => `${v}%`} />
         <ChartTooltip
           labelFormatter={(label: string) => label}
@@ -134,7 +130,7 @@ function AllocationAreaChart({
             height={20}
             stroke="var(--brand)"
             travellerWidth={8}
-            tickFormatter={dateFormatter}
+            tickFormatter={DATE_TICK_FORMATTER}
           />
         )}
       </AreaChart>

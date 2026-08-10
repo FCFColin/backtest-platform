@@ -2,30 +2,8 @@ package main
 
 import (
 	"math"
-	"reflect"
 	"testing"
 )
-
-func TestSanitizePrices(t *testing.T) {
-	cases := []struct {
-		name   string
-		prices []dailyPrice
-		want   []dailyPrice
-	}{
-		{"empty", nil, []dailyPrice{}},
-		{"swaps high low", []dailyPrice{{Date: "2024-01-01", Open: 100, High: 90, Low: 110, Close: 105, Volume: 1000}}, []dailyPrice{{Date: "2024-01-01", Open: 100, High: 110, Low: 90, Close: 105, Volume: 1000}}},
-		{"clamps open close", []dailyPrice{{Date: "2024-01-01", Open: 50, High: 100, Low: 80, Close: 60, Volume: 1000}}, []dailyPrice{{Date: "2024-01-01", Open: 80, High: 100, Low: 80, Close: 80, Volume: 1000}}},
-		{"negative volume", []dailyPrice{{Date: "2024-01-01", Open: 100, High: 110, Low: 90, Close: 105, Volume: -500}}, []dailyPrice{{Date: "2024-01-01", Open: 100, High: 110, Low: 90, Close: 105, Volume: 0}}},
-		{"already valid", []dailyPrice{{Date: "2024-01-01", Open: 95, High: 110, Low: 90, Close: 105, Volume: 1000}}, []dailyPrice{{Date: "2024-01-01", Open: 95, High: 110, Low: 90, Close: 105, Volume: 1000}}},
-	}
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			if got := sanitizePrices(c.prices); !reflect.DeepEqual(got, c.want) {
-				t.Errorf("sanitizePrices = %+v, want %+v", got, c.want)
-			}
-		})
-	}
-}
 
 func priceRow(closes ...float64) []dailyPrice {
 	prices := make([]dailyPrice, len(closes))

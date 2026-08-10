@@ -17,7 +17,7 @@
 ### 1. Stripe 计费
 
 - 采用官方 stripe SDK，密钥用 test-mode（sk_test_/pk_test_/whsec_），未配置时计费端点返回 503（计费未启用），不影响其余功能
-- 数据（迁移 011_billing.sql）：stripe_customers(org_id PK, stripe_customer_id)、subscriptions(org_id, stripe_subscription_id UNIQUE, plan, status, current_period_end, cancel_at_period_end)。两表属计费控制平面，不启用 RLS（webhook 回调时无租户上下文，需按 stripe_customer_id 反查组织）
+- 数据（迁移 001_initial_schema.sql）：stripe_customers(org_id PK, stripe_customer_id)、subscriptions(org_id, stripe_subscription_id UNIQUE, plan, status, current_period_end, cancel_at_period_end)。两表属计费控制平面，不启用 RLS（webhook 回调时无租户上下文，需按 stripe_customer_id 反查组织）
 - billingService.ts：ensureCustomer、createCheckoutSession、createPortalSession、constructWebhookEvent（签名校验）、handleWebhookEvent（同步 subscriptions + 回写 organizations.plan/status，取消时计划回落 free）
 - 路由：GET /subscription、POST /checkout、POST /portal（auth+tenant，写操作要求 ADMIN_ACCESS）
 - webhook 关键点：POST /api/v1/billing/webhook 用 express.raw 在全局 express.json 之前挂载，以原始字节做签名校验；处理失败返回 5xx 让 Stripe 重试
@@ -29,7 +29,7 @@
 
 ### 3. 用量计量
 
-- 迁移 012_usage.sql：usage_events（明细，审计/BI）+ usage_counters（按 org/period/metric 月度聚合，配额权威）；两表启用 RLS
+- 迁移 001_initial_schema.sql：usage_events（明细，审计/BI）+ usage_counters（按 org/period/metric 月度聚合，配额权威）；两表启用 RLS
 - 双写 DB + Redis 月度计数器（快路径读，DB 兜底跨实例一致性），任一失败不阻断主流程
 
 ### 4. 配额中间件

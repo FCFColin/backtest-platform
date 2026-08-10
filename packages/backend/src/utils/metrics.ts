@@ -5,10 +5,25 @@ import type { Request } from 'express';
 const register = new client.Registry();
 client.collectDefaultMetrics({ register });
 
-const gauge = (name: string, help: string, labelNames: string[] = []): client.Gauge =>
-  new client.Gauge({ name, help, labelNames, registers: [register] });
-const counter = (name: string, help: string, labelNames: readonly string[] = []): client.Counter =>
-  new client.Counter({ name, help, labelNames: [...labelNames], registers: [register] });
+// 注册幂等：连接池重建/模块热载时重复注册同名指标会抛错，复用已注册实例
+const gauge = (name: string, help: string, labelNames: string[] = []): client.Gauge => {
+  const existing = register.getSingleMetric(name);
+  return (
+    (existing as client.Gauge | undefined) ??
+    new client.Gauge({ name, help, labelNames, registers: [register] })
+  );
+};
+const counter = (
+  name: string,
+  help: string,
+  labelNames: readonly string[] = [],
+): client.Counter => {
+  const existing = register.getSingleMetric(name);
+  return (
+    (existing as client.Counter | undefined) ??
+    new client.Counter({ name, help, labelNames: [...labelNames], registers: [register] })
+  );
+};
 const histogram = (
   name: string,
   help: string,

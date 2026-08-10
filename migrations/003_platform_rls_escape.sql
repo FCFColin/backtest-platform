@@ -12,5 +12,5 @@ END $$;
 
 DROP POLICY stripe_customers_tenant_isolation ON stripe_customers;
 CREATE POLICY stripe_customers_tenant_isolation ON stripe_customers FOR ALL
-  USING (org_id = current_setting('app.current_tenant_id', true)::uuid OR current_setting('app.is_platform_admin', true) = 'true')
-  WITH CHECK (org_id = current_setting('app.current_tenant_id', true)::uuid OR current_setting('app.is_platform_admin', true) = 'true');
+  USING (org_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid OR current_setting('app.is_platform_admin', true) = 'true')
+  WITH CHECK (org_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid OR current_setting('app.is_platform_admin', true) = 'true');

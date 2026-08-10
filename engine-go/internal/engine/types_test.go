@@ -68,9 +68,7 @@ var expectedPortfolioResultFields = []string{
 var expectedBacktestResultFields = []string{
 	"portfolios", "correlations", "benchmarkGrowth", "assetTickers", "assetCorrelations",
 }
-var allowedBacktestResultExtraFields = []string{
-	"fingerprint", // Go 引擎缓存指纹，不出现在 TS 契约中
-}
+var allowedBacktestResultExtraFields = []string{}
 var expectedDrawdownEpisodeFields = []string{
 	"peakDate", "troughDate", "recoveryDate",
 	"depth", "timeToTrough", "recoveryTime", "totalTimeDurationDays",

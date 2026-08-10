@@ -17,15 +17,9 @@ const DB_ENDPOINT = `${API_URL}/api/v1/data/meta`;
 const fixture = setupChaosLifecycle(CONTAINERS.postgres, reconnectContainer);
 
 describe('Chaos Experiment 1: Database Disconnect', () => {
-  it.skipIf(!fixture.dockerAvailable)(
+  it.skipIf(!fixture.containerReady)(
     '应在 PostgreSQL 网络分区期间降级而非 500，且熔断器 Open',
     async () => {
-      if (!fixture.containerRunning) {
-        // eslint-disable-next-line no-console -- 混沌实验跳过说明需输出到终端
-        console.warn('skip: backtest-postgres 容器未运行');
-        return;
-      }
-
       const steadyHealthy = await waitForHealthy(HEALTH_URL, 10000);
       expect(steadyHealthy).toBe(true);
 

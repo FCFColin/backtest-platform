@@ -19,15 +19,9 @@ const fixture = setupChaosLifecycle(CONTAINERS.api, async (name) => {
 });
 
 describe('Chaos Experiment 3: High Concurrency + Graceful Shutdown', () => {
-  it.skipIf(!fixture.dockerAvailable)(
+  it.skipIf(!fixture.containerReady)(
     '应在 SIGTERM 期间完成 >95% 的在途请求',
     async () => {
-      if (!fixture.containerRunning) {
-        // eslint-disable-next-line no-console -- 混沌实验跳过说明需输出到终端
-        console.warn('skip: backtest-api 容器未运行');
-        return;
-      }
-
       const steadyHealthy = await waitForHealthy(HEALTH_URL, 10000);
       expect(steadyHealthy).toBe(true);
 

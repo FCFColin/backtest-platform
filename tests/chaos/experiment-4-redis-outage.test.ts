@@ -44,15 +44,9 @@ async function getHealth(): Promise<{ status: number; redis?: boolean; overall?:
 }
 
 describe('Chaos Experiment 4: Redis 中断', () => {
-  it.skipIf(!fixture.dockerAvailable)(
+  it.skipIf(!fixture.containerReady)(
     'Redis 停止后 API 不崩溃，且健康检查反映 redis=false',
     async () => {
-      if (!fixture.containerRunning) {
-        // eslint-disable-next-line no-console -- 混沌实验跳过说明需输出到终端
-        console.warn('skip: backtest-redis 容器未运行');
-        return;
-      }
-
       const steadyHealthy = await waitForHealthy(HEALTH_URL, 10000);
       expect(steadyHealthy).toBe(true);
       const steady = await getHealth();

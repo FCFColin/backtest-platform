@@ -1,52 +1,15 @@
 import { memo, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Line } from 'recharts';
-import { CHART_COLORS, type AssetAnalysisResult, type PortfolioResult } from '@backtest/shared';
+import { type AssetAnalysisResult, type PortfolioResult } from '@backtest/shared';
 import { getHeatColor } from '@/lib/chart-theme.js';
-import { BarChartContent, SimpleLineChart } from './sharedChartContent.js';
+import { BarChartContent, ChartEmptyState } from './sharedChartContent.js';
 import { TimeSeriesLineChart } from './TimeSeriesLineChart.js';
 import { downsample, DOWNSAMPLE_THRESHOLD, DOWNSAMPLE_TARGET } from '../../utils/format.js';
 import { useAnalysisData } from '../../hooks/useAnalysisData.js';
 import { DrawdownChart } from './drawdownCharts.js';
 import { CorrelationMatrixTable } from './tables.js';
 import ChartCard from '../ChartCard.js';
-const GrowthChart = memo(function GrowthChart({
-  growthData,
-  portfolioResults,
-}: {
-  growthData: Array<Record<string, number | string>>;
-  portfolioResults: Array<{ name: string }>;
-}) {
-  const { t } = useTranslation();
-  return (
-    <ChartCard title={t('Growth Curve')}>
-      <SimpleLineChart
-        data={growthData}
-        height={350}
-        yTickFormatter={(v: number) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v.toFixed(0))}
-        tooltipLabelFormatter={(label: string) => `${t('Date')}: ${label}`}
-        tooltipFormatter={(value: number, name: string) => {
-          const numValue = typeof value === 'number' && isFinite(value) ? value : 0;
-          return [`$${numValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}`, name];
-        }}
-      >
-        {portfolioResults.map((p, idx) => (
-          <Line
-            key={p.name}
-            type="monotone"
-            dataKey={p.name}
-            name={p.name}
-            stroke={CHART_COLORS[idx % CHART_COLORS.length]}
-            strokeWidth={2}
-            dot={false}
-            activeDot={{ r: 5, stroke: 'var(--bg-elevated)', strokeWidth: 2 }}
-            isAnimationActive={false}
-          />
-        ))}
-      </SimpleLineChart>
-    </ChartCard>
-  );
-});
+import { GrowthChart } from './GrowthChart.js';
 export const OverviewCharts = memo(function OverviewCharts({
   results,
   StatsTable,
@@ -55,13 +18,13 @@ export const OverviewCharts = memo(function OverviewCharts({
   StatsTable: React.ComponentType<{ tickers: AssetAnalysisResult['tickers'] }>;
 }) {
   const { t } = useTranslation();
-  const { tickers, portfolioResults, growthData } = useAnalysisData(results, 12);
+  const { tickers, portfolioResults } = useAnalysisData(results, 12);
   return (
     <div className="space-y-6">
       <ChartCard title={t('Statistics Overview')}>
         <StatsTable tickers={tickers} />
       </ChartCard>
-      <GrowthChart growthData={growthData} portfolioResults={portfolioResults} />
+      <GrowthChart portfolios={portfolioResults} />
       <DrawdownChart portfolios={portfolioResults} />
       {results.correlations && results.correlations.length >= 2 && (
         <CorrelationMatrixTable tickers={tickers} correlations={results.correlations} />
@@ -125,9 +88,6 @@ function computeTelltaleData(
     emptyMessage: null,
   };
 }
-function ChartEmptyMessage({ message }: { message: string }) {
-  return <div className="py-10 text-center text-[13px] text-[var(--text-muted)]">{message}</div>;
-}
 function TelltaleChartView({
   chartData,
   labels,
@@ -164,7 +124,7 @@ export function TelltaleChart({ portfolios, results }: TelltaleChartProps) {
   if (emptyMessage) {
     return (
       <ChartCard title={title}>
-        <ChartEmptyMessage message={emptyMessage} />
+        <ChartEmptyState message={emptyMessage} />
       </ChartCard>
     );
   }
@@ -311,7 +271,7 @@ export function SeasonalityChart({ portfolios }: SeasonalityChartProps) {
   if (portfolios.length === 0) {
     return (
       <ChartCard title={t('Seasonality')}>
-        <ChartEmptyMessage message={t('No data')} />
+        <ChartEmptyState message={t('No data')} />
       </ChartCard>
     );
   }

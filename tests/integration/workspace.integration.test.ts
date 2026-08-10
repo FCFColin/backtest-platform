@@ -22,7 +22,7 @@ beforeAll(async () => {
   const seed = await seedOrgAndUser();
   const server = await startSaasTestServer(seed.orgId, seed.userId, '/api/v1', workspaceRoutes);
   baseUrl = server.url;
-}, 120000);
+}, 300000);
 
 afterAll(async () => {
   if (ctx) await ctx.cleanup();
@@ -99,22 +99,26 @@ describe.skipIf(!dockerAvailable)('Workspace CRUD 集成测试', () => {
     expect(json.data.id).toBe(created.data.id);
   });
 
-  it.each(RESOURCES)('PUT 更新$path 名称', async ({ path, body }) => {
-    const createRes = await fetch(`${baseUrl}/api/v1/${path}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...body, name: `${body.name}更新前` }),
-    });
-    const created = await createRes.json();
-    const res = await fetch(`${baseUrl}/api/v1/${path}/${created.data.id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...body, name: `${body.name}更新后` }),
-    });
-    expect(res.status).toBe(200);
-    const json = await res.json();
-    expect(json.data.name).toBe(`${body.name}更新后`);
-  });
+  // backtest_runs 为不可变执行记录（无 update 仓库函数，worker 落库），仅 CRUD 中的 PUT 不适配
+  it.each(RESOURCES.filter((r) => r.path !== 'runs'))(
+    'PUT 更新$path 名称',
+    async ({ path, body }) => {
+      const createRes = await fetch(`${baseUrl}/api/v1/${path}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...body, name: `${body.name}更新前` }),
+      });
+      const created = await createRes.json();
+      const res = await fetch(`${baseUrl}/api/v1/${path}/${created.data.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...body, name: `${body.name}更新后` }),
+      });
+      expect(res.status).toBe(200);
+      const json = await res.json();
+      expect(json.data.name).toBe(`${body.name}更新后`);
+    },
+  );
 
   it.each(RESOURCES)('DELETE 删除$path', async ({ path, body }) => {
     const createRes = await fetch(`${baseUrl}/api/v1/${path}`, {

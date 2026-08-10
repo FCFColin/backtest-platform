@@ -5,7 +5,7 @@ import { LogIn, UserPlus, MailCheck } from 'lucide-react';
 import { z } from 'zod';
 import { useAuthStore } from '@/store/authStore';
 import { ErrorBanner } from '@/components/stateDisplay';
-import { Checkbox } from '@/components/ui/uiComponents';
+import { Checkbox, Button } from '@/components/ui/uiComponents';
 import AuthPageLayout, { AuthFormField, AuthSubmitButton } from '@/components/auth/formFields';
 const loginSchema = z.object({
   username: z.string().min(1, 'auth.login.usernameRequired'),
@@ -137,9 +137,9 @@ function SignupSuccess({ email }: { email: string }) {
         {t('Please check your email to verify.')}
       </p>
       <div className="mt-[18px]">
-        <Link to="/login" className="main-action-btn inline-flex h-10 items-center px-[18px]">
-          {t('Go to Login')}
-        </Link>
+        <Button asChild variant="primary" className="h-10 px-[18px]">
+          <Link to="/login">{t('Go to Login')}</Link>
+        </Button>
       </div>
     </AuthPageLayout>
   );

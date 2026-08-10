@@ -30,12 +30,17 @@ import {
   DATE_TICK_FORMATTER,
   CHART_TOOLTIP_STYLE,
 } from '@/lib/chart-theme.js';
-import { Card } from '@/components/ui/uiComponents';
+import {
+  Card,
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from '@/components/ui/uiComponents';
 import { ResultsShell } from '@/components/resultsShell.js';
 import { fmtPct } from '@/utils/format';
 import { XYScatterChart } from '@/components/charts/sharedChartContent.js';
-const selectClassName =
-  'flex h-9 w-32 rounded-md border border-border bg-input-bg px-3 text-body text-fg transition-colors hover:border-border-strong focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/15';
 function ScatterTab({ results }: { results: FreqResult[] }) {
   const { t } = useTranslation();
   const data = results.map((r) => ({
@@ -100,21 +105,25 @@ function OffsetSelector({ s }: { s: RebalancingState }) {
   return (
     <div className="mb-3 flex items-center gap-3">
       <span className="text-body text-fg-tertiary">{t('Frequency')}:</span>
-      <select
-        aria-label={t('Frequency')}
-        className={selectClassName}
+      <Select
         value={s.offsetFreq}
-        onChange={(e) => {
-          s.setOffsetFreq(e.target.value as RebalanceFrequency);
-          void s.runOffsetScan(e.target.value as RebalanceFrequency);
+        onValueChange={(v) => {
+          const freq = v as RebalanceFrequency;
+          s.setOffsetFreq(freq);
+          void s.runOffsetScan(freq);
         }}
       >
-        {REBALANCE_OPTIONS.map((o) => (
-          <option key={o.value} value={o.value}>
-            {t(`rebalancingSensitivity.freq.${o.value}`)}
-          </option>
-        ))}
-      </select>
+        <SelectTrigger className="h-9 w-32" aria-label={t('Frequency')}>
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent position="popper" sideOffset={4}>
+          {REBALANCE_OPTIONS.map((o) => (
+            <SelectItem key={o.value} value={o.value}>
+              {t(`rebalancingSensitivity.freq.${o.value}`)}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
       {s.isLoadingOffset && <Loader2 className="size-4 animate-spin text-fg-tertiary" />}
     </div>
   );

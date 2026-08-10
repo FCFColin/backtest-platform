@@ -37,16 +37,25 @@ import {
 } from '../../../packages/backend/src/infrastructure/outbox.js';
 
 function createMockPool() {
+  const clientQuery = vi.fn().mockResolvedValue({ rows: [], rowCount: 0 });
   return {
     query: vi.fn().mockResolvedValue({ rows: [], rowCount: 0 }),
-    connect: vi.fn(),
+    connect: vi.fn().mockResolvedValue({ query: clientQuery, release: vi.fn() }),
     end: vi.fn(),
     on: vi.fn(),
     options: { connectionString: 'postgresql://test:test@localhost:5432/test' },
+    __clientQuery: clientQuery,
   } as unknown as pg.Pool & {
     query: ReturnType<typeof vi.fn>;
+    __clientQuery: ReturnType<typeof vi.fn>;
     options: { connectionString: string };
   };
+}
+function queueClientTxn(mock: ReturnType<typeof vi.fn>, selectRows: unknown): void {
+  mock
+    .mockResolvedValueOnce({ rows: [] }) // BEGIN
+    .mockResolvedValueOnce(selectRows) // SELECT
+    .mockResolvedValueOnce({ rows: [] }); // COMMIT
 }
 function createOutboxRow(overrides: Record<string, unknown> = {}) {
   return {
@@ -87,18 +96,22 @@ describe('OutboxPublisher', () => {
   });
   afterEach(() => vi.useRealTimers());
   describe('handleNotification', () => {
-    it('应查询未处理事件并按 created_at 升序 LIMIT 100；空结果集时无副作用', async () => {
-      mockPool.query.mockResolvedValueOnce({ rows: [] });
+    it('应查询未处理事件并按 created_at 升序 LIMIT 100 且 SKIP LOCKED；空结果集时无副作用', async () => {
+      mockPool.__clientQuery.mockResolvedValueOnce({ rows: [] }); // SELECT
       await publisher.handleNotification();
-      const sql = mockPool.query.mock.calls[0][0] as string;
+      const sql = findSqlCall(
+        mockPool.__clientQuery.mock.calls as unknown[][],
+        'processed_at IS NULL',
+      );
       expect(sql).toContain('processed_at IS NULL');
       expect(sql).toContain('ORDER BY created_at ASC');
       expect(sql).toContain('LIMIT 100');
+      expect(sql).toContain('FOR UPDATE SKIP LOCKED');
       expect(eventMocks.dispatch).not.toHaveBeenCalled();
-      expect(mockPool.query).toHaveBeenCalledTimes(1);
     });
     it('应将每个事件路由到 eventDispatcher.dispatch', async () => {
-      mockPool.query
+      mockPool.__clientQuery
+        .mockResolvedValueOnce({ rows: [] }) // BEGIN
         .mockResolvedValueOnce({
           rows: [
             createOutboxRow({ id: 1, event_type: 'BacktestCompleted' }),
@@ -110,9 +123,9 @@ describe('OutboxPublisher', () => {
               payload: { action: 'login' },
             }),
           ],
-        })
-        .mockResolvedValueOnce({ rows: [] })
-        .mockResolvedValueOnce({ rows: [] });
+        }) // SELECT
+        .mockResolvedValueOnce({ rows: [] }) // UPDATE processed_at
+        .mockResolvedValueOnce({ rows: [] }); // COMMIT
       await publisher.handleNotification();
       expect(eventMocks.dispatch).toHaveBeenCalledTimes(2);
       expect(eventMocks.dispatch).toHaveBeenNthCalledWith(1, {
@@ -131,25 +144,24 @@ describe('OutboxPublisher', () => {
       });
     });
     it('处理成功后应更新 processed_at = NOW()', async () => {
-      mockPool.query
-        .mockResolvedValueOnce({ rows: [createOutboxRow({ id: 42 })] })
-        .mockResolvedValueOnce({ rows: [] });
+      queueClientTxn(mockPool.__clientQuery, { rows: [createOutboxRow({ id: 42 })] });
       await publisher.handleNotification();
-      expect(mockPool.query).toHaveBeenNthCalledWith(
-        2,
-        expect.stringContaining('UPDATE outbox SET processed_at = NOW()'),
-        [[42]],
+      const calls = mockPool.__clientQuery.mock.calls as unknown[][];
+      const updateIdx = calls.findIndex((c) =>
+        String(c[0]).includes('UPDATE outbox SET processed_at = NOW()'),
       );
+      expect(updateIdx).toBeGreaterThan(-1);
+      expect(calls[updateIdx][1]).toEqual([[42]]);
     });
     it('handler 失败时不应标记为已处理（不调用 UPDATE）', async () => {
-      mockPool.query.mockResolvedValueOnce({ rows: [createOutboxRow({ id: 99 })] });
+      queueClientTxn(mockPool.__clientQuery, { rows: [createOutboxRow({ id: 99 })] });
       eventMocks.dispatch.mockRejectedValueOnce(new Error('handler boom'));
       await publisher.handleNotification();
-      expect(mockPool.query).toHaveBeenCalledTimes(1);
-      expect(mockPool.query).not.toHaveBeenCalledWith(
-        expect.stringContaining('UPDATE outbox SET processed_at'),
-        expect.anything(),
-      );
+      expect(
+        mockPool.__clientQuery.mock.calls.some((c) =>
+          String(c[0]).includes('UPDATE outbox SET processed_at'),
+        ),
+      ).toBe(false);
       expect(loggerMocks.error).toHaveBeenCalled();
     });
 
@@ -162,11 +174,11 @@ describe('OutboxPublisher', () => {
       ['SELECT 查询失败时应记录错误且不抛出', null, null],
     ])('%s', async (_n, rowOrErr, expectedPayload) => {
       if (rowOrErr === null) {
-        mockPool.query.mockRejectedValueOnce(new Error('connection lost'));
+        mockPool.__clientQuery
+          .mockResolvedValueOnce({ rows: [] }) // BEGIN
+          .mockRejectedValueOnce(new Error('connection lost')); // SELECT
       } else {
-        mockPool.query
-          .mockResolvedValueOnce({ rows: [createOutboxRow(rowOrErr)] })
-          .mockResolvedValueOnce({ rows: [] });
+        queueClientTxn(mockPool.__clientQuery, { rows: [createOutboxRow(rowOrErr)] });
       }
       await expect(publisher.handleNotification()).resolves.toBeUndefined();
       if (rowOrErr === null) {
@@ -242,9 +254,13 @@ describe('OutboxPublisher', () => {
       });
       await publisher.start();
       expect(notificationHandler).toBeDefined();
-      mockPool.query.mockResolvedValueOnce({ rows: [] });
+      mockPool.__clientQuery.mockResolvedValueOnce({ rows: [] }); // SELECT
       await notificationHandler!({ channel: 'outbox_channel' });
-      expect(mockPool.query).toHaveBeenCalledWith(expect.stringContaining('processed_at IS NULL'));
+      await vi.waitFor(() =>
+        expect(mockPool.__clientQuery).toHaveBeenCalledWith(
+          expect.stringContaining('processed_at IS NULL'),
+        ),
+      );
       errorHandler!(new Error('connection reset'));
       endHandler!();
       expect(loggerMocks.error).toHaveBeenCalled();

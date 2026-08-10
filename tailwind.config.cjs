@@ -62,8 +62,16 @@ module.exports = {
         'sticky-bg': 'hsl(var(--surface) / <alpha-value>)',
       },
       fontFamily: {
-        sans: ['Geist Variable', 'ui-sans-serif', 'system-ui', 'sans-serif'],
-        mono: ['Geist Mono Variable', 'ui-monospace', 'monospace'],
+        sans: [
+          'Geist Variable',
+          'ui-sans-serif',
+          'system-ui',
+          'PingFang SC',
+          'Microsoft YaHei',
+          'Noto Sans CJK SC',
+          'sans-serif',
+        ],
+        mono: ['Geist Mono Variable', 'ui-monospace', 'Noto Sans Mono CJK SC', 'monospace'],
       },
       fontSize: {
         'display-xl': ['44px', { lineHeight: '1.05', letterSpacing: '-0.02em', fontWeight: '800' }],

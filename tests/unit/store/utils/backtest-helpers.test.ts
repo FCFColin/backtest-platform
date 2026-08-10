@@ -126,7 +126,7 @@ describe('validatePortfolios', () => {
 describe('defaultParameters', () => {
   it('应包含标准默认值', () => {
     expect(defaultParameters.startDate).toBe('2010-01-01');
-    expect(defaultParameters.endDate).toBe('2024-12-31');
+    expect(defaultParameters.endDate).toBe('2026-08-10');
     expect(defaultParameters.startingValue).toBe(10000);
     expect(defaultParameters.baseCurrency).toBe('usd');
     expect(defaultParameters.benchmarkTicker).toBe('SPY');

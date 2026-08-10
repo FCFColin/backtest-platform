@@ -39,14 +39,14 @@ async function withEngineStopped(fn: () => Promise<void>) {
 }
 
 describe('Chaos Experiment 5: Go 引擎中断', () => {
-  it.skipIf(!fixture.dockerAvailable)('引擎停止后 /api/ready 应报告 go=false', async () => {
+  it.skipIf(!fixture.containerReady)('引擎停止后 /api/ready 应报告 go=false', async () => {
     await withEngineStopped(async () => {
       const json = await (await fetch(READY_URL)).json();
       expect(json.data?.engine?.go).toBe(false);
     });
   });
 
-  it.skipIf(!fixture.dockerAvailable)('回测端点应返回 503（fail-closed）', async () => {
+  it.skipIf(!fixture.containerReady)('回测端点应返回 503（fail-closed）', async () => {
     await withEngineStopped(async () => {
       const res = await fetch(BACKTEST_URL, {
         method: 'POST',
@@ -58,7 +58,7 @@ describe('Chaos Experiment 5: Go 引擎中断', () => {
     });
   });
 
-  it.skipIf(!fixture.dockerAvailable)(
+  it.skipIf(!fixture.containerReady)(
     '响应不应包含 degraded 字段（ADR-031 fail-closed）',
     async () => {
       await withEngineStopped(async () => {

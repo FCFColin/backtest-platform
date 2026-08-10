@@ -71,7 +71,7 @@ async function runBacktestAction(set: SetFn, get: GetFn): Promise<void> {
   const prevController = get()._abortController;
   if (prevController) prevController.abort();
   const controller = new AbortController();
-  set({ _abortController: controller, isLoading: true });
+  set({ _abortController: controller, isLoading: true, error: null });
   const { portfolios, parameters } = get();
   const abortEarly = (msg?: string) => {
     if (msg) useToastStore.getState().addToast('warning', msg);
@@ -98,7 +98,7 @@ async function runBacktestAction(set: SetFn, get: GetFn): Promise<void> {
     if (!response.ok) throw new Error(extractApiErrorDetail(json));
     if (json.success === false) {
       useToastStore.getState().addToast('error', extractApiErrorDetail(json));
-      set({ results: null });
+      set({ results: null, error: extractApiErrorDetail(json) });
       return;
     }
     const resultJson =
@@ -109,13 +109,12 @@ async function runBacktestAction(set: SetFn, get: GetFn): Promise<void> {
     processResponseWarnings(resultJson);
     if (requestId === currentRequestId) {
       startTransition(() => {
-        set({ results, activeTab: 'summary' });
+        set({ results, activeTab: 'summary', error: null });
       });
     }
   } catch (error) {
     if (requestId !== currentRequestId) return;
-    handleBacktestError(error);
-    set({ results: null });
+    set({ results: null, error: handleBacktestError(error) });
   } finally {
     clearTimeout(timeoutId);
     setIfCurrent(set, requestId, { isLoading: false, _abortController: null });
@@ -182,6 +181,7 @@ function loadFromShareAction(
     })),
     parameters: { ...defaultParameters, ...data.parameters },
     results: null,
+    error: null,
     activeTab: 'summary' as const,
     portfolioCounter: maxId,
     hasLoadedFromShare: true,
@@ -246,6 +246,7 @@ export const useBacktestStore = create<BacktestState>()((set, get) => {
     portfolios: [] as Portfolio[],
     portfolioCounter: 0,
     results: null as BacktestResult | null,
+    error: null as string | null,
     isLoading: false,
     activeTab: 'summary',
     hasLoadedFromShare: false,

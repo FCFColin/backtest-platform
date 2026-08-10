@@ -1,7 +1,7 @@
 import { useEffect, lazy, Suspense, type ReactNode } from 'react';
 import { useTranslation, Trans } from 'react-i18next';
 import { Link } from 'react-router';
-import { Download, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { useBacktestStore } from '@/store/backtestStore';
 import { Card, Button } from '@/components/ui/uiComponents';
 import {
@@ -14,6 +14,7 @@ import { SummarySidebar } from '@/components/results/SummarySidebar.js';
 import { getPortfolioColor } from '@/lib/chart-theme.js';
 import { downloadFile, downloadJSON, dateSuffixedFilename } from '@/utils/format';
 import { SimpleTable, type SimpleTableColumn } from '@/components/tables.js';
+import { TabFallback } from '@/components/shells';
 import ChartCard from '@/components/ChartCard.js';
 import { lazyNamed } from '@/utils/lazyImport';
 import {
@@ -100,10 +101,6 @@ function TabBar() {
   const { t } = useTranslation();
   const activeTab = useBacktestStore((s) => s.activeTab);
   const setActiveTab = useBacktestStore((s) => s.setActiveTab);
-  const handleExport = () => {
-    const results = useBacktestStore.getState().results;
-    if (results?.portfolios?.length) exportResultsCSV(results);
-  };
   return (
     <div className="flex items-center justify-between gap-2 border-b border-border-subtle pb-2 mb-3">
       <div className="flex items-center gap-1 overflow-x-auto">
@@ -119,17 +116,6 @@ function TabBar() {
           </Button>
         ))}
       </div>
-      <Button variant="ghost" size="sm" className="shrink-0" onClick={handleExport}>
-        <Download />
-        {t('Export CSV')}
-      </Button>
-    </div>
-  );
-}
-function LoadingFallback() {
-  return (
-    <div className="flex items-center justify-center py-10 text-fg-tertiary">
-      <Loader2 className="size-5 animate-spin" />
     </div>
   );
 }
@@ -248,7 +234,9 @@ function computeTimeRange(results: BacktestResult) {
 export function ResultsContent() {
   const { t } = useTranslation();
   const results = useBacktestStore((s) => s.results);
+  const error = useBacktestStore((s) => s.error);
   const isLoading = useBacktestStore((s) => s.isLoading);
+  const runBacktest = useBacktestStore((s) => s.runBacktest);
   const activeTab = useBacktestStore((s) => s.activeTab);
   const portfolios = useBacktestStore((s) => s.portfolios);
   const baseCurrency = useBacktestStore((s) => s.parameters.baseCurrency);
@@ -266,11 +254,20 @@ export function ResultsContent() {
         <Loader2 className="size-6 animate-spin text-fg-tertiary" />
       </Card>
     );
+  if (error && !results)
+    return (
+      <Card className="flex flex-col items-center justify-center gap-4 p-12">
+        <span className="text-body text-danger">{error}</span>
+        <Button variant="primary" onClick={() => void runBacktest()}>
+          {t('Retry')}
+        </Button>
+      </Card>
+    );
   if (!results || results.portfolios.length === 0)
     return (
       <Card className="flex items-center justify-center p-12">
         <span className="text-body text-fg-tertiary">
-          {t('Configure parameters and portfolios, then click "Start Backtest" to see results')}
+          {t('Configure parameters and portfolios, then click "Run Backtest" to see results')}
         </span>
       </Card>
     );
@@ -287,7 +284,7 @@ export function ResultsContent() {
       />
       <Card className="p-5">
         <TabBar />
-        <Suspense fallback={<LoadingFallback />}>
+        <Suspense fallback={<TabFallback />}>
           {renderer && (
             <>
               {renderer({

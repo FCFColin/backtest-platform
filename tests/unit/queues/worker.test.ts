@@ -302,6 +302,18 @@ describe('processBacktestJob - 任务分发', () => {
     expect(save).toHaveBeenCalledWith(TENANT, expect.objectContaining({ id: 'job-1' }));
     expect(createRun).not.toHaveBeenCalled();
   });
+  it('handler 返回失败时仍将失败状态落库（run.fail）', async () => {
+    mockOrg('pro');
+    vi.mocked(appRedis.incr).mockResolvedValueOnce(1);
+    vi.mocked(executeGridSearch).mockResolvedValueOnce({ success: false, error: '参数组合过多' });
+    await processBacktestJob(
+      makeJob({ type: 'grid-search', payload: { indicator: 'sma' }, tenantId: TENANT }),
+    );
+    const run = vi.mocked(save).mock.calls[0][1];
+    expect(run.id).toBe('job-1');
+    expect(run.status).toBe('failed');
+    expect(run.failureReason).toBe('参数组合过多');
+  });
 });
 describe('shutdownWorker（优雅关闭）', () => {
   let exitSpy: ReturnType<typeof vi.spyOn>;

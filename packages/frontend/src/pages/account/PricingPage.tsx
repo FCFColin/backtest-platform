@@ -12,6 +12,7 @@ import {
   type PlanEntry,
   type ComparisonRowEntry,
 } from '@/lib/pricing';
+import { Card } from '@/components/ui/uiComponents';
 const PLAN_ICONS: Record<string, ComponentType<{ className?: string }>> = { Star, Zap, Crown };
 interface Plan {
   id: string;
@@ -62,7 +63,7 @@ export default function PricingPage() {
       <div className="bt-page-header">
         <h1 className="bt-page-title">{t('Pricing Plans')}</h1>
       </div>
-      <div className="bt-main-card card" style={{ padding: 24 }}>
+      <Card style={{ padding: 24 }}>
         <div
           style={{
             fontSize: 14,
@@ -81,7 +82,7 @@ export default function PricingPage() {
         </div>
         <ComparisonTable />
         <PricingNotice />
-      </div>
+      </Card>
     </div>
   );
 }

@@ -8,6 +8,8 @@ import { startExpressApp, type TestServer } from './expressApp.js';
 
 export interface TestContainerContext {
   container: StartedPostgreSqlContainer;
+  /** 迁移/回滚等 DDL 需以超管执行（表属主为 backtest） */
+  adminConnectionString: string;
   cleanup: () => Promise<void>;
 }
 
@@ -21,8 +23,7 @@ export function isDockerAvailable(): boolean {
   // 默认 skip（避免本地 Docker Desktop 故障导致 hook 超时），仅在 CI 或显式设置
   if (process.env.RUN_TESTCONTAINERS !== '1') return false;
   try {
-    execSync('docker info', { stdio: 'ignore', timeout: 5000 });
-    execSync('docker run --rm hello-world', { stdio: 'ignore', timeout: 30000 });
+    execSync('docker info', { stdio: 'ignore', timeout: 15000 });
     return true;
   } catch {
     return false;
@@ -30,7 +31,7 @@ export function isDockerAvailable(): boolean {
 }
 
 export async function setupTestContainer(): Promise<TestContainerContext> {
-  const container = await new PostgreSqlContainer('postgres:16-alpine')
+  const container = await new PostgreSqlContainer('timescale/timescaledb:latest-pg16')
     .withDatabase('backtest_test')
     .withUsername('backtest')
     .withPassword('backtest')
@@ -43,8 +44,19 @@ export async function setupTestContainer(): Promise<TestContainerContext> {
 
   await initSchema();
 
+  // 001_initial_schema 迁移已创建 backtest_app（NOBYPASSRLS）+ 全部授权；
+  // 应用层改连非超管 backtest_app，否则超管绕过 RLS 使租户隔离断言失真（ADR-032）
+  const appUrl = new URL(connectionString);
+  appUrl.username = 'backtest_app';
+  appUrl.password = 'change-me-in-deploy';
+  const appConnectionString = appUrl.toString();
+  process.env.DATABASE_URL = appConnectionString;
+  (config as { DATABASE_URL: string }).DATABASE_URL = appConnectionString;
+  await closeDb();
+
   return {
     container,
+    adminConnectionString: connectionString,
     cleanup: async () => {
       await closeDb();
       await container.stop();

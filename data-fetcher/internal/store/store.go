@@ -165,6 +165,7 @@ func (ds *DataStore) writeGoPricesToDB(ctx context.Context, ticker string, price
 	if ds.pool == nil {
 		return fmt.Errorf("数据库未连接")
 	}
+	prices = provider.SanitizePrices(prices)
 	batch := &pgx.Batch{}
 	batch.Queue(`
 		INSERT INTO tickers (ticker) VALUES ($1)

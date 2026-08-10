@@ -2,6 +2,7 @@ package provider
 
 import (
 	"errors"
+	"reflect"
 	"testing"
 )
 
@@ -197,5 +198,25 @@ func TestDeriveExchange(t *testing.T) {
 		if got != c.want {
 			t.Errorf("DeriveExchange(%q) = %q, want %q", c.ticker, got, c.want)
 		}
+	}
+}
+func TestSanitizePrices(t *testing.T) {
+	cases := []struct {
+		name   string
+		prices []DailyPrice
+		want   []DailyPrice
+	}{
+		{"empty", nil, []DailyPrice{}},
+		{"swaps high low", []DailyPrice{{Date: "2024-01-01", Open: 100, High: 90, Low: 110, Close: 105, Volume: 1000}}, []DailyPrice{{Date: "2024-01-01", Open: 100, High: 110, Low: 90, Close: 105, Volume: 1000}}},
+		{"clamps open close", []DailyPrice{{Date: "2024-01-01", Open: 50, High: 100, Low: 80, Close: 60, Volume: 1000}}, []DailyPrice{{Date: "2024-01-01", Open: 80, High: 100, Low: 80, Close: 80, Volume: 1000}}},
+		{"negative volume", []DailyPrice{{Date: "2024-01-01", Open: 100, High: 110, Low: 90, Close: 105, Volume: -500}}, []DailyPrice{{Date: "2024-01-01", Open: 100, High: 110, Low: 90, Close: 105, Volume: 0}}},
+		{"already valid", []DailyPrice{{Date: "2024-01-01", Open: 95, High: 110, Low: 90, Close: 105, Volume: 1000}}, []DailyPrice{{Date: "2024-01-01", Open: 95, High: 110, Low: 90, Close: 105, Volume: 1000}}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := SanitizePrices(c.prices); !reflect.DeepEqual(got, c.want) {
+				t.Errorf("SanitizePrices = %+v, want %+v", got, c.want)
+			}
+		})
 	}
 }
