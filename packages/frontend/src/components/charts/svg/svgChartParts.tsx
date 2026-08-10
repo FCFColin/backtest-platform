@@ -174,6 +174,7 @@ function SvgLegend({ series, onToggle }: SvgLegendProps) {
           role="button"
           tabIndex={0}
           key={s.name}
+          aria-pressed={onToggle ? s.visible !== false : undefined}
           className={`flex items-center gap-1.5 transition-opacity ${onToggle ? 'cursor-pointer' : 'cursor-default'} ${s.visible === false ? 'opacity-40' : 'opacity-100'}`}
           onClick={() => onToggle?.(s.name)}
           onKeyDown={(e) => {

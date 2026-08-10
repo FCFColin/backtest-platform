@@ -31,8 +31,6 @@ function HeroDetails() {
           linkLabel={t('Start Configuring')}
           linkTo="#parameters"
         />
-        {/* 可查看指标 */}
-        {/* 可查看指标 */}
         <CapabilityCard
           icon={BarChart3}
           title={t('Metrics You Can Inspect')}

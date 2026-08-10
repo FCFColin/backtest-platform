@@ -290,7 +290,6 @@ const STATS = {
   mwrr: 0.1,
   bestYear: 0.2,
   worstYear: -0.1,
-  avgYear: 0.1,
 };
 describe('normalizeBacktestResult', () => {
   it.each([null, undefined])('returns empty structure for %s input', (input) => {

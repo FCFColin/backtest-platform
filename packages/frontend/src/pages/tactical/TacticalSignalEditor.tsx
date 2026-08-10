@@ -120,9 +120,7 @@ function ConditionRow({
               aria-label={t(indicatorDesc)}
             />
           </TooltipTrigger>
-          <TooltipContent className="max-w-xs rounded-md border border-border bg-elevated p-2 text-caption text-fg-secondary leading-relaxed shadow-lg whitespace-normal">
-            {t(indicatorDesc)}
-          </TooltipContent>
+          <TooltipContent>{t(indicatorDesc)}</TooltipContent>
         </Tooltip>
       )}
       <AffixInput

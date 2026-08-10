@@ -1,6 +1,5 @@
 import { Link } from 'react-router';
 import { BarChart3 } from 'lucide-react';
-import { Github, Twitter } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useEffect, useState } from 'react';
 import { useDataMeta } from '@/hooks/miscHooks.js';
@@ -78,26 +77,6 @@ function FooterBrand() {
       <p className="text-caption text-fg-tertiary leading-relaxed mb-4">
         {t('Professional backtesting platform for individual investors')}
       </p>
-      <div className="flex items-center gap-3">
-        <a
-          href="https://github.com"
-          target="_blank"
-          rel="noreferrer"
-          aria-label={t('GitHub')}
-          className="text-fg-tertiary hover:text-fg"
-        >
-          <Github className="h-4 w-4" aria-hidden="true" />
-        </a>
-        <a
-          href="https://twitter.com"
-          target="_blank"
-          rel="noreferrer"
-          aria-label={t('Twitter')}
-          className="text-fg-tertiary hover:text-fg"
-        >
-          <Twitter className="h-4 w-4" aria-hidden="true" />
-        </a>
-      </div>
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { defineConfig, type Plugin } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import path from 'node:path';
 import fs from 'node:fs';
+import zlib from 'node:zlib';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 
@@ -76,6 +77,43 @@ function ssrLocalesCopy(): Plugin {
         path.resolve(projectRoot, outDir, 'locales'),
         { recursive: true },
       );
+    },
+  };
+}
+
+function precompressAssets(): Plugin {
+  let outDir = '';
+  return {
+    name: 'precompress-assets',
+    configResolved(config) {
+      outDir = config.build.outDir;
+    },
+    closeBundle() {
+      if (outDir.endsWith('dist-ssr')) return;
+      const assetsDir = path.resolve(projectRoot, outDir, 'assets');
+      let files: string[];
+      try {
+        files = fs.readdirSync(assetsDir);
+      } catch {
+        return;
+      }
+      const compressible = /\.(js|css|svg|json|txt|html)$/;
+      for (const f of files) {
+        if (!compressible.test(f) || f.endsWith('.br') || f.endsWith('.gz')) continue;
+        const full = path.join(assetsDir, f);
+        const data = fs.readFileSync(full);
+        try {
+          fs.writeFileSync(
+            `${full}.br`,
+            zlib.brotliCompressSync(data, {
+              params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 11 },
+            }),
+          );
+          fs.writeFileSync(`${full}.gz`, zlib.gzipSync(data, { level: 9 }));
+        } catch {
+          /* 单个文件压缩失败不影响构建 */
+        }
+      }
     },
   };
 }
@@ -228,6 +266,7 @@ export default defineConfig(async ({ command }) => {
           ]
         : []),
       react(),
+      precompressAssets(),
       (await import('vite-tsconfig-paths')).default(),
       ...(enableCoverage && command === 'serve'
         ? [

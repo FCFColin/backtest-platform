@@ -152,7 +152,16 @@ function MemberTable({ members, isAdmin, busy, onChangeRole, onRemoveMember }: M
                 <td className={TD}>
                   {m.role !== 'owner' && (
                     <button
-                      onClick={() => void onRemoveMember(m.userId)}
+                      onClick={() => {
+                        if (
+                          window.confirm(
+                            t('Remove member {{name}}? This cannot be undone.', {
+                              name: m.username,
+                            }),
+                          )
+                        )
+                          onRemoveMember(m.userId);
+                      }}
                       disabled={busy}
                       title={t('Remove Member')}
                       className="bg-transparent border-0 cursor-pointer text-danger"
@@ -243,7 +252,12 @@ function InvitationTable({ invitations, busy, onRevokeInvite }: InvitationTableP
               <td className={TD}>
                 {!inv.acceptedAt && (
                   <button
-                    onClick={() => void onRevokeInvite(inv.id)}
+                    onClick={() => {
+                      if (
+                        window.confirm(t('Revoke invitation for {{email}}?', { email: inv.email }))
+                      )
+                        onRevokeInvite(inv.id);
+                    }}
                     disabled={busy}
                     title={t('Revoke Invitation')}
                     className="bg-transparent border-0 cursor-pointer text-danger"

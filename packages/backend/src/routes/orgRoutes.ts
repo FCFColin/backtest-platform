@@ -5,13 +5,7 @@ import { sendProblem } from '../utils/errors.js';
 import { logger } from '../utils/logger.js';
 import { requireTenant } from '../middleware/tenantContext.js';
 import { requirePermission, Permission } from '../middleware/rbac.js';
-import {
-  tenantHandler,
-  requireTenantId,
-  requireUuidParam,
-  sendData,
-  crudRouteHandler,
-} from './routeUtils.js';
+import { tenantHandler, requireUuidParam, sendData, crudRouteHandler } from './routeUtils.js';
 import {
   getOrg,
   listOrgMembers,
@@ -25,6 +19,7 @@ import {
   acceptInvitation,
 } from '../application/org/invitationService.js';
 import { sendInvitationEmail } from '../infrastructure/mailService.js';
+import { revokeAllUserSessions } from '../middleware/tokenStore.js';
 
 const router = Router();
 
@@ -58,13 +53,12 @@ router.use(requireTenant);
 
 router.get(
   '/members',
-  crudRouteHandler(
-    async (req, res) => {
-      const tenantId = requireTenantId(req, res);
-      if (!tenantId) return;
+  tenantHandler(
+    '[orgRoutes] 获取成员列表失败',
+    'ORG_MEMBERS_LIST_FAILED',
+    async (_req, res, tenantId) => {
       sendData(res, await listOrgMembers(tenantId));
     },
-    { logMsg: '[orgRoutes] 获取成员列表失败', code: 'ORG_MEMBERS_LIST_FAILED' },
   ),
 );
 
@@ -89,49 +83,48 @@ router.patch(
   '/members/:userId',
   requireAdmin,
   validate(roleSchema),
-  crudRouteHandler(
-    async (req, res) => {
+  tenantHandler(
+    '[orgRoutes] 更新成员角色失败',
+    'ORG_MEMBER_ROLE_UPDATE_FAILED',
+    async (req, res, tenantId) => {
       if (!requireUuidParam(res, req.params.userId)) return;
-      const tenantId = requireTenantId(req, res);
-      if (!tenantId) return;
-      sendMemberOutcome(
-        res,
-        await updateMemberRole(
-          tenantId,
-          req.params.userId,
-          (req.body as { role: 'owner' | 'admin' | 'analyst' | 'readonly' }).role,
-        ),
-        { updated: true },
+      // P1#1（安全审计）：角色变更后吊销目标用户全部会话，防止旧角色/旧凭证残留
+      const outcome = await updateMemberRole(
+        tenantId,
+        req.params.userId,
+        (req.body as { role: 'owner' | 'admin' | 'analyst' | 'readonly' }).role,
       );
+      if (outcome === 'ok') await revokeAllUserSessions(req.params.userId);
+      sendMemberOutcome(res, outcome, { updated: true });
     },
-    { logMsg: '[orgRoutes] 更新成员角色失败', code: 'ORG_MEMBER_ROLE_UPDATE_FAILED' },
   ),
 );
 
 router.delete(
   '/members/:userId',
   requireAdmin,
-  crudRouteHandler(
-    async (req, res) => {
+  tenantHandler(
+    '[orgRoutes] 移除成员失败',
+    'ORG_MEMBER_REMOVE_FAILED',
+    async (req, res, tenantId) => {
       if (!requireUuidParam(res, req.params.userId)) return;
-      const tenantId = requireTenantId(req, res);
-      if (!tenantId) return;
-      sendMemberOutcome(res, await removeMember(tenantId, req.params.userId), { removed: true });
+      // P1#1（安全审计）：移除成员后吊销其全部会话，防止旧 token 持续访问
+      const outcome = await removeMember(tenantId, req.params.userId);
+      if (outcome === 'ok') await revokeAllUserSessions(req.params.userId);
+      sendMemberOutcome(res, outcome, { removed: true });
     },
-    { logMsg: '[orgRoutes] 移除成员失败', code: 'ORG_MEMBER_REMOVE_FAILED' },
   ),
 );
 
 router.get(
   '/invitations',
   requireAdmin,
-  crudRouteHandler(
-    async (req, res) => {
-      const tenantId = requireTenantId(req, res);
-      if (!tenantId) return;
+  tenantHandler(
+    '[orgRoutes] 获取邀请列表失败',
+    'ORG_INVITATIONS_LIST_FAILED',
+    async (_req, res, tenantId) => {
       sendData(res, await listInvitations(tenantId));
     },
-    { logMsg: '[orgRoutes] 获取邀请列表失败', code: 'ORG_INVITATIONS_LIST_FAILED' },
   ),
 );
 
@@ -160,11 +153,11 @@ router.post(
 router.delete(
   '/invitations/:id',
   requireAdmin,
-  crudRouteHandler(
-    async (req, res) => {
+  tenantHandler(
+    '[orgRoutes] 撤销邀请失败',
+    'ORG_INVITATION_REVOKE_FAILED',
+    async (req, res, tenantId) => {
       if (!requireUuidParam(res, req.params.id)) return;
-      const tenantId = requireTenantId(req, res);
-      if (!tenantId) return;
       const ok = await revokeInvitation(tenantId, req.params.id);
       if (!ok) {
         sendProblem(res, 404, 'INVITATION_NOT_FOUND');
@@ -172,7 +165,6 @@ router.delete(
       }
       sendData(res, { revoked: true });
     },
-    { logMsg: '[orgRoutes] 撤销邀请失败', code: 'ORG_INVITATION_REVOKE_FAILED' },
   ),
 );
 

@@ -83,14 +83,13 @@ describe('rateLimiter — keyGenerator（Redis 可用路径）', () => {
   // P0-XX：JWT 感知键生成器——已认证用户按 userId:ip 组合键限流，
   it.each([
     [
-      'computeRateLimitKey: req.user 优先于 tenantId/JWT/API Key',
+      'computeRateLimitKey: 忽略可伪造的 req.user，按原始凭证哈希分桶',
       computeOpts,
       {
         user: { sub: 'user-xyz' },
-        tenantId: 'org-123',
         headers: { 'x-api-key': 'bpk_live_test123' },
       },
-      'user-xyz:127.0.0.1',
+      hashKey('apikey', 'bpk_live_test123'),
     ],
     [
       'computeRateLimitKey: tenantId 优先于 JWT/API Key/IP',
@@ -141,19 +140,19 @@ describe('rateLimiter — keyGenerator（Redis 可用路径）', () => {
     ],
     ['authRateLimitKey: 无 body 标识时 fallback 到 IP', loginOpts, {}, '127.0.0.1'],
     [
-      'jwtAwareKeyGenerator (apiLimiter): 已认证用户按 userId:ip 组合键',
+      'computeRateLimitKey (apiLimiter): 不信任 JWT payload 的 user，按原始凭证哈希分桶',
       apiOpts,
-      { user: { sub: 'user-abc' } },
-      'user-abc:127.0.0.1',
+      { user: { sub: 'user-abc' }, headers: { authorization: 'Bearer abc.def.ghi' } },
+      hashKey('token', 'abc.def.ghi'),
     ],
-    ['jwtAwareKeyGenerator (apiLimiter): 未认证回退到 ip: 前缀', apiOpts, {}, 'ip:127.0.0.1'],
+    ['computeRateLimitKey (apiLimiter): 无凭证时按 IP 分桶', apiOpts, {}, '127.0.0.1'],
     [
-      'jwtAwareKeyGenerator (adminLimiter): 已认证用户按 userId:ip 组合键',
+      'computeRateLimitKey (adminLimiter): 不信任 JWT payload 的 user，按原始凭证哈希分桶',
       adminOpts,
-      { user: { sub: 'admin-1' } },
-      'admin-1:127.0.0.1',
+      { user: { sub: 'admin-1' }, headers: { authorization: 'Bearer abc.def.ghi' } },
+      hashKey('token', 'abc.def.ghi'),
     ],
-    ['jwtAwareKeyGenerator (adminLimiter): 未认证回退到 ip: 前缀', adminOpts, {}, 'ip:127.0.0.1'],
+    ['computeRateLimitKey (adminLimiter): 无凭证时按 IP 分桶', adminOpts, {}, '127.0.0.1'],
   ])('$name', (_n, opts, overrides, expected) => {
     expect(opts.keyGenerator!(makeRequest(overrides))).toBe(expected);
   });

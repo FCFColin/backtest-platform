@@ -8,23 +8,12 @@ export type Statistics = {
   totalReturn: number;
   bestYear: number;
   worstYear: number;
-  avgYear: number;
   avgAnnualReturn: number;
   avgMonthlyReturn: number;
   avgDailyReturn: number;
 
   stdev: number;
-  stdevAnnual: number;
-  stdevMonthly: number;
-  stdevMonthlyRaw: number;
   stdevDaily: number;
-  stdevDailyRaw: number;
-
-  downsideDeviation: number;
-  downsideDeviationDailyRaw: number;
-  downsideDeviationMonthly: number;
-  downsideDeviationMonthlyRaw: number;
-  downsideDeviationAnnual: number;
 
   maxDrawdown: number;
   maxDrawdownDuration: number;
@@ -37,8 +26,6 @@ export type Statistics = {
   calmar: number;
   ulcerPerformanceIndex: number;
   diversificationRatio: number;
-  m2: number;
-  treynor: number;
 
   alpha: number;
   beta: number;
@@ -46,22 +33,12 @@ export type Statistics = {
   benchmarkCorrelation: number;
   upsideCorrelation: number;
   downsideCorrelation: number;
-  upsideBeta: number;
-  downsideBeta: number;
-  alphaDaily: number;
-  alphaAnnualized: number;
 
   upsideCapture: number;
   downsideCapture: number;
-  upsideCaptureDaily: number;
-  downsideCaptureDaily: number;
   upsideCaptureAnnual: number;
   downsideCaptureAnnual: number;
-  captureSpread: number;
-  captureSpreadDaily: number;
-  captureSpreadAnnual: number;
 
-  activeReturn: number;
   trackingError: number;
   informationRatio: number;
 
@@ -78,7 +55,6 @@ export type Statistics = {
   winRate: HorizonStats;
   pctPositiveDays: number;
   pctPositiveMonths: number;
-  pctPositiveYears: number;
 
   maxDailyReturn: number;
   minDailyReturn: number;
@@ -86,16 +62,6 @@ export type Statistics = {
   minMonthlyReturn: number;
   maxAnnualReturn: number;
   minAnnualReturn: number;
-
-  avgDailyGain: number;
-  avgDailyLoss: number;
-  gainLossRatioDaily: number;
-  avgMonthlyGain: number;
-  avgMonthlyLoss: number;
-  gainLossRatioMonthly: number;
-  avgAnnualGain: number;
-  avgAnnualLoss: number;
-  gainLossRatioAnnual: number;
 
   swr: number;
   pwr: number;
@@ -118,21 +84,11 @@ const NUM_FIELDS = [
   'totalReturn',
   'bestYear',
   'worstYear',
-  'avgYear',
   'avgAnnualReturn',
   'avgMonthlyReturn',
   'avgDailyReturn',
   'stdev',
-  'stdevAnnual',
-  'stdevMonthly',
-  'stdevMonthlyRaw',
   'stdevDaily',
-  'stdevDailyRaw',
-  'downsideDeviation',
-  'downsideDeviationDailyRaw',
-  'downsideDeviationMonthly',
-  'downsideDeviationMonthlyRaw',
-  'downsideDeviationAnnual',
   'maxDrawdown',
   'maxDrawdownDuration',
   'avgDrawdown',
@@ -143,48 +99,26 @@ const NUM_FIELDS = [
   'calmar',
   'ulcerPerformanceIndex',
   'diversificationRatio',
-  'm2',
-  'treynor',
   'alpha',
   'beta',
   'rSquared',
   'benchmarkCorrelation',
   'upsideCorrelation',
   'downsideCorrelation',
-  'upsideBeta',
-  'downsideBeta',
-  'alphaDaily',
-  'alphaAnnualized',
   'upsideCapture',
   'downsideCapture',
-  'upsideCaptureDaily',
-  'downsideCaptureDaily',
   'upsideCaptureAnnual',
   'downsideCaptureAnnual',
-  'captureSpread',
-  'captureSpreadDaily',
-  'captureSpreadAnnual',
-  'activeReturn',
   'trackingError',
   'informationRatio',
   'pctPositiveDays',
   'pctPositiveMonths',
-  'pctPositiveYears',
   'maxDailyReturn',
   'minDailyReturn',
   'maxMonthlyReturn',
   'minMonthlyReturn',
   'maxAnnualReturn',
   'minAnnualReturn',
-  'avgDailyGain',
-  'avgDailyLoss',
-  'gainLossRatioDaily',
-  'avgMonthlyGain',
-  'avgMonthlyLoss',
-  'gainLossRatioMonthly',
-  'avgAnnualGain',
-  'avgAnnualLoss',
-  'gainLossRatioAnnual',
   'swr',
   'pwr',
   'swr10y',

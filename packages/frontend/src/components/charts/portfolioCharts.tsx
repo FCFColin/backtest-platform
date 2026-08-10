@@ -206,19 +206,18 @@ export function PortfolioAllocationChart({ portfolios }: PortfolioAllocationChar
   const { t } = useTranslation();
   if (portfolios.length === 0) {
     return (
-      <div className="chart-card">
+      <ChartCard>
         <div className="text-label text-fg-tertiary">{t('No data')}</div>
-      </div>
+      </ChartCard>
     );
   }
   const firstPortfolio = portfolios[0];
   const assets = firstPortfolio.assets;
   if (assets.length === 0) {
     return (
-      <div className="chart-card">
-        <div className="chart-card-title">{t('Portfolio Allocation')}</div>
+      <ChartCard title={t('Portfolio Allocation')}>
         <div className="text-label text-fg-tertiary">{t('No assets')}</div>
-      </div>
+      </ChartCard>
     );
   }
   const allocationHistory = firstPortfolio.allocationHistory;

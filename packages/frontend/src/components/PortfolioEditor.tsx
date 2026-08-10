@@ -62,7 +62,8 @@ function SinglePortfolioEditor({
   isComplete,
 }: Omit<SingleModeProps, 'singleMode'>) {
   const { t } = useTranslation();
-  const complete = isComplete ?? validateAssetWeights(assets) === null;
+  const weightError = isComplete !== undefined ? null : validateAssetWeights(assets);
+  const complete = isComplete ?? weightError === null;
   const card = (
     <div
       className="flex flex-col gap-1.5 p-3 bg-surface border border-border-subtle rounded-lg"
@@ -107,13 +108,21 @@ function SinglePortfolioEditor({
           {t('Add Asset')}
         </Button>
       </div>
-      <div className="flex items-center gap-2 pt-2 mt-1 border-t border-border-subtle">
+      <div
+        className="flex items-center gap-2 pt-2 mt-1 border-t border-border-subtle"
+        aria-invalid={!complete}
+      >
         <span className="shrink-0 text-caption text-fg-tertiary uppercase tracking-wide">
           {t('Total')}
         </span>
         <AllocationBar assets={assets} tw={totalWeight} />
         <TotalWeightBlock tw={totalWeight} isComplete={complete} />
       </div>
+      {weightError && (
+        <p role="alert" className="text-caption text-danger">
+          {t('Weights must sum to 100%, got {{total}}%', { total: totalWeight.toFixed(2) })}
+        </p>
+      )}
     </div>
   );
   if (!wrapInSection) return card;

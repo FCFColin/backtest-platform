@@ -7,8 +7,6 @@ import { writeEventInTransaction } from '../infrastructure/outbox.js';
 import { logger } from '../utils/logger.js';
 import { recordBacktestRequest } from '../utils/metrics.js';
 import { Portfolio as DomainPortfolio } from '../domain/aggregates/portfolio.js';
-import { Run } from '../domain/aggregates/run.js';
-import { eventDispatcher } from '../domain/events/events.js';
 import { withTimeout } from '../utils/misc.js';
 import { config } from '../config/index.js';
 import {
@@ -117,22 +115,6 @@ export async function runBacktest(
         'Starting backtest',
       );
       const aggregateId = randomUUID();
-      const run = Run.create({
-        id: aggregateId,
-        name: `Backtest ${aggregateId}`,
-        request: {
-          portfolioCount: portfolios.length,
-          startDate: parameters.startDate,
-          endDate: parameters.endDate,
-        },
-        ownerUserId: params.ownerUserId,
-      });
-      for (const evt of run.pullEvents())
-        void eventDispatcher
-          .dispatch(evt)
-          .catch((err) =>
-            logger.error({ err, aggregateId }, 'Failed to dispatch RunStarted event'),
-          );
       const filteredPriceData = filterPriceData(priceData, allTickers);
       span.setAttribute('cache_hit', Object.keys(filteredPriceData).length === allTickers.size);
       const engineBody = {

@@ -1,16 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import { Link } from 'react-router';
-import {
-  User,
-  Mail,
-  Palette,
-  DollarSign,
-  RefreshCw,
-  CreditCard,
-  Crown,
-  Calendar,
-  LogIn,
-} from 'lucide-react';
+import { User, Mail, Palette, DollarSign, CreditCard, Crown, Calendar, LogIn } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../hooks/miscHooks.js';
 import { useAuthStore } from '@/store/authStore';
@@ -23,13 +13,6 @@ const SELECT_CLASS = 'bg-input-bg text-fg border border-border-subtle rounded fo
 const CURRENCY_OPTS = [
   ['USD', 'currencyUSD'],
   ['CNY', 'currencyCNY'],
-] as const;
-const REBALANCE_OPTS = [
-  ['none', 'rebalanceBuyHold'],
-  ['monthly', 'rebalanceMonthly'],
-  ['quarterly', 'rebalanceQuarterly'],
-  ['yearly', 'rebalanceYearly'],
-  ['threshold', 'rebalanceThreshold'],
 ] as const;
 function UserInfoCard({
   displayName,
@@ -106,16 +89,12 @@ function PreferencesSection({
   isDark,
   toggleTheme,
   currency,
-  rebalance,
   onCurrencyChange,
-  onRebalanceChange,
 }: {
   isDark: boolean;
   toggleTheme: () => void;
   currency: string;
-  rebalance: string;
   onCurrencyChange: (v: string) => void;
-  onRebalanceChange: (v: string) => void;
 }) {
   const { t } = useTranslation();
   const renderSelect = (
@@ -147,13 +126,6 @@ function PreferencesSection({
           desc={t('Select the currency displayed in backtest results')}
         >
           {renderSelect(currency, onCurrencyChange, CURRENCY_OPTS)}
-        </PrefRow>
-        <PrefRow
-          icon={<RefreshCw className="w-4 h-4" />}
-          label={t('Rebalancing Frequency')}
-          desc={t('Set the default rebalance frequency')}
-        >
-          {renderSelect(rebalance, onRebalanceChange, REBALANCE_OPTS)}
         </PrefRow>
       </div>
     </>
@@ -192,13 +164,12 @@ export default function AccountPage() {
   const { toggleTheme, isDark } = useTheme();
   const currency = useSettingsStore((s) => s.currency.toUpperCase());
   const setCurrency = useSettingsStore((s) => s.setCurrency);
-  const [rebalance, setRebalance] = useState('quarterly');
   const user = useAuthStore((s) => s.user);
   const org = useAuthStore((s) => s.org);
   useEffect(() => {
     if (user?.tenantId) void importLocalConfigsOnce();
   }, [user?.tenantId]);
-  const displayName = org?.name ?? (user ? user.userId : 'Backtest User');
+  const displayName = org?.name ?? (user ? user.userId : t('Backtest User'));
   const roleLabel = user
     ? user.platformAdmin
       ? t('Platform Administrator')
@@ -218,9 +189,7 @@ export default function AccountPage() {
           isDark={isDark}
           toggleTheme={toggleTheme}
           currency={currency}
-          rebalance={rebalance}
           onCurrencyChange={(v) => setCurrency(v.toLowerCase() as 'usd' | 'cny')}
-          onRebalanceChange={setRebalance}
         />
         <SubscriptionSection plan={org?.plan} />
         <div className="mt-5 p-3.5 bg-[var(--bg-subtle)] rounded-[var(--radius-control)] text-[12px] text-[var(--text-muted)] leading-[1.7]">

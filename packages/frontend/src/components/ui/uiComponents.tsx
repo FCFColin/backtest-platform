@@ -1,11 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 import * as React from 'react';
-import {
-  isValidElement,
-  type ReactNode,
-  type HTMLAttributes,
-  type ButtonHTMLAttributes,
-} from 'react';
+import { type ReactNode, type ButtonHTMLAttributes } from 'react';
 import { Slot } from '@radix-ui/react-slot';
 import * as CheckboxPrimitive from '@radix-ui/react-checkbox';
 import * as CollapsiblePrimitive from '@radix-ui/react-collapsible';
@@ -17,6 +12,7 @@ import * as SelectPrimitive from '@radix-ui/react-select';
 import * as SeparatorPrimitive from '@radix-ui/react-separator';
 import * as SwitchPrimitive from '@radix-ui/react-switch';
 import * as TabsPrimitive from '@radix-ui/react-tabs';
+import * as TooltipPrimitive from '@radix-ui/react-tooltip';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { Check, Circle, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -395,31 +391,29 @@ export const TabsTrigger = wrapPrimitive(
 export const TabsContent = wrapPrimitive(TabsPrimitive.Content, 'mt-2', 'TabsContent');
 
 export const Tooltip = ({ children }: { children: ReactNode }) => (
-  <div className="relative inline-flex group">{children}</div>
+  <TooltipPrimitive.Provider delayDuration={200}>
+    <TooltipPrimitive.Root>{children}</TooltipPrimitive.Root>
+  </TooltipPrimitive.Provider>
 );
-export const TooltipTrigger = ({
-  children,
-  asChild,
-}: {
-  children: ReactNode;
-  asChild?: boolean;
-}) => (asChild && isValidElement(children) ? <>{children}</> : <span>{children}</span>);
+export const TooltipTrigger = TooltipPrimitive.Trigger;
 export const TooltipContent = React.forwardRef<
-  HTMLDivElement,
-  HTMLAttributes<HTMLDivElement> & { children: ReactNode }
->(({ children, className, ...props }, ref) => (
-  <div
-    ref={ref}
-    role="tooltip"
-    className={cn(
-      'invisible opacity-0 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100 transition-opacity duration-150 absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50',
-      className,
-    )}
-    {...props}
-  >
-    {children}
-  </div>
+  React.ElementRef<typeof TooltipPrimitive.Content>,
+  React.ComponentPropsWithoutRef<typeof TooltipPrimitive.Content>
+>(({ className, sideOffset = 8, ...props }, ref) => (
+  <TooltipPrimitive.Portal>
+    <TooltipPrimitive.Content
+      ref={ref}
+      sideOffset={sideOffset}
+      className={cn(
+        'z-50 max-w-xs rounded-md border border-border bg-elevated p-2 text-caption text-fg-secondary leading-relaxed shadow-lg whitespace-normal',
+        contentAnim,
+        className,
+      )}
+      {...props}
+    />
+  </TooltipPrimitive.Portal>
 ));
+TooltipContent.displayName = 'TooltipContent';
 interface LoadingButtonProps extends ButtonProps {
   isLoading: boolean;
   loadingText?: string;

@@ -43,8 +43,6 @@ function createRateLimiterStore(prefix: string): RedisStore | undefined {
 }
 
 function computeRateLimitKey(req: Request): string {
-  const user = (req as { user?: { sub?: string } }).user;
-  if (user?.sub) return `${user.sub}:${req.ip ?? ''}`;
   const tenantId = (req as { tenantId?: string }).tenantId;
   if (typeof tenantId === 'string' && tenantId.length > 0) return `tenant:${tenantId}`;
   // 限流先于认证执行，JWT payload 可被伪造，不得信任——按原始 token 哈希分桶，
@@ -69,12 +67,6 @@ function authRateLimitKey(req: Request): string {
   if (body?.refreshToken)
     return `refresh:${crypto.createHash('sha256').update(body.refreshToken).digest('hex').slice(0, 16)}`;
   return req.ip ?? '';
-}
-
-function jwtAwareKeyGenerator(req: Request): string {
-  const user = (req as { user?: { sub?: string } }).user;
-  if (user?.sub) return `${user.sub}:${req.ip ?? ''}`;
-  return `ip:${req.ip ?? ''}`;
 }
 
 function buildRateLimitMessage(code: string, detail?: string) {
@@ -144,7 +136,8 @@ export const apiLimiter = createLimiter({
   windowMs: 15 * 60 * 1000,
   max: 100,
   storePrefix: 'rl:api:',
-  keyGenerator: jwtAwareKeyGenerator,
+  // 挂载于认证之前：按原始 token/API key 哈希分桶，伪造 token 只烧自己桶，多租户共享 NAT 不误伤
+  keyGenerator: computeRateLimitKey,
   code: 'RATE_LIMITED',
   detail: '请求过于频繁，请稍后再试',
 });
@@ -161,7 +154,7 @@ export const adminLimiter = createLimiter({
   max: 30,
   storePrefix: 'rl:admin:',
   passOnStoreError: true,
-  keyGenerator: jwtAwareKeyGenerator,
+  keyGenerator: computeRateLimitKey,
   code: 'RATE_LIMITED',
   detail: '管理接口请求过于频繁，请稍后再试',
 });

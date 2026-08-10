@@ -15,13 +15,11 @@ import { runPortfolioBacktest } from '../application/backtest-service.js';
 import { executeGridSearch } from '../application/grid-application-service.js';
 import { save } from '../repositories/backtestRunRepo.js';
 import { Run } from '../domain/aggregates/run.js';
-import { eventDispatcher } from '../domain/events/events.js';
 import { getOrg } from '../application/org/membershipService.js';
 import { getPlanLimits } from '../application/billing/planLimitsService.js';
 import { appRedis } from '../infrastructure/redisClient.js';
 import { logger } from '../utils/logger.js';
 import { errorMessage, UpstreamProblemError } from '../utils/errors.js';
-import { EngineUnavailableError } from '../utils/engineClient.js';
 import type { Job } from 'bullmq';
 
 const inflightKey = (tenantId: string): string => `inflight:${tenantId}`;
@@ -90,20 +88,13 @@ async function handleEngineError(
   type: string,
 ): Promise<BacktestJobResult> {
   await releaseJobClaim(jobId, type);
-  if (err instanceof EngineUnavailableError) {
-    logger.warn(
-      { jobId, retryAfter: err.retryAfterSeconds },
-      '[worker] Go 引擎不可用，重抛触发重试',
-    );
-    throw err;
-  }
   if (err instanceof UpstreamProblemError) {
     logger.warn({ jobId, status: err.status, code: err.code }, '[worker] 引擎 4xx，永久失败');
     return { status: 'failed', error: err.detail };
   }
-  const message = errorMessage(err);
-  logger.error({ jobId, error: message }, '[worker] 任务执行失败');
-  return { status: 'failed', error: message };
+  // 其余错误（引擎不可用/瞬时网络/未知异常）重抛，触发 BullMQ 重试（attempts=3 指数退避）
+  logger.warn({ jobId, error: errorMessage(err) }, '[worker] 任务瞬时失败，触发 BullMQ 重试');
+  throw err;
 }
 
 type JobHandler = (
@@ -173,8 +164,10 @@ async function dispatchJob(job: Job<BacktestJobData>): Promise<BacktestJobResult
     return { status: 'failed', error: `Unknown job type: ${type}` };
   } catch (err) {
     if (err instanceof DelayedError) throw err;
+    await persistRunIfTenant(job, (run) =>
+      run.fail(err instanceof UpstreamProblemError ? err.detail : errorMessage(err)),
+    );
     const failed = await handleEngineError(err, jobId, type);
-    await persistRunIfTenant(job, (run) => run.fail(failed.error ?? 'handler failed'));
     return failed;
   }
 }
@@ -197,11 +190,6 @@ async function persistRunIfTenant(
     run.start();
     finalize(run);
     await save(tenantId, run);
-    for (const evt of run.pullEvents()) {
-      void eventDispatcher.dispatch(evt).catch((err) => {
-        logger.error({ err, jobId, eventType: evt.eventType }, '[worker] Run 事件分发失败');
-      });
-    }
   } catch (err) {
     logger.warn(
       { jobId, tenantId, err: String(err) },

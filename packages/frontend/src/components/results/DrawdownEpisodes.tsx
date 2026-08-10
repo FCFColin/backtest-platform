@@ -93,7 +93,7 @@ function DrawdownSummary({ episodes }: { episodes: DrawdownEpisode[] }) {
       Math.max(episodes.filter((e) => e.recoveryTime > 0).length, 1),
   };
   return (
-    <div className="grid grid-cols-4 gap-6 px-6 py-4 border-b border-border-subtle">
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-6 px-6 py-4 border-b border-border-subtle">
       <div>
         <div className="text-label-tiny text-fg-tertiary">{t('Total Drawdowns')}</div>
         <div className="text-h3 font-mono tabular-nums">{summary.total}</div>

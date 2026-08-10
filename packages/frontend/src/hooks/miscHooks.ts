@@ -99,15 +99,23 @@ export function useChartAnimation(isLargeDataset: boolean) {
 }
 
 export function useTheme() {
-  const [theme, setTheme] = useState<'light' | 'dark'>(() =>
-    typeof window === 'undefined'
-      ? 'dark'
-      : ((localStorage.getItem('theme') as 'light' | 'dark' | null) ??
-        (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')),
-  );
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    if (typeof window === 'undefined') return 'dark';
+    try {
+      const stored = localStorage.getItem('theme') as 'light' | 'dark' | null;
+      if (stored === 'light' || stored === 'dark') return stored;
+    } catch {
+      /* storage unavailable: fall back to OS preference */
+    }
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  });
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
-    localStorage.setItem('theme', theme);
+    try {
+      localStorage.setItem('theme', theme);
+    } catch {
+      /* storage unavailable */
+    }
   }, [theme]);
   return {
     theme,

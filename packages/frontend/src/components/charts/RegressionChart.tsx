@@ -148,7 +148,7 @@ function RegressionResidualChart({ reg, color }: { reg: RegressionWithMeta; colo
   if (reg.residuals.length === 0) return null;
   return (
     <div>
-      <div className="chart-card-title" style={{ marginTop: '8px' }}>
+      <div className="text-h3 font-semibold text-fg" style={{ marginTop: '8px' }}>
         {t('Residual Chart')}
       </div>
       <div className="text-label-tiny mb-2" style={{ color: 'var(--text-muted)' }}>

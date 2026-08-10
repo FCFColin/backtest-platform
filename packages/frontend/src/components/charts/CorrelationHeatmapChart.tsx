@@ -46,12 +46,9 @@ function BetaTable({ betaData, baseName }: { betaData: BetaRow[]; baseName: stri
     { key: 'beta', label: 'Beta', align: 'right', render: (row) => row.beta.toFixed(4) },
   ];
   return (
-    <div className="chart-card">
-      <div className="chart-card-title">
-        {t('Beta Table (Benchmark: {{baseName}})', { baseName })}
-      </div>
+    <ChartCard title={t('Beta Table (Benchmark: {{baseName}})', { baseName })}>
       <SimpleTable columns={columns} data={betaData} maxWidth={400} rowKey={(r) => r.name} />
-    </div>
+    </ChartCard>
   );
 }
 function PairSelect({
@@ -233,9 +230,9 @@ export default function CorrelationWithBeta({
   const hasPortfolioCorrelation = portfolios.length >= 2;
   if (!hasAssetCorrelation && !hasPortfolioCorrelation) {
     return (
-      <div className="chart-card">
+      <ChartCard>
         <TableEmpty message={t('At least 2 assets required')} className="text-caption py-5" />
-      </div>
+      </ChartCard>
     );
   }
   return (
@@ -255,9 +252,9 @@ export default function CorrelationWithBeta({
         />
       )}
       {betaPending ? (
-        <div className="chart-card flex items-center justify-center py-5">
+        <ChartCard className="flex items-center justify-center py-5">
           <Spinner />
-        </div>
+        </ChartCard>
       ) : (
         <BetaTable betaData={betaData ?? []} baseName={portfolios[0]?.name ?? ''} />
       )}

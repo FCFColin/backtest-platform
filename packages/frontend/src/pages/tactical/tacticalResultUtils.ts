@@ -62,8 +62,8 @@ function buildStatRows(
   }));
 }
 function whatIfSignalColor(t: WhatIfResult['signalType']): string {
-  if (t === 'buy') return 'var(--success)';
-  if (t === 'sell') return 'var(--danger)';
+  if (t === 'buy') return 'hsl(var(--success))';
+  if (t === 'sell') return 'hsl(var(--danger))';
   return 'var(--text-muted)';
 }
 function whatIfSignalLabel(t: WhatIfResult['signalType'], tfn: TFunction): string {

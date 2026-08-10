@@ -304,47 +304,54 @@ export function SimpleChart({
   const isLargeDataset = data.length >= 100;
   const Chart = CHART_BY_TYPE[type];
   return (
-    <ResponsiveContainer width="100%" height={height}>
-      <Chart data={data} margin={margin}>
-        {isArea && gradientId && (
-          <defs>
-            <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={gradientColor} stopOpacity={0.4} />
-              <stop offset="100%" stopColor={gradientColor} stopOpacity={0.05} />
-            </linearGradient>
-          </defs>
-        )}
-        <CartesianGrid {...CHART_GRID_PROPS} />
-        <XAxis
-          dataKey={xDataKey}
-          type={xType}
-          tickFormatter={xTickFormatter}
-          interval={xTickInterval}
-          tick={AXIS_TICK_STYLE}
-          label={
-            xLabel
-              ? {
-                  value: xLabel,
-                  position: 'insideBottom',
-                  offset: -4,
-                  fontSize: 11,
-                  fill: 'var(--fg-tertiary)',
-                }
-              : undefined
-          }
-        />
-        <ChartYAxis tickFormatter={yTickFormatter} domain={yDomain} scale={yScale} label={yLabel} />
-        <ChartTooltip
-          formatter={tooltipFormatter as TooltipValueFormatter}
-          labelFormatter={tooltipLabelFormatter}
-          isLargeDataset={isLargeDataset}
-        />
-        {(showLegend ?? !isArea) && (
-          <Legend wrapperStyle={LEGEND_WRAPPER_STYLE} formatter={legendFormatter} />
-        )}
-        {children}
-      </Chart>
-    </ResponsiveContainer>
+    <div role="img" aria-label={[xLabel, yLabel].filter(Boolean).join(' vs ') || 'Chart'}>
+      <ResponsiveContainer width="100%" height={height}>
+        <Chart data={data} margin={margin}>
+          {isArea && gradientId && (
+            <defs>
+              <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={gradientColor} stopOpacity={0.4} />
+                <stop offset="100%" stopColor={gradientColor} stopOpacity={0.05} />
+              </linearGradient>
+            </defs>
+          )}
+          <CartesianGrid {...CHART_GRID_PROPS} />
+          <XAxis
+            dataKey={xDataKey}
+            type={xType}
+            tickFormatter={xTickFormatter}
+            interval={xTickInterval}
+            tick={AXIS_TICK_STYLE}
+            label={
+              xLabel
+                ? {
+                    value: xLabel,
+                    position: 'insideBottom',
+                    offset: -4,
+                    fontSize: 11,
+                    fill: 'var(--fg-tertiary)',
+                  }
+                : undefined
+            }
+          />
+          <ChartYAxis
+            tickFormatter={yTickFormatter}
+            domain={yDomain}
+            scale={yScale}
+            label={yLabel}
+          />
+          <ChartTooltip
+            formatter={tooltipFormatter as TooltipValueFormatter}
+            labelFormatter={tooltipLabelFormatter}
+            isLargeDataset={isLargeDataset}
+          />
+          {(showLegend ?? !isArea) && (
+            <Legend wrapperStyle={LEGEND_WRAPPER_STYLE} formatter={legendFormatter} />
+          )}
+          {children}
+        </Chart>
+      </ResponsiveContainer>
+    </div>
   );
 }
 export const SimpleAreaChart = (p: Omit<SimpleChartProps, 'type'>) => (
@@ -391,31 +398,35 @@ export function XYScatterChart({
 }: XYScatterChartProps) {
   const numberFormatter = (v: number | string) => String(v);
   return (
-    <ResponsiveContainer width="100%" height={height}>
-      <ScatterChart margin={margin}>
-        <CartesianGrid {...CHART_GRID_PROPS} />
-        <ChartXAxis
-          type="number"
-          dataKey={xKey}
-          name={xName}
-          tickFormatter={(xTickFormatter ?? numberFormatter) as (value: number | string) => string}
-          label={xLabel ?? xName}
-        />
-        <ChartYAxis
-          type="number"
-          dataKey={yKey}
-          name={yName}
-          tickFormatter={yTickFormatter ?? numberFormatter}
-          label={yLabel ?? yName}
-        />
-        <ZAxis type="number" dataKey={zDataKey} range={zRange} />
-        <ChartTooltip
-          formatter={tooltipFormatter}
-          labelFormatter={labelFormatter}
-          cursor={cursor}
-        />
-        {children}
-      </ScatterChart>
-    </ResponsiveContainer>
+    <div role="img" aria-label={`${xName} vs ${yName}`}>
+      <ResponsiveContainer width="100%" height={height}>
+        <ScatterChart margin={margin}>
+          <CartesianGrid {...CHART_GRID_PROPS} />
+          <ChartXAxis
+            type="number"
+            dataKey={xKey}
+            name={xName}
+            tickFormatter={
+              (xTickFormatter ?? numberFormatter) as (value: number | string) => string
+            }
+            label={xLabel ?? xName}
+          />
+          <ChartYAxis
+            type="number"
+            dataKey={yKey}
+            name={yName}
+            tickFormatter={yTickFormatter ?? numberFormatter}
+            label={yLabel ?? yName}
+          />
+          <ZAxis type="number" dataKey={zDataKey} range={zRange} />
+          <ChartTooltip
+            formatter={tooltipFormatter}
+            labelFormatter={labelFormatter}
+            cursor={cursor}
+          />
+          {children}
+        </ScatterChart>
+      </ResponsiveContainer>
+    </div>
   );
 }

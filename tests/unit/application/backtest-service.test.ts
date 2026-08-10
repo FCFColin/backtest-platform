@@ -20,16 +20,12 @@ import {
 import type { Warning } from '../../../packages/backend/src/application/backtest-helpers.js';
 import { MAX_TICKERS } from '../../../packages/shared/constants.js';
 
-const eventMocks = vi.hoisted(() => ({ dispatch: vi.fn(async () => {}) }));
 const dbMocks = vi.hoisted(() => ({
   getClient: vi.fn(async () => ({ query: vi.fn(async () => ({ rows: [] })), release: vi.fn() })),
 }));
 const outboxMocks = vi.hoisted(() => ({ writeEventInTransaction: vi.fn(async () => {}) }));
 
 vi.mock('../../../packages/backend/src/utils/engineClient.js', () => engineModuleMock);
-vi.mock('../../../packages/backend/src/domain/events/events.js', () => ({
-  eventDispatcher: { dispatch: eventMocks.dispatch },
-}));
 vi.mock('../../../packages/backend/src/db/pool.js', () => ({
   withTransaction: createWithTransactionMock(() => dbMocks.getClient()),
 }));
@@ -109,17 +105,6 @@ describe('runBacktest', () => {
         priceData: mockPriceData,
       }),
     ).rejects.toThrow();
-  });
-  it('eventDispatcher.dispatch 失败时应记录错误但不影响主流程', async () => {
-    eventMocks.dispatch.mockRejectedValue(new Error('dispatch failed'));
-    const result = await executeRun();
-    expect(result.result).toBe(mockBacktestResult);
-    await vi.waitFor(() =>
-      expect(loggerMocks.error).toHaveBeenCalledWith(
-        expect.objectContaining({ aggregateId: expect.any(String) }),
-        expect.stringContaining('Failed to dispatch'),
-      ),
-    );
   });
   it('writeEventInTransaction 失败时应回滚事务并记录 outbox 错误', async () => {
     const queryMock = vi.fn(async () => ({ rows: [] }));

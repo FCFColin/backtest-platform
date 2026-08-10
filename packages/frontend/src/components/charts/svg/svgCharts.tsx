@@ -16,7 +16,7 @@ import { AXIS_TICK_STYLE } from '@/lib/chart-theme';
 export { SvgScatterChart } from './svgChartScatter.js';
 
 const barFill = (val: number, idx: number, signColor: boolean) =>
-  signColor ? (val >= 0 ? 'var(--success)' : 'var(--danger)') : seriesColor(idx);
+  signColor ? (val >= 0 ? 'hsl(var(--success))' : 'hsl(var(--danger))') : seriesColor(idx);
 interface SvgBarChartProps {
   data: ChartPoint[];
   seriesNames: string[];
@@ -145,7 +145,7 @@ export function SvgBarChart({
           const val = Number(point[name]) || 0;
           const color = barFill(val, seriesNames.indexOf(name), signColor);
           const barX = startX + seriesIdx * barWidth;
-          const barH = Math.abs((val - yMin) / (yMax - yMin)) * plotHeight;
+          const barH = Math.abs(val / (yMax - yMin)) * plotHeight;
           const barY = val >= 0 ? yScale(val) : yScale(0);
           return (
             <rect

@@ -4,7 +4,7 @@
   try {
     t = localStorage.getItem('theme');
   } catch {
-    t = 'dark';
+    /* storage unavailable: fall through to prefers-color-scheme */
   }
   if (t !== 'light' && t !== 'dark') {
     t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';

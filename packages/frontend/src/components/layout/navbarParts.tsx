@@ -97,7 +97,7 @@ function NotificationBell() {
           )}
         </Button>
       </SheetTrigger>
-      <SheetContent side="right" className="w-[400px] p-0">
+      <SheetContent side="right" className="w-full max-w-[400px] p-0">
         <div className="flex flex-col gap-1.5 text-center sm:text-left p-4 border-b border-border">
           <div className="flex items-center justify-between">
             <SheetTitle>{t('Product Updates')}</SheetTitle>

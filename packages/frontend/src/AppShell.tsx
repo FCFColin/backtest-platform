@@ -59,11 +59,7 @@ export default function AppShell() {
       )}
       {!isAdmin && <Navbar />}
       <MemoToast />
-      <main
-        id="main-content"
-        tabIndex={-1}
-        style={{ paddingTop: isAdmin ? 0 : 80, flex: '1 0 auto', outline: 'none' }}
-      >
+      <main id="main-content" tabIndex={-1} style={{ flex: '1 0 auto', outline: 'none' }}>
         <AppRoutes />
       </main>
       {!isAdmin && <MemoFooter />}

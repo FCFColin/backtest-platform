@@ -24,10 +24,10 @@ interface ParamCardProps {
 }
 export function ParamCard({ label, children, fullWidth, style, className }: ParamCardProps) {
   return (
-    <div className={cn('flex flex-col gap-1.5', fullWidth && 'w-full', className)} style={style}>
-      {label && <label className="text-caption text-fg-tertiary">{label}</label>}
+    <label className={cn('flex flex-col gap-1.5', fullWidth && 'w-full', className)} style={style}>
+      {label && <span className="text-caption text-fg-tertiary">{label}</span>}
       <div className="min-w-0">{children}</div>
-    </div>
+    </label>
   );
 }
 interface ParamGroupProps {
@@ -69,8 +69,12 @@ export function ParamGroup({
         </button>
         {info && (
           <div className="relative inline-flex group mr-2 shrink-0">
-            <Info className="size-3.5 cursor-help text-fg-tertiary" />
-            <div className="absolute right-0 top-6 hidden group-hover:block z-10 w-60 rounded-md border border-border bg-elevated p-2 text-caption text-fg-secondary leading-relaxed shadow-lg whitespace-normal">
+            <Info
+              tabIndex={0}
+              aria-label={info}
+              className="size-3.5 cursor-help text-fg-tertiary outline-none focus-visible:ring-2 focus-visible:ring-brand rounded-sm"
+            />
+            <div className="absolute right-0 top-6 hidden group-hover:block group-focus-within:block z-10 w-60 rounded-md border border-border bg-elevated p-2 text-caption text-fg-secondary leading-relaxed shadow-lg whitespace-normal">
               {info}
             </div>
           </div>

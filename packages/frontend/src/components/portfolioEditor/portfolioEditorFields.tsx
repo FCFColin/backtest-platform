@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Portfolio, RebalanceFrequency, RebalanceBands } from '@backtest/shared';
 import { X } from 'lucide-react';
@@ -223,6 +223,7 @@ export function AssetWeightRow({
   onDelete: () => void;
 }) {
   const meta = useTickerMeta(asset.ticker);
+  const { t } = useTranslation();
   return (
     <div className="group">
       <div className="flex items-center gap-2">
@@ -245,7 +246,8 @@ export function AssetWeightRow({
         <Button
           variant="ghost"
           size="icon"
-          className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity hover:text-danger"
+          aria-label={t('Delete')}
+          className="h-7 w-7 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity hover:text-danger"
           onClick={onDelete}
         >
           <X className="h-3.5 w-3.5" />
@@ -279,11 +281,17 @@ export function NumField({
   onChange: (v: number) => void;
   width?: string;
 }) {
+  const inputId = useId();
   return (
     <div className="flex flex-col gap-0.5 shrink-0">
-      {label && <label className="text-caption text-fg-tertiary">{label}</label>}
+      {label && (
+        <label htmlFor={inputId} className="text-caption text-fg-tertiary">
+          {label}
+        </label>
+      )}
       <div className="flex items-center gap-1">
         <Input
+          id={inputId}
           type="number"
           value={value}
           min={min}

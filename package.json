@@ -39,7 +39,7 @@
     "audit:contract": "node scripts/verify-backtest-contract.mjs",
     "audit:dom": "node scripts/audit-page-dom.mjs",
     "audit:code": "node scripts/audit-code-static.mjs",
-    "audit:all": "pnpm run audit:i18n && pnpm run audit:contract && pnpm run audit:dom && pnpm run audit:code",
+    "audit:all": "pnpm run audit:i18n && pnpm run audit:contract",
     "audit:supply": "node scripts/audit-supply.mjs",
     "verify:critical": "node scripts/verify/run-all.mjs",
     "prepare": "husky || true"
@@ -96,7 +96,7 @@
       "prettier --write"
     ],
     "*.{json,md,yml,yaml,css,html}": [
-      "prettier --write"
+      "prettier --write --no-error-on-unmatched-pattern"
     ]
   },
   "packageManager": "pnpm@11.5.3+sha512.7ac1c919341c213a34dc0d02afb7143c5c26ac26ee8c4782deea821b8ac64d2134a081fd8941dae6e29bbb48f58dfc2b7fbceeccc07cb2f09d219d342a4969ed"

@@ -127,7 +127,13 @@ function ActionBar({
       {actions.map((a) => (
         <button
           key={a.url}
-          onClick={() => onAction(a.url, a.method, a.label)}
+          onClick={() => {
+            const confirmed =
+              a.method === 'PUT'
+                ? window.confirm(t('Full update refetches all market data. Continue?'))
+                : true;
+            if (confirmed) onAction(a.url, a.method, a.label);
+          }}
           className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium ${a.cls}`}
         >
           <a.icon className="h-4 w-4" /> {a.label}

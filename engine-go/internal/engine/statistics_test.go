@@ -288,3 +288,34 @@ func TestSWRUsesLongestStandardTerm(t *testing.T) {
 		t.Errorf("SWR (%v) should be <= SWR30Y (%v) (longer term = more conservative)", stats.SWR, stats.SWR30Y)
 	}
 }
+
+func TestDiversificationRatioComputedFromWeightedAssetVol(t *testing.T) {
+	req := StatisticsRequest{
+		Values:           []float64{100, 101},
+		Dates:            []string{"2023-01-03", "2023-01-04"},
+		StartingValue:    100,
+		DailyReturns:     []float64{0.02, -0.01},
+		WeightedAssetVol: 0.03,
+	}
+	stats := CalculateStatisticsFromRequest(req)
+	assertFloatApprox(t, stats.DiversificationRatio, 0.03/mathutil.Std([]float64{0.02, -0.01}), "diversificationRatio = Σ(wσ)/σp")
+}
+func TestAnnualCaptureRatioComputedFromAnnualReturns(t *testing.T) {
+	benchCagr := 0.10
+	req := StatisticsRequest{
+		Values:                 []float64{100, 150},
+		Dates:                  []string{"2020-01-02", "2021-01-04"},
+		StartingValue:          100,
+		DailyReturns:           []float64{0.01, 0.02, 0.03},
+		AnnualReturnValues:     []float64{0.50, 0.50},
+		BenchmarkDailyReturns:  []float64{0.01, 0.02, 0.03},
+		BenchmarkAnnualReturns: []float64{0.25, 0.25},
+		BenchmarkCagr:          &benchCagr,
+	}
+	stats := CalculateStatisticsFromRequest(req)
+	assertFloatApprox(t, stats.UpsideCapture, 1.0, "daily upside capture")
+	assertFloatApprox(t, stats.UpsideCaptureAnnual, 2.0, "annual upside capture")
+	if stats.UpsideCaptureAnnual == stats.UpsideCapture {
+		t.Errorf("annual upside capture (%v) should differ from daily (%v)", stats.UpsideCaptureAnnual, stats.UpsideCapture)
+	}
+}

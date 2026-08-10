@@ -72,7 +72,7 @@ function PageHeaderActions({
   t: (key: string) => string;
 }) {
   return (
-    <div className="page-header-actions">
+    <div className="page-header-actions ml-auto">
       {(showAbout || showRelated) && (
         <button className="text-link-subtle" onClick={onToggle}>
           {showAbout ? t('About') : t('Related Tools:')}

@@ -53,7 +53,7 @@ function MonteCarloTerminalHistogram({
   if (data.length === 0) return null;
   return (
     <Card className="p-5">
-      <h4 className="mb-3 text-heading text-fg-secondary tabular-nums">
+      <h4 className="mb-3 text-sm font-semibold text-fg-secondary tabular-nums">
         {t('Terminal Value Distribution')}
       </h4>
       <HistogramChart

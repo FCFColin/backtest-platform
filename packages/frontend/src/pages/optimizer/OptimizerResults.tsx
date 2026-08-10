@@ -189,9 +189,7 @@ export function OptimizerResults({ s }: { s: EfficientFrontierState }) {
       hasResults={!!s.results}
       errorPrefix={`${t('Optimization Failed')}：`}
       loadingLabel={t('Optimizing...')}
-      emptyTitle={t(
-        'Configure parameters on the left and click "Start Calculation" to see optimal weights',
-      )}
+      emptyTitle={t('Configure parameters on the left and click "Optimize" to see optimal weights')}
     >
       {s.results && (
         <div className="flex flex-col gap-5">

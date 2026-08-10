@@ -122,31 +122,33 @@ export function TimeSeriesLineChart({
   const normalized = normalizeSeries(series, defaultStrokeWidth);
   const isLargeDataset = data.length >= 100;
   return (
-    <ResponsiveContainer width="100%" height={height}>
-      <LineChart data={data} margin={CHART_MARGIN}>
-        <CartesianGrid {...CHART_GRID_PROPS} />
-        <ChartXAxis dataKey={xDataKey} tickFontSize={xTickFontSize} interval={xTickInterval} />
-        <ChartYAxis tickFormatter={yTickFormatter} domain={yDomain} label={yLabel} />
-        <ChartTooltip
-          formatter={tooltipValueFormatter}
-          labelFormatter={tooltipLabelFormatter}
-          isLargeDataset={isLargeDataset}
-        />
-        {showLegend && <Legend wrapperStyle={LEGEND_WRAPPER_STYLE} />}
-        {referenceY !== undefined && (
-          <ReferenceLine y={referenceY} stroke="var(--text-muted)" strokeDasharray="4 4" />
-        )}
-        {renderLines(normalized, colorOffset, !isLargeDataset)}
-        {showBrush && data.length >= 100 && (
-          <Brush
-            dataKey={xDataKey}
-            height={20}
-            stroke="var(--brand)"
-            travellerWidth={8}
-            tickFormatter={DATE_TICK_FORMATTER}
+    <div role="img" aria-label={normalized.map((s) => s.legendName).join(', ')}>
+      <ResponsiveContainer width="100%" height={height}>
+        <LineChart data={data} margin={CHART_MARGIN}>
+          <CartesianGrid {...CHART_GRID_PROPS} />
+          <ChartXAxis dataKey={xDataKey} tickFontSize={xTickFontSize} interval={xTickInterval} />
+          <ChartYAxis tickFormatter={yTickFormatter} domain={yDomain} label={yLabel} />
+          <ChartTooltip
+            formatter={tooltipValueFormatter}
+            labelFormatter={tooltipLabelFormatter}
+            isLargeDataset={isLargeDataset}
           />
-        )}
-      </LineChart>
-    </ResponsiveContainer>
+          {showLegend && <Legend wrapperStyle={LEGEND_WRAPPER_STYLE} />}
+          {referenceY !== undefined && (
+            <ReferenceLine y={referenceY} stroke="var(--text-muted)" strokeDasharray="4 4" />
+          )}
+          {renderLines(normalized, colorOffset, !isLargeDataset)}
+          {showBrush && data.length >= 100 && (
+            <Brush
+              dataKey={xDataKey}
+              height={20}
+              stroke="var(--brand)"
+              travellerWidth={8}
+              tickFormatter={DATE_TICK_FORMATTER}
+            />
+          )}
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
   );
 }

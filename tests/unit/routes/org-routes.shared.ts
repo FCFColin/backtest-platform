@@ -27,6 +27,7 @@ const internalMocks = vi.hoisted(() => ({
     acceptInvitation: vi.fn(),
   },
   mail: { sendInvitationEmail: vi.fn() },
+  token: { revokeAllUserSessions: vi.fn().mockResolvedValue(undefined) },
 }));
 
 vi.mock(
@@ -42,6 +43,7 @@ vi.mock(
   () => internalMocks.invitation,
 );
 vi.mock('../../../packages/backend/src/infrastructure/mailService.js', () => internalMocks.mail);
+vi.mock('../../../packages/backend/src/middleware/tokenStore.js', () => internalMocks.token);
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: loggerMocks }));
 import '../../helpers/middlewareMocks.js';
 vi.mock('../../../packages/backend/src/middleware/miscMiddleware.js', () => ({

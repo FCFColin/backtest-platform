@@ -28,9 +28,6 @@ func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 	slog.SetDefault(logger)
 	cfg := defaultWorkerConfig()
-	if dbURL := strings.TrimSpace(os.Getenv("DATABASE_URL")); dbURL != "" {
-		cfg.DatabaseURL = dbURL
-	}
 	fetchCmd := flag.NewFlagSet("fetch", flag.ExitOnError)
 	fetchTicker := fetchCmd.String("ticker", "", "标的代码 (e.g. SPY, 000001_SZ)")
 	fetchStart := fetchCmd.String("start", "2000-01-01", "起始日期 (YYYY-MM-DD)")

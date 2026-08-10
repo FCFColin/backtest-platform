@@ -30,11 +30,29 @@ describe('orgRoutes', () => {
     expect(res.status).toBe(409);
   });
 
+  it('PATCH /members/:id 成功后应吊销目标用户会话（P1#1）', async () => {
+    mocks.membership.updateMemberRole.mockResolvedValueOnce('ok');
+    server = await startApp('/api/v1/orgs', orgRoutes);
+    const { res } = await jsonFetch(`${server.url}/api/v1/orgs/members/${MEMBER}`, 'PATCH', {
+      role: 'analyst',
+    });
+    expect(res.status).toBe(200);
+    expect(mocks.token.revokeAllUserSessions).toHaveBeenCalledWith(MEMBER);
+  });
+
   it('DELETE /members/:id 不存在返回 404', async () => {
     mocks.membership.removeMember.mockResolvedValueOnce('not_found');
     server = await startApp('/api/v1/orgs', orgRoutes);
     const res = await fetch(`${server.url}/api/v1/orgs/members/${MEMBER}`, { method: 'DELETE' });
     expect(res.status).toBe(404);
+  });
+
+  it('DELETE /members/:id 成功后应吊销目标用户会话（P1#1）', async () => {
+    mocks.membership.removeMember.mockResolvedValueOnce('ok');
+    server = await startApp('/api/v1/orgs', orgRoutes);
+    const res = await fetch(`${server.url}/api/v1/orgs/members/${MEMBER}`, { method: 'DELETE' });
+    expect(res.status).toBe(200);
+    expect(mocks.token.revokeAllUserSessions).toHaveBeenCalledWith(MEMBER);
   });
 
   it('POST /invitations 创建并发送邮件返回 201', async () => {

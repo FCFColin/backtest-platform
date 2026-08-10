@@ -48,11 +48,7 @@ export function ErrorFallback({
 }) {
   return (
     <div style={containerStyle} role="alert">
-      <div
-        style={{ fontSize: `${headingSize * 2}px`, marginBottom: '12px' }}
-        role="img"
-        aria-hidden="true"
-      >
+      <div style={{ fontSize: `${headingSize * 2}px`, marginBottom: '12px' }} aria-hidden="true">
         ⚠️
       </div>
       <h2 style={{ fontSize: `${headingSize}px`, fontWeight: 600, margin: '0 0 8px' }}>{title}</h2>

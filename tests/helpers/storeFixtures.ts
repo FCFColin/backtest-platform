@@ -46,7 +46,6 @@ export function mockPortfolioResult(overrides: Partial<PortfolioResult> = {}): P
       mwrr: 0.07,
       bestYear: 0.15,
       worstYear: -0.05,
-      avgYear: 0.07,
     },
     ...overrides,
   };
@@ -62,7 +61,6 @@ export const mockBacktestStats: BacktestResult['portfolios'][number]['statistics
   maxDrawdownDuration: 30,
   bestYear: 0.2,
   worstYear: -0.1,
-  avgYear: 0.1,
   totalReturn: 0.2,
 };
 

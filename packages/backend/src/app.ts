@@ -202,11 +202,8 @@ if (config.NODE_ENV === 'production' || config.SERVE_STATIC) {
 
 if (config.NODE_ENV === 'production' || config.SERVE_STATIC) {
   const { ssrMiddleware } = await import('./ssrMiddleware.js');
+  // ssrMiddleware 总在内部兜底 sendFile(SPA)，故无需第二条路由
   app.get(/^\/(?!api\/)(?!assets\/)(?!favicon)/, ssrMiddleware);
-  app.get(/^\/(?!api\/)(?!assets\/)(?!favicon)/, (_req: Request, res: Response) => {
-    res.setHeader('Cache-Control', 'no-cache');
-    res.sendFile(config.FRONTEND_DIST_DIR + '/index.html');
-  });
 }
 
 app.use(errorHandler);

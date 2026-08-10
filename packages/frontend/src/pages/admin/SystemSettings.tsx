@@ -104,7 +104,7 @@ function ArchitectureSection() {
           <div key={i} className="flex items-start gap-2">
             <span className={`mt-0.5 inline-block h-2 w-2 rounded-full ${item.color}`} />
             <p>
-              <strong>{item.text.split('-')[0].trim()}</strong> - {item.text.split('-')[1]?.trim()}
+              <strong>{item.text}</strong>
             </p>
           </div>
         ))}

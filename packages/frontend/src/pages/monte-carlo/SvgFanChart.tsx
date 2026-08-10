@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback, useEffect, useRef } from 'react';
+import { useMemo, useState, useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import { CHART_COLORS } from '@backtest/shared';
 import type { FanDataPoint } from './monteCarloUtils.js';
 import { monthFormatter, dollarKFormatter } from './monteCarloUtils.js';
@@ -73,6 +73,11 @@ export default function SvgFanChart({
     [visibleData, xScale, yScale],
   );
   const [tooltip, setTooltip] = useState<{ x: number; data: FanDataPoint } | null>(null);
+  const tipRef = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const el = tipRef.current;
+    if (el) el.style.top = `${Math.min(MARGIN.top + 8, height - el.offsetHeight - 8)}px`;
+  }, [tooltip, height]);
   const handleMouseMove = useCallback(
     (e: React.MouseEvent<SVGSVGElement>) => {
       const svgRect = e.currentTarget.getBoundingClientRect();
@@ -190,6 +195,7 @@ export default function SvgFanChart({
       </svg>
       {tooltip && (
         <div
+          ref={tipRef}
           className="absolute z-10 pointer-events-none rounded-md border border-border bg-app p-2 px-3 text-xs shadow-lg"
           style={{
             top: MARGIN.top + 8,

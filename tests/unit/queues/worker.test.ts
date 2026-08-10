@@ -112,13 +112,6 @@ describe('processBacktestJob - 任务分发', () => {
       '参数组合过多',
     ],
     [
-      'grid-search 抛异常时应捕获并返回 failed 并释放 claim',
-      'grid-search',
-      new Error('Redis 连接失败'),
-      'failed',
-      'Redis 连接失败',
-    ],
-    [
       'optimizer 成功时返回 completed',
       'optimizer',
       { success: true, data: { results: [], totalCombinations: 10 } },
@@ -147,6 +140,14 @@ describe('processBacktestJob - 任务分发', () => {
       expect(releaseJobClaim).toHaveBeenCalledWith('job-1', type);
       expect(markJobProcessed).not.toHaveBeenCalled();
     }
+  });
+  it('handler 抛瞬时错误（非 4xx）时应释放 claim 并重抛以触发 BullMQ 重试', async () => {
+    const err = new Error('Redis 连接失败');
+    vi.mocked(executeGridSearch).mockRejectedValueOnce(err);
+    const job = makeJob({ type: 'grid-search', payload: { indicator: 'sma' } } as BacktestJobData);
+    await expect(processBacktestJob(job)).rejects.toBe(err);
+    expect(releaseJobClaim).toHaveBeenCalledWith('job-1', 'grid-search');
+    expect(markJobProcessed).not.toHaveBeenCalled();
   });
   it('未知任务类型应返回 failed 且 error 包含未知类型名', async () => {
     const job = makeJob({ type: 'unknown-type' as BacktestJobData['type'], payload: {} });

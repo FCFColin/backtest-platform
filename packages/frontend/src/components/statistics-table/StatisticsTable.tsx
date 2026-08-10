@@ -212,9 +212,7 @@ export function WithdrawalRatesCard({ portfolios }: WithdrawalRatesCardProps) {
             <TooltipTrigger asChild>
               <Info className="size-3 cursor-help text-fg-tertiary" aria-label={t(row.descKey)} />
             </TooltipTrigger>
-            <TooltipContent className="max-w-xs rounded-md border border-border bg-elevated p-2 text-caption text-fg-secondary leading-relaxed shadow-lg whitespace-normal">
-              {t(row.descKey)}
-            </TooltipContent>
+            <TooltipContent>{t(row.descKey)}</TooltipContent>
           </Tooltip>
         </span>
       ),

@@ -26,11 +26,15 @@ export function StatisticsTableHeader({
   const { t } = useTranslation();
   return (
     <tr>
-      <th className="stat-table-metric-cell text-caption text-left" style={{ minWidth }}>
+      <th
+        scope="col"
+        className="stat-table-metric-cell text-caption text-left"
+        style={{ minWidth }}
+      >
         {t('Metric')}
       </th>
       {portfolios.map((p, idx) => (
-        <th key={p.name} className="stat-table-value-cell text-caption text-right">
+        <th key={p.name} scope="col" className="stat-table-value-cell text-caption text-right">
           <span
             className="inline-block w-2.5 h-2.5 rounded-full mr-1.5 align-middle"
             style={{ backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] }}
@@ -57,9 +61,7 @@ function MetricLabel({ row }: { row: StatRow }) {
         <TooltipTrigger asChild>
           <Info className="size-3 cursor-help text-fg-tertiary" aria-label={t(row.description)} />
         </TooltipTrigger>
-        <TooltipContent className="max-w-xs rounded-md border border-border bg-elevated p-2 text-caption text-fg-secondary leading-relaxed shadow-lg whitespace-normal">
-          {t(row.description)}
-        </TooltipContent>
+        <TooltipContent>{t(row.description)}</TooltipContent>
       </Tooltip>
     </span>
   );
