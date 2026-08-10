@@ -46,8 +46,6 @@ CREATE TABLE IF NOT EXISTS users (
 );
 CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email_unique ON users (lower(email)) WHERE email IS NOT NULL;
-CREATE INDEX IF NOT EXISTS idx_users_mfa_enabled ON users(mfa_enabled) WHERE mfa_enabled = FALSE;
-UPDATE users SET password_changed_at = created_at WHERE password_changed_at = NOW();
 
 -- Outbox (ADR-014: 事件与业务数据事务一致性)
 CREATE TABLE IF NOT EXISTS outbox (
@@ -134,7 +132,7 @@ DO $$ DECLARE t TEXT; col TEXT;
 BEGIN
   FOREACH t IN ARRAY ARRAY['portfolios','saved_configs','backtest_runs'] LOOP
     EXECUTE format('ALTER TABLE %s ENABLE ROW LEVEL SECURITY; ALTER TABLE %s FORCE ROW LEVEL SECURITY', t, t);
-    EXECUTE format($f$CREATE POLICY %1$s_tenant_isolation ON %1$s FOR ALL USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid) WITH CHECK (tenant_id = current_setting('app.current_tenant_id', true)::uuid)$f$, t);
+    EXECUTE format($f$CREATE POLICY %1$s_tenant_isolation ON %1$s FOR ALL USING (tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid) WITH CHECK (tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid)$f$, t);
   END LOOP;
 END $$;
 
@@ -173,7 +171,7 @@ DO $$ DECLARE t TEXT;
 BEGIN
   FOREACH t IN ARRAY ARRAY['usage_events','usage_counters'] LOOP
     EXECUTE format('ALTER TABLE %s ENABLE ROW LEVEL SECURITY; ALTER TABLE %s FORCE ROW LEVEL SECURITY', t, t);
-    EXECUTE format($f$CREATE POLICY %1$s_tenant_isolation ON %1$s FOR ALL USING (org_id = current_setting('app.current_tenant_id', true)::uuid) WITH CHECK (org_id = current_setting('app.current_tenant_id', true)::uuid)$f$, t);
+    EXECUTE format($f$CREATE POLICY %1$s_tenant_isolation ON %1$s FOR ALL USING (org_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid) WITH CHECK (org_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid)$f$, t);
   END LOOP;
 END $$;
 
@@ -275,16 +273,16 @@ BEGIN
   FOREACH t IN ARRAY ARRAY['webhook_endpoints','audit_logs','stripe_customers','subscriptions'] LOOP
     EXECUTE format('ALTER TABLE %s ENABLE ROW LEVEL SECURITY', t);
     IF t = 'audit_logs' THEN
-      EXECUTE format($f$CREATE POLICY %1$s_tenant_isolation ON %1$s FOR ALL USING (org_id = current_setting('app.current_tenant_id', true)::uuid OR current_setting('app.is_platform_admin', true) = 'true') WITH CHECK (org_id = current_setting('app.current_tenant_id', true)::uuid OR current_setting('app.is_platform_admin', true) = 'true')$f$, t);
+      EXECUTE format($f$CREATE POLICY %1$s_tenant_isolation ON %1$s FOR ALL USING (org_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid OR current_setting('app.is_platform_admin', true) = 'true') WITH CHECK (org_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid OR current_setting('app.is_platform_admin', true) = 'true')$f$, t);
     ELSE
-      EXECUTE format($f$CREATE POLICY %1$s_tenant_isolation ON %1$s FOR ALL USING (org_id = current_setting('app.current_tenant_id', true)::uuid) WITH CHECK (org_id = current_setting('app.current_tenant_id', true)::uuid)$f$, t);
+      EXECUTE format($f$CREATE POLICY %1$s_tenant_isolation ON %1$s FOR ALL USING (org_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid) WITH CHECK (org_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid)$f$, t);
     END IF;
   END LOOP;
 END $$;
 ALTER TABLE webhook_deliveries ENABLE ROW LEVEL SECURITY;
 CREATE POLICY webhook_deliveries_tenant_isolation ON webhook_deliveries FOR ALL
-  USING (endpoint_id IN (SELECT id FROM webhook_endpoints WHERE org_id = current_setting('app.current_tenant_id', true)::uuid))
-  WITH CHECK (endpoint_id IN (SELECT id FROM webhook_endpoints WHERE org_id = current_setting('app.current_tenant_id', true)::uuid));
+  USING (endpoint_id IN (SELECT id FROM webhook_endpoints WHERE org_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid))
+  WITH CHECK (endpoint_id IN (SELECT id FROM webhook_endpoints WHERE org_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid));
 
 -- 战术配置持久化 (P1-1)
 CREATE TABLE IF NOT EXISTS tactical_configs (
@@ -296,7 +294,7 @@ CREATE INDEX tactical_configs_tenant_id_idx ON tactical_configs (tenant_id);
 CREATE INDEX tactical_configs_user_id_idx ON tactical_configs (user_id);
 CREATE INDEX tactical_configs_updated_at_idx ON tactical_configs (updated_at DESC);
 ALTER TABLE tactical_configs ENABLE ROW LEVEL SECURITY; ALTER TABLE tactical_configs FORCE ROW LEVEL SECURITY;
-CREATE POLICY tactical_configs_tenant_isolation ON tactical_configs FOR ALL USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid) WITH CHECK (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+CREATE POLICY tactical_configs_tenant_isolation ON tactical_configs FOR ALL USING (tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid) WITH CHECK (tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid);
 
 -- Announcements (P3-2)
 CREATE TABLE IF NOT EXISTS announcements (
@@ -356,7 +354,7 @@ BEGIN
   FOREACH t IN ARRAY ARRAY['api_keys','invitations','org_memberships'] LOOP
     EXECUTE format('ALTER TABLE %s ENABLE ROW LEVEL SECURITY; ALTER TABLE %s FORCE ROW LEVEL SECURITY', t, t);
     IF t = 'org_memberships' THEN
-      EXECUTE format($f$CREATE POLICY %1$s_tenant_isolation ON %1$s FOR ALL USING (org_id = current_setting('app.current_tenant_id', true)::uuid) WITH CHECK (org_id = current_setting('app.current_tenant_id', true)::uuid)$f$, t);
+      EXECUTE format($f$CREATE POLICY %1$s_tenant_isolation ON %1$s FOR ALL USING (org_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid) WITH CHECK (org_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid)$f$, t);
     ELSE
       EXECUTE format($f$CREATE POLICY %1$s_tenant_isolation ON %1$s FOR ALL USING (org_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid OR NULLIF(current_setting('app.current_tenant_id', true), '') IS NULL) WITH CHECK (org_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid)$f$, t);
     END IF;

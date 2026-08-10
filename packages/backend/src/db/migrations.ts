@@ -31,6 +31,11 @@ const migrations: Array<{ version: number; upFile: string; downFile: string }> =
     upFile: '004_remove_dead_schema.sql',
     downFile: '004_remove_dead_schema_down.sql',
   },
+  {
+    version: 5,
+    upFile: '005_remove_dead_schema.sql',
+    downFile: '005_remove_dead_schema_down.sql',
+  },
 ];
 
 export async function initSchema(): Promise<void> {
