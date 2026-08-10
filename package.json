@@ -78,7 +78,7 @@
     "@types/node": "^22.15.30",
     "@vitejs/plugin-react": "^4.4.1",
     "@vitest/coverage-v8": "^3.2.6",
-    "concurrently": "^9.2.0",
+    "concurrently": "^10.0.4",
     "cross-env": "^7.0.3",
     "dependency-cruiser": "^18.0.0",
     "eslint": "^9.25.0",
