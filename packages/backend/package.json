@@ -50,7 +50,7 @@
     "pino-http": "^10.4.0",
     "prom-client": "^15.1.0",
     "rate-limit-redis": "^4.2.0",
-    "stripe": "^17.7.0",
+    "stripe": "^22.4.0",
     "swagger-ui-express": "^5.0.1",
     "unleash-client": "^6.0.0",
     "ws": "^8.18.0",
