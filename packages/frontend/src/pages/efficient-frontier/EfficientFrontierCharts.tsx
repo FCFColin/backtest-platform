@@ -31,12 +31,14 @@ function FrontierScatterChartInner({
       yName={t('Return (%)')}
       zRange={[60, 60]}
       height={height}
-      tooltipFormatter={(v: number) => `${v.toFixed(2)}%`}
+      tooltipFormatter={(v: number, name: string) =>
+        name === 'sharpeRatio' ? v.toFixed(2) : `${v.toFixed(2)}%`
+      }
     >
       <Scatter
         data={scatterData}
-        onClick={(data: { idx?: number }) => {
-          if (data?.idx != null && frontier[data.idx]) onSelectPoint(frontier[data.idx]);
+        onClick={(_data, index: number) => {
+          if (frontier[index]) onSelectPoint(frontier[index]);
         }}
       >
         {scatterData.map((entry, index) => (

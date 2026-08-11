@@ -6,7 +6,7 @@
 } from '@backtest/shared/types/index';
 import type { LETFRequest } from '@backtest/shared';
 import { fetchHistoryData } from '../infrastructure/dataFacade.js';
-import { callEngineStrict, unwrapEngineData } from '../utils/engineClient.js';
+import { callEngineStrict } from '../utils/engineClient.js';
 import { logger } from '../utils/logger.js';
 import { buildEngineParams } from './backtest/backtestEngineUtils.js';
 import { ValidationError } from '../utils/errors.js';
@@ -60,7 +60,7 @@ export async function runAnalysis(
     hasMissing ? missing : undefined,
   );
 
-  const engineData = (result as { data?: { assets?: unknown[]; correlations?: unknown[][] } }).data;
+  const engineData = result as { assets?: unknown[]; correlations?: unknown[][] };
   const data: Record<string, unknown> = engineData?.assets
     ? { tickers: engineData.assets, correlations: engineData.correlations || [] }
     : { ...result };
@@ -77,7 +77,7 @@ export function executePcaAnalyze(
     tickers,
     priceData,
     numComponents,
-  }).then(unwrapEngineData);
+  });
 }
 
 async function runAnalysisWithFetch<T>(
@@ -131,7 +131,7 @@ export function executeLetfAnalyze(
     benchmarkTicker: cleanBench,
     leverage: lev,
     priceData,
-  }).then(unwrapEngineData);
+  });
 }
 
 export async function executeLetfAnalyzeWithFetch(req: LETFRequest) {
@@ -165,7 +165,7 @@ export function executeGoalOptimize(
     priceData,
     startDate,
     endDate,
-  }).then(unwrapEngineData);
+  });
 }
 
 export async function executeGoalOptimizeWithFetch(request: GoalOptimizerRequest) {

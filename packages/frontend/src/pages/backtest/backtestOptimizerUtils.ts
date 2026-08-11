@@ -9,7 +9,9 @@ import {
 } from '@backtest/shared';
 import { fmtPct, fmtNum, fmtDollar } from '@/utils/format';
 import type { TableColumn } from '../../components/tables.js';
-import { apiPostJSON } from '@/utils/apiClient';
+import { apiFetch } from '@/utils/apiClient';
+import { extractApiErrorDetail } from '@/store/backtestHelpers.js';
+import { pollJobStatus } from '@/store/backtestStore.js';
 import { useAssetList } from '../../hooks/miscHooks.js';
 import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
 export type { Objective };
@@ -53,10 +55,10 @@ export const TABLE_COLUMNS: TableColumn<OptimizeResultItem>[] = [
     sortValue: (r) => r.initialCapital,
     render: (r) => fmtDollar(r.initialCapital),
   },
-  pctCol('cagr', 'CAGR'),
+  pctCol('cagr', i18n.t('stats.cagr')),
   pctCol('maxDrawdown', i18n.t('Max Drawdown')),
   pctCol('stdev', i18n.t('Volatility')),
-  numCol('sharpe', 'Sharpe'),
+  numCol('sharpe', i18n.t('Sharpe')),
   numCol('sortino', 'Sortino'),
   numCol('calmar', 'Calmar'),
 ];
@@ -249,16 +251,24 @@ export function useOptimizerState(): BacktestOptimizerState {
     }
     patchResult({ isLoading: true, error: null, results: null, best: null, benchmarkGrowth: null });
     try {
-      const data = await apiPostJSON<{
+      const res = await apiFetch('/api/v1/backtest-optimizer/optimize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(buildOptimizeBody(validAssets, frequencies, form)),
+      });
+      const json = await res.json();
+      if (!res.ok || json.success === false) throw new Error(extractApiErrorDetail(json));
+      // 端点走队列（submitQueueJob），202 + statusUrl 时轮询直至完成
+      const data = (
+        json.data?.statusUrl
+          ? (await pollJobStatus(json.data.statusUrl, new AbortController().signal, null)).data
+          : json.data
+      ) as {
         results?: OptimizeResultItem[];
         best?: BestResultItem | null;
         benchmarkGrowth?: { date: string; value: number }[] | null;
         totalCombinations?: number;
-      }>(
-        '/api/v1/backtest-optimizer/optimize',
-        buildOptimizeBody(validAssets, frequencies, form),
-        i18n.t('Optimization Failed'),
-      );
+      };
       patchResult({
         results: data.results ?? [],
         best: data.best ?? null,

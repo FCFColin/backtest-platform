@@ -177,7 +177,7 @@ export function DrawdownChart({ portfolios }: DrawdownChartProps) {
       portfolios={portfolios}
       title={t('Drawdown Trend')}
       gradientId="dangerGradient"
-      tooltipLabelKey="Date"
+      tooltipLabelKey="Date: {{label}}"
     />
   );
 }
@@ -191,7 +191,7 @@ export function UnderwaterCurve({ portfolios }: DrawdownChartProps) {
         'Drawdown depth over time — shows how long and how deep the portfolio was below its peak.',
       )}
       gradientId="underwaterGradient"
-      tooltipLabelKey="Date"
+      tooltipLabelKey="Date: {{label}}"
       showStats
     />
   );

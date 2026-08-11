@@ -142,6 +142,7 @@ describe('auditStorageService', () => {
     it('重复 outbox 投递冲突时应返回已有 id（幂等，不重复插入）', async () => {
       poolMocks.pool.query
         .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [] })
         .mockResolvedValueOnce({ rows: [{ id: LOG_ID }] });
       const result = await writeAuditLog(makeEntry(), poolMocks.pool, 'outbox-1');
       expect(result).toBe(LOG_ID);

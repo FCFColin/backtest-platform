@@ -253,13 +253,11 @@ describe('analysis-service', () => {
         degraded: false,
       });
       mockEngine({
-        data: {
-          assets: ['AAPL', 'SPY'],
-          correlations: [
-            [1, 0.5],
-            [0.5, 1],
-          ],
-        },
+        assets: ['AAPL', 'SPY'],
+        correlations: [
+          [1, 0.5],
+          [0.5, 1],
+        ],
       });
       const result = await runAnalysis(['AAPL', 'SPY'], params);
       expect(helpersMocks.fetchPriceDataWithRange).toHaveBeenCalledWith(

@@ -41,44 +41,42 @@ export function HistogramChart({
   const reducedMotion = useReducedMotion();
   if (data.length === 0) return null;
   return (
-    <div role="img" aria-label={t('Frequency Distribution')}>
-      <ResponsiveContainer width="100%" height={height}>
-        <BarChart data={data}>
-          <CartesianGrid {...CHART_GRID_PROPS} stroke="hsl(var(--border-subtle))" />
-          <XAxis
-            dataKey="range"
-            tick={{ fill: 'hsl(var(--fg-tertiary))', fontSize: 10 }}
-            interval={3}
+    <ResponsiveContainer width="100%" height={height}>
+      <BarChart data={data}>
+        <CartesianGrid {...CHART_GRID_PROPS} stroke="hsl(var(--border-subtle))" />
+        <XAxis
+          dataKey="range"
+          tick={{ fill: 'hsl(var(--fg-tertiary))', fontSize: 10 }}
+          interval={3}
+        />
+        <YAxis tick={AXIS_TICK_STYLE} />
+        <Tooltip
+          contentStyle={CHART_TOOLTIP_STYLE}
+          isAnimationActive={!disableTooltipAnimation && !reducedMotion}
+          formatter={tooltipFormatter}
+        />
+        <Bar
+          dataKey="count"
+          fill={CHART_COLORS[0]}
+          fillOpacity={0.7}
+          name={t('Frequency')}
+          radius={[2, 2, 0, 0]}
+        />
+        {referenceLines?.map((rl) => (
+          <ReferenceLine
+            key={rl.label}
+            x={rl.label}
+            stroke={rl.color}
+            strokeDasharray="4 2"
+            label={{
+              value: rl.value,
+              position: 'top',
+              fontSize: 11,
+              fill: rl.color,
+            }}
           />
-          <YAxis tick={AXIS_TICK_STYLE} />
-          <Tooltip
-            contentStyle={CHART_TOOLTIP_STYLE}
-            isAnimationActive={!disableTooltipAnimation && !reducedMotion}
-            formatter={tooltipFormatter}
-          />
-          <Bar
-            dataKey="count"
-            fill={CHART_COLORS[0]}
-            fillOpacity={0.7}
-            name={t('Frequency')}
-            radius={[2, 2, 0, 0]}
-          />
-          {referenceLines?.map((rl) => (
-            <ReferenceLine
-              key={rl.label}
-              x={rl.label}
-              stroke={rl.color}
-              strokeDasharray="4 2"
-              label={{
-                value: rl.value,
-                position: 'top',
-                fontSize: 11,
-                fill: rl.color,
-              }}
-            />
-          ))}
-        </BarChart>
-      </ResponsiveContainer>
-    </div>
+        ))}
+      </BarChart>
+    </ResponsiveContainer>
   );
 }

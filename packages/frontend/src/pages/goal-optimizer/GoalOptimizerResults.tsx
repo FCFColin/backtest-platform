@@ -19,7 +19,7 @@ import { ChartTooltip, ChartXAxis, ChartYAxis } from '@/components/charts/shared
 import ChartCard from '@/components/ChartCard.js';
 import { Card, Progress } from '@/components/ui/uiComponents';
 import { ResultsShell } from '@/components/resultsShell.js';
-import { BorderStatCard } from '@/components/cards.js';
+import { MiniStatCard } from '@/components/cards.js';
 import { getProbColor } from './goalOptimizerUtils.js';
 function ProbabilityDistributionChart({
   data,
@@ -137,29 +137,27 @@ function RecommendationCards({
   probColor: string;
 }) {
   const { t } = useTranslation();
+  const cards = [
+    { label: t('Expected Annual Return'), value: fmtPct(recommendation.expectedReturn) },
+    {
+      label: t('Required Annual Contribution'),
+      value: fmtDollar(recommendation.requiredContribution),
+    },
+    { label: t('Success Rate'), value: fmtPct(recommendation.successRate), color: probColor },
+  ] as const;
   return (
     <ChartCard title={t('Recommended Configuration')}>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <BorderStatCard
-          label={t('Expected Annual Return')}
-          value={fmtPct(recommendation.expectedReturn)}
-        />
-        <BorderStatCard
-          label={t('Required Annual Contribution')}
-          value={fmtDollar(recommendation.requiredContribution)}
-        />
-        <BorderStatCard
-          label={t('Success Rate')}
-          value={fmtPct(recommendation.successRate)}
-          color={probColor}
-        />
+        {cards.map((c) => (
+          <MiniStatCard key={c.label} variant="border" {...c} />
+        ))}
       </div>
     </ChartCard>
   );
 }
 function GoalOptimizerResultsPanel({ state }: { state: GoalOptimizerState }) {
   const { t } = useTranslation();
-  const r = state.results!;
+  const r = state.results;
   const probColor = r ? getProbColor(r.successProbability) : '';
   return (
     <ResultsShell
@@ -171,28 +169,33 @@ function GoalOptimizerResultsPanel({ state }: { state: GoalOptimizerState }) {
         'Set your goal and asset allocation, then click "Start Optimization" to see results',
       )}
     >
-      <div className="flex flex-col gap-5">
-        <Card className="flex flex-col items-center px-6 py-8 text-center">
-          <div className="text-label text-fg-secondary">{t('Probability of Reaching Goal')}</div>
-          <div
-            className="mt-2 font-mono tabular-nums text-display font-bold"
-            style={{ color: probColor }}
-          >
-            {(r.successProbability * 100).toFixed(1)}%
-          </div>
-          <Progress value={r.successProbability * 100} className="mt-4 h-2 w-full max-w-xs" />
-          <div className="mt-3 text-caption text-fg-tertiary">
-            {t('Target {{target}} · Initial {{initial}} · {{years}} years', {
-              target: fmtDollar(state.targetAmount),
-              initial: fmtDollar(state.initialAmount),
-              years: state.years,
-            })}
-          </div>
-        </Card>
-        <ProbabilityDistributionChart data={r.probabilityCurve} targetAmount={state.targetAmount} />
-        <OptimalPathChart data={r.optimalPath} targetAmount={state.targetAmount} />
-        <RecommendationCards recommendation={r.recommendation} probColor={probColor} />
-      </div>
+      {r && (
+        <div className="flex flex-col gap-5">
+          <Card className="flex flex-col items-center px-6 py-8 text-center">
+            <div className="text-label text-fg-secondary">{t('Probability of Reaching Goal')}</div>
+            <div
+              className="mt-2 font-mono tabular-nums text-display font-bold"
+              style={{ color: probColor }}
+            >
+              {(r.successProbability * 100).toFixed(1)}%
+            </div>
+            <Progress value={r.successProbability * 100} className="mt-4 h-2 w-full max-w-xs" />
+            <div className="mt-3 text-caption text-fg-tertiary">
+              {t('Target {{target}} · Initial {{initial}} · {{years}} years', {
+                target: fmtDollar(state.targetAmount),
+                initial: fmtDollar(state.initialAmount),
+                years: state.years,
+              })}
+            </div>
+          </Card>
+          <ProbabilityDistributionChart
+            data={r.probabilityCurve}
+            targetAmount={state.targetAmount}
+          />
+          <OptimalPathChart data={r.optimalPath} targetAmount={state.targetAmount} />
+          <RecommendationCards recommendation={r.recommendation} probColor={probColor} />
+        </div>
+      )}
     </ResultsShell>
   );
 }

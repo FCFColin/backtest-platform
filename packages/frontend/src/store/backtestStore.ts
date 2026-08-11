@@ -46,14 +46,14 @@ export async function pollJobStatus(
     const jobData = pollJson.data as {
       status?: string;
       state?: string;
-      result?: { data: unknown; warnings: unknown[]; dateRange: unknown };
+      result?: { data?: unknown; warnings: unknown[]; dateRange: unknown };
       error?: string;
     };
     const jobState = jobData.status ?? jobData.state;
     if (jobState === 'completed' && jobData.result) {
       return {
         success: true,
-        data: jobData.result.data,
+        data: (jobData.result.data ?? jobData.result) as unknown,
       } as Record<string, unknown>;
     }
     if (jobState === 'failed')

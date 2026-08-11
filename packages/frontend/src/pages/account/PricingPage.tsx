@@ -61,7 +61,7 @@ export default function PricingPage() {
   return (
     <div className="bt-page">
       <div className="bt-page-header">
-        <h1 className="page-title-slim">{t('Pricing Plans')}</h1>
+        <h1 className="bt-page-title">{t('Pricing Plans')}</h1>
       </div>
       <Card style={{ padding: 24 }}>
         <div

@@ -1,9 +1,7 @@
-import '../../helpers/loggerMock.js';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 
 import {
   isValidTicker,
-  validateTickerFormat,
   TICKER_PATTERN,
 } from '../../../packages/backend/src/utils/tickerValidation.js';
 
@@ -165,65 +163,5 @@ describe('isValidTicker', () => {
 describe('TICKER_PATTERN 正则', () => {
   it('应为 /^[A-Z0-9._-]{1,20}$/', () => {
     expect(TICKER_PATTERN.source).toBe('^[A-Z0-9._-]{1,20}$');
-  });
-});
-
-describe('validateTickerFormat 批量校验', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it('应正确分类合法与非法 ticker', () => {
-    const tickers = ['AAPL', 'msft', '000001.SZ', '../evil', 'GOOG'];
-    const result = validateTickerFormat(tickers);
-    expect(result.valid).toEqual(['AAPL', '000001.SZ', 'GOOG']);
-    expect(result.invalid).toEqual(['msft', '../evil']);
-  });
-
-  it('全部合法时应返回空 invalid 数组', () => {
-    const tickers = ['AAPL', 'MSFT', 'GOOG'];
-    const result = validateTickerFormat(tickers);
-    expect(result.valid).toEqual(tickers);
-    expect(result.invalid).toEqual([]);
-  });
-
-  it('全部非法时应返回空 valid 数组', () => {
-    const tickers = ['aapl', 'ms ft', '../evil'];
-    const result = validateTickerFormat(tickers);
-    expect(result.valid).toEqual([]);
-    expect(result.invalid).toEqual(tickers);
-  });
-
-  it('空数组应返回空 valid 和 invalid', () => {
-    const result = validateTickerFormat([]);
-    expect(result.valid).toEqual([]);
-    expect(result.invalid).toEqual([]);
-  });
-
-  it('存在非法 ticker时应记录警告日志', async () => {
-    const { logger } = await import('../../../packages/backend/src/utils/logger.js');
-    validateTickerFormat(['aapl', '../evil']);
-    expect(logger.warn).toHaveBeenCalledTimes(1);
-    expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('aapl'));
-  });
-
-  it('全部合法时不应记录警告日志', async () => {
-    const { logger } = await import('../../../packages/backend/src/utils/logger.js');
-    validateTickerFormat(['AAPL', 'MSFT']);
-    expect(logger.warn).not.toHaveBeenCalled();
-  });
-
-  it('应保留输入顺序', () => {
-    const tickers = ['ZZZ', 'aaa', 'AAA', 'bbb', 'BBB'];
-    const result = validateTickerFormat(tickers);
-    expect(result.valid).toEqual(['ZZZ', 'AAA', 'BBB']);
-    expect(result.invalid).toEqual(['aaa', 'bbb']);
-  });
-
-  it('应处理含 null/undefined 元素的数组', () => {
-    const tickers = ['AAPL', null, undefined, 'MSFT'] as unknown as string[];
-    const result = validateTickerFormat(tickers);
-    expect(result.valid).toEqual(['AAPL', 'MSFT']);
-    expect(result.invalid).toHaveLength(2);
   });
 });

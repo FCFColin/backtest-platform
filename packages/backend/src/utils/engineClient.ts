@@ -89,14 +89,10 @@ export class EngineUnavailableError extends Error {
   }
 }
 
-export function unwrapEngineData<T>(r: unknown): T {
-  return ((r as { data?: T })?.data ?? r) as T;
-}
-
 export async function callEngineStrict<T>(
   endpoint: string,
   body: unknown,
-  responseSchema?: z.ZodType<T>,
+  responseSchema?: z.ZodType<unknown>,
 ): Promise<T> {
   const t0 = Date.now();
   try {
@@ -106,8 +102,10 @@ export async function callEngineStrict<T>(
     engineCallDuration.observe({ result: 'success' }, elapsed / 1000);
     logger.info(`[callEngineStrict] ${endpoint} Go 引擎耗时 ${elapsed}ms`);
 
+    // 引擎统一 { success, data } 包络（engine-go handlers.go okJSON），返回 data
+    const data = ((result as { data?: T })?.data ?? result) as T;
     if (responseSchema) {
-      const parsed = responseSchema.safeParse(result);
+      const parsed = responseSchema.safeParse(data);
       if (!parsed.success) {
         logger.error(
           { endpoint, issues: parsed.error.issues },
@@ -117,10 +115,8 @@ export async function callEngineStrict<T>(
           `Engine response validation failed for ${endpoint}: ${parsed.error.message}`,
         );
       }
-      return parsed.data;
     }
-
-    return result as T;
+    return data;
   } catch (err) {
     const elapsed = Date.now() - t0;
     if (err instanceof UpstreamProblemError) {

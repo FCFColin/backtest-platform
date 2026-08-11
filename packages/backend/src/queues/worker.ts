@@ -143,6 +143,9 @@ async function dispatchJob(job: Job<BacktestJobData>): Promise<BacktestJobResult
       });
       const portfolioResult = { data: result, warnings, dateRange };
       await markJobProcessed(jobId, type, portfolioResult as Record<string, unknown>);
+      await persistRunIfTenant(job, (run) =>
+        run.complete(portfolioResult as Record<string, unknown>),
+      );
       return { status: 'completed', result: portfolioResult };
     }
 

@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { TRADING_DAYS_PER_YEAR } from '@backtest/shared/constants';
 import type { AssetAnalysisResult } from '@backtest/shared';
 import { mergePortfolioSeries } from '@/utils/format.js';
-import { computeBeta } from '@/components/charts/chartUtils.js';
+import { computeBeta, computeRollingCorrelation } from '@/components/charts/chartUtils.js';
 function computeBetaMatrix(allReturns: number[][]): number[][] {
   const n = allReturns.length;
   const matrix: number[][] = Array.from({ length: n }, () => Array(n).fill(0));
@@ -12,37 +12,6 @@ function computeBetaMatrix(allReturns: number[][]): number[][] {
     }
   }
   return matrix;
-}
-function computeRollingCorrelation(
-  returns1: number[],
-  returns2: number[],
-  dates: string[],
-  windowDays: number,
-): Array<{ date: string; value: number }> {
-  const result: Array<{ date: string; value: number }> = [];
-  const n = Math.min(returns1.length, returns2.length);
-  if (n < windowDays) return result;
-  for (let i = windowDays; i <= n; i++) {
-    const r1 = returns1.slice(i - windowDays, i);
-    const r2 = returns2.slice(i - windowDays, i);
-    const dateIdx = i;
-    if (dateIdx >= dates.length) continue;
-    const mean1 = r1.reduce((s, v) => s + v, 0) / r1.length;
-    const mean2 = r2.reduce((s, v) => s + v, 0) / r2.length;
-    let cov = 0,
-      var1 = 0,
-      var2 = 0;
-    for (let j = 0; j < r1.length; j++) {
-      const d1 = r1[j] - mean1;
-      const d2 = r2[j] - mean2;
-      cov += d1 * d2;
-      var1 += d1 * d1;
-      var2 += d2 * d2;
-    }
-    const corr = var1 > 0 && var2 > 0 ? cov / Math.sqrt(var1 * var2) : 0;
-    result.push({ date: dates[dateIdx], value: corr });
-  }
-  return result;
 }
 function usePortfolioResults(tickers: AssetAnalysisResult['tickers']) {
   return useMemo(
@@ -87,6 +56,7 @@ export function useAnalysisData(results: AssetAnalysisResult, correlationWindow:
       tickers[1]?.dailyReturns ?? [],
       dates,
       windowDays,
+      Infinity,
     );
   }, [tickers, correlationWindow]);
   const scatterData = useMemo(

@@ -71,9 +71,7 @@ export function computeHeatmapRange(matrix: (number | null)[][]): { min: number;
   return { min: min === Infinity ? 0 : min, max: max === -Infinity ? 0 : max };
 }
 export function getObjectiveLabelKey(objective: ObjectiveType): string {
-  if (objective === 'maxCAGR') return 'backtest.optimizer.maxCagr';
-  if (objective === 'minDrawdown') return 'backtest.optimizer.minMaxDrawdown';
-  return 'backtest.optimizer.maxSharpe';
+  return OBJECTIVE_OPTIONS.find((o) => o.value === objective)!.label;
 }
 export function getCellDisplayValue(cell: number, objective: ObjectiveType): string {
   if (objective === 'minDrawdown') return fmtPct(-cell);

@@ -34,27 +34,6 @@ func TestRunBacktest(t *testing.T) {
 			t.Error("增长曲线不应为空")
 		}
 	})
-	t.Run("diversificationRatio 由资产波动率真算", func(t *testing.T) {
-		priceData := alternatingPriceData()
-		req := BacktestRequest{
-			Portfolios: []PortfolioInput{{Name: "60/40",
-				Assets:             []AssetInput{{Ticker: "VTI", Weight: 60}, {Ticker: "BND", Weight: 40}},
-				RebalanceFrequency: "monthly", TotalReturn: true,
-			},
-			},
-			PriceData:     priceData,
-			CPIData:       map[string]float64{},
-			ExchangeRates: map[string]float64{},
-			Params:        BacktestParams{StartDate: "2023-01-03", EndDate: "2023-05-01", StartingValue: 10000, AdjustForInflation: false, RollingWindowMonths: 12, BenchmarkTicker: "VTI"},
-		}
-		result, err := RunBacktest(context.Background(), req)
-		if err != nil {
-			t.Fatalf("RunBacktest 返回错误: %v", err)
-		}
-		if ratio := result.Portfolios[0].Statistics.DiversificationRatio; ratio <= 2.0 {
-			t.Errorf("diversificationRatio = %v, want > 2（负相关资产的加权波动率应显著高于组合波动率）", ratio)
-		}
-	})
 	t.Run("日期范围无数据应报错", func(t *testing.T) {
 		_, err := RunBacktest(context.Background(), BacktestRequest{
 			Portfolios: []PortfolioInput{{Name: "test", Assets: []AssetInput{{Ticker: "VTI", Weight: 100}}}},
@@ -137,28 +116,6 @@ func TestFilterByDateRange(t *testing.T) {
 		}
 	})
 }
-func alternatingPriceData() PriceDataMap {
-	t, _ := time.Parse("2006-01-02", "2023-01-03")
-	series := func(upFirst bool) map[string]float64 {
-		m := map[string]float64{}
-		base := 100.0
-		sign := 1.0
-		if !upFirst {
-			sign = -1.0
-		}
-		for i := 0; i < 90; i++ {
-			d := t.AddDate(0, 0, i)
-			if wd := d.Weekday(); wd == time.Saturday || wd == time.Sunday {
-				continue
-			}
-			m[d.Format("2006-01-02")] = base
-			base *= 1 + sign*0.01
-			sign = -sign
-		}
-		return m
-	}
-	return PriceDataMap{"VTI": series(true), "BND": series(false)}
-}
 func newBenchBacktestRequest() BacktestRequest {
 	return BacktestRequest{
 		Portfolios: []PortfolioInput{{Name: "60/40",
@@ -211,7 +168,7 @@ func BenchmarkComputeStatistics(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		computeStatistics(curve, episodes, nil, nil, 0)
+		computeStatistics(curve, episodes, nil, nil)
 	}
 }
 func TestMWRRCashflowSchedule(t *testing.T) {

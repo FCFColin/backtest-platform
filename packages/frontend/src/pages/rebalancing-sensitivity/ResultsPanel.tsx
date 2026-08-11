@@ -175,7 +175,7 @@ function OffsetTab({ s }: { s: RebalancingState }) {
   );
 }
 const resultsTableCols = (t: TFunction) => [
-  ['CAGR', 'cagr'] as const,
+  [t('stats.cagr'), 'cagr'] as const,
   [t('Volatility'), 'stdev'] as const,
   [t('Max Drawdown'), 'mdd'] as const,
   [t('Sharpe'), 'sharpe'] as const,
@@ -270,7 +270,7 @@ export function ResultsPanel({ s }: { s: RebalancingState }) {
               onClick={() => s.setActiveTab(tab.key)}
               className={`rounded-lg px-3 py-1.5 text-caption font-semibold transition-colors ${s.activeTab === tab.key ? 'bg-brand/10 text-brand' : 'text-fg-tertiary hover:text-fg-secondary'}`}
             >
-              {tab.label}
+              {t(tab.labelKey)}
             </button>
           ))}
         </div>

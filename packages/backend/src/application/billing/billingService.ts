@@ -18,6 +18,12 @@ export function isBillingEnabled(): boolean {
   return Boolean(config.STRIPE_SECRET_KEY);
 }
 
+function requiredStripe(): Stripe {
+  const s = getStripe();
+  if (!s) throw new Error('billing_disabled');
+  return s;
+}
+
 export function priceIdForPlan(plan: BillablePlan): string {
   return plan === 'pro' ? config.STRIPE_PRICE_PRO : config.STRIPE_PRICE_ENTERPRISE;
 }
@@ -29,8 +35,7 @@ export function planForPriceId(priceId: string | null | undefined): 'free' | Bil
 }
 
 export async function ensureCustomer(orgId: string, email?: string | null): Promise<string> {
-  const s = getStripe();
-  if (!s) throw new Error('billing_disabled');
+  const s = requiredStripe();
   const existing = await withTenant(orgId, (client) =>
     client.query('SELECT stripe_customer_id FROM stripe_customers WHERE org_id = $1', [orgId]),
   );
@@ -59,8 +64,7 @@ export async function createCheckoutSession(input: {
   successUrl: string;
   cancelUrl: string;
 }): Promise<string> {
-  const s = getStripe();
-  if (!s) throw new Error('billing_disabled');
+  const s = requiredStripe();
   const price = priceIdForPlan(input.plan);
   if (!price) throw new Error('price_not_configured');
   const session = await s.checkout.sessions.create({
@@ -77,8 +81,7 @@ export async function createCheckoutSession(input: {
 }
 
 export async function createPortalSession(orgId: string, returnUrl: string): Promise<string> {
-  const s = getStripe();
-  if (!s) throw new Error('billing_disabled');
+  const s = requiredStripe();
   const { rows } = await withTenant(orgId, (client) =>
     client.query('SELECT stripe_customer_id FROM stripe_customers WHERE org_id = $1', [orgId]),
   );
@@ -91,8 +94,7 @@ export async function createPortalSession(orgId: string, returnUrl: string): Pro
 }
 
 export function constructWebhookEvent(rawBody: Buffer, signature: string): Stripe.Event {
-  const s = getStripe();
-  if (!s) throw new Error('billing_disabled');
+  const s = requiredStripe();
   if (!config.STRIPE_WEBHOOK_SECRET) throw new Error('webhook_secret_not_configured');
   return s.webhooks.constructEvent(rawBody, signature, config.STRIPE_WEBHOOK_SECRET);
 }

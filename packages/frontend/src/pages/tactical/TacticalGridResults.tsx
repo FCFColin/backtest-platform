@@ -76,7 +76,7 @@ function buildTopColumns(
     col('rank', '#'),
     col('param1', paramLabels.p1),
     col('param2', paramLabels.p2),
-    col('cagr', 'CAGR', fmtPct),
+    col('cagr', t('stats.cagr'), fmtPct),
     col('maxDrawdown', t('Max Drawdown'), fmtPct),
     col('sharpe', 'Sharpe', (v) => fmtNum(v, 3)),
     col('stdev', t('Volatility'), fmtPct),

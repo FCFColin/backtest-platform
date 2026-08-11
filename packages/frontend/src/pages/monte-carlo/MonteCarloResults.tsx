@@ -16,7 +16,6 @@ import {
   type ComputeToolConfig,
 } from '../../components/shells/index.js';
 import { MiniStatCard } from '../../components/cards.js';
-import { ResultsShell } from '@/components/resultsShell.js';
 import { fmtDollar } from '@/utils/format';
 import { SimpleTable, type SimpleTableColumn } from '@/components/tables.js';
 import { McParamsPanel } from './MonteCarloParams.js';
@@ -179,7 +178,6 @@ function ResultsDisplay({
 function MonteCarloResultsPanel({ s }: { s: McState }) {
   const {
     error,
-    isLoading,
     results1,
     results2,
     portfolios,
@@ -192,20 +190,43 @@ function MonteCarloResultsPanel({ s }: { s: McState }) {
     setDistMetric,
   } = s;
   const { t } = useTranslation();
+  if (error) {
+    return (
+      <div className="p-6 text-center text-danger">
+        {t('Simulation failed')}: {error}
+      </div>
+    );
+  }
+  if (!results1 && !results2) {
+    return (
+      <div className="p-12 text-center text-fg-tertiary">
+        {t('Configure parameters on the left and click "Start Simulation" to see results')}
+      </div>
+    );
+  }
   return (
-    <ResultsShell
-      error={error ? `${t('Simulation failed')}: ${error}` : null}
-      isLoading={isLoading}
-      hasResults={!!results1 || !!results2}
-      loadingLabel={t('Simulating...')}
-      emptyTitle={t('Configure parameters on the left and click "Start Simulation" to see results')}
-    >
-      <div className="flex flex-col gap-6">
-        {results1 && (
+    <div className="flex flex-col gap-6">
+      {results1 && (
+        <ResultsDisplay
+          r={results1}
+          label={portfolios[0].name}
+          colorIdx={0}
+          portfolioMode={portfolioMode}
+          activeTab={activeTab}
+          startingValue={startingValue}
+          numSimulations={numSimulations}
+          distMetric={distMetric}
+          setDistMetric={setDistMetric}
+          onTabChange={setActiveTab}
+        />
+      )}
+      {results2 && (
+        <>
+          <Separator />
           <ResultsDisplay
-            r={results1}
-            label={portfolios[0].name}
-            colorIdx={0}
+            r={results2}
+            label={portfolios[1].name}
+            colorIdx={1}
             portfolioMode={portfolioMode}
             activeTab={activeTab}
             startingValue={startingValue}
@@ -214,26 +235,9 @@ function MonteCarloResultsPanel({ s }: { s: McState }) {
             setDistMetric={setDistMetric}
             onTabChange={setActiveTab}
           />
-        )}
-        {results2 && (
-          <>
-            <Separator />
-            <ResultsDisplay
-              r={results2}
-              label={portfolios[1].name}
-              colorIdx={1}
-              portfolioMode={portfolioMode}
-              activeTab={activeTab}
-              startingValue={startingValue}
-              numSimulations={numSimulations}
-              distMetric={distMetric}
-              setDistMetric={setDistMetric}
-              onTabChange={setActiveTab}
-            />
-          </>
-        )}
-      </div>
-    </ResultsShell>
+        </>
+      )}
+    </div>
   );
 }
 const config: ComputeToolConfig<McState> = {

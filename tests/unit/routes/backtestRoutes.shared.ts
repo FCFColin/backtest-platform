@@ -89,7 +89,6 @@ vi.mock('../../../packages/backend/src/application/backtest-helpers.js', () => (
 vi.mock('../../../packages/backend/src/utils/engineClient.js', () => ({
   callEngineStrict: internalMocks.m.callEngineStrict,
   EngineUnavailableError: EngineUnavailableErrorStub,
-  unwrapEngineData: <T>(r: unknown): T => ((r as { data?: T })?.data ?? r) as T,
 }));
 vi.mock(
   '../../../packages/backend/src/application/backtest/backtestEngineUtils.js',

@@ -80,7 +80,7 @@ function GrowthHeader({
           size="icon"
           className="h-8 w-8"
           onClick={onToggleHidden}
-          title={hidden ? t('Show Chart') : t('Hide Chart')}
+          aria-label={hidden ? t('Show Chart') : t('Hide Chart')}
         >
           {hidden ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
         </Button>

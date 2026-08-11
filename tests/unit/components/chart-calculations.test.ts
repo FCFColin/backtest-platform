@@ -90,7 +90,7 @@ describe('correlationDataTransforms', () => {
     const dates = returns.map((_, i) => `d${i}`);
     const result = computeRollingCorrelation(returns, returns, dates, 20);
     expect(result.length).toBeGreaterThan(0);
-    for (const p of result) expect(p.correlation).toBeCloseTo(1, 6);
+    for (const p of result) expect(p.value).toBeCloseTo(1, 6);
   });
 
   it('computeRollingCorrelation：完全负相关序列相关系数应为 -1', () => {
@@ -99,7 +99,7 @@ describe('correlationDataTransforms', () => {
     const dates = base.map((_, i) => `d${i}`);
     const result = computeRollingCorrelation(base, target, dates, 20);
     expect(result.length).toBeGreaterThan(0);
-    for (const p of result) expect(p.correlation).toBeCloseTo(-1, 6);
+    for (const p of result) expect(p.value).toBeCloseTo(-1, 6);
   });
 
   it('computeRollingCorrelation：数据不足窗口时应返回空数组', () => {

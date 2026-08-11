@@ -61,7 +61,3 @@ pnpm test:e2e:ui:headed
 | `navigation.spec.ts`           | 导航                                              |
 | `optimizer.spec.ts`            | 组合优化                                          |
 | `page-smoke.spec.ts`           | 页面冒烟                                          |
-
-## CI 集成
-
-CI e2e job 由 Task 1.4 配置(启动完整应用栈 + Playwright),本目录不维护 CI 配置。

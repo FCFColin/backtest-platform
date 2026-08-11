@@ -47,24 +47,22 @@ export function ResultsActionBar({ timeRange, onExport }: ResultsActionBarProps)
             </span>
           </div>
           <div className="flex-1" />
-          {onExport && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="secondary" size="sm">
-                  <Download className="h-4 w-4 mr-1.5" />
-                  {t('Export')}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => onExport('csv')}>
-                  {t('CSV (Data)')}
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onExport('json')}>
-                  {t('JSON (Full Config + Results)')}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="secondary" size="sm">
+                <Download className="h-4 w-4 mr-1.5" />
+                {t('Export')}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => onExport?.('csv')}>
+                {t('CSV (Data)')}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onExport?.('json')}>
+                {t('JSON (Full Config + Results)')}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
     </>

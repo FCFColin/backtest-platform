@@ -101,13 +101,13 @@ export function DataEngineSkeleton() {
         ))}
       </div>
       <SkeletonRowsCard titleW="160px" rows={COVERAGE_SKELETON_ROWS} />
-      <div className="my-2 grid grid-cols-2 gap-3">
+      <div className="my-2 grid grid-cols-1 gap-3 md:grid-cols-2">
         <SkeletonRowsCard titleW="50%" wrapperClass="mt-4 flex flex-col gap-2" rows={distRows} />
         <SkeletonRowsCard titleW="50%" wrapperClass="mt-4 flex flex-col gap-2" rows={distRows} />
       </div>
-      <HistogramSkeleton barClass="h-44 gap-1.5" n={10} pct={(i) => `${30 + ((i * 13) % 60)}%`} />
-      <HistogramSkeleton barClass="h-40 gap-1" n={12} pct={(i) => `${20 + ((i * 17) % 70)}%`} />
-      <div className="my-2 grid grid-cols-2 gap-3">
+      <HistogramSkeleton barClass="h-60 gap-1.5" n={10} pct={(i) => `${30 + ((i * 13) % 60)}%`} />
+      <HistogramSkeleton barClass="h-60 gap-1" n={12} pct={(i) => `${20 + ((i * 17) % 70)}%`} />
+      <div className="my-2 grid grid-cols-1 gap-3 md:grid-cols-2">
         <SkeletonRowsCard titleW="40%" wrapperClass="mt-4 flex flex-col gap-2" rows={sampleRows} />
         <SkeletonRowsCard titleW="40%" wrapperClass="mt-4 flex flex-col gap-2" rows={sampleRows} />
       </div>

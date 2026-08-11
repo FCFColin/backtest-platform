@@ -148,7 +148,8 @@ describe('runOptimization', () => {
   it('正常路径：获取数据、调用引擎、返回结果', async () => {
     mocks.fetchHistoryData.mockResolvedValue(priceData());
     mocks.callEngineStrict.mockResolvedValue({
-      data: { weights: { AAPL: 0.6, SPY: 0.4 }, sharpe: 1.5 },
+      weights: { AAPL: 0.6, SPY: 0.4 },
+      sharpe: 1.5,
     });
 
     const result = await runOptimization(
@@ -246,7 +247,7 @@ describe('runEfficientFrontier', () => {
     ],
   ])('%s', async (_n, numPoints, riskFreeRate, engineExpect, engineRes, tickers) => {
     mocks.fetchHistoryData.mockResolvedValue(priceData());
-    mocks.callEngineStrict.mockResolvedValue({ data: engineRes });
+    mocks.callEngineStrict.mockResolvedValue(engineRes);
     const result = await runEfficientFrontier(tickers, params, numPoints, riskFreeRate);
     expect(mocks.callEngineStrict).toHaveBeenCalledWith(
       '/api/engine/efficient-frontier',

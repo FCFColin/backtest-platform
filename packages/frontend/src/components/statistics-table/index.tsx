@@ -12,7 +12,6 @@ function formatValue(v: number | undefined, fmt: FmtType): string {
   if (fmt === 'pct') return fmtPct(v);
   if (fmt === 'ratio') return fmtRatio(v);
   if (fmt === 'num') return fmtNum(v, 2);
-  if (fmt === 'int' || fmt === 'duration') return `${Math.round(v)}d`;
   return v.toString();
 }
 interface StatisticsTableHeaderProps {
@@ -26,15 +25,11 @@ export function StatisticsTableHeader({
   const { t } = useTranslation();
   return (
     <tr>
-      <th
-        scope="col"
-        className="stat-table-metric-cell text-caption text-left"
-        style={{ minWidth }}
-      >
+      <th className="stat-table-metric-cell text-caption text-left" style={{ minWidth }}>
         {t('Metric')}
       </th>
       {portfolios.map((p, idx) => (
-        <th key={p.name} scope="col" className="stat-table-value-cell text-caption text-right">
+        <th key={p.name} className="stat-table-value-cell text-caption text-right">
           <span
             className="inline-block w-2.5 h-2.5 rounded-full mr-1.5 align-middle"
             style={{ backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] }}

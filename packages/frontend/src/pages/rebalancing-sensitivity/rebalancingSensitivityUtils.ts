@@ -17,10 +17,10 @@ import {
 export { REBALANCE_OPTIONS } from './rebalancingSensitivityBuilders.js';
 export type { FreqResult } from './rebalancingSensitivityBuilders.js';
 export const TABS = [
-  { key: 'scatter', label: 'Scatter' },
-  { key: 'distributions', label: 'Distributions' },
-  { key: 'offset', label: 'Offset Curves' },
-  { key: 'table', label: 'Table' },
+  { key: 'scatter', labelKey: 'rebalancingSensitivity.tab.scatter' },
+  { key: 'distributions', labelKey: 'rebalancingSensitivity.tab.distributions' },
+  { key: 'offset', labelKey: 'rebalancingSensitivity.tab.offset' },
+  { key: 'table', labelKey: 'rebalancingSensitivity.tab.table' },
 ];
 export interface RebalancingState {
   startDate: string;

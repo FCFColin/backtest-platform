@@ -73,14 +73,14 @@ export const buttonVariants = cva(
     variants: {
       variant: {
         primary:
-          'bg-brand text-brand-fg hover:bg-brand-hover active:bg-brand-active active:scale-[0.98] transition-transform disabled:bg-brand/30 disabled:text-brand-fg/50',
+          'bg-brand text-brand-fg hover:bg-brand-hover active:bg-brand-active active:scale-[0.98] disabled:bg-brand/30 disabled:text-brand-fg/50',
         secondary:
-          'bg-input-bg text-fg-secondary border border-border hover:bg-hover hover:text-fg hover:border-border-strong active:scale-[0.98] transition-transform disabled:opacity-40',
+          'bg-input-bg text-fg-secondary border border-border hover:bg-hover hover:text-fg hover:border-border-strong active:scale-[0.98] disabled:opacity-40',
         ghost:
           'bg-transparent text-brand hover:text-brand-hover hover:bg-brand/10 disabled:opacity-40',
         destructive:
-          'bg-transparent text-fg-tertiary hover:bg-danger/10 hover:text-danger active:scale-[0.98] transition-transform',
-        icon: 'bg-transparent text-fg-tertiary hover:bg-hover hover:text-fg rounded-md',
+          'bg-transparent text-fg-tertiary hover:bg-danger/10 hover:text-danger active:scale-[0.98] disabled:opacity-40',
+        icon: 'bg-transparent text-fg-tertiary hover:bg-hover hover:text-fg rounded-md disabled:opacity-40',
       },
       size: {
         sm: 'h-8 px-3 text-caption [&_svg]:size-3.5',

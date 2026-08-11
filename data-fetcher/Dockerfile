@@ -31,7 +31,6 @@ COPY --from=builder /data-fetcher-bin /app/data-fetcher
 
 # 运行环境配置
 ENV DATA_FETCHER_PORT=5003 \
-    DATA_DIR=/app/data/market \
     GIN_MODE=release
 
 # 暴露数据服务端口

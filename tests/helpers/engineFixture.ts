@@ -2,7 +2,6 @@ import { vi } from 'vitest';
 
 const engineModuleMocks = vi.hoisted(() => ({
   callEngineStrict: vi.fn(),
-  unwrapEngineData: <T>(r: unknown): T => ((r as { data?: T })?.data ?? r) as T,
   EngineUnavailableError: class EngineUnavailableError extends Error {
     readonly retryAfterSeconds = 30;
     readonly code = 'ENGINE_UNAVAILABLE';

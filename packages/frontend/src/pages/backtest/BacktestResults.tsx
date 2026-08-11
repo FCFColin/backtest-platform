@@ -1,9 +1,16 @@
 import { useEffect, lazy, Suspense, type ReactNode } from 'react';
 import { useTranslation, Trans } from 'react-i18next';
 import { Link } from 'react-router';
-import { Loader2 } from 'lucide-react';
+import { Loader2, MoreHorizontal } from 'lucide-react';
 import { useBacktestStore } from '@/store/backtestStore';
-import { Card, Button } from '@/components/ui/uiComponents';
+import {
+  Card,
+  Button,
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from '@/components/ui/uiComponents';
 import {
   StatisticsTable,
   ExtendedMetricsTable,
@@ -87,6 +94,7 @@ const ALL_TABS = [
   { key: 'telltale', labelKey: 'tabs.telltale' },
   { key: 'regression', labelKey: 'tabs.regression' },
 ];
+const PRIMARY_TABS = new Set(['summary', 'returns', 'yearlyReturns', 'rolling', 'drawdown']);
 const COMMON_STATS_PROPS = (pf: PortfolioResult[]) => ({
   portfolios: pf.map((p) => ({ id: p.name, name: p.name, stats: toStatsRecord(p.statistics) })),
   colors: pf.map((_, i) => getPortfolioColor(i)),
@@ -101,20 +109,42 @@ function TabBar() {
   const { t } = useTranslation();
   const activeTab = useBacktestStore((s) => s.activeTab);
   const setActiveTab = useBacktestStore((s) => s.setActiveTab);
+  const moreTabs = ALL_TABS.filter((tab) => !PRIMARY_TABS.has(tab.key));
+  const activeMore = moreTabs.find((tab) => tab.key === activeTab);
   return (
     <div className="flex items-center justify-between gap-2 border-b border-border-subtle pb-2 mb-3">
       <div className="flex items-center gap-1 overflow-x-auto">
-        {ALL_TABS.map((tab) => (
+        {ALL_TABS.filter((tab) => PRIMARY_TABS.has(tab.key)).map((tab) => (
           <Button
             key={tab.key}
             variant={activeTab === tab.key ? 'secondary' : 'ghost'}
             size="sm"
             className="shrink-0"
+            aria-pressed={activeTab === tab.key}
             onClick={() => setActiveTab(tab.key)}
           >
             {t(tab.labelKey)}
           </Button>
         ))}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="sm" className="shrink-0">
+              <MoreHorizontal className="size-4" />
+              {activeMore ? t(activeMore.labelKey) : t('More')}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start">
+            {moreTabs.map((tab) => (
+              <DropdownMenuItem
+                key={tab.key}
+                className={activeTab === tab.key ? 'bg-hover text-fg' : undefined}
+                onClick={() => setActiveTab(tab.key)}
+              >
+                {t(tab.labelKey)}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </div>
   );

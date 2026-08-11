@@ -26,10 +26,8 @@ vi.mock('../../../packages/backend/src/db/pool.js', () => ({
   withTransaction: createWithTransactionMock(() => mocks.pool.connect()),
 }));
 import {
-  createUser,
   getUserById,
   getUserByEmail,
-  deactivateUser,
   anonymizeUser,
   deleteUser,
   createUserTx,
@@ -50,80 +48,6 @@ const txClient = (row: Record<string, unknown>) => ({
   query: vi.fn().mockResolvedValue({ rows: [row] }),
 });
 const firstSql = () => mocks.pool.query.mock.calls[0][0] as string;
-describe('createUser - 用户创建', () => {
-  beforeEach(() => {
-    reset();
-    mocks.pool.query.mockResolvedValue({ rows: [mockUserRecord()] });
-  });
-  it('应使用 argon2id 哈希密码（64MB 内存成本、3 次迭代）', async () => {
-    await createUser('testuser', 'password123');
-    expect(mocks.argon2.hash).toHaveBeenCalledWith(
-      'password123',
-      expect.objectContaining({ type: 'argon2id', memoryCost: 65536, timeCost: 3 }),
-    );
-  });
-  it('应支持默认 analyst 角色、指定 admin/readonly 角色与 SQL 注入用户名（参数化）', async () => {
-    const users: [string, string | undefined][] = [
-      ['testuser', undefined],
-      ['adminuser', 'admin'],
-      ['readonlyuser', 'readonly'],
-      ["'; DROP TABLE users; --", undefined],
-    ];
-    for (const [username, role] of users) await createUser(username, 'password123', role);
-    for (const [username, role] of users) {
-      expect(mocks.pool.query).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.arrayContaining([username, 'hashed-password', role ?? 'analyst']),
-      );
-    }
-    expect(firstSql()).not.toContain('DROP TABLE');
-  });
-  it('应返回正确的用户对象', async () => {
-    expect(await createUser('testuser', 'password123', 'admin')).toEqual({
-      id: 'user-123',
-      username: 'testuser',
-      role: 'analyst',
-      createdAt: expect.any(Date),
-      isActive: true,
-    });
-  });
-  it('应使用参数化查询防止 SQL 注入', async () => {
-    await createUser('testuser', 'password123');
-    expect(firstSql()).toContain('$1');
-    expect(firstSql()).toContain('$2');
-    expect(firstSql()).toContain('$3');
-  });
-});
-describe('边界与异常', () => {
-  beforeEach(reset);
-  it('空用户名应能传递到数据库层（由 DB 约束拒绝）', async () => {
-    qOnce([mockUserRecord({ username: '', created_at: new Date() })]);
-    expect((await createUser('', 'password')).username).toBe('');
-  });
-  it.each([
-    {
-      name: 'argon2.hash 异常',
-      setup: () => mocks.argon2.hash.mockRejectedValueOnce(new Error('hash failed')),
-      expected: 'hash failed',
-    },
-    {
-      name: '数据库异常',
-      setup: () => mocks.pool.query.mockRejectedValueOnce(new Error('DB connection failed')),
-      expected: 'DB connection failed',
-    },
-    {
-      name: '重复用户名（DB 唯一约束）',
-      setup: () =>
-        mocks.pool.query.mockRejectedValueOnce(
-          new Error('duplicate key value violates unique constraint'),
-        ),
-      expected: 'duplicate key',
-    },
-  ])('$name 应向上抛出', async ({ setup, expected }) => {
-    setup();
-    await expect(createUser('testuser', 'password')).rejects.toThrow(expected);
-  });
-});
 describe('verifyUser - 密码验证', () => {
   beforeEach(reset);
   it.each([
@@ -238,11 +162,9 @@ describe('getUserByEmail - 按邮箱查询', () => {
     check(await getUserByEmail('CASE@TEST.COM'));
   });
 });
-describe('用户生命周期操作（deactivate / anonymize / delete）', () => {
+describe('用户生命周期操作（anonymize / delete）', () => {
   beforeEach(reset);
   it.each<[string, (id: string) => Promise<boolean>, number, boolean]>([
-    ['deactivateUser 存在的活跃用户应被停用', deactivateUser, 1, true],
-    ['deactivateUser 不存在的用户应返回 false', deactivateUser, 0, false],
     ['anonymizeUser 应替换用户名并清空密码', anonymizeUser, 1, true],
     ['anonymizeUser 无匹配用户应返回 false', anonymizeUser, 0, false],
     ['deleteUser 应执行 DELETE 并返回 true', deleteUser, 1, true],
@@ -250,13 +172,6 @@ describe('用户生命周期操作（deactivate / anonymize / delete）', () => 
   ])('%s', async (_n, fn, rowCount, expected) => {
     qRowCount(rowCount);
     expect(await fn('user-123')).toBe(expected);
-  });
-  it('deactivateUser 应设置 is_active = false', async () => {
-    qRowCount(1);
-    await deactivateUser('user-123');
-    expect(mocks.pool.query).toHaveBeenCalledWith(expect.stringContaining('is_active = false'), [
-      'user-123',
-    ]);
   });
   it('anonymizeUser 应使用 deleted_ 前缀和 password_hash =', async () => {
     qRowCount(1);
@@ -285,7 +200,10 @@ describe('createUserTx - 事务内创建用户', () => {
     );
     const user = await createUserTx(client as never, 'txuser', 'pass123', 'tx@test.com', 'analyst');
     expect(user).toMatchObject({ id: 'u1', username: 'txuser', role: 'analyst', isActive: true });
-    expect(mocks.argon2.hash).toHaveBeenCalledWith('pass123', expect.any(Object));
+    expect(mocks.argon2.hash).toHaveBeenCalledWith(
+      'pass123',
+      expect.objectContaining({ type: 'argon2id', memoryCost: 65536, timeCost: 3 }),
+    );
     expect(client.query).toHaveBeenCalledWith(
       expect.stringContaining('INSERT INTO users'),
       expect.arrayContaining(['txuser', 'hashed-password', 'analyst', 'tx@test.com']),

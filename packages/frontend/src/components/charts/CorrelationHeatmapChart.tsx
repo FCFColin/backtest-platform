@@ -143,7 +143,7 @@ function RollingCorrelationLineChart({
   return (
     <TimeSeriesLineChart
       data={data}
-      series={[{ dataKey: 'correlation', legendName: pairName, strokeWidth: 1.5 }]}
+      series={[{ dataKey: 'value', legendName: pairName, strokeWidth: 1.5 }]}
       height={300}
       yTickFormatter={(v: number) => v.toFixed(1)}
       tooltipValueFormatter={(v, name) => [v.toFixed(4), name || t('Correlation')]}

@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { Router, type Request, type Response } from 'express';
 import { logger } from '../utils/logger.js';
 import { config } from '../config/index.js';
@@ -5,10 +6,16 @@ import { sendProblem } from '../utils/errors.js';
 import { getPrometheusRegister } from '../utils/metrics.js';
 import { getPool } from '../db/pool.js';
 import { appRedis, checkSentinelMaster, isSentinelMode } from '../infrastructure/redisClient.js';
-import { safeEqual } from '../utils/crypto.js';
 import { crudRouteHandler } from './routeUtils.js';
 
 const router = Router();
+
+function safeEqual(a: string, b: string): boolean {
+  const aBuf = Buffer.from(a, 'utf-8');
+  const bBuf = Buffer.from(b, 'utf-8');
+  if (aBuf.length !== bBuf.length) return false;
+  return crypto.timingSafeEqual(aBuf, bBuf);
+}
 
 function checkBearerToken(
   req: Request,

@@ -29,28 +29,6 @@ async function hashPassword(password: string): Promise<string> {
   });
 }
 
-export async function createUser(
-  username: string,
-  password: string,
-  role: 'admin' | 'analyst' | 'readonly' = 'analyst',
-  email?: string | null,
-): Promise<User> {
-  const passwordHash = await hashPassword(password);
-
-  const pool = getPool();
-  const { rows } = await pool.query(
-    'INSERT INTO users (username, password_hash, role, email) VALUES ($1, $2, $3, $4) RETURNING id, username, role, created_at, is_active',
-    [username, passwordHash, role, email ?? null],
-  );
-
-  logger.info(
-    { userId: rows[0].id, username, role, hasEmail: !!email },
-    '[userService] 用户创建成功',
-  );
-
-  return rowToUser(rows[0]);
-}
-
 export async function createUserTx(
   client: PoolClient,
   username: string,
@@ -86,16 +64,6 @@ export async function getUserById(id: string): Promise<User | null> {
   if (rows.length === 0) return null;
 
   return rowToUser(rows[0]);
-}
-
-export async function deactivateUser(id: string): Promise<boolean> {
-  const pool = getPool();
-  const { rowCount } = await pool.query(
-    'UPDATE users SET is_active = false, updated_at = NOW() WHERE id = $1 AND is_active = true',
-    [id],
-  );
-  logger.info({ userId: id, affected: rowCount }, '[userService] 用户已停用');
-  return (rowCount ?? 0) > 0;
 }
 
 export async function anonymizeUser(id: string): Promise<boolean> {

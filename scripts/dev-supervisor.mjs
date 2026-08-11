@@ -1,9 +1,9 @@
 import { spawn } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync, unlinkSync, mkdirSync } from 'node:fs';
-import path from 'node:path';
-import { nodeCmd, PROJECT_ROOT, tsxLoaderUrl } from './_dev-shared.mjs';
+import path, { fileURLToPath } from 'node:path';
+import { nodeCmd, tsxLoaderUrl } from './_dev-shared.mjs';
 
-const ROOT = PROJECT_ROOT;
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const LOG_DIR = path.join(ROOT, '.dev-logs');
 const PID_FILE = path.join(LOG_DIR, 'dev-bg-pids.json');
 const LOCK_FILE = path.join(LOG_DIR, 'dev-supervisor.lock');

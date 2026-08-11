@@ -100,15 +100,6 @@ func TestNewRegistry_EmptyPriority(t *testing.T) {
 		t.Fatal("newRegistry returned nil with empty priority env")
 	}
 }
-func TestConfigStruct(t *testing.T) {
-	c := &Config{Port: "8080", DatabaseURL: "postgres://x"}
-	if c.Port != "8080" {
-		t.Errorf("Port = %q, want 8080", c.Port)
-	}
-	if c.DatabaseURL != "postgres://x" {
-		t.Errorf("DatabaseURL = %q, want postgres://x", c.DatabaseURL)
-	}
-}
 
 const testDataServiceToken = "test-data-service-secret-token" // #nosec G101 -- 测试夹具假密钥，非真实凭据
 
@@ -131,37 +122,31 @@ func newAuthTestRouter() *gin.Engine {
 	}
 	return r
 }
-func TestDataServiceAuthPassesWithCorrectToken(t *testing.T) {
+func TestDataServiceAuth(t *testing.T) {
 	os.Setenv("DATA_SERVICE_AUTH_TOKEN", testDataServiceToken)
 	defer os.Unsetenv("DATA_SERVICE_AUTH_TOKEN")
-	r := newAuthTestRouter()
-	req := httptest.NewRequest("GET", "/api/data/search", nil)
-	req.Header.Set("X-Data-Service-Auth", testDataServiceToken)
-	w := httptest.NewRecorder()
-	r.ServeHTTP(w, req)
-	if w.Code != http.StatusOK {
-		t.Errorf("expected 200 with correct token, got %d, body=%s", w.Code, w.Body.String())
+	tests := []struct {
+		name   string
+		path   string
+		token  string
+		status int
+	}{
+		{"health accessible without auth", "/api/data/health", "", http.StatusOK},
+		{"passes with correct token", "/api/data/search", testDataServiceToken, http.StatusOK},
+		{"fails with missing header", "/api/data/search", "", http.StatusUnauthorized},
 	}
-}
-func TestDataServiceAuthFailsWithMissingHeader(t *testing.T) {
-	os.Setenv("DATA_SERVICE_AUTH_TOKEN", testDataServiceToken)
-	defer os.Unsetenv("DATA_SERVICE_AUTH_TOKEN")
-	r := newAuthTestRouter()
-	req := httptest.NewRequest("GET", "/api/data/search", nil)
-	w := httptest.NewRecorder()
-	r.ServeHTTP(w, req)
-	if w.Code != http.StatusUnauthorized {
-		t.Errorf("expected 401 with missing header, got %d, body=%s", w.Code, w.Body.String())
-	}
-}
-func TestDataServiceHealthAccessibleWithoutAuth(t *testing.T) {
-	os.Setenv("DATA_SERVICE_AUTH_TOKEN", testDataServiceToken)
-	defer os.Unsetenv("DATA_SERVICE_AUTH_TOKEN")
-	r := newAuthTestRouter()
-	req := httptest.NewRequest("GET", "/api/data/health", nil)
-	w := httptest.NewRecorder()
-	r.ServeHTTP(w, req)
-	if w.Code != http.StatusOK {
-		t.Errorf("expected 200 on health without auth, got %d, body=%s", w.Code, w.Body.String())
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := newAuthTestRouter()
+			req := httptest.NewRequest("GET", tt.path, nil)
+			if tt.token != "" {
+				req.Header.Set("X-Data-Service-Auth", tt.token)
+			}
+			w := httptest.NewRecorder()
+			r.ServeHTTP(w, req)
+			if w.Code != tt.status {
+				t.Errorf("expected %d, got %d, body=%s", tt.status, w.Code, w.Body.String())
+			}
+		})
 	}
 }

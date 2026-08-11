@@ -101,7 +101,7 @@ export function computeRollingExcessReturn(
 }
 
 type GrowthCurvePoint = { date: string; value: number };
-export type RollingCorrelationPoint = { date: string; correlation: number };
+export type RollingCorrelationPoint = { date: string; value: number };
 export type BetaRow = { name: string; beta: number };
 
 export function computeDailyReturns(curve: GrowthCurvePoint[]): number[] {
@@ -132,11 +132,12 @@ export function computeRollingCorrelation(
   targetReturns: number[],
   dates: string[],
   windowSize: number,
+  maxPoints = 200,
 ): RollingCorrelationPoint[] {
   const n = Math.min(baseReturns.length, targetReturns.length);
   if (n < windowSize) return [];
   const result: RollingCorrelationPoint[] = [];
-  const step = Math.max(1, Math.floor((n - windowSize) / 200));
+  const step = Math.max(1, Math.floor((n - windowSize) / maxPoints));
   for (let start = 0; start + windowSize <= n; start += step) {
     const xSlice = baseReturns.slice(start, start + windowSize);
     const ySlice = targetReturns.slice(start, start + windowSize);
@@ -153,7 +154,7 @@ export function computeRollingCorrelation(
       ssYY += dy * dy;
     }
     const corr = ssXX > 0 && ssYY > 0 ? ssXY / Math.sqrt(ssXX * ssYY) : 0;
-    result.push({ date: dates[start + windowSize - 1] || '', correlation: +corr.toFixed(4) });
+    result.push({ date: dates[start + windowSize - 1] || '', value: +corr.toFixed(4) });
   }
   return result;
 }

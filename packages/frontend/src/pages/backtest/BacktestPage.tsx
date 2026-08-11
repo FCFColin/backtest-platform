@@ -220,6 +220,7 @@ const config: ComputeToolConfig<BacktestState> = {
   titleKey: 'nav.portfolioBacktest',
   hidePageTitle: true,
   paramsTitleKey: 'params.basicParams',
+  seoSubtitleKey: 'nav.portfolioBacktest',
   seoDescKey: 'backtest.seoDesc',
   seoFeatures: [
     { titleKey: 'backtest.seoModelable', descKey: 'backtest.seoModelableDesc' },

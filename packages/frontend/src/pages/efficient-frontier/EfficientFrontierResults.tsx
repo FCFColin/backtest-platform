@@ -24,7 +24,6 @@ export interface FrontierResultsProps {
     expectedVolatility: number;
     expectedReturn: number;
     sharpeRatio: number;
-    idx: number;
   }>;
   sharpeRange: { min: number; max: number };
   maxSharpe: EfficientFrontierPoint | undefined;

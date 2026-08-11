@@ -1,6 +1,6 @@
 import * as React from 'react';
 import type { ReactNode } from 'react';
-import { TrendingUp, TrendingDown, Minus, ChevronDown } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import {
   Card,
@@ -83,33 +83,17 @@ export function PrefRow({ icon, label, desc, children }: PrefRowProps) {
     </Card>
   );
 }
-type StatTrend = 'up' | 'down' | 'flat';
 interface StatCardProps {
   label: string;
   value: ReactNode;
-  trend?: StatTrend;
-  trendValue?: string;
-  icon?: ReactNode;
-  children?: ReactNode;
 }
-export function StatCard({ label, value, trend, trendValue, icon, children }: StatCardProps) {
-  const TrendIcon = trend === 'up' ? TrendingUp : trend === 'down' ? TrendingDown : Minus;
-  const trendClass =
-    trend === 'up' ? 'text-pos' : trend === 'down' ? 'text-neg' : 'text-fg-tertiary';
+export function StatCard({ label, value }: StatCardProps) {
   return (
     <Card className="p-5">
       <div className="flex items-center gap-1.5 text-caption text-fg-tertiary uppercase tracking-wide">
-        {icon}
         <span>{label}</span>
       </div>
       <div className="mt-2 text-display text-fg tabular-nums font-mono">{value}</div>
-      {(trend || trendValue) && (
-        <div className={cn('mt-1.5 flex items-center gap-1 text-label', trendClass)}>
-          {trend && <TrendIcon className="size-3.5 shrink-0" />}
-          {trendValue && <span>{trendValue}</span>}
-        </div>
-      )}
-      {children}
     </Card>
   );
 }
@@ -119,43 +103,27 @@ interface MiniStatCardProps {
   value: string;
   color?: string;
   className?: string;
-  valueClassName?: string;
+  variant?: 'soft' | 'border';
 }
 export function MiniStatCard({
   label,
   value,
   color,
   className,
-  valueClassName,
+  variant = 'soft',
 }: MiniStatCardProps) {
   return (
-    <div className={cn('rounded-md bg-input-bg p-3.5 text-center', className)}>
-      <div className="mb-1 text-caption text-fg-tertiary">{label}</div>
-      <div
-        className={cn('font-mono text-h3 font-semibold tabular-nums text-fg', valueClassName)}
-        style={color ? { color } : undefined}
-      >
-        {value}
-      </div>
-    </div>
-  );
-}
-export function BorderStatCard({
-  label,
-  value,
-  color,
-  className,
-}: {
-  label: string;
-  value: string;
-  color?: string;
-  className?: string;
-}) {
-  return (
-    <div className={cn('rounded-lg border border-border bg-elevated px-3 py-3', className)}>
+    <div
+      className={cn(
+        variant === 'border'
+          ? 'rounded-lg border border-border bg-elevated px-3 py-3'
+          : 'rounded-md bg-input-bg p-3.5 text-center',
+        className,
+      )}
+    >
       <div className="text-caption text-fg-tertiary">{label}</div>
       <div
-        className="mt-1 font-mono tabular-nums text-h3 font-semibold"
+        className="mt-1 font-mono text-h3 font-semibold tabular-nums text-fg"
         style={color ? { color } : undefined}
       >
         {value}

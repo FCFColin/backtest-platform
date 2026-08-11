@@ -36,7 +36,7 @@ func RunBacktest(ctx context.Context, req BacktestRequest) (*BacktestResult, err
 		}
 		ddCurve := CalcDrawdownCurve(extractValues(curve), extractDates(curve))
 		episodes := detectDrawdownEpisodes(curve)
-		stats := computeStatistics(curve, episodes, benchmarkGrowth, mwrrCashflows, weightedAssetVol(pf, req.PriceData, tradingDates))
+		stats := computeStatistics(curve, episodes, benchmarkGrowth, mwrrCashflows)
 		rollingReturns := CalcRollingReturns(extractValues(curve), extractDates(curve), req.Params.RollingWindowMonths)
 		portfolioResults = append(portfolioResults, PortfolioResult{Name: pf.Name, GrowthCurve: curve, DrawdownCurve: ddCurve, RollingReturns: rollingReturns, AnnualReturns: annualReturnsFromCurve(curve), MonthlyReturns: monthlyReturnsFromCurve(curve), Statistics: stats, DrawdownEpisodes: episodes, AllocationHistory: allocHist})
 		portfolioDailyReturns = append(portfolioDailyReturns, mathutil.DailyReturns(extractValues(curve)))
@@ -219,16 +219,7 @@ func appendZeroDay(curve []DataPoint, vals []float64, date string) ([]DataPoint,
 }
 func zeroHoldings(holdings []float64) { clear(holdings) }
 
-func weightedAssetVol(pf PortfolioInput, priceData PriceDataMap, tradingDates []time.Time) float64 {
-	weights := normalizeWeights(pf.Assets)
-	vol := 0.0
-	for i, a := range pf.Assets {
-		vol += weights[i] * mathutil.Std(mathutil.DailyReturns(engineutil.ExtractPrices(priceData, a.Ticker, tradingDates)))
-	}
-	return vol
-}
-
-func computeStatistics(curve []DataPoint, episodes []DrawdownEpisode, benchCurve []DataPoint, mwrrCashflows []Cashflow, weightedAssetVolSum float64) Statistics {
+func computeStatistics(curve []DataPoint, episodes []DrawdownEpisode, benchCurve []DataPoint, mwrrCashflows []Cashflow) Statistics {
 	if len(curve) < 2 {
 		return Statistics{}
 	}
@@ -245,19 +236,14 @@ func computeStatistics(curve []DataPoint, episodes []DrawdownEpisode, benchCurve
 	for i, mr := range monthlyRets {
 		monthlyReturnValues[i] = mr.Return
 	}
-	var benchDailyReturns, benchAnnualReturnValues []float64
+	var benchDailyReturns []float64
 	var benchmarkCagr *float64
 	if len(benchCurve) >= 2 {
 		benchDailyReturns = mathutil.DailyReturns(extractValues(benchCurve))
-		benchAnnualRets := annualReturnsFromCurve(benchCurve)
-		benchAnnualReturnValues = make([]float64, len(benchAnnualRets))
-		for i, ar := range benchAnnualRets {
-			benchAnnualReturnValues[i] = ar.Return
-		}
 		c := CalcCAGR(benchCurve[0].Value, benchCurve[len(benchCurve)-1].Value, float64(len(benchCurve))/tradingDaysPerYear)
 		benchmarkCagr = &c
 	}
-	result := CalculateStatisticsFromRequest(StatisticsRequest{Values: values, Dates: dates, StartingValue: startValue, DailyReturns: mathutil.DailyReturns(values), AnnualReturnValues: annualReturnValues, MonthlyReturnValues: monthlyReturnValues, MwrrCashflows: mwrrCashflows, BenchmarkDailyReturns: benchDailyReturns, BenchmarkAnnualReturns: benchAnnualReturnValues, WeightedAssetVol: weightedAssetVolSum, BenchmarkCagr: benchmarkCagr})
+	result := CalculateStatisticsFromRequest(StatisticsRequest{Values: values, Dates: dates, StartingValue: startValue, DailyReturns: mathutil.DailyReturns(values), AnnualReturnValues: annualReturnValues, MonthlyReturnValues: monthlyReturnValues, MwrrCashflows: mwrrCashflows, BenchmarkDailyReturns: benchDailyReturns, BenchmarkCagr: benchmarkCagr})
 	return result
 }
 func CalcCorrelationMatrix(dailyReturnsList [][]float64) [][]float64 {

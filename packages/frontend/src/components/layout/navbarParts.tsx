@@ -77,6 +77,8 @@ function NotificationBell() {
   const { t } = useTranslation();
   const { announcements, unreadCount, markAllRead } = useAnnouncements();
   const [open, setOpen] = useState(false);
+  const count = unreadCount > 99 ? '99+' : String(unreadCount);
+  const ariaLabel = unreadCount > 0 ? `${t('Notifications')} (${count})` : t('Notifications');
   const handleOpenChange = (v: boolean) => {
     setOpen(v);
     if (!v && open) markAllRead();
@@ -88,12 +90,14 @@ function NotificationBell() {
           variant="ghost"
           size="icon"
           className="h-8 w-8 relative"
-          aria-label={t('Notifications')}
+          aria-label={ariaLabel}
           data-testid="notification-bell"
         >
           <Bell className="h-4 w-4" />
           {unreadCount > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-danger animate-pulse" />
+            <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[10px] font-semibold leading-none text-white">
+              {count}
+            </span>
           )}
         </Button>
       </SheetTrigger>

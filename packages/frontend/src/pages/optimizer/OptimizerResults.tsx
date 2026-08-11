@@ -18,19 +18,19 @@ import { SimpleTable, type SimpleTableColumn } from '@/components/tables.js';
 import ChartCard from '@/components/ChartCard.js';
 import { Button } from '@/components/ui/uiComponents';
 import { ResultsShell } from '@/components/resultsShell.js';
-import { BorderStatCard } from '@/components/cards.js';
+import { MiniStatCard } from '@/components/cards.js';
 import { fmtPct, fmtNum } from '@/utils/format';
 import { XYScatterChart } from '@/components/charts/sharedChartContent.js';
-const METRICS_ROWS: { key: keyof Statistics; label: string; fmt: 'pct' | 'num' }[] = [
-  { key: 'cagr', label: 'CAGR', fmt: 'pct' },
-  { key: 'stdev', label: 'Volatility', fmt: 'pct' },
-  { key: 'maxDrawdown', label: 'Max Drawdown', fmt: 'pct' },
-  { key: 'avgDrawdown', label: 'Avg Drawdown', fmt: 'pct' },
-  { key: 'sharpe', label: 'Sharpe', fmt: 'num' },
-  { key: 'sortino', label: 'Sortino', fmt: 'num' },
-  { key: 'calmar', label: 'Calmar', fmt: 'num' },
-  { key: 'ulcerIndex', label: 'analysis.ulcerIndex', fmt: 'num' },
-  { key: 'ulcerPerformanceIndex', label: 'UPI', fmt: 'num' },
+const METRICS_ROWS: { key: keyof Statistics; labelKey: string; fmt: 'pct' | 'num' }[] = [
+  { key: 'cagr', labelKey: 'stats.cagr', fmt: 'pct' },
+  { key: 'stdev', labelKey: 'Volatility', fmt: 'pct' },
+  { key: 'maxDrawdown', labelKey: 'Max Drawdown', fmt: 'pct' },
+  { key: 'avgDrawdown', labelKey: 'Avg Drawdown', fmt: 'pct' },
+  { key: 'sharpe', labelKey: 'Sharpe', fmt: 'num' },
+  { key: 'sortino', labelKey: 'Sortino', fmt: 'num' },
+  { key: 'calmar', labelKey: 'Calmar', fmt: 'num' },
+  { key: 'ulcerIndex', labelKey: 'analysis.ulcerIndex', fmt: 'num' },
+  { key: 'ulcerPerformanceIndex', labelKey: 'UPI', fmt: 'num' },
 ];
 function ConstraintsSummary({ s }: { s: EfficientFrontierState }) {
   const { t } = useTranslation();
@@ -68,7 +68,7 @@ function ConstraintsSummary({ s }: { s: EfficientFrontierState }) {
     },
     {
       label: t('Solver'),
-      value: s.solver === 'markowitz' ? 'Markowitz' : 'GA',
+      value: s.solver === 'markowitz' ? t('optimizer.solverMarkowitz') : t('optimizer.solverGA'),
     },
   ];
   return (
@@ -76,7 +76,7 @@ function ConstraintsSummary({ s }: { s: EfficientFrontierState }) {
       {cards
         .filter((c) => c.show !== false)
         .map((c, i) => (
-          <BorderStatCard key={i} label={c.label} value={c.value} />
+          <MiniStatCard key={i} variant="border" label={c.label} value={c.value} />
         ))}
     </div>
   );
@@ -90,7 +90,12 @@ function WeightBarChart({
     <ResponsiveContainer width="100%" height={data.length * 48 + 20}>
       <BarChart data={data} layout="vertical" margin={{ left: 60, right: 40, top: 5, bottom: 5 }}>
         <CartesianGrid {...CHART_GRID_PROPS} horizontal={false} />
-        <XAxis type="number" tick={AXIS_TICK_STYLE} tickFormatter={(v: number) => `${v}%`} />
+        <XAxis
+          type="number"
+          domain={['dataMin', 'auto']}
+          tick={AXIS_TICK_STYLE}
+          tickFormatter={(v: number) => `${v}%`}
+        />
         <YAxis
           type="category"
           dataKey="ticker"
@@ -124,7 +129,7 @@ function MetricsTable({
     return '\u2014';
   };
   const columns: SimpleTableColumn<(typeof METRICS_ROWS)[number]>[] = [
-    { key: 'metric', label: t('Metric'), render: (r) => r.label },
+    { key: 'metric', label: t('Metric'), render: (r) => t(r.labelKey) },
     {
       key: 'value',
       label: t('Optimal Portfolio'),
@@ -189,7 +194,9 @@ export function OptimizerResults({ s }: { s: EfficientFrontierState }) {
       hasResults={!!s.results}
       errorPrefix={`${t('Optimization Failed')}：`}
       loadingLabel={t('Optimizing...')}
-      emptyTitle={t('Configure parameters on the left and click "Optimize" to see optimal weights')}
+      emptyTitle={t(
+        'Configure parameters on the left and click "Start Calculation" to see optimal weights',
+      )}
     >
       {s.results && (
         <div className="flex flex-col gap-5">

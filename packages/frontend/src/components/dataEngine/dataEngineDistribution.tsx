@@ -47,18 +47,16 @@ function DistributionRow({
   label,
   count,
   maxCount,
-  bold = false,
 }: {
   label: string;
   count: number;
   maxCount: number;
-  bold?: boolean;
 }) {
   const barPct = maxCount > 0 ? (count / maxCount) * 100 : 0;
   return (
     <div className="mb-1.5">
-      <div className="mb-0.75 flex justify-between text-label">
-        <span className={`text-fg-secondary ${bold ? 'font-semibold' : ''}`}>{label}</span>
+      <div className="mb-1 flex justify-between text-label">
+        <span className="text-fg-secondary">{label}</span>
         <span className="font-mono tabular-nums text-fg-tertiary">{fmt(count)}</span>
       </div>
       <Progress value={barPct} />
@@ -82,21 +80,21 @@ export function MarketDistributionCard({
     <Panel title={t('By Market')}>
       {marketEntries.map(([market, data]) => (
         <div key={market} className="mb-2.5">
-          <div className="mb-0.75 flex justify-between text-label">
+          <div className="mb-1 flex justify-between text-label">
             <span className="font-semibold text-fg-secondary">{labelOf(market)}</span>
             <span className="font-mono tabular-nums text-fg-tertiary">{fmt(data.count)}</span>
           </div>
           <Progress value={maxCount > 0 ? (data.count / maxCount) * 100 : 0} />
           <div className="mt-[3px] flex gap-3 text-caption text-fg-tertiary">
             <span>
-              {t('Stock')} {data.stocks}
+              {t('Stock')} {fmt(data.stocks)}
             </span>
             <span>
-              {t('ETF')} {data.etfs}
+              {t('ETF')} {fmt(data.etfs)}
             </span>
             {data.indices > 0 && (
               <span>
-                {t('Index')} {data.indices}
+                {t('Index')} {fmt(data.indices)}
               </span>
             )}
           </div>
@@ -122,7 +120,7 @@ export function ExchangeDistributionCard({ stats }: { stats: Stats }) {
   const { t } = useTranslation();
   const entries = stats.by_exchange
     ? Object.entries(stats.by_exchange)
-        .sort((a, b) => a[0].localeCompare(b[0]))
+        .sort((a, b) => b[1] - a[1])
         .slice(0, 10)
     : [];
   const maxCount = entries.length > 0 ? Math.max(...entries.map(([, c]) => c)) : 0;

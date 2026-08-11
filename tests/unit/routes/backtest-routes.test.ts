@@ -79,8 +79,8 @@ const engineCases: EngineCase[] = [
         '引擎返回 assets 字段时应映射为 tickers',
         async (url, c) => {
           m.callEngineStrict.mockResolvedValue({
-            success: true,
-            data: { assets: [{ ticker: 'AAPL', cagr: 0.1 }], correlations: [[1]] },
+            assets: [{ ticker: 'AAPL', cagr: 0.1 }],
+            correlations: [[1]],
           });
           const { res, json } = await postJson(url, { ...c.validBody(), tickers: ['AAPL'] });
           expect(res.status).toBe(200);

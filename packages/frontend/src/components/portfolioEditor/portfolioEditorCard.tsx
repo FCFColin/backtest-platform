@@ -88,7 +88,7 @@ export function PortfolioCard({
       )}
       style={{ borderTop: `3px solid ${color}` }}
     >
-      <div className="absolute top-2 right-2 flex justify-end gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 z-20">
+      <div className="absolute top-2 right-2 flex justify-end gap-0.5 md:opacity-0 transition-opacity md:group-hover:opacity-100 z-20">
         {actionBtns.map((b, i) => (
           <Button key={i} variant={b.variant} size="icon" title={b.title} onClick={b.onClick}>
             <b.icon />
@@ -187,11 +187,6 @@ export function PortfolioCard({
           />
         </div>
       </div>
-      {!isComplete && (
-        <p role="alert" className="text-caption text-danger mt-1">
-          {t('Weights must sum to 100%, got {{total}}%', { total: tw.toFixed(2) })}
-        </p>
-      )}
     </Card>
   );
 }

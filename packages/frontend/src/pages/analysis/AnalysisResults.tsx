@@ -208,7 +208,7 @@ export default function AnalysisPage() {
 }
 type StatCol = { key: keyof Statistics; labelKey: string; fmt: 'pct' | 'ratio' | 'duration' };
 const STATS_COLUMNS: StatCol[] = [
-  { key: 'cagr', labelKey: 'CAGR', fmt: 'pct' },
+  { key: 'cagr', labelKey: 'stats.cagr', fmt: 'pct' },
   { key: 'maxDrawdown', labelKey: 'Max Drawdown', fmt: 'pct' },
   { key: 'avgDrawdown', labelKey: 'Avg Drawdown', fmt: 'pct' },
   { key: 'maxDrawdownDuration', labelKey: 'analysis.maxDrawdownDuration', fmt: 'duration' },

@@ -2,39 +2,20 @@
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import {
-  CartesianGrid,
-  Legend,
-  Line,
-  LineChart,
-  ReferenceLine,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts';
 import { CHART_COLORS, type LETFResult } from '@backtest/shared';
 import { fmtPct } from '@/utils/format';
 import { ResultsShell } from '@/components/resultsShell.js';
 import { Card } from '@/components/ui/uiComponents';
-import {
-  AXIS_TICK_STYLE,
-  CHART_GRID_PROPS,
-  CHART_MARGIN,
-  CHART_TOOLTIP_STYLE,
-  DATE_TICK_FORMATTER,
-  LEGEND_WRAPPER_STYLE,
-} from '@/lib/chart-theme.js';
+import { TimeSeriesLineChart } from '@/components/charts/TimeSeriesLineChart.js';
 import { cn } from '@/lib/utils';
-import { useChartAnimation } from '@/hooks/miscHooks.js';
 import ChartCard from '../../components/ChartCard.js';
 import { SortableTable, type TableColumn } from '../../components/tables.js';
-interface SlippageCurveDataPoint {
+interface SlippageCurveDataPoint extends Record<string, number | string | null> {
   date: string;
   cumulative: number;
   daily: number;
 }
-interface LeverageComparisonDataPoint {
+interface LeverageComparisonDataPoint extends Record<string, number | string | null> {
   date: string;
   effective: number | null;
   nominal: number;
@@ -86,45 +67,26 @@ function LETFKpiCards({ results }: { results: LETFResult }) {
 }
 function SlippageCurveChart({ data }: { data: SlippageCurveDataPoint[] }) {
   const { t } = useTranslation();
-  const anim = useChartAnimation(data.length >= 100);
   return (
     <ChartCard title={t('Slippage Curve')}>
-      <ResponsiveContainer width="100%" height={350}>
-        <LineChart data={data} margin={CHART_MARGIN}>
-          <CartesianGrid {...CHART_GRID_PROPS} />
-          <XAxis dataKey="date" tick={AXIS_TICK_STYLE} tickFormatter={DATE_TICK_FORMATTER} />
-          <YAxis tick={AXIS_TICK_STYLE} tickFormatter={(v: number) => `${v.toFixed(1)}%`} />
-          <Tooltip
-            contentStyle={CHART_TOOLTIP_STYLE}
-            labelFormatter={(label: string) => t('Date: {{date}}', { date: label })}
-            formatter={(value: number) => [`${value.toFixed(2)}%`, '']}
-            {...anim}
-          />
-          <Legend wrapperStyle={LEGEND_WRAPPER_STYLE} />
-          <ReferenceLine y={0} stroke="var(--fg-tertiary)" strokeDasharray="4 4" />
-          <Line
-            type="monotone"
-            dataKey="cumulative"
-            name={t('Cumulative Slippage')}
-            stroke={CHART_COLORS[0]}
-            strokeWidth={2}
-            dot={false}
-            activeDot={{ r: 4 }}
-            isAnimationActive={anim.isAnimationActive}
-          />
-          <Line
-            type="monotone"
-            dataKey="daily"
-            name={t('Daily Slippage')}
-            stroke={CHART_COLORS[1]}
-            strokeWidth={1}
-            dot={false}
-            activeDot={{ r: 3 }}
-            strokeOpacity={0.6}
-            isAnimationActive={anim.isAnimationActive}
-          />
-        </LineChart>
-      </ResponsiveContainer>
+      <TimeSeriesLineChart
+        data={data}
+        height={350}
+        yTickFormatter={(v: number) => `${v.toFixed(1)}%`}
+        tooltipValueFormatter={(v: number) => [`${v.toFixed(2)}%`, '']}
+        tooltipLabelFormatter={(label: string) => t('Date: {{date}}', { date: label })}
+        referenceY={0}
+        series={[
+          { dataKey: 'cumulative', legendName: t('Cumulative Slippage'), strokeWidth: 2 },
+          {
+            dataKey: 'daily',
+            legendName: t('Daily Slippage'),
+            strokeWidth: 1,
+            strokeOpacity: 0.6,
+            activeDotR: 3,
+          },
+        ]}
+      />
     </ChartCard>
   );
 }
@@ -136,44 +98,32 @@ function LeverageComparisonChart({
   leverage: number;
 }) {
   const { t } = useTranslation();
-  const anim = useChartAnimation(data.length >= 100);
   return (
     <ChartCard title={t('Effective vs Nominal Leverage')}>
-      <ResponsiveContainer width="100%" height={300}>
-        <LineChart data={data} margin={CHART_MARGIN}>
-          <CartesianGrid {...CHART_GRID_PROPS} />
-          <XAxis dataKey="date" tick={AXIS_TICK_STYLE} tickFormatter={DATE_TICK_FORMATTER} />
-          <YAxis tick={AXIS_TICK_STYLE} tickFormatter={(v: number) => `${v.toFixed(1)}x`} />
-          <Tooltip
-            contentStyle={CHART_TOOLTIP_STYLE}
-            labelFormatter={(label: string) => t('Date: {{date}}', { date: label })}
-            formatter={(value: number) => [`${value.toFixed(2)}x`, '']}
-            {...anim}
-          />
-          <Legend wrapperStyle={LEGEND_WRAPPER_STYLE} />
-          <Line
-            type="monotone"
-            dataKey="nominal"
-            name={t('Nominal Leverage ({{leverage}}x)', { leverage })}
-            stroke="var(--fg-tertiary)"
-            strokeWidth={1.5}
-            strokeDasharray="6 3"
-            dot={false}
-            isAnimationActive={anim.isAnimationActive}
-          />
-          <Line
-            type="monotone"
-            dataKey="effective"
-            name={t('Effective Leverage')}
-            stroke={CHART_COLORS[2]}
-            strokeWidth={1.5}
-            dot={false}
-            activeDot={{ r: 3 }}
-            connectNulls
-            isAnimationActive={anim.isAnimationActive}
-          />
-        </LineChart>
-      </ResponsiveContainer>
+      <TimeSeriesLineChart
+        data={data}
+        height={300}
+        yTickFormatter={(v: number) => `${v.toFixed(1)}x`}
+        tooltipValueFormatter={(v: number) => [`${v.toFixed(2)}x`, '']}
+        tooltipLabelFormatter={(label: string) => t('Date: {{date}}', { date: label })}
+        series={[
+          {
+            dataKey: 'nominal',
+            legendName: t('Nominal Leverage ({{leverage}}x)', { leverage }),
+            color: 'var(--fg-tertiary)',
+            strokeWidth: 1.5,
+            strokeDasharray: '6 3',
+          },
+          {
+            dataKey: 'effective',
+            legendName: t('Effective Leverage'),
+            color: CHART_COLORS[2],
+            strokeWidth: 1.5,
+            activeDotR: 3,
+            connectNulls: true,
+          },
+        ]}
+      />
     </ChartCard>
   );
 }

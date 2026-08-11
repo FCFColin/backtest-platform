@@ -52,10 +52,11 @@ export function TickerTagInput({
   const { t } = useTranslation();
   const resolvedPlaceholder = placeholder ?? t('Enter a ticker and press Enter to add...');
   const [input, setInput] = useState('');
-  const addTicker = (raw: string) => {
+  const addTicker = (raw: string): boolean => {
     const code = raw.trim().toUpperCase();
-    if (!code || tickers.includes(code)) return;
+    if (!code || tickers.includes(code)) return false;
     onChange([...tickers, code]);
+    return true;
   };
   const removeTicker = (idx: number) => {
     if (tickers.length <= minCount) return;
@@ -64,10 +65,7 @@ export function TickerTagInput({
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' || e.key === ',') {
       e.preventDefault();
-      if (input.trim()) {
-        addTicker(input);
-        setInput('');
-      }
+      if (addTicker(input)) setInput('');
     } else if (e.key === 'Backspace' && input === '' && tickers.length > 0) {
       removeTicker(tickers.length - 1);
     }
@@ -89,10 +87,7 @@ export function TickerTagInput({
         onChange={(e) => setInput(e.target.value)}
         onKeyDown={handleKeyDown}
         onBlur={() => {
-          if (input.trim()) {
-            addTicker(input);
-            setInput('');
-          }
+          if (addTicker(input)) setInput('');
         }}
         placeholder={tickers.length === 0 ? resolvedPlaceholder : ''}
         aria-label={resolvedPlaceholder}

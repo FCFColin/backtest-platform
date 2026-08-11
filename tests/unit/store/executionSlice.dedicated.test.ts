@@ -19,7 +19,10 @@ vi.mock('../../../packages/frontend/src/store/toastStore.js', () => ({
   useToastStore: { getState: () => ({ addToast: toastMock }) },
 }));
 
-import { useBacktestStore } from '../../../packages/frontend/src/store/backtestStore.js';
+import {
+  useBacktestStore,
+  pollJobStatus,
+} from '../../../packages/frontend/src/store/backtestStore.js';
 
 function mockResponse(payload: unknown, status = 200): Response {
   return {
@@ -124,6 +127,26 @@ describe('P0-02 executionSlice dedicated — 分支覆盖', () => {
     );
     expect(store().results).not.toBeNull();
     expect(mockFetch).toHaveBeenCalledTimes(4); // 1 POST + 3 polls
+  });
+
+  it.each<[string, unknown, unknown]>([
+    [
+      '解出 {data,warnings,dateRange} 内层 data（portfolio）',
+      { data: mockBacktestResult(), warnings: [], dateRange: null },
+      mockBacktestResult(),
+    ],
+    [
+      '无 data 字段回退 result（grid 载荷）',
+      { totalCombinations: 4, allMetrics: [], topResults: [], heatmap: {}, bestCombination: {} },
+      { totalCombinations: 4, allMetrics: [], topResults: [], heatmap: {}, bestCombination: {} },
+    ],
+  ])('pollJobStatus %s', async (_n, result, expected) => {
+    mockFetch.mockResolvedValueOnce(
+      mockResponse({ success: true, data: { status: 'completed', result } }),
+    );
+    const promise = pollJobStatus('/api/v1/jobs/job-p', new AbortController().signal, null);
+    await vi.advanceTimersByTimeAsync(600);
+    expect((await promise).data).toEqual(expected);
   });
 
   it.each([

@@ -91,7 +91,31 @@ func ratioPositive(values []float64) float64 {
 	}
 	return float64(count) / float64(len(values))
 }
-func RiskFreeDaily() float64 { return math.Pow(1+riskFreeRate, 1.0/tradingDaysPerYear) - 1 }
+func CalcAvgGainLoss(returns []float64) (avgGain, avgLoss, gainLossRatio float64) {
+	var sumGains, sumLosses float64
+	var countGains, countLosses int
+	for _, r := range returns {
+		if r > 0 {
+			sumGains += r
+			countGains++
+		} else if r < 0 {
+			sumLosses += -r
+			countLosses++
+		}
+	}
+	if countGains > 0 {
+		avgGain = sumGains / float64(countGains)
+	}
+	if countLosses > 0 {
+		avgLoss = sumLosses / float64(countLosses)
+	}
+	if avgLoss > 0 {
+		gainLossRatio = avgGain / avgLoss
+	}
+	return
+}
+func RiskFreeDaily() float64   { return math.Pow(1+riskFreeRate, 1.0/tradingDaysPerYear) - 1 }
+func RiskFreeMonthly() float64 { return math.Pow(1+riskFreeRate, 1.0/12.0) - 1 }
 func CalcBeta(portfolioReturns, benchmarkReturns []float64) float64 {
 	pr, br := alignPair(portfolioReturns, benchmarkReturns)
 	if pr == nil {
@@ -208,6 +232,19 @@ func CalcExcessKurtosis(returns []float64) float64 {
 }
 func CalcConditionalCorr(pr, br []float64, upside bool) float64 {
 	return calcFiltered(pr, br, upsideFilter(upside), CalcCorrelation)
+}
+func CalcConditionalBeta(pr, br []float64, upside bool) float64 {
+	return calcFiltered(pr, br, upsideFilter(upside), CalcBeta)
+}
+func CalcTreynor(cagr, beta float64) float64        { return safeRatio(cagr-riskFreeRate, beta) }
+func CalcM2(sharpe, benchmarkStdev float64) float64 { return sharpe*benchmarkStdev + riskFreeRate }
+func CalcAlphaDaily(dailyReturns, benchDailyReturns []float64, beta float64) float64 {
+	if len(dailyReturns) == 0 || len(benchDailyReturns) == 0 {
+		return 0
+	}
+	rfDaily := RiskFreeDaily()
+	meanB := mathutil.Mean(benchDailyReturns)
+	return mathutil.Mean(dailyReturns) - (rfDaily + beta*(meanB-rfDaily))
 }
 func calcFiltered(pr, br []float64, filter func(float64) bool, calc func([]float64, []float64) float64) float64 {
 	n := min(len(pr), len(br))

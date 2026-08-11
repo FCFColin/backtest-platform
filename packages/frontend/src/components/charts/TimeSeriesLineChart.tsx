@@ -17,6 +17,7 @@ import {
 } from '@/lib/chart-theme.js';
 import type { TooltipValueFormatter } from '@/lib/chart-theme.js';
 import { ChartXAxis, ChartYAxis, ChartTooltip } from './sharedChartContent.js';
+import { useChartAnimation } from '@/hooks/miscHooks';
 interface TimeSeriesSeriesConfig {
   dataKey: string;
   legendName?: string;
@@ -26,8 +27,10 @@ interface TimeSeriesSeriesConfig {
   activeDotR?: number;
   showDots?: boolean;
   dotR?: number;
+  connectNulls?: boolean;
+  strokeOpacity?: number;
 }
-type ChartDataPoint = Record<string, number | string>;
+type ChartDataPoint = Record<string, number | string | null>;
 interface TimeSeriesLineChartProps {
   data: ChartDataPoint[];
   series: TimeSeriesSeriesConfig[] | string[];
@@ -55,6 +58,8 @@ interface NormalizedSeries {
   activeDotR: number;
   showDots: boolean;
   dotR: number;
+  connectNulls: boolean;
+  strokeOpacity?: number;
 }
 function normalizeSeries(
   series: TimeSeriesSeriesConfig[] | string[],
@@ -71,6 +76,8 @@ function normalizeSeries(
       activeDotR: cfg.activeDotR ?? 4,
       showDots: cfg.showDots ?? false,
       dotR: cfg.dotR ?? 3,
+      connectNulls: cfg.connectNulls ?? false,
+      strokeOpacity: cfg.strokeOpacity,
     };
   });
 }
@@ -96,6 +103,8 @@ function renderLines(
       strokeDasharray={s.strokeDasharray}
       dot={s.showDots ? { r: s.dotR } : false}
       activeDot={{ r: s.activeDotR + 1, stroke: 'var(--bg-elevated)', strokeWidth: 2 }}
+      connectNulls={s.connectNulls}
+      strokeOpacity={s.strokeOpacity}
       isAnimationActive={isAnimationActive}
     />
   ));
@@ -121,6 +130,7 @@ export function TimeSeriesLineChart({
 }: TimeSeriesLineChartProps) {
   const normalized = normalizeSeries(series, defaultStrokeWidth);
   const isLargeDataset = data.length >= 100;
+  const animated = useChartAnimation(isLargeDataset).isAnimationActive;
   return (
     <div role="img" aria-label={normalized.map((s) => s.legendName).join(', ')}>
       <ResponsiveContainer width="100%" height={height}>
@@ -137,12 +147,13 @@ export function TimeSeriesLineChart({
           {referenceY !== undefined && (
             <ReferenceLine y={referenceY} stroke="var(--text-muted)" strokeDasharray="4 4" />
           )}
-          {renderLines(normalized, colorOffset, !isLargeDataset)}
+          {renderLines(normalized, colorOffset, animated)}
           {showBrush && data.length >= 100 && (
             <Brush
               dataKey={xDataKey}
               height={20}
               stroke="var(--brand)"
+              fill="var(--bg-elevated)"
               travellerWidth={8}
               tickFormatter={DATE_TICK_FORMATTER}
             />

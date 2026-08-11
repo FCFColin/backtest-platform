@@ -96,8 +96,7 @@ export function configureAnalysisMocks(m: BacktestMockHandles): void {
     const params = parameters as { startDate: string; endDate: string };
     await m.fetchHistoryData(tickers, params.startDate, params.endDate);
     const result = await m.callEngineStrict('/api/engine/analysis', { tickers });
-    const engineData = (result as { data?: { assets?: unknown[]; correlations?: unknown[][] } })
-      ?.data;
+    const engineData = result as { assets?: unknown[]; correlations?: unknown[][] };
     return {
       data: engineData?.assets
         ? { tickers: engineData.assets, correlations: engineData.correlations || [] }

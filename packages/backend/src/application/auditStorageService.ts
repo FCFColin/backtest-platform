@@ -5,7 +5,6 @@ import { config } from '../config/index.js';
 import { logger } from '../utils/logger.js';
 import { withPlatformContext } from '../db/pool.js';
 import { rowMapper, iso, toIso } from '../repositories/rowMapper.js';
-import { safeEqual } from '../utils/crypto.js';
 
 export type AuditAction =
   'CREATE' | 'UPDATE' | 'DELETE' | 'LOGIN' | 'LOGOUT' | 'READ' | 'EXPORT' | 'CONFIG';
@@ -69,7 +68,7 @@ export async function writeAuditLog(
     ? computePrevHash(prevRow.id as string, prevRow.hmac_signature as string)
     : null;
   const { rows } = await client.query(
-    `INSERT INTO audit_logs (event_type, user_id, org_id, ip_address, action, resource_type, resource_id, payload, hmac_signature, prev_hash, outbox_event_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10, $11) ON CONFLICT (outbox_event_id) WHERE outbox_event_id IS NOT NULL DO UPDATE SET outbox_event_id = EXCLUDED.outbox_event_id RETURNING id`,
+    `INSERT INTO audit_logs (event_type, user_id, org_id, ip_address, action, resource_type, resource_id, payload, hmac_signature, prev_hash, outbox_event_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10, $11) ON CONFLICT (outbox_event_id) WHERE outbox_event_id IS NOT NULL DO NOTHING RETURNING id`,
     [
       entry.eventType,
       entry.userId ?? null,
@@ -85,6 +84,12 @@ export async function writeAuditLog(
     ],
   );
   const id = rows[0]?.id as string | undefined;
+  if (!id && outboxEventId) {
+    const existing = await client.query('SELECT id FROM audit_logs WHERE outbox_event_id = $1', [
+      outboxEventId,
+    ]);
+    return (existing.rows[0]?.id as string | undefined) ?? null;
+  }
   logger.debug(
     {
       module: 'auditStorage',
@@ -139,7 +144,9 @@ export async function verifyAuditIntegrity(
     .createHmac('sha256', key)
     .update(typeof payload === 'string' ? payload : JSON.stringify(payload))
     .digest('hex');
-  const valid = safeEqual(storedSignature, expected);
+  const sigBuf = Buffer.from(storedSignature);
+  const expBuf = Buffer.from(expected);
+  const valid = sigBuf.length === expBuf.length && crypto.timingSafeEqual(sigBuf, expBuf);
   if (!valid)
     logger.warn(
       { module: 'auditStorage', logId },

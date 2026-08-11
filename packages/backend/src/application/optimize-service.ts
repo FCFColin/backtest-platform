@@ -44,14 +44,13 @@ async function runCompute(
     priceData: filterPriceData(priceData, allTickers),
     ...bodyExtra,
   });
-  const data = (result as { data?: Record<string, unknown> }).data ?? result;
   const dateRange = calculateDateRange(
     parameters.startDate,
     parameters.endDate,
     priceData,
     invalidTickers,
   );
-  return { data, warnings, dateRange };
+  return { data: result, warnings, dateRange };
 }
 
 export async function runOptimization(
