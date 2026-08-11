@@ -68,10 +68,10 @@ func main() {
 	}()
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
+	r.SetTrustedProxies(nil) // 不信任任何代理：ClientIP 取真实远端地址，XFF 无法伪造限流桶
 	r.Use(gin.Recovery())
 	r.Use(gosharedmw.SecurityHeadersMiddleware())
 	r.Use(otelgin.Middleware("data-fetcher"))
-	r.Use(newLimiterMiddleware())
 	corsConfig := middleware.BuildCorsConfig()
 	r.Use(cors.New(corsConfig))
 	r.GET("/api/data/health", handlers.HandleHealth(ds))
@@ -84,6 +84,8 @@ func main() {
 		"missing X-Data-Service-Auth header",
 		"no DATA_SERVICE_AUTH_TOKEN configured",
 	))
+	// 限流仅作用于数据端点，health/ready/metrics 不受限（探活与抓取不能被节流）
+	authed.Use(newLimiterMiddleware())
 	{
 		authed.GET("/api/data/search", handlers.HandleSearch(ds))
 		authed.GET("/api/data/price/:ticker", handlers.HandlePriceData(ds))
