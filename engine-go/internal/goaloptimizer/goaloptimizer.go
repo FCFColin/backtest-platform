@@ -91,6 +91,9 @@ func OptimizeGoals(ctx context.Context, req GoalOptimizerRequest) (*GoalOptimize
 		}
 	}
 	dailyReturns := calcPortfolioDailyReturns(validAssets, req.PriceData, req.StartDate, req.EndDate)
+	if len(dailyReturns) == 0 {
+		return nil, engineutil.NewInputError("资产均无价格数据，无法计算")
+	}
 	dailyMean := mathutil.Mean(dailyReturns)
 	dailyStd := mathutil.Std(dailyReturns)
 	annualMeanReturn := dailyMean * tradingDaysPerYear

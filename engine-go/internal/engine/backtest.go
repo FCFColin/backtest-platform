@@ -37,6 +37,14 @@ func RunBacktest(ctx context.Context, req BacktestRequest) (*BacktestResult, err
 		ddCurve := CalcDrawdownCurve(extractValues(curve), extractDates(curve))
 		episodes := detectDrawdownEpisodes(curve)
 		stats := computeStatistics(curve, episodes, benchmarkGrowth, mwrrCashflows)
+		if len(pf.Assets) > 0 {
+			weights := normalizeWeights(pf.Assets)
+			assetRets := make([][]float64, len(pf.Assets))
+			for i, a := range pf.Assets {
+				assetRets[i] = mathutil.DailyReturns(engineutil.ExtractPrices(req.PriceData, a.Ticker, tradingDates))
+			}
+			stats.DiversificationRatio = CalcDiversificationRatio(weights, assetRets, mathutil.DailyReturns(extractValues(curve)))
+		}
 		rollingReturns := CalcRollingReturns(extractValues(curve), extractDates(curve), req.Params.RollingWindowMonths)
 		portfolioResults = append(portfolioResults, PortfolioResult{Name: pf.Name, GrowthCurve: curve, DrawdownCurve: ddCurve, RollingReturns: rollingReturns, AnnualReturns: annualReturnsFromCurve(curve), MonthlyReturns: monthlyReturnsFromCurve(curve), Statistics: stats, DrawdownEpisodes: episodes, AllocationHistory: allocHist})
 		portfolioDailyReturns = append(portfolioDailyReturns, mathutil.DailyReturns(extractValues(curve)))
@@ -239,9 +247,16 @@ func computeStatistics(curve []DataPoint, episodes []DrawdownEpisode, benchCurve
 	var benchDailyReturns []float64
 	var benchmarkCagr *float64
 	if len(benchCurve) >= 2 {
-		benchDailyReturns = mathutil.DailyReturns(extractValues(benchCurve))
-		c := CalcCAGR(benchCurve[0].Value, benchCurve[len(benchCurve)-1].Value, float64(len(benchCurve))/tradingDaysPerYear)
-		benchmarkCagr = &c
+		benchValues := extractValues(benchCurve)
+		benchDailyReturns = mathutil.DailyReturns(benchValues)
+		startIdx := 0
+		for startIdx < len(benchValues)-1 && benchValues[startIdx] <= 0 {
+			startIdx++
+		}
+		if benchValues[startIdx] > 0 {
+			c := CalcCAGR(benchValues[startIdx], benchValues[len(benchValues)-1], float64(len(benchValues)-startIdx)/tradingDaysPerYear)
+			benchmarkCagr = &c
+		}
 	}
 	result := CalculateStatisticsFromRequest(StatisticsRequest{Values: values, Dates: dates, StartingValue: startValue, DailyReturns: mathutil.DailyReturns(values), AnnualReturnValues: annualReturnValues, MonthlyReturnValues: monthlyReturnValues, MwrrCashflows: mwrrCashflows, BenchmarkDailyReturns: benchDailyReturns, BenchmarkCagr: benchmarkCagr})
 	return result

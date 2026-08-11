@@ -173,6 +173,9 @@ func computeActiveFlags(strategy TacticalStrategy, priceData map[string]map[stri
 func RunTacticalBacktest(ctx context.Context, req TacticalBacktestRequest) (*TacticalBacktestResult, error) {
 	strategy := req.Strategy
 	allTickers := collectTickers(strategy)
+	if len(allTickers) == 0 && len(strategy.Signals) > 0 {
+		return nil, engineutil.NewInputError("策略信号未配置任何标的")
+	}
 	activeFlags := computeActiveFlags(strategy, req.PriceData, req.Dates, allTickers)
 	holdings := make(map[string]float64, len(allTickers))
 	portfolioValue := req.StartingValue

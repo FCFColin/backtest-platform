@@ -63,7 +63,7 @@ func Optimize(ctx context.Context, req OptimizeRequest) (*OptimizeResponse, erro
 	return &OptimizeResponse{OptimalWeights: makeWeightMap(req.Tickers, weights), ExpectedReturn: ret, ExpectedVolatility: vol, SharpeRatio: sharpe}, nil
 }
 func ComputeEfficientFrontier(ctx context.Context, req FrontierRequest) (*FrontierResponse, error) {
-	req.NumPoints = engineutil.BoundedInt(req.NumPoints, defaultFrontierPts, maxFrontierPts)
+	req.NumPoints = max(2, engineutil.BoundedInt(req.NumPoints, defaultFrontierPts, maxFrontierPts))
 	mu, sigma, err := prepareInputs(req.Tickers, req.PriceData)
 	if err != nil {
 		return nil, err

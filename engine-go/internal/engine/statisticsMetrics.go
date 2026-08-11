@@ -25,6 +25,15 @@ func CalcMWRR(cashflows []Cashflow) float64 {
 	if len(cashflows) == 0 {
 		return 0
 	}
+	hasNegative, hasPositive := false, false
+	for _, cf := range cashflows {
+		hasNegative = hasNegative || cf.Value < 0
+		hasPositive = hasPositive || cf.Value > 0
+	}
+	// IRR 需同时存在投入（负）与回收（正）现金流，单边现金流无定义（防 bisect 收敛到区间端点）
+	if !hasNegative || !hasPositive {
+		return 0
+	}
 	npv := func(rate float64) float64 {
 		sum := 0.0
 		for _, cf := range cashflows {
@@ -32,7 +41,7 @@ func CalcMWRR(cashflows []Cashflow) float64 {
 		}
 		return sum
 	}
-	return bisect(-0.5, 1.0, 200, func(rate float64) bool { return npv(rate) > 0 })
+	return bisect(-0.99, 100, 200, func(rate float64) bool { return npv(rate) > 0 })
 }
 func CalcAnnualizedStdev(dailyReturns []float64) float64 {
 	if len(dailyReturns) < 2 {
@@ -128,6 +137,22 @@ func CalcBeta(portfolioReturns, benchmarkReturns []float64) float64 {
 }
 func CalcAlpha(cagr, beta, benchmarkCagr float64) float64 {
 	return cagr - (riskFreeRate + beta*(benchmarkCagr-riskFreeRate))
+}
+
+// CalcDiversificationRatio 加权资产日波动 / 组合日波动；数据不足或组合零波动返回 0（不可计算）。
+func CalcDiversificationRatio(weights []float64, assetDailyReturns [][]float64, portfolioDailyReturns []float64) float64 {
+	if len(weights) == 0 || len(weights) != len(assetDailyReturns) || len(portfolioDailyReturns) < 2 {
+		return 0
+	}
+	portStd := mathutil.Std(portfolioDailyReturns)
+	if portStd == 0 {
+		return 0
+	}
+	weightedStd := 0.0
+	for i := range weights {
+		weightedStd += weights[i] * mathutil.Std(assetDailyReturns[i])
+	}
+	return weightedStd / portStd
 }
 func CalcRSquared(portfolioReturns, benchmarkReturns []float64) float64 {
 	corr := CalcCorrelation(portfolioReturns, benchmarkReturns)

@@ -15,15 +15,14 @@ func TestOptimizeGoals_EmptyAssets(t *testing.T) {
 		PriceData: map[string]map[string]float64{}, StartDate: "2024-01-01", EndDate: "2024-12-31",
 	}
 	r, err := OptimizeGoals(context.Background(), req)
-	if err != nil {
-		t.Fatalf("不应报错: %v", err)
+	if err == nil {
+		t.Fatalf("无有效资产/价格数据应返回 InputError")
 	}
-	if r == nil {
-		t.Fatal("应返回非 nil 结果")
-		return
+	if !strings.Contains(err.Error(), "无价格数据") {
+		t.Fatalf("应返回无价格数据 InputError, got %v", err)
 	}
-	if r.SuccessProbability != 0 {
-		t.Errorf("空资产时 SuccessProbability 应为 0, got %v", r.SuccessProbability)
+	if r != nil {
+		t.Fatal("错误时不应返回结果")
 	}
 }
 func TestOptimizeGoals_Deterministic(t *testing.T) {

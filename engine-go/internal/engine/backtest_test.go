@@ -79,6 +79,14 @@ func TestComputeBenchmarkGrowth(t *testing.T) {
 		}
 	})
 }
+func TestComputeStatisticsBenchmarkLeadingGap(t *testing.T) {
+	curve := []DataPoint{{Date: "2024-01-02", Value: 10000}, {Date: "2024-01-03", Value: 10000}, {Date: "2024-01-04", Value: 10000}, {Date: "2024-01-05", Value: 10000}}
+	bench := []DataPoint{{Date: "2024-01-02", Value: 0}, {Date: "2024-01-03", Value: 100}, {Date: "2024-01-04", Value: 110}, {Date: "2024-01-05", Value: 121}}
+	stats := computeStatistics(curve, nil, bench, nil)
+	if stats.ActiveReturn > -1000 {
+		t.Errorf("前置缺口时 benchmarkCagr 不应静默为 0：ActiveReturn = %v（应远小于 0）", stats.ActiveReturn)
+	}
+}
 func TestParseTradingDates(t *testing.T) {
 	t.Run("正常数据应返回排序日期", func(t *testing.T) {
 		priceData := PriceDataMap{"VTI": {"2023-01-03": 100, "2023-01-04": 101, "2023-01-05": 102}}

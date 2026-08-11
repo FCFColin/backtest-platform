@@ -66,6 +66,13 @@ func TestRunTacticalBacktest_NoSignals(t *testing.T) {
 		t.Error("daily 再平衡应产生 SignalHistory 条目")
 	}
 }
+func TestRunTacticalBacktest_SignalsWithoutTickers(t *testing.T) {
+	// 回归：信号存在但 targetWeights 为空曾触发 allTickers[0] 越界 panic
+	req := baseTacticalReq(TacticalStrategy{ID: "s1", Name: "no-tickers", Signals: []TradingSignal{{ID: "sig1", Name: "sig1", TargetWeights: []WeightEntry{}}}})
+	if _, err := RunTacticalBacktest(context.Background(), req); err == nil {
+		t.Error("信号存在但无有效标的应返回 InputError")
+	}
+}
 func TestRunTacticalBacktest_RankClearsUnselected(t *testing.T) {
 	dates := enginetest.Dates("2024-01-01", 10)
 	pd := map[string]map[string]float64{

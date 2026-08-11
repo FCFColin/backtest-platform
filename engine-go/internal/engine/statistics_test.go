@@ -34,12 +34,33 @@ func TestCalcMWRR(t *testing.T) {
 		{"no cashflows", nil, 0},
 		{"invest 100 receive 120 in 1yr", []Cashflow{{-100, 0}, {120, 1}}, 0.2},
 		{"invest 100 receive 110 in 1yr", []Cashflow{{-100, 0}, {110, 1}}, 0.1},
+		{"only inflows undefined", []Cashflow{{100, 1}}, 0},
+		{"only outflows undefined", []Cashflow{{-100, 0}}, 0},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			if got := CalcMWRR(tc.cashflows); math.Abs(got-tc.want) > 1e-6 {
 				t.Errorf("CalcMWRR() = %v, want %v", got, tc.want)
 			}
+		})
+	}
+}
+func TestCalcDiversificationRatio(t *testing.T) {
+	cases := []struct {
+		name      string
+		weights   []float64
+		assets    [][]float64
+		portfolio []float64
+		want      float64
+	}{
+		{"mismatched lengths", []float64{1}, nil, []float64{0.01, -0.01, 0.02}, 0},
+		{"short portfolio", []float64{1}, [][]float64{{0.01}}, []float64{0.01}, 0},
+		{"zero portfolio stdev", []float64{1}, [][]float64{{0.01, -0.01}}, []float64{0, 0}, 0},
+		{"single asset ratio 1", []float64{1}, [][]float64{{0.01, -0.01, 0.02}}, []float64{0.01, -0.01, 0.02}, 1},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			assertFloatApprox(t, CalcDiversificationRatio(tc.weights, tc.assets, tc.portfolio), tc.want, "CalcDiversificationRatio")
 		})
 	}
 }
