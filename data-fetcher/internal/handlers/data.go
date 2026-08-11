@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"data-fetcher/internal/store"
+	"errors"
 	sharedhttp "github.com/backtest/go-shared/http"
 	"github.com/gin-gonic/gin"
 	"log/slog"
@@ -60,6 +61,10 @@ func HandlePriceData(ds *store.DataStore) gin.HandlerFunc {
 		endDate := c.Query("end")
 		prices, degraded, err := ds.GetPriceData(c.Request.Context(), ticker, startDate, endDate)
 		if err != nil {
+			if errors.Is(err, store.ErrDBQuery) {
+				sharedhttp.NewProblem(c, http.StatusInternalServerError, "DATA_QUERY_FAILED", "Data Query Failed", "查询价格数据失败")
+				return
+			}
 			sharedhttp.NewProblem(c, http.StatusNotFound, "DATA_NOT_FOUND", "Data Not Found", "标的数据不存在")
 			return
 		}

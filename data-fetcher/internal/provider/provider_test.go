@@ -78,15 +78,15 @@ func TestRegistry_ForTicker_NonAShare_UsesFullChain(t *testing.T) {
 		t.Errorf("second provider = %s, want yfinance", providers[1].Name())
 	}
 }
-func TestRegistry_ForTicker_AShare_AkshareMissing_Fallback(t *testing.T) {
+func TestRegistry_ForTicker_AShare_AkshareMissing_NoWrongMarketFallback(t *testing.T) {
 	r := NewRegistry([]string{"akshare", "finnhub", "yfinance"})
 	finnhub := &mockProvider{name: "finnhub"}
 	yfinance := &mockProvider{name: "yfinance"}
 	r.Register(finnhub)
 	r.Register(yfinance)
 	providers := r.ForTicker("000001_SZ")
-	if len(providers) != 2 {
-		t.Fatalf("expected 2 fallback providers for A-share without akshare, got %d", len(providers))
+	if len(providers) != 0 {
+		t.Fatalf("A-share without akshare must not fall back to US chain, got %d providers", len(providers))
 	}
 }
 func TestFetchWithFallback_FirstSucceeds(t *testing.T) {
@@ -132,6 +132,24 @@ func TestFetchWithFallback_FirstFails_SecondSucceeds(t *testing.T) {
 	}
 	if p2.calls != 1 {
 		t.Errorf("p2 should be called once, got %d", p2.calls)
+	}
+}
+func TestFetchWithFallback_FirstEmpty_SecondSucceeds(t *testing.T) {
+	prices := []DailyPrice{{Date: "2024-01-01", Close: 200}}
+	p1 := &mockProvider{name: "p1"}
+	p2 := &mockProvider{name: "p2", prices: prices}
+	result, used, err := FetchWithFallback([]Provider{p1, p2}, "AAPL", "2024-01-01", "2024-01-31")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if used != "p2" {
+		t.Errorf("used provider = %q, want p2", used)
+	}
+	if len(result) != 1 {
+		t.Fatalf("expected 1 price, got %d", len(result))
+	}
+	if p1.calls != 1 || p2.calls != 1 {
+		t.Errorf("both providers should be called, got p1=%d p2=%d", p1.calls, p2.calls)
 	}
 }
 func TestFetchWithFallback_AllFail(t *testing.T) {

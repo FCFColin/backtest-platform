@@ -46,11 +46,8 @@ func (r *Registry) ForTicker(ticker string) []Provider {
 	upper := strings.ToUpper(ticker)
 	if strings.HasSuffix(upper, ".SZ") || strings.HasSuffix(upper, ".SH") ||
 		strings.HasSuffix(upper, "_SZ") || strings.HasSuffix(upper, "_SH") {
-		providers := r.forMarket("akshare")
-		if len(providers) > 0 {
-			return providers
-		}
-		return r.forMarket(r.priorities...)
+		// A股专属数据源：未注册时不回落到美股链（避免送错市场）
+		return r.forMarket("akshare")
 	}
 	return r.forMarket(r.priorities...)
 }
@@ -72,8 +69,11 @@ func FetchWithFallback(providers []Provider, ticker, startDate, endDate string) 
 	var lastErr error
 	for _, p := range providers {
 		prices, err := p.FetchStockDaily(ticker, startDate, endDate)
-		if err == nil {
+		if err == nil && len(prices) > 0 {
 			return prices, p.Name(), nil
+		}
+		if err == nil {
+			err = fmt.Errorf("%s 返回空数据", p.Name())
 		}
 		lastErr = err
 		slog.Warn("数据源获取失败，切换到下一个",

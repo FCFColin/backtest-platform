@@ -34,6 +34,9 @@ type DataStore struct {
 	reg  *provider.Registry
 }
 
+// ErrDBQuery 区分基础设施故障（→500）与数据不存在（→404），避免 DB 故障被误报为缺失 ticker。
+var ErrDBQuery = fmt.Errorf("db query failed")
+
 func New(ctx context.Context, databaseURL string, reg *provider.Registry) (*DataStore, error) {
 	if databaseURL == "" {
 		return nil, fmt.Errorf("DATABASE_URL 未设置")
@@ -80,7 +83,7 @@ func (ds *DataStore) GetPriceData(ctx context.Context, ticker, startDate, endDat
 	query += " ORDER BY date"
 	rows, err := ds.pool.Query(ctx, query, args...)
 	if err != nil {
-		return nil, false, fmt.Errorf("查询价格数据失败: %w", err)
+		return nil, false, fmt.Errorf("%w: 查询价格数据失败: %v", ErrDBQuery, err)
 	}
 	defer rows.Close()
 	var prices []PricePoint
