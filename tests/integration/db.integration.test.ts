@@ -47,7 +47,7 @@ describe.skipIf(!dockerAvailable)('PostgreSQL 集成测试（testcontainers）',
     const pool = getPool();
     const { rows } = await pool.query('SELECT version FROM schema_migrations ORDER BY version');
     const versions = rows.map((r: { version: number }) => r.version);
-    expect(versions).toEqual([1, 2, 3, 4]);
+    expect(versions).toEqual([1, 2, 3, 4, 5, 6]);
     await expect(getPool().query('SELECT 1')).resolves.toBeDefined();
   });
 

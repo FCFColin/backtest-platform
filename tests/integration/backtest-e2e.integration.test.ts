@@ -88,8 +88,8 @@ describe('回测端到端集成测试', () => {
       degraded: false,
     });
     callEngineStrictMock.mockResolvedValueOnce({
-      success: true,
-      data: { optimalWeights: { AAPL: 0.6, MSFT: 0.4 }, sharpe: 1.8 },
+      optimalWeights: { AAPL: 0.6, MSFT: 0.4 },
+      sharpe: 1.8,
     });
 
     const { res, body } = await server.post('/optimize', validOptimizeBody);

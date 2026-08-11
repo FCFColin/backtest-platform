@@ -96,6 +96,17 @@ describe('billingWebhookHandler', () => {
     });
   };
 
+  it('签名校验失败返回 400，不进入去重与处理', async () => {
+    mocks.svc.constructWebhookEvent.mockImplementationOnce(() => {
+      throw new Error('bad signature');
+    });
+    await mount();
+    const res = await post(`${server.url}/api/v1/billing/webhook`);
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ received: false, error: 'invalid signature' });
+    expect(mocks.svc.handleWebhookEvent).not.toHaveBeenCalled();
+  });
+
   it('处理失败返回 500 并删除去重键，避免 Stripe 重试被吞掉', async () => {
     mocks.svc.constructWebhookEvent.mockReturnValue({
       id: 'evt_fail',
