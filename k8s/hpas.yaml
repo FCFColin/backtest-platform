@@ -69,7 +69,7 @@ kind: HorizontalPodAutoscaler
 metadata: { name: worker-hpa }
 spec:
   scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: backtest-worker }
-  minReplicas: 2
+  minReplicas: 1
   maxReplicas: 5
   metrics:
     - type: Resource

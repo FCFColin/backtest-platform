@@ -28,4 +28,4 @@ patchesStrategicMerge:
     apiVersion: autoscaling/v2
     kind: HorizontalPodAutoscaler
     metadata: { name: engine-go-hpa }
-    spec: { maxReplicas: 1 }
+    spec: { minReplicas: 1, maxReplicas: 1 }
