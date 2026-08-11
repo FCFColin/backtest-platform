@@ -1,6 +1,7 @@
 package server
 
 import (
+	"fmt"
 	sharedhttp "github.com/backtest/go-shared/http"
 	"github.com/gin-gonic/gin"
 	"io"
@@ -8,6 +9,25 @@ import (
 	"net/http/httptest"
 	"testing"
 )
+
+func TestRateLimitIgnoresSpoofedForwardedFor(t *testing.T) {
+	r := newTestRouter()
+	throttled := 0
+	for i := 0; i < 35; i++ {
+		req := httptest.NewRequest("POST", "/api/engine/backtest", nil)
+		req.RemoteAddr = "10.0.0.9:1234"
+		req.Header.Set("X-Engine-Auth", testAuthToken)
+		req.Header.Set("X-Forwarded-For", fmt.Sprintf("203.0.113.%d", i))
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		if w.Code == http.StatusTooManyRequests {
+			throttled++
+		}
+	}
+	if throttled == 0 {
+		t.Errorf("伪造 X-Forwarded-For 不应重置限流桶，期望出现 429，实际 0 次")
+	}
+}
 
 func TestEngineBadRequestScenarios(t *testing.T) {
 	cases := []struct {

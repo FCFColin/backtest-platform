@@ -50,6 +50,11 @@ func withComputeHandler[T any](c *gin.Context, errMsg string, fn func(ctx contex
 			sharedhttp.NewProblem(c, http.StatusBadRequest, "COMPUTE_INPUT_ERROR", "Bad Request", inputErr.Error())
 			return
 		}
+		if errors.Is(err, context.DeadlineExceeded) {
+			c.Header("Retry-After", "5")
+			sharedhttp.NewProblem(c, http.StatusServiceUnavailable, "COMPUTE_TIMEOUT", "Computation Timeout", errMsg)
+			return
+		}
 		slog.Error("计算处理器失败", "path", c.Request.URL.Path, "error", err)
 		sharedhttp.NewProblem(c, http.StatusInternalServerError, "COMPUTE_FAILED", "Computation Failed", errMsg)
 		return
@@ -317,7 +322,8 @@ const maxBodyBytes = 10 << 20
 
 func SetupRouter(metricsHandler http.Handler) *gin.Engine {
 	r := gin.New()
-	r.Use(gin.Recovery(), gosharedmw.SecurityHeadersMiddleware(), otelgin.Middleware("engine-go"), middleware.RateLimitMiddleware(0.5, 30))
+	r.SetTrustedProxies(nil) // 不信任任何代理：ClientIP 取真实远端地址，XFF 无法伪造限流桶
+	r.Use(gin.Recovery(), gosharedmw.SecurityHeadersMiddleware(), otelgin.Middleware("engine-go"))
 	r.Use(func(c *gin.Context) {
 		c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxBodyBytes)
 		c.Next()
@@ -328,7 +334,7 @@ func SetupRouter(metricsHandler http.Handler) *gin.Engine {
 		r.GET("/metrics", gin.WrapH(metricsHandler))
 	}
 	authed := r.Group("/")
-	authed.Use(gosharedmw.SharedTokenAuthMiddleware("X-Engine-Auth", "ENGINE_AUTH_TOKEN", "missing X-Engine-Auth header", "no ENGINE_AUTH_TOKEN configured"))
+	authed.Use(gosharedmw.SharedTokenAuthMiddleware("X-Engine-Auth", "ENGINE_AUTH_TOKEN", "missing X-Engine-Auth header", "no ENGINE_AUTH_TOKEN configured"), middleware.RateLimitMiddleware(0.5, 30))
 	{
 		authed.POST("/api/engine/backtest", handleBacktest)
 		authed.POST("/api/engine/analysis", handleAnalysis)
