@@ -125,6 +125,13 @@ async function revokeRefreshTokenRedis(refreshToken: string): Promise<void> {
   if (entry) {
     await revokeFamilyRedis(entry.familyId);
     await appRedis.del(tokenKey);
+    // 注销同时吊销该用户既有 access token（user_revoked 使 iat 更早的 JWT 失效）
+    await appRedis.set(
+      redisKeys.userRevoked(entry.userId),
+      String(Math.floor(Date.now() / 1000)),
+      'EX',
+      REFRESH_TOKEN_EXPIRES_IN_SEC,
+    );
     logger.info({ familyId: entry.familyId }, '[jwtAuth] Redis: Refresh Token 及其 Family 已撤销');
   }
   const usedKey = redisKeys.usedRefreshToken(refreshToken);

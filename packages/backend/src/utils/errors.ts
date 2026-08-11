@@ -77,6 +77,7 @@ export function sendProblem(
   title?: string,
   options?: SendProblemOptions,
 ): void {
+  if (res.headersSent) return; // 防 double-send：超时/上游已写响应后重复写会抛 ERR_HTTP_HEADERS_SENT → 进程退出
   const { detail, headers } = options ?? {};
   const r = res.status(status).header('Content-Type', 'application/problem+json');
   if (headers) {
