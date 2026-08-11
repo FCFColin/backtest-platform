@@ -30,6 +30,7 @@ COPY packages/backend/package.json packages/backend/
 RUN pnpm install --frozen-lockfile --prod
 
 COPY --from=builder /app/dist/workerEntrypoint.js ./dist/workerEntrypoint.js
+COPY migrations/ /migrations/
 
 # 健康检查：Redis heartbeat（Worker 无 HTTP 端口）
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \

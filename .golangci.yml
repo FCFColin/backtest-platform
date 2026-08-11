@@ -39,8 +39,6 @@ linters:
         - (io.ReadCloser).Close
         - (*os.File).Close
         - (github.com/jackc/pgx/v5.BatchResults).Close
-        - (*baostock.Client).Close
-        - (*data-fetcher/baostock.Client).Close
 
     gosec:
       # G404: math/rand 用于蒙特卡洛/UA 轮换/退避 jitter

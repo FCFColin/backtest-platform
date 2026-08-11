@@ -1,5 +1,8 @@
 title = "Backtest Platform Custom Rules"
 
+[extend]
+useDefault = true
+
 [[rules]]
 id = "engine-auth-token"
 description = "Engine Auth Token"

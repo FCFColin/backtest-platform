@@ -13,3 +13,8 @@ docs
 .husky
 k8s
 scripts
+.auth
+.dev-logs
+data
+csv
+report

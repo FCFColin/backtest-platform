@@ -31,6 +31,7 @@ COPY packages/backend/package.json packages/backend/
 RUN pnpm install --frozen-lockfile --prod
 
 COPY --from=builder /app/dist/server.js ./dist/server.js
+COPY migrations/ /migrations/
 
 EXPOSE 5001
 
