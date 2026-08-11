@@ -30,7 +30,6 @@ interface KafkaMessage {
 type KafkaCtorType = new (opts: { clientId: string; brokers: string[] }) => KafkaLike;
 
 export class OutboxKafkaConsumer implements OutboxConsumer {
-  // kafkajs 实例类型以最小契约表达（P3-05：仅加入 package.json，未 pnpm install）
   private kafka: KafkaLike | null = null;
   private consumer: KafkaConsumerLike | null = null;
   private running = false;

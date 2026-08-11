@@ -137,6 +137,7 @@ async function dispatchJob(job: Job<BacktestJobData>): Promise<BacktestJobResult
         >[0]['parameters'],
         tenantId: job.data.tenantId,
         ownerUserId: job.data.ownerUserId ?? undefined,
+        publishEvent: false,
         onProgress: (pct: number) => {
           void job.updateProgress(pct);
         },

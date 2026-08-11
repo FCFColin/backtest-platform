@@ -28,6 +28,7 @@ export interface BacktestExecutionParams {
   exchangeRates?: Record<string, number>;
   tenantId?: string;
   /** 提交者用户 ID，用于领域事件审计（可选） */ ownerUserId?: string;
+  /** 异步队列路径已自行落库，置 false 跳过 BacktestCompleted outbox 事件（防双写） */ publishEvent?: boolean;
 }
 export interface BacktestExecutionResult {
   result: BacktestResult;

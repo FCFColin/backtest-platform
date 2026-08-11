@@ -43,8 +43,10 @@ export async function runPortfolioBacktest(opts: {
   tenantId?: string;
   ownerUserId?: string;
   onProgress?: (pct: number) => void;
+  /** 异步队列路径已自行落库（worker.persistRunIfTenant），不再重复发布完成事件 */
+  publishEvent?: boolean;
 }): Promise<{ result: unknown; warnings: Warning[]; dateRange: DateRangeInfo }> {
-  const { portfolios, parameters, tenantId, ownerUserId, onProgress } = opts;
+  const { portfolios, parameters, tenantId, ownerUserId, onProgress, publishEvent } = opts;
   onProgress?.(5);
   const { allTickers, warnings } = preparePortfolioBacktest(portfolios, parameters);
   onProgress?.(10);
@@ -73,6 +75,7 @@ export async function runPortfolioBacktest(opts: {
       exchangeRates,
       tenantId,
       ownerUserId,
+      publishEvent,
     }),
     config.BACKTEST_SYNC_TIMEOUT_MS,
     'portfolio-backtest',
@@ -135,9 +138,11 @@ export async function runBacktest(
         tenantId: params.tenantId,
         ownerUserId: params.ownerUserId,
       };
-      void publishBacktestEvent(aggregateId, randomUUID(), eventPayload).catch((err) =>
-        logger.error({ err, aggregateId }, 'Failed to write BacktestCompleted event to outbox'),
-      );
+      if (params.publishEvent !== false) {
+        void publishBacktestEvent(aggregateId, randomUUID(), eventPayload).catch((err) =>
+          logger.error({ err, aggregateId }, 'Failed to write BacktestCompleted event to outbox'),
+        );
+      }
       logger.info('Backtest completed');
       recordBacktestRequest('portfolio', 'sync', 'success');
       return { result };

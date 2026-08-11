@@ -1,5 +1,4 @@
 import { DomainValidationError } from '../value-objects/index.js';
-import type { DomainEvent } from '../events/events.js';
 
 export type RunStatus = 'queued' | 'running' | 'completed' | 'failed';
 
@@ -16,7 +15,6 @@ interface RunProps {
   completedAt?: Date;
   failureReason?: string;
   ownerUserId?: string | null;
-  skipInitialEvent?: boolean;
 }
 
 export class Run {
@@ -30,7 +28,6 @@ export class Run {
   private _startedAt?: Date;
   private _completedAt?: Date;
   private _failureReason?: string;
-  private readonly _events: DomainEvent[] = [];
 
   private constructor(props: RunProps) {
     this.id = props.id;
@@ -58,18 +55,7 @@ export class Run {
       failureReason: props.failureReason,
       ownerUserId: props.ownerUserId,
     });
-    if (!props.skipInitialEvent) {
-      run.pushRunEvent('RunStarted', {
-        name: run.name,
-        portfolioId: run.portfolioId,
-        ownerUserId: run.ownerUserId,
-      });
-    }
     return run;
-  }
-
-  static fromRow(props: RunProps): Run {
-    return new Run({ ...props, skipInitialEvent: true });
   }
 
   get status(): RunStatus {
@@ -123,11 +109,6 @@ export class Run {
     this._status = 'completed';
     this._result = result;
     this._completedAt = new Date();
-    this.pushRunEvent('RunCompleted', {
-      name: this.name,
-      portfolioId: this.portfolioId,
-      ownerUserId: this.ownerUserId,
-    });
   }
 
   fail(reason: string): void {
@@ -141,27 +122,5 @@ export class Run {
     this._status = 'failed';
     this._failureReason = reason;
     this._completedAt = new Date();
-    this.pushRunEvent('RunFailed', {
-      name: this.name,
-      portfolioId: this.portfolioId,
-      ownerUserId: this.ownerUserId,
-      failureReason: reason,
-    });
-  }
-
-  private pushRunEvent(eventType: string, payload: Record<string, unknown>): void {
-    this._events.push({
-      eventType,
-      aggregateType: 'Run',
-      aggregateId: this.id,
-      payload,
-      occurredAt: this._completedAt ?? new Date(),
-    });
-  }
-
-  pullEvents(): DomainEvent[] {
-    const events = [...this._events];
-    this._events.length = 0;
-    return events;
   }
 }

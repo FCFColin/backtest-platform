@@ -40,38 +40,23 @@ describe('Run Aggregate', () => {
       'complete',
       { totalReturn: 0.15 },
       'completed',
-      'RunCompleted',
-      true,
       (r: Run) => expect(r.result).toEqual({ totalReturn: 0.15 }),
-      () => {},
     ],
     [
       'fail',
       'engine unavailable',
       'failed',
-      'RunFailed',
-      true,
       (r: Run) => expect(r.failureReason).toBe('engine unavailable'),
-      (e: { payload: Record<string, unknown> }[]) =>
-        expect(e[0].payload.failureReason).toBe('engine unavailable'),
     ],
-  ])(
-    '%s 后进入终态并产生 %s 事件',
-    async (_method, arg, status, eventType, fromStart, state, event) => {
-      const run = createRun();
-      run.pullEvents();
-      if (fromStart) run.start();
-      (run as unknown as Record<string, (a: unknown) => void>)[_method](arg);
-      expect(run.status).toBe(status);
-      expect(run.completedAt).toBeInstanceOf(Date);
-      expect(run.isTerminal).toBe(true);
-      state(run);
-      const events = run.pullEvents();
-      expect(events).toHaveLength(1);
-      expect(events[0].eventType).toBe(eventType);
-      event(events);
-    },
-  );
+  ])('%s 后进入终态', async (_method, arg, status, state) => {
+    const run = createRun();
+    run.start();
+    (run as unknown as Record<string, (a: unknown) => void>)[_method](arg);
+    expect(run.status).toBe(status);
+    expect(run.completedAt).toBeInstanceOf(Date);
+    expect(run.isTerminal).toBe(true);
+    state(run);
+  });
 
   describe('create', () => {
     it('初始状态为 queued', () => {
@@ -83,25 +68,6 @@ describe('Run Aggregate', () => {
       expect(run.startedAt).toBeUndefined();
       expect(run.completedAt).toBeUndefined();
       expect(run.isTerminal).toBe(false);
-    });
-    it('create 时产生 RunStarted 事件', () => {
-      const run = createRun();
-      const events = run.pullEvents();
-      expect(events).toHaveLength(1);
-      expect(events[0].eventType).toBe('RunStarted');
-      expect(events[0].aggregateType).toBe('Run');
-      expect(events[0].aggregateId).toBe('r1');
-      expect(events[0].occurredAt).toBeInstanceOf(Date);
-    });
-    it('skipInitialEvent=true 时不产生事件（fromRow 场景）', () => {
-      const run = Run.fromRow({
-        id: 'r1',
-        request: {},
-        status: 'completed',
-        skipInitialEvent: true,
-      });
-      expect(run.pullEvents()).toHaveLength(0);
-      expect(run.status).toBe('completed');
     });
     it('携带 portfolioId/name/ownerUserId 属性', () => {
       const run = Run.create({
@@ -141,7 +107,6 @@ describe('Run Aggregate', () => {
 
   it('running → completed 合法', () => {
     const run = startedRun();
-    run.pullEvents();
     run.complete({});
     expect(run.status).toBe('completed');
   });
@@ -158,22 +123,6 @@ describe('Run Aggregate', () => {
     const run = startedRun();
     run.fail('first error');
     expect(() => run.fail('second error')).toThrow(DomainValidationError);
-  });
-
-  it('pullEvents 取出后清空，再次调用返回空数组', () => {
-    const run = createRun();
-    expect(run.pullEvents()).toHaveLength(1);
-    expect(run.pullEvents()).toHaveLength(0);
-  });
-  it.each([
-    ['complete', 'RunCompleted'],
-    ['fail', 'RunFailed'],
-  ])('完整生命周期：create→start→%s 产生 RunStarted + %s', (method, eventType) => {
-    const run = startedRun();
-    (run as unknown as Record<string, (a: unknown) => void>)[method](
-      method === 'complete' ? { result: 1 } : 'timeout',
-    );
-    expect(run.pullEvents().map((e) => e.eventType)).toEqual(['RunStarted', eventType]);
   });
 });
 

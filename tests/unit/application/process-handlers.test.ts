@@ -64,16 +64,11 @@ vi.mock('../../../packages/backend/src/utils/metrics.js', () => ({
 
 vi.mock('../../../packages/backend/src/domain/events/events.js', () => ({
   eventDispatcher: { register: vi.fn() },
-  RUN_COMPLETED_EVENT: 'RunCompleted',
-  RUN_STARTED_EVENT: 'RunStarted',
-  RUN_FAILED_EVENT: 'RunFailed',
-  RUN_AGGREGATE_TYPE: 'Run',
   DomainEventDispatcher: vi.fn(),
 }));
 
 vi.mock('../../../packages/backend/src/application/completedHandlers.js', () => ({
   BacktestCompletedHandler: vi.fn().mockImplementation(() => ({})),
-  RunCompletedHandler: vi.fn().mockImplementation(() => ({})),
 }));
 
 vi.mock('../../../packages/backend/src/queues/queueDefinitions.js', () => ({
