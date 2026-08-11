@@ -35,7 +35,7 @@ describe('tokens.css P0-2 CSS 变量', () => {
   });
 
   describe('暗色主题（.dark / [data-theme="dark"]）', () => {
-    const darkBlock = () => tokensContent.match(/\.dark\s*\{[\s\S]*?\}/)?.[0];
+    const darkBlock = () => tokensContent.match(/:root\[data-theme='dark'\]\s*\{[\s\S]*?\}/)?.[0];
 
     it('暗色主题块包含表面层扩展变量', () => {
       expect(darkBlock()).toBeTruthy();

@@ -1,6 +1,7 @@
-import { useMemo } from 'react';
+﻿import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CHART_COLORS, type AssetAnalysisResult, type PortfolioResult } from '@backtest/shared';
+import { type AssetAnalysisResult, type PortfolioResult } from '@backtest/shared';
+import { getPortfolioColor } from '@/lib/chart-theme.js';
 import { percentile, mean, std, mergePortfolioSeries, fmtPct } from '@/utils/format';
 import ChartCard from '../ChartCard.js';
 import { BarChartContent } from './sharedChartContent.js';
@@ -45,7 +46,7 @@ function PortfolioSummaryStats({
       <div className="text-label font-semibold mb-2" style={{ color: 'var(--text-strong)' }}>
         <span
           className="inline-block w-2.5 h-2.5 rounded-full mr-1.5 align-middle"
-          style={{ backgroundColor: CHART_COLORS[colorIndex % CHART_COLORS.length] }}
+          style={{ backgroundColor: getPortfolioColor(colorIndex) }}
         />
         {portfolio.name} Summary Statistics
       </div>
@@ -69,7 +70,7 @@ function AnnualReturnTable({
         <span className="inline-flex items-center gap-1.5">
           <span
             className="inline-block h-2.5 w-2.5 rounded-full"
-            style={{ background: CHART_COLORS[idx % CHART_COLORS.length] }}
+            style={{ background: getPortfolioColor(idx) }}
           />
           {p.name}
         </span>

@@ -49,22 +49,26 @@ describe('useTheme', () => {
     expect(document.documentElement.dataset.theme).toBe('dark');
   });
 
-  it('无 localStorage 时应跟随 prefers-color-scheme: dark', () => {
+  it('无 localStorage 时应以 system 跟随 prefers-color-scheme: dark', () => {
     matchDark = true;
 
     const { result } = renderHook(() => useTheme());
 
-    expect(result.current.theme).toBe('dark');
+    expect(result.current.theme).toBe('system');
+    expect(result.current.resolvedTheme).toBe('dark');
+    expect(result.current.isDark).toBe(true);
     expect(document.documentElement.dataset.theme).toBe('dark');
   });
 
-  it('无 localStorage 且 prefer-color-scheme light 时默认 light', () => {
+  it('无 localStorage 且 prefer-color-scheme light 时 resolvedTheme 为 light', () => {
     matchDark = false;
 
     const { result } = renderHook(() => useTheme());
 
-    expect(result.current.theme).toBe('light');
+    expect(result.current.theme).toBe('system');
+    expect(result.current.resolvedTheme).toBe('light');
     expect(result.current.isDark).toBe(false);
+    expect(document.documentElement.dataset.theme).toBe('light');
   });
 
   it('挂载时 light 主题应设置正确的 data-theme', () => {
@@ -74,7 +78,7 @@ describe('useTheme', () => {
     expect(document.documentElement.dataset.theme).toBe('light');
   });
 
-  it('切换主题后 localStorage 应更新', () => {
+  it('toggleTheme 按 light → dark → system → light 循环并写入 localStorage', () => {
     storage.set('theme', 'light');
 
     const { result } = renderHook(() => useTheme());
@@ -87,22 +91,27 @@ describe('useTheme', () => {
     act(() => {
       result.current.toggleTheme();
     });
+    expect(storage.get('theme')).toBe('system');
+
+    act(() => {
+      result.current.toggleTheme();
+    });
     expect(storage.get('theme')).toBe('light');
   });
 
-  it('多次 toggle 正确循环 dark → light → dark', () => {
+  it('多次 toggle 正确循环 dark → system → light', () => {
     storage.set('theme', 'dark');
     const { result } = renderHook(() => useTheme());
 
     act(() => {
       result.current.toggleTheme();
     });
-    expect(result.current.theme).toBe('light');
+    expect(result.current.theme).toBe('system');
 
     act(() => {
       result.current.toggleTheme();
     });
-    expect(result.current.theme).toBe('dark');
+    expect(result.current.theme).toBe('light');
   });
 
   it('toggleTheme 应切换主题并写入 localStorage', () => {
@@ -123,8 +132,24 @@ describe('useTheme', () => {
       result.current.toggleTheme();
     });
 
-    expect(result.current.theme).toBe('light');
-    expect(storage.get('theme')).toBe('light');
-    expect(document.documentElement.dataset.theme).toBe('light');
+    expect(result.current.theme).toBe('system');
+    expect(storage.get('theme')).toBe('system');
+  });
+
+  it('setTheme(system) 时 resolvedTheme 跟随 OS 偏好', () => {
+    matchDark = true;
+    storage.set('theme', 'light');
+
+    const { result } = renderHook(() => useTheme());
+
+    act(() => {
+      result.current.setTheme('system');
+    });
+
+    expect(result.current.theme).toBe('system');
+    expect(result.current.resolvedTheme).toBe('dark');
+    expect(result.current.isDark).toBe(true);
+    expect(storage.get('theme')).toBe('system');
+    expect(document.documentElement.dataset.theme).toBe('dark');
   });
 });

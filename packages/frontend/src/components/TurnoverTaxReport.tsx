@@ -1,6 +1,7 @@
-import { useMemo, useState, type ReactNode } from 'react';
+﻿import { useMemo, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CHART_COLORS, type PortfolioResult } from '@backtest/shared';
+import { type PortfolioResult } from '@backtest/shared';
+import { getPortfolioColor } from '@/lib/chart-theme.js';
 import { SortableTable, type TableColumn } from './tables.js';
 import { fmtPct } from '@/utils/format';
 import { Input } from '@/components/ui/uiComponents';
@@ -53,7 +54,7 @@ function buildTurnoverColumns(
       label: t('Portfolio'),
       render: (row) => {
         const idx = portfolios.findIndex((p) => p.name === row.name);
-        const color = CHART_COLORS[idx % CHART_COLORS.length];
+        const color = getPortfolioColor(idx);
         return (
           <span className="inline-flex items-center gap-1.5">
             <span

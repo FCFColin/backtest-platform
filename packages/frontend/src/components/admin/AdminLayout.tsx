@@ -37,7 +37,7 @@ export function KpiCard({ label, value, icon, color = 'blue', subtitle }: KpiCar
   return (
     <Card>
       <CardHeader className="flex-row items-center gap-3 space-y-0 p-4 pb-2">
-        {icon && <div className={`rounded-lg p-2 ${COLOR_CLASSES[color]}`}>{icon}</div>}
+        {icon && <div className={cn('rounded-lg p-2', COLOR_CLASSES[color])}>{icon}</div>}
         <p className="text-caption uppercase tracking-wide text-fg-tertiary">{label}</p>
       </CardHeader>
       <CardContent className="p-4 pt-0">
@@ -208,14 +208,12 @@ function AdminSidebar({
 }) {
   return (
     <aside
-      className={`
-        fixed inset-y-0 left-0 z-50 flex flex-col bg-surface text-fg-secondary
-        border-r border-border
-        transition-all duration-300 ease-in-out
-        lg:relative lg:z-auto
-        ${collapsed ? 'w-16' : 'w-56'}
-        ${mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-      `}
+      className={cn(
+        'fixed inset-y-0 left-0 z-50 flex flex-col border-r border-border bg-surface text-fg-secondary transition-all duration-300 ease-in-out',
+        'lg:relative lg:z-auto',
+        collapsed ? 'w-16' : 'w-56',
+        mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
+      )}
     >
       <div className="flex h-14 items-center gap-2 border-b border-border px-3">
         <BarChart3 className="h-5 w-5 shrink-0 text-brand" />
@@ -275,7 +273,11 @@ function SidebarLink({
       end={end}
       onClick={onClick}
       className={({ isActive }) =>
-        `flex items-center gap-3 mx-2 rounded-md px-2 py-2 text-sm font-medium transition-colors ${isActive ? 'bg-hover text-fg' : 'text-fg-secondary hover:bg-hover hover:text-fg'} ${collapsed ? 'justify-center' : ''}`
+        cn(
+          'flex items-center gap-3 mx-2 rounded-md px-2 py-2 text-sm font-medium transition-colors',
+          isActive ? 'bg-hover text-fg' : 'text-fg-secondary hover:bg-hover hover:text-fg',
+          collapsed && 'justify-center',
+        )
       }
       title={collapsed ? label : undefined}
     >

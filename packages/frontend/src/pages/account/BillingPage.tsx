@@ -55,12 +55,12 @@ function PlanCard({
     <Card className={cn('p-[18px]', active ? 'border-2 border-brand' : 'border border-border')}>
       <div className="flex justify-between items-baseline">
         <h3 className="text-base font-bold text-fg m-0">{plan.name}</h3>
-        {active && <span className="text-[11px] text-brand font-semibold">{t('Current')}</span>}
+        {active && <span className="text-label-tiny text-brand font-semibold">{t('Current')}</span>}
       </div>
       <div className="text-lg font-bold text-fg my-2">{plan.price}</div>
       <ul className="list-none p-0 m-0 mb-3.5 flex flex-col gap-1.5">
         {plan.features.map((f) => (
-          <li key={f} className="flex items-center gap-1.5 text-[13px] text-fg">
+          <li key={f} className="flex items-center gap-1.5 text-label text-fg">
             <Check className="w-3.5 h-3.5 text-success" /> {f}
           </li>
         ))}
@@ -139,7 +139,7 @@ function BillingContent({
           <ExternalLink className="w-4 h-4" /> {t('Manage Subscription Portal')}
         </Button>
       ) : (
-        <p className="text-[13px] text-fg-tertiary">
+        <p className="text-label text-fg-tertiary">
           {t('Only administrators can manage subscriptions')}
         </p>
       )}
@@ -198,7 +198,7 @@ export default function BillingPage() {
   const { state, loading, busy, error, checkout, openPortal } = useBillingState(isAuthed);
   if (!isAuthed) {
     return (
-      <div className="bt-page max-w-[720px] mx-auto">
+      <div className="page-container pt-0 pb-3 sm:pb-4 max-w-[720px]">
         <Card className="p-7 mt-10 text-center">
           <p className="text-fg-tertiary">
             {t('Please')}{' '}
@@ -223,7 +223,7 @@ export default function BillingPage() {
       }}
     >
       <Card className="p-6 mt-7">
-        <p className="text-[13px] text-fg-tertiary mb-4">
+        <p className="text-label text-fg-tertiary mb-4">
           {org ? t('Organization: {{name}}', { name: org.name }) : t('Current Organization')}
           {t('Current plan:')}
           <strong className="capitalize">{currentPlan}</strong>

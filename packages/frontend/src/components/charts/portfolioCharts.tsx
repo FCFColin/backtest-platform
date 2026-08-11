@@ -1,4 +1,4 @@
-import {
+﻿import {
   PieChart,
   Pie,
   Cell,
@@ -9,10 +9,21 @@ import {
   Brush,
 } from 'recharts';
 import { useTranslation } from 'react-i18next';
-import { CHART_COLORS, type Portfolio } from '@backtest/shared';
+import { type Portfolio } from '@backtest/shared';
 import { downsample, DOWNSAMPLE_THRESHOLD, DOWNSAMPLE_TARGET } from '../../utils/format.js';
-import { CHART_MARGIN, CHART_GRID_PROPS, DATE_TICK_FORMATTER } from '@/lib/chart-theme.js';
-import { ChartTooltip, ChartLegend, ChartXAxis, ChartYAxis } from './sharedChartContent.js';
+import {
+  CHART_MARGIN,
+  CHART_GRID_PROPS,
+  DATE_TICK_FORMATTER,
+  getPortfolioColor,
+} from '@/lib/chart-theme.js';
+import {
+  ChartTooltip,
+  ChartLegend,
+  ChartXAxis,
+  ChartYAxis,
+  ChartEmptyState,
+} from './sharedChartContent.js';
 import ChartCard from '../ChartCard.js';
 
 interface PortfolioPiesChartProps {
@@ -23,7 +34,7 @@ export default function PortfolioPiesChart({ portfolios }: PortfolioPiesChartPro
   if (portfolios.length === 0) {
     return (
       <ChartCard>
-        <div className="text-label text-fg-tertiary">{t('No data')}</div>
+        <ChartEmptyState message={t('No data')} />
       </ChartCard>
     );
   }
@@ -31,7 +42,7 @@ export default function PortfolioPiesChart({ portfolios }: PortfolioPiesChartPro
   if (portfoliosWithAssets.length === 0) {
     return (
       <ChartCard title={t('Allocation Pies')}>
-        <div className="text-label text-fg-tertiary">{t('No assets')}</div>
+        <ChartEmptyState message={t('No assets')} />
       </ChartCard>
     );
   }
@@ -61,7 +72,7 @@ export default function PortfolioPiesChart({ portfolios }: PortfolioPiesChartPro
                     label={({ name, value }) => `${name} ${value}%`}
                   >
                     {pieData.map((_, idx) => (
-                      <Cell key={`cell-${idx}`} fill={CHART_COLORS[idx % CHART_COLORS.length]} />
+                      <Cell key={`cell-${idx}`} fill={getPortfolioColor(idx)} />
                     ))}
                   </Pie>
                   <ChartTooltip
@@ -118,17 +129,17 @@ function AllocationAreaChart({
             dataKey={asset.ticker}
             name={asset.ticker}
             stackId="1"
-            stroke={CHART_COLORS[idx % CHART_COLORS.length]}
-            fill={CHART_COLORS[idx % CHART_COLORS.length]}
+            stroke={getPortfolioColor(idx)}
+            fill={getPortfolioColor(idx)}
             fillOpacity={fillOpacity}
-            activeDot={{ r: 5, stroke: 'var(--bg-elevated)', strokeWidth: 2 }}
+            activeDot={{ r: 5, stroke: 'var(--bg-surface)', strokeWidth: 2 }}
           />
         ))}
         {showBrush && (
           <Brush
             dataKey="date"
             height={20}
-            stroke="var(--brand)"
+            stroke="hsl(var(--brand))"
             travellerWidth={8}
             tickFormatter={DATE_TICK_FORMATTER}
           />
@@ -207,7 +218,7 @@ export function PortfolioAllocationChart({ portfolios }: PortfolioAllocationChar
   if (portfolios.length === 0) {
     return (
       <ChartCard>
-        <div className="text-label text-fg-tertiary">{t('No data')}</div>
+        <ChartEmptyState message={t('No data')} />
       </ChartCard>
     );
   }
@@ -216,7 +227,7 @@ export function PortfolioAllocationChart({ portfolios }: PortfolioAllocationChar
   if (assets.length === 0) {
     return (
       <ChartCard title={t('Portfolio Allocation')}>
-        <div className="text-label text-fg-tertiary">{t('No assets')}</div>
+        <ChartEmptyState message={t('No assets')} />
       </ChartCard>
     );
   }

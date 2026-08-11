@@ -9,14 +9,14 @@ import { ErrorBanner } from '@/components/stateDisplay';
 import { useOrgMembersState } from './org/hooks/useOrgMembersState.js';
 import { ROLES, type Invitation, type Member, type Role } from './org/orgTypes.js';
 import { Button, Card } from '@/components/ui/uiComponents';
-const TH = 'text-left text-xs font-semibold text-[var(--text-muted)] px-[10px] py-2';
-const TD = 'text-[13px] text-[var(--text-body)] py-2 px-[10px]';
+const TH = 'text-left text-xs font-semibold text-fg-tertiary px-[10px] py-2';
+const TD = 'text-label text-fg-secondary py-2 px-[10px]';
 function UnauthedMembers() {
   const { t } = useTranslation();
   return (
-    <div className="bt-page max-w-[720px]">
+    <div className="page-container pt-0 pb-3 sm:pb-4 max-w-[720px]">
       <Card className="p-7 mt-10 text-center">
-        <p className="text-[var(--text-muted)]">
+        <p className="text-fg-tertiary">
           {t('Please')}{' '}
           <Link to="/login" className="text-brand">
             {t('Log In')}
@@ -57,13 +57,13 @@ export default function OrgMembersPage() {
       }}
     >
       <Card className="p-6 mt-7">
-        <p className="text-[13px] text-[var(--text-muted)] mb-4">
+        <p className="text-label text-fg-tertiary mb-4">
           {org ? `${t('Organization:')}${org.name}` : t('Organization:')}
         </p>
         {error ? (
           <ErrorBanner message={error} style={{ marginBottom: 14 }} />
         ) : loading ? (
-          <div className="p-[30px] text-center text-[var(--text-muted)]">
+          <div className="p-[30px] text-center text-fg-tertiary">
             <Loader2 className="w-5 h-5 animate-spin mx-auto" />
           </div>
         ) : (
@@ -198,7 +198,7 @@ function InviteDialog({
   };
   return (
     <div>
-      <h2 className="text-[15px] font-bold text-[var(--text-strong)] flex items-center gap-2 mb-3">
+      <h2 className="text-[15px] font-bold text-fg flex items-center gap-2 mb-3">
         <Mail className="w-4 h-4" /> {t('Invite Member')}
       </h2>
       <form onSubmit={submit} className="flex gap-2 mb-4 flex-wrap">

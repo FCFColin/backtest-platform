@@ -88,7 +88,7 @@ function ResidualsChart({ residuals }: { residuals: number[] }) {
           y1="100"
           x2="790"
           y2="100"
-          stroke="var(--border-subtle)"
+          stroke="var(--border-soft)"
           strokeWidth="1"
           strokeDasharray="4,4"
         />
@@ -212,6 +212,8 @@ function FactorRegressionResultsPanel({ state: s }: { state: FactorRegressionSta
       errorPrefix={`${t('Analysis failed')}: `}
       isLoading={isLoading}
       hasResults={!!result}
+      loadingLabel={t('Loading...')}
+      emptyTitle={t('Configure parameters and click "Run Analysis" to see results')}
     >
       {result && (
         <div className="flex flex-col gap-3">

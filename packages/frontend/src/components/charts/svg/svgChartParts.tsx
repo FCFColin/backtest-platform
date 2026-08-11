@@ -1,4 +1,4 @@
-/* eslint-disable react-refresh/only-export-components -- SVG 图表共享工具库 */
+﻿/* eslint-disable react-refresh/only-export-components -- SVG 图表共享工具库 */
 import {
   useCallback,
   useLayoutEffect,
@@ -7,8 +7,7 @@ import {
   type CSSProperties,
   type ReactNode,
 } from 'react';
-import { CHART_COLORS } from '@backtest/shared';
-import { AXIS_TICK_STYLE } from '@/lib/chart-theme';
+import { AXIS_TICK_STYLE, getPortfolioColor } from '@/lib/chart-theme';
 
 type Orientation = 'bottom' | 'left';
 interface SvgAxisProps {
@@ -101,7 +100,7 @@ export function SvgAxis({
         <text
           {...labelProps}
           textAnchor="middle"
-          style={{ fill: 'var(--text-muted)', fontSize: 12 }}
+          style={{ fill: 'hsl(var(--fg-tertiary))', fontSize: 12 }}
         >
           {isLabelCfg(label) ? label.value : label}
         </text>
@@ -250,7 +249,7 @@ export const computeYDomain = (
   if (maxStart === 0 && min === 0 && max === 0) max = 1;
   return computeTicks(min, max);
 };
-export const seriesColor = (idx: number) => CHART_COLORS[idx % CHART_COLORS.length];
+export const seriesColor = (idx: number) => getPortfolioColor(idx);
 export const linearScale = (min: number, max: number, start: number, span: number) => (v: number) =>
   start + ((v - min) / (max - min)) * span;
 const formatTooltipValue = (r: [string, string] | string) => (Array.isArray(r) ? r[0] : r);

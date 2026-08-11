@@ -21,6 +21,7 @@ const analyzerConfig: ComputeToolConfig<UseSignalAnalyzerStateResult> = {
       error={state.error}
       results={state.results}
       isLoading={state.isLoading}
+      onRetry={state.runAnalysis}
     />
   ),
 };

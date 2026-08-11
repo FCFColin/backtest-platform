@@ -98,29 +98,44 @@ export function useChartAnimation(isLargeDataset: boolean) {
   return { isAnimationActive: animated, animationDuration: animated ? 150 : 0 };
 }
 
+export type ThemePref = 'light' | 'dark' | 'system';
+
 export function useTheme() {
-  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
-    if (typeof window === 'undefined') return 'dark';
+  const [pref, setPref] = useState<ThemePref>(() => {
+    if (typeof window === 'undefined') return 'system';
     try {
-      const stored = localStorage.getItem('theme') as 'light' | 'dark' | null;
-      if (stored === 'light' || stored === 'dark') return stored;
+      const stored = localStorage.getItem('theme') as ThemePref | null;
+      if (stored === 'light' || stored === 'dark' || stored === 'system') return stored;
     } catch {
-      /* storage unavailable: fall back to OS preference */
+      /* storage unavailable: fall through to system */
     }
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    return 'system';
   });
+  const [systemDark, setSystemDark] = useState(
+    () =>
+      typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches,
+  );
   useEffect(() => {
-    document.documentElement.dataset.theme = theme;
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    const onChange = (e: MediaQueryListEvent) => setSystemDark(e.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+  const resolvedTheme = pref === 'system' ? (systemDark ? 'dark' : 'light') : pref;
+  useEffect(() => {
+    document.documentElement.dataset.theme = resolvedTheme;
     try {
-      localStorage.setItem('theme', theme);
+      localStorage.setItem('theme', pref);
     } catch {
       /* storage unavailable */
     }
-  }, [theme]);
+  }, [pref, resolvedTheme]);
   return {
-    theme,
-    toggleTheme: () => setTheme((t) => (t === 'light' ? 'dark' : 'light')),
-    isDark: theme === 'dark',
+    theme: pref,
+    resolvedTheme,
+    isDark: resolvedTheme === 'dark',
+    setTheme: setPref,
+    toggleTheme: () => setPref((t) => (t === 'light' ? 'dark' : t === 'dark' ? 'system' : 'light')),
   };
 }
 

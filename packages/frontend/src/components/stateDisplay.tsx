@@ -8,6 +8,7 @@ import {
   Info,
   XCircle,
   CheckCircle2,
+  X,
   Wifi,
   WifiOff,
 } from 'lucide-react';
@@ -15,6 +16,7 @@ import { useTranslation } from 'react-i18next';
 import { Alert, AlertDescription } from '@/components/ui/uiComponents';
 import { cn } from '@/lib/utils';
 import { useToastStore, type ToastItem } from '../store/toastStore.js';
+import { Button } from '@/components/ui/uiComponents';
 
 function CenteredCol({
   children,
@@ -146,17 +148,19 @@ export function ErrorBanner({
   message,
   style,
   variant = 'error',
+  className,
 }: {
   message?: ReactNode;
   style?: CSSProperties;
   variant?: 'error' | 'warning' | 'info';
+  className?: string;
 }) {
   if (!message) return null;
   const meta = VARIANT_META[variant];
   return (
     <Alert
       variant={variant === 'error' ? 'destructive' : 'default'}
-      className={cn('relative', meta.cls)}
+      className={cn('relative', meta.cls, className)}
       style={style}
     >
       {meta.icon && <meta.icon className="size-4" />}
@@ -191,6 +195,7 @@ const TYPE_META: Record<
 };
 
 function ToastCard({ toast }: { toast: ToastItem }) {
+  const { t } = useTranslation();
   const removeToast = useToastStore((s) => s.removeToast);
   const [fading, setFading] = useState(false);
   const dismiss = useCallback(() => {
@@ -206,21 +211,29 @@ function ToastCard({ toast }: { toast: ToastItem }) {
   const role = meta.role ?? 'alert';
   const ariaLive = meta.ariaLive ?? 'assertive';
   return (
-    <Alert
+    <div
       role={role}
       aria-live={ariaLive}
       aria-atomic="true"
-      onClick={dismiss}
       className={cn(
-        'cursor-pointer max-w-[380px] w-full transition-all',
+        'flex items-start gap-2 rounded-lg border border-border bg-elevated px-3 py-2.5 max-w-[380px] w-full transition-all',
         meta.accent,
         fading && 'opacity-0 translate-x-5',
       )}
       style={{ transitionDuration: `${FADE_DURATION}ms` }}
     >
-      <Icon className="size-4" />
-      <div className="text-body text-fg">{toast.message}</div>
-    </Alert>
+      <Icon className="size-4 shrink-0 mt-0.5" />
+      <div className="text-body text-fg flex-1">{toast.message}</div>
+      <Button
+        variant="icon"
+        size="icon"
+        className="h-6 w-6 shrink-0 -m-1"
+        onClick={dismiss}
+        aria-label={t('Dismiss')}
+      >
+        <X className="size-3.5" />
+      </Button>
+    </div>
   );
 }
 

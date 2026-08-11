@@ -255,7 +255,7 @@ function MonthlyHeatmapImpl({ results, portfolio }: MonthlyHeatmapProps) {
       }
     >
       {heatmapData.length === 0 ? (
-        <div className="text-label text-fg-tertiary">No monthly return data available</div>
+        <ChartEmptyState message={t('No monthly return data available')} />
       ) : (
         <HeatmapTable data={heatmapData} />
       )}

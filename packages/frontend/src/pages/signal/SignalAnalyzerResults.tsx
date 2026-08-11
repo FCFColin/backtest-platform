@@ -130,11 +130,13 @@ interface SignalAnalyzerResultsProps {
   error: string | null;
   results: SignalAnalysisResult | null;
   isLoading: boolean;
+  onRetry?: () => void;
 }
 export function SignalAnalyzerResultsPanel({
   error,
   results,
   isLoading,
+  onRetry,
 }: SignalAnalyzerResultsProps) {
   const { t } = useTranslation();
   const signalColumns = buildSignalColumns(t);
@@ -145,6 +147,7 @@ export function SignalAnalyzerResultsPanel({
       isLoading={isLoading}
       hasResults={!!results}
       emptyTitle={t('Set parameters and click "Run Analysis" to view results')}
+      onRetry={onRetry}
     >
       <div className="flex flex-col gap-4">
         <SignalResultsContent results={results!} signalColumns={signalColumns} />

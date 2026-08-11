@@ -1,7 +1,8 @@
+import i18n from '@/i18n/index.js';
 export function validateAssetWeights(assets: { weight?: number }[]): string | null {
   const totalWeight = assets.reduce((s, a) => s + (a.weight || 0), 0);
   if (Math.abs(totalWeight - 100) > 0.01) {
-    return `Weights must sum to 100%, got ${totalWeight.toFixed(2)}%`;
+    return i18n.t('Weights must sum to 100%, got {{total}}%', { total: totalWeight.toFixed(2) });
   }
   return null;
 }

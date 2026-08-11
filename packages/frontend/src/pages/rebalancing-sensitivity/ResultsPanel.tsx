@@ -15,7 +15,6 @@ import {
   Line,
   Legend,
 } from 'recharts';
-import { CHART_COLORS } from '@backtest/shared';
 import type { RebalanceFrequency } from '@backtest/shared';
 import {
   REBALANCE_OPTIONS,
@@ -29,6 +28,7 @@ import {
   AXIS_TICK_STYLE,
   DATE_TICK_FORMATTER,
   CHART_TOOLTIP_STYLE,
+  getPortfolioColor,
 } from '@/lib/chart-theme.js';
 import {
   Card,
@@ -86,7 +86,7 @@ function DistributionTab({ results }: { results: FreqResult[] }) {
   return (
     <ResponsiveContainer width="100%" height={400}>
       <BarChart data={data} margin={CHART_MARGIN}>
-        <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--bg-subtle)" />
+        <CartesianGrid {...CHART_GRID_PROPS} />
         <XAxis dataKey="name" tick={AXIS_TICK_STYLE} />
         <YAxis tick={AXIS_TICK_STYLE} tickFormatter={(v: number) => `${v}%`} />
         <Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={(v: number) => `${v}%`} />
@@ -132,11 +132,11 @@ function OffsetBarChart({ offsetData }: { offsetData: Array<{ offset: string; ca
   return (
     <ResponsiveContainer width="100%" height={250}>
       <BarChart data={offsetData} margin={CHART_MARGIN}>
-        <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--bg-subtle)" />
+        <CartesianGrid {...CHART_GRID_PROPS} />
         <XAxis dataKey="offset" tick={AXIS_TICK_STYLE} />
         <YAxis tick={AXIS_TICK_STYLE} tickFormatter={(v: number) => `${v}%`} />
         <Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={(v: number) => `${v}%`} />
-        <Bar dataKey="cagr" fill={CHART_COLORS[2]} radius={[2, 2, 0, 0]} />
+        <Bar dataKey="cagr" fill={getPortfolioColor(2)} radius={[2, 2, 0, 0]} />
       </BarChart>
     </ResponsiveContainer>
   );
@@ -145,14 +145,14 @@ function OffsetGrowthChart({ data }: { data: Array<{ date: string; value: number
   return (
     <ResponsiveContainer width="100%" height={250}>
       <LineChart data={data} margin={CHART_MARGIN}>
-        <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--bg-subtle)" />
+        <CartesianGrid {...CHART_GRID_PROPS} />
         <XAxis dataKey="date" tick={AXIS_TICK_STYLE} tickFormatter={DATE_TICK_FORMATTER} />
         <YAxis tick={AXIS_TICK_STYLE} tickFormatter={(v: number) => v.toLocaleString()} />
         <Tooltip contentStyle={CHART_TOOLTIP_STYLE} />
         <Line
           type="monotone"
           dataKey="value"
-          stroke={CHART_COLORS[0]}
+          stroke={getPortfolioColor(0)}
           strokeWidth={1.5}
           dot={false}
         />

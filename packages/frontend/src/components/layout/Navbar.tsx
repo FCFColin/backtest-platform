@@ -27,7 +27,7 @@ const navLinkClass =
   'px-3 py-2 text-body font-medium text-fg-secondary hover:text-fg rounded-md hover:bg-hover transition-colors duration-150';
 const DIRECT_LINKS = [
   { to: '/data-engine', key: 'dataEngine' },
-  { to: '/about', key: 'docs' },
+  { to: '/about', key: 'about' },
   { to: '/pricing', key: 'pricing' },
 ] as const;
 const NAV_GROUP_KEYS = [
@@ -207,7 +207,7 @@ export default function Navbar() {
     location.pathname === to || (to !== '/' && location.pathname.startsWith(`${to}/`));
   return (
     <nav className="sticky top-0 z-50 h-15 border-b border-border-subtle bg-app/95 backdrop-blur-md">
-      <div className="max-w-[1440px] mx-auto h-full px-6 flex items-center gap-4">
+      <div className="page-container h-full flex items-center gap-4">
         <NavbarMobileMenu
           mobileOpen={mobileOpen}
           setMobileOpen={setMobileOpen}

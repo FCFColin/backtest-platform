@@ -55,13 +55,13 @@ function GlidepathTargetWeights({
   const { t } = useTranslation();
   return (
     <>
-      <div className="mt-1.5 text-[11px] text-[var(--text-muted)]">{t('Target Weights')}</div>
+      <div className="mt-1.5 text-label-tiny text-fg-tertiary">{t('Target Weights')}</div>
       <div className="flex flex-wrap gap-1.5 mt-1">
         {portfolio.assets.map((asset, ai) => {
           const w = portfolio.glidepathToWeights?.[ai];
           return (
             <div key={ai} className="flex flex-col gap-0.5 min-w-[90px]">
-              <label className="text-[10px] text-[var(--text-muted)] whitespace-nowrap overflow-hidden text-ellipsis">
+              <label className="text-micro text-fg-tertiary whitespace-nowrap overflow-hidden text-ellipsis">
                 {asset.ticker || `${t('Asset')} ${ai + 1}`}
               </label>
               <div className="flex items-center gap-1 h-7">
@@ -143,10 +143,8 @@ export function GlidepathForm({
   const [gp, setGp] = useState({ name: '', from: '', to: '', years: 10 });
   const canConfirm = gp.from && gp.to && gp.from !== gp.to;
   return (
-    <div className="p-3 mb-2 bg-elevated rounded-[var(--radius-control)] border border-border-subtle">
-      <div className="text-[13px] font-semibold text-[var(--text-strong)] mb-2">
-        {t('New Glide Path')}
-      </div>
+    <div className="p-3 mb-2 bg-elevated rounded-lg border border-border-subtle">
+      <div className="text-label font-semibold text-fg mb-2">{t('New Glide Path')}</div>
       <div className={FIELDS_ROW}>
         <ParamCard label={t('Name')}>
           <Input
@@ -194,7 +192,7 @@ export function GlidepathConfig({
   const { t } = useTranslation();
   return (
     <div className="p-2 mb-1.5 bg-elevated rounded-md border border-border-subtle">
-      <div className="text-[11px] font-semibold text-brand mb-1.5 tracking-tight">
+      <div className="text-label-tiny font-semibold text-brand mb-1.5 tracking-tight">
         {t('Glide Path Configuration')}
       </div>
       <div className={FIELDS_ROW}>

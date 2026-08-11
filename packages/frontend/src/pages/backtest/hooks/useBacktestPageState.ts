@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { TFunction } from 'i18next';
 import { useBacktestStore } from '@/store/backtestStore';
 import { useToastStore } from '@/store/toastStore';
 import {
@@ -65,37 +64,8 @@ function useUrlShareLoader() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- 仅在挂载时从 URL hash 加载分享数据
   }, [loadFromShare, hasLoadedFromShare, setHasLoadedFromShare]);
 }
-function buildBacktestSeoProps(t: TFunction) {
-  return {
-    desc: t(
-      'This platform is a portfolio backtesting tool supporting ETFs, stocks, funds, synthetic assets and custom series. Compare multiple portfolios over the same historical period, test rebalancing rules, and simulate contributions or withdrawals.\n\nSupports benchmark comparison, total return settings, inflation adjustment, rolling window statistics, and retirement withdrawal simulations.\n\nView drawdowns, rolling returns, correlations, Sharpe ratio, Sortino ratio, Calmar ratio, and detailed retirement withdrawal success rates.',
-    ),
-    features: [
-      {
-        title: t('What You Can Model'),
-        desc: t(
-          'Portfolio weights, date ranges, rebalancing schedules, cashflows, inflation, drag and withdrawal assumptions.',
-        ),
-      },
-      {
-        title: t('Metrics You Can Inspect'),
-        desc: t(
-          'CAGR, MWRR, volatility, max drawdown, Sharpe/Sortino/Calmar ratios, rolling metrics, seasonality, correlations and retirement withdrawal statistics.',
-        ),
-      },
-    ],
-    related: [
-      { title: t('Monte Carlo'), href: '/monte-carlo' },
-      { title: t('nav.portfolioOptimize'), href: '/optimizer' },
-      { title: t('nav.efficientFrontier'), href: '/efficient-frontier' },
-      { title: t('nav.assetAnalysis'), href: '/analysis' },
-    ],
-    relatedLabel: t('Related Tools:'),
-  };
-}
 export function useBacktestPageState(): BacktestPageState {
   const { t } = useTranslation();
-  const seoProps = buildBacktestSeoProps(t);
   const runBacktest = useBacktestStore((s) => s.runBacktest);
   const parameters = useBacktestStore((s) => s.parameters);
   const portfolios = useBacktestStore((s) => s.portfolios);
@@ -131,7 +101,6 @@ export function useBacktestPageState(): BacktestPageState {
   };
   return {
     t,
-    seoProps,
     runBacktest,
     parameters,
     portfolios,

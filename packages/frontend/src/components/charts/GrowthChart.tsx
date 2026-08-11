@@ -44,7 +44,7 @@ function GrowthHeader({
 }) {
   const { t } = useTranslation();
   return (
-    <div className="flex items-center justify-between px-6 pt-5 pb-3">
+    <div className="flex flex-wrap items-center justify-between gap-y-2 px-6 pt-5 pb-3">
       <h3 className="text-h3">{t('Portfolio Value Trend')}</h3>
       <div className="flex items-center gap-1">
         <div

@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { CHART_COLORS, type GoalOptimizerResult } from '@backtest/shared';
+import type { GoalOptimizerResult } from '@backtest/shared';
 import { fmtPct, fmtDollar } from '@/utils/format';
 import { useGoalOptimizerState, type GoalOptimizerState } from '@/hooks/useGoalOptimizerState.js';
 import { GoalOptimizerParamsPanel } from './GoalOptimizerParams.js';
@@ -14,7 +14,7 @@ import {
   Legend,
   ReferenceLine,
 } from 'recharts';
-import { CHART_GRID_PROPS, LEGEND_WRAPPER_STYLE } from '@/lib/chart-theme.js';
+import { CHART_GRID_PROPS, LEGEND_WRAPPER_STYLE, getPortfolioColor } from '@/lib/chart-theme.js';
 import { ChartTooltip, ChartXAxis, ChartYAxis } from '@/components/charts/sharedChartContent.js';
 import ChartCard from '@/components/ChartCard.js';
 import { Card, Progress } from '@/components/ui/uiComponents';
@@ -47,20 +47,20 @@ function ProbabilityDistributionChart({
           />
           <ReferenceLine
             x={targetAmount}
-            stroke={CHART_COLORS[3]}
+            stroke={getPortfolioColor(3)}
             strokeDasharray="4 2"
             label={{
               value: t('Target'),
               position: 'top',
-              fill: CHART_COLORS[3],
+              fill: getPortfolioColor(3),
               fontSize: 11,
             }}
           />
           <Area
             type="monotone"
             dataKey="probability"
-            stroke={CHART_COLORS[0]}
-            fill={CHART_COLORS[0]}
+            stroke={getPortfolioColor(0)}
+            fill={getPortfolioColor(0)}
             fillOpacity={0.3}
             name={t('Probability')}
           />
@@ -91,11 +91,11 @@ function OptimalPathChart({
           <Legend wrapperStyle={LEGEND_WRAPPER_STYLE} />
           <ReferenceLine
             y={targetAmount}
-            stroke={CHART_COLORS[3]}
+            stroke={getPortfolioColor(3)}
             strokeDasharray="4 2"
             label={{
               value: t('Target'),
-              fill: CHART_COLORS[3],
+              fill: getPortfolioColor(3),
               fontSize: 11,
               position: 'insideTopRight',
             }}
@@ -103,7 +103,7 @@ function OptimalPathChart({
           <Line
             type="monotone"
             dataKey="p90"
-            stroke={CHART_COLORS[2]}
+            stroke={getPortfolioColor(2)}
             strokeWidth={1.5}
             dot={false}
             name="P90"
@@ -111,7 +111,7 @@ function OptimalPathChart({
           <Line
             type="monotone"
             dataKey="median"
-            stroke={CHART_COLORS[0]}
+            stroke={getPortfolioColor(0)}
             strokeWidth={2.5}
             dot={false}
             name={t('Median')}
@@ -119,7 +119,7 @@ function OptimalPathChart({
           <Line
             type="monotone"
             dataKey="p10"
-            stroke={CHART_COLORS[3]}
+            stroke={getPortfolioColor(3)}
             strokeWidth={1.5}
             dot={false}
             name="P10"

@@ -160,7 +160,7 @@ export function Footer() {
   const { t } = useTranslation();
   return (
     <footer className="bg-surface-sunken border-t border-border-subtle mt-auto">
-      <div className="max-w-[1440px] mx-auto px-6 py-12">
+      <div className="page-container py-12">
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8">
           <FooterBrand />
           <FooterSection
@@ -176,12 +176,9 @@ export function Footer() {
           <FooterSection
             title={t('Resources')}
             links={[
-              { to: '/help', label: t('Documentation') },
+              { to: '/help', label: t('Help Center') },
               { href: '/api/docs', label: t('API Reference') },
               { to: '/changelog', label: t('Changelog') },
-              { to: '/help', label: t('Help Center') },
-              { to: '/help', label: t('Feedback') },
-              { to: '/help', label: t('Methodology') },
             ]}
           />
           <FooterSection
@@ -192,7 +189,6 @@ export function Footer() {
               { to: '/contact', label: t('Contact Us') },
               { to: '/legal/privacy', label: t('Privacy Policy') },
               { to: '/legal/terms', label: t('Terms of Service') },
-              { to: '/legal/disclaimer', label: t('Disclaimer') },
             ]}
           />
           <FooterDataColumn />

@@ -1,4 +1,4 @@
-import { useMemo, useCallback, useState } from 'react';
+﻿import { useMemo, useCallback, useState } from 'react';
 import {
   SvgAxis,
   ChartShell,
@@ -185,7 +185,7 @@ export function SvgScatterChart({
             r={hoveredIdx === pt.idx ? 7 : 5}
             fill={pt.color}
             fillOpacity={hoveredIdx === pt.idx ? 1 : 0.8}
-            stroke="var(--bg-elevated)"
+            stroke="var(--bg-surface)"
             strokeWidth={2}
           />
           <text

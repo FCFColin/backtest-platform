@@ -9,15 +9,27 @@ export function SegmentedControl<T extends string | number>({
   value,
   onChange,
 }: SegmentedControlProps<T>) {
+  const move = (i: number, delta: number) =>
+    onChange(options[(i + delta + options.length) % options.length].value);
   return (
-    <div className="mini-tabs">
-      {options.map((opt) => (
+    <div className="mini-tabs" role="radiogroup">
+      {options.map((opt, i) => (
         <button
           key={String(opt.value)}
           type="button"
-          aria-pressed={value === opt.value}
+          role="radio"
+          aria-checked={value === opt.value}
           className={`mini-tab ${value === opt.value ? 'active' : ''}`}
           onClick={() => onChange(opt.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+              e.preventDefault();
+              move(i, 1);
+            } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+              e.preventDefault();
+              move(i, -1);
+            }
+          }}
         >
           {opt.label}
         </button>

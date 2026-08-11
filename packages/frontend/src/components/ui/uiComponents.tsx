@@ -54,7 +54,7 @@ export const badgeVariants = cva(
         danger: 'bg-danger/10 border-danger/20 text-danger',
       },
       size: {
-        sm: 'h-6 px-2 text-[11px]',
+        sm: 'h-6 px-2 text-label-tiny',
         default: 'h-7 px-3 text-caption',
       },
     },
@@ -111,7 +111,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
     <input
       type={type}
       className={cn(
-        'flex h-10 w-full rounded-md bg-input-bg border border-border px-3 py-2 text-body text-fg placeholder:text-fg-tertiary hover:border-border-strong focus:outline-none focus:border-brand transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-50 file:border-0 file:bg-transparent file:text-body file:font-medium',
+        'flex h-10 w-full rounded-md bg-input-bg border border-border px-3 py-2 text-body text-fg placeholder:text-fg-tertiary hover:border-border-strong focus:outline-none focus:border-brand focus-visible:ring-2 focus-visible:ring-brand/30 transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-50 file:border-0 file:bg-transparent file:text-body file:font-medium',
         type === 'number' && 'font-mono tabular-nums',
         className,
       )}
@@ -277,7 +277,7 @@ export const Select = SelectPrimitive.Root;
 export const SelectValue = SelectPrimitive.Value;
 export const SelectTrigger = wrapPrimitive(
   SelectPrimitive.Trigger,
-  'flex h-10 w-full items-center justify-between rounded-md bg-input-bg border border-border px-3 py-2 text-body text-fg placeholder:text-fg-tertiary hover:border-border-strong focus:outline-none focus:border-brand transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1',
+  'flex h-10 w-full items-center justify-between rounded-md bg-input-bg border border-border px-3 py-2 text-body text-fg placeholder:text-fg-tertiary hover:border-border-strong focus:outline-none focus:border-brand focus-visible:ring-2 focus-visible:ring-brand/30 transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1',
   'SelectTrigger',
   (children) => (
     <>

@@ -1,5 +1,5 @@
 import { useMemo, useState, useCallback, useEffect, useRef } from 'react';
-import { CHART_COLORS } from '@backtest/shared';
+import { getPortfolioColor } from '@/lib/chart-theme.js';
 import type { FanDataPoint } from './monteCarloUtils.js';
 import { monthFormatter, dollarKFormatter } from './monteCarloUtils.js';
 import { computeTicks } from '@/components/charts/svg/svgChartParts.js';
@@ -121,7 +121,7 @@ export default function SvgFanChart({
             (d) => d.band5_95[1],
             (d) => d.band5_95[0],
           )}
-          fill={CHART_COLORS[0]}
+          fill={getPortfolioColor(0)}
           fillOpacity={0.08}
         />
         <path
@@ -129,13 +129,13 @@ export default function SvgFanChart({
             (d) => d.band25_75[1],
             (d) => d.band25_75[0],
           )}
-          fill={CHART_COLORS[0]}
+          fill={getPortfolioColor(0)}
           fillOpacity={0.18}
         />
         <path
           d={buildLinePath((d) => d.p50)}
           fill="none"
-          stroke={CHART_COLORS[0]}
+          stroke={getPortfolioColor(0)}
           strokeWidth={2.5}
         />
         <line
@@ -202,7 +202,7 @@ export default function SvgFanChart({
           <div className="flex items-center gap-1.5">
             <span
               className="w-3 h-3 rounded-sm"
-              style={{ background: CHART_COLORS[0], opacity: 0.18 }}
+              style={{ background: getPortfolioColor(0), opacity: 0.18 }}
             />
             <span>
               {band25_75Name}: ${(tooltip.data.band25_75[0] / 1000).toFixed(0)}k – $
@@ -210,7 +210,10 @@ export default function SvgFanChart({
             </span>
           </div>
           <div className="flex items-center gap-1.5 mt-0.5">
-            <span className="w-3 h-[2.5px] rounded-sm" style={{ background: CHART_COLORS[0] }} />
+            <span
+              className="w-3 h-[2.5px] rounded-sm"
+              style={{ background: getPortfolioColor(0) }}
+            />
             <span>
               {medianName}: ${(tooltip.data.p50 / 1000).toFixed(0)}k
             </span>
@@ -221,19 +224,19 @@ export default function SvgFanChart({
         <div className="flex items-center gap-1">
           <span
             className="w-3 h-3 rounded-sm"
-            style={{ background: CHART_COLORS[0], opacity: 0.18 }}
+            style={{ background: getPortfolioColor(0), opacity: 0.18 }}
           />
           <span>{band25_75Name}</span>
         </div>
         <div className="flex items-center gap-1">
           <span
             className="w-3 h-3 rounded-sm"
-            style={{ background: CHART_COLORS[0], opacity: 0.08 }}
+            style={{ background: getPortfolioColor(0), opacity: 0.08 }}
           />
           <span>{band5_95Name}</span>
         </div>
         <div className="flex items-center gap-1">
-          <span className="w-3 h-[2.5px] rounded-sm" style={{ background: CHART_COLORS[0] }} />
+          <span className="w-3 h-[2.5px] rounded-sm" style={{ background: getPortfolioColor(0) }} />
           <span>{medianName}</span>
         </div>
       </div>

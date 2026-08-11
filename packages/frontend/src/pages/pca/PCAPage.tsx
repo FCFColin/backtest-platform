@@ -12,7 +12,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { CHART_COLORS, type PCAResult } from '@backtest/shared';
+import { type PCAResult } from '@backtest/shared';
 import { Card, buttonVariants, LoadingButton, AffixInput } from '@/components/ui/uiComponents';
 import { CollapsibleSection } from '@/components/cards.js';
 import { ResultsShell } from '@/components/resultsShell.js';
@@ -26,6 +26,7 @@ import {
   CHART_MARGIN,
   CHART_TOOLTIP_STYLE,
   getCorrelationColor,
+  getPortfolioColor,
 } from '@/lib/chart-theme.js';
 import { getCorrelationTextColor } from '@/components/charts/chartUtils.js';
 import { TimeSeriesLineChart } from '@/components/charts/TimeSeriesLineChart.js';
@@ -163,7 +164,7 @@ function EigenvalueBarChart({ data }: { data: { component: string; eigenvalue: n
             contentStyle={CHART_TOOLTIP_STYLE}
             formatter={(value: number) => [value.toFixed(4), t('Eigenvalues')]}
           />
-          <Bar dataKey="eigenvalue" fill={CHART_COLORS[0]} radius={[2, 2, 0, 0]} />
+          <Bar dataKey="eigenvalue" fill={getPortfolioColor(0)} radius={[2, 2, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </Card>
@@ -216,9 +217,9 @@ function PCAScatterChart({ data }: { data: { pc1: number; pc2: number }[] }) {
         zRange={[20, 20]}
         tooltipFormatter={(v: number, n: string) => [v.toFixed(4), n]}
       >
-        <Scatter data={data} fill={CHART_COLORS[2]} fillOpacity={0.5} />
-        <ReferenceLine y={0} stroke="var(--fg-tertiary)" strokeDasharray="4 4" />
-        <ReferenceLine x={0} stroke="var(--fg-tertiary)" strokeDasharray="4 4" />
+        <Scatter data={data} fill={getPortfolioColor(2)} fillOpacity={0.5} />
+        <ReferenceLine y={0} stroke="hsl(var(--fg-tertiary))" strokeDasharray="4 4" />
+        <ReferenceLine x={0} stroke="hsl(var(--fg-tertiary))" strokeDasharray="4 4" />
       </XYScatterChart>
     </Card>
   );

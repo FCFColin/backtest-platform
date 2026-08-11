@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
+import { CHART_COLORS } from '@backtest/shared';
 import {
-  PORTFOLIO_COLORS,
   getPortfolioColor,
   YEAR_ONLY_TICK_FORMATTER,
   DATE_TICK_FORMATTER,
@@ -15,24 +15,24 @@ import {
   wrapTooltipFormatter,
 } from '../../../packages/frontend/src/lib/chart-theme.js';
 
-describe('PORTFOLIO_COLORS', () => {
+describe('CHART_COLORS', () => {
   it('包含 8 种颜色', () => {
-    expect(PORTFOLIO_COLORS).toHaveLength(8);
+    expect(CHART_COLORS).toHaveLength(8);
   });
 
   it('每个颜色值使用 hsl(var(--chart-N)) 格式', () => {
-    for (let i = 0; i < PORTFOLIO_COLORS.length; i++) {
-      expect(PORTFOLIO_COLORS[i]).toBe(`hsl(var(--chart-${i + 1}))`);
+    for (let i = 0; i < CHART_COLORS.length; i++) {
+      expect(CHART_COLORS[i]).toBe(`hsl(var(--chart-${i + 1}))`);
     }
   });
 });
 
 describe('getPortfolioColor', () => {
   it.each([
-    [0, PORTFOLIO_COLORS[0]],
-    [7, PORTFOLIO_COLORS[7]],
-    [8, PORTFOLIO_COLORS[0]],
-    [15, PORTFOLIO_COLORS[7]],
+    [0, CHART_COLORS[0]],
+    [7, CHART_COLORS[7]],
+    [8, CHART_COLORS[0]],
+    [15, CHART_COLORS[7]],
   ])('索引 %i 应返回对应颜色（循环取模）', (index, expected) => {
     expect(getPortfolioColor(index)).toBe(expected);
   });

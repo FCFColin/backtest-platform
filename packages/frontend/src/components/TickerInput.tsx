@@ -132,7 +132,6 @@ function useTickerSearch() {
 export default function TickerInput({ value, onChange, placeholder, className }: TickerInputProps) {
   const { t } = useTranslation();
   const [focused, setFocused] = useState(false);
-  const [query, setQuery] = useState(value);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const {
@@ -182,12 +181,10 @@ export default function TickerInput({ value, onChange, placeholder, className }:
         value={value}
         onChange={(e) => {
           onChange(e.target.value);
-          setQuery(e.target.value);
           updateSuggestions(e.target.value);
         }}
         onFocus={() => {
           setFocused(true);
-          setQuery(value);
           if (value) updateSuggestions(value);
         }}
         onKeyDown={handleKeyDown}
@@ -196,7 +193,7 @@ export default function TickerInput({ value, onChange, placeholder, className }:
         spellCheck={false}
         className={className}
       />
-      {focused && query.trim().length >= 2 && (
+      {focused && value.trim().length >= 2 && (
         <TickerDropdown
           suggestions={suggestions}
           selectedIndex={selectedIndex}

@@ -1,8 +1,9 @@
-﻿import { useMemo } from 'react';
+import { useMemo } from 'react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { CHART_COLORS, type LETFResult } from '@backtest/shared';
+import type { LETFResult } from '@backtest/shared';
+import { getPortfolioColor } from '@/lib/chart-theme.js';
 import { fmtPct } from '@/utils/format';
 import { ResultsShell } from '@/components/resultsShell.js';
 import { Card } from '@/components/ui/uiComponents';
@@ -110,14 +111,14 @@ function LeverageComparisonChart({
           {
             dataKey: 'nominal',
             legendName: t('Nominal Leverage ({{leverage}}x)', { leverage }),
-            color: 'var(--fg-tertiary)',
+            color: 'hsl(var(--fg-tertiary))',
             strokeWidth: 1.5,
             strokeDasharray: '6 3',
           },
           {
             dataKey: 'effective',
             legendName: t('Effective Leverage'),
-            color: CHART_COLORS[2],
+            color: getPortfolioColor(2),
             strokeWidth: 1.5,
             activeDotR: 3,
             connectNulls: true,

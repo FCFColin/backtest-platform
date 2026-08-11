@@ -256,6 +256,7 @@ export function GridResultsPanel({ state }: { state: TacticalGridState }) {
       hasResults={!!results}
       emptyTitle={t('Set parameters on the left and click "Start Grid Search" to see results')}
       emptyIcon={Grid3x3}
+      onRetry={state.runSearch}
     >
       {results && (
         <div className="flex flex-col gap-3">

@@ -6,7 +6,7 @@ import {
   type ReactNode,
 } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { Sun, MoonStar, X, ArrowRight, Bell, ChevronDown } from 'lucide-react';
+import { Sun, MoonStar, Monitor, X, ArrowRight, Bell, ChevronDown } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import * as SheetPrimitive from '@radix-ui/react-dialog';
 import { cva, type VariantProps } from 'class-variance-authority';
@@ -95,7 +95,7 @@ function NotificationBell() {
         >
           <Bell className="h-4 w-4" />
           {unreadCount > 0 && (
-            <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[10px] font-semibold leading-none text-white">
+            <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-micro font-semibold leading-none text-white">
               {count}
             </span>
           )}
@@ -159,11 +159,23 @@ export function NavbarActions() {
         variant="icon"
         size="icon"
         onClick={toggleTheme}
-        title={theme === 'dark' ? t('Switch to light theme') : t('Switch to dark theme')}
-        aria-label={theme === 'dark' ? t('Switch to light theme') : t('Switch to dark theme')}
+        title={
+          theme === 'system'
+            ? t('Switch to light theme')
+            : theme === 'dark'
+              ? t('Switch to system theme')
+              : t('Switch to dark theme')
+        }
+        aria-label={
+          theme === 'system'
+            ? t('Switch to light theme')
+            : theme === 'dark'
+              ? t('Switch to system theme')
+              : t('Switch to dark theme')
+        }
         data-testid="theme-toggle"
       >
-        {theme === 'dark' ? <Sun /> : <MoonStar />}
+        {theme === 'dark' ? <Sun /> : theme === 'system' ? <Monitor /> : <MoonStar />}
       </Button>
       <Button
         variant="secondary"
@@ -276,7 +288,7 @@ export function PromoBar({
   const v = PROMO_VARIANTS[variant];
   return (
     <div className={cn('h-10 border-b flex items-center', v.bar)}>
-      <div className="max-w-[1440px] mx-auto w-full px-6 flex items-center justify-center gap-3">
+      <div className="page-container w-full flex items-center justify-center gap-3">
         <span className={cn('w-2 h-2 rounded-full animate-pulse', v.dot)} />
         <span className="text-body">{message}</span>
         {ctaLabel && ctaLink && (

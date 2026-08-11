@@ -11,9 +11,14 @@ import {
   Cell,
   Scatter,
 } from 'recharts';
-import { CHART_COLORS, type Statistics } from '@backtest/shared';
+import { type Statistics } from '@backtest/shared';
 import type { EfficientFrontierState, OptimizerResultExt } from './OptimizerUtils.js';
-import { CHART_TOOLTIP_STYLE, CHART_GRID_PROPS, AXIS_TICK_STYLE } from '@/lib/chart-theme.js';
+import {
+  CHART_TOOLTIP_STYLE,
+  CHART_GRID_PROPS,
+  AXIS_TICK_STYLE,
+  getPortfolioColor,
+} from '@/lib/chart-theme.js';
 import { SimpleTable, type SimpleTableColumn } from '@/components/tables.js';
 import ChartCard from '@/components/ChartCard.js';
 import { Button } from '@/components/ui/uiComponents';
@@ -99,7 +104,7 @@ function WeightBarChart({
         <YAxis
           type="category"
           dataKey="ticker"
-          tick={{ fill: 'var(--fg)', fontSize: 13, fontWeight: 500 }}
+          tick={{ fill: 'hsl(var(--fg))', fontSize: 13, fontWeight: 500 }}
           width={56}
         />
         <Tooltip formatter={(v: number) => `${v}%`} contentStyle={CHART_TOOLTIP_STYLE} />
@@ -162,7 +167,7 @@ function FrontierChart({
           expectedVolatility: p.expectedVolatility,
           expectedReturn: p.expectedReturn,
         }))}
-        fill={CHART_COLORS[0]}
+        fill={getPortfolioColor(0)}
         fillOpacity={0.6}
       />
       <Scatter
@@ -172,7 +177,7 @@ function FrontierChart({
             expectedReturn: results.expectedReturn,
           },
         ]}
-        fill={CHART_COLORS[3]}
+        fill={getPortfolioColor(3)}
         shape="star"
       />
     </XYScatterChart>
@@ -184,7 +189,7 @@ export function OptimizerResults({ s }: { s: EfficientFrontierState }) {
     ([ticker, weight], i) => ({
       ticker,
       weight: Number((weight * 100).toFixed(1)),
-      fill: CHART_COLORS[i % CHART_COLORS.length],
+      fill: getPortfolioColor(i),
     }),
   );
   return (
@@ -197,6 +202,7 @@ export function OptimizerResults({ s }: { s: EfficientFrontierState }) {
       emptyTitle={t(
         'Configure parameters on the left and click "Start Calculation" to see optimal weights',
       )}
+      onRetry={s.runOptimize}
     >
       {s.results && (
         <div className="flex flex-col gap-5">

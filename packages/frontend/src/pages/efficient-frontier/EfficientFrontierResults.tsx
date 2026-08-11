@@ -1,10 +1,7 @@
-import { useTranslation } from 'react-i18next';
+﻿import { useTranslation } from 'react-i18next';
 import { ArrowRight } from 'lucide-react';
-import {
-  CHART_COLORS,
-  type EfficientFrontierPoint,
-  type EfficientFrontierResult,
-} from '@backtest/shared';
+import { type EfficientFrontierPoint, type EfficientFrontierResult } from '@backtest/shared';
+import { getPortfolioColor } from '@/lib/chart-theme.js';
 import { ErrorBanner } from '@/components/stateDisplay';
 import { ResultsShell } from '@/components/resultsShell';
 import { Button } from '@/components/ui/uiComponents';
@@ -61,12 +58,7 @@ function WeightAllocation({ weights, title }: { weights: Record<string, number>;
       <div className="mb-2 text-caption text-fg-tertiary">{title}</div>
       <div className="flex flex-col gap-1.5">
         {Object.entries(weights).map(([ticker, weight], i) => (
-          <WeightBar
-            key={ticker}
-            ticker={ticker}
-            weight={weight}
-            color={CHART_COLORS[i % CHART_COLORS.length]}
-          />
+          <WeightBar key={ticker} ticker={ticker} weight={weight} color={getPortfolioColor(i)} />
         ))}
       </div>
     </div>
@@ -253,6 +245,7 @@ function FrontierResultsView({ state }: { state: FrontierState }) {
       errorPrefix={`${t('Calculation failed')}: `}
       isLoading={state.isLoading}
       hasResults={!!state.results && state.results.frontier.length > 0}
+      onRetry={state.runFrontier}
     >
       <div className="flex flex-col gap-3">
         {state.correlationError && !state.error && (

@@ -1,7 +1,8 @@
-import { useState, memo, lazy, Suspense, type ReactNode } from 'react';
+﻿import { useState, memo, lazy, Suspense, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LineChart } from 'lucide-react';
-import { CHART_COLORS, type AssetAnalysisResult, type Statistics } from '@backtest/shared';
+import { type AssetAnalysisResult, type Statistics } from '@backtest/shared';
+import { getPortfolioColor } from '@/lib/chart-theme.js';
 import { ResultsShell } from '@/components/resultsShell.js';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/uiComponents';
 import { useAnalysisData } from '../../hooks/useAnalysisData.js';
@@ -241,7 +242,7 @@ export const StatsTable = memo(function StatsTable({
         <span className="inline-flex items-center gap-1.5">
           <span
             className="inline-block size-2.5 rounded-full"
-            style={{ backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] }}
+            style={{ backgroundColor: getPortfolioColor(idx) }}
           />
           {tk.ticker}
         </span>

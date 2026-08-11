@@ -10,8 +10,14 @@ import {
   YAxis,
 } from 'recharts';
 import { Card } from '@/components/ui/uiComponents';
-import { CHART_COLORS, type MonteCarloResult } from '@backtest/shared';
-import { CHART_GRID_PROPS, CHART_TOOLTIP_STYLE } from '@/lib/chart-theme.js';
+import type { MonteCarloResult } from '@backtest/shared';
+import {
+  CHART_GRID_PROPS,
+  CHART_TOOLTIP_STYLE,
+  AXIS_TICK_STYLE,
+  LEGEND_WRAPPER_STYLE,
+  getPortfolioColor,
+} from '@/lib/chart-theme.js';
 import { fmtDollar } from '@/utils/format';
 import { useChartAnimation } from '@/hooks/miscHooks';
 import { HistogramChart, NoDataCard } from './HistogramChart.js';
@@ -24,7 +30,6 @@ import {
   type FanDataPoint,
 } from './monteCarloUtils.js';
 import SvgFanChart from './SvgFanChart.js';
-const TICK_STYLE = { fill: 'hsl(var(--fg-tertiary))', fontSize: 12 } as const;
 function FanChart({ data }: { data: FanDataPoint[] }) {
   const { t } = useTranslation();
   const areas = fanAreas(t);
@@ -64,17 +69,17 @@ function MonteCarloTerminalHistogram({
         referenceLines={[
           {
             label: p5Label,
-            color: CHART_COLORS[3],
+            color: getPortfolioColor(3),
             value: t('charts.annualReturn.p5', { value: fmtDollar(p5Val) }),
           },
           {
             label: p50Label,
-            color: CHART_COLORS[2],
+            color: getPortfolioColor(2),
             value: t('Median', { value: fmtDollar(p50Val) }),
           },
           {
             label: p95Label,
-            color: CHART_COLORS[4],
+            color: getPortfolioColor(4),
             value: t('charts.annualReturn.p95', { value: fmtDollar(p95Val) }),
           },
         ]}
@@ -88,22 +93,22 @@ export function MonteCarloSuccessTab({ r }: { r: MonteCarloResult }) {
   const anim = useChartAnimation(data.length >= 100);
   if (data.length === 0) return <NoDataCard />;
   const successLines = [
-    { key: 'survival', color: CHART_COLORS[2], nameKey: 'monteCarlo.results.survivalProb' },
+    { key: 'survival', color: getPortfolioColor(2), nameKey: 'monteCarlo.results.survivalProb' },
     {
       key: 'capitalPreservation',
-      color: CHART_COLORS[0],
+      color: getPortfolioColor(0),
       nameKey: 'Capital Preservation',
     },
-    { key: 'profit', color: CHART_COLORS[1], nameKey: 'monteCarlo.results.profitProb' },
+    { key: 'profit', color: getPortfolioColor(1), nameKey: 'monteCarlo.results.profitProb' },
   ];
   return (
     <Card className="p-5">
       <ResponsiveContainer width="100%" height={400}>
         <LineChart data={data} margin={{ top: 10, right: 30, left: 10, bottom: 20 }}>
-          <CartesianGrid {...CHART_GRID_PROPS} stroke="hsl(var(--border-subtle))" />
+          <CartesianGrid {...CHART_GRID_PROPS} />
           <XAxis
             dataKey="year"
-            tick={TICK_STYLE}
+            tick={AXIS_TICK_STYLE}
             label={{
               value: t('Years'),
               position: 'insideBottom',
@@ -112,13 +117,13 @@ export function MonteCarloSuccessTab({ r }: { r: MonteCarloResult }) {
               fill: 'hsl(var(--fg-tertiary))',
             }}
           />
-          <YAxis tick={TICK_STYLE} tickFormatter={(v: number) => `${v}%`} domain={[0, 100]} />
+          <YAxis tick={AXIS_TICK_STYLE} tickFormatter={(v: number) => `${v}%`} domain={[0, 100]} />
           <Tooltip
             formatter={(v: number) => `${v}%`}
             contentStyle={CHART_TOOLTIP_STYLE}
             {...anim}
           />
-          <Legend wrapperStyle={{ fontSize: 12, color: 'hsl(var(--fg-tertiary))' }} />
+          <Legend wrapperStyle={LEGEND_WRAPPER_STYLE} />
           {successLines.map((l) => (
             <Line
               key={l.key}

@@ -4,7 +4,7 @@ import { Area } from 'recharts';
 import { useTranslation } from 'react-i18next';
 import { CalcCard } from './BaseCalculatorUI.js';
 import { formatPct, formatNum } from './baseCalculatorUtils.js';
-import { CHART_COLORS } from '@backtest/shared';
+import { getPortfolioColor } from '@/lib/chart-theme.js';
 import { SimpleAreaChart } from '@/components/charts/sharedChartContent.js';
 function ValueCurveChart({
   curve,
@@ -28,8 +28,8 @@ function ValueCurveChart({
         <Area
           type="monotone"
           dataKey="value"
-          stroke={CHART_COLORS[0]}
-          fill={CHART_COLORS[0]}
+          stroke={getPortfolioColor(0)}
+          fill={getPortfolioColor(0)}
           fillOpacity={0.12}
           strokeWidth={2}
         />

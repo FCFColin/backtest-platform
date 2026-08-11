@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { Scatter, Cell, Area } from 'recharts';
-import { CHART_COLORS, type EfficientFrontierPoint } from '@backtest/shared';
-import { getCorrelationColor } from '@/lib/chart-theme.js';
+import { type EfficientFrontierPoint } from '@backtest/shared';
+import { getCorrelationColor, getPortfolioColor } from '@/lib/chart-theme.js';
 import { getCorrelationTextColor } from '@/components/charts/chartUtils.js';
 import { MatrixHeatmap } from '@/components/charts/tables.js';
 import { SimpleChart, XYScatterChart } from '@/components/charts/sharedChartContent.js';
@@ -56,7 +56,7 @@ function FrontierScatterChartInner({
               expectedReturn: maxSharpe.expectedReturn,
             },
           ]}
-          fill={CHART_COLORS[0]}
+          fill={getPortfolioColor(0)}
           shape="star"
         />
       )}
@@ -125,8 +125,8 @@ export function FrontierAllocations({
             type="monotone"
             dataKey={ticker}
             stackId="1"
-            stroke={CHART_COLORS[i % CHART_COLORS.length]}
-            fill={CHART_COLORS[i % CHART_COLORS.length]}
+            stroke={getPortfolioColor(i)}
+            fill={getPortfolioColor(i)}
             fillOpacity={0.8}
           />
         ))}
@@ -136,7 +136,7 @@ export function FrontierAllocations({
           <div key={ticker} className="flex items-center gap-1 text-caption">
             <span
               className="inline-block size-3 rounded"
-              style={{ backgroundColor: CHART_COLORS[i % CHART_COLORS.length] }}
+              style={{ backgroundColor: getPortfolioColor(i) }}
             />
             <span className="text-fg-tertiary">{ticker}</span>
           </div>

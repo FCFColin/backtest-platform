@@ -1,9 +1,9 @@
-import { useMemo } from 'react';
+﻿import { useMemo } from 'react';
 import { Scatter, ReferenceLine } from 'recharts';
 import { useTranslation } from 'react-i18next';
-import { CHART_COLORS, type PortfolioResult } from '@backtest/shared';
+import { type PortfolioResult } from '@backtest/shared';
 import ChartCard from '../ChartCard.js';
-import { CHART_MARGIN } from '@/lib/chart-theme.js';
+import { CHART_MARGIN, getPortfolioColor } from '@/lib/chart-theme.js';
 import { downsample, DOWNSAMPLE_THRESHOLD, DOWNSAMPLE_TARGET } from '../../utils/format.js';
 import { XYScatterChart } from './sharedChartContent.js';
 import { TimeSeriesLineChart } from './TimeSeriesLineChart.js';
@@ -115,7 +115,7 @@ function RegressionScatterChart({
           fill={color}
           fillOpacity={0.4}
           r={2}
-          {...({ activeDot: { r: 4, stroke: 'var(--bg-elevated)', strokeWidth: 2 } } as object)}
+          {...({ activeDot: { r: 4, stroke: 'var(--bg-surface)', strokeWidth: 2 } } as object)}
         />
       </XYScatterChart>
     </div>
@@ -186,7 +186,7 @@ function RegressionPanel({
   isLast: boolean;
 }) {
   const { t } = useTranslation();
-  const color = CHART_COLORS[colorIdx % CHART_COLORS.length];
+  const color = getPortfolioColor(colorIdx);
   const scatterPoints =
     reg.points.length > DOWNSAMPLE_THRESHOLD
       ? downsample(reg.points, DOWNSAMPLE_TARGET)

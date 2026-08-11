@@ -1,7 +1,15 @@
-import { useState, useRef, useEffect } from 'react';
+﻿import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { ChevronDown } from 'lucide-react';
 import type { PortfolioResult, Statistics } from '@backtest/shared';
 import ChartCard from './ChartCard.js';
+import {
+  Button,
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuCheckboxItem,
+} from './ui/uiComponents.js';
 import { StatisticsTableHeader, MetricsRows } from './statistics-table/index.js';
 import type { StatRow } from './statistics-table/types.js';
 interface CustomMetricsTableProps {
@@ -49,53 +57,6 @@ const DEFAULT_KEYS: (keyof Statistics)[] = [
   'swr10y',
   'pwr30y',
 ];
-function MetricDropdownItems({
-  selectedKeys,
-  onToggle,
-}: {
-  selectedKeys: Set<keyof Statistics>;
-  onToggle: (key: keyof Statistics) => void;
-}) {
-  const { t } = useTranslation();
-  return (
-    <>
-      {ALL_METRICS.map((m) => {
-        const checked = selectedKeys.has(m.key);
-        return (
-          <label
-            key={m.key}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '6px 12px',
-              cursor: 'pointer',
-              fontSize: '13px',
-              color: 'var(--text-body)',
-              backgroundColor: checked ? 'var(--bg-subtle)' : 'transparent',
-            }}
-            onMouseEnter={(e) => {
-              (e.currentTarget as HTMLElement).style.backgroundColor = 'var(--bg-subtle)';
-            }}
-            onMouseLeave={(e) => {
-              (e.currentTarget as HTMLElement).style.backgroundColor = checked
-                ? 'var(--bg-subtle)'
-                : 'transparent';
-            }}
-          >
-            <input
-              type="checkbox"
-              checked={checked}
-              onChange={() => onToggle(m.key)}
-              style={{ accentColor: 'hsl(var(--brand))' }}
-            />
-            {t(m.label)}
-          </label>
-        );
-      })}
-    </>
-  );
-}
 function MetricSelector({
   selectedKeys,
   onToggle,
@@ -104,56 +65,29 @@ function MetricSelector({
   onToggle: (key: keyof Statistics) => void;
 }) {
   const { t } = useTranslation();
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
   return (
-    <div ref={ref} style={{ position: 'relative' }}>
-      <button
-        onClick={() => setOpen(!open)}
-        style={{
-          padding: '4px 12px',
-          fontSize: '12px',
-          backgroundColor: 'var(--bg-subtle)',
-          color: 'var(--text-body)',
-          border: '1px solid var(--border-soft)',
-          borderRadius: 'var(--radius-control)',
-          cursor: 'pointer',
-        }}
-      >
-        {t('Select Metrics ({{selected}}/{{total}})', {
-          selected: selectedKeys.size,
-          total: ALL_METRICS.length,
-        })}
-      </button>
-      {open && (
-        <div
-          style={{
-            position: 'absolute',
-            right: 0,
-            top: '100%',
-            marginTop: '4px',
-            backgroundColor: 'var(--bg-elevated)',
-            border: '1px solid var(--border-soft)',
-            borderRadius: 'var(--radius-control)',
-            boxShadow: 'var(--shadow-md)',
-            zIndex: 50,
-            maxHeight: '320px',
-            overflowY: 'auto',
-            minWidth: '200px',
-            padding: '4px 0',
-          }}
-        >
-          <MetricDropdownItems selectedKeys={selectedKeys} onToggle={onToggle} />
-        </div>
-      )}
-    </div>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="secondary" size="sm">
+          {t('Select Metrics ({{selected}}/{{total}})', {
+            selected: selectedKeys.size,
+            total: ALL_METRICS.length,
+          })}
+          <ChevronDown className="size-3.5" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="max-h-[320px] overflow-y-auto">
+        {ALL_METRICS.map((m) => (
+          <DropdownMenuCheckboxItem
+            key={m.key}
+            checked={selectedKeys.has(m.key)}
+            onCheckedChange={() => onToggle(m.key)}
+          >
+            {t(m.label)}
+          </DropdownMenuCheckboxItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 export default function CustomMetricsTable({ portfolios }: CustomMetricsTableProps) {

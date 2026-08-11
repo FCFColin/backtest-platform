@@ -1,4 +1,4 @@
-import { CHART_COLORS } from '@backtest/shared';
+import { getPortfolioColor } from '@/lib/chart-theme.js';
 import { apiPostJSON, apiGetJSON } from '../../utils/apiClient.js';
 import i18n from '../../i18n/index.js';
 interface FFDataPoint {
@@ -51,10 +51,10 @@ export const RF_SOURCE_OPTIONS = [
   { value: 'us-1y', label: 'factorRegression.rfSources.us1y' },
 ];
 export const FACTOR_COLORS = {
-  alpha: CHART_COLORS[0],
-  beta: CHART_COLORS[1],
-  smb: CHART_COLORS[2],
-  hml: CHART_COLORS[3],
+  alpha: getPortfolioColor(0),
+  beta: getPortfolioColor(1),
+  smb: getPortfolioColor(2),
+  hml: getPortfolioColor(3),
 } as const;
 let ffDataCache: FFDataPoint[] | null = null;
 async function loadFamaFrenchData(): Promise<FFDataPoint[]> {

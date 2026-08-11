@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AlertTriangle, TrendingDown, TrendingUp } from 'lucide-react';
-import { CHART_COLORS } from '@backtest/shared';
+import { getPortfolioColor } from '@/lib/chart-theme.js';
 import { Card } from '@/components/ui/uiComponents';
 import { SimpleTable, type SimpleTableColumn } from '@/components/tables.js';
 import type { CompareResult, LumpSumVsDCAState } from '../../hooks/useLumpSumVsDCAState.js';
@@ -26,7 +26,7 @@ function GrowthCurveChart({ results }: { results: CompareResult[] }) {
               key={r.label}
               points={points}
               fill="none"
-              stroke={CHART_COLORS[idx % CHART_COLORS.length]}
+              stroke={getPortfolioColor(idx)}
               strokeWidth={2}
             />
           );
@@ -37,7 +37,7 @@ function GrowthCurveChart({ results }: { results: CompareResult[] }) {
           <div key={r.label} className="flex items-center gap-1 text-xs">
             <span
               className="inline-block w-3 h-1 rounded"
-              style={{ backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] }}
+              style={{ backgroundColor: getPortfolioColor(idx) }}
             />
             <span className="text-fg-tertiary">{r.label}</span>
           </div>
@@ -83,7 +83,7 @@ function StatsTable({ results, fmtPct, fmtNum, fmtMoney }: FmtFns & { results: C
         <>
           <span
             className="mr-1.5 inline-block size-2.5 rounded-full align-middle"
-            style={{ backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] }}
+            style={{ backgroundColor: getPortfolioColor(idx) }}
           />
           {r.label}
         </>
@@ -138,9 +138,9 @@ function ConclusionText({
       {lsWins ? (
         <>
           {t('In the selected time range, ')}
-          <strong style={{ color: CHART_COLORS[0] }}>{t('Lump Sum')}</strong>
+          <strong style={{ color: getPortfolioColor(0) }}>{t('Lump Sum')}</strong>
           {t(
-            " has a higher final value ({{lsValue}} vs {{dcaValue}}), exceeding by {{pct}}%. However, Lump Sum's max drawdown ({{lsMdd}}) is typically larger than DCA's ({{dcaMdd}}), bearing greater psychological pressure in falling markets.",
+            "has a higher final value ({{lsValue}} vs {{dcaValue}}), exceeding by {{pct}}%. However, Lump Sum's max drawdown ({{lsMdd}}) is typically larger than DCA's ({{dcaMdd}}), bearing greater psychological pressure in falling markets.",
             {
               lsValue: fmtMoney(ls.finalValue),
               dcaValue: fmtMoney(dca.finalValue),
@@ -153,9 +153,9 @@ function ConclusionText({
       ) : (
         <>
           {t('In the selected time range, ')}
-          <strong style={{ color: CHART_COLORS[1] }}>{t('DCA')}</strong>
+          <strong style={{ color: getPortfolioColor(1) }}>{t('DCA')}</strong>
           {t(
-            ' has a higher final value ({{dcaValue}} vs {{lsValue}}), exceeding by {{pct}}%. DCA reduces average cost through batch purchases, achieving better returns in falling markets.',
+            'has a higher final value ({{dcaValue}} vs {{lsValue}}), exceeding by {{pct}}%. DCA reduces average cost through batch purchases, achieving better returns in falling markets.',
             {
               dcaValue: fmtMoney(dca.finalValue),
               lsValue: fmtMoney(ls.finalValue),
@@ -192,7 +192,7 @@ function ConclusionAnalysis({
         <ConclStatCard
           title={t('Winning Strategy')}
           value={lsWins ? t('Lump Sum') : t('DCA')}
-          color={lsWins ? CHART_COLORS[0] : CHART_COLORS[1]}
+          color={lsWins ? getPortfolioColor(0) : getPortfolioColor(1)}
         />
         <ConclStatCard
           title={t('Final Value Difference')}

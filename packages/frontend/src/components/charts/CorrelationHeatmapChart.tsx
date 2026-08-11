@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+﻿import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Spinner } from '@/components/ui/uiComponents';
 import { TableEmpty } from '@/components/stateDisplay.js';
@@ -6,7 +6,8 @@ import { TimeSeriesLineChart } from './TimeSeriesLineChart.js';
 import { CorrelationMatrixTable } from './tables.js';
 import { SimpleTable, type SimpleTableColumn } from '../tables.js';
 import { type RollingCorrelationPoint, type BetaRow } from './chartUtils.js';
-import { CHART_COLORS, type PortfolioResult } from '@backtest/shared';
+import { type PortfolioResult } from '@backtest/shared';
+import { getPortfolioColor } from '@/lib/chart-theme.js';
 import ChartCard from '../ChartCard.js';
 import { useChartCalcWorker, type WorkerTask } from '../../hooks/miscHooks.js';
 interface CorrelationWithBetaProps {
@@ -22,7 +23,7 @@ const selectStyle: React.CSSProperties = {
   border: '1px solid var(--border-soft)',
   borderRadius: 4,
   color: 'var(--text-body)',
-  background: 'var(--bg-elevated)',
+  background: 'var(--bg-surface)',
 };
 const ROLLING_WINDOWS = [20, 60, 120, 252];
 
@@ -37,7 +38,7 @@ function BetaTable({ betaData, baseName }: { betaData: BetaRow[]; baseName: stri
         <>
           <span
             className="inline-block w-2.5 h-2.5 rounded-full mr-1.5 align-middle"
-            style={{ backgroundColor: CHART_COLORS[(idx + 1) % CHART_COLORS.length] }}
+            style={{ backgroundColor: getPortfolioColor(idx + 1) }}
           />
           {row.name}
         </>

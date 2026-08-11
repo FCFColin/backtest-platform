@@ -15,12 +15,6 @@ import { ResultsContent } from './BacktestResults.js';
 import { BacktestHero } from './BacktestHero.js';
 export interface BacktestPageState {
   t: TFunction;
-  seoProps: {
-    desc: string;
-    features: { title: string; desc: string }[];
-    related: { title: string; href: string }[];
-    relatedLabel: string;
-  };
   runBacktest: () => void;
   parameters: BacktestParameters;
   portfolios: Portfolio[];
@@ -161,7 +155,7 @@ function BacktestToolbar(props: BacktestToolbarProps) {
         />
         <Button variant="secondary" onClick={() => void props.handleOpenLoadList()}>
           <FolderOpen />
-          {t('LOAD SAVED BACKTEST')}
+          {t('Load Saved Backtest')}
           <ChevronDown className="size-3.5" />
         </Button>
       </div>
@@ -220,7 +214,6 @@ const config: ComputeToolConfig<BacktestState> = {
   titleKey: 'nav.portfolioBacktest',
   hidePageTitle: true,
   paramsTitleKey: 'params.basicParams',
-  seoSubtitleKey: 'nav.portfolioBacktest',
   seoDescKey: 'backtest.seoDesc',
   seoFeatures: [
     { titleKey: 'backtest.seoModelable', descKey: 'backtest.seoModelableDesc' },

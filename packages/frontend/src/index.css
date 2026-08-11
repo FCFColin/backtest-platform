@@ -2,6 +2,12 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer components {
+  .page-container {
+    @apply max-w-[1440px] mx-auto px-3 sm:px-6;
+  }
+}
+
 @layer base {
   body {
     @apply bg-app text-fg font-sans antialiased;

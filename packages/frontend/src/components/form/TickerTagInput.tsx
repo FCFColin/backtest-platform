@@ -70,6 +70,16 @@ export function TickerTagInput({
       removeTicker(tickers.length - 1);
     }
   };
+  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    const next = [...tickers];
+    for (const raw of e.clipboardData.getData('text').split(/[\s,;]+/)) {
+      const code = raw.trim().toUpperCase();
+      if (code && !next.includes(code)) next.push(code);
+    }
+    onChange(next);
+    setInput('');
+  };
   return (
     <div
       className={cn(
@@ -86,6 +96,7 @@ export function TickerTagInput({
         value={input}
         onChange={(e) => setInput(e.target.value)}
         onKeyDown={handleKeyDown}
+        onPaste={handlePaste}
         onBlur={() => {
           if (addTicker(input)) setInput('');
         }}

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Settings2, Info } from 'lucide-react';
 import { Button } from '@/components/ui/uiComponents.js';
@@ -15,7 +15,8 @@ import {
   TooltipTrigger,
   TooltipContent,
 } from '@/components/ui/uiComponents.js';
-import { CHART_COLORS, type PortfolioResult, type Statistics } from '@backtest/shared';
+import { type PortfolioResult, type Statistics } from '@backtest/shared';
+import { getPortfolioColor } from '@/lib/chart-theme.js';
 import { formatCurrency, fmtPct, formatDuration, fmtNum } from '@/utils/format.js';
 import { getColorClass } from '@/components/charts/chartUtils.js';
 import { STAT_KEY_TO_TESTID } from './types.js';
@@ -236,7 +237,7 @@ export function WithdrawalRatesCard({ portfolios }: WithdrawalRatesCardProps) {
       </CardHeader>
       <CardContent className="space-y-4">
         {portfolios.map((p, idx) => {
-          const color = CHART_COLORS[idx % CHART_COLORS.length];
+          const color = getPortfolioColor(idx);
           const data = RATE_ROWS.map((row) => ({ ...row, portfolio: p }));
           return (
             <div key={p.name} className="space-y-2">

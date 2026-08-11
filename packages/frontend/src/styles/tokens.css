@@ -1,4 +1,4 @@
-/* P3-3: HSL 通道变量供 Tailwind，Hex 变量供组件 CSS；暗色经 [data-theme="dark"] 切换 */
+﻿/* P3-3: HSL 通道变量，组件经 hsl(var(--x)) 消费；暗色经 [data-theme="dark"] 切换 */
 :root {
   color-scheme: light;
   --app: 213 33% 96%;
@@ -26,7 +26,7 @@
   --pos: 142 71% 36%;
   --neg: 0 72% 51%;
 
-  --bg-elevated: hsl(var(--surface));
+  --bg-surface: hsl(var(--surface));
   --bg-subtle: hsl(var(--hover));
   --text-strong: hsl(var(--fg));
   --text-body: hsl(var(--fg-secondary));
@@ -66,12 +66,10 @@
   --shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.08), 0 2px 4px -2px rgba(15, 23, 42, 0.06);
   --shadow-card: 0 1px 3px rgba(15, 23, 42, 0.08), 0 1px 2px rgba(15, 23, 42, 0.04);
   --tooltip-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.3);
-  --radius-card: 12px;
   --radius-control: 8px;
 }
 
-:root[data-theme='dark'],
-.dark {
+:root[data-theme='dark'] {
   color-scheme: dark;
   --app: 224 15% 5%;
   --surface: 222 14% 8%;
@@ -90,8 +88,8 @@
   --success: 160 84% 39%;
   --danger: 0 84% 60%;
   --warning: 38 92% 50%;
-  --pos: 142 71% 45%;
-  --neg: 0 91% 71%;
+  --pos: 160 84% 39%;
+  --neg: 0 84% 60%;
 
   --surface-sunken: 224 20% 3%;
 
@@ -129,4 +127,5 @@
 
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.25);
   --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.25), 0 1px 3px rgba(0, 0, 0, 0.15);
+  --tooltip-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.7), 0 4px 6px -2px rgba(0, 0, 0, 0.5);
 }

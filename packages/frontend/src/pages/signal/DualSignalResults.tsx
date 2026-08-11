@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { fmtPct, fmtRatio, downsample } from '@/utils/format';
-import { CHART_COLORS } from '@backtest/shared';
+import { getPortfolioColor } from '@/lib/chart-theme.js';
 import type { SignalAnalysisResult } from '@backtest/shared/types/signal';
 import { CollapsibleSection } from '@/components/cards';
 import { Button } from '@/components/ui/uiComponents.js';
@@ -67,7 +67,7 @@ function StatsComparisonTable({ statRows }: { statRows: StatRow[] }) {
         <>
           <span
             className="mr-1.5 inline-block size-2.5 rounded-full align-middle"
-            style={{ backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] }}
+            style={{ backgroundColor: getPortfolioColor(idx) }}
           />
           {r.name}
         </>

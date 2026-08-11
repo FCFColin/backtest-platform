@@ -20,13 +20,14 @@ beforeEach(() => {
 });
 
 describe('ProtectedRoute', () => {
-  it('未初始化时返回 null', () => {
-    const { container } = render(
+  it('未初始化时显示加载状态', () => {
+    render(
       <ProtectedRoute>
         <div>受保护内容</div>
       </ProtectedRoute>,
     );
-    expect(container.innerHTML).toBe('');
+    expect(screen.getByRole('status')).toBeTruthy();
+    expect(screen.queryByText('受保护内容')).toBeNull();
   });
 
   it('未登录时重定向到 /login', () => {

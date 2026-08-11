@@ -1,4 +1,4 @@
-import type { ReactElement } from 'react';
+﻿import type { ReactElement } from 'react';
 import {
   LineChart,
   Line,
@@ -8,12 +8,12 @@ import {
   ReferenceLine,
   Brush,
 } from 'recharts';
-import { CHART_COLORS } from '@backtest/shared';
 import {
   CHART_MARGIN,
   CHART_GRID_PROPS,
   LEGEND_WRAPPER_STYLE,
   DATE_TICK_FORMATTER,
+  getPortfolioColor,
 } from '@/lib/chart-theme.js';
 import type { TooltipValueFormatter } from '@/lib/chart-theme.js';
 import { ChartXAxis, ChartYAxis, ChartTooltip } from './sharedChartContent.js';
@@ -98,11 +98,11 @@ function renderLines(
       type="monotone"
       dataKey={s.dataKey}
       name={s.legendName}
-      stroke={s.color ?? CHART_COLORS[(idx + colorOffset) % CHART_COLORS.length]}
+      stroke={s.color ?? getPortfolioColor(idx + colorOffset)}
       strokeWidth={s.strokeWidth}
       strokeDasharray={s.strokeDasharray}
       dot={s.showDots ? { r: s.dotR } : false}
-      activeDot={{ r: s.activeDotR + 1, stroke: 'var(--bg-elevated)', strokeWidth: 2 }}
+      activeDot={{ r: s.activeDotR + 1, stroke: 'var(--bg-surface)', strokeWidth: 2 }}
       connectNulls={s.connectNulls}
       strokeOpacity={s.strokeOpacity}
       isAnimationActive={isAnimationActive}
@@ -152,8 +152,8 @@ export function TimeSeriesLineChart({
             <Brush
               dataKey={xDataKey}
               height={20}
-              stroke="var(--brand)"
-              fill="var(--bg-elevated)"
+              stroke="hsl(var(--brand))"
+              fill="var(--bg-surface)"
               travellerWidth={8}
               tickFormatter={DATE_TICK_FORMATTER}
             />

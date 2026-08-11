@@ -10,8 +10,14 @@ import {
   YAxis,
 } from 'recharts';
 import { Card } from '@/components/ui/uiComponents';
-import { CHART_COLORS, type MonteCarloResult } from '@backtest/shared';
-import { AXIS_TICK_STYLE, CHART_GRID_PROPS, CHART_TOOLTIP_STYLE } from '@/lib/chart-theme.js';
+import type { MonteCarloResult } from '@backtest/shared';
+import {
+  AXIS_TICK_STYLE,
+  CHART_GRID_PROPS,
+  CHART_TOOLTIP_STYLE,
+  LEGEND_WRAPPER_STYLE,
+  getPortfolioColor,
+} from '@/lib/chart-theme.js';
 import { cn } from '@/lib/utils';
 import { fmtDollar } from '@/utils/format';
 import { useChartAnimation } from '@/hooks/miscHooks';
@@ -77,14 +83,14 @@ function DistHistogramChart({
       referenceLines={[
         {
           label: medianLabel,
-          color: CHART_COLORS[2],
+          color: getPortfolioColor(2),
           value: t('Median', {
             value: medianVal !== undefined ? METRIC_FORMAT[distMetric](medianVal) : '',
           }),
         },
         {
           label: meanLabel,
-          color: CHART_COLORS[1],
+          color: getPortfolioColor(1),
           value: t('charts.annualReturn.mean', {
             value: meanVal !== undefined ? METRIC_FORMAT[distMetric](meanVal) : '',
           }),
@@ -125,11 +131,11 @@ export function MonteCarloDistributionsTab({
   );
 }
 const SCENARIO_LINES = [
-  { key: 'best', color: CHART_COLORS[2], width: 2, name: 'Best' },
-  { key: 'p75', color: CHART_COLORS[0], width: 1.5, name: 'P75' },
-  { key: 'median', color: CHART_COLORS[4], width: 2.5, name: 'Median' },
-  { key: 'p25', color: CHART_COLORS[1], width: 1.5, name: 'P25' },
-  { key: 'worst', color: CHART_COLORS[3], width: 2, name: 'Worst' },
+  { key: 'best', color: getPortfolioColor(2), width: 2, name: 'Best' },
+  { key: 'p75', color: getPortfolioColor(0), width: 1.5, name: 'P75' },
+  { key: 'median', color: getPortfolioColor(4), width: 2.5, name: 'Median' },
+  { key: 'p25', color: getPortfolioColor(1), width: 1.5, name: 'P25' },
+  { key: 'worst', color: getPortfolioColor(3), width: 2, name: 'Worst' },
 ];
 function ScenarioLines({ isAnimationActive = true }: { isAnimationActive?: boolean }) {
   return (
@@ -164,7 +170,7 @@ export function MonteCarloScenariosTab({
     <Card className="p-5">
       <ResponsiveContainer width="100%" height={450}>
         <LineChart data={data} margin={{ top: 10, right: 30, left: 10, bottom: 20 }}>
-          <CartesianGrid {...CHART_GRID_PROPS} stroke="hsl(var(--border-subtle))" />
+          <CartesianGrid {...CHART_GRID_PROPS} />
           <XAxis
             dataKey="month"
             tick={AXIS_TICK_STYLE}
@@ -178,7 +184,7 @@ export function MonteCarloScenariosTab({
             contentStyle={CHART_TOOLTIP_STYLE}
             {...anim}
           />
-          <Legend wrapperStyle={{ fontSize: 12, color: 'hsl(var(--fg-tertiary))' }} />
+          <Legend wrapperStyle={LEGEND_WRAPPER_STYLE} />
           <ScenarioLines isAnimationActive={anim.isAnimationActive} />
         </LineChart>
       </ResponsiveContainer>

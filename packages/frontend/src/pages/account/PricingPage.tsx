@@ -12,8 +12,22 @@ import {
   type PlanEntry,
   type ComparisonRowEntry,
 } from '@/lib/pricing';
-import { Card } from '@/components/ui/uiComponents';
+import { Button, Card } from '@/components/ui/uiComponents';
+import { cn } from '@/lib/utils';
+
 const PLAN_ICONS: Record<string, ComponentType<{ className?: string }>> = { Star, Zap, Crown };
+const HEAD_CLS = [
+  'text-left font-semibold text-fg-tertiary',
+  'text-center font-semibold text-fg-tertiary',
+  'text-center font-bold text-brand',
+  'text-center font-semibold text-fg-tertiary',
+];
+const CELL_CLS = [
+  'text-left font-medium text-fg-secondary',
+  'text-center text-fg-tertiary',
+  'text-center font-semibold text-brand',
+  'text-center text-fg-tertiary',
+];
 interface Plan {
   id: string;
   name: string;
@@ -42,40 +56,21 @@ function usePlans(): Plan[] {
     };
   });
 }
-const gridStyle: React.CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-  gap: 16,
-  marginBottom: 24,
-  alignItems: 'stretch',
-};
-const thStyle = (align: string, color: string, weight: number): React.CSSProperties => ({
-  textAlign: align as React.CSSProperties['textAlign'],
-  padding: '10px 12px',
-  color,
-  fontWeight: weight,
-});
 export default function PricingPage() {
   const { t } = useTranslation();
   const plans = usePlans();
   return (
-    <div className="bt-page">
-      <div className="bt-page-header">
-        <h1 className="bt-page-title">{t('Pricing Plans')}</h1>
+    <div className="page-container pt-0 pb-3 sm:pb-4">
+      <div className="flex justify-between items-start px-1 mb-3">
+        <h1 className="text-[clamp(28px,3.5vw,40px)] font-bold tracking-[-0.02em] text-fg leading-[1.15] m-0">
+          {t('Pricing Plans')}
+        </h1>
       </div>
-      <Card style={{ padding: 24 }}>
-        <div
-          style={{
-            fontSize: 14,
-            color: 'var(--text-body)',
-            lineHeight: 1.8,
-            marginBottom: 24,
-            textAlign: 'center',
-          }}
-        >
+      <Card className="p-6">
+        <p className="mb-6 text-center text-body leading-[1.8] text-fg-secondary">
           {t('Choose the plan that suits you. All plans include core backtest features.')}
-        </div>
-        <div style={gridStyle}>
+        </p>
+        <div className="mb-6 grid items-stretch gap-4 grid-cols-[repeat(auto-fit,minmax(260px,1fr))]">
           {plans.map((plan) => (
             <PlanCard key={plan.name} plan={plan} />
           ))}
@@ -89,32 +84,17 @@ export default function PricingPage() {
 function ComparisonTable() {
   const { t } = useTranslation();
   const rows = COMPARISON_ROWS as ComparisonRowEntry[];
-  const ths: { text: string; align: string; color: string; weight: number }[] = [
-    {
-      text: t('Feature'),
-      align: 'left',
-      color: 'var(--text-muted)',
-      weight: 600,
-    },
-    ...PLANS.map((p, i) => ({
-      text: p.name,
-      align: 'center' as const,
-      color: i === 1 ? 'var(--brand)' : 'var(--text-muted)',
-      weight: i === 1 ? 700 : 600,
-    })),
-  ];
+  const ths = [t('Feature'), ...PLANS.map((p) => p.name)];
   return (
-    <div style={{ marginTop: 16 }}>
-      <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-strong)', marginBottom: 12 }}>
-        {t('Plan Comparison')}
-      </div>
-      <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+    <div className="mt-4">
+      <div className="mb-3 text-h2">{t('Plan Comparison')}</div>
+      <div className="overflow-x-auto">
+        <table className="w-full border-collapse text-label">
           <thead>
-            <tr style={{ borderBottom: '2px solid var(--border-soft)' }}>
-              {ths.map((th, i) => (
-                <th key={i} style={thStyle(th.align, th.color, th.weight)}>
-                  {th.text}
+            <tr className="border-b-2 border-border-subtle">
+              {ths.map((text, i) => (
+                <th key={i} className={cn('px-3 py-2.5', HEAD_CLS[i])}>
+                  {text}
                 </th>
               ))}
             </tr>
@@ -122,31 +102,16 @@ function ComparisonTable() {
           <tbody>
             {rows.map((r) => {
               const cells = [
-                { v: t(r.featureKey), color: 'var(--text-body)', weight: 500, align: 'left' },
-                {
-                  v: resolveCellValue(r.free, t),
-                  color: 'var(--text-muted)',
-                  weight: 400,
-                  align: 'center',
-                },
-                {
-                  v: resolveCellValue(r.pro, t),
-                  color: 'var(--brand)',
-                  weight: 600,
-                  align: 'center',
-                },
-                {
-                  v: resolveCellValue(r.proPlus, t),
-                  color: 'var(--text-body)',
-                  weight: 400,
-                  align: 'center',
-                },
+                t(r.featureKey),
+                resolveCellValue(r.free, t),
+                resolveCellValue(r.pro, t),
+                resolveCellValue(r.proPlus, t),
               ];
               return (
-                <tr key={r.featureKey} style={{ borderBottom: '1px solid var(--border-soft)' }}>
-                  {cells.map((c, i) => (
-                    <td key={i} style={thStyle(c.align, c.color, c.weight)}>
-                      {c.v}
+                <tr key={r.featureKey} className="border-b border-border-subtle">
+                  {cells.map((v, i) => (
+                    <td key={i} className={cn('px-3 py-2.5', CELL_CLS[i])}>
+                      {v}
                     </td>
                   ))}
                 </tr>
@@ -161,106 +126,44 @@ function ComparisonTable() {
 function PricingNotice() {
   const { t } = useTranslation();
   return (
-    <div
-      style={{
-        marginTop: 24,
-        padding: 16,
-        background: 'var(--bg-subtle)',
-        borderRadius: 'var(--radius-control)',
-        fontSize: 12,
-        color: 'var(--text-muted)',
-        lineHeight: 1.7,
-      }}
-    >
-      <strong style={{ color: 'var(--text-body)' }}>{t('Notice:')}</strong>
+    <div className="mt-6 rounded-lg bg-hover p-4 text-caption leading-[1.7] text-fg-tertiary">
+      <strong className="text-fg-secondary">{t('Notice:')}</strong>
       {t('Prices are for display only; the self-hosted version requires no payment.')}
     </div>
   );
 }
 function PlanCard({ plan }: { plan: Plan }) {
-  const isRecommended = plan.recommended;
-  const isCurrentPlan = plan.id === 'free';
-  const isAuthenticated = useAuthStore((s) => s.user !== null);
-  const brandColor = 'hsl(var(--brand))';
-  const ctaStyle: React.CSSProperties = {
-    display: 'block',
-    textAlign: 'center',
-    textDecoration: 'none',
-    marginTop: 24,
-    padding: '10px 16px',
-    background: isRecommended ? brandColor : 'transparent',
-    color: isRecommended ? 'hsl(var(--brand-fg))' : brandColor,
-    border: isRecommended ? 'none' : '1px solid var(--brand)',
-    borderRadius: 6,
-    fontSize: 13,
-    fontWeight: 600,
-    cursor: isCurrentPlan ? 'not-allowed' : 'pointer',
-    opacity: isCurrentPlan ? 0.6 : 1,
-    fontFamily: 'inherit',
-    transition: 'background 0.15s',
-  };
+  const rec = plan.recommended;
   return (
     <div
-      style={{
-        padding: 24,
-        background: isRecommended ? 'hsl(var(--brand) / 10%)' : 'var(--bg-subtle)',
-        borderRadius: 'var(--radius-control)',
-        border: isRecommended ? '2px solid var(--brand)' : '1px solid var(--border-soft)',
-        position: 'relative',
-        display: 'flex',
-        flexDirection: 'column',
-      }}
+      className={cn(
+        'relative flex flex-col p-6',
+        rec ? 'border-2 border-brand bg-brand/10' : 'border border-border-subtle bg-hover',
+      )}
     >
-      {isRecommended && <RecommendedBadge />}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          marginBottom: 8,
-          color: isRecommended ? brandColor : 'var(--text-muted)',
-        }}
-      >
+      {rec && <RecommendedBadge />}
+      <div className={cn('mb-2 flex items-center gap-2', rec ? 'text-brand' : 'text-fg-tertiary')}>
         {plan.icon}
-        <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-strong)' }}>
-          {plan.name}
-        </span>
+        <span className="text-h2">{plan.name}</span>
       </div>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginBottom: 8 }}>
-        <span
-          style={{
-            fontSize: 32,
-            fontWeight: 800,
-            color: isRecommended ? brandColor : 'var(--text-strong)',
-          }}
-        >
-          {plan.price}
-        </span>
-        {plan.period && (
-          <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>{plan.period}</span>
-        )}
+      <div className="mb-2 flex items-baseline gap-1">
+        <span className={cn('text-display', rec ? 'text-brand' : 'text-fg')}>{plan.price}</span>
+        {plan.period && <span className="text-label text-fg-tertiary">{plan.period}</span>}
       </div>
-      <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 20, minHeight: 32 }}>
-        {plan.desc}
-      </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, flex: 1 }}>
+      <div className="mb-5 min-h-8 text-caption text-fg-tertiary">{plan.desc}</div>
+      <div className="flex flex-1 flex-col gap-2.5">
         {plan.features.map((f, i) => {
           const Icon = f.included ? Check : X;
           return (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
+            <div key={i} className="flex items-center gap-2 text-label">
               <Icon
-                className="w-4 h-4"
-                style={{
-                  color: f.included ? 'hsl(var(--success))' : 'var(--text-muted)',
-                  opacity: f.included ? 1 : 0.5,
-                  flexShrink: 0,
-                }}
+                className={cn(
+                  'h-4 w-4 flex-shrink-0',
+                  f.included ? 'text-success' : 'text-fg-tertiary opacity-50',
+                )}
               />
               <span
-                style={{
-                  color: f.included ? 'var(--text-body)' : 'var(--text-muted)',
-                  opacity: f.included ? 1 : 0.7,
-                }}
+                className={cn(f.included ? 'text-fg-secondary' : 'text-fg-tertiary opacity-70')}
               >
                 {f.text}
               </span>
@@ -268,36 +171,39 @@ function PlanCard({ plan }: { plan: Plan }) {
           );
         })}
       </div>
-      {isCurrentPlan ? (
-        <button style={ctaStyle} disabled>
-          {plan.cta}
-        </button>
+      <PlanCta plan={plan} />
+    </div>
+  );
+}
+function PlanCta({ plan }: { plan: Plan }) {
+  const isCurrent = plan.id === 'free';
+  const isAuth = useAuthStore((s) => s.user !== null);
+  const cls = cn(
+    'mt-6 h-10 text-label font-semibold',
+    !plan.recommended &&
+      'border-brand bg-transparent text-brand hover:border-brand hover:bg-brand/10 hover:text-brand',
+  );
+  return (
+    <Button
+      asChild={!isCurrent}
+      variant={plan.recommended ? 'primary' : 'secondary'}
+      disabled={isCurrent}
+      className={cls}
+    >
+      {isCurrent ? (
+        plan.cta
       ) : (
-        <Link to={isAuthenticated ? '/billing' : '/signup'} style={ctaStyle}>
+        <Link to={isAuth ? '/billing' : '/signup'} className="no-underline hover:no-underline">
           {plan.cta}
         </Link>
       )}
-    </div>
+    </Button>
   );
 }
 function RecommendedBadge() {
   const { t } = useTranslation();
   return (
-    <div
-      style={{
-        position: 'absolute',
-        top: -12,
-        left: '50%',
-        transform: 'translateX(-50%)',
-        padding: '4px 14px',
-        background: 'hsl(var(--brand))',
-        color: 'hsl(var(--brand-fg))',
-        fontSize: 11,
-        fontWeight: 700,
-        borderRadius: 12,
-        whiteSpace: 'nowrap',
-      }}
-    >
+    <div className="absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-brand px-3.5 py-1 text-label-tiny font-bold text-brand-fg">
       {t('Recommended')}
     </div>
   );

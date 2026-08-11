@@ -1,6 +1,7 @@
 import { Navigate, useLocation } from 'react-router';
 import { useShallow } from 'zustand/react/shallow';
 import { useAuthStore } from '@/store/authStore';
+import { LoadingState } from '@/components/stateDisplay';
 interface ProtectedRouteProps {
   children: React.ReactNode;
   requireAdmin?: boolean;
@@ -10,7 +11,7 @@ export default function ProtectedRoute({ children, requireAdmin }: ProtectedRout
     useShallow((s) => ({ user: s.user, initialized: s.initialized })),
   );
   const location = useLocation();
-  if (!initialized) return null;
+  if (!initialized) return <LoadingState />;
   if (!user) {
     return <Navigate to="/login" state={{ from: location.pathname }} replace />;
   }

@@ -1,7 +1,7 @@
-import { useEffect, lazy, Suspense, type ReactNode } from 'react';
+﻿import { useEffect, useRef, lazy, Suspense, type ReactNode } from 'react';
 import { useTranslation, Trans } from 'react-i18next';
 import { Link } from 'react-router';
-import { Loader2, MoreHorizontal } from 'lucide-react';
+import { MoreHorizontal } from 'lucide-react';
 import { useBacktestStore } from '@/store/backtestStore';
 import {
   Card,
@@ -19,17 +19,18 @@ import {
 import { ResultsActionBar } from '@/components/results/ResultsActionBar.js';
 import { SummarySidebar } from '@/components/results/SummarySidebar.js';
 import { getPortfolioColor } from '@/lib/chart-theme.js';
-import { downloadFile, downloadJSON, dateSuffixedFilename } from '@/utils/format';
+import { downloadJSON, dateSuffixedFilename, downloadCSV } from '@/utils/format';
 import { SimpleTable, type SimpleTableColumn } from '@/components/tables.js';
 import { TabFallback } from '@/components/shells';
 import ChartCard from '@/components/ChartCard.js';
+import { ResultsShell } from '@/components/resultsShell.js';
+import { ChartEmptyState } from '@/components/charts/sharedChartContent.js';
 import { lazyNamed } from '@/utils/lazyImport';
 import {
   type Portfolio,
   type PortfolioResult,
   type BacktestResult,
   type TimeSeriesPoint,
-  CHART_COLORS,
   REBALANCE_LABELS,
   toStatsRecord,
   createEmptyStatistics,
@@ -239,17 +240,17 @@ const TAB_RENDERERS: Record<string, (c: TabCtx) => ReactNode> = {
   regression: ({ pf }) => <RegressionChart portfolios={pf} />,
 };
 function exportResultsCSV(results: BacktestResult) {
-  if (!results?.portfolios?.length) return;
-  const pf = results.portfolios[0];
+  const pf = results?.portfolios?.[0];
   if (!pf?.growthCurve?.length) return;
-  const headers = ['date', ...results.portfolios.map((p) => p.name)];
-  const dates = pf.growthCurve.map((pt) => new Date(pt.date).toISOString().split('T')[0]);
-  const rows = dates.map((date, i) => [
-    date,
-    ...results.portfolios.map((p) => p.growthCurve[i]?.value?.toFixed(4) ?? ''),
-  ]);
-  const csv = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
-  downloadFile(csv, dateSuffixedFilename('backtest-results', 'csv'), 'text/csv;charset=utf-8;');
+  downloadCSV(
+    pf.growthCurve.map((pt, i) => ({
+      date: pt.date,
+      ...Object.fromEntries(
+        results.portfolios.map((p) => [p.name, p.growthCurve[i]?.value?.toFixed(4) ?? '']),
+      ),
+    })),
+    'backtest-results',
+  );
 }
 function computeTimeRange(results: BacktestResult) {
   const pf = results.portfolios[0];
@@ -271,6 +272,13 @@ export function ResultsContent() {
   const portfolios = useBacktestStore((s) => s.portfolios);
   const baseCurrency = useBacktestStore((s) => s.parameters.baseCurrency);
   const enrichSeries = useBacktestStore((s) => s.enrichSeries);
+  const hasResults = !!results && results.portfolios.length > 0;
+  const prevHasResults = useRef(hasResults);
+  useEffect(() => {
+    if (hasResults && !prevHasResults.current)
+      document.getElementById('results')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    prevHasResults.current = hasResults;
+  }, [hasResults]);
   useEffect(() => {
     if (!results) return;
     if (activeTab === 'rolling') void enrichSeries(['rollingReturns']);
@@ -278,29 +286,22 @@ export function ResultsContent() {
       void enrichSeries(['allocationHistory']);
     else if (activeTab === 'summary') void enrichSeries(['drawdownEpisodes']);
   }, [activeTab, results, enrichSeries]);
-  if (isLoading && !results)
+  if (!hasResults) {
     return (
-      <Card className="flex items-center justify-center p-10">
-        <Loader2 className="size-6 animate-spin text-fg-tertiary" />
-      </Card>
+      <ResultsShell
+        error={error}
+        isLoading={isLoading}
+        hasResults={false}
+        loadingLabel={t('Backtesting...')}
+        emptyTitle={t(
+          'Configure parameters and portfolios, then click "Run Backtest" to see results',
+        )}
+        onRetry={() => void runBacktest()}
+      >
+        {null}
+      </ResultsShell>
     );
-  if (error && !results)
-    return (
-      <Card className="flex flex-col items-center justify-center gap-4 p-12">
-        <span className="text-body text-danger">{error}</span>
-        <Button variant="primary" onClick={() => void runBacktest()}>
-          {t('Retry')}
-        </Button>
-      </Card>
-    );
-  if (!results || results.portfolios.length === 0)
-    return (
-      <Card className="flex items-center justify-center p-12">
-        <span className="text-body text-fg-tertiary">
-          {t('Configure parameters and portfolios, then click "Run Backtest" to see results')}
-        </span>
-      </Card>
-    );
+  }
   const renderer = TAB_RENDERERS[activeTab];
   return (
     <div className="space-y-4">
@@ -349,7 +350,7 @@ function RebalancingStats({ portfolios }: RebalancingStatsProps) {
   if (!hasData)
     return (
       <ChartCard title={t('Rebalancing')}>
-        <div className="text-body text-fg-tertiary">{t('No data')}</div>
+        <ChartEmptyState message={t('No data')} />
       </ChartCard>
     );
   const columns: SimpleTableColumn<(typeof portfolios)[number]>[] = [
@@ -360,7 +361,7 @@ function RebalancingStats({ portfolios }: RebalancingStatsProps) {
         <span className="inline-flex items-center gap-1.5">
           <span
             className="inline-block size-2.5 rounded-full align-middle"
-            style={{ backgroundColor: CHART_COLORS[i % CHART_COLORS.length] }}
+            style={{ backgroundColor: getPortfolioColor(i) }}
           />
           {p.name}
         </span>

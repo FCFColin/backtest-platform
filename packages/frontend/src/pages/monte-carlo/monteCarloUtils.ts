@@ -1,11 +1,11 @@
 import { useSetterState } from '@/hooks/miscHooks.js';
 import type { TFunction } from 'i18next';
 import {
-  CHART_COLORS,
   type MonteCarloResult,
   type PerPathMetrics,
   type BacktestParameters,
 } from '@backtest/shared';
+import { getPortfolioColor } from '@/lib/chart-theme.js';
 import { apiFetch } from '@/utils/apiClient';
 import i18n from '@/i18n/index.js';
 import { validatePortfolioCore } from '@/utils/validation';
@@ -27,7 +27,7 @@ export type DistMetric =
   'finalValue' | 'cagr' | 'maxDrawdown' | 'volatility' | 'sharpe' | 'sortino';
 export type ResultTab = 'summary' | 'range' | 'success' | 'distributions' | 'scenarios';
 export const RESULT_TABS: { key: ResultTab; label: string }[] = [
-  { key: 'summary', label: 'Summary' },
+  { key: 'summary', label: 'tabs.summary' },
   { key: 'range', label: 'Portfolio Value Range' },
   { key: 'success', label: 'Portfolio Success' },
   { key: 'distributions', label: 'Distributions' },
@@ -360,13 +360,13 @@ const FAN_BANDS: Array<[string, number, string]> = [
 export const fanAreas = (t: TFunction) =>
   FAN_BANDS.map(([dataKey, fillOpacity, nameKey]) => ({
     dataKey,
-    fill: CHART_COLORS[0],
+    fill: getPortfolioColor(0),
     fillOpacity,
     name: t(nameKey),
   }));
 export const fanMedianLine = (t: TFunction) => ({
   dataKey: 'p50',
-  stroke: CHART_COLORS[0],
+  stroke: getPortfolioColor(0),
   strokeWidth: 2.5,
   name: t('Median'),
 });

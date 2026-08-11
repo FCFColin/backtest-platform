@@ -11,8 +11,12 @@ import {
 } from 'recharts';
 import { Card } from '@/components/ui/uiComponents';
 import { TableEmpty } from '@/components/stateDisplay.js';
-import { CHART_COLORS } from '@backtest/shared';
-import { AXIS_TICK_STYLE, CHART_GRID_PROPS, CHART_TOOLTIP_STYLE } from '@/lib/chart-theme.js';
+import {
+  AXIS_TICK_STYLE,
+  CHART_GRID_PROPS,
+  CHART_TOOLTIP_STYLE,
+  getPortfolioColor,
+} from '@/lib/chart-theme.js';
 import { useReducedMotion } from '@/hooks/miscHooks.js';
 
 export function NoDataCard() {
@@ -43,12 +47,8 @@ export function HistogramChart({
   return (
     <ResponsiveContainer width="100%" height={height}>
       <BarChart data={data}>
-        <CartesianGrid {...CHART_GRID_PROPS} stroke="hsl(var(--border-subtle))" />
-        <XAxis
-          dataKey="range"
-          tick={{ fill: 'hsl(var(--fg-tertiary))', fontSize: 10 }}
-          interval={3}
-        />
+        <CartesianGrid {...CHART_GRID_PROPS} />
+        <XAxis dataKey="range" tick={AXIS_TICK_STYLE} interval={3} />
         <YAxis tick={AXIS_TICK_STYLE} />
         <Tooltip
           contentStyle={CHART_TOOLTIP_STYLE}
@@ -57,7 +57,7 @@ export function HistogramChart({
         />
         <Bar
           dataKey="count"
-          fill={CHART_COLORS[0]}
+          fill={getPortfolioColor(0)}
           fillOpacity={0.7}
           name={t('Frequency')}
           radius={[2, 2, 0, 0]}

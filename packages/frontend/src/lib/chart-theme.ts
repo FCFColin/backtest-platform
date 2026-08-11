@@ -26,9 +26,8 @@ export const CHART_LINE_STYLE = {
   isAnimationActive: false,
 } as const;
 export const LEGEND_WRAPPER_STYLE = { fontSize: '12px', color: 'hsl(var(--fg-tertiary))' } as const;
-export const PORTFOLIO_COLORS = CHART_COLORS;
 export function getPortfolioColor(index: number): string {
-  return PORTFOLIO_COLORS[index % PORTFOLIO_COLORS.length];
+  return CHART_COLORS[index % CHART_COLORS.length];
 }
 export const DATE_TICK_FORMATTER = (value: string): string => value.slice(0, 7);
 export const YEAR_ONLY_TICK_FORMATTER = (value: string | number): string =>

@@ -23,14 +23,12 @@ export default function AuthPageLayout({
     ? { padding: 28, marginTop: 40, textAlign: 'center' }
     : { padding: 28, marginTop: 40 };
   return (
-    <div className="bt-page" style={{ maxWidth, margin: '0 auto' }}>
+    <div className="page-container pt-0 pb-3 sm:pb-4" style={{ maxWidth, margin: '0 auto' }}>
       <Card style={cardStyle}>
         {centered ? (
           <>
             {icon}
-            <h1 className={cn('text-[20px] font-bold text-[var(--text-strong)]', icon && 'mb-2')}>
-              {title}
-            </h1>
+            <h1 className={cn('text-[20px] font-bold text-fg', icon && 'mb-2')}>{title}</h1>
           </>
         ) : (
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
@@ -41,9 +39,7 @@ export default function AuthPageLayout({
           </div>
         )}
         {children}
-        {footer && (
-          <div className="mt-4 text-[13px] text-[var(--text-muted)] text-center">{footer}</div>
-        )}
+        {footer && <div className="mt-4 text-label text-fg-tertiary text-center">{footer}</div>}
       </Card>
     </div>
   );
@@ -75,7 +71,7 @@ export function BrandIconBadge({ icon, size = 'sm', style }: BrandIconBadgeProps
   const dims = SIZE_DIMENSIONS[size];
   return (
     <div
-      className="flex items-center justify-center bg-[var(--brand)] text-brand-fg"
+      className="flex items-center justify-center bg-brand text-brand-fg"
       style={{ ...dims, ...style }}
     >
       {icon}

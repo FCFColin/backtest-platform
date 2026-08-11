@@ -1,7 +1,9 @@
 import { Suspense } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CHART_COLORS, type MonteCarloResult } from '@backtest/shared';
+import type { MonteCarloResult } from '@backtest/shared';
 import { lazyNamed } from '@/utils/lazyImport';
+import { getPortfolioColor } from '@/lib/chart-theme.js';
+import { ResultsShell } from '@/components/resultsShell.js';
 import {
   Card,
   Separator,
@@ -75,7 +77,7 @@ export function StatsGrid({
 }
 function PortfolioLabel({ label, colorIdx }: { label: string; colorIdx: number }) {
   return (
-    <div className="mb-3 mt-2 text-h3 font-semibold" style={{ color: CHART_COLORS[colorIdx] }}>
+    <div className="mb-3 mt-2 text-h3 font-semibold" style={{ color: getPortfolioColor(colorIdx) }}>
       {label}
     </div>
   );
@@ -178,6 +180,7 @@ function ResultsDisplay({
 function MonteCarloResultsPanel({ s }: { s: McState }) {
   const {
     error,
+    isLoading,
     results1,
     results2,
     portfolios,
@@ -190,43 +193,21 @@ function MonteCarloResultsPanel({ s }: { s: McState }) {
     setDistMetric,
   } = s;
   const { t } = useTranslation();
-  if (error) {
-    return (
-      <div className="p-6 text-center text-danger">
-        {t('Simulation failed')}: {error}
-      </div>
-    );
-  }
-  if (!results1 && !results2) {
-    return (
-      <div className="p-12 text-center text-fg-tertiary">
-        {t('Configure parameters on the left and click "Start Simulation" to see results')}
-      </div>
-    );
-  }
   return (
-    <div className="flex flex-col gap-6">
-      {results1 && (
-        <ResultsDisplay
-          r={results1}
-          label={portfolios[0].name}
-          colorIdx={0}
-          portfolioMode={portfolioMode}
-          activeTab={activeTab}
-          startingValue={startingValue}
-          numSimulations={numSimulations}
-          distMetric={distMetric}
-          setDistMetric={setDistMetric}
-          onTabChange={setActiveTab}
-        />
-      )}
-      {results2 && (
-        <>
-          <Separator />
+    <ResultsShell
+      error={error}
+      isLoading={isLoading}
+      hasResults={Boolean(results1 || results2)}
+      errorPrefix={`${t('Simulation failed')}: `}
+      emptyTitle={t('Configure parameters on the left and click "Start Simulation" to see results')}
+      onRetry={s.runSimulation}
+    >
+      <div className="flex flex-col gap-6">
+        {results1 && (
           <ResultsDisplay
-            r={results2}
-            label={portfolios[1].name}
-            colorIdx={1}
+            r={results1}
+            label={portfolios[0].name}
+            colorIdx={0}
             portfolioMode={portfolioMode}
             activeTab={activeTab}
             startingValue={startingValue}
@@ -235,9 +216,26 @@ function MonteCarloResultsPanel({ s }: { s: McState }) {
             setDistMetric={setDistMetric}
             onTabChange={setActiveTab}
           />
-        </>
-      )}
-    </div>
+        )}
+        {results2 && (
+          <>
+            <Separator />
+            <ResultsDisplay
+              r={results2}
+              label={portfolios[1].name}
+              colorIdx={1}
+              portfolioMode={portfolioMode}
+              activeTab={activeTab}
+              startingValue={startingValue}
+              numSimulations={numSimulations}
+              distMetric={distMetric}
+              setDistMetric={setDistMetric}
+              onTabChange={setActiveTab}
+            />
+          </>
+        )}
+      </div>
+    </ResultsShell>
   );
 }
 const config: ComputeToolConfig<McState> = {

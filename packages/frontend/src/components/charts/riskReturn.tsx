@@ -1,7 +1,8 @@
-import { useState, useMemo, memo } from 'react';
+﻿import { useState, useMemo, memo } from 'react';
 import { Scatter, LabelList } from 'recharts';
 import { useTranslation } from 'react-i18next';
-import { CHART_COLORS, type AssetAnalysisResult, type PortfolioResult } from '@backtest/shared';
+import { type AssetAnalysisResult, type PortfolioResult } from '@backtest/shared';
+import { getPortfolioColor } from '@/lib/chart-theme.js';
 import { ChartEmptyState, ScatterChartContent, XYScatterChart } from './sharedChartContent.js';
 import { type RiskMetricKey } from './chartUtils.js';
 import ChartCard from '../ChartCard.js';
@@ -131,7 +132,7 @@ export function RiskReturnScatter({ portfolios }: RiskReturnScatterProps) {
         }
       >
         {data.map((point, idx) => (
-          <Scatter key={point.name} data={[point]} fill={CHART_COLORS[idx % CHART_COLORS.length]}>
+          <Scatter key={point.name} data={[point]} fill={getPortfolioColor(idx)}>
             <LabelList
               dataKey="name"
               position="right"

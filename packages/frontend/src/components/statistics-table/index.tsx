@@ -1,8 +1,8 @@
-import { useTranslation } from 'react-i18next';
+﻿import { useTranslation } from 'react-i18next';
 import { Info } from 'lucide-react';
 import type { PortfolioResult } from '@backtest/shared';
-import { CHART_COLORS } from '@backtest/shared';
 import { getColorClass } from '@/components/charts/chartUtils.js';
+import { getPortfolioColor } from '@/lib/chart-theme.js';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/uiComponents.js';
 import type { StatRow, FmtType } from './types.js';
 import { fmtPct, fmtRatio, fmtNum } from '@/utils/format';
@@ -32,7 +32,7 @@ export function StatisticsTableHeader({
         <th key={p.name} className="stat-table-value-cell text-caption text-right">
           <span
             className="inline-block w-2.5 h-2.5 rounded-full mr-1.5 align-middle"
-            style={{ backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] }}
+            style={{ backgroundColor: getPortfolioColor(idx) }}
           />
           {p.name}
         </th>

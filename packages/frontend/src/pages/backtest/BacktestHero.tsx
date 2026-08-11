@@ -91,7 +91,7 @@ export const BacktestHero = memo(function BacktestHero() {
     }
   }, [expanded]);
   return (
-    <section className={cn('max-w-[1440px] mx-auto px-6', 'pt-4 pb-6')} data-testid="page-hero">
+    <section className={cn('page-container', 'pt-4 pb-6')} data-testid="page-hero">
       <div className="flex items-start justify-between mb-4">
         <div>
           <h1 className="text-display md:text-display-xl text-fg mb-3" data-testid="page-title">

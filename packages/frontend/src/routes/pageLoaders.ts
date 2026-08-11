@@ -21,8 +21,15 @@ const loaders = {
 
 export type PageName = keyof typeof loaders;
 
+const preloaders: Record<string, () => Promise<unknown>> = {
+  ...loaders,
+  'tactical-grid': () => import('@/pages/tactical/TacticalPage'),
+  'dual-signal': () => import('@/pages/signal/SignalAnalyzerPage'),
+  'multi-signal': () => import('@/pages/signal/SignalAnalyzerPage'),
+};
+
 export const preloadPage = (name: string): void => {
-  (loaders as Record<string, () => Promise<unknown>>)[name]?.().catch(() => {});
+  preloaders[name]?.().catch(() => {});
 };
 
 export const PAGE_LOADERS = Object.fromEntries(

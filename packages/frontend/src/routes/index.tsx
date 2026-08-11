@@ -54,7 +54,7 @@ const SystemSettings = lazyDefault(() => import('@/pages/admin/SystemSettings'))
 function useRouteFallback() {
   const { t } = useTranslation();
   return (
-    <div role="status" className="px-4 py-20 text-center text-[var(--text-muted)] min-h-[80vh]">
+    <div role="status" className="px-4 py-20 text-center text-fg-tertiary min-h-[80vh]">
       <Spinner size={8} className="mx-auto mb-4" />
       {t('Loading...')}
     </div>

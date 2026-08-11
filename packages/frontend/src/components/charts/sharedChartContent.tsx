@@ -329,7 +329,7 @@ export function SimpleChart({
                     position: 'insideBottom',
                     offset: -4,
                     fontSize: 11,
-                    fill: 'var(--fg-tertiary)',
+                    fill: 'hsl(var(--fg-tertiary))',
                   }
                 : undefined
             }

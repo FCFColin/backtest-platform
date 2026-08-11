@@ -1,4 +1,4 @@
-import { Component, type ErrorInfo, type ReactNode } from 'react';
+﻿import { Component, type ErrorInfo, type ReactNode } from 'react';
 import i18n from '../i18n/index.js';
 import { reportError } from '../utils/errorReporter.js';
 import { Button } from './ui/uiComponents.js';
@@ -133,7 +133,7 @@ const ROUTE_ERROR_STYLE: React.CSSProperties = {
   fontFamily: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
   color: 'var(--text-strong)',
   textAlign: 'center',
-  background: 'var(--bg-elevated)',
+  background: 'var(--bg-surface)',
   border: '1px solid var(--border-soft)',
   borderRadius: '12px',
   boxShadow: 'var(--shadow-card)',

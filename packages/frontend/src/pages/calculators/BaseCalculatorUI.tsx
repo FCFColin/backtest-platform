@@ -3,7 +3,7 @@ import type { ElementType, ReactNode } from 'react';
 import { ChevronDown, PieChart } from 'lucide-react';
 import { Line, Area } from 'recharts';
 import { useTranslation } from 'react-i18next';
-import { CHART_COLORS } from '@backtest/shared';
+import { getPortfolioColor } from '@/lib/chart-theme.js';
 import {
   Card,
   Collapsible,
@@ -201,7 +201,13 @@ function TwoFundChart({ data }: { data: Array<{ wA: number; cagr: number; vol: n
           t('Volatility: {{value}}', { value: `${Number(l).toFixed(2)}%` })
         }
       >
-        <Line type="monotone" dataKey="cagr" stroke={CHART_COLORS[0]} strokeWidth={2} dot={false} />
+        <Line
+          type="monotone"
+          dataKey="cagr"
+          stroke={getPortfolioColor(0)}
+          strokeWidth={2}
+          dot={false}
+        />
       </SimpleLineChart>
     </div>
   );
@@ -221,8 +227,8 @@ export function SWRChart({ data }: { data: Array<{ year: number; ratio: number }
         <Area
           type="monotone"
           dataKey="ratio"
-          stroke={CHART_COLORS[2]}
-          fill={CHART_COLORS[2]}
+          stroke={getPortfolioColor(2)}
+          fill={getPortfolioColor(2)}
           fillOpacity={0.12}
           strokeWidth={2}
         />

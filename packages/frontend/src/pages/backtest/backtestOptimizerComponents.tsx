@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { Line } from 'recharts';
-import { CHART_COLORS, REBALANCE_FREQUENCY_OPTIONS } from '@backtest/shared';
+import { REBALANCE_FREQUENCY_OPTIONS } from '@backtest/shared';
+import { getPortfolioColor } from '@/lib/chart-theme.js';
 import {
   ParamsPanel,
   ParamGroup,
@@ -356,14 +357,14 @@ function GrowthComparisonChart({ best, benchmarkGrowth }: GrowthComparisonChartP
         <Line
           type="monotone"
           dataKey="portfolio"
-          stroke={CHART_COLORS[0]}
+          stroke={getPortfolioColor(0)}
           dot={false}
           strokeWidth={2}
         />
         <Line
           type="monotone"
           dataKey="benchmark"
-          stroke={CHART_COLORS[1]}
+          stroke={getPortfolioColor(1)}
           dot={false}
           strokeWidth={1.5}
           strokeDasharray="4 2"

@@ -1,7 +1,7 @@
 import type { ReactNode, ComponentProps } from 'react';
-import { Play, Loader2 } from 'lucide-react';
+import { Play } from 'lucide-react';
 import {
-  Button,
+  LoadingButton,
   Input,
   AffixInput,
   Select,
@@ -151,20 +151,22 @@ export function RunButton({
   onClick: () => void;
   label: string;
   loadingLabel: string;
-  variant?: ComponentProps<typeof Button>['variant'];
+  variant?: ComponentProps<typeof LoadingButton>['variant'];
   className?: string;
   disabled?: boolean;
-} & ComponentProps<typeof Button>) {
+} & ComponentProps<typeof LoadingButton>) {
   return (
-    <Button
+    <LoadingButton
       variant={variant}
       onClick={onClick}
-      disabled={isLoading || disabled}
+      disabled={disabled}
+      isLoading={isLoading}
+      loadingText={loadingLabel}
       className={className}
       {...rest}
     >
-      {isLoading ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" />}
-      {isLoading ? loadingLabel : label}
-    </Button>
+      <Play className="size-4" />
+      {label}
+    </LoadingButton>
   );
 }

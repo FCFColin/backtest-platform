@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { useState } from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import TickerInput from '../../../packages/frontend/src/components/TickerInput.js';
 
@@ -17,6 +18,11 @@ const typeIn = (value: string) => {
   fireEvent.focus(input);
   fireEvent.change(input, { target: { value } });
 };
+
+function ControlledTickerInput() {
+  const [value, setValue] = useState('');
+  return <TickerInput value={value} onChange={setValue} />;
+}
 
 describe('TickerInput', () => {
   it('使用初始值渲染', () => {
@@ -48,7 +54,7 @@ describe('TickerInput', () => {
       }),
     });
     vi.stubGlobal('fetch', fetchMock);
-    render(<TickerInput value="" onChange={() => {}} />);
+    render(<ControlledTickerInput />);
     typeIn('SPY');
     await screen.findByText('S&P 500 ETF');
     expect(fetchMock).toHaveBeenCalledWith(
@@ -62,7 +68,7 @@ describe('TickerInput', () => {
       'fetch',
       vi.fn().mockResolvedValue({ ok: true, json: async () => ({ success: true, data: [] }) }),
     );
-    render(<TickerInput value="" onChange={() => {}} />);
+    render(<ControlledTickerInput />);
     typeIn('ZZZ');
     await screen.findByText('No matching tickers');
   });

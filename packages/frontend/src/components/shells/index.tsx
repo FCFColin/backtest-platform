@@ -51,8 +51,8 @@ export function StandardPageShell({
 }): ReactElement {
   const { t } = useTranslation();
   return (
-    <div className="bt-page">
-      <div className="bt-page-header">
+    <div className="page-container pt-0 pb-3 sm:pb-4">
+      <div className="flex justify-between items-start px-1 mb-3">
         <h1 className="page-title-slim">{t(config.titleKey)}</h1>
         {config.headerExtra}
       </div>
@@ -121,7 +121,7 @@ export function ComputeToolShell<S>({
     ? undefined
     : (config.paramsTitle ?? t(config.paramsTitleKey ?? 'params.basicParams'));
   return (
-    <div className="bt-page">
+    <div className="page-container pt-0 pb-3 sm:pb-4">
       <div className="page-header-slim">
         <div className="page-header-title-row">
           {!config.hidePageTitle && <h1 className="page-title-slim">{t(config.titleKey)}</h1>}
