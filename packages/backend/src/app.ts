@@ -144,18 +144,9 @@ app.use('/api/v1/backtest', (req, _res, next) => {
   if (req.method === 'GET') return next();
   computeLimiter(req, _res, next);
 });
-for (const p of [
-  '/api/v1/backtest-optimizer',
-  '/api/v1/tactical',
-  '/api/v1/pca',
-  '/api/v1/signal',
-  '/api/v1/letf',
-  '/api/v1/tactical-grid',
-  '/api/v1/goal-optimizer',
-  '/api/v1/analysis',
-  '/api/v1/calculators',
-])
-  app.use(p, computeLimiter);
+for (const p of COMPUTE_PATHS) {
+  if (p !== '/api/v1/backtest') app.use(p, computeLimiter);
+}
 app.use('/api/v1/admin', adminLimiter);
 app.use('/api/v1/data/manage', adminLimiter);
 app.use('/api/v1/auth/login', loginLimiter);

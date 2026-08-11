@@ -132,10 +132,6 @@ const COUNTER_DEFS = {
     help: 'Total number of IP addresses blocked due to suspicious login activity',
     labels: [],
   },
-  read_pool_fallback_total: {
-    help: 'Number of times read pool fell back to write pool due to connection failure',
-    labels: [],
-  },
   quota_enforcement_failures_total: {
     help: 'Total number of quota enforcement failures (Redis/DB unavailable, fail-closed)',
     labels: ['quota_key', 'reason'],
