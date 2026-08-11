@@ -74,11 +74,11 @@ Trace: 各服务 → OTLP HTTP → SaaS 后端。Go OTel 收口到 packages/go-s
 
 ## 9. 熔断器 (ADR-016)
 
-| 服务       | 熔断器        | 保护               |
-| ---------- | ------------- | ------------------ |
-| Go 引擎    | opossum(Node) | fail-closed 503    |
-| PostgreSQL | opossum(Node) | 降级到 Go 数据服务 |
-| BaoStock   | gobreaker(Go) | 数据获取降级       |
+| 服务         | 熔断器        | 保护               |
+| ------------ | ------------- | ------------------ |
+| Go 引擎      | opossum(Node) | fail-closed 503    |
+| PostgreSQL   | opossum(Node) | 降级到 Go 数据服务 |
+| 数据服务上游 | gobreaker(Go) | 数据获取降级       |
 
 配置: 50% 失败率 Open, 10s HalfOpen 探测。
 
@@ -90,7 +90,7 @@ JSON(ADR-002) → SQLite(ADR-006) → PostgreSQL(ADR-007)。行情持久化于 P
 
 > 完整索引（含已删除/合并记录）见 [adr/README.md](./adr/README.md)。
 
-核心 ADR: 004 Express / 007 PostgreSQL / 008 Go+TS / 013 DDD / 014 Outbox+CDC / 015 可观测性 / 016 熔断限流 / 017 认证授权 / 018 Redis+Sentinel / 023 数据隐私 / 031 单引擎 fail-closed / 032 多租户 RLS / 036 Stripe / 038 DR / 046 API 版本 / 047 模块化 / 050 MF 预留 / 052 CI+供应链 / 053 Node 库选型。
+核心 ADR: 004 Express / 007 PostgreSQL / 008 Go+TS / 013 DDD / 014 Outbox+CDC / 015 可观测性 / 017 认证授权 / 031 单引擎 fail-closed / 032 多租户 RLS / 036 Stripe / 047 模块化 / 048 平台去重 / 054 死 schema 退役。
 
 ## 12. 容量扩展瓶颈
 

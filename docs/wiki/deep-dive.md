@@ -17,22 +17,24 @@
 
 ## 3. 路由清单
 
-| 路由文件                                   | 挂载点                                      | 前置中间件                                 |
-| ------------------------------------------ | ------------------------------------------- | ------------------------------------------ |
-| healthRoutes                               | /api                                        | 无（含 /metrics）                          |
-| dataRoutes                                 | /api/v1/data                                | optionalJwtAuth + assignGuestReadonly      |
-| backtestRoutes / backtestOptimizerRoutes   | /api/v1/backtest*                           | computeMiddleware + computeLimiter(10/min) |
-| tactical* / signal / analysis              | /api/v1/tactical*, /signal, /{pca,letf,...} | 同上                                       |
-| authRoutes                                 | /api/v1/auth                                | 公开（登录/注册/验证）                     |
-| apiKeyRoutes / webhookRoutes               | /api/v1/keys, /webhooks                     | crudMiddleware(ADMIN_ACCESS)               |
-| adminKeyRoutes                             | /api/v1/admin/keys                          | jwtAuth + requirePlatformAdmin             |
-| orgRoutes / billingRoutes                  | /api/v1/orgs, /billing                      | jwtAuth + resolveTenant (+requireTenant)   |
-| portfolioRoutes / configRoutes / runRoutes | /api/v1/{portfolios,configs,runs}           | jwtAuth + resolveTenant + requireTenant    |
-| jobRoutes                                  | /api/v1/jobs                                | jwtAuth + 所有权校验                       |
-| adminRoutes / auditRoutes / rbacRoutes     | /api/v1/admin                               | adminMiddleware + adminLimiter(30/min)     |
+| 路由文件                  | 挂载点                                                | 前置中间件                                               |
+| ------------------------- | ----------------------------------------------------- | -------------------------------------------------------- |
+| healthRoutes              | /api                                                  | 无（含 /metrics, /ready）                                |
+| dataRoutes                | /api/v1/data                                          | optionalJwtAuth + assignGuestReadonly                    |
+| dataManageRoutes          | /api/v1/data/manage                                   | readOnlyAuth + DATA_READ + auditLog + 幂等               |
+| backtestRoutes            | /api/v1/backtest                                      | computeMiddleware(BACKTEST_RUN) + computeLimiter(10/min) |
+| analysisRoutes            | /api/v1/{pca,letf,goal-optimizer,tactical,signal,...} | 各路由独立链（ADR-042 合并）                             |
+| authRoutes                | /api/v1/auth                                          | 公开（登录/注册/验证）+ 独立限流                         |
+| apiKeyRoutes              | /api/v1/keys, /api/v1/admin/keys                      | crudMiddleware(ADMIN_ACCESS)                             |
+| workspaceRoutes           | /api/v1/{runs,configs,portfolios,tactical/configs}    | crudMiddleware（tenantCrudRoutes 工厂）                  |
+| jobRoutes                 | /api/v1/jobs                                          | jwtAuth + 所有权校验                                     |
+| platformRoutes            | /api/v1/{announcements,errors}                        | 公开读 + adminMiddleware 写                              |
+| adminRoutes               | /api/v1/admin                                         | adminMiddleware + adminLimiter(30/min)                   |
+| orgRoutes / billingRoutes | /api/v1/orgs, /billing                                | jwtAuth + resolveTenant (+requireTenant)                 |
 
-> computeMiddleware = jwtAuth → resolveTenant → requirePermission → enforceQuota → auditLog
-> crudMiddleware(X) = jwtAuth → resolveTenant → requirePermission(X) → auditLog → idempotencyKey
+> computeMiddleware(p) = jwtAuth → resolveTenant → requirePermission(p) → enforceQuota → auditLog
+> crudMiddleware(p) = jwtAuth → resolveTenant → requireTenant → requirePermission(p)
+> adminMiddleware() = jwtAuth → resolveTenant → requirePermission(ADMIN_ACCESS) → auditLog → 幂等
 
 ## 4. 中间件链
 
@@ -54,7 +56,7 @@
 
 ## 6. 领域层 (domain/)
 
-- aggregates/run.ts: Run 聚合根（queued→running→completed/failed/cancelled）；portfolio.ts: validateWeightSum
+- aggregates/run.ts: Run 聚合根（queued→running→completed/failed）；portfolio.ts: validateWeightSum
 - events/ RunStarted/Completed/Failed/Cancelled；services/ grid-search, optimizer-domain；value-objects/ ticker, weight
 
 ## 7. Outbox 模式 (ADR-014)
@@ -73,24 +75,24 @@ CDC 扩展: Debezium → Kafka（多 Pod 扩展, 见 runbooks/cdc-debezium.md）
 
 ## 9. 熔断与限流 (ADR-016)
 
-Go 引擎/PostgreSQL: opossum（fail-closed 503 / 降级）；BaoStock: gobreaker。50% 失败率 Open, 10s HalfOpen。
+Go 引擎/PostgreSQL: opossum（fail-closed 503 / 降级）；数据服务上游: gobreaker。50% 失败率 Open, 10s HalfOpen。
 限流分层: apiLimiter(100/min) > computeLimiter(10/min) > adminLimiter(30/min)。Redis 不可用 fail-closed。
 
 ## 10. Go 引擎 (engine-go/)
 
     cmd/server/main.go    入口
-    internal/engine/       回测核心（gonum/stat）
-    internal/montecarlo/   蒙特卡洛（gonum/stat/dist + sync.Pool）
-    internal/optimizer/    Markowitz 优化+有效前沿（gonum/optimize）
-    internal/pca/ internal/factorregression/  主成分分析 / 因子回归
-    go-shared/             共享包（observability/otel.go）
+    internal/engine/       回测核心 + 统计（gonum/stat）；tactical/ 战术回测
+    internal/montecarlo/   块自助法模拟（NumCPU worker）
+    internal/optimizer/    Markowitz 优化+有效前沿
+    internal/analysis/     PCA / LETF / 因子回归
+    internal/{signal,goaloptimizer,calculators,indicators}/  信号/目标优化/计算器/指标
+    packages/go-shared/    共享包（observability/otel.go）
 
 失败策略 (ADR-031): callEngineStrict → 503+Retry-After（同步）或 BullMQ 重试（异步）。OTel → OTLP HTTP → SaaS。
 
 ## 11. Go 数据服务 (data-fetcher/)
 
-数据兜底（PG 缺失 ticker 实时抓取）；多源: BaoStock(A股) / Yahoo(美股+港股) / 东方财富(ETF)；TTL 行情缓存；
-信号量并发控制（默认 10）；sony/gobreaker 熔断。
+数据兜底（PG 缺失 ticker 实时抓取）；多源: yfinance(美股+港股) / finnhub / twelvedata / akshare(东方财富 A股)；批量端信号量并发控制（默认 10）；sony/gobreaker 熔断。
 
 ## 12. 多架构与配置
 

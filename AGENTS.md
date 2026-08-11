@@ -133,7 +133,7 @@
 | ADR-004 | Express over Fastify/NestJS                                      |
 | ADR-007 | PostgreSQL over SQLite for horizontal scaling                    |
 | ADR-008 | Go + TypeScript over 4-language architecture                     |
-| ADR-013 | DDD aggregates + event sourcing in domain layer                  |
+| ADR-013 | DDD aggregates + outbox 事件总线（非事件溯源）                   |
 | ADR-014 | Outbox (LISTEN/NOTIFY + CDC) + consumer idempotency              |
 | ADR-015 | OTel + pino + prom-client, SaaS backend (go-shared)              |
 | ADR-016 | Circuit breakers + rate-limit fail-closed tiering                |

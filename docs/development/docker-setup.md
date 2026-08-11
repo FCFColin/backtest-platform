@@ -7,13 +7,12 @@ Windows 10/11 + WSL2 + Docker Desktop。验证: `docker info` + `docker run --rm
 ## 启动本地开发栈
 
     docker compose pull && docker compose up -d
-    docker compose -f docker-compose.chaos.yml up -d   # chaos 测试最小集
     docker compose ps / down
 
 ## 运行 Docker 依赖测试
 
     pnpm test:docker        # 一键全套（RUN_TESTCONTAINERS=1）
-    # 单独: docker compose -f docker-compose.chaos.yml up -d; pnpm test:chaos
+    # 单独: docker compose up -d; pnpm test:chaos
     #       RUN_TESTCONTAINERS=1; pnpm test:integration
 
 ## 常见问题
