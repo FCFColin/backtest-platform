@@ -29,3 +29,13 @@ patchesStrategicMerge:
     kind: HorizontalPodAutoscaler
     metadata: { name: engine-go-hpa }
     spec: { minReplicas: 1, maxReplicas: 1 }
+  - |-
+    apiVersion: autoscaling/v2
+    kind: HorizontalPodAutoscaler
+    metadata: { name: api-hpa }
+    spec: { minReplicas: 1, maxReplicas: 1 }
+  - |-
+    apiVersion: autoscaling/v2
+    kind: HorizontalPodAutoscaler
+    metadata: { name: data-fetcher-hpa }
+    spec: { minReplicas: 1, maxReplicas: 1 }
