@@ -15,7 +15,6 @@ const sharedTypesDir = path.resolve(projectRoot, 'packages/shared/types');
 const sharedTypeAliases: Record<string, string> = {
   '@backtest/shared/types/tactical': `${sharedTypesDir}/tactical.ts`,
   '@backtest/shared/types/signal': `${sharedTypesDir}/signal.ts`,
-  '@backtest/shared/types/letf': `${sharedTypesDir}/letf.ts`,
   '@backtest/shared/types/index': `${sharedTypesDir}/index.ts`,
   '@backtest/shared/types': `${sharedTypesDir}/index.ts`,
   '@backtest/shared/constants': path.resolve(projectRoot, 'packages/shared/constants.ts'),
