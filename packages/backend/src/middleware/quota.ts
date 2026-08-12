@@ -35,8 +35,16 @@ export function enforceQuota(metric: string) {
       return;
     }
     const tenantId = req.tenantId;
-    if (!tenantId || req.user?.platform_admin === true) {
+    // 平台管理员无组织归属，仍享受豁免（break-glass）
+    if (req.user?.platform_admin === true) {
       next();
+      return;
+    }
+    if (!tenantId) {
+      // 无组织归属的普通用户（注册后未被分配 / 已被移出组织）不得绕过配额
+      sendProblem(res, 400, 'NO_ACTIVE_TENANT', 'No active tenant', {
+        detail: 'No active organization context for quota enforcement.',
+      });
       return;
     }
 

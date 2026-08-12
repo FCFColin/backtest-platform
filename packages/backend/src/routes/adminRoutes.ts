@@ -5,6 +5,7 @@ import type { DbMarketStats } from '../db/marketStats.js';
 import { config } from '../config/index.js';
 import { logger } from '../utils/logger.js';
 import { adminMiddleware } from '../middleware/middlewareChains.js';
+import { requirePlatformAdmin } from '../middleware/rbac.js';
 import { listRuns, type BacktestRunRecord } from '../repositories/backtestRunRepo.js';
 import { crudRouteHandler } from './routeUtils.js';
 
@@ -146,6 +147,7 @@ function formatUptime(uptimeSeconds: number): string {
 router.get(
   '/stats',
   ...adminMiddleware(),
+  requirePlatformAdmin,
   crudRouteHandler(
     async (req, res): Promise<void> => {
       const [engineHealth, goHealth] = await Promise.all([
@@ -190,6 +192,7 @@ router.get(
 router.get(
   '/system',
   ...adminMiddleware(),
+  requirePlatformAdmin,
   crudRouteHandler(
     async (_req: Request, res: Response): Promise<void> => {
       const system = collectSystemSnapshot();

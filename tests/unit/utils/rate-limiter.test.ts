@@ -161,8 +161,8 @@ describe('rateLimiter — keyGenerator（Redis 可用路径）', () => {
 // P0-05 单元测试：Redis 不可用时限流 fail-closed
 // 企业理由：生产环境多实例部署时，内存存储会导致每实例独立计数，
 // 实际限流上限 = 配置值 × 实例数，等同无限流。必须 fail-closed (503)。
-// 测试策略：mock RedisStore 构造抛错（模拟 Redis 不可用），验证非 admin 限流器
-// 返回 503 + RFC 7807 错误格式；admin 限流器仍降级到 rateLimit（passOnStoreError=true）。
+// 策略：mock RedisStore 构造抛错（模拟 Redis 不可用），验证限流器统一
+// 返回 503 + RFC 7807 错误格式；admin 限流器不再例外 fail-open（fail-closed 全局一致）。
 describe('P0-05: Redis 不可用 → 限流 fail-closed (503)', () => {
   let mod: typeof import('../../../packages/backend/src/utils/rateLimiter.js');
   beforeAll(async () => {
@@ -176,6 +176,7 @@ describe('P0-05: Redis 不可用 → 限流 fail-closed (503)', () => {
   it.each([
     ['apiLimiter 应返回 503 + RFC 7807 错误格式', 'apiLimiter', true, true],
     ['computeLimiter 应返回 503', 'computeLimiter', false, false],
+    ['adminLimiter 应返回 503（fail-closed，不再例外 fail-open）', 'adminLimiter', true, true],
   ])('$name', (_n, limiter, problemJson, instance) => {
     const { res, next } = callMiddleware(
       mod[limiter as keyof typeof mod] as unknown as LimiterHandler,
@@ -199,10 +200,5 @@ describe('P0-05: Redis 不可用 → 限流 fail-closed (503)', () => {
       const body = res.body as { error: { instance: string } };
       expect(body.error.instance).toBe('/api/test');
     }
-  });
-  it('adminLimiter 应降级到 rateLimit（passOnStoreError=true）', () => {
-    const opts = (mod.adminLimiter as unknown as { __options?: Record<string, unknown> }).__options;
-    expect(opts).toBeDefined();
-    expect(opts?.passOnStoreError).toBe(true);
   });
 });

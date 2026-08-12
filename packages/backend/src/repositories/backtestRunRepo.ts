@@ -57,13 +57,13 @@ const repo = createTenantCrudRepo<BacktestRunRecord, BacktestRunInput>({
     input.name ?? null,
     JSON.stringify(input.request),
     serializeJson(input.result),
-    input.status ?? 'completed',
+    input.status ?? 'pending',
   ],
   toUpdate: (_id, input) => [
     input.name ?? null,
     JSON.stringify(input.request),
     serializeJson(input.result),
-    input.status ?? 'completed',
+    input.status ?? 'pending',
   ],
 });
 

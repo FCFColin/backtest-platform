@@ -134,3 +134,16 @@ export function requirePermission(permission: Permission) {
     next();
   };
 }
+
+/** 平台运维面（/admin/stats、/admin/system）：仅 platform_admin 可访问，组织 admin 不适用。 */
+export function requirePlatformAdmin(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction,
+): void {
+  if (req.user?.platform_admin !== true) {
+    denyInsufficientPermission(req, res, Permission.ADMIN_ACCESS, '平台管理面拒绝非平台管理员');
+    return;
+  }
+  next();
+}

@@ -153,7 +153,6 @@ export const adminLimiter = createLimiter({
   windowMs: 60 * 1000,
   max: 30,
   storePrefix: 'rl:admin:',
-  passOnStoreError: true,
   keyGenerator: computeRateLimitKey,
   code: 'RATE_LIMITED',
   detail: '管理接口请求过于频繁，请稍后再试',

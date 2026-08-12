@@ -176,7 +176,7 @@ router.post(
       let userId = '';
       try {
         await withTransaction(async (client) => {
-          const user = await createUserTx(client, username, password, email, 'admin');
+          const user = await createUserTx(client, username, password, email, 'analyst');
           userId = user.id;
           const slug = `${slugify(orgName)}-${randomBytes(3).toString('hex')}`;
           const orgRes = await client.query(

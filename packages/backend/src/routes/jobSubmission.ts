@@ -2,6 +2,7 @@
  * 异步任务提交路由工厂 — portfolio/optimizer/grid-search 三端点共享的 queue.add + 失败处理骨架。
  * grid 的 GRID_TOO_MANY_COMBINATIONS 预校验保留在各路由声明处。
  */
+import { randomUUID } from 'node:crypto';
 import type { RequestHandler, Response } from 'express';
 import { backtestQueue, type BacktestJobData } from '../queues/backtestQueue.js';
 import type { AuthenticatedRequest } from '../middleware/jwtAuth.js';
@@ -34,13 +35,18 @@ export function submitQueueJob(cfg: SubmitQueueJobConfig): RequestHandler {
     async (req, res) => {
       const authReq = req as AuthenticatedRequest;
       try {
-        const job = await backtestQueue.add(type, {
+        const job = await backtestQueue.add(
           type,
-          payload: req.body,
-          userId: authReq.user?.sub,
-          tenantId: authReq.tenantId,
-          ownerUserId: ownerOf(authReq),
-        } as BacktestJobData);
+          {
+            type,
+            payload: req.body,
+            userId: authReq.user?.sub,
+            tenantId: authReq.tenantId,
+            ownerUserId: ownerOf(authReq),
+          } as BacktestJobData,
+          // BullMQ 自增数字 id 写不进 backtest_runs 的 UUID 主键（ADR-034），故显式 UUID
+          { jobId: randomUUID() },
+        );
         const jobId = job.id!;
         if (cfg.respond202) {
           cfg.respond202(res, jobId);
@@ -81,13 +87,13 @@ export function submitQueueJob(cfg: SubmitQueueJobConfig): RequestHandler {
   );
 }
 
-/** 任务所有权/租户判定（ADR-019 IDOR 防护）。未认证请求（/runs/:jobId 兼容路径）放行。 */
+/** 任务所有权/租户判定（ADR-019 IDOR 防护）。所有调用点均在强制鉴权后执行，无凭证一律拒绝（fail-closed）。 */
 export function jobAccessGranted(
   job: { data?: { userId?: string; tenantId?: string } },
   requester: AuthenticatedRequest['user'],
   reqTenantId?: string,
 ): boolean {
-  if (!requester) return true;
+  if (!requester) return false;
   const ownerId = job.data?.userId;
   const jobTenant = job.data?.tenantId;
   const hasOwnership =

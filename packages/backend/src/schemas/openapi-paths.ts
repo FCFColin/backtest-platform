@@ -32,6 +32,8 @@ import {
   pcaAnalyzeSchema,
   letfAnalyzeSchema,
   goalOptimizerSchema,
+  factorRegressionSchema,
+  calculatorBodySchema,
 } from './analysisSchemas.js';
 
 extendZodWithOpenApi(z);
@@ -409,8 +411,11 @@ function registerAllPaths(): void {
   );
   sec('post', '/calculators/{type}', 'calculators', '计算器（按类型）', TACTICAL_ERR, {
     params: z.object({ type: z.string() }),
+    body: calculatorBodySchema,
   });
-  sec('post', '/analysis/factor-regression', 'factor-regression', '因子回归分析', TACTICAL_ERR);
+  sec('post', '/analysis/factor-regression', 'factor-regression', '因子回归分析', TACTICAL_ERR, {
+    body: factorRegressionSchema,
+  });
   sec('get', '/data/cpi/{country}', 'data', '获取 CPI 数据', [400, 401, 404, 503], {
     params: z.object({ country: z.enum(['us', 'cn']) }),
   });
