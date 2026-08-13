@@ -173,10 +173,24 @@ describe('apiPostJSON', () => {
     expect(result).toEqual({ id: 1 });
   });
 
-  it('HTTP 非 2xx 应抛 `HTTP ${status}`', async () => {
+  it('HTTP 非 2xx 且响应含 error.detail 时应抛该详情', async () => {
+    mocks.fetch.mockResolvedValue(
+      makeResponse({
+        ok: false,
+        status: 500,
+        body: { error: { detail: 'engine unavailable' } },
+      }),
+    );
+
+    await expect(apiPostJSON('/api/foo', {})).rejects.toThrow('engine unavailable');
+  });
+
+  it('HTTP 非 2xx 无错误详情时应抛可读错误（不再泄露 `HTTP ${status}`）', async () => {
     mocks.fetch.mockResolvedValue(makeResponse({ ok: false, status: 500, body: {} }));
 
-    await expect(apiPostJSON('/api/foo', {})).rejects.toThrow('HTTP 500');
+    const err = await apiPostJSON('/api/foo', {}, 'custom error').catch((e) => e);
+    expect(err.message).toBeTruthy();
+    expect(err.message).not.toContain('HTTP 500');
   });
 
   it('success=false 应抛 error（无 error 时抛默认 errorMsg）', async () => {
