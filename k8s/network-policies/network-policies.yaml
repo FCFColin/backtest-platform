@@ -218,7 +218,10 @@ spec:
     - to: [{ podSelector: { matchLabels: { app: postgres } } }]
       ports: [{ protocol: TCP, port: 5432 }]
     - to: [{ podSelector: { matchLabels: { app: redis } } }]
-      ports: [{ protocol: TCP, port: 6379 }]
+      # 26379 = Sentinel 选举端口（REDIS_SENTINELS），worker 经 Sentinel 发现主库
+      ports:
+        - { protocol: TCP, port: 6379 }
+        - { protocol: TCP, port: 26379 }
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -228,8 +231,11 @@ spec:
   podSelector: { matchLabels: { app: redis } }
   policyTypes: [Egress]
   egress:
+    # Sentinel 副本互聊（26379）与主库数据面（6379）均需放行
     - to: [{ podSelector: { matchLabels: { app: redis } } }]
-      ports: [{ protocol: TCP, port: 6379 }]
+      ports:
+        - { protocol: TCP, port: 6379 }
+        - { protocol: TCP, port: 26379 }
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
