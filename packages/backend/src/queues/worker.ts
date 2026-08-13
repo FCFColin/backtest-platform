@@ -14,7 +14,6 @@ import { executeOptimization } from '../application/optimize-service.js';
 import { runPortfolioBacktest } from '../application/backtest-service.js';
 import { executeGridSearch } from '../application/grid-application-service.js';
 import { save } from '../repositories/backtestRunRepo.js';
-import { Run } from '../domain/aggregates/run.js';
 import { getOrg } from '../application/org/membershipService.js';
 import { getPlanLimits } from '../application/billing/planLimitsService.js';
 import { appRedis } from '../infrastructure/redisClient.js';
@@ -142,9 +141,7 @@ async function dispatchJob(job: Job<BacktestJobData>): Promise<BacktestJobResult
       });
       const portfolioResult = { data: result, warnings, dateRange };
       await markJobProcessed(jobId, type, portfolioResult as Record<string, unknown>);
-      await persistRunIfTenant(job, (run) =>
-        run.complete(portfolioResult as Record<string, unknown>),
-      );
+      await persistRunIfTenant(job, 'completed', portfolioResult);
       return { status: 'completed', result: portfolioResult };
     }
 
@@ -153,10 +150,10 @@ async function dispatchJob(job: Job<BacktestJobData>): Promise<BacktestJobResult
       const result = await handler(payload);
       if (result.success && result.data) {
         await markJobProcessed(jobId, type, result.data);
-        await persistRunIfTenant(job, (run) => run.complete(result.data!));
+        await persistRunIfTenant(job, 'completed', result.data);
         return { status: 'completed', result: result.data };
       }
-      await persistRunIfTenant(job, (run) => run.fail(result.error ?? 'handler failed'));
+      await persistRunIfTenant(job, 'failed');
       await releaseJobClaim(jobId, type);
       return { status: 'failed', error: result.error };
     }
@@ -166,9 +163,7 @@ async function dispatchJob(job: Job<BacktestJobData>): Promise<BacktestJobResult
     return { status: 'failed', error: `Unknown job type: ${type}` };
   } catch (err) {
     if (err instanceof DelayedError) throw err;
-    await persistRunIfTenant(job, (run) =>
-      run.fail(err instanceof UpstreamProblemError ? err.detail : errorMessage(err)),
-    );
+    await persistRunIfTenant(job, 'failed');
     const failed = await handleEngineError(err, jobId, type);
     return failed;
   }
@@ -177,21 +172,21 @@ async function dispatchJob(job: Job<BacktestJobData>): Promise<BacktestJobResult
 // 将异步任务最终状态（成功/失败）落库到 backtest_runs（租户隔离，ADR-009）。
 async function persistRunIfTenant(
   job: Job<BacktestJobData>,
-  finalize: (run: Run) => void,
+  status: 'completed' | 'failed',
+  result?: unknown,
 ): Promise<void> {
   const { tenantId, ownerUserId, type, payload } = job.data;
   if (!tenantId) return;
   const jobId = String(job.id);
   try {
-    const run = Run.create({
+    await save(tenantId, {
       id: jobId,
       name: type,
       request: payload,
+      result: status === 'completed' ? (result ?? null) : null,
+      status,
       ownerUserId: ownerUserId ?? null,
     });
-    run.start();
-    finalize(run);
-    await save(tenantId, run);
   } catch (err) {
     logger.warn(
       { jobId, tenantId, err: String(err) },

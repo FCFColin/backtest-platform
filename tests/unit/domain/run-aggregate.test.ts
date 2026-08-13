@@ -1,13 +1,8 @@
 import '../../helpers/loggerMock.js';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { loggerMocks } from '../../helpers/loggerFixture.js';
-import { Run } from '../../../packages/backend/src/domain/aggregates/run.js';
 import { Portfolio } from '../../../packages/backend/src/domain/aggregates/portfolio.js';
-import {
-  DomainValidationError,
-  Ticker,
-  Weight,
-} from '../../../packages/backend/src/domain/value-objects/index.js';
+import { Ticker, Weight } from '../../../packages/backend/src/domain/value-objects/index.js';
 import { DomainEventDispatcher } from '../../../packages/backend/src/domain/events/events.js';
 import type {
   DomainEvent,
@@ -18,107 +13,6 @@ function makeHolding(ticker: string, weight: number) {
   return { ticker: Ticker.create(ticker), weight: Weight.create(weight) };
 }
 
-function createRun() {
-  return Run.create({ id: 'r1', request: {} });
-}
-function startedRun() {
-  const run = createRun();
-  run.start();
-  return run;
-}
-
-describe('Run Aggregate', () => {
-  it.each([
-    [
-      'complete',
-      { totalReturn: 0.15 },
-      'completed',
-      (r: Run) => expect(r.result).toEqual({ totalReturn: 0.15 }),
-    ],
-    [
-      'fail',
-      'engine unavailable',
-      'failed',
-      (r: Run) => expect(r.failureReason).toBe('engine unavailable'),
-    ],
-  ])('%s 后进入终态', async (_method, arg, status, state) => {
-    const run = createRun();
-    run.start();
-    (run as unknown as Record<string, (a: unknown) => void>)[_method](arg);
-    expect(run.status).toBe(status);
-    expect(run.completedAt).toBeInstanceOf(Date);
-    expect(run.isTerminal).toBe(true);
-    state(run);
-  });
-
-  describe('create', () => {
-    it('初始状态为 queued', () => {
-      const run = Run.create({ id: 'r1', request: { foo: 'bar' } });
-      expect(run.status).toBe('queued');
-      expect(run.id).toBe('r1');
-      expect(run.request).toEqual({ foo: 'bar' });
-      expect(run.result).toBeNull();
-      expect(run.startedAt).toBeUndefined();
-      expect(run.completedAt).toBeUndefined();
-      expect(run.isTerminal).toBe(false);
-    });
-    it('携带 portfolioId/name/ownerUserId 属性', () => {
-      const run = Run.create({
-        id: 'r1',
-        portfolioId: 'p1',
-        name: 'Test Run',
-        request: {},
-        ownerUserId: 'u1',
-      });
-      expect(run.portfolioId).toBe('p1');
-      expect(run.name).toBe('Test Run');
-      expect(run.ownerUserId).toBe('u1');
-    });
-  });
-
-  describe('start', () => {
-    it('queued → running，设置 startedAt', () => {
-      const run = startedRun();
-      expect(run.status).toBe('running');
-      expect(run.startedAt).toBeInstanceOf(Date);
-    });
-    it('running → start 抛错（不可重复 start）', () => {
-      const run = startedRun();
-      expect(() => run.start()).toThrow(DomainValidationError);
-      expect(() => run.start()).toThrow("expected 'queued'");
-    });
-  });
-
-  it.each([
-    ['complete', (r: Run) => r.complete({}), "expected 'running'"],
-    ['fail', (r: Run) => r.fail('err'), null],
-  ])('queued → %s 抛错（必须先 start）', (_op, invoke, msg) => {
-    const run = createRun();
-    expect(() => invoke(run)).toThrow(DomainValidationError);
-    if (msg) expect(() => invoke(run)).toThrow(msg);
-  });
-
-  it('running → completed 合法', () => {
-    const run = startedRun();
-    run.complete({});
-    expect(run.status).toBe('completed');
-  });
-
-  it.each([
-    ['start', (r: Run) => r.start()],
-    ['complete', (r: Run) => r.complete({})],
-  ])('completed → %s 抛错（终态不可转换）', (_op, invoke) => {
-    const run = startedRun();
-    run.complete({});
-    expect(() => invoke(run)).toThrow(DomainValidationError);
-  });
-  it('failed → fail 抛错（终态不可重复失败）', () => {
-    const run = startedRun();
-    run.fail('first error');
-    expect(() => run.fail('second error')).toThrow(DomainValidationError);
-  });
-});
-
 describe('Portfolio Aggregate', () => {
   it('权重和为 100 时创建成功', () => {
     const p = Portfolio.create('p1', 'Test', [makeHolding('AAPL', 60), makeHolding('SPY', 40)]);
@@ -128,6 +22,11 @@ describe('Portfolio Aggregate', () => {
     expect(() => Portfolio.create('p1', 'Test', [makeHolding('AAPL', 50)])).toThrow(
       'weights must sum to ~100',
     );
+  });
+  it('重复 ticker 应抛出错误（持仓权重歧义）', () => {
+    expect(() =>
+      Portfolio.create('p1', 'Test', [makeHolding('AAPL', 60), makeHolding('AAPL', 40)]),
+    ).toThrow('duplicate ticker: AAPL');
   });
   describe('properties', () => {
     const p = Portfolio.create('p1', 'Test', [makeHolding('AAPL', 60), makeHolding('SPY', 40)]);

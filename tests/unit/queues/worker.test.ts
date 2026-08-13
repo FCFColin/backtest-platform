@@ -312,7 +312,7 @@ describe('processBacktestJob - 任务分发', () => {
     const run = vi.mocked(save).mock.calls[0][1];
     expect(run.id).toBe('job-1');
     expect(run.status).toBe('failed');
-    expect(run.failureReason).toBe('参数组合过多');
+    expect(run.result).toBeNull();
   });
 });
 describe('shutdownWorker（优雅关闭）', () => {

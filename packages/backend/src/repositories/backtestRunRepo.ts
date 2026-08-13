@@ -1,17 +1,9 @@
-// ADR-009/ADR-004: domain status 'queued' → DB 'pending'（不破坏迁移）
+// ADR-009: DB 状态 'pending' 对应领域语义的 queued（worker 直接写入 DB 状态）
 import { withTenant } from '../db/pool.js';
-import { Run, type RunStatus } from '../domain/aggregates/run.js';
 import { rowMapper, iso } from './rowMapper.js';
 import { createTenantCrudRepo } from './tenantCrudRepo.js';
 
 type BacktestRunStatus = 'pending' | 'running' | 'completed' | 'failed';
-
-const DOMAIN_TO_DB_STATUS: Record<RunStatus, BacktestRunStatus> = {
-  queued: 'pending',
-  running: 'running',
-  completed: 'completed',
-  failed: 'failed',
-};
 
 export interface BacktestRunRecord {
   id: string;
@@ -21,6 +13,15 @@ export interface BacktestRunRecord {
   status: BacktestRunStatus;
   ownerUserId: string | null;
   createdAt: string;
+}
+
+export interface BacktestRunSaveInput {
+  id: string;
+  name?: string | null;
+  request: unknown;
+  result?: unknown | null;
+  status: BacktestRunStatus;
+  ownerUserId?: string | null;
 }
 
 interface BacktestRunInput {
@@ -72,8 +73,10 @@ export const getRun = repo.get;
 export const createRun = repo.create;
 export const deleteRun = repo.delete;
 
-export async function save(tenantId: string, run: Run): Promise<BacktestRunRecord> {
-  const result = run.result;
+export async function save(
+  tenantId: string,
+  input: BacktestRunSaveInput,
+): Promise<BacktestRunRecord> {
   return withTenant(tenantId, async (client) => {
     const { rows } = await client.query(
       `INSERT INTO backtest_runs (id, tenant_id, owner_user_id, name, request, result, status)
@@ -84,13 +87,13 @@ export async function save(tenantId: string, run: Run): Promise<BacktestRunRecor
          status = EXCLUDED.status
        RETURNING id, name, request, result, status, owner_user_id, created_at`,
       [
-        run.id,
+        input.id,
         tenantId,
-        run.ownerUserId ?? null,
-        run.name ?? null,
-        JSON.stringify(run.request),
-        serializeJson(result),
-        DOMAIN_TO_DB_STATUS[run.status],
+        input.ownerUserId ?? null,
+        input.name ?? null,
+        JSON.stringify(input.request),
+        serializeJson(input.result ?? null),
+        input.status,
       ],
     );
     return mapRow(rows[0]);

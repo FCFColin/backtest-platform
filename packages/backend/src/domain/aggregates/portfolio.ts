@@ -63,6 +63,7 @@ export class Portfolio {
     this.glidepathYears = props.glidepathYears;
     this.glidepathToWeights = props.glidepathToWeights;
     this.validateWeightSum();
+    this.validateNoDuplicateTickers();
   }
 
   /** @throws {DomainValidationError} ticker 非法/权重越界/权重和偏差 > 容差 */
@@ -152,6 +153,20 @@ export class Portfolio {
         'totalWeight',
         sum,
       );
+    }
+  }
+
+  private validateNoDuplicateTickers(): void {
+    const seen = new Set<string>();
+    for (const h of this.holdings) {
+      if (seen.has(h.ticker.value)) {
+        throw new DomainValidationError(
+          `Portfolio contains duplicate ticker: ${h.ticker.value}`,
+          'assets',
+          h.ticker.value,
+        );
+      }
+      seen.add(h.ticker.value);
     }
   }
 }
