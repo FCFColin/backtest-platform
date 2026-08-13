@@ -102,6 +102,7 @@
 ### Git
 
 - Conventional Commits：`<type>(<scope>): <description>`；types: `feat`/`fix`/`refactor`/`chore`/`docs`/`test`
+- 语义分割提交：按可独立审查的语义单元拆分多个提交，不混装无关改动；文件与并发会话混改时，只提交可明确归属本单元的干净文件，余下留待对方收尾
 - Branches: `feature/*` / `fix/*` / `refactor/*` → PR → `main`（protected）
 - Pre-commit: husky + lint-staged（eslint --fix + prettier --write）
 
