@@ -53,7 +53,6 @@ export async function writeOutboxEvent(
       payload: { ...auditEntry, signature },
       eventId,
     });
-    if (!client) await conn.query('NOTIFY outbox_channel');
     logger.debug(
       { middleware: 'auditLog', transactional: !!client },
       '[auditLog] outbox 事件写入成功',

@@ -44,6 +44,11 @@ const migrations: Array<{ version: number; upFile: string; downFile: string }> =
     upFile: '006_audit_outbox_idempotency.sql',
     downFile: '006_audit_outbox_idempotency_down.sql',
   },
+  {
+    version: 7,
+    upFile: '007_outbox_notify_trigger.sql',
+    downFile: '007_outbox_notify_trigger_down.sql',
+  },
 ];
 
 export async function initSchema(): Promise<void> {

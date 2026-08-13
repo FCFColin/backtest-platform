@@ -219,11 +219,11 @@ describe('writeOutboxEvent 事务双写', () => {
     await expect(writeOutboxEvent(entry123, mockClient)).rejects.toThrow('transaction conflict');
     expect(loggerMocks.error).toHaveBeenCalled();
   });
-  it('独立模式应使用连接池并发送 NOTIFY outbox_channel', async () => {
+  it('独立模式应使用连接池执行 INSERT，NOTIFY 交由 DB trigger 承担', async () => {
     await writeOutboxEvent(entry456);
-    expect(poolMocks.query).toHaveBeenCalled();
-    expect(poolMocks.query).toHaveBeenCalledTimes(2);
-    expect(poolMocks.query.mock.calls[1][0]).toBe('NOTIFY outbox_channel');
+    expect(poolMocks.query).toHaveBeenCalledTimes(1);
+    expect(poolMocks.query.mock.calls[0][0]).toContain('INSERT INTO outbox');
+    expect(poolMocks.query.mock.calls[0][0]).not.toContain('NOTIFY');
   });
   it('独立模式异常应被吞掉（不阻塞响应），仅记录 warn', async () => {
     poolMocks.query.mockRejectedValueOnce(new Error('pool connection failed'));
