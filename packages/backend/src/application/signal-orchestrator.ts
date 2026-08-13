@@ -6,6 +6,7 @@ import type {
 } from '@backtest/shared/types/signal';
 import { fetchHistoryData } from '../infrastructure/dataFacade.js';
 import { callEngineStrict } from '../utils/engineClient.js';
+import { signalResultSchema } from '../schemas/engineSchemas.js';
 import { ensurePriceDataExists, ensureTickerHasData } from './backtest/backtestEngineUtils.js';
 import type { DegradedResult } from './backtest-helpers.js';
 
@@ -50,10 +51,14 @@ async function runSignalMode(
     degradedWarning,
   } = await fetchHistoryData(tickers, startDate, endDate);
   validation(history);
-  return callEngineStrict('/api/engine/signal-analyze', {
-    ...engineBody,
-    priceData: history,
-  }).then((r) => ({ data: r, degraded, degradedWarning }));
+  return callEngineStrict(
+    '/api/engine/signal-analyze',
+    {
+      ...engineBody,
+      priceData: history,
+    },
+    signalResultSchema[mode],
+  ).then((r) => ({ data: r, degraded, degradedWarning }));
 }
 
 // @throws {DataNotFoundError} {EngineUnavailableError}

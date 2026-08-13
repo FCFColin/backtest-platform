@@ -1,5 +1,11 @@
 import type { Portfolio, BacktestResult, BacktestParameters } from '@backtest/shared/types';
+import { z } from 'zod';
 import { callEngineStrict } from '../utils/engineClient.js';
+import {
+  optimizeResultSchema,
+  frontierResultSchema,
+  backtestResultSchema,
+} from '../schemas/engineSchemas.js';
 import { buildEngineParams } from './backtest/backtestEngineUtils.js';
 import { Portfolio as DomainPortfolio } from '../domain/aggregates/portfolio.js';
 import {
@@ -33,17 +39,22 @@ async function runCompute(
   tickers: string[],
   parameters: BacktestParameters,
   bodyExtra: Record<string, unknown>,
+  schema: z.ZodType<unknown>,
 ): Promise<{ data: Record<string, unknown>; warnings: Warning[]; dateRange: DateRangeInfo }> {
   const { priceData, warnings, invalidTickers, allTickers } = await preparePriceDataAndWarnings(
     tickers,
     parameters.startDate,
     parameters.endDate,
   );
-  const result = await callEngineStrict<Record<string, unknown>>(path, {
-    tickers,
-    priceData: filterPriceData(priceData, allTickers),
-    ...bodyExtra,
-  });
+  const result = await callEngineStrict<Record<string, unknown>>(
+    path,
+    {
+      tickers,
+      priceData: filterPriceData(priceData, allTickers),
+      ...bodyExtra,
+    },
+    schema,
+  );
   const dateRange = calculateDateRange(
     parameters.startDate,
     parameters.endDate,
@@ -60,11 +71,17 @@ export async function runOptimization(
   parameters: BacktestParameters,
   numIterations?: number,
 ): Promise<{ data: Record<string, unknown>; warnings: Warning[]; dateRange: DateRangeInfo }> {
-  return runCompute('/api/engine/optimize', tickers, parameters, {
-    objective,
-    constraints: constraints || {},
-    numIterations: numIterations ? Math.min(numIterations, 100000) : 10000,
-  });
+  return runCompute(
+    '/api/engine/optimize',
+    tickers,
+    parameters,
+    {
+      objective,
+      constraints: constraints || {},
+      numIterations: numIterations ? Math.min(numIterations, 100000) : 10000,
+    },
+    optimizeResultSchema,
+  );
 }
 
 export async function runEfficientFrontier(
@@ -73,10 +90,16 @@ export async function runEfficientFrontier(
   numPoints?: number,
   riskFreeRate?: number,
 ): Promise<{ data: Record<string, unknown>; warnings: Warning[]; dateRange: DateRangeInfo }> {
-  return runCompute('/api/engine/efficient-frontier', tickers, parameters, {
-    numPoints: numPoints || 20,
-    riskFreeRate: riskFreeRate || 0.02,
-  });
+  return runCompute(
+    '/api/engine/efficient-frontier',
+    tickers,
+    parameters,
+    {
+      numPoints: numPoints || 20,
+      riskFreeRate: riskFreeRate || 0.02,
+    },
+    frontierResultSchema,
+  );
 }
 
 async function runBacktestGroups(
@@ -103,12 +126,16 @@ async function runBacktestGroups(
       drag: 0,
       totalReturn: true,
     }));
-    const btResult = await callEngineStrict<BacktestResult>('/api/engine/backtest', {
-      portfolios: portfolios.map(toEngineBody),
-      priceData,
-      ...macro,
-      params: buildEngineParams(buildBacktestParameters(parameters, capital)),
-    });
+    const btResult = await callEngineStrict<BacktestResult>(
+      '/api/engine/backtest',
+      {
+        portfolios: portfolios.map(toEngineBody),
+        priceData,
+        ...macro,
+        params: buildEngineParams(buildBacktestParameters(parameters, capital)),
+      },
+      backtestResultSchema,
+    );
     for (let j = 0; j < group.length; j++) {
       const stats = btResult.portfolios[j].statistics;
       items.push({
@@ -149,12 +176,16 @@ async function computeBestResult(
       totalReturn: true,
     },
   ];
-  const bestResult = await callEngineStrict<BacktestResult>('/api/engine/backtest', {
-    portfolios: bestPortfolios.map(toEngineBody),
-    priceData,
-    ...macro,
-    params: buildEngineParams(buildBacktestParameters(parameters, bestItem.initialCapital)),
-  });
+  const bestResult = await callEngineStrict<BacktestResult>(
+    '/api/engine/backtest',
+    {
+      portfolios: bestPortfolios.map(toEngineBody),
+      priceData,
+      ...macro,
+      params: buildEngineParams(buildBacktestParameters(parameters, bestItem.initialCapital)),
+    },
+    backtestResultSchema,
+  );
   return {
     best: { ...bestItem, growthCurve: bestResult.portfolios[0].growthCurve },
     benchmarkGrowth: bestResult.benchmarkGrowth || null,

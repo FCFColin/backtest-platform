@@ -6,6 +6,7 @@ import { logger, sanitizeLog } from '../utils/logger.js';
 import { validate } from '../middleware/miscMiddleware.js';
 import { sendProblem } from '../utils/errors.js';
 import { callEngineStrict } from '../utils/engineClient.js';
+import { factorRegressionResultSchema, calculatorResultSchema } from '../schemas/engineSchemas.js';
 import { computeMiddleware, computeMiddlewareNoQuota } from '../middleware/middlewareChains.js';
 import { Permission } from '../middleware/rbac.js';
 import {
@@ -103,13 +104,17 @@ analysisRouter.post(
     'FR_ERROR',
     async (req) => {
       const { monthlyReturns, ffData, factors, startDate, endDate } = req.body;
-      return callEngineStrict('/api/engine/factor-regression', {
-        monthlyReturns,
-        ffData,
-        factors: factors || ['mktRF', 'smb', 'hml'],
-        startDate: startDate || '',
-        endDate: endDate || '',
-      });
+      return callEngineStrict(
+        '/api/engine/factor-regression',
+        {
+          monthlyReturns,
+          ffData,
+          factors: factors || ['mktRF', 'smb', 'hml'],
+          startDate: startDate || '',
+          endDate: endDate || '',
+        },
+        factorRegressionResultSchema,
+      );
     },
     { startLog: () => '[FactorRegression] 开始回归' },
   ),
@@ -125,7 +130,11 @@ analysisRouter.post(
     'CALC_ERROR',
     async (req) => {
       const { type } = req.params;
-      return callEngineStrict('/api/engine/calculators', { type, ...req.body });
+      return callEngineStrict(
+        '/api/engine/calculators',
+        { type, ...req.body },
+        calculatorResultSchema[type as keyof typeof calculatorResultSchema],
+      );
     },
     {
       startLog: (req) => `[Calculator] 执行 ${req.params.type} 计算`,

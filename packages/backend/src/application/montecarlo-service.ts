@@ -1,5 +1,6 @@
 ﻿import pLimit from 'p-limit';
 import { callEngineStrict } from '../utils/engineClient.js';
+import { monteCarloResultSchema } from '../schemas/engineSchemas.js';
 import { buildEngineParams } from './backtest/backtestEngineUtils.js';
 import { Portfolio as DomainPortfolio } from '../domain/aggregates/portfolio.js';
 import {
@@ -44,14 +45,18 @@ export async function runMonteCarlo(
   const results = await Promise.all(
     domainPortfolios.map((dp) =>
       limit(() =>
-        callEngineStrict('/api/engine/monte-carlo', {
-          portfolio: dp.toEngineBody(),
-          priceData: filterPriceData(priceData, allTickers),
-          params: buildEngineParams(effectiveParameters),
-          cpiData,
-          exchangeRates,
-          mcParams: sanitizedMcParams,
-        }),
+        callEngineStrict(
+          '/api/engine/monte-carlo',
+          {
+            portfolio: dp.toEngineBody(),
+            priceData: filterPriceData(priceData, allTickers),
+            params: buildEngineParams(effectiveParameters),
+            cpiData,
+            exchangeRates,
+            mcParams: sanitizedMcParams,
+          },
+          monteCarloResultSchema,
+        ),
       ),
     ),
   );

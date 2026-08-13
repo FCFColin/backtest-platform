@@ -4,6 +4,7 @@ import type { PortfolioResult, RebalanceFrequency } from '@backtest/shared/types
 import type { TacticalBacktestRequest } from '../schemas/tactical.js';
 import { fetchHistoryData } from '../infrastructure/dataFacade.js';
 import { callEngineStrict } from '../utils/engineClient.js';
+import { backtestResultSchema, tacticalBacktestResultSchema } from '../schemas/engineSchemas.js';
 import { buildEngineParams } from './backtest/backtestEngineUtils.js';
 import { Portfolio as DomainPortfolio } from '../domain/aggregates/portfolio.js';
 import { Ticker, Weight } from '../domain/value-objects/index.js';
@@ -73,6 +74,7 @@ async function runBenchmarkBacktest(params: BenchmarkParams): Promise<PortfolioR
         priceData,
         params: buildEngineParams(benchmarkParams),
       },
+      backtestResultSchema,
     );
     return engineResp.portfolios[0];
   } catch (err) {
@@ -136,13 +138,17 @@ export async function executeTacticalBacktest(
   const tacticalResult = await callEngineStrict<{
     portfolio: PortfolioResult;
     signalHistory: TacticalBacktestResult['signalHistory'];
-  }>('/api/engine/tactical-backtest', {
-    strategy,
-    priceData,
-    dates,
-    startingValue,
-    rebalanceFrequency,
-  });
+  }>(
+    '/api/engine/tactical-backtest',
+    {
+      strategy,
+      priceData,
+      dates,
+      startingValue,
+      rebalanceFrequency,
+    },
+    tacticalBacktestResultSchema,
+  );
 
   const benchmarkResult = await runBenchmarkBacktest({
     allTickers,
@@ -190,6 +196,7 @@ export async function executeTacticalWhatIf(
       startingValue: 10000,
       rebalanceFrequency: 'monthly' as RebalanceFrequency,
     },
+    tacticalBacktestResultSchema,
   );
 
   const lastEntry = result.signalHistory[result.signalHistory.length - 1];

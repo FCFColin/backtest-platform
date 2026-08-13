@@ -1,6 +1,7 @@
 ﻿import { fetchHistoryData } from '../infrastructure/dataFacade.js';
 import { logger, sanitizeLog } from '../utils/logger.js';
 import { callEngineStrict } from '../utils/engineClient.js';
+import { tacticalGridResultSchema } from '../schemas/engineSchemas.js';
 import {
   MAX_GRID_COMBINATIONS,
   validateGridSearchRequest,
@@ -63,13 +64,17 @@ export async function executeGridSearch(body: Record<string, unknown>): Promise<
     return { success: false, error: '有效交易日不足，无法运行网格搜索' };
   }
 
-  const response = await callEngineStrict('/api/engine/tactical-grid-search', {
-    ...request,
-    priceData,
-    dates,
-    prices,
-    tradingTicker,
-  });
+  const response = await callEngineStrict(
+    '/api/engine/tactical-grid-search',
+    {
+      ...request,
+      priceData,
+      dates,
+      prices,
+      tradingTicker,
+    },
+    tacticalGridResultSchema,
+  );
 
   logger.info(
     `[tactical-grid] 网格搜索完成: ${totalCombinations}个组合, 耗时${Date.now() - startTime}ms`,

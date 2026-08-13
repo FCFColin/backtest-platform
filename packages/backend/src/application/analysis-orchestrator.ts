@@ -7,6 +7,12 @@
 import type { LETFRequest } from '@backtest/shared';
 import { fetchHistoryData } from '../infrastructure/dataFacade.js';
 import { callEngineStrict } from '../utils/engineClient.js';
+import {
+  analysisResultSchema,
+  pcaResultSchema,
+  letfResultSchema,
+  goalOptimizeResultSchema,
+} from '../schemas/engineSchemas.js';
 import { logger } from '../utils/logger.js';
 import { buildEngineParams } from './backtest/backtestEngineUtils.js';
 import { ValidationError } from '../utils/errors.js';
@@ -47,11 +53,15 @@ export async function runAnalysis(
     warnings.push({ code: 'TICKER_NOT_FOUND', tickers: missing });
   }
 
-  const result = await callEngineStrict<Record<string, unknown>>('/api/engine/analysis', {
-    tickers: validTickers,
-    priceData,
-    params: buildEngineParams(parameters),
-  });
+  const result = await callEngineStrict<Record<string, unknown>>(
+    '/api/engine/analysis',
+    {
+      tickers: validTickers,
+      priceData,
+      params: buildEngineParams(parameters),
+    },
+    analysisResultSchema,
+  );
 
   const dateRange = calculateDateRange(
     parameters.startDate,
@@ -73,11 +83,15 @@ export function executePcaAnalyze(
   numComponents?: number,
 ) {
   ensurePriceDataExists(tickers, priceData, 'PCA');
-  return callEngineStrict<PCAResult>('/api/engine/pca', {
-    tickers,
-    priceData,
-    numComponents,
-  });
+  return callEngineStrict<PCAResult>(
+    '/api/engine/pca',
+    {
+      tickers,
+      priceData,
+      numComponents,
+    },
+    pcaResultSchema,
+  );
 }
 
 async function runAnalysisWithFetch<T>(
@@ -126,12 +140,16 @@ export function executeLetfAnalyze(
   ensureTickerHasData(cleanLetf, priceData, '杠杆 ETF');
   ensureTickerHasData(cleanBench, priceData, '基准指数');
 
-  return callEngineStrict('/api/engine/letf-analyze', {
-    letfTicker: cleanLetf,
-    benchmarkTicker: cleanBench,
-    leverage: lev,
-    priceData,
-  });
+  return callEngineStrict(
+    '/api/engine/letf-analyze',
+    {
+      letfTicker: cleanLetf,
+      benchmarkTicker: cleanBench,
+      leverage: lev,
+      priceData,
+    },
+    letfResultSchema,
+  );
 }
 
 export async function executeLetfAnalyzeWithFetch(req: LETFRequest) {
@@ -160,12 +178,16 @@ export function executeGoalOptimize(
   const tickers = validateGoalOptimizerAssets(request);
   ensurePriceDataExists(tickers, priceData, 'GoalOptimizer');
 
-  return callEngineStrict('/api/engine/goal-optimize', {
-    ...request,
-    priceData,
-    startDate,
-    endDate,
-  });
+  return callEngineStrict(
+    '/api/engine/goal-optimize',
+    {
+      ...request,
+      priceData,
+      startDate,
+      endDate,
+    },
+    goalOptimizeResultSchema,
+  );
 }
 
 export async function executeGoalOptimizeWithFetch(request: GoalOptimizerRequest) {
