@@ -103,6 +103,7 @@
 
 - Conventional Commits：`<type>(<scope>): <description>`；types: `feat`/`fix`/`refactor`/`chore`/`docs`/`test`
 - 语义分割提交：按可独立审查的语义单元拆分多个提交，不混装无关改动；文件与并发会话混改时，只提交可明确归属本单元的干净文件，余下留待对方收尾
+- **提交必须收口全部问题**：语义分割提交不得遗留未提交改动（历史教训：分区提交后仍有大量改动未入库）；提交前核对 `git status`，确认所有应提交的改动已按语义单元入库，仅并发会话明确在改的文件可例外
 - Branches: `feature/*` / `fix/*` / `refactor/*` → PR → `main`（protected）
 - Pre-commit: husky + lint-staged（eslint --fix + prettier --write）
 
