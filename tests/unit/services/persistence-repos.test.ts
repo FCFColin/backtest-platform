@@ -126,7 +126,7 @@ describe('backtestRunRepo', () => {
     const [, params] = dbMocks.query.mock.calls[0];
     expect(params[3]).toBe(JSON.stringify({ x: 1 }));
     expect(params[4]).toBeNull();
-    expect(params[5]).toBe('completed');
+    expect(params[5]).toBe('pending');
   });
   it('createRun 应使用传入的 result 并序列化', async () => {
     dbMocks.query.mockResolvedValueOnce({ rows: [runRow({ result: { sharpe: 1.5 } })] });
@@ -142,10 +142,10 @@ describe('backtestRunRepo', () => {
     expect(params[5]).toBe('completed');
     expect(r.result).toEqual({ sharpe: 1.5 });
   });
-  it('createRun status 未指定时默认 completed', async () => {
+  it('createRun status 未指定时默认 pending（新任务未执行）', async () => {
     dbMocks.query.mockResolvedValueOnce({ rows: [runRow()] });
     await createRun(TENANT, null, { request: {} });
-    expect(dbMocks.query.mock.calls[0][1][5]).toBe('completed');
+    expect(dbMocks.query.mock.calls[0][1][5]).toBe('pending');
   });
   it('createRun result 为 undefined 时应写入 null', async () => {
     dbMocks.query.mockResolvedValueOnce({ rows: [runRow()] });

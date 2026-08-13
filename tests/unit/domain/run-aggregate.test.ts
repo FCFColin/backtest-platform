@@ -1,11 +1,6 @@
 import '../../helpers/loggerMock.js';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { Mock } from 'vitest';
 import { loggerMocks } from '../../helpers/loggerFixture.js';
-
-vi.mock('../../../packages/backend/src/repositories/backtestRunRepo.js', () => ({
-  createRun: vi.fn(),
-}));
 import { Run } from '../../../packages/backend/src/domain/aggregates/run.js';
 import { Portfolio } from '../../../packages/backend/src/domain/aggregates/portfolio.js';
 import {
@@ -18,8 +13,6 @@ import type {
   DomainEvent,
   EventHandler,
 } from '../../../packages/backend/src/domain/events/events.js';
-import { BacktestCompletedHandler } from '../../../packages/backend/src/application/completedHandlers.js';
-import * as repoModule from '../../../packages/backend/src/repositories/backtestRunRepo.js';
 
 function makeHolding(ticker: string, weight: number) {
   return { ticker: Ticker.create(ticker), weight: Weight.create(weight) };
@@ -304,79 +297,6 @@ describe('DomainEventDispatcher', () => {
     expect(loggerMocks.warn).toHaveBeenCalledWith(
       expect.objectContaining({ eventType: 'AllFailEvent', errorCount: 2 }),
       'Some event handlers failed',
-    );
-  });
-});
-
-function makeEvent(payload: Record<string, unknown> = {}): DomainEvent {
-  return {
-    eventType: 'BacktestCompleted',
-    aggregateType: 'Portfolio',
-    aggregateId: 'portfolio-1',
-    payload: {
-      tenantId: 'tenant-1',
-      ownerUserId: 'user-1',
-      totalReturn: 0.15,
-      maxDrawdown: -0.2,
-      sharpeRatio: 1.2,
-      ...payload,
-    },
-    occurredAt: new Date('2024-06-15T00:00:00Z'),
-  };
-}
-
-describe('BacktestCompletedHandler', () => {
-  let handler: BacktestCompletedHandler;
-
-  beforeEach(() => {
-    vi.clearAllMocks();
-    handler = new BacktestCompletedHandler();
-    (repoModule.createRun as Mock).mockResolvedValue({ id: 'run-1' });
-  });
-
-  it('应订阅 BacktestCompleted 事件类型', () => {
-    expect(handler.eventType).toBe('BacktestCompleted');
-  });
-  it('handle 应记录 info 日志（含关键指标）', async () => {
-    await handler.handle(makeEvent());
-    expect(loggerMocks.info).toHaveBeenCalledWith(
-      expect.objectContaining({
-        eventType: 'BacktestCompleted',
-        aggregateId: 'portfolio-1',
-        totalReturn: 0.15,
-        maxDrawdown: -0.2,
-        sharpeRatio: 1.2,
-      }),
-      expect.stringContaining('回测完成事件已接收'),
-    );
-  });
-  it('handle 应通过 createRun 持久化摘要，且不访问 outbox/NOTIFY', async () => {
-    await handler.handle(makeEvent());
-    expect(repoModule.createRun).toHaveBeenCalledTimes(1);
-    expect(loggerMocks.info).toHaveBeenCalledWith(
-      expect.objectContaining({ aggregateId: 'portfolio-1' }),
-      expect.stringContaining('已持久化'),
-    );
-  });
-  it('createRun 失败时向上抛错（ADR-014 不吞错）', async () => {
-    (repoModule.createRun as Mock).mockRejectedValueOnce(new Error('db down'));
-    await expect(handler.handle(makeEvent())).rejects.toThrow('db down');
-    expect(loggerMocks.error).toHaveBeenCalledWith(
-      expect.objectContaining({ aggregateId: 'portfolio-1' }),
-      expect.stringContaining('持久化回测运行摘要失败'),
-    );
-  });
-  it('payload 缺少指标字段时也应正常处理', async () => {
-    const event = makeEvent();
-    (event as Record<string, unknown>).payload = {};
-    await handler.handle(event);
-    expect(loggerMocks.info).toHaveBeenCalledWith(
-      expect.objectContaining({
-        totalReturn: undefined,
-        maxDrawdown: undefined,
-        sharpeRatio: undefined,
-      }),
-      expect.stringContaining('回测完成事件已接收'),
     );
   });
 });

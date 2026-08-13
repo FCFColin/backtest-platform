@@ -1,9 +1,7 @@
 import '../../helpers/loggerMock.js';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { Portfolio, BacktestParameters, BacktestResult } from '@backtest/shared';
+import type { Portfolio, BacktestParameters } from '@backtest/shared';
 import { engineMocks, engineModuleMock } from '../../helpers/engineFixture.js';
-import { loggerMocks } from '../../helpers/loggerFixture.js';
-import { createWithTransactionMock } from '../../helpers/poolFixture.js';
 import {
   mockParameters,
   mockPortfolio as portfolioFixture,
@@ -20,18 +18,7 @@ import {
 import type { Warning } from '../../../packages/backend/src/application/backtest-helpers.js';
 import { MAX_TICKERS } from '../../../packages/shared/constants.js';
 
-const dbMocks = vi.hoisted(() => ({
-  getClient: vi.fn(async () => ({ query: vi.fn(async () => ({ rows: [] })), release: vi.fn() })),
-}));
-const outboxMocks = vi.hoisted(() => ({ writeEventInTransaction: vi.fn(async () => {}) }));
-
 vi.mock('../../../packages/backend/src/utils/engineClient.js', () => engineModuleMock);
-vi.mock('../../../packages/backend/src/db/pool.js', () => ({
-  withTransaction: createWithTransactionMock(() => dbMocks.getClient()),
-}));
-vi.mock('../../../packages/backend/src/infrastructure/outbox.js', () => ({
-  writeEventInTransaction: outboxMocks.writeEventInTransaction,
-}));
 import { runBacktest } from '../../../packages/backend/src/application/backtest-service.js';
 
 const mockPortfolio = portfolioFixture();
@@ -80,22 +67,6 @@ describe('runBacktest', () => {
     });
     expect(result.result).toBe(mockBacktestResult);
   });
-  it('runBacktest 应将 BacktestCompleted 事件写入 outbox', async () => {
-    await executeRun();
-    await vi.waitFor(() => expect(outboxMocks.writeEventInTransaction).toHaveBeenCalledTimes(1));
-    const outboxCall = outboxMocks.writeEventInTransaction.mock.calls[0][1];
-    expect(outboxCall.eventType).toBe('BacktestCompleted');
-    expect(outboxCall.aggregateType).toBe('BacktestSession');
-    expect(outboxCall.aggregateId).toMatch(
-      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
-    );
-    expect(outboxCall.eventId).toBeDefined();
-    expect(outboxCall.payload.startingValue).toBe(10000);
-    expect(outboxCall.payload.portfolioCount).toBe(1);
-    expect(outboxCall.payload.totalReturn).toBe(0.2);
-    expect(outboxCall.payload.maxDrawdown).toBe(0.15);
-    expect(outboxCall.payload.sharpeRatio).toBe(1.5);
-  });
   it('runBacktest 在引擎不可用时应抛出错误（fail-closed）', async () => {
     engineMocks.callEngineStrict.mockRejectedValueOnce(new Error('ENGINE_UNAVAILABLE'));
     await expect(
@@ -105,35 +76,6 @@ describe('runBacktest', () => {
         priceData: mockPriceData,
       }),
     ).rejects.toThrow();
-  });
-  it('writeEventInTransaction 失败时应回滚事务并记录 outbox 错误', async () => {
-    const queryMock = vi.fn(async () => ({ rows: [] }));
-    dbMocks.getClient.mockResolvedValueOnce({ query: queryMock, release: vi.fn() });
-    outboxMocks.writeEventInTransaction.mockRejectedValueOnce(new Error('write failed'));
-    const result = await executeRun();
-    expect(result.result).toBe(mockBacktestResult);
-    await vi.waitFor(() =>
-      expect(loggerMocks.error).toHaveBeenCalledWith(
-        expect.objectContaining({ aggregateId: expect.any(String) }),
-        'Failed to write BacktestCompleted event to outbox',
-      ),
-    );
-    const queries = queryMock.mock.calls.map((c) => c[0]);
-    expect(queries).toContain('BEGIN');
-    expect(queries).toContain('ROLLBACK');
-    expect(queries).not.toContain('COMMIT');
-  });
-  it('引擎返回空 portfolios 时事件负载统计字段应为 undefined', async () => {
-    engineMocks.callEngineStrict.mockResolvedValueOnce({
-      portfolios: [],
-      correlations: [],
-    } as BacktestResult);
-    await executeRun();
-    await vi.waitFor(() => expect(outboxMocks.writeEventInTransaction).toHaveBeenCalledTimes(1));
-    const outboxCall = outboxMocks.writeEventInTransaction.mock.calls[0][1];
-    expect(outboxCall.payload.totalReturn).toBeUndefined();
-    expect(outboxCall.payload.maxDrawdown).toBeUndefined();
-    expect(outboxCall.payload.sharpeRatio).toBeUndefined();
   });
 });
 

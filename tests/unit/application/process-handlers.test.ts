@@ -67,10 +67,6 @@ vi.mock('../../../packages/backend/src/domain/events/events.js', () => ({
   DomainEventDispatcher: vi.fn(),
 }));
 
-vi.mock('../../../packages/backend/src/application/completedHandlers.js', () => ({
-  BacktestCompletedHandler: vi.fn().mockImplementation(() => ({})),
-}));
-
 vi.mock('../../../packages/backend/src/queues/queueDefinitions.js', () => ({
   createAuditExportWorker: vi.fn(() => ({
     close: vi.fn().mockResolvedValue(undefined),
