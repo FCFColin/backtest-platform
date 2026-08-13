@@ -1,49 +1,37 @@
-import type { ReactNode } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AlertTriangle, TrendingDown, TrendingUp } from 'lucide-react';
 import { getPortfolioColor } from '@/lib/chart-theme.js';
 import { Card } from '@/components/ui/uiComponents';
 import { SimpleTable, type SimpleTableColumn } from '@/components/tables.js';
+import { TimeSeriesLineChart } from '@/components/charts/TimeSeriesLineChart.js';
 import type { CompareResult, LumpSumVsDCAState } from '../../hooks/useLumpSumVsDCAState.js';
-function GrowthCurveChart({ results }: { results: CompareResult[] }) {
+function GrowthCurveChart({
+  results,
+  fmtMoney,
+}: {
+  results: CompareResult[];
+  fmtMoney: (v: number) => string;
+}) {
+  const chartData = useMemo(() => {
+    const merged: Record<string, Record<string, string | number>> = {};
+    results.forEach((r) =>
+      r.growthCurve.forEach((p) => {
+        (merged[p.date] ??= { date: p.date })[r.label] = p.value;
+      }),
+    );
+    return Object.values(merged).sort((a, b) => String(a.date).localeCompare(String(b.date)));
+  }, [results]);
   return (
-    <div className="relative w-full h-[350px]">
-      <svg viewBox="0 0 800 350" className="w-full h-full" preserveAspectRatio="none">
-        {results.map((r, idx) => {
-          if (!r.growthCurve || r.growthCurve.length < 2) return null;
-          const allValues = results.flatMap((x) => x.growthCurve.map((p) => p.value));
-          const minVal = Math.min(...allValues);
-          const maxVal = Math.max(...allValues);
-          const range = maxVal - minVal || 1;
-          const points = r.growthCurve
-            .map(
-              (p, i) =>
-                `${(i / (r.growthCurve.length - 1)) * 780 + 10},${340 - ((p.value - minVal) / range) * 320 - 10}`,
-            )
-            .join(' ');
-          return (
-            <polyline
-              key={r.label}
-              points={points}
-              fill="none"
-              stroke={getPortfolioColor(idx)}
-              strokeWidth={2}
-            />
-          );
-        })}
-      </svg>
-      <div className="flex gap-4 mt-2 justify-center">
-        {results.map((r, idx) => (
-          <div key={r.label} className="flex items-center gap-1 text-xs">
-            <span
-              className="inline-block w-3 h-1 rounded"
-              style={{ backgroundColor: getPortfolioColor(idx) }}
-            />
-            <span className="text-fg-tertiary">{r.label}</span>
-          </div>
-        ))}
-      </div>
-    </div>
+    <TimeSeriesLineChart
+      data={chartData}
+      series={results.map((r, i) => ({
+        dataKey: r.label,
+        legendName: r.label,
+        color: getPortfolioColor(i),
+      }))}
+      tooltipValueFormatter={(v: number) => [fmtMoney(v), '']}
+    />
   );
 }
 const STATS_ROWS = [
@@ -254,7 +242,7 @@ export function LsDcaResultsCard({
         fmtMoney={fmtMoney}
       />
       <div className="mb-3 text-body font-semibold text-fg">{t('Growth Curve Comparison')}</div>
-      <GrowthCurveChart results={s.results} />
+      <GrowthCurveChart results={s.results} fmtMoney={fmtMoney} />
       <div className="mb-3 mt-6 text-body font-semibold text-fg">{t('Statistics Comparison')}</div>
       <StatsTable results={s.results} fmtPct={fmtPct} fmtNum={fmtNum} fmtMoney={fmtMoney} />
       <RiskWarning lsWins={s.results[0].finalValue > s.results[1].finalValue} />

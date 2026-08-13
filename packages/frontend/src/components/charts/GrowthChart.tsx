@@ -1,15 +1,14 @@
 import { useState, useMemo } from 'react';
-import { Line } from 'recharts';
 import { useTranslation } from 'react-i18next';
 import { Eye, EyeOff, FunctionSquare } from 'lucide-react';
 import { Button } from '@/components/ui/uiComponents.js';
 import { ChartEmptyState, SimpleChart } from '@/components/charts/sharedChartContent.js';
+import { totalMonths } from './chartUtils.js';
 import {
   currencyFormatter,
   YEAR_ONLY_TICK_FORMATTER,
   SMART_DATE_INTERVAL,
   getPortfolioColor,
-  CHART_LINE_STYLE,
 } from '@/lib/chart-theme.js';
 import {
   formatCurrency,
@@ -144,14 +143,7 @@ function GrowthLines({
   hiddenIds: Set<string>;
   t: ReturnType<typeof useTranslation>['t'];
 }) {
-  const totalMonths = useMemo(() => {
-    const first = new Date(String(filteredData[0].date));
-    const last = new Date(String(filteredData[filteredData.length - 1].date));
-    return Math.max(
-      1,
-      (last.getFullYear() - first.getFullYear()) * 12 + last.getMonth() - first.getMonth(),
-    );
-  }, [filteredData]);
+  const totalMonthsValue = useMemo(() => totalMonths(filteredData), [filteredData]);
   return (
     <SimpleChart
       type="line"
@@ -160,7 +152,7 @@ function GrowthLines({
       margin={{ top: 20, right: 32, bottom: 20, left: 32 }}
       xDataKey="date"
       xTickFormatter={YEAR_ONLY_TICK_FORMATTER as (v: number | string) => string}
-      xTickInterval={SMART_DATE_INTERVAL(totalMonths)}
+      xTickInterval={SMART_DATE_INTERVAL(totalMonthsValue)}
       yTickFormatter={(v: number) => currencyFormatter(v, currency)}
       yDomain={logScale ? [1, 'auto'] : ['auto', 'auto']}
       yScale={logScale ? 'log' : 'linear'}
@@ -170,20 +162,10 @@ function GrowthLines({
       ]}
       tooltipLabelFormatter={(label) => t('Date: {{label}}', { label })}
       showLegend={false}
-    >
-      {portfolios.map((p, i) =>
-        hiddenIds.has(p.id) ? null : (
-          <Line
-            key={p.id}
-            type="monotone"
-            dataKey={p.id}
-            name={p.name}
-            stroke={getPortfolioColor(i)}
-            {...CHART_LINE_STYLE}
-          />
-        ),
+      series={portfolios.flatMap((p, i) =>
+        hiddenIds.has(p.id) ? [] : [{ dataKey: p.id, name: p.name, color: getPortfolioColor(i) }],
       )}
-    </SimpleChart>
+    />
   );
 }
 export function GrowthChart({ portfolios, currency = 'USD' }: GrowthChartProps) {

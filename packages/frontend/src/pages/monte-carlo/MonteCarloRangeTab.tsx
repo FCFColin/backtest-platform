@@ -1,47 +1,115 @@
 import { useTranslation } from 'react-i18next';
-import {
-  CartesianGrid,
-  Legend,
-  Line,
-  LineChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts';
+import type { EChartsOption } from 'echarts';
 import { Card } from '@/components/ui/uiComponents';
 import type { MonteCarloResult } from '@backtest/shared';
 import {
-  CHART_GRID_PROPS,
-  CHART_TOOLTIP_STYLE,
-  AXIS_TICK_STYLE,
-  LEGEND_WRAPPER_STYLE,
-  getPortfolioColor,
-} from '@/lib/chart-theme.js';
+  AXIS_TEXT,
+  BORDER_SOFT,
+  axisTooltipFormatter,
+  tooltipOption,
+  tooltipRow,
+} from '@/components/charts/chartUtils.js';
+import { getPortfolioColor } from '@/lib/chart-theme.js';
 import { fmtDollar } from '@/utils/format';
 import { useChartAnimation } from '@/hooks/miscHooks';
+import EChart from '@/components/charts/EChart.js';
 import { HistogramChart, NoDataCard } from './HistogramChart.js';
 import {
   buildFanChartData,
   buildSuccessData,
   buildTerminalHistogram,
-  fanAreas,
-  fanMedianLine,
+  dollarKFormatter,
+  monthFormatter,
   type FanDataPoint,
 } from './monteCarloUtils.js';
-import SvgFanChart from './SvgFanChart.js';
 function FanChart({ data }: { data: FanDataPoint[] }) {
   const { t } = useTranslation();
-  const areas = fanAreas(t);
-  const median = fanMedianLine(t);
-  return (
-    <SvgFanChart
-      data={data}
-      band5_95Name={areas[0]?.name ?? ''}
-      band25_75Name={areas[1]?.name ?? ''}
-      medianName={median.name}
-    />
-  );
+  const months = data.map((d) => String(d.month));
+  const series: Array<{ dataKey: 'band5_95' | 'band25_75'; opacity: number; name: string }> = [
+    { dataKey: 'band5_95', opacity: 0.08, name: t('monteCarlo.fanChart.band5_95') },
+    { dataKey: 'band25_75', opacity: 0.18, name: t('monteCarlo.fanChart.band25_75') },
+  ];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 需要动态构造堆叠 band 系列
+  const seriesArr: any[] = [];
+  series.forEach((band) => {
+    seriesArr.push(
+      {
+        type: 'line',
+        stack: band.dataKey,
+        data: data.map((d) => d[band.dataKey][0]),
+        symbol: 'none',
+        lineStyle: { opacity: 0 },
+        itemStyle: { opacity: 0 },
+      },
+      {
+        type: 'line',
+        stack: band.dataKey,
+        name: band.name,
+        data: data.map((d) => d[band.dataKey][1] - d[band.dataKey][0]),
+        symbol: 'none',
+        lineStyle: { opacity: 0 },
+        areaStyle: { color: getPortfolioColor(0), opacity: band.opacity },
+      },
+    );
+  });
+  seriesArr.push({
+    type: 'line',
+    name: t('Median'),
+    data: data.map((d) => d.p50),
+    symbol: 'none',
+    lineStyle: { width: 2.5, color: getPortfolioColor(0) },
+    itemStyle: { color: getPortfolioColor(0) },
+    emphasis: { focus: 'series' },
+  });
+  const byMonth = new Map(data.map((d) => [d.month, d]));
+  const option: EChartsOption = {
+    grid: { top: 10, right: 30, left: 60, bottom: 40 },
+    xAxis: {
+      type: 'category',
+      data: months,
+      axisLabel: {
+        ...AXIS_TEXT,
+        formatter: (v: string) => monthFormatter(Number(v)),
+        interval: (i: number) => data[i].month % 12 === 0,
+      },
+      axisLine: { lineStyle: { color: BORDER_SOFT } },
+      axisTick: { show: false },
+      splitLine: { show: false },
+    },
+    yAxis: {
+      type: 'value',
+      axisLabel: { ...AXIS_TEXT, formatter: dollarKFormatter },
+      axisLine: { show: false },
+      axisTick: { show: false },
+      splitLine: { lineStyle: { color: BORDER_SOFT, opacity: 0.6 } },
+    },
+    tooltip: tooltipOption((p: { axisValue: string; marker: string }) => {
+      const d = byMonth.get(Number(p.axisValue));
+      if (!d) return '';
+      const [lo95, hi95] = d.band5_95;
+      const [lo75, hi75] = d.band25_75;
+      const color = getPortfolioColor(0);
+      return [
+        tooltipRow(
+          `<span style="background:${color};width:8px;height:8px;display:inline-block;border-radius:2px"></span>`,
+          t('Median'),
+          dollarKFormatter(d.p50),
+        ),
+        tooltipRow(
+          p.marker,
+          t('monteCarlo.fanChart.band25_75'),
+          `${dollarKFormatter(lo75)} – ${dollarKFormatter(hi75)}`,
+        ),
+        tooltipRow(
+          p.marker,
+          t('monteCarlo.fanChart.band5_95'),
+          `${dollarKFormatter(lo95)} – ${dollarKFormatter(hi95)}`,
+        ),
+      ].join('');
+    }),
+    series: seriesArr as EChartsOption['series'],
+  };
+  return <EChart option={option} height={450} ariaLabel={t('Monte Carlo Fan Chart')} />;
 }
 function MonteCarloTerminalHistogram({
   r,
@@ -92,7 +160,11 @@ export function MonteCarloSuccessTab({ r }: { r: MonteCarloResult }) {
   const data = buildSuccessData(r);
   const anim = useChartAnimation(data.length >= 100);
   if (data.length === 0) return <NoDataCard />;
-  const successLines = [
+  const successLines: Array<{
+    key: 'survival' | 'capitalPreservation' | 'profit';
+    color: string;
+    nameKey: string;
+  }> = [
     { key: 'survival', color: getPortfolioColor(2), nameKey: 'monteCarlo.results.survivalProb' },
     {
       key: 'capitalPreservation',
@@ -101,43 +173,46 @@ export function MonteCarloSuccessTab({ r }: { r: MonteCarloResult }) {
     },
     { key: 'profit', color: getPortfolioColor(1), nameKey: 'monteCarlo.results.profitProb' },
   ];
+  const option: EChartsOption = {
+    grid: { top: 10, right: 30, left: 10, bottom: 20 },
+    xAxis: {
+      type: 'category',
+      data: data.map((d) => d.year),
+      name: t('Years'),
+      nameLocation: 'middle',
+      nameGap: 30,
+      nameTextStyle: AXIS_TEXT,
+      axisLabel: AXIS_TEXT,
+      axisLine: { lineStyle: { color: BORDER_SOFT } },
+      axisTick: { show: false },
+      splitLine: { show: false },
+    },
+    yAxis: {
+      type: 'value',
+      min: 0,
+      max: 100,
+      axisLabel: { ...AXIS_TEXT, formatter: (v: number) => `${v}%` },
+      axisLine: { show: false },
+      axisTick: { show: false },
+      splitLine: { lineStyle: { color: BORDER_SOFT, opacity: 0.6 } },
+    },
+    tooltip: tooltipOption(axisTooltipFormatter(undefined, (v) => `${v}%`)),
+    legend: { top: 0, textStyle: { color: 'hsl(var(--fg-tertiary))', fontSize: 12 } },
+    series: successLines.map((l) => ({
+      name: t(l.nameKey),
+      type: 'line',
+      smooth: true,
+      data: data.map((d) => d[l.key]),
+      lineStyle: { width: 2, color: l.color },
+      itemStyle: { color: l.color },
+      symbol: 'none',
+      emphasis: { focus: 'series' },
+    })) as EChartsOption['series'],
+    animation: anim.isAnimationActive,
+  };
   return (
     <Card className="p-5">
-      <ResponsiveContainer width="100%" height={400}>
-        <LineChart data={data} margin={{ top: 10, right: 30, left: 10, bottom: 20 }}>
-          <CartesianGrid {...CHART_GRID_PROPS} />
-          <XAxis
-            dataKey="year"
-            tick={AXIS_TICK_STYLE}
-            label={{
-              value: t('Years'),
-              position: 'insideBottom',
-              offset: -5,
-              fontSize: 12,
-              fill: 'hsl(var(--fg-tertiary))',
-            }}
-          />
-          <YAxis tick={AXIS_TICK_STYLE} tickFormatter={(v: number) => `${v}%`} domain={[0, 100]} />
-          <Tooltip
-            formatter={(v: number) => `${v}%`}
-            contentStyle={CHART_TOOLTIP_STYLE}
-            {...anim}
-          />
-          <Legend wrapperStyle={LEGEND_WRAPPER_STYLE} />
-          {successLines.map((l) => (
-            <Line
-              key={l.key}
-              type="monotone"
-              dataKey={l.key}
-              stroke={l.color}
-              strokeWidth={2}
-              dot={false}
-              name={t(l.nameKey)}
-              isAnimationActive={anim.isAnimationActive}
-            />
-          ))}
-        </LineChart>
-      </ResponsiveContainer>
+      <EChart option={option} height={400} ariaLabel={t('Success Probability')} />
     </Card>
   );
 }

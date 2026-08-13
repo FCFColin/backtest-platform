@@ -1,5 +1,4 @@
 ﻿import { useState, useMemo, memo } from 'react';
-import { Scatter, LabelList } from 'recharts';
 import { useTranslation } from 'react-i18next';
 import { type AssetAnalysisResult, type PortfolioResult } from '@backtest/shared';
 import { getPortfolioColor } from '@/lib/chart-theme.js';
@@ -130,17 +129,13 @@ export function RiskReturnScatter({ portfolios }: RiskReturnScatterProps) {
               ? [`${value.toFixed(2)}%`, retLabel]
               : [String(value), name]
         }
-      >
-        {data.map((point, idx) => (
-          <Scatter key={point.name} data={[point]} fill={getPortfolioColor(idx)}>
-            <LabelList
-              dataKey="name"
-              position="right"
-              style={{ fill: 'var(--text-muted)', fontSize: 11 }}
-            />
-          </Scatter>
-        ))}
-      </XYScatterChart>
+        series={data.map((point, idx) => ({
+          data: [point],
+          color: getPortfolioColor(idx),
+          showLabels: true,
+          nameKey: 'name',
+        }))}
+      />
     </ChartCard>
   );
 }

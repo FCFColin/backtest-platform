@@ -28,7 +28,7 @@ const FE_PACKAGES = [
   'react',
   'react-dom',
   'react-router',
-  'recharts',
+  'echarts',
   'lucide-react',
   'i18next',
   'react-i18next',
@@ -89,7 +89,7 @@ export default defineConfig(async ({ command }) => {
     resolve: {
       preserveSymlinks: false,
       alias: frontendAlias,
-      dedupe: ['react', 'react-dom', 'react-router', 'recharts', 'zustand'],
+      dedupe: ['react', 'react-dom', 'react-router', 'echarts', 'zustand'],
     },
     test: {
       projects: [
@@ -103,12 +103,11 @@ export default defineConfig(async ({ command }) => {
               'tests/integration/**/*.test.ts',
               'tests/contract/**/*.test.ts',
               'tests/property/**/*.{test,pbt}.ts',
-              'packages/shared/**/*.test.ts',
             ],
             exclude: [
               'tests/chaos/**',
               'tests/**/*.bench.ts',
-              'tests/unit/utils/{admin-stats,api-client,auth-tokens,chart-data-merge,color-scale,config-api,format,portfolio-storage,stats,ticker-presets,url-state,formatter-boundaries}.test.ts',
+              'tests/unit/utils/{admin-stats,api-client,auth-tokens,chart-data-merge,color-scale,config-api,format,portfolio-storage,stats,url-state}.test.ts',
             ],
             testTimeout: 30000,
             hookTimeout: 60000,
@@ -155,7 +154,7 @@ export default defineConfig(async ({ command }) => {
               'tests/unit/hooks/**/*.test.{ts,tsx}',
               'tests/unit/components/**/*.test.{ts,tsx}',
               'tests/unit/pages/**/*.test.{ts,tsx}',
-              'tests/unit/utils/{admin-stats,api-client,auth-tokens,chart-data-merge,color-scale,config-api,format,portfolio-storage,stats,ticker-presets,url-state,formatter-boundaries}.test.ts',
+              'tests/unit/utils/{admin-stats,api-client,auth-tokens,chart-data-merge,color-scale,config-api,format,portfolio-storage,stats,url-state}.test.ts',
             ],
             deps: { moduleDirectories: ['node_modules', 'packages/frontend/node_modules'] },
           },

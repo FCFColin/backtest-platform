@@ -1,26 +1,18 @@
 import { useTranslation } from 'react-i18next';
-import {
-  CartesianGrid,
-  Legend,
-  Line,
-  LineChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts';
+import type { EChartsOption } from 'echarts';
 import { Card } from '@/components/ui/uiComponents';
 import type { MonteCarloResult } from '@backtest/shared';
 import {
-  AXIS_TICK_STYLE,
-  CHART_GRID_PROPS,
-  CHART_TOOLTIP_STYLE,
-  LEGEND_WRAPPER_STYLE,
-  getPortfolioColor,
-} from '@/lib/chart-theme.js';
+  AXIS_TEXT,
+  BORDER_SOFT,
+  axisTooltipFormatter,
+  tooltipOption,
+} from '@/components/charts/chartUtils.js';
+import { getPortfolioColor } from '@/lib/chart-theme.js';
 import { cn } from '@/lib/utils';
 import { fmtDollar } from '@/utils/format';
 import { useChartAnimation } from '@/hooks/miscHooks';
+import EChart from '@/components/charts/EChart.js';
 import { HistogramChart, NoDataCard } from './HistogramChart.js';
 import {
   METRIC_FORMAT,
@@ -130,31 +122,18 @@ export function MonteCarloDistributionsTab({
     </Card>
   );
 }
-const SCENARIO_LINES = [
+const SCENARIO_LINES: Array<{
+  key: 'best' | 'p75' | 'median' | 'p25' | 'worst';
+  color: string;
+  width: number;
+  name: string;
+}> = [
   { key: 'best', color: getPortfolioColor(2), width: 2, name: 'Best' },
   { key: 'p75', color: getPortfolioColor(0), width: 1.5, name: 'P75' },
   { key: 'median', color: getPortfolioColor(4), width: 2.5, name: 'Median' },
   { key: 'p25', color: getPortfolioColor(1), width: 1.5, name: 'P25' },
   { key: 'worst', color: getPortfolioColor(3), width: 2, name: 'Worst' },
 ];
-function ScenarioLines({ isAnimationActive = true }: { isAnimationActive?: boolean }) {
-  return (
-    <>
-      {SCENARIO_LINES.map((l) => (
-        <Line
-          key={l.key}
-          type="monotone"
-          dataKey={l.key}
-          stroke={l.color}
-          strokeWidth={l.width}
-          dot={false}
-          name={l.name}
-          isAnimationActive={isAnimationActive}
-        />
-      ))}
-    </>
-  );
-}
 export function MonteCarloScenariosTab({
   r,
   startingValue,
@@ -166,28 +145,49 @@ export function MonteCarloScenariosTab({
   const { data } = buildScenarioData(r, startingValue);
   const anim = useChartAnimation(data.length >= 100);
   if (data.length === 0) return <NoDataCard />;
+  const option: EChartsOption = {
+    grid: { top: 10, right: 30, left: 10, bottom: 20 },
+    xAxis: {
+      type: 'category',
+      data: data.map((d) => d.month),
+      axisLabel: {
+        ...AXIS_TEXT,
+        formatter: (v: string) => monthFormatter(Number(v)),
+        interval: 11,
+      },
+      axisLine: { lineStyle: { color: BORDER_SOFT } },
+      axisTick: { show: false },
+      splitLine: { show: false },
+    },
+    yAxis: {
+      type: 'value',
+      axisLabel: { ...AXIS_TEXT, formatter: dollarKFormatter },
+      axisLine: { show: false },
+      axisTick: { show: false },
+      splitLine: { lineStyle: { color: BORDER_SOFT, opacity: 0.6 } },
+    },
+    tooltip: tooltipOption(
+      axisTooltipFormatter(
+        (label) => yearLabelFormatter(t, Number(label)),
+        (v) => fmtDollar(v),
+      ),
+    ),
+    legend: { top: 0, textStyle: { color: 'hsl(var(--fg-tertiary))', fontSize: 12 } },
+    series: SCENARIO_LINES.map((l) => ({
+      name: l.name,
+      type: 'line',
+      smooth: true,
+      data: data.map((d) => d[l.key]),
+      lineStyle: { width: l.width, color: l.color },
+      itemStyle: { color: l.color },
+      symbol: 'none',
+      emphasis: { focus: 'series' },
+    })) as EChartsOption['series'],
+    animation: anim.isAnimationActive,
+  };
   return (
     <Card className="p-5">
-      <ResponsiveContainer width="100%" height={450}>
-        <LineChart data={data} margin={{ top: 10, right: 30, left: 10, bottom: 20 }}>
-          <CartesianGrid {...CHART_GRID_PROPS} />
-          <XAxis
-            dataKey="month"
-            tick={AXIS_TICK_STYLE}
-            tickFormatter={monthFormatter}
-            interval={11}
-          />
-          <YAxis tick={AXIS_TICK_STYLE} tickFormatter={dollarKFormatter} />
-          <Tooltip
-            formatter={fmtDollar}
-            labelFormatter={(l: number) => yearLabelFormatter(t, l)}
-            contentStyle={CHART_TOOLTIP_STYLE}
-            {...anim}
-          />
-          <Legend wrapperStyle={LEGEND_WRAPPER_STYLE} />
-          <ScenarioLines isAnimationActive={anim.isAnimationActive} />
-        </LineChart>
-      </ResponsiveContainer>
+      <EChart option={option} height={450} ariaLabel={t('Scenario Paths')} />
     </Card>
   );
 }

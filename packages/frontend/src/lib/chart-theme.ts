@@ -1,35 +1,10 @@
-import type { CSSProperties, ReactNode } from 'react';
 import { CHART_COLORS } from '@backtest/shared';
 import { formatCurrency } from '@/utils/format.js';
-export const CHART_TOOLTIP_STYLE: CSSProperties = {
-  backgroundColor: 'hsl(var(--chart-tooltip-bg) / 0.95)',
-  border: '1px solid hsl(var(--border-strong))',
-  borderRadius: '8px',
-  padding: '12px',
-  color: 'hsl(var(--fg))',
-  boxShadow: 'var(--tooltip-shadow)',
-  backdropFilter: 'blur(8px)',
-  WebkitBackdropFilter: 'blur(8px)',
-} as const;
 export const CHART_MARGIN = { top: 20, right: 40, bottom: 20, left: 80 } as const;
-// 网格外观（stroke/opacity/dasharray）由 base.css 统一强制，此处只控制启停
-export const CHART_GRID_PROPS = { vertical: true, horizontal: true } as const;
-export const AXIS_TICK_STYLE = {
-  fill: 'hsl(var(--fg-tertiary))',
-  fontSize: 11,
-  fontFamily: 'Geist Mono Variable',
-} as const;
-export const CHART_LINE_STYLE = {
-  strokeWidth: 2.5,
-  dot: false,
-  activeDot: { r: 4, strokeWidth: 2 },
-  isAnimationActive: false,
-} as const;
-export const LEGEND_WRAPPER_STYLE = { fontSize: '12px', color: 'hsl(var(--fg-tertiary))' } as const;
 export function getPortfolioColor(index: number): string {
   return CHART_COLORS[index % CHART_COLORS.length];
 }
-export const DATE_TICK_FORMATTER = (value: string): string => value.slice(0, 7);
+export const DATE_TICK_FORMATTER = (value: string | number): string => String(value).slice(0, 7);
 export const YEAR_ONLY_TICK_FORMATTER = (value: string | number): string =>
   String(value).slice(0, 4);
 export function SMART_DATE_INTERVAL(totalMonths: number): number {
@@ -77,37 +52,6 @@ export function getCorrelationColor(val: number): string {
   return NEG_CORR_COLORS[idx === -1 ? NEG_CORR_COLORS.length - 1 : idx];
 }
 export type TooltipValueFormatter = (value: number, name: string) => [string, string] | string;
-export function wrapTooltipFormatter(
-  userFormatter: TooltipValueFormatter | undefined,
-):
-  | ((
-      value: unknown,
-      name: unknown,
-      _item?: unknown,
-      _index?: number,
-      _payload?: unknown,
-    ) => [ReactNode, ReactNode])
-  | undefined {
-  if (!userFormatter) return undefined;
-  return (
-    value: unknown,
-    name: unknown,
-    _item?: unknown,
-    _index?: number,
-    _payload?: unknown,
-  ): [ReactNode, ReactNode] => {
-    try {
-      const result = userFormatter(value as number, name as string);
-      if (Array.isArray(result)) {
-        const [formattedVal, formattedName] = result;
-        return [formattedVal as ReactNode, (formattedName || name) as ReactNode];
-      }
-      return [result as ReactNode, name as ReactNode];
-    } catch {
-      return [String(value ?? ''), name as ReactNode];
-    }
-  };
-}
 export function getHeatColor(val: number | null): string {
   if (val === null) return CORR_COLORS.neutral;
   if (val > 5) return CORR_COLORS.strongPositive;

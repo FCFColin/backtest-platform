@@ -57,34 +57,6 @@ select option {
   background: var(--text-muted);
 }
 
-.recharts-cartesian-grid-horizontal line,
-.recharts-cartesian-grid-vertical line {
-  stroke: var(--border-soft) !important;
-  stroke-opacity: 0.6 !important;
-  stroke-width: 1 !important;
-  stroke-dasharray: none !important;
-}
-.recharts-text {
-  fill: var(--text-muted);
-  font-size: 11px;
-}
-.recharts-tooltip-wrapper {
-  outline: none;
-}
-.recharts-default-tooltip .recharts-tooltip-label {
-  color: var(--text-body) !important;
-  margin-bottom: 6px !important;
-  font-weight: 500 !important;
-}
-.recharts-default-tooltip .recharts-tooltip-item {
-  color: var(--text-strong) !important;
-  padding: 2px 0 !important;
-}
-.recharts-legend-item-text {
-  color: var(--text-muted) !important;
-  font-size: 12px !important;
-}
-
 a {
   color: hsl(var(--brand));
 }

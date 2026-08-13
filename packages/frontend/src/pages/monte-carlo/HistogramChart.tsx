@@ -1,23 +1,16 @@
 import { useTranslation } from 'react-i18next';
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  ReferenceLine,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts';
+import type { EChartsOption } from 'echarts';
 import { Card } from '@/components/ui/uiComponents';
 import { TableEmpty } from '@/components/stateDisplay.js';
 import {
-  AXIS_TICK_STYLE,
-  CHART_GRID_PROPS,
-  CHART_TOOLTIP_STYLE,
-  getPortfolioColor,
-} from '@/lib/chart-theme.js';
+  AXIS_TEXT,
+  BORDER_SOFT,
+  axisTooltipFormatter,
+  tooltipOption,
+} from '@/components/charts/chartUtils.js';
+import { getPortfolioColor } from '@/lib/chart-theme.js';
 import { useReducedMotion } from '@/hooks/miscHooks.js';
+import EChart from '@/components/charts/EChart.js';
 
 export function NoDataCard() {
   const { t } = useTranslation();
@@ -44,39 +37,48 @@ export function HistogramChart({
   const { t } = useTranslation();
   const reducedMotion = useReducedMotion();
   if (data.length === 0) return null;
-  return (
-    <ResponsiveContainer width="100%" height={height}>
-      <BarChart data={data}>
-        <CartesianGrid {...CHART_GRID_PROPS} />
-        <XAxis dataKey="range" tick={AXIS_TICK_STYLE} interval={3} />
-        <YAxis tick={AXIS_TICK_STYLE} />
-        <Tooltip
-          contentStyle={CHART_TOOLTIP_STYLE}
-          isAnimationActive={!disableTooltipAnimation && !reducedMotion}
-          formatter={tooltipFormatter}
-        />
-        <Bar
-          dataKey="count"
-          fill={getPortfolioColor(0)}
-          fillOpacity={0.7}
-          name={t('Frequency')}
-          radius={[2, 2, 0, 0]}
-        />
-        {referenceLines?.map((rl) => (
-          <ReferenceLine
-            key={rl.label}
-            x={rl.label}
-            stroke={rl.color}
-            strokeDasharray="4 2"
-            label={{
-              value: rl.value,
-              position: 'top',
-              fontSize: 11,
-              fill: rl.color,
-            }}
-          />
-        ))}
-      </BarChart>
-    </ResponsiveContainer>
-  );
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 需要动态添加 markLine 属性
+  const seriesArr: any[] = [
+    {
+      type: 'bar',
+      name: t('Frequency'),
+      data: data.map((d) => ({
+        value: d.count,
+        itemStyle: { color: getPortfolioColor(0), opacity: 0.7, borderRadius: [2, 2, 0, 0] },
+      })),
+      barMaxWidth: 60,
+    },
+  ];
+  if (referenceLines?.length) {
+    seriesArr[0].markLine = {
+      silent: true,
+      data: referenceLines.map((rl) => ({
+        xAxis: rl.label,
+        lineStyle: { color: rl.color, type: 'dashed', width: 1.5 },
+        label: { formatter: rl.value, position: 'top', color: rl.color, fontSize: 11 },
+      })),
+    };
+  }
+  const option: EChartsOption = {
+    grid: { top: 20, right: 20, bottom: 20, left: 60 },
+    xAxis: {
+      type: 'category',
+      data: data.map((d) => d.range),
+      axisLabel: { ...AXIS_TEXT, interval: 3 },
+      axisLine: { lineStyle: { color: BORDER_SOFT } },
+      axisTick: { show: false },
+      splitLine: { show: false },
+    },
+    yAxis: {
+      type: 'value',
+      axisLabel: AXIS_TEXT,
+      axisLine: { show: false },
+      axisTick: { show: false },
+      splitLine: { lineStyle: { color: BORDER_SOFT, opacity: 0.6 } },
+    },
+    tooltip: tooltipOption(axisTooltipFormatter(undefined, tooltipFormatter)),
+    series: seriesArr as EChartsOption['series'],
+    animation: !disableTooltipAnimation && !reducedMotion,
+  };
+  return <EChart option={option} height={height} ariaLabel={t('Frequency Distribution')} />;
 }

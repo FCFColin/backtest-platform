@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { Line } from 'recharts';
+
 import { REBALANCE_FREQUENCY_OPTIONS } from '@backtest/shared';
 import { getPortfolioColor } from '@/lib/chart-theme.js';
 import {
@@ -353,23 +353,17 @@ function GrowthComparisonChart({ best, benchmarkGrowth }: GrowthComparisonChartP
         tooltipLabelFormatter={(d: string) => d}
         showLegend
         legendFormatter={(name: string) => nameMap[name] ?? name}
-      >
-        <Line
-          type="monotone"
-          dataKey="portfolio"
-          stroke={getPortfolioColor(0)}
-          dot={false}
-          strokeWidth={2}
-        />
-        <Line
-          type="monotone"
-          dataKey="benchmark"
-          stroke={getPortfolioColor(1)}
-          dot={false}
-          strokeWidth={1.5}
-          strokeDasharray="4 2"
-        />
-      </SimpleChart>
+        series={[
+          { dataKey: 'portfolio', name: nameMap.portfolio, color: getPortfolioColor(0), width: 2 },
+          {
+            dataKey: 'benchmark',
+            name: nameMap.benchmark,
+            color: getPortfolioColor(1),
+            width: 1.5,
+            dash: '4 2',
+          },
+        ]}
+      />
     </>
   );
 }

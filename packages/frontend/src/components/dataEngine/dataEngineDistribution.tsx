@@ -1,16 +1,9 @@
 /* eslint-disable react-refresh/only-export-components -- 分布图卡片库，工具常量与组件同文件 */
 import { type ReactNode, type HTMLAttributes } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  BarChart,
-  Bar as RechartsBar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  LabelList,
-  ResponsiveContainer,
-} from 'recharts';
+import type { EChartsOption } from 'echarts';
 import { Card, Progress } from '@/components/ui/uiComponents';
+import EChart from '@/components/charts/EChart.js';
 import type { Stats, UniverseStats } from './dataEngine.js';
 
 export const fmt = (n?: number | null) => (n ?? 0).toLocaleString();
@@ -27,7 +20,6 @@ export function Panel({
   );
 }
 const BAR_FILL = 'hsl(var(--chart-1))';
-const AXIS_TICK_COLOR = 'var(--text-muted)';
 const DECADE_ORDER = ['1960s', '1970s', '1980s', '1990s', '2000s', '2010s', '2020s'];
 function sortAgeBucketEntries(entries: [string, number][]): [string, number][] {
   return [...entries].sort((a, b) => {
@@ -157,33 +149,45 @@ function DistributionBarCard({
   const { t } = useTranslation();
   const data = entries.map(([bucket, count]) => ({ bucket, count }));
   const rotate = entries.length > 8;
+  const option: EChartsOption = {
+    grid: { top: 30, right: 8, left: 8, bottom: rotate ? 50 : 30 },
+    xAxis: {
+      type: 'category',
+      data: data.map((d) => d.bucket),
+      axisLabel: {
+        fontSize: 10,
+        color: 'hsl(var(--fg-tertiary))',
+        interval: 0,
+        rotate: rotate ? -35 : 0,
+      },
+      axisLine: { lineStyle: { color: 'hsl(var(--border-soft))' } },
+      axisTick: { show: false },
+    },
+    yAxis: { show: false },
+    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+    series: [
+      {
+        type: 'bar',
+        data: data.map((d) => ({
+          value: d.count,
+          itemStyle: { color: BAR_FILL, borderRadius: [3, 3, 0, 0] },
+        })),
+        barMaxWidth: 60,
+        label: {
+          show: true,
+          position: 'top',
+          formatter: (p: { value: number }) => fmt(p.value),
+          color: 'hsl(var(--fg-tertiary))',
+          fontSize: 11,
+          fontFamily: 'monospace',
+        },
+      },
+    ] as EChartsOption['series'],
+  };
   return (
     <Panel title={t(titleKey)}>
       <div className="h-60">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} margin={{ top: 20, right: 8, left: 8, bottom: 8 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--border-soft)" vertical={false} />
-            <XAxis
-              dataKey="bucket"
-              tick={{ fontSize: 10, fill: AXIS_TICK_COLOR }}
-              tickLine={false}
-              axisLine={{ stroke: 'var(--border-soft)' }}
-              interval={0}
-              angle={rotate ? -35 : 0}
-              textAnchor={rotate ? 'end' : 'middle'}
-              height={rotate ? 50 : 30}
-            />
-            <YAxis hide />
-            <RechartsBar dataKey="count" fill={BAR_FILL} radius={[3, 3, 0, 0]} maxBarSize={60}>
-              <LabelList
-                dataKey="count"
-                position="top"
-                style={{ fontSize: 11, fill: 'var(--text-muted)', fontFamily: 'monospace' }}
-                formatter={(v: number) => fmt(v)}
-              />
-            </RechartsBar>
-          </BarChart>
-        </ResponsiveContainer>
+        <EChart option={option} height={240} ariaLabel={t(titleKey)} />
       </div>
     </Panel>
   );

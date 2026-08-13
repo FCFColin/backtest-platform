@@ -1191,7 +1191,7 @@
   "Enter tickers and click \"Query\" to see results": "输入标的代码并点击「查询」查看结果",
   "GitHub": "GitHub",
   "GitHub Issues": "GitHub 问题反馈",
-  "Go (backtest engine + data service) · TypeScript (frontend + API) · React + Recharts": "Go（回测引擎 + 数据服务）· TypeScript（前端 + API）· React + Recharts",
+  "Go (backtest engine + data service) · TypeScript (frontend + API) · React + ECharts": "Go（回测引擎 + 数据服务）· TypeScript（前端 + API）· React + ECharts",
   "Max CAGR": "最大年化收益",
   "Min Vol": "最小波动",
   "Select rebalancing frequencies and click \"Run Analysis\"": "选择再平衡频率并点击「运行分析」",

@@ -1,24 +1,16 @@
 import { useTranslation } from 'react-i18next';
 import { ArrowRight } from 'lucide-react';
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Cell,
-  Scatter,
-} from 'recharts';
+import type { EChartsOption } from 'echarts';
 import { type Statistics } from '@backtest/shared';
 import type { EfficientFrontierState, OptimizerResultExt } from './OptimizerUtils.js';
 import {
-  CHART_TOOLTIP_STYLE,
-  CHART_GRID_PROPS,
-  AXIS_TICK_STYLE,
-  getPortfolioColor,
-} from '@/lib/chart-theme.js';
+  AXIS_TEXT,
+  BORDER_SOFT,
+  axisTooltipFormatter,
+  tooltipOption,
+} from '@/components/charts/chartUtils.js';
+import { getPortfolioColor } from '@/lib/chart-theme.js';
+import EChart from '@/components/charts/EChart.js';
 import { SimpleTable, type SimpleTableColumn } from '@/components/tables.js';
 import ChartCard from '@/components/ChartCard.js';
 import { Button } from '@/components/ui/uiComponents';
@@ -91,31 +83,42 @@ function WeightBarChart({
 }: {
   data: Array<{ ticker: string; weight: number; fill: string }>;
 }) {
-  return (
-    <ResponsiveContainer width="100%" height={data.length * 48 + 20}>
-      <BarChart data={data} layout="vertical" margin={{ left: 60, right: 40, top: 5, bottom: 5 }}>
-        <CartesianGrid {...CHART_GRID_PROPS} horizontal={false} />
-        <XAxis
-          type="number"
-          domain={['dataMin', 'auto']}
-          tick={AXIS_TICK_STYLE}
-          tickFormatter={(v: number) => `${v}%`}
-        />
-        <YAxis
-          type="category"
-          dataKey="ticker"
-          tick={{ fill: 'hsl(var(--fg))', fontSize: 13, fontWeight: 500 }}
-          width={56}
-        />
-        <Tooltip formatter={(v: number) => `${v}%`} contentStyle={CHART_TOOLTIP_STYLE} />
-        <Bar dataKey="weight" radius={[0, 4, 4, 0]} barSize={24}>
-          {data.map((entry, index) => (
-            <Cell key={index} fill={entry.fill} />
-          ))}
-        </Bar>
-      </BarChart>
-    </ResponsiveContainer>
-  );
+  const option: EChartsOption = {
+    grid: { left: 60, right: 40, top: 5, bottom: 5, containLabel: false },
+    xAxis: {
+      type: 'value',
+      axisLabel: { ...AXIS_TEXT, formatter: (v: number) => `${v}%` },
+      axisLine: { show: false },
+      axisTick: { show: false },
+      splitLine: { lineStyle: { color: BORDER_SOFT, opacity: 0.6 } },
+    },
+    yAxis: {
+      type: 'category',
+      inverse: true,
+      data: data.map((d) => d.ticker),
+      axisLabel: {
+        color: 'hsl(var(--fg))',
+        fontSize: 13,
+        fontWeight: 500,
+        width: 56,
+        overflow: 'truncate',
+      },
+      axisLine: { show: false },
+      axisTick: { show: false },
+    },
+    tooltip: tooltipOption(axisTooltipFormatter(undefined, (v) => `${v}%`)),
+    series: [
+      {
+        type: 'bar',
+        data: data.map((d) => ({
+          value: d.weight,
+          itemStyle: { color: d.fill, borderRadius: [0, 4, 4, 0] },
+        })),
+        barWidth: 24,
+      },
+    ],
+  };
+  return <EChart option={option} height={data.length * 48 + 20} ariaLabel="Optimal Weights" />;
 }
 function MetricsTable({
   backtestStats,
@@ -161,26 +164,28 @@ function FrontierChart({
       yName={t('Return (%)')}
       height={300}
       tooltipFormatter={(v: number) => `${v.toFixed(2)}%`}
-    >
-      <Scatter
-        data={data.map((p) => ({
-          expectedVolatility: p.expectedVolatility,
-          expectedReturn: p.expectedReturn,
-        }))}
-        fill={getPortfolioColor(0)}
-        fillOpacity={0.6}
-      />
-      <Scatter
-        data={[
-          {
-            expectedVolatility: results.expectedVolatility,
-            expectedReturn: results.expectedReturn,
-          },
-        ]}
-        fill={getPortfolioColor(3)}
-        shape="star"
-      />
-    </XYScatterChart>
+      series={[
+        {
+          data: data.map((p) => ({
+            expectedVolatility: p.expectedVolatility,
+            expectedReturn: p.expectedReturn,
+          })),
+          color: getPortfolioColor(0),
+          opacity: 0.6,
+        },
+        {
+          data: [
+            {
+              expectedVolatility: results.expectedVolatility,
+              expectedReturn: results.expectedReturn,
+            },
+          ],
+          color: getPortfolioColor(3),
+          symbol: 'star',
+          symbolSize: 12,
+        },
+      ]}
+    />
   );
 }
 export function OptimizerResults({ s }: { s: EfficientFrontierState }) {

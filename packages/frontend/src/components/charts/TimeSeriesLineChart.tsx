@@ -1,23 +1,9 @@
-﻿import type { ReactElement } from 'react';
-import {
-  LineChart,
-  Line,
-  CartesianGrid,
-  Legend,
-  ResponsiveContainer,
-  ReferenceLine,
-  Brush,
-} from 'recharts';
-import {
-  CHART_MARGIN,
-  CHART_GRID_PROPS,
-  LEGEND_WRAPPER_STYLE,
-  DATE_TICK_FORMATTER,
-  getPortfolioColor,
-} from '@/lib/chart-theme.js';
+﻿import type { EChartsOption } from 'echarts';
+import { CHART_MARGIN, DATE_TICK_FORMATTER, getPortfolioColor } from '@/lib/chart-theme.js';
 import type { TooltipValueFormatter } from '@/lib/chart-theme.js';
-import { ChartXAxis, ChartYAxis, ChartTooltip } from './sharedChartContent.js';
+import { AXIS_TEXT, BORDER_SOFT, axisTooltipFormatter, tooltipOption } from './chartUtils.js';
 import { useChartAnimation } from '@/hooks/miscHooks';
+import EChart from './EChart.js';
 interface TimeSeriesSeriesConfig {
   dataKey: string;
   legendName?: string;
@@ -87,28 +73,6 @@ const defaultTooltipValueFormatter: TooltipValueFormatter = (v: number): [string
   `$${v.toLocaleString()}`,
   '',
 ];
-function renderLines(
-  normalized: NormalizedSeries[],
-  colorOffset: number,
-  isAnimationActive: boolean,
-): ReactElement[] {
-  return normalized.map((s, idx) => (
-    <Line
-      key={s.dataKey}
-      type="monotone"
-      dataKey={s.dataKey}
-      name={s.legendName}
-      stroke={s.color ?? getPortfolioColor(idx + colorOffset)}
-      strokeWidth={s.strokeWidth}
-      strokeDasharray={s.strokeDasharray}
-      dot={s.showDots ? { r: s.dotR } : false}
-      activeDot={{ r: s.activeDotR + 1, stroke: 'var(--bg-surface)', strokeWidth: 2 }}
-      connectNulls={s.connectNulls}
-      strokeOpacity={s.strokeOpacity}
-      isAnimationActive={isAnimationActive}
-    />
-  ));
-}
 
 export function TimeSeriesLineChart({
   data,
@@ -131,35 +95,94 @@ export function TimeSeriesLineChart({
   const normalized = normalizeSeries(series, defaultStrokeWidth);
   const isLargeDataset = data.length >= 100;
   const animated = useChartAnimation(isLargeDataset).isAnimationActive;
+  const isCategory = typeof data[0]?.[xDataKey] === 'string';
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 需要动态添加 markLine 属性
+  const seriesArr: any[] = normalized.map((s, idx) => {
+    const color = s.color ?? getPortfolioColor(idx + colorOffset);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 与 seriesArr 同源，需动态加属性
+    const base: any = {
+      name: s.legendName,
+      type: 'line' as const,
+      smooth: true,
+      data: isCategory
+        ? data.map((d) => d[s.dataKey] ?? null)
+        : data.map((d) => [Number(d[xDataKey]), d[s.dataKey] ?? null]),
+      connectNulls: s.connectNulls,
+      symbol: s.showDots ? 'circle' : 'none',
+      showSymbol: s.showDots,
+      symbolSize: s.dotR,
+      lineStyle: {
+        width: s.strokeWidth,
+        type: (s.strokeDasharray ? 'dashed' : 'solid') as 'solid' | 'dashed',
+        color,
+        opacity: s.strokeOpacity,
+      },
+      itemStyle: { color },
+      emphasis: {
+        focus: 'series' as const,
+        symbolSize: s.showDots ? s.activeDotR + 1 : undefined,
+      },
+    };
+    if (referenceY !== undefined && idx === 0) {
+      base.markLine = {
+        silent: true,
+        data: [
+          {
+            yAxis: referenceY,
+            lineStyle: { color: 'hsl(var(--text-muted))', type: 'dashed' },
+          },
+        ],
+      };
+    }
+    return base;
+  });
+  const grid = {
+    ...CHART_MARGIN,
+    bottom: (CHART_MARGIN.bottom ?? 20) + (showBrush && isLargeDataset ? 28 : 0),
+  };
+  const option: EChartsOption = {
+    grid,
+    xAxis: {
+      type: isCategory ? 'category' : 'value',
+      data: isCategory ? data.map((d) => d[xDataKey] ?? '') : undefined,
+      axisLabel: {
+        ...AXIS_TEXT,
+        fontSize: xTickFontSize ?? 11,
+        interval:
+          xTickInterval === 'preserveStartEnd' ? 'auto' : (xTickInterval as number | undefined),
+        formatter: DATE_TICK_FORMATTER,
+      },
+      axisLine: { lineStyle: { color: BORDER_SOFT } },
+      axisTick: { show: false },
+      splitLine: { show: false },
+    },
+    yAxis: {
+      type: 'value',
+      name: yLabel,
+      nameLocation: 'middle',
+      nameGap: 52,
+      nameTextStyle: AXIS_TEXT,
+      min: yDomain && yDomain[0] !== 'auto' ? yDomain[0] : undefined,
+      max: yDomain && yDomain[1] !== 'auto' ? yDomain[1] : undefined,
+      axisLabel: { ...AXIS_TEXT, formatter: yTickFormatter },
+      axisLine: { show: false },
+      axisTick: { show: false },
+      splitLine: { lineStyle: { color: BORDER_SOFT, opacity: 0.6 } },
+    },
+    tooltip: tooltipOption(axisTooltipFormatter(tooltipLabelFormatter, tooltipValueFormatter)),
+    legend: showLegend
+      ? { bottom: 0, textStyle: { color: 'hsl(var(--fg-tertiary))', fontSize: 12 } }
+      : undefined,
+    dataZoom:
+      showBrush && isLargeDataset
+        ? [{ type: 'slider', height: 18, bottom: 0, borderColor: 'transparent' }]
+        : undefined,
+    series: seriesArr as EChartsOption['series'],
+    animation: animated,
+  };
   return (
     <div role="img" aria-label={normalized.map((s) => s.legendName).join(', ')}>
-      <ResponsiveContainer width="100%" height={height}>
-        <LineChart data={data} margin={CHART_MARGIN}>
-          <CartesianGrid {...CHART_GRID_PROPS} />
-          <ChartXAxis dataKey={xDataKey} tickFontSize={xTickFontSize} interval={xTickInterval} />
-          <ChartYAxis tickFormatter={yTickFormatter} domain={yDomain} label={yLabel} />
-          <ChartTooltip
-            formatter={tooltipValueFormatter}
-            labelFormatter={tooltipLabelFormatter}
-            isLargeDataset={isLargeDataset}
-          />
-          {showLegend && <Legend wrapperStyle={LEGEND_WRAPPER_STYLE} />}
-          {referenceY !== undefined && (
-            <ReferenceLine y={referenceY} stroke="var(--text-muted)" strokeDasharray="4 4" />
-          )}
-          {renderLines(normalized, colorOffset, animated)}
-          {showBrush && data.length >= 100 && (
-            <Brush
-              dataKey={xDataKey}
-              height={20}
-              stroke="hsl(var(--brand))"
-              fill="var(--bg-surface)"
-              travellerWidth={8}
-              tickFormatter={DATE_TICK_FORMATTER}
-            />
-          )}
-        </LineChart>
-      </ResponsiveContainer>
+      <EChart option={option} height={height} />
     </div>
   );
 }

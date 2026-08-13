@@ -1,29 +1,18 @@
-﻿import {
-  PieChart,
-  Pie,
-  Cell,
-  ResponsiveContainer,
-  AreaChart,
-  Area,
-  CartesianGrid,
-  Brush,
-} from 'recharts';
-import { useTranslation } from 'react-i18next';
+﻿import { useTranslation } from 'react-i18next';
+import type { EChartsOption } from 'echarts';
 import { type Portfolio } from '@backtest/shared';
 import { downsample, DOWNSAMPLE_THRESHOLD, DOWNSAMPLE_TARGET } from '../../utils/format.js';
+import { CHART_MARGIN, DATE_TICK_FORMATTER, getPortfolioColor } from '@/lib/chart-theme.js';
 import {
-  CHART_MARGIN,
-  CHART_GRID_PROPS,
-  DATE_TICK_FORMATTER,
-  getPortfolioColor,
-} from '@/lib/chart-theme.js';
-import {
-  ChartTooltip,
-  ChartLegend,
-  ChartXAxis,
-  ChartYAxis,
-  ChartEmptyState,
-} from './sharedChartContent.js';
+  AXIS_TEXT,
+  BORDER_SOFT,
+  axisTooltipFormatter,
+  tooltipOption,
+  tooltipRow,
+} from './chartUtils.js';
+import { ChartEmptyState } from './sharedChartContent.js';
+import { useChartAnimation } from '@/hooks/miscHooks.js';
+import EChart from './EChart.js';
 import ChartCard from '../ChartCard.js';
 
 interface PortfolioPiesChartProps {
@@ -54,34 +43,45 @@ export default function PortfolioPiesChart({ portfolios }: PortfolioPiesChartPro
     <ChartCard title={t('Allocation Pies')} data={exportData} csvFilename="portfolio-pies">
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px' }}>
         {portfoliosWithAssets.map((portfolio) => {
-          const pieData = portfolio.assets.map((a) => ({ name: a.ticker, value: a.weight }));
+          const pieData = portfolio.assets.map((a, idx) => ({
+            name: a.ticker,
+            value: a.weight,
+            itemStyle: { color: getPortfolioColor(idx) },
+          }));
+          const option: EChartsOption = {
+            tooltip: tooltipOption(
+              (p: { name: string; value: number; marker: string }) =>
+                tooltipRow(p.marker, p.name, `${p.value}%`),
+              'item',
+            ),
+            legend: {
+              bottom: 0,
+              textStyle: { color: 'hsl(var(--fg-tertiary))', fontSize: 12 },
+            },
+            series: [
+              {
+                type: 'pie',
+                radius: '65%',
+                center: ['50%', '44%'],
+                data: pieData,
+                label: {
+                  formatter: (p: { name: string; value: number }) => `${p.name} ${p.value}%`,
+                  color: 'hsl(var(--fg-tertiary))',
+                  fontSize: 11,
+                },
+              },
+            ] as EChartsOption['series'],
+          };
           return (
             <div
               key={portfolio.name}
               style={{ width: `${pieWidth}%`, minWidth: 200, textAlign: 'center' }}
             >
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie
-                    data={pieData}
-                    dataKey="value"
-                    nameKey="name"
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={100}
-                    label={({ name, value }) => `${name} ${value}%`}
-                  >
-                    {pieData.map((_, idx) => (
-                      <Cell key={`cell-${idx}`} fill={getPortfolioColor(idx)} />
-                    ))}
-                  </Pie>
-                  <ChartTooltip
-                    cursor={false}
-                    formatter={(value: number, name: string) => [`${value}%`, name]}
-                  />
-                  <ChartLegend />
-                </PieChart>
-              </ResponsiveContainer>
+              <EChart
+                option={option}
+                height={300}
+                ariaLabel={`${portfolio.name} ${t('Allocation')}`}
+              />
               <div className="text-label font-medium mt-1" style={{ color: 'var(--text-strong)' }}>
                 {portfolio.name}
               </div>
@@ -111,41 +111,58 @@ function AllocationAreaChart({
   showBrush: boolean;
   fillOpacity: number;
 }) {
+  const animated = useChartAnimation(data.length >= 100).isAnimationActive;
+  const grid = {
+    ...CHART_MARGIN,
+    bottom: (CHART_MARGIN.bottom ?? 20) + 24 + (showBrush ? 28 : 0),
+  };
+  const option: EChartsOption = {
+    grid,
+    xAxis: {
+      type: 'category',
+      data: data.map((d) => String(d.date)),
+      axisLabel: { ...AXIS_TEXT, formatter: DATE_TICK_FORMATTER },
+      axisLine: { lineStyle: { color: BORDER_SOFT } },
+      axisTick: { show: false },
+      splitLine: { show: false },
+    },
+    yAxis: {
+      type: 'value',
+      min: 0,
+      max: 100,
+      axisLabel: { ...AXIS_TEXT, formatter: (v: number) => `${v}%` },
+      axisLine: { show: false },
+      axisTick: { show: false },
+      splitLine: { lineStyle: { color: BORDER_SOFT, opacity: 0.6 } },
+    },
+    tooltip: tooltipOption(
+      axisTooltipFormatter(
+        (label) => String(label),
+        (value, name) => [`${value.toFixed(1)}%`, name],
+      ),
+    ),
+    legend: { bottom: 0, textStyle: { color: 'hsl(var(--fg-tertiary))', fontSize: 12 } },
+    dataZoom: showBrush
+      ? [{ type: 'slider', height: 18, bottom: 0, borderColor: 'transparent' }]
+      : undefined,
+    series: assets.map((asset, idx) => ({
+      name: asset.ticker,
+      type: 'area',
+      stack: 'total',
+      smooth: true,
+      data: data.map((d) => Number(d[asset.ticker]) || 0),
+      lineStyle: { width: 1, color: getPortfolioColor(idx) },
+      itemStyle: { color: getPortfolioColor(idx) },
+      areaStyle: { opacity: fillOpacity },
+      symbol: 'none',
+      emphasis: { focus: 'series' },
+    })) as EChartsOption['series'],
+    animation: animated,
+  };
   return (
-    <ResponsiveContainer width="100%" height={400}>
-      <AreaChart data={data} margin={CHART_MARGIN}>
-        <CartesianGrid {...CHART_GRID_PROPS} />
-        <ChartXAxis dataKey="date" tickFormatter={DATE_TICK_FORMATTER} />
-        <ChartYAxis domain={[0, 100]} tickFormatter={(v: number) => `${v}%`} />
-        <ChartTooltip
-          labelFormatter={(label: string) => label}
-          formatter={(value: number, name: string) => [`${value.toFixed(1)}%`, name]}
-        />
-        <ChartLegend />
-        {assets.map((asset, idx) => (
-          <Area
-            key={asset.ticker}
-            type="monotone"
-            dataKey={asset.ticker}
-            name={asset.ticker}
-            stackId="1"
-            stroke={getPortfolioColor(idx)}
-            fill={getPortfolioColor(idx)}
-            fillOpacity={fillOpacity}
-            activeDot={{ r: 5, stroke: 'var(--bg-surface)', strokeWidth: 2 }}
-          />
-        ))}
-        {showBrush && (
-          <Brush
-            dataKey="date"
-            height={20}
-            stroke="hsl(var(--brand))"
-            travellerWidth={8}
-            tickFormatter={DATE_TICK_FORMATTER}
-          />
-        )}
-      </AreaChart>
-    </ResponsiveContainer>
+    <div role="img" aria-label={assets.map((a) => a.ticker).join(', ')}>
+      <EChart option={option} height={400} />
+    </div>
   );
 }
 function AllocationHistoryChart({

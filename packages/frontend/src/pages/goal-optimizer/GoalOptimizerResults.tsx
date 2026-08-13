@@ -1,26 +1,24 @@
 import { useTranslation } from 'react-i18next';
+import type { EChartsOption } from 'echarts';
 import type { GoalOptimizerResult } from '@backtest/shared';
 import { fmtPct, fmtDollar } from '@/utils/format';
 import { useGoalOptimizerState, type GoalOptimizerState } from '@/hooks/useGoalOptimizerState.js';
 import { GoalOptimizerParamsPanel } from './GoalOptimizerParams.js';
 import { ComputeToolShell, type ComputeToolConfig } from '../../components/shells/index.js';
+import { getPortfolioColor } from '@/lib/chart-theme.js';
 import {
-  AreaChart,
-  Area,
-  LineChart,
-  Line,
-  CartesianGrid,
-  ResponsiveContainer,
-  Legend,
-  ReferenceLine,
-} from 'recharts';
-import { CHART_GRID_PROPS, LEGEND_WRAPPER_STYLE, getPortfolioColor } from '@/lib/chart-theme.js';
-import { ChartTooltip, ChartXAxis, ChartYAxis } from '@/components/charts/sharedChartContent.js';
+  AXIS_TEXT,
+  BORDER_SOFT,
+  axisTooltipFormatter,
+  tooltipOption,
+} from '@/components/charts/chartUtils.js';
+import EChart from '@/components/charts/EChart.js';
 import ChartCard from '@/components/ChartCard.js';
 import { Card, Progress } from '@/components/ui/uiComponents';
 import { ResultsShell } from '@/components/resultsShell.js';
 import { MiniStatCard } from '@/components/cards.js';
 import { getProbColor } from './goalOptimizerUtils.js';
+const GRID = { top: 10, right: 20, bottom: 5, left: 60 };
 function ProbabilityDistributionChart({
   data,
   targetAmount,
@@ -29,43 +27,54 @@ function ProbabilityDistributionChart({
   targetAmount: number;
 }) {
   const { t } = useTranslation();
+  const option: EChartsOption = {
+    grid: GRID,
+    xAxis: {
+      type: 'value',
+      axisLabel: { ...AXIS_TEXT, formatter: (v: number) => `$${(v / 1000).toFixed(0)}k` },
+      axisLine: { lineStyle: { color: BORDER_SOFT } },
+      axisTick: { show: false },
+      splitLine: { show: false },
+    },
+    yAxis: {
+      type: 'value',
+      axisLabel: { ...AXIS_TEXT, formatter: (v: number) => `${(v * 100).toFixed(1)}%` },
+      axisLine: { show: false },
+      axisTick: { show: false },
+      splitLine: { lineStyle: { color: BORDER_SOFT, opacity: 0.6 } },
+    },
+    tooltip: tooltipOption(
+      axisTooltipFormatter(
+        (label) => fmtDollar(Number(label)),
+        (v) => [`${(v * 100).toFixed(2)}%`, t('Probability')],
+      ),
+    ),
+    series: [
+      {
+        name: t('Probability'),
+        type: 'area',
+        smooth: true,
+        data: data.map((d) => [d.amount, d.probability]),
+        lineStyle: { width: 2, color: getPortfolioColor(0) },
+        itemStyle: { color: getPortfolioColor(0) },
+        areaStyle: { opacity: 0.3 },
+        symbol: 'none',
+        markLine: {
+          silent: true,
+          data: [
+            {
+              xAxis: targetAmount,
+              lineStyle: { color: getPortfolioColor(3), type: 'dashed', width: 1.5 },
+              label: { formatter: t('Target'), color: getPortfolioColor(3), fontSize: 11 },
+            },
+          ],
+        },
+      },
+    ] as EChartsOption['series'],
+  };
   return (
     <ChartCard title={t('Final Value Probability Distribution')}>
-      <ResponsiveContainer width="100%" height={300}>
-        <AreaChart data={data} margin={{ top: 10, right: 20, bottom: 5, left: 10 }}>
-          <CartesianGrid {...CHART_GRID_PROPS} />
-          <ChartXAxis
-            dataKey="amount"
-            type="number"
-            domain={['dataMin', 'dataMax']}
-            tickFormatter={(v: number | string) => `$${(Number(v) / 1000).toFixed(0)}k`}
-          />
-          <ChartYAxis tickFormatter={(v: number) => `${(v * 100).toFixed(1)}%`} />
-          <ChartTooltip
-            formatter={(v: number) => [`${(v * 100).toFixed(2)}%`, t('Probability')]}
-            labelFormatter={(v: number | string) => fmtDollar(Number(v))}
-          />
-          <ReferenceLine
-            x={targetAmount}
-            stroke={getPortfolioColor(3)}
-            strokeDasharray="4 2"
-            label={{
-              value: t('Target'),
-              position: 'top',
-              fill: getPortfolioColor(3),
-              fontSize: 11,
-            }}
-          />
-          <Area
-            type="monotone"
-            dataKey="probability"
-            stroke={getPortfolioColor(0)}
-            fill={getPortfolioColor(0)}
-            fillOpacity={0.3}
-            name={t('Probability')}
-          />
-        </AreaChart>
-      </ResponsiveContainer>
+      <EChart option={option} height={300} ariaLabel={t('Final Value Probability Distribution')} />
     </ChartCard>
   );
 }
@@ -77,55 +86,69 @@ function OptimalPathChart({
   targetAmount: number;
 }) {
   const { t } = useTranslation();
+  const years = data.map((d) => String(d.year));
+  const series = (
+    [
+      { dataKey: 'p90', name: 'P90', color: getPortfolioColor(2), width: 1.5 },
+      { dataKey: 'median', name: t('Median'), color: getPortfolioColor(0), width: 2.5 },
+      { dataKey: 'p10', name: 'P10', color: getPortfolioColor(3), width: 1.5 },
+    ] as const
+  ).map((s) => ({
+    name: s.name,
+    type: 'line',
+    smooth: true,
+    data: data.map((d) => d[s.dataKey]),
+    lineStyle: { width: s.width, color: s.color },
+    itemStyle: { color: s.color },
+    symbol: 'none',
+    emphasis: { focus: 'series' },
+  }));
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 需要动态添加 markLine 属性
+  const seriesArr: any[] = series;
+  seriesArr[0].markLine = {
+    silent: true,
+    data: [
+      {
+        yAxis: targetAmount,
+        lineStyle: { color: getPortfolioColor(3), type: 'dashed', width: 1.5 },
+        label: {
+          formatter: t('Target'),
+          color: getPortfolioColor(3),
+          fontSize: 11,
+          position: 'insideEndTop',
+        },
+      },
+    ],
+  };
+  const option: EChartsOption = {
+    grid: GRID,
+    xAxis: {
+      type: 'category',
+      data: years,
+      axisLabel: { ...AXIS_TEXT, formatter: (v: string) => `${v}y` },
+      axisLine: { lineStyle: { color: BORDER_SOFT } },
+      axisTick: { show: false },
+      splitLine: { show: false },
+    },
+    yAxis: {
+      type: 'value',
+      axisLabel: { ...AXIS_TEXT, formatter: (v: number) => `$${(v / 1000).toFixed(0)}k` },
+      axisLine: { show: false },
+      axisTick: { show: false },
+      splitLine: { lineStyle: { color: BORDER_SOFT, opacity: 0.6 } },
+    },
+    tooltip: tooltipOption(
+      axisTooltipFormatter(
+        (label) => t('Year {{year}}', { year: label }),
+        (v) => [fmtDollar(v), ''],
+      ),
+    ),
+    legend: { top: 0, textStyle: { color: 'hsl(var(--fg-tertiary))', fontSize: 12 } },
+    series: seriesArr as EChartsOption['series'],
+  };
   return (
     <ChartCard title={t('Optimal Path (Median / P10 / P90)')}>
-      <ResponsiveContainer width="100%" height={350}>
-        <LineChart data={data} margin={{ top: 10, right: 20, bottom: 5, left: 10 }}>
-          <CartesianGrid {...CHART_GRID_PROPS} />
-          <ChartXAxis dataKey="year" tickFormatter={(v: number | string) => `${v}y`} />
-          <ChartYAxis tickFormatter={(v: number) => `$${(v / 1000).toFixed(0)}k`} />
-          <ChartTooltip
-            formatter={(v: number) => fmtDollar(v)}
-            labelFormatter={(v: number | string) => t('Year {{year}}', { year: v })}
-          />
-          <Legend wrapperStyle={LEGEND_WRAPPER_STYLE} />
-          <ReferenceLine
-            y={targetAmount}
-            stroke={getPortfolioColor(3)}
-            strokeDasharray="4 2"
-            label={{
-              value: t('Target'),
-              fill: getPortfolioColor(3),
-              fontSize: 11,
-              position: 'insideTopRight',
-            }}
-          />
-          <Line
-            type="monotone"
-            dataKey="p90"
-            stroke={getPortfolioColor(2)}
-            strokeWidth={1.5}
-            dot={false}
-            name="P90"
-          />
-          <Line
-            type="monotone"
-            dataKey="median"
-            stroke={getPortfolioColor(0)}
-            strokeWidth={2.5}
-            dot={false}
-            name={t('Median')}
-          />
-          <Line
-            type="monotone"
-            dataKey="p10"
-            stroke={getPortfolioColor(3)}
-            strokeWidth={1.5}
-            dot={false}
-            name="P10"
-          />
-        </LineChart>
-      </ResponsiveContainer>
+      <EChart option={option} height={350} ariaLabel={t('Optimal Path (Median / P10 / P90)')} />
     </ChartCard>
   );
 }

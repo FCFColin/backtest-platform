@@ -1,11 +1,10 @@
-import { useSetterState } from '@/hooks/miscHooks.js';
+﻿import { useSetterState } from '@/hooks/miscHooks.js';
 import type { TFunction } from 'i18next';
 import {
   type MonteCarloResult,
   type PerPathMetrics,
   type BacktestParameters,
 } from '@backtest/shared';
-import { getPortfolioColor } from '@/lib/chart-theme.js';
 import { apiFetch } from '@/utils/apiClient';
 import i18n from '@/i18n/index.js';
 import { validatePortfolioCore } from '@/utils/validation';
@@ -255,6 +254,36 @@ export interface FanDataPoint {
   band25_75: [number, number];
   p50: number;
 }
+export function buildFanChartData(r: MonteCarloResult, startingValue: number): FanDataPoint[] {
+  const { p5, p25, p50, p75, p95 } = r.percentiles;
+  if (!p5 || p5.length === 0) return [];
+  return sampleMonths(p5.length).map(({ day, month }) => ({
+    month,
+    band5_95: [p5[day] * startingValue, p95[day] * startingValue],
+    band25_75: [p25[day] * startingValue, p75[day] * startingValue],
+    p50: p50[day] * startingValue,
+  }));
+}
+export function buildTerminalHistogram(r: MonteCarloResult, startingValue: number) {
+  const metrics = r.perPathMetrics;
+  if (!metrics || metrics.length === 0) {
+    return { data: [], p5Val: 0, p50Val: 0, p95Val: 0, p5Label: '', p50Label: '', p95Label: '' };
+  }
+  const vals = metrics.map((m) => m.finalValue * startingValue);
+  const { bins, labelFor } = buildBinData(vals, 25, dollarKFormatter);
+  const p5Val = percentile(vals, 0.05);
+  const p50Val = percentile(vals, 0.5);
+  const p95Val = percentile(vals, 0.95);
+  return {
+    data: bins,
+    p5Val,
+    p50Val,
+    p95Val,
+    p5Label: labelFor(p5Val),
+    p50Label: labelFor(p50Val),
+    p95Label: labelFor(p95Val),
+  };
+}
 export const monthFormatter = (v: number) => (Number.isInteger(v / 12) ? `${v / 12}y` : '');
 export const dollarKFormatter = (v: number) => `$${(v / 1000).toFixed(0)}k`;
 export const yearLabelFormatter = (t: TFunction, l: number) => `${(l / 12).toFixed(1)} ${t('y')}`;
@@ -351,52 +380,5 @@ export function buildScenarioData(r: MonteCarloResult, startingValue: number) {
       p25: rp.p25[i] * startingValue,
       worst: rp.worst[i] * startingValue,
     })),
-  };
-}
-const FAN_BANDS: Array<[string, number, string]> = [
-  ['band5_95', 0.08, 'monteCarlo.fanChart.band5_95'],
-  ['band25_75', 0.18, 'monteCarlo.fanChart.band25_75'],
-];
-export const fanAreas = (t: TFunction) =>
-  FAN_BANDS.map(([dataKey, fillOpacity, nameKey]) => ({
-    dataKey,
-    fill: getPortfolioColor(0),
-    fillOpacity,
-    name: t(nameKey),
-  }));
-export const fanMedianLine = (t: TFunction) => ({
-  dataKey: 'p50',
-  stroke: getPortfolioColor(0),
-  strokeWidth: 2.5,
-  name: t('Median'),
-});
-export function buildFanChartData(r: MonteCarloResult, startingValue: number): FanDataPoint[] {
-  const { p5, p25, p50, p75, p95 } = r.percentiles;
-  if (!p5 || p5.length === 0) return [];
-  return sampleMonths(p5.length).map(({ day, month }) => ({
-    month,
-    band5_95: [p5[day] * startingValue, p95[day] * startingValue],
-    band25_75: [p25[day] * startingValue, p75[day] * startingValue],
-    p50: p50[day] * startingValue,
-  }));
-}
-export function buildTerminalHistogram(r: MonteCarloResult, startingValue: number) {
-  const metrics = r.perPathMetrics;
-  if (!metrics || metrics.length === 0) {
-    return { data: [], p5Val: 0, p50Val: 0, p95Val: 0, p5Label: '', p50Label: '', p95Label: '' };
-  }
-  const vals = metrics.map((m) => m.finalValue * startingValue);
-  const { bins, labelFor } = buildBinData(vals, 25, dollarKFormatter);
-  const p5Val = percentile(vals, 0.05);
-  const p50Val = percentile(vals, 0.5);
-  const p95Val = percentile(vals, 0.95);
-  return {
-    data: bins,
-    p5Val,
-    p50Val,
-    p95Val,
-    p5Label: labelFor(p5Val),
-    p50Label: labelFor(p50Val),
-    p95Label: labelFor(p95Val),
   };
 }

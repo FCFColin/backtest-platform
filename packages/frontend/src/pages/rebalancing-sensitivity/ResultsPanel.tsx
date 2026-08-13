@@ -1,20 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { Loader2 } from 'lucide-react';
-import {
-  Scatter,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Cell,
-  BarChart,
-  Bar,
-  LineChart,
-  Line,
-  Legend,
-} from 'recharts';
+import type { EChartsOption } from 'echarts';
 import type { RebalanceFrequency } from '@backtest/shared';
 import {
   REBALANCE_OPTIONS,
@@ -23,13 +10,13 @@ import {
   type RebalancingState,
 } from './rebalancingSensitivityUtils.js';
 import {
-  CHART_MARGIN,
-  CHART_GRID_PROPS,
-  AXIS_TICK_STYLE,
-  DATE_TICK_FORMATTER,
-  CHART_TOOLTIP_STYLE,
-  getPortfolioColor,
-} from '@/lib/chart-theme.js';
+  AXIS_TEXT,
+  BORDER_SOFT,
+  axisTooltipFormatter,
+  tooltipOption,
+} from '@/components/charts/chartUtils.js';
+import { getPortfolioColor } from '@/lib/chart-theme.js';
+import EChart from '@/components/charts/EChart.js';
 import {
   Card,
   Select,
@@ -60,18 +47,14 @@ function ScatterTab({ results }: { results: FreqResult[] }) {
       yName="CAGR"
       height={400}
       margin={{ top: 20, right: 30, bottom: 30, left: 10 }}
-      zDataKey="sharpe"
       zRange={[60, 200]}
       xTickFormatter={(v: number) => `${v.toFixed(1)}%`}
       yTickFormatter={(v: number) => `${v.toFixed(1)}%`}
       tooltipFormatter={(v: number, name: string) =>
         name === 'sharpe' || name === 'sortino' ? v.toFixed(2) : `${v.toFixed(2)}%`
       }
-    >
-      {data.map((p) => (
-        <Scatter key={p.label} data={[p]} fill={p.color} />
-      ))}
-    </XYScatterChart>
+      series={data.map((p) => ({ data: [p], color: p.color, zDataKey: 'sharpe' }))}
+    />
   );
 }
 function DistributionTab({ results }: { results: FreqResult[] }) {
@@ -83,22 +66,38 @@ function DistributionTab({ results }: { results: FreqResult[] }) {
     sharpeRatio: Number(r.sharpe.toFixed(2)),
     fill: r.color,
   }));
-  return (
-    <ResponsiveContainer width="100%" height={400}>
-      <BarChart data={data} margin={CHART_MARGIN}>
-        <CartesianGrid {...CHART_GRID_PROPS} />
-        <XAxis dataKey="name" tick={AXIS_TICK_STYLE} />
-        <YAxis tick={AXIS_TICK_STYLE} tickFormatter={(v: number) => `${v}%`} />
-        <Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={(v: number) => `${v}%`} />
-        <Legend wrapperStyle={{ fontSize: '12px' }} />
-        <Bar dataKey="CAGR" radius={[2, 2, 0, 0]}>
-          {data.map((e, i) => (
-            <Cell key={i} fill={e.fill} />
-          ))}
-        </Bar>
-      </BarChart>
-    </ResponsiveContainer>
-  );
+  const option: EChartsOption = {
+    grid: { top: 20, right: 40, bottom: 20, left: 80 },
+    xAxis: {
+      type: 'category',
+      data: data.map((d) => d.name),
+      axisLabel: AXIS_TEXT,
+      axisLine: { lineStyle: { color: BORDER_SOFT } },
+      axisTick: { show: false },
+      splitLine: { show: false },
+    },
+    yAxis: {
+      type: 'value',
+      axisLabel: { ...AXIS_TEXT, formatter: (v: number) => `${v}%` },
+      axisLine: { show: false },
+      axisTick: { show: false },
+      splitLine: { lineStyle: { color: BORDER_SOFT, opacity: 0.6 } },
+    },
+    tooltip: tooltipOption(axisTooltipFormatter(undefined, (v) => `${v}%`)),
+    legend: { top: 0, textStyle: { color: 'hsl(var(--fg-tertiary))', fontSize: 12 } },
+    series: [
+      {
+        type: 'bar',
+        name: t('stats.cagr'),
+        data: data.map((d) => ({
+          value: d.CAGR,
+          itemStyle: { color: d.fill, borderRadius: [2, 2, 0, 0] },
+        })),
+        barMaxWidth: 60,
+      },
+    ],
+  };
+  return <EChart option={option} height={400} ariaLabel={t('CAGR')} />;
 }
 function OffsetSelector({ s }: { s: RebalancingState }) {
   const { t } = useTranslation();
@@ -129,36 +128,70 @@ function OffsetSelector({ s }: { s: RebalancingState }) {
   );
 }
 function OffsetBarChart({ offsetData }: { offsetData: Array<{ offset: string; cagr: number }> }) {
-  return (
-    <ResponsiveContainer width="100%" height={250}>
-      <BarChart data={offsetData} margin={CHART_MARGIN}>
-        <CartesianGrid {...CHART_GRID_PROPS} />
-        <XAxis dataKey="offset" tick={AXIS_TICK_STYLE} />
-        <YAxis tick={AXIS_TICK_STYLE} tickFormatter={(v: number) => `${v}%`} />
-        <Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={(v: number) => `${v}%`} />
-        <Bar dataKey="cagr" fill={getPortfolioColor(2)} radius={[2, 2, 0, 0]} />
-      </BarChart>
-    </ResponsiveContainer>
-  );
+  const option: EChartsOption = {
+    grid: { top: 20, right: 40, bottom: 20, left: 80 },
+    xAxis: {
+      type: 'category',
+      data: offsetData.map((d) => d.offset),
+      axisLabel: AXIS_TEXT,
+      axisLine: { lineStyle: { color: BORDER_SOFT } },
+      axisTick: { show: false },
+      splitLine: { show: false },
+    },
+    yAxis: {
+      type: 'value',
+      axisLabel: { ...AXIS_TEXT, formatter: (v: number) => `${v}%` },
+      axisLine: { show: false },
+      axisTick: { show: false },
+      splitLine: { lineStyle: { color: BORDER_SOFT, opacity: 0.6 } },
+    },
+    tooltip: tooltipOption(axisTooltipFormatter(undefined, (v) => `${v}%`)),
+    series: [
+      {
+        type: 'bar',
+        name: 'CAGR',
+        data: offsetData.map((d) => ({
+          value: d.cagr,
+          itemStyle: { color: getPortfolioColor(2), borderRadius: [2, 2, 0, 0] },
+        })),
+        barMaxWidth: 60,
+      },
+    ],
+  };
+  return <EChart option={option} height={250} ariaLabel="CAGR" />;
 }
 function OffsetGrowthChart({ data }: { data: Array<{ date: string; value: number }> }) {
-  return (
-    <ResponsiveContainer width="100%" height={250}>
-      <LineChart data={data} margin={CHART_MARGIN}>
-        <CartesianGrid {...CHART_GRID_PROPS} />
-        <XAxis dataKey="date" tick={AXIS_TICK_STYLE} tickFormatter={DATE_TICK_FORMATTER} />
-        <YAxis tick={AXIS_TICK_STYLE} tickFormatter={(v: number) => v.toLocaleString()} />
-        <Tooltip contentStyle={CHART_TOOLTIP_STYLE} />
-        <Line
-          type="monotone"
-          dataKey="value"
-          stroke={getPortfolioColor(0)}
-          strokeWidth={1.5}
-          dot={false}
-        />
-      </LineChart>
-    </ResponsiveContainer>
-  );
+  const option: EChartsOption = {
+    grid: { top: 20, right: 40, bottom: 20, left: 80 },
+    xAxis: {
+      type: 'category',
+      data: data.map((d) => d.date),
+      axisLabel: { ...AXIS_TEXT, formatter: (v: string) => v.slice(0, 7) },
+      axisLine: { lineStyle: { color: BORDER_SOFT } },
+      axisTick: { show: false },
+      splitLine: { show: false },
+    },
+    yAxis: {
+      type: 'value',
+      axisLabel: { ...AXIS_TEXT, formatter: (v: number) => v.toLocaleString() },
+      axisLine: { show: false },
+      axisTick: { show: false },
+      splitLine: { lineStyle: { color: BORDER_SOFT, opacity: 0.6 } },
+    },
+    tooltip: tooltipOption(axisTooltipFormatter()),
+    series: [
+      {
+        type: 'line',
+        name: 'value',
+        data: data.map((d) => d.value),
+        smooth: true,
+        symbol: 'none',
+        lineStyle: { width: 1.5, color: getPortfolioColor(0) },
+        itemStyle: { color: getPortfolioColor(0) },
+      },
+    ],
+  };
+  return <EChart option={option} height={250} ariaLabel="Growth" />;
 }
 function OffsetTab({ s }: { s: RebalancingState }) {
   const offsetData = s.offsetResults.map((r) => ({

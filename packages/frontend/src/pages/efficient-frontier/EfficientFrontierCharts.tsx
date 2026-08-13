@@ -1,10 +1,13 @@
 import { useTranslation } from 'react-i18next';
-import { Scatter, Cell, Area } from 'recharts';
 import { type EfficientFrontierPoint } from '@backtest/shared';
 import { getCorrelationColor, getPortfolioColor } from '@/lib/chart-theme.js';
 import { getCorrelationTextColor } from '@/components/charts/chartUtils.js';
 import { MatrixHeatmap } from '@/components/charts/tables.js';
-import { SimpleChart, XYScatterChart } from '@/components/charts/sharedChartContent.js';
+import {
+  SimpleChart,
+  XYScatterChart,
+  type XYScatterSeriesSpec,
+} from '@/components/charts/sharedChartContent.js';
 import { sharpeToColor } from './EfficientFrontierUtils.js';
 import { LoadInBacktesterButton, type FrontierResultsProps } from './EfficientFrontierResults.js';
 function FrontierScatterChartInner({
@@ -23,6 +26,25 @@ function FrontierScatterChartInner({
   height: number;
 }) {
   const { t } = useTranslation();
+  const scatterSeries: XYScatterSeriesSpec[] = scatterData.map((entry) => ({
+    data: [entry],
+    color: sharpeToColor(entry.sharpeRatio, sharpeRange.min, sharpeRange.max),
+    symbolSize: 6,
+  }));
+  if (maxSharpe) {
+    scatterSeries.push({
+      data: [
+        {
+          expectedVolatility: maxSharpe.expectedVolatility,
+          expectedReturn: maxSharpe.expectedReturn,
+          sharpeRatio: maxSharpe.sharpeRatio,
+        },
+      ],
+      color: getPortfolioColor(0),
+      symbol: 'star',
+      symbolSize: 12,
+    });
+  }
   return (
     <XYScatterChart
       xKey="expectedVolatility"
@@ -34,33 +56,11 @@ function FrontierScatterChartInner({
       tooltipFormatter={(v: number, name: string) =>
         name === 'sharpeRatio' ? v.toFixed(2) : `${v.toFixed(2)}%`
       }
-    >
-      <Scatter
-        data={scatterData}
-        onClick={(_data, index: number) => {
-          if (frontier[index]) onSelectPoint(frontier[index]);
-        }}
-      >
-        {scatterData.map((entry, index) => (
-          <Cell
-            key={index}
-            fill={sharpeToColor(entry.sharpeRatio, sharpeRange.min, sharpeRange.max)}
-          />
-        ))}
-      </Scatter>
-      {maxSharpe && (
-        <Scatter
-          data={[
-            {
-              expectedVolatility: maxSharpe.expectedVolatility,
-              expectedReturn: maxSharpe.expectedReturn,
-            },
-          ]}
-          fill={getPortfolioColor(0)}
-          shape="star"
-        />
-      )}
-    </XYScatterChart>
+      series={scatterSeries}
+      onClick={({ dataIndex }) => {
+        if (dataIndex !== undefined && frontier[dataIndex]) onSelectPoint(frontier[dataIndex]);
+      }}
+    />
   );
 }
 export function FrontierScatterChart({
@@ -118,19 +118,13 @@ export function FrontierAllocations({
         yDomain={[0, 100]}
         tooltipFormatter={(v: number) => `${v}%`}
         showLegend={false}
-      >
-        {allAssetTickers.map((ticker, i) => (
-          <Area
-            key={ticker}
-            type="monotone"
-            dataKey={ticker}
-            stackId="1"
-            stroke={getPortfolioColor(i)}
-            fill={getPortfolioColor(i)}
-            fillOpacity={0.8}
-          />
-        ))}
-      </SimpleChart>
+        series={allAssetTickers.map((ticker, i) => ({
+          dataKey: ticker,
+          color: getPortfolioColor(i),
+          stackId: '1',
+          areaOpacity: 0.8,
+        }))}
+      />
       <div className="mt-2 flex flex-wrap justify-center gap-4">
         {allAssetTickers.map((ticker, i) => (
           <div key={ticker} className="flex items-center gap-1 text-caption">

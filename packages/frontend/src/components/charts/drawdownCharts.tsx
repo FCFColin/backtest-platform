@@ -1,6 +1,5 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Area } from 'recharts';
 import {
   YEAR_ONLY_TICK_FORMATTER,
   SMART_DATE_INTERVAL,
@@ -8,6 +7,7 @@ import {
   getPortfolioColor,
 } from '@/lib/chart-theme.js';
 import { fmtPct, downsample, DOWNSAMPLE_THRESHOLD, DOWNSAMPLE_TARGET } from '@/utils/format.js';
+import { totalMonths } from './chartUtils.js';
 import { ChartEmptyState, SimpleAreaChart } from '@/components/charts/sharedChartContent.js';
 
 interface DrawdownChartProps {
@@ -31,35 +31,7 @@ function useDrawdownData(portfolios: DrawdownChartProps['portfolios']) {
   }, [portfolios]);
 }
 function useTotalMonths(chartData: Array<Record<string, string | number>>) {
-  return useMemo(() => {
-    if (chartData.length <= 1) return 1;
-    const first = new Date(String(chartData[0].date));
-    const last = new Date(String(chartData[chartData.length - 1].date));
-    return Math.max(
-      1,
-      (last.getFullYear() - first.getFullYear()) * 12 + last.getMonth() - first.getMonth(),
-    );
-  }, [chartData]);
-}
-function DrawdownAreas({
-  portfolios,
-  gradientId,
-}: {
-  portfolios: DrawdownChartProps['portfolios'];
-  gradientId: string;
-}) {
-  return portfolios.map((p, i) => (
-    <Area
-      key={p.id}
-      type="monotone"
-      dataKey={p.id}
-      name={p.name}
-      stroke={getPortfolioColor(i)}
-      fill={`url(#${gradientId})`}
-      strokeWidth={1.5}
-      isAnimationActive={false}
-    />
-  ));
+  return useMemo(() => totalMonths(chartData), [chartData]);
 }
 interface UnderwaterStats {
   maxDrawdown: number;
@@ -162,9 +134,13 @@ function DrawdownAreaChart({
             gradientId={gradientId}
             tooltipFormatter={(value: number, name: string) => [fmtPct(value), name]}
             tooltipLabelFormatter={(label) => t(tooltipLabelKey, { label })}
-          >
-            <DrawdownAreas portfolios={portfolios} gradientId={gradientId} />
-          </SimpleAreaChart>
+            series={portfolios.map((p, i) => ({
+              dataKey: p.id,
+              name: p.name,
+              color: getPortfolioColor(i),
+              width: 1.5,
+            }))}
+          />
         </div>
       )}
     </div>

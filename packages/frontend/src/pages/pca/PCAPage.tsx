@@ -1,34 +1,23 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Play } from 'lucide-react';
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  ReferenceLine,
-  ResponsiveContainer,
-  Scatter,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts';
+import type { EChartsOption } from 'echarts';
 import { type PCAResult } from '@backtest/shared';
 import { Card, buttonVariants, LoadingButton, AffixInput } from '@/components/ui/uiComponents';
 import { CollapsibleSection } from '@/components/cards.js';
 import { ResultsShell } from '@/components/resultsShell.js';
 import { useComputeTool, useListState } from '../../hooks/miscHooks.js';
 import { apiPostJSON } from '@/utils/apiClient';
-import i18n from '../../i18n/index.js';
 import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
+import { getCorrelationColor, getPortfolioColor } from '@/lib/chart-theme.js';
+import EChart from '@/components/charts/EChart.js';
 import {
-  AXIS_TICK_STYLE,
-  CHART_GRID_PROPS,
-  CHART_MARGIN,
-  CHART_TOOLTIP_STYLE,
-  getCorrelationColor,
-  getPortfolioColor,
-} from '@/lib/chart-theme.js';
-import { getCorrelationTextColor } from '@/components/charts/chartUtils.js';
+  AXIS_TEXT,
+  BORDER_SOFT,
+  axisTooltipFormatter,
+  getCorrelationTextColor,
+  tooltipOption,
+} from '@/components/charts/chartUtils.js';
 import { TimeSeriesLineChart } from '@/components/charts/TimeSeriesLineChart.js';
 import { MatrixHeatmap } from '@/components/charts/tables.js';
 import { Field, FieldLabel, FieldDescription } from '../../components/form/Field.js';
@@ -65,7 +54,7 @@ function usePcaPageState() {
           endDate,
           numComponents: numComponents === '' ? undefined : numComponents,
         },
-        i18n.t('PCA analysis failed'),
+        t('PCA analysis failed'),
       );
     },
     () =>
@@ -153,20 +142,41 @@ function PCAParamsPanel({ state: s }: { state: PCAState }) {
 }
 function EigenvalueBarChart({ data }: { data: { component: string; eigenvalue: number }[] }) {
   const { t } = useTranslation();
+  const option: EChartsOption = {
+    grid: { top: 20, right: 40, bottom: 20, left: 80 },
+    xAxis: {
+      type: 'category',
+      data: data.map((d) => d.component),
+      axisLabel: AXIS_TEXT,
+      axisLine: { lineStyle: { color: BORDER_SOFT } },
+      axisTick: { show: false },
+      splitLine: { show: false },
+    },
+    yAxis: {
+      type: 'value',
+      axisLabel: { ...AXIS_TEXT, formatter: (v: number) => v.toFixed(2) },
+      axisLine: { show: false },
+      axisTick: { show: false },
+      splitLine: { lineStyle: { color: BORDER_SOFT, opacity: 0.6 } },
+    },
+    tooltip: tooltipOption(
+      axisTooltipFormatter(undefined, (v) => [v.toFixed(4), t('Eigenvalues')]),
+    ),
+    series: [
+      {
+        type: 'bar',
+        name: t('Eigenvalues'),
+        data: data.map((d) => ({
+          value: d.eigenvalue,
+          itemStyle: { color: getPortfolioColor(0), borderRadius: [2, 2, 0, 0] },
+        })),
+        barMaxWidth: 60,
+      },
+    ],
+  };
   return (
     <Card className="p-4">
-      <ResponsiveContainer width="100%" height={300}>
-        <BarChart data={data} margin={CHART_MARGIN}>
-          <CartesianGrid {...CHART_GRID_PROPS} />
-          <XAxis dataKey="component" tick={AXIS_TICK_STYLE} />
-          <YAxis tick={AXIS_TICK_STYLE} tickFormatter={(v: number) => v.toFixed(2)} />
-          <Tooltip
-            contentStyle={CHART_TOOLTIP_STYLE}
-            formatter={(value: number) => [value.toFixed(4), t('Eigenvalues')]}
-          />
-          <Bar dataKey="eigenvalue" fill={getPortfolioColor(0)} radius={[2, 2, 0, 0]} />
-        </BarChart>
-      </ResponsiveContainer>
+      <EChart option={option} height={300} ariaLabel={t('Eigenvalues')} />
     </Card>
   );
 }
@@ -216,11 +226,12 @@ function PCAScatterChart({ data }: { data: { pc1: number; pc2: number }[] }) {
         height={450}
         zRange={[20, 20]}
         tooltipFormatter={(v: number, n: string) => [v.toFixed(4), n]}
-      >
-        <Scatter data={data} fill={getPortfolioColor(2)} fillOpacity={0.5} />
-        <ReferenceLine y={0} stroke="hsl(var(--fg-tertiary))" strokeDasharray="4 4" />
-        <ReferenceLine x={0} stroke="hsl(var(--fg-tertiary))" strokeDasharray="4 4" />
-      </XYScatterChart>
+        series={[{ data, color: getPortfolioColor(2), opacity: 0.5 }]}
+        referenceLines={[
+          { axis: 'y', value: 0, color: 'hsl(var(--fg-tertiary))', dash: '4 4' },
+          { axis: 'x', value: 0, color: 'hsl(var(--fg-tertiary))', dash: '4 4' },
+        ]}
+      />
     </Card>
   );
 }

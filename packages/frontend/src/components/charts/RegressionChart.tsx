@@ -1,5 +1,4 @@
 ﻿import { useMemo } from 'react';
-import { Scatter, ReferenceLine } from 'recharts';
 import { useTranslation } from 'react-i18next';
 import { type PortfolioResult } from '@backtest/shared';
 import ChartCard from '../ChartCard.js';
@@ -92,7 +91,6 @@ function RegressionScatterChart({
         yLabel={t('{{name}} Daily Return', { name: reg.name })}
         margin={CHART_MARGIN}
         height={400}
-        cursor={false}
         xTickFormatter={(v: number) => `${Number(v).toFixed(2)}%`}
         yTickFormatter={(v: number) => `${Number(v).toFixed(2)}%`}
         tooltipFormatter={(value, name) => {
@@ -100,24 +98,19 @@ function RegressionScatterChart({
           if (name === 'y') return [`${Number(value).toFixed(4)}%`, t('Target Daily Return')];
           return [String(value), name];
         }}
-      >
-        <ReferenceLine
-          segment={[
-            { x: reg.linePoints[0].x, y: reg.linePoints[0].y },
-            { x: reg.linePoints[1].x, y: reg.linePoints[1].y },
-          ]}
-          stroke={color}
-          strokeDasharray="6 3"
-          strokeWidth={2}
-        />
-        <Scatter
-          data={scatterPoints}
-          fill={color}
-          fillOpacity={0.4}
-          r={2}
-          {...({ activeDot: { r: 4, stroke: 'var(--bg-surface)', strokeWidth: 2 } } as object)}
-        />
-      </XYScatterChart>
+        series={[{ data: scatterPoints, color, opacity: 0.4, symbolSize: 4 }]}
+        lines={[
+          {
+            points: [
+              [reg.linePoints[0].x, reg.linePoints[0].y],
+              [reg.linePoints[1].x, reg.linePoints[1].y],
+            ],
+            color,
+            dash: '6 3',
+            width: 2,
+          },
+        ]}
+      />
     </div>
   );
 }

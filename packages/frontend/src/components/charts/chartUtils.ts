@@ -1,6 +1,61 @@
 import { TRADING_DAYS_PER_YEAR } from '@backtest/shared/constants';
 import { pickByAbsThreshold } from '@/lib/chart-theme.js';
 
+export const AXIS_TEXT = {
+  color: 'hsl(var(--fg-tertiary))',
+  fontSize: 11,
+  fontFamily: 'Geist Mono Variable',
+} as const;
+export const BORDER_SOFT = 'hsl(var(--border-soft))';
+export const tooltipRow = (marker: string, name: string, value: string) =>
+  `<div style="display:flex;align-items:center;gap:8px;padding:2px 0">${marker}<span style="color:hsl(var(--fg-tertiary))">${name}</span><span style="margin-left:auto;font-weight:600;font-family:monospace;color:hsl(var(--fg))">${value}</span></div>`;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- ECharts tooltip formatter 类型过于复杂，手动构造 option
+export function tooltipOption(formatter: unknown, trigger: 'axis' | 'item' = 'axis'): any {
+  return {
+    trigger,
+    backgroundColor: 'hsl(var(--chart-tooltip-bg))',
+    borderColor: 'hsl(var(--border-strong))',
+    borderWidth: 1,
+    padding: [12, 12],
+    textStyle: { color: 'hsl(var(--fg))', fontSize: 12 },
+    extraCssText:
+      'backdrop-filter: blur(8px); border-radius: 8px; box-shadow: var(--tooltip-shadow);',
+    formatter,
+  };
+}
+export function axisTooltipFormatter(
+  labelFormatter?: (label: string) => string,
+  valueFormatter?: (value: number, name: string) => [string, string] | string,
+) {
+  return (
+    params: Array<{
+      axisValue: string | number;
+      seriesName: string;
+      marker: string;
+      value: number | [unknown, number];
+    }>,
+  ) => {
+    const first = params[0];
+    const header = labelFormatter
+      ? labelFormatter(String(first?.axisValue ?? ''))
+      : String(first?.axisValue ?? '');
+    const rows = params
+      .map((p) => {
+        const raw = Array.isArray(p.value) ? p.value[1] : p.value;
+        const num = Number(raw) || 0;
+        const f = valueFormatter ? valueFormatter(num, p.seriesName) : String(num);
+        const [v, n] = Array.isArray(f) ? f : [f, p.seriesName];
+        return tooltipRow(p.marker, n, String(v));
+      })
+      .join('');
+    return (
+      (header
+        ? `<div style="font-weight:600;margin-bottom:6px;color:hsl(var(--fg))">${header}</div>`
+        : '') + rows
+    );
+  };
+}
+
 export type RollingMetricKey = 'cagr' | 'volatility' | 'excess' | 'skewness' | 'kurtosis' | 'kelly';
 export type RiskMetricKey = 'stdev' | 'maxDrawdown' | 'avgDrawdown' | 'ulcerIndex';
 
@@ -159,6 +214,33 @@ export function computeRollingCorrelation(
   return result;
 }
 
+export function computeTicks(min: number, max: number, count = 5): number[] {
+  if (min === max) {
+    const v = min === 0 ? 1 : Math.abs(min);
+    min -= v;
+    max += v;
+  }
+  const roughStep = (max - min) / (count - 1);
+  const magnitude = Math.pow(10, Math.floor(Math.log10(roughStep)));
+  const residual = roughStep / magnitude;
+  const niceStep =
+    (residual <= 1.5 ? 1 : residual <= 3.5 ? 2 : residual <= 7.5 ? 5 : 10) * magnitude;
+  const niceMin = Math.floor(min / niceStep) * niceStep;
+  const niceMax = Math.ceil(max / niceStep) * niceStep;
+  const ticks: number[] = [];
+  for (let v = niceMin; v <= niceMax + niceStep * 0.001; v += niceStep)
+    ticks.push(Math.round(v * 1e10) / 1e10);
+  return ticks;
+}
+export function totalMonths(data: Array<Record<string, string | number>>): number {
+  if (data.length <= 1) return 1;
+  const first = new Date(String(data[0].date));
+  const last = new Date(String(data[data.length - 1].date));
+  return Math.max(
+    1,
+    (last.getFullYear() - first.getFullYear()) * 12 + last.getMonth() - first.getMonth(),
+  );
+}
 export function getCorrelationTextColor(val: number): string {
   return pickByAbsThreshold(val, 0.6, 'hsl(var(--corr-text-strong))', 'hsl(var(--fg))');
 }

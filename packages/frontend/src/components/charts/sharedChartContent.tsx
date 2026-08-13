@@ -1,70 +1,243 @@
-import {
-  useRef,
-  useState,
-  useEffect,
-  type ReactElement,
-  type ReactNode,
-  type ElementType,
-} from 'react';
-import {
-  XAxis,
-  YAxis,
-  Tooltip,
-  Legend,
-  CartesianGrid,
-  ResponsiveContainer,
-  AreaChart,
-  LineChart,
-  ScatterChart,
-  ZAxis,
-} from 'recharts';
+﻿import { useTranslation } from 'react-i18next';
 import { BarChart3 } from 'lucide-react';
-import { useTranslation } from 'react-i18next';
-import {
-  CHART_MARGIN,
-  CHART_TOOLTIP_STYLE,
-  CHART_GRID_PROPS,
-  AXIS_TICK_STYLE,
-  LEGEND_WRAPPER_STYLE,
-  DATE_TICK_FORMATTER,
-  wrapTooltipFormatter,
-} from '@/lib/chart-theme.js';
+import type { EChartsOption } from 'echarts';
+import { CHART_MARGIN, getPortfolioColor } from '@/lib/chart-theme.js';
 import type { TooltipValueFormatter } from '@/lib/chart-theme.js';
-import { SvgBarChart, SvgScatterChart } from './svg/svgCharts.js';
 import { useChartAnimation } from '@/hooks/miscHooks.js';
+import EChart from './EChart.js';
+import {
+  AXIS_TEXT,
+  BORDER_SOFT,
+  tooltipRow,
+  tooltipOption,
+  axisTooltipFormatter,
+} from './chartUtils.js';
 
-type SeriesNames = string[];
-type ChartDataPoint = Record<string, number | string>;
+type ChartDataPoint = Record<string, number | string | null>;
 
-function MeasuredContainer({
-  width: propWidth,
-  height,
-  children,
-}: {
-  width?: string | number;
-  height: number;
-  children: (dims: { width: number; height: number }) => ReactElement;
-}) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [w, setW] = useState(0);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const ro = new ResizeObserver((entries) => setW(entries[0].contentRect.width));
-    ro.observe(el);
-    setW(el.clientWidth);
-    return () => ro.disconnect();
-  }, []);
+const HEADER_DIV = '<div style="font-weight:600;margin-bottom:6px;color:hsl(var(--fg))">';
+function scatterTooltip(
+  xName: string,
+  yName: string,
+  labelFormatter?: (label: string) => string,
+  valueFormatter?: (value: number, name: string) => [string, string] | string,
+) {
+  return tooltipOption((p: { name: string; value: [number, number]; color: string }) => {
+    const [x, y] = p.value;
+    const header = labelFormatter ? labelFormatter(p.name) : p.name;
+    const row = (val: number, name: string) => {
+      const r = valueFormatter ? valueFormatter(val, name) : [String(val), name];
+      const [v, n] = Array.isArray(r) ? r : [r, name];
+      return tooltipRow(p.color, n, String(v));
+    };
+    return (header ? `${HEADER_DIV}${header}</div>` : '') + row(x, xName) + row(y, yName);
+  }, 'item');
+}
+function valueAxis(
+  name: string | undefined,
+  axisName: string,
+  formatter: (v: number) => string,
+  isY = false,
+) {
+  const base = {
+    type: 'value' as const,
+    name: name ?? axisName,
+    nameLocation: 'middle' as const,
+    nameGap: isY ? 52 : 34,
+    nameTextStyle: AXIS_TEXT,
+    axisLabel: { ...AXIS_TEXT, formatter },
+    axisTick: { show: false },
+  };
+  return isY
+    ? {
+        ...base,
+        axisLine: { show: false },
+        splitLine: { lineStyle: { color: BORDER_SOFT, opacity: 0.6 } },
+      }
+    : { ...base, axisLine: { lineStyle: { color: BORDER_SOFT } } };
+}
+
+interface SimpleSeriesSpec {
+  dataKey: string;
+  name?: string;
+  color?: string;
+  width?: number;
+  dash?: string;
+  stackId?: string;
+  connectNulls?: boolean;
+  symbol?: 'circle' | 'square' | 'diamond' | 'none';
+  symbolSize?: number;
+  areaOpacity?: number;
+}
+interface SimpleChartProps {
+  type?: 'line' | 'area';
+  data: ChartDataPoint[];
+  height?: number;
+  margin?: { top?: number; right?: number; bottom?: number; left?: number };
+  xDataKey?: string;
+  xType?: 'number' | 'category';
+  xLabel?: string;
+  xTickFormatter?: (v: number | string) => string;
+  xTickInterval?: number | 'preserveStartEnd';
+  yTickFormatter?: (v: number) => string;
+  yDomain?: [number | 'auto', number | 'auto'];
+  yScale?: 'log' | 'linear';
+  yLabel?: string;
+  tooltipFormatter?: TooltipValueFormatter;
+  tooltipLabelFormatter?: (label: string) => string;
+  showLegend?: boolean;
+  legendFormatter?: (name: string) => string;
+  gradientId?: string;
+  gradientColor?: string;
+  series: SimpleSeriesSpec[];
+  referenceLines?: Array<{
+    axis: 'x' | 'y';
+    value: number | string;
+    label?: string;
+    color?: string;
+    dash?: string;
+  }>;
+}
+export function SimpleChart({
+  type = 'line',
+  data,
+  height = 350,
+  margin = CHART_MARGIN,
+  xDataKey = 'date',
+  xType,
+  xLabel,
+  xTickFormatter,
+  xTickInterval,
+  yTickFormatter = (v) => v.toFixed(0),
+  yDomain = ['auto', 'auto'],
+  yScale,
+  yLabel,
+  tooltipFormatter,
+  tooltipLabelFormatter,
+  showLegend,
+  legendFormatter,
+  gradientId,
+  gradientColor = 'hsl(var(--danger))',
+  series,
+  referenceLines,
+}: SimpleChartProps) {
+  const animated = useChartAnimation(data.length >= 100).isAnimationActive;
+  const isArea = type === 'area';
+  const isCategory = xType !== 'number';
+  const showLegendFinal = showLegend ?? !isArea;
+  const grid = {
+    left: margin.left ?? CHART_MARGIN.left,
+    right: margin.right ?? CHART_MARGIN.right,
+    top: margin.top ?? CHART_MARGIN.top,
+    bottom: (margin.bottom ?? CHART_MARGIN.bottom) + (showLegendFinal ? 24 : 0),
+  };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 需要动态添加 markLine 属性
+  const seriesArr: any[] = series.map((s, i) => {
+    const color = s.color ?? getPortfolioColor(i);
+    return {
+      name: s.name ?? s.dataKey,
+      type: 'line',
+      data: isCategory
+        ? data.map((d) => d[s.dataKey] ?? null)
+        : data.map((d) => [Number(d[xDataKey]), d[s.dataKey] ?? null]),
+      smooth: true,
+      symbol: s.symbol ?? 'none',
+      showSymbol: s.symbol != null,
+      symbolSize: s.symbolSize ?? 8,
+      lineStyle: { width: s.width ?? 2.5, type: s.dash ?? 'solid', color },
+      itemStyle: { color },
+      connectNulls: s.connectNulls ?? false,
+      stack: s.stackId,
+      emphasis: { focus: 'series' },
+      areaStyle: isArea
+        ? gradientId
+          ? {
+              color: {
+                type: 'linear',
+                x: 0,
+                y: 0,
+                x2: 0,
+                y2: 1,
+                colorStops: [
+                  { offset: 0, color: gradientColor },
+                  { offset: 1, color: gradientColor },
+                ],
+              },
+              opacity: 0.25,
+            }
+          : { color, opacity: s.areaOpacity ?? 0.15 }
+        : undefined,
+    };
+  });
+  const marks = referenceLines?.map((rl) => {
+    const line = {
+      [rl.axis === 'x' ? 'xAxis' : 'yAxis']: rl.value,
+      lineStyle: { color: rl.color ?? 'hsl(var(--text-muted))', type: rl.dash ?? 'dashed' },
+    };
+    return rl.label ? { ...line, label: { formatter: rl.label, position: 'insideEndTop' } } : line;
+  });
+  if (marks?.length && seriesArr[0]) seriesArr[0].markLine = { data: marks, silent: true };
+  const option: EChartsOption = {
+    grid,
+    xAxis: {
+      type: isCategory ? 'category' : 'value',
+      data: isCategory ? data.map((d) => d[xDataKey] ?? '') : undefined,
+      name: xLabel,
+      nameLocation: 'middle',
+      nameGap: isCategory ? 28 : 38,
+      nameTextStyle: AXIS_TEXT,
+      axisLabel: {
+        ...AXIS_TEXT,
+        interval:
+          xTickInterval === 'preserveStartEnd' ? 'auto' : (xTickInterval as number | undefined),
+        formatter: xTickFormatter,
+      },
+      axisLine: { lineStyle: { color: BORDER_SOFT } },
+      axisTick: { show: false },
+      splitLine: { show: false },
+    },
+    yAxis: {
+      type: yScale === 'log' ? 'log' : 'value',
+      name: yLabel,
+      nameLocation: 'middle',
+      nameGap: 48,
+      nameTextStyle: AXIS_TEXT,
+      min: yDomain[0] !== 'auto' ? yDomain[0] : undefined,
+      max: yDomain[1] !== 'auto' ? yDomain[1] : undefined,
+      axisLabel: { ...AXIS_TEXT, formatter: yTickFormatter },
+      axisLine: { show: false },
+      axisTick: { show: false },
+      splitLine: { lineStyle: { color: BORDER_SOFT, opacity: 0.6 } },
+    },
+    tooltip: tooltipOption(axisTooltipFormatter(tooltipLabelFormatter, tooltipFormatter)),
+    legend: showLegendFinal
+      ? {
+          bottom: 0,
+          textStyle: { color: 'hsl(var(--fg-tertiary))', fontSize: 12 },
+          formatter: legendFormatter,
+        }
+      : undefined,
+    series: seriesArr as EChartsOption['series'],
+    animation: animated,
+  };
   return (
-    <div ref={ref} style={{ width: propWidth ?? '100%', height, overflow: 'hidden' }}>
-      {w > 0 && children({ width: w, height })}
-    </div>
+    <EChart
+      option={option}
+      height={height}
+      ariaLabel={[xLabel, yLabel].filter(Boolean).join(' vs ') || 'Chart'}
+    />
   );
 }
+export const SimpleAreaChart = (p: Omit<SimpleChartProps, 'type'>) => (
+  <SimpleChart type="area" height={440} showLegend={false} {...p} />
+);
+export const SimpleLineChart = (p: Omit<SimpleChartProps, 'type'>) => (
+  <SimpleChart type="line" {...p} />
+);
 
 interface BarChartContentProps {
   data: ChartDataPoint[];
-  seriesNames: SeriesNames;
+  seriesNames: string[];
   xDataKey: string;
   height?: number;
   yTickFormatter?: (v: number) => string;
@@ -78,27 +251,77 @@ interface BarChartContentProps {
   xTickInterval?: number;
 }
 export function BarChartContent({
+  data,
+  seriesNames,
+  xDataKey,
   height = 350,
   yTickFormatter = (v) => v.toFixed(0),
-  ...rest
+  tooltipValueFormatter,
+  yLabel,
+  barRadius = 0,
+  fillOpacity = 1,
+  showLegend = true,
+  signColorSingleSeries = false,
+  xTickFontSize,
+  xTickInterval,
 }: BarChartContentProps) {
-  return (
-    <MeasuredContainer height={height}>
-      {({ width }) => (
-        <SvgBarChart
-          {...rest}
-          yTickFormatter={yTickFormatter}
-          height={height}
-          width={width}
-          margin={CHART_MARGIN}
-        />
-      )}
-    </MeasuredContainer>
-  );
+  const animated = useChartAnimation(data.length >= 100).isAnimationActive;
+  const singleSignColor = seriesNames.length === 1 && signColorSingleSeries;
+  const option: EChartsOption = {
+    grid: { left: 80, right: 40, top: 20, bottom: 20 + (showLegend ? 24 : 0) },
+    xAxis: {
+      type: 'category',
+      data: data.map((d) => String(d[xDataKey])),
+      axisLabel: {
+        ...AXIS_TEXT,
+        fontSize: xTickFontSize ?? 11,
+        interval: xTickInterval ?? 'auto',
+      },
+      axisLine: { lineStyle: { color: BORDER_SOFT } },
+      axisTick: { show: false },
+    },
+    yAxis: {
+      type: 'value',
+      name: yLabel,
+      nameLocation: 'middle',
+      nameGap: 48,
+      nameTextStyle: AXIS_TEXT,
+      axisLabel: { ...AXIS_TEXT, formatter: yTickFormatter },
+      axisLine: { show: false },
+      axisTick: { show: false },
+      splitLine: { lineStyle: { color: BORDER_SOFT, opacity: 0.6 } },
+    },
+    tooltip: tooltipOption(axisTooltipFormatter(undefined, tooltipValueFormatter)),
+    legend: showLegend
+      ? { bottom: 0, textStyle: { color: 'hsl(var(--fg-tertiary))', fontSize: 12 } }
+      : undefined,
+    series: seriesNames.map((name, i) => ({
+      type: 'bar',
+      name,
+      data: data.map((d) => {
+        const v = Number(d[name]) || 0;
+        return {
+          value: v,
+          itemStyle: {
+            color: singleSignColor
+              ? v >= 0
+                ? 'hsl(var(--success))'
+                : 'hsl(var(--danger))'
+              : getPortfolioColor(i),
+            opacity: fillOpacity,
+            borderRadius: [barRadius, barRadius, 0, 0],
+          },
+        };
+      }),
+      barMaxWidth: 60,
+    })) as EChartsOption['series'],
+    animation: animated,
+  };
+  return <EChart option={option} height={height} ariaLabel={seriesNames.join(', ')} />;
 }
 
 interface ScatterChartContentProps {
-  data: Array<Record<string, string | number>>;
+  data: ChartDataPoint[];
   xDataKey: string;
   xName: string;
   yDataKey: string;
@@ -108,131 +331,197 @@ interface ScatterChartContentProps {
   nameDataKey?: string;
   height?: number;
   margin?: { top?: number; right?: number; bottom?: number; left?: number };
-  tooltipFormatter?: (value: number | string, name: string) => [string, string];
+  tooltipFormatter?: (value: number | string, name: string) => [string, string] | string;
   tooltipLabelFormatter?: (label: string) => string;
 }
 export function ScatterChartContent({
+  data,
+  xDataKey,
+  xName,
+  yDataKey,
+  yName,
+  xLabel,
+  yLabel,
+  nameDataKey = 'name',
   height = 450,
   margin = CHART_MARGIN,
-  ...rest
+  tooltipFormatter,
+  tooltipLabelFormatter,
 }: ScatterChartContentProps) {
-  return (
-    <MeasuredContainer height={height}>
-      {({ width }) => (
-        <SvgScatterChart
-          {...rest}
-          height={height}
-          width={width}
-          margin={{ ...CHART_MARGIN, ...margin }}
-        />
-      )}
-    </MeasuredContainer>
-  );
+  const animated = useChartAnimation(data.length >= 100).isAnimationActive;
+  const fmt2 = (v: number) => Number(v).toFixed(2);
+  const option: EChartsOption = {
+    grid: {
+      left: margin.left ?? 80,
+      right: margin.right ?? 40,
+      top: margin.top ?? 20,
+      bottom: margin.bottom ?? 20,
+    },
+    xAxis: valueAxis(xLabel, xName, fmt2),
+    yAxis: valueAxis(yLabel, yName, fmt2, true),
+    tooltip: scatterTooltip(xName, yName, tooltipLabelFormatter, tooltipFormatter),
+    series: [
+      {
+        type: 'scatter',
+        data: data.map((d, i) => ({
+          value: [Number(d[xDataKey]), Number(d[yDataKey])],
+          name: String(d[nameDataKey] ?? ''),
+          itemStyle: { color: getPortfolioColor(i) },
+        })),
+        symbolSize: 8,
+        label: {
+          show: true,
+          position: 'right',
+          formatter: (p: { name: string }) => p.name,
+          color: 'hsl(var(--text-muted))',
+          fontSize: 11,
+        },
+      },
+    ],
+    animation: animated,
+  };
+  return <EChart option={option} height={height} ariaLabel={`${xName} vs ${yName}`} />;
 }
 
-const LABEL_STYLE = { fill: 'var(--text-muted)', fontSize: 12 } as const;
-function axisLabel(label: unknown, angle?: number) {
-  if (typeof label !== 'string') return label as string | object | undefined;
-  return angle
-    ? { value: label, angle, position: 'insideLeft' as const, style: LABEL_STYLE }
-    : { value: label, position: 'insideBottom' as const, offset: -10, style: LABEL_STYLE };
+export interface XYScatterSeriesSpec {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 兼容无索引签名的具体接口（ScatterPoint、RiskScatterPoint 等）
+  data: any[];
+  color?: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 同上
+  colorOf?: (item: any) => string;
+  opacity?: number;
+  symbol?: 'circle' | 'star' | 'pin' | 'rect' | 'diamond' | 'none';
+  symbolSize?: number;
+  zDataKey?: string;
+  zRange?: [number, number];
+  showLabels?: boolean;
+  nameKey?: string;
 }
-
-interface ChartAxisProps {
-  dir: 'x' | 'y';
-  dataKey?: string;
-  type?: 'number' | 'category';
-  name?: string;
-  // method 签名（双变）以兼容调用方收窄的 formatter，如 (v: number) => string
-  tickFormatter?(value: number | string): string;
-  label?: string;
-  tickFontSize?: number;
-  interval?: number | 'preserveStartEnd';
-  domain?: [number | 'auto' | 'dataMin' | 'dataMax', number | 'auto' | 'dataMin' | 'dataMax'];
-  scale?: 'log' | 'linear';
-  width?: number;
-  axisId?: number;
-}
-export const ChartXAxis = (p: Omit<ChartAxisProps, 'dir'>) => (
-  <ChartAxis dir="x" dataKey="date" {...p} />
-);
-export const ChartYAxis = (p: Omit<ChartAxisProps, 'dir'>) => <ChartAxis dir="y" {...p} />;
-function ChartAxis({
-  dir,
-  dataKey,
-  type,
-  name,
-  tickFormatter = DATE_TICK_FORMATTER as (value: number | string) => string,
-  label,
-  tickFontSize,
-  interval,
-  domain,
-  scale,
-  width = 80,
-  axisId = 0,
-  ...rest
-}: ChartAxisProps) {
-  const tick = tickFontSize
-    ? { fill: 'var(--text-muted)', fontSize: tickFontSize }
-    : AXIS_TICK_STYLE;
-  const labelProps = axisLabel(label, dir === 'y' ? -90 : undefined);
-  const Comp = (dir === 'x' ? XAxis : YAxis) as ElementType;
-  const idProp = dir === 'x' ? { xAxisId: axisId } : { yAxisId: axisId };
-  return (
-    <Comp
-      {...idProp}
-      dataKey={dataKey}
-      type={type}
-      name={name}
-      tick={tick}
-      tickFormatter={tickFormatter}
-      interval={interval}
-      domain={domain}
-      scale={scale}
-      width={dir === 'y' ? width : undefined}
-      label={labelProps}
-      {...rest}
-    />
-  );
-}
-
-interface ChartTooltipProps {
-  formatter?: TooltipValueFormatter;
+interface XYScatterChartProps {
+  xKey: string;
+  yKey: string;
+  xName: string;
+  yName: string;
+  height?: number;
+  margin?: { top?: number; right?: number; bottom?: number; left?: number };
+  zRange?: [number, number];
+  xTickFormatter?: (v: number) => string;
+  yTickFormatter?: (v: number) => string;
+  tooltipFormatter?: TooltipValueFormatter;
   labelFormatter?: (label: string) => string;
-  cursor?: boolean | { stroke?: string; strokeWidth?: number; strokeDasharray?: string };
-  allowEscapeViewBox?: { x?: boolean; y?: boolean };
-  offset?: number;
-  isLargeDataset?: boolean;
+  xLabel?: string;
+  yLabel?: string;
+  series: XYScatterSeriesSpec[];
+  referenceLines?: Array<{
+    axis: 'x' | 'y';
+    value: number;
+    label?: string;
+    color?: string;
+    dash?: string;
+  }>;
+  lines?: Array<{ points: [number, number][]; color?: string; dash?: string; width?: number }>;
+  onClick?: (params: { dataIndex?: number; seriesIndex?: number }) => void;
 }
-export function ChartTooltip({
-  formatter,
+export function XYScatterChart({
+  xKey,
+  yKey,
+  xName,
+  yName,
+  height = 300,
+  margin = { top: 20, right: 20, bottom: 20, left: 10 },
+  zRange = [36, 36],
+  xTickFormatter,
+  yTickFormatter,
+  tooltipFormatter,
   labelFormatter,
-  cursor,
-  allowEscapeViewBox = { x: true, y: true },
-  offset = 20,
-  isLargeDataset = false,
-}: ChartTooltipProps) {
-  const animated = useChartAnimation(isLargeDataset);
-  const cursorProp =
-    cursor === undefined
-      ? { stroke: 'var(--border-soft)', strokeWidth: 1, strokeDasharray: '4 4' }
-      : cursor;
+  xLabel,
+  yLabel,
+  series,
+  referenceLines,
+  lines,
+  onClick,
+}: XYScatterChartProps) {
+  const animated = useChartAnimation(
+    series.reduce((n, s) => n + s.data.length, 0) >= 500,
+  ).isAnimationActive;
+  const toStr = (v: number) => String(v);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 需要动态添加 markLine 和混合 scatter/line 系列
+  const seriesArr: any[] = series.map((s, si) => {
+    const minMax: { min: number; max: number } | null =
+      s.zDataKey && s.data.length
+        ? s.data.reduce<{ min: number; max: number }>(
+            (acc, d) => {
+              const v = Number(d[s.zDataKey!]) || 0;
+              return { min: Math.min(acc.min, v), max: Math.max(acc.max, v) };
+            },
+            { min: Infinity, max: -Infinity },
+          )
+        : null;
+    const sizeOf = (v: number) => {
+      if (!minMax || minMax.min === minMax.max) return s.symbolSize ?? 8;
+      const [rMin, rMax] = s.zRange ?? zRange;
+      return rMin + ((v - minMax.min) / (minMax.max - minMax.min)) * (rMax - rMin);
+    };
+    return {
+      type: 'scatter',
+      data: s.data.map((d) => ({
+        value: [Number(d[xKey]), Number(d[yKey])],
+        name: String(d[s.nameKey ?? 'name'] ?? ''),
+        itemStyle: s.colorOf
+          ? { color: s.colorOf(d) }
+          : { color: s.color ?? getPortfolioColor(si), opacity: s.opacity },
+        symbolSize: s.zDataKey ? sizeOf(Number(d[s.zDataKey]) || 0) : (s.symbolSize ?? 8),
+      })),
+      symbol: s.symbol ?? 'circle',
+      label: s.showLabels
+        ? {
+            show: true,
+            position: 'right',
+            formatter: (p: { name: string }) => p.name,
+            color: 'hsl(var(--text-muted))',
+            fontSize: 11,
+          }
+        : undefined,
+    };
+  });
+  if (referenceLines?.length && seriesArr[0]) {
+    seriesArr[0].markLine = {
+      silent: true,
+      data: referenceLines.map((rl) => ({
+        [rl.axis === 'x' ? 'xAxis' : 'yAxis']: rl.value,
+        lineStyle: { color: rl.color ?? 'hsl(var(--fg-tertiary))', type: rl.dash ?? 'dashed' },
+        ...(rl.label ? { label: { formatter: rl.label, position: 'insideEndTop' } } : {}),
+      })),
+    };
+  }
+  if (lines) {
+    lines.forEach((l) =>
+      seriesArr.push({
+        type: 'line',
+        data: l.points.map(([x, y]) => ({ value: [x, y] })),
+        symbol: 'none',
+        lineStyle: { color: l.color, type: l.dash ?? 'dashed', width: l.width ?? 2 },
+        silent: true,
+        tooltip: { show: false },
+      }),
+    );
+  }
+  const option: EChartsOption = {
+    grid: {
+      left: margin.left ?? 10,
+      right: margin.right ?? 20,
+      top: margin.top ?? 20,
+      bottom: margin.bottom ?? 20,
+    },
+    xAxis: valueAxis(xLabel, xName, (xTickFormatter ?? toStr) as (v: number) => string),
+    yAxis: valueAxis(yLabel, yName, (yTickFormatter ?? toStr) as (v: number) => string, true),
+    tooltip: scatterTooltip(xName, yName, labelFormatter, tooltipFormatter),
+    series: seriesArr as EChartsOption['series'],
+    animation: animated,
+  };
   return (
-    <Tooltip
-      contentStyle={CHART_TOOLTIP_STYLE}
-      formatter={wrapTooltipFormatter(formatter)}
-      labelFormatter={labelFormatter}
-      cursor={cursorProp}
-      {...animated}
-      wrapperStyle={{ zIndex: 1000, outline: 'none', pointerEvents: 'none' }}
-      allowEscapeViewBox={allowEscapeViewBox}
-      offset={offset}
-    />
+    <EChart option={option} height={height} ariaLabel={`${xName} vs ${yName}`} onClick={onClick} />
   );
-}
-
-export function ChartLegend() {
-  return <Legend wrapperStyle={LEGEND_WRAPPER_STYLE} />;
 }
 
 interface ChartEmptyStateProps {
@@ -251,182 +540,6 @@ export function ChartEmptyState({ message, height = '280px' }: ChartEmptyStatePr
         <BarChart3 className="h-8 w-8 mx-auto mb-2 opacity-40" />
         <p className="text-caption">{message ?? t('No data')}</p>
       </div>
-    </div>
-  );
-}
-
-interface SimpleChartProps {
-  type?: 'line' | 'area';
-  data: ChartDataPoint[];
-  height?: number;
-  margin?: { top?: number; right?: number; bottom?: number; left?: number };
-  xDataKey?: string;
-  xType?: 'number' | 'category';
-  xLabel?: string;
-  xTickFormatter?: (v: number | string) => string;
-  xTickInterval?: number | 'preserveStartEnd';
-  yTickFormatter?: (v: number) => string;
-  yDomain?: [number | 'auto', number | 'auto'];
-  yScale?: 'log' | 'linear';
-  yLabel?: string;
-  tooltipFormatter?: (value: number, name: string) => [string, string] | string;
-  tooltipLabelFormatter?: (label: string) => string;
-  showLegend?: boolean;
-  legendFormatter?: (name: string) => string;
-  gradientId?: string;
-  gradientColor?: string;
-  children?: ReactNode;
-}
-const CHART_BY_TYPE = { line: LineChart, area: AreaChart } as const;
-export function SimpleChart({
-  type = 'line',
-  data,
-  height = 350,
-  margin = CHART_MARGIN,
-  xDataKey = 'date',
-  xType,
-  xLabel,
-  xTickFormatter = DATE_TICK_FORMATTER as (v: number | string) => string,
-  xTickInterval,
-  yTickFormatter = (v) => v.toFixed(0),
-  yDomain = ['auto', 'auto'],
-  yScale,
-  yLabel,
-  tooltipFormatter,
-  tooltipLabelFormatter,
-  showLegend,
-  legendFormatter,
-  gradientId,
-  gradientColor = 'hsl(var(--danger))',
-  children,
-}: SimpleChartProps) {
-  const isArea = type === 'area';
-  const isLargeDataset = data.length >= 100;
-  const Chart = CHART_BY_TYPE[type];
-  return (
-    <div role="img" aria-label={[xLabel, yLabel].filter(Boolean).join(' vs ') || 'Chart'}>
-      <ResponsiveContainer width="100%" height={height}>
-        <Chart data={data} margin={margin}>
-          {isArea && gradientId && (
-            <defs>
-              <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={gradientColor} stopOpacity={0.4} />
-                <stop offset="100%" stopColor={gradientColor} stopOpacity={0.05} />
-              </linearGradient>
-            </defs>
-          )}
-          <CartesianGrid {...CHART_GRID_PROPS} />
-          <XAxis
-            dataKey={xDataKey}
-            type={xType}
-            tickFormatter={xTickFormatter}
-            interval={xTickInterval}
-            tick={AXIS_TICK_STYLE}
-            label={
-              xLabel
-                ? {
-                    value: xLabel,
-                    position: 'insideBottom',
-                    offset: -4,
-                    fontSize: 11,
-                    fill: 'hsl(var(--fg-tertiary))',
-                  }
-                : undefined
-            }
-          />
-          <ChartYAxis
-            tickFormatter={yTickFormatter}
-            domain={yDomain}
-            scale={yScale}
-            label={yLabel}
-          />
-          <ChartTooltip
-            formatter={tooltipFormatter as TooltipValueFormatter}
-            labelFormatter={tooltipLabelFormatter}
-            isLargeDataset={isLargeDataset}
-          />
-          {(showLegend ?? !isArea) && (
-            <Legend wrapperStyle={LEGEND_WRAPPER_STYLE} formatter={legendFormatter} />
-          )}
-          {children}
-        </Chart>
-      </ResponsiveContainer>
-    </div>
-  );
-}
-export const SimpleAreaChart = (p: Omit<SimpleChartProps, 'type'>) => (
-  <SimpleChart type="area" height={440} showLegend={false} {...p} />
-);
-export const SimpleLineChart = (p: Omit<SimpleChartProps, 'type'>) => (
-  <SimpleChart type="line" {...p} />
-);
-interface XYScatterChartProps {
-  xKey: string;
-  yKey: string;
-  xName: string;
-  yName: string;
-  height?: number;
-  margin?: { top: number; right: number; bottom: number; left: number };
-  zRange?: [number, number];
-  zDataKey?: string;
-  xTickFormatter?: (v: number) => string;
-  yTickFormatter?: (v: number) => string;
-  tooltipFormatter?: TooltipValueFormatter;
-  labelFormatter?: (label: string) => string;
-  cursor?: boolean | { stroke?: string; strokeWidth?: number; strokeDasharray?: string };
-  xLabel?: string;
-  yLabel?: string;
-  children: ReactNode;
-}
-export function XYScatterChart({
-  xKey,
-  yKey,
-  xName,
-  yName,
-  height = 300,
-  margin = { top: 20, right: 20, bottom: 20, left: 10 },
-  zRange = [36, 36],
-  zDataKey,
-  xTickFormatter,
-  yTickFormatter,
-  tooltipFormatter,
-  labelFormatter,
-  cursor,
-  xLabel,
-  yLabel,
-  children,
-}: XYScatterChartProps) {
-  const numberFormatter = (v: number | string) => String(v);
-  return (
-    <div role="img" aria-label={`${xName} vs ${yName}`}>
-      <ResponsiveContainer width="100%" height={height}>
-        <ScatterChart margin={margin}>
-          <CartesianGrid {...CHART_GRID_PROPS} />
-          <ChartXAxis
-            type="number"
-            dataKey={xKey}
-            name={xName}
-            tickFormatter={
-              (xTickFormatter ?? numberFormatter) as (value: number | string) => string
-            }
-            label={xLabel ?? xName}
-          />
-          <ChartYAxis
-            type="number"
-            dataKey={yKey}
-            name={yName}
-            tickFormatter={yTickFormatter ?? numberFormatter}
-            label={yLabel ?? yName}
-          />
-          <ZAxis type="number" dataKey={zDataKey} range={zRange} />
-          <ChartTooltip
-            formatter={tooltipFormatter}
-            labelFormatter={labelFormatter}
-            cursor={cursor}
-          />
-          {children}
-        </ScatterChart>
-      </ResponsiveContainer>
     </div>
   );
 }
