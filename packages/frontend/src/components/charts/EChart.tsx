@@ -30,11 +30,13 @@ echarts.use([
 // 别名 token（如 --text-muted 已是 hsl(...)）不可再包一层 hsl()
 const VAR_PATTERN = /var\((--[\w-]+)\)/g;
 const COLOR_FN = /^(?:hsl|rgb|rgba|hwb|lab|lch|oklch|color)\b/i;
+// HSL 通道三元组（如 "213 33% 96%"）需包一层 hsl()；shadow/px 等非颜色值原样透传
+const CHANNEL_RE = /^\d+\s+[\d.]+%?\s+[\d.]+%?$/;
 function resolveToken(name: string): string {
   const raw = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
   if (!raw) return '';
   if (raw.includes('var(')) return resolveVarColor(raw);
-  return COLOR_FN.test(raw) ? raw : `hsl(${raw})`;
+  return COLOR_FN.test(raw) || !CHANNEL_RE.test(raw) ? raw : `hsl(${raw})`;
 }
 function resolveVarColor(input: string): string {
   return input.replace(VAR_PATTERN, (full, name: string) => resolveToken(name) || full);

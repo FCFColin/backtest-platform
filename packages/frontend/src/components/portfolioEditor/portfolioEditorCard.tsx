@@ -88,9 +88,16 @@ export function PortfolioCard({
       )}
       style={{ borderTop: `3px solid ${color}` }}
     >
-      <div className="absolute top-2 right-2 flex justify-end gap-0.5 md:opacity-0 transition-opacity md:group-hover:opacity-100 z-20">
+      <div className="absolute top-2 right-2 flex justify-end gap-0.5 md:opacity-0 transition-opacity md:group-hover:opacity-100 md:group-focus-within:opacity-100 z-20">
         {actionBtns.map((b, i) => (
-          <Button key={i} variant={b.variant} size="icon" title={b.title} onClick={b.onClick}>
+          <Button
+            key={i}
+            variant={b.variant}
+            size="icon"
+            title={b.title}
+            aria-label={b.title}
+            onClick={b.onClick}
+          >
             <b.icon />
           </Button>
         ))}

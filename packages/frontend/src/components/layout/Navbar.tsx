@@ -106,7 +106,9 @@ function NavGroup({
       <DropdownMenuContent align="start" className="min-w-[14rem] duration-75">
         {group.items.map((item) => (
           <DropdownMenuItem asChild key={item.to} className={cn(isActive(item.to) && 'text-brand')}>
-            <Link to={item.to}>{t(`nav.${item.key}`)}</Link>
+            <Link to={item.to} aria-current={isActive(item.to) ? 'page' : undefined}>
+              {t(`nav.${item.key}`)}
+            </Link>
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>
@@ -179,6 +181,7 @@ function NavbarMobileMenu({
               key={link.to}
               to={link.to}
               className={cn(navLinkClass, isActive(link.to) && 'text-brand')}
+              aria-current={isActive(link.to) ? 'page' : undefined}
               data-testid="nav-direct"
             >
               {t(`nav.${link.key}`)}
@@ -240,6 +243,7 @@ export default function Navbar() {
               key={link.to}
               to={link.to}
               className={cn(navLinkClass, isActive(link.to) && 'text-brand')}
+              aria-current={isActive(link.to) ? 'page' : undefined}
               data-testid="nav-direct"
             >
               {t(`nav.${link.key}`)}

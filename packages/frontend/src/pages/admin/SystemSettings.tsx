@@ -48,10 +48,6 @@ function RuntimeEnvSection({ config }: { config: AppConfig }) {
           <p className="text-body text-fg">{config.nodeEnv}</p>
         </Field>
         <Field>
-          <FieldLabel>{t('Process ID')}</FieldLabel>
-          <p className="text-body text-fg">-</p>
-        </Field>
-        <Field>
           <FieldLabel>{t('Platform')}</FieldLabel>
           <p className="text-body text-fg">{navigator.platform || '-'}</p>
         </Field>
@@ -89,7 +85,7 @@ function ArchitectureSection() {
     { color: 'bg-brand', text: t('Go Engine') },
     { color: 'bg-success', text: t('Go Data Service') },
     { color: 'bg-warning', text: t('Node.js') },
-    { color: 'bg-purple-500', text: t('Vite') },
+    { color: 'bg-chart-5', text: t('Vite') },
   ];
   return (
     <Card className="p-4">
@@ -139,6 +135,7 @@ export default function SystemSettings() {
     fetchConfig();
   }, [fetchConfig]);
   const handleClearCache = async () => {
+    if (!window.confirm(t('Full update refetches all market data. Continue?'))) return;
     setSaveMsg(t('Clearing cache...'));
     try {
       const res = await apiFetch('/api/v1/data/manage/update/full', { method: 'PUT' });

@@ -265,7 +265,7 @@ function TwoFundPortfolioCalculator() {
 export default function CalculatorsPage() {
   const { t } = useTranslation();
   return (
-    <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-3 px-6 pb-4">
+    <div className="page-container flex flex-col gap-3 pb-4">
       <h1 className="text-display text-fg">{t('Investment Calculators')}</h1>
       <ToolPageLayout
         params={

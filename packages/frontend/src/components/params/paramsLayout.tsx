@@ -69,8 +69,13 @@ export function ParamGroup({
         </button>
         {info && (
           <div className="relative inline-flex group mr-2 shrink-0">
-            <Info className="size-3.5 cursor-help text-fg-tertiary" />
-            <div className="absolute right-0 top-6 hidden group-hover:block z-10 w-60 rounded-md border border-border bg-elevated p-2 text-caption text-fg-secondary leading-relaxed shadow-lg whitespace-normal">
+            <Info
+              className="size-3.5 cursor-help text-fg-tertiary rounded focus-visible:ring-2"
+              tabIndex={0}
+              role="img"
+              aria-label={info}
+            />
+            <div className="absolute right-0 top-6 hidden group-hover:block group-focus-within:block z-10 w-60 rounded-md border border-border bg-elevated p-2 text-caption text-fg-secondary leading-relaxed shadow-lg whitespace-normal">
               {info}
             </div>
           </div>

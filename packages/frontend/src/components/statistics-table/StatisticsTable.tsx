@@ -211,7 +211,12 @@ export function WithdrawalRatesCard({ portfolios }: WithdrawalRatesCardProps) {
           <span className="text-fg-secondary">{t(row.labelKey)}</span>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Info className="size-3 cursor-help text-fg-tertiary" aria-label={t(row.descKey)} />
+              <Info
+                className="size-3 cursor-help text-fg-tertiary"
+                aria-label={t(row.descKey)}
+                tabIndex={0}
+                role="img"
+              />
             </TooltipTrigger>
             <TooltipContent>{t(row.descKey)}</TooltipContent>
           </Tooltip>

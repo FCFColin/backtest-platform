@@ -54,7 +54,12 @@ function MetricLabel({ row }: { row: StatRow }) {
       <span>{t(row.label)}</span>
       <Tooltip>
         <TooltipTrigger asChild>
-          <Info className="size-3 cursor-help text-fg-tertiary" aria-label={t(row.description)} />
+          <Info
+            className="size-3 cursor-help text-fg-tertiary"
+            aria-label={t(row.description)}
+            tabIndex={0}
+            role="img"
+          />
         </TooltipTrigger>
         <TooltipContent>{t(row.description)}</TooltipContent>
       </Tooltip>

@@ -220,6 +220,7 @@ export function AssetWeightRow({
   onUpdate: (a: { ticker: string; weight: number }) => void;
   onDelete: () => void;
 }) {
+  const { t } = useTranslation();
   const meta = useTickerMeta(asset.ticker);
   return (
     <div className="group">
@@ -243,8 +244,9 @@ export function AssetWeightRow({
         <Button
           variant="ghost"
           size="icon"
-          className="h-7 w-7 md:opacity-0 md:group-hover:opacity-100 transition-opacity hover:text-danger"
+          className="h-7 w-7 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 transition-opacity hover:text-danger"
           onClick={onDelete}
+          aria-label={t('Remove {{ticker}}', { ticker: asset.ticker })}
         >
           <X className="h-3.5 w-3.5" />
         </Button>
