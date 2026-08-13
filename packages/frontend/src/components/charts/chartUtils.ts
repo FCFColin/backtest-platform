@@ -214,24 +214,6 @@ export function computeRollingCorrelation(
   return result;
 }
 
-export function computeTicks(min: number, max: number, count = 5): number[] {
-  if (min === max) {
-    const v = min === 0 ? 1 : Math.abs(min);
-    min -= v;
-    max += v;
-  }
-  const roughStep = (max - min) / (count - 1);
-  const magnitude = Math.pow(10, Math.floor(Math.log10(roughStep)));
-  const residual = roughStep / magnitude;
-  const niceStep =
-    (residual <= 1.5 ? 1 : residual <= 3.5 ? 2 : residual <= 7.5 ? 5 : 10) * magnitude;
-  const niceMin = Math.floor(min / niceStep) * niceStep;
-  const niceMax = Math.ceil(max / niceStep) * niceStep;
-  const ticks: number[] = [];
-  for (let v = niceMin; v <= niceMax + niceStep * 0.001; v += niceStep)
-    ticks.push(Math.round(v * 1e10) / 1e10);
-  return ticks;
-}
 export function totalMonths(data: Array<Record<string, string | number>>): number {
   if (data.length <= 1) return 1;
   const first = new Date(String(data[0].date));

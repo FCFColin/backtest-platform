@@ -1,5 +1,4 @@
 import { CHART_COLORS } from '@backtest/shared';
-import { formatCurrency } from '@/utils/format.js';
 export const CHART_MARGIN = { top: 20, right: 40, bottom: 20, left: 80 } as const;
 export function getPortfolioColor(index: number): string {
   return CHART_COLORS[index % CHART_COLORS.length];
@@ -7,6 +6,10 @@ export function getPortfolioColor(index: number): string {
 export const DATE_TICK_FORMATTER = (value: string | number): string => String(value).slice(0, 7);
 export const YEAR_ONLY_TICK_FORMATTER = (value: string | number): string =>
   String(value).slice(0, 4);
+// 短区间按月刻度显示 yyyy-MM，否则只显示年份，避免 ≤12 个月时重复年份标签
+export function dateAxisTickFormatter(totalMonths: number) {
+  return totalMonths <= 12 ? DATE_TICK_FORMATTER : YEAR_ONLY_TICK_FORMATTER;
+}
 export function SMART_DATE_INTERVAL(totalMonths: number): number {
   if (totalMonths <= 12) return 1;
   if (totalMonths <= 60) return 6;
@@ -14,8 +17,6 @@ export function SMART_DATE_INTERVAL(totalMonths: number): number {
   if (totalMonths <= 240) return 24;
   return 60;
 }
-export const currencyFormatter = (value: number, currency = 'USD', digits = 0) =>
-  formatCurrency(value, currency, digits);
 const CORR_COLORS = {
   strongPositive: 'hsl(var(--corr-pos-1))',
   moderatePositive: 'hsl(var(--corr-pos-2))',

@@ -5,8 +5,7 @@ import { Button } from '@/components/ui/uiComponents.js';
 import { ChartEmptyState, SimpleChart } from '@/components/charts/sharedChartContent.js';
 import { totalMonths } from './chartUtils.js';
 import {
-  currencyFormatter,
-  YEAR_ONLY_TICK_FORMATTER,
+  dateAxisTickFormatter,
   SMART_DATE_INTERVAL,
   getPortfolioColor,
 } from '@/lib/chart-theme.js';
@@ -151,15 +150,12 @@ function GrowthLines({
       height={440}
       margin={{ top: 20, right: 32, bottom: 20, left: 32 }}
       xDataKey="date"
-      xTickFormatter={YEAR_ONLY_TICK_FORMATTER as (v: number | string) => string}
+      xTickFormatter={dateAxisTickFormatter(totalMonthsValue)}
       xTickInterval={SMART_DATE_INTERVAL(totalMonthsValue)}
-      yTickFormatter={(v: number) => currencyFormatter(v, currency)}
+      yTickFormatter={(v: number) => formatCurrency(v, currency, 0)}
       yDomain={logScale ? [1, 'auto'] : ['auto', 'auto']}
       yScale={logScale ? 'log' : 'linear'}
-      tooltipFormatter={(value: number, name: string) => [
-        currencyFormatter(value, currency, 2),
-        name,
-      ]}
+      tooltipFormatter={(value: number, name: string) => [formatCurrency(value, currency, 2), name]}
       tooltipLabelFormatter={(label) => t('Date: {{label}}', { label })}
       showLegend={false}
       series={portfolios.flatMap((p, i) =>

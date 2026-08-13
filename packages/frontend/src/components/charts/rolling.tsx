@@ -57,6 +57,7 @@ export const RollingCorrelationChart = memo(function RollingCorrelationChart({
         defaultStrokeWidth={1.5}
         tooltipValueFormatter={(v) => [v.toFixed(3), t('Correlation')]}
         tooltipLabelFormatter={(label) => `${t('Date')}: ${label}`}
+        yTickFormatter={(v) => v.toFixed(1)}
         yDomain={[-1, 1]}
         referenceY={0}
         showLegend={false}

@@ -44,6 +44,7 @@ function valueAxis(
     name: name ?? axisName,
     nameLocation: 'middle' as const,
     nameGap: isY ? 52 : 34,
+    nameRotate: isY ? 90 : 0,
     nameTextStyle: AXIS_TEXT,
     axisLabel: { ...AXIS_TEXT, formatter },
     axisTick: { show: false },
@@ -67,9 +68,11 @@ interface SimpleSeriesSpec {
   connectNulls?: boolean;
   symbol?: 'circle' | 'square' | 'diamond' | 'none';
   symbolSize?: number;
+  opacity?: number;
+  emphasisDotR?: number;
   areaOpacity?: number;
 }
-interface SimpleChartProps {
+export interface SimpleChartProps {
   type?: 'line' | 'area';
   data: ChartDataPoint[];
   height?: number;
@@ -79,6 +82,7 @@ interface SimpleChartProps {
   xLabel?: string;
   xTickFormatter?: (v: number | string) => string;
   xTickInterval?: number | 'preserveStartEnd';
+  xTickFontSize?: number;
   yTickFormatter?: (v: number) => string;
   yDomain?: [number | 'auto', number | 'auto'];
   yScale?: 'log' | 'linear';
@@ -87,8 +91,10 @@ interface SimpleChartProps {
   tooltipLabelFormatter?: (label: string) => string;
   showLegend?: boolean;
   legendFormatter?: (name: string) => string;
-  gradientId?: string;
-  gradientColor?: string;
+  areaColor?: string;
+  colorOffset?: number;
+  dataZoom?: boolean;
+  ariaLabel?: string;
   series: SimpleSeriesSpec[];
   referenceLines?: Array<{
     axis: 'x' | 'y';
@@ -108,6 +114,7 @@ export function SimpleChart({
   xLabel,
   xTickFormatter,
   xTickInterval,
+  xTickFontSize,
   yTickFormatter = (v) => v.toFixed(0),
   yDomain = ['auto', 'auto'],
   yScale,
@@ -116,8 +123,10 @@ export function SimpleChart({
   tooltipLabelFormatter,
   showLegend,
   legendFormatter,
-  gradientId,
-  gradientColor = 'hsl(var(--danger))',
+  areaColor,
+  colorOffset = 0,
+  dataZoom,
+  ariaLabel,
   series,
   referenceLines,
 }: SimpleChartProps) {
@@ -125,15 +134,17 @@ export function SimpleChart({
   const isArea = type === 'area';
   const isCategory = xType !== 'number';
   const showLegendFinal = showLegend ?? !isArea;
+  const showDataZoom = dataZoom === true && data.length >= 100;
   const grid = {
     left: margin.left ?? CHART_MARGIN.left,
     right: margin.right ?? CHART_MARGIN.right,
     top: margin.top ?? CHART_MARGIN.top,
-    bottom: (margin.bottom ?? CHART_MARGIN.bottom) + (showLegendFinal ? 24 : 0),
+    bottom:
+      (margin.bottom ?? CHART_MARGIN.bottom) + (showLegendFinal ? 24 : 0) + (showDataZoom ? 28 : 0),
   };
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 需要动态添加 markLine 属性
   const seriesArr: any[] = series.map((s, i) => {
-    const color = s.color ?? getPortfolioColor(i);
+    const color = s.color ?? getPortfolioColor(i + colorOffset);
     return {
       name: s.name ?? s.dataKey,
       type: 'line',
@@ -144,27 +155,17 @@ export function SimpleChart({
       symbol: s.symbol ?? 'none',
       showSymbol: s.symbol != null,
       symbolSize: s.symbolSize ?? 8,
-      lineStyle: { width: s.width ?? 2.5, type: s.dash ?? 'solid', color },
+      lineStyle: { width: s.width ?? 2.5, type: s.dash ?? 'solid', color, opacity: s.opacity },
       itemStyle: { color },
       connectNulls: s.connectNulls ?? false,
       stack: s.stackId,
-      emphasis: { focus: 'series' },
+      emphasis: {
+        focus: 'series',
+        ...(s.emphasisDotR !== undefined ? { symbolSize: s.emphasisDotR } : {}),
+      },
       areaStyle: isArea
-        ? gradientId
-          ? {
-              color: {
-                type: 'linear',
-                x: 0,
-                y: 0,
-                x2: 0,
-                y2: 1,
-                colorStops: [
-                  { offset: 0, color: gradientColor },
-                  { offset: 1, color: gradientColor },
-                ],
-              },
-              opacity: 0.25,
-            }
+        ? areaColor
+          ? { color: areaColor, opacity: 0.25 }
           : { color, opacity: s.areaOpacity ?? 0.15 }
         : undefined,
     };
@@ -188,6 +189,7 @@ export function SimpleChart({
       nameTextStyle: AXIS_TEXT,
       axisLabel: {
         ...AXIS_TEXT,
+        fontSize: xTickFontSize ?? 11,
         interval:
           xTickInterval === 'preserveStartEnd' ? 'auto' : (xTickInterval as number | undefined),
         formatter: xTickFormatter,
@@ -212,19 +214,22 @@ export function SimpleChart({
     tooltip: tooltipOption(axisTooltipFormatter(tooltipLabelFormatter, tooltipFormatter)),
     legend: showLegendFinal
       ? {
-          bottom: 0,
+          bottom: showDataZoom ? 26 : 0,
           textStyle: { color: 'hsl(var(--fg-tertiary))', fontSize: 12 },
           formatter: legendFormatter,
         }
       : undefined,
     series: seriesArr as EChartsOption['series'],
+    dataZoom: showDataZoom
+      ? [{ type: 'slider', height: 18, bottom: 0, borderColor: 'transparent' }]
+      : undefined,
     animation: animated,
   };
   return (
     <EChart
       option={option}
       height={height}
-      ariaLabel={[xLabel, yLabel].filter(Boolean).join(' vs ') || 'Chart'}
+      ariaLabel={ariaLabel ?? ([xLabel, yLabel].filter(Boolean).join(' vs ') || 'Chart')}
     />
   );
 }
@@ -344,7 +349,7 @@ export function ScatterChartContent({
   yLabel,
   nameDataKey = 'name',
   height = 450,
-  margin = CHART_MARGIN,
+  margin = { top: 20, right: 40, bottom: 60, left: 112 },
   tooltipFormatter,
   tooltipLabelFormatter,
 }: ScatterChartContentProps) {
@@ -428,7 +433,7 @@ export function XYScatterChart({
   xName,
   yName,
   height = 300,
-  margin = { top: 20, right: 20, bottom: 20, left: 10 },
+  margin = { top: 20, right: 30, bottom: 60, left: 112 },
   zRange = [36, 36],
   xTickFormatter,
   yTickFormatter,

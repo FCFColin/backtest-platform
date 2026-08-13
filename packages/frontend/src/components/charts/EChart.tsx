@@ -26,13 +26,18 @@ echarts.use([
   CanvasRenderer,
 ]);
 
-// canvas 渲染器无法解析 CSS 变量，渲染前把 var(--x)/hsl(var(--x)) 深度解析为具体色值
-const VAR_PATTERN = /(hsl\()?var\((--[\w-]+)\)(\))?/g;
+// canvas 渲染器无法解析 CSS 变量，渲染前把 var(--x) 深度解析为具体色值；
+// 别名 token（如 --text-muted 已是 hsl(...)）不可再包一层 hsl()
+const VAR_PATTERN = /var\((--[\w-]+)\)/g;
+const COLOR_FN = /^(?:hsl|rgb|rgba|hwb|lab|lch|oklch|color)\b/i;
+function resolveToken(name: string): string {
+  const raw = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  if (!raw) return '';
+  if (raw.includes('var(')) return resolveVarColor(raw);
+  return COLOR_FN.test(raw) ? raw : `hsl(${raw})`;
+}
 function resolveVarColor(input: string): string {
-  return input.replace(VAR_PATTERN, (full, hslOpen: string | undefined, name: string) => {
-    const resolved = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-    return resolved ? (hslOpen ? `hsl(${resolved})` : resolved) : full;
-  });
+  return input.replace(VAR_PATTERN, (full, name: string) => resolveToken(name) || full);
 }
 function resolveTheme(option: EChartsOption): EChartsOption {
   const walk = (node: unknown): unknown => {
@@ -79,7 +84,7 @@ export default function EChart({ option, height, className, ariaLabel, onClick }
       chart.dispose();
       chartRef.current = null;
     };
-  }, [themeTick]);
+  }, []);
   useEffect(() => {
     chartRef.current?.setOption(resolveTheme(option), { notMerge: true });
   }, [option, themeTick]);

@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  YEAR_ONLY_TICK_FORMATTER,
+  dateAxisTickFormatter,
   SMART_DATE_INTERVAL,
   CHART_MARGIN,
   getPortfolioColor,
@@ -89,7 +89,7 @@ function StatsBar({ stats }: { stats: UnderwaterStats }) {
 interface DrawdownAreaChartProps extends DrawdownChartProps {
   title: string;
   description?: string;
-  gradientId: string;
+  areaColor?: string;
   tooltipLabelKey: string;
   showStats?: boolean;
 }
@@ -97,7 +97,7 @@ function DrawdownAreaChart({
   portfolios,
   title,
   description,
-  gradientId,
+  areaColor,
   tooltipLabelKey,
   showStats,
 }: DrawdownAreaChartProps) {
@@ -127,11 +127,11 @@ function DrawdownAreaChart({
           <SimpleAreaChart
             data={chartData}
             margin={{ ...CHART_MARGIN, left: 64, right: 8 }}
-            xTickFormatter={YEAR_ONLY_TICK_FORMATTER}
+            xTickFormatter={dateAxisTickFormatter(totalMonths)}
             xTickInterval={SMART_DATE_INTERVAL(totalMonths)}
             yTickFormatter={(v: number) => fmtPct(v)}
             yDomain={['auto', 0]}
-            gradientId={gradientId}
+            areaColor={areaColor}
             tooltipFormatter={(value: number, name: string) => [fmtPct(value), name]}
             tooltipLabelFormatter={(label) => t(tooltipLabelKey, { label })}
             series={portfolios.map((p, i) => ({
@@ -152,7 +152,7 @@ export function DrawdownChart({ portfolios }: DrawdownChartProps) {
     <DrawdownAreaChart
       portfolios={portfolios}
       title={t('Drawdown Trend')}
-      gradientId="dangerGradient"
+      areaColor="hsl(var(--danger))"
       tooltipLabelKey="Date: {{label}}"
     />
   );
@@ -166,7 +166,7 @@ export function UnderwaterCurve({ portfolios }: DrawdownChartProps) {
       description={t(
         'Drawdown depth over time — shows how long and how deep the portfolio was below its peak.',
       )}
-      gradientId="underwaterGradient"
+      areaColor="hsl(var(--danger))"
       tooltipLabelKey="Date: {{label}}"
       showStats
     />
