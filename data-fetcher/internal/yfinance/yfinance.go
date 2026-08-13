@@ -101,7 +101,7 @@ func parseChartResponse(body []byte) ([]provider.DailyPrice, error) {
 			continue
 		}
 		p := provider.DailyPrice{
-			Date: time.Unix(ts, 0).Format("2006-01-02"),
+			Date: time.Unix(ts, 0).UTC().Format("2006-01-02"),
 			Open: providerutil.ToFloat64Safe(quote.Open, i),
 			High: providerutil.ToFloat64Safe(quote.High, i),
 			Low:  providerutil.ToFloat64Safe(quote.Low, i), Close: closeVal,

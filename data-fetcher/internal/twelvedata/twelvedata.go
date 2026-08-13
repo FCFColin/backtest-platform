@@ -76,7 +76,9 @@ func parseTimeSeries(body []byte, startDate, endDate string) ([]provider.DailyPr
 	for _, v := range resp.Values {
 		t, err := time.Parse("2006-01-02", v.Datetime)
 		if err != nil {
-			continue
+			if t, err = time.Parse("2006-01-02 15:04:05", v.Datetime); err != nil {
+				continue
+			}
 		}
 		if t.Before(start) || t.After(end) {
 			continue
@@ -86,7 +88,7 @@ func parseTimeSeries(body []byte, startDate, endDate string) ([]provider.DailyPr
 			continue
 		}
 		prices = append(prices, provider.DailyPrice{
-			Date: v.Datetime, Open: providerutil.ParseStringFloat(v.Open),
+			Date: t.Format("2006-01-02"), Open: providerutil.ParseStringFloat(v.Open),
 			High: providerutil.ParseStringFloat(v.High),
 			Low:  providerutil.ParseStringFloat(v.Low), Close: close,
 			Volume: providerutil.ParseStringInt(v.Volume), AdjustedClose: close})

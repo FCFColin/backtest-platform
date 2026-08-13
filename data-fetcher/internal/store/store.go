@@ -142,7 +142,7 @@ func filterPricePointsByDate(prices []PricePoint, startDate, endDate string) []P
 func (ds *DataStore) fetchAndStoreFromProvider(ctx context.Context, ticker, startDate, endDate string) ([]PricePoint, error) {
 	providers := ds.reg.ForTicker(ticker)
 	if len(providers) == 0 {
-		return nil, fmt.Errorf("没有可用的数据源: %s", ticker)
+		return nil, fmt.Errorf("%w: 没有可用的数据源: %s", ErrProviderUnavailable, ticker)
 	}
 	goStart, goEnd := defaultDateRange(startDate, endDate)
 	dailyPrices, providerName, err := provider.FetchWithFallback(providers, ticker, goStart, goEnd)

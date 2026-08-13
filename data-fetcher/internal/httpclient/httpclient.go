@@ -7,6 +7,7 @@ import (
 	"io"
 	"log/slog"
 	"math/rand/v2"
+	"net"
 	"net/http"
 	"net/http/cookiejar"
 	"strconv"
@@ -14,7 +15,10 @@ import (
 	"time"
 )
 
-var errRateLimited = errors.New("rate limited")
+var (
+	errRateLimited = errors.New("rate limited")
+	errClientError = errors.New("client error")
+)
 
 var DefaultUserAgents = []string{
 	"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
@@ -64,7 +68,10 @@ func New(serviceName string, opts Options) *Client {
 			"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
 		}
 	}
-	client := &http.Client{Timeout: opts.ConnectTimeout + opts.ReadTimeout}
+	client := &http.Client{
+		Timeout:   opts.ConnectTimeout + opts.ReadTimeout,
+		Transport: &http.Transport{DialContext: (&net.Dialer{Timeout: opts.ConnectTimeout}).DialContext},
+	}
 	if jar, err := cookiejar.New(nil); err == nil {
 		client.Jar = jar
 	}
@@ -113,6 +120,9 @@ func (c *Client) Get(url string, extraHeaders ...map[string]string) ([]byte, err
 		body, err := c.doGet(url, extraHeaders...)
 		if err != nil {
 			lastErr = err
+			if errors.Is(err, errClientError) {
+				break
+			}
 			continue
 		}
 		return body, nil
@@ -158,6 +168,9 @@ func (c *Client) doGet(url string, extraHeaders ...map[string]string) ([]byte, e
 	}
 	if resp.StatusCode != http.StatusOK {
 		snippet := string(body[:min(len(body), 200)])
+		if resp.StatusCode >= 400 && resp.StatusCode < 500 {
+			return nil, fmt.Errorf("%w: HTTP %d: %s", errClientError, resp.StatusCode, snippet)
+		}
 		return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, snippet)
 	}
 	return body, nil

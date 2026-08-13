@@ -37,8 +37,8 @@ func (r *Registry) Register(p Provider) {
 }
 func (r *Registry) ForTicker(ticker string) []Provider {
 	upper := strings.ToUpper(ticker)
-	if strings.HasSuffix(upper, ".SZ") || strings.HasSuffix(upper, ".SH") ||
-		strings.HasSuffix(upper, "_SZ") || strings.HasSuffix(upper, "_SH") {
+	if strings.HasSuffix(upper, ".SZ") || strings.HasSuffix(upper, ".SH") || strings.HasSuffix(upper, ".SS") ||
+		strings.HasSuffix(upper, "_SZ") || strings.HasSuffix(upper, "_SH") || strings.HasSuffix(upper, "_SS") {
 		// A股专属数据源：未注册时不回落到美股链（避免送错市场）
 		return r.forMarket("akshare")
 	}

@@ -76,7 +76,7 @@ func parseCandleResponse(body []byte) ([]provider.DailyPrice, error) {
 			continue
 		}
 		prices = append(prices, provider.DailyPrice{
-			Date: time.Unix(resp.T[i], 0).Format("2006-01-02"), Open: resp.O[i],
+			Date: time.Unix(resp.T[i], 0).UTC().Format("2006-01-02"), Open: resp.O[i],
 			High: resp.H[i], Low: resp.L[i], Close: resp.C[i],
 			Volume: int64(resp.V[i]), AdjustedClose: resp.C[i]})
 	}

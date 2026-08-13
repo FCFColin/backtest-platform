@@ -97,10 +97,11 @@ func TestGet_RetryBehavior(t *testing.T) {
 		name, retryAfter, wantErrContains string
 		status                            int
 		wantErr                           bool
+		wantAttempts                      int
 	}{
-		{"retries on 500", "", "", http.StatusInternalServerError, true},
-		{"retries on 429", "0", "限流", http.StatusTooManyRequests, true},
-		{"no success on 404", "", "", http.StatusNotFound, true},
+		{"retries on 500", "", "", http.StatusInternalServerError, true, 2},
+		{"retries on 429", "0", "限流", http.StatusTooManyRequests, true, 2},
+		{"no retry on 404", "", "", http.StatusNotFound, true, 1},
 	} {
 		var attempts int32
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -119,8 +120,8 @@ func TestGet_RetryBehavior(t *testing.T) {
 		if tc.wantErrContains != "" && (err == nil || !strings.Contains(err.Error(), tc.wantErrContains)) {
 			t.Errorf("%s: err=%v want contains %q", tc.name, err, tc.wantErrContains)
 		}
-		if got := atomic.LoadInt32(&attempts); got != 2 {
-			t.Errorf("%s: attempts=%d want 2", tc.name, got)
+		if got := atomic.LoadInt32(&attempts); int(got) != tc.wantAttempts {
+			t.Errorf("%s: attempts=%d want %d", tc.name, got, tc.wantAttempts)
 		}
 	}
 }
