@@ -433,7 +433,7 @@ describe('backtestRoutes - POST /api/backtest/portfolio', () => {
     expect(json.error.title).toBe('VALIDATION_ERROR');
     expect(queueMocks.add).not.toHaveBeenCalled();
   });
-  it('队列不可用时应 fail-closed 返回 503 + Retry-After（ADR-031）', async () => {
+  it('队列不可用时应 fail-closed 返回 503 + Retry-After（ADR-008）', async () => {
     queueMocks.add.mockRejectedValueOnce(new Error('Redis unavailable'));
     const { res, json } = await postJson(
       `${getServer().url}/api/backtest/portfolio`,
@@ -527,7 +527,19 @@ function createMockJob(overrides: Record<string, unknown> = {}) {
 }
 
 describe('backtestRoutes - GET /api/backtest/runs/:jobId — 状态查询', () => {
-  const getServer = withServer(portfolioJobServer);
+  // jobAccessGranted 已 fail-closed（ADR-007）：状态查询必须在强制鉴权后执行，故注入已认证请求上下文
+  const getServer = withServer(() => {
+    queueMocks.add.mockReset();
+    queueMocks.getJob.mockReset();
+    return startExpressApp((app) => {
+      app.use((req: TestRequest, _res, next) => {
+        req.user = { sub: 'test-user', role: 'admin', iat: 0, exp: 0 };
+        req.tenantId = 'tenant-456';
+        next();
+      });
+      app.use('/api/backtest', backtestRoutes);
+    });
+  });
   const completedResult = {
     data: { portfolios: [{ name: 'Test', growthCurve: [] }] },
     warnings: [],
@@ -647,7 +659,7 @@ describe('jobRoutes - GET /api/v1/jobs/:id', () => {
 
   it.each([
     [
-      '越权访问他人任务应返回 404（ADR-019）',
+      '越权访问他人任务应返回 404（ADR-007）',
       createMockJob({ id: 'job-owned', data: { type: 'optimizer', userId: 'owner-user' } }),
       { 'x-test-sub': 'attacker', 'x-test-role': 'analyst' },
       404,
@@ -659,7 +671,7 @@ describe('jobRoutes - GET /api/v1/jobs/:id', () => {
       200,
     ],
     [
-      '跨租户访问任务应返回 404，即便是 admin（ADR-034）',
+      '跨租户访问任务应返回 404，即便是 admin（ADR-009）',
       createMockJob({
         id: 'job-tenant-a',
         data: { type: 'optimizer', userId: 'owner-user', tenantId: 'org-a' },

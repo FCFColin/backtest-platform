@@ -93,7 +93,10 @@ function createMockUniverseStats() {
 }
 
 describe('adminRoutes - GET /api/admin/stats 与 /system', () => {
-  const { url } = useTestServer('/api/admin', adminRoutes);
+  // /admin/stats 与 /system 为平台运维面（requirePlatformAdmin），测试须以平台管理员身份访问
+  const { url } = useTestServer('/api/admin', adminRoutes, {
+    auth: { user: { platform_admin: true } },
+  });
   beforeEach(() => {
     callServiceMock.mockResolvedValue({ status: 'ok', success: true, version: '1.0.0' });
     engineServiceMocks.scanTickersStats.mockResolvedValue(createMockTickerStats());

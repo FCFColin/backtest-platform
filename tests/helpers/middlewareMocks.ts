@@ -57,6 +57,14 @@ vi.mock('../../packages/backend/src/middleware/rbac.js', () => {
       STRATEGY_MANAGE: 'strategy:manage',
     },
     Role: { ADMIN: 'admin', ANALYST: 'analyst', READONLY: 'readonly' },
+    requirePlatformAdmin: (
+      req: { user?: { platform_admin?: boolean } },
+      res: { status: (n: number) => { json: (b: unknown) => void } },
+      next: () => void,
+    ) => {
+      if (req.user?.platform_admin === true) return next();
+      res.status(403).json({ success: false, error: { code: 'FORBIDDEN' } });
+    },
   };
 });
 vi.mock('../../packages/backend/src/middleware/quota.js', () => ({

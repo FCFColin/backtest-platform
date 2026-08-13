@@ -19,13 +19,6 @@ const mocks = vi.hoisted(() => ({
     quit: vi.fn(),
   },
   quotaEnforcementFailures: { inc: vi.fn() },
-  loggerMocks: {
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-    debug: vi.fn(),
-    child: vi.fn(() => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() })),
-  },
 }));
 
 vi.mock('../../../packages/backend/src/application/org/membershipService.js', () => ({
@@ -82,12 +75,27 @@ beforeEach(() => vi.clearAllMocks());
 
 describe('enforceQuota', () => {
   it.each([
-    ['无租户上下文放行', {}, true, false],
-    ['平台管理员放行', { tenantId: TENANT, user: { platform_admin: true } }, true, false],
+    ['平台管理员无租户上下文放行（break-glass）', { user: { platform_admin: true } }, true, false],
+    [
+      '平台管理员有租户上下文放行（break-glass）',
+      { tenantId: TENANT, user: { platform_admin: true } },
+      true,
+      false,
+    ],
   ])('%s', async (_n, req, pass, getOrgCalled) => {
     const { next } = await callQuota(req);
     if (pass) expect(next).toHaveBeenCalled();
     expect(mocks.getOrg).toHaveBeenCalledTimes(getOrgCalled ? 1 : 0);
+  });
+
+  it('普通用户无租户上下文时 fail-closed 返回 400 NO_ACTIVE_TENANT（不得绕过配额）', async () => {
+    const { res, next } = await callQuota({ user: {} });
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ error: expect.objectContaining({ code: 'NO_ACTIVE_TENANT' }) }),
+    );
+    expect(next).not.toHaveBeenCalled();
+    expect(mocks.getOrg).not.toHaveBeenCalled();
   });
 
   it.each([
