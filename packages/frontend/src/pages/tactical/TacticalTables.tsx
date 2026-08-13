@@ -8,6 +8,7 @@ import { EmptyState } from '@/components/stateDisplay';
 import { SortableTable, type TableColumn } from '@/components/tables';
 import { useAsyncAction } from '@/hooks/miscHooks';
 import { apiPostJSON } from '@/utils/apiClient';
+import { normalizeTicker } from '@/utils/ticker';
 import { fmtPrice, whatIfSignalColor, whatIfSignalLabel } from './tacticalResultUtils';
 import type { BacktestResponse } from './TacticalUtils';
 function buildWhatIfColumns(t: TFunction): TableColumn<WhatIfResult>[] {
@@ -89,7 +90,7 @@ function WhatIfTab({ strategy }: { strategy: TacticalStrategy }) {
   const handleQuery = () => {
     const tickers = tickerInput
       .split(/[\s,]+/)
-      .map((tk) => tk.trim().toUpperCase())
+      .map(normalizeTicker)
       .filter(Boolean);
     if (tickers.length === 0) {
       setError(t('Please enter at least one ticker'));

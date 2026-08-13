@@ -14,6 +14,7 @@ import { extractApiErrorDetail } from '@/store/backtestHelpers.js';
 import { pollJobStatus } from '@/store/backtestStore.js';
 import { useAssetList } from '../../hooks/miscHooks.js';
 import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
+import { normalizeTicker } from '@/utils/ticker';
 export type { Objective };
 export const OBJECTIVE_SORT_KEY: Record<Objective, keyof OptimizeResultItem> = {
   maxCagr: 'cagr',
@@ -148,7 +149,7 @@ function buildOptimizeBody(
   return {
     portfolio: {
       assets: validAssets.map((a) => ({
-        ticker: a.ticker.trim().toUpperCase(),
+        ticker: normalizeTicker(a.ticker),
         weight: Number(a.weight) || 0,
       })),
     },
@@ -168,7 +169,7 @@ function buildOptimizeBody(
     parameters: {
       startDate: form.startDate,
       endDate: form.endDate,
-      benchmarkTicker: form.benchmarkTicker.trim().toUpperCase(),
+      benchmarkTicker: normalizeTicker(form.benchmarkTicker),
       baseCurrency: 'usd',
       adjustForInflation: false,
     },

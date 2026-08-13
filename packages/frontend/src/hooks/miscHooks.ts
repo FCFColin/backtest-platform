@@ -8,6 +8,14 @@ import { useAuthStore } from '@/store/authStore';
 import { reportError } from '@/utils/errorReporter';
 import { useToastStore } from '@/store/toastStore';
 
+export function useOrgAuth() {
+  const isAuthed = useAuthStore((s) => s.isAuthenticated());
+  const org = useAuthStore((s) => s.org);
+  const orgRole = useAuthStore((s) => s.user?.orgRole ?? null);
+  const isAdmin = orgRole === 'owner' || orgRole === 'admin';
+  return { isAuthed, org, orgRole, isAdmin };
+}
+
 export function useAsyncAction() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

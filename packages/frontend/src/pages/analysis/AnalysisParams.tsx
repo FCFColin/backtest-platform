@@ -1,8 +1,14 @@
 import { useTranslation } from 'react-i18next';
-import { Input, AffixInput } from '@/components/ui/uiComponents.js';
+import { AffixInput } from '@/components/ui/uiComponents.js';
 import { Field } from '@/components/form/Field';
 import { buttonVariants } from '@/components/ui/uiComponents';
-import { LabeledField, SwitchField, DollarInput, RunButton } from '@/components/form/sharedFields';
+import {
+  LabeledField,
+  SwitchField,
+  DollarInput,
+  RunButton,
+  DateField,
+} from '@/components/form/sharedFields';
 import { TickerTagInput } from '@/components/form/TickerTagInput.js';
 import { AllHistoryCheckbox, useEmptyRowTagChange } from '@/components/params/toolFields.js';
 import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
@@ -50,34 +56,6 @@ function MonthWindowField({
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
         suffix={t('months')}
-      />
-    </LabeledField>
-  );
-}
-
-function DateField({
-  id,
-  label,
-  value,
-  fallback,
-  onChange,
-  disabled,
-}: {
-  id: string;
-  label: string;
-  value: string;
-  fallback: string;
-  onChange: (v: string) => void;
-  disabled: boolean;
-}) {
-  return (
-    <LabeledField htmlFor={id} label={label}>
-      <Input
-        id={id}
-        type="date"
-        value={value || fallback}
-        onChange={(e) => onChange(e.target.value)}
-        disabled={disabled}
       />
     </LabeledField>
   );

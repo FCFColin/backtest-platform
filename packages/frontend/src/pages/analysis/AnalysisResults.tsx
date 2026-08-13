@@ -17,6 +17,7 @@ import { useComputeTool, useListState, useSetterState } from '../../hooks/miscHo
 import { fmtPct } from '@/utils/format';
 import { SimpleTable, type SimpleTableColumn } from '@/components/tables.js';
 import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
+import { normalizeTicker } from '@/utils/ticker';
 import { lazyNamed } from '@/utils/lazyImport';
 function useAnalysisPageState() {
   const { t } = useTranslation();
@@ -45,7 +46,7 @@ function useAnalysisPageState() {
     runCompute: runAnalysis,
   } = useComputeTool<AssetAnalysisResult>(
     async () => {
-      const validTickers = tickers.filter(Boolean).map((tk) => tk.toUpperCase());
+      const validTickers = tickers.filter(Boolean).map(normalizeTicker);
       return fetchAnalysisResult(
         validTickers,
         {

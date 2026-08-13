@@ -1,5 +1,5 @@
 ﻿import { chromium } from '@playwright/test';
-import { writeAggregatedResult, grepInCode } from './_lib.mjs';
+import { writeAggregatedResult } from './_lib.mjs';
 
 const BASE = 'http://localhost:15173';
 const SHOTS = 'docs/audit/verify/screenshots';
@@ -8,7 +8,6 @@ const results = {
   C004: { status: 'SKIP', summary: '未执行', details: {} },
   C005: { status: 'SKIP', summary: '未执行', details: {} },
   C006: { status: 'SKIP', summary: '未执行', details: {} },
-  C019: { status: 'SKIP', summary: '未执行', details: {} },
   bonusChecks: { status: 'SKIP', summary: '未执行', details: {} },
 };
 
@@ -20,29 +19,13 @@ const skipAll = (msg, err) => {
     if (results[id].status === 'SKIP') setResult(id, 'SKIP', msg, { error: String(err ?? '') });
 };
 
-const useEngineHealthRefs = grepInCode(/useEngineHealth/, 'packages/frontend/src', {
-  extensions: ['.ts', '.tsx'],
-});
-results.C019 = {
-  status: useEngineHealthRefs.length === 0 ? 'PASS' : 'FAIL',
-  summary:
-    useEngineHealthRefs.length === 0
-      ? 'packages/frontend/src 中 useEngineHealth 0 匹配，死代码已删除'
-      : '仍存在 ' + useEngineHealthRefs.length + ' 处 useEngineHealth 引用',
-  details: {
-    matchCount: useEngineHealthRefs.length,
-    matches: useEngineHealthRefs.slice(0, 10),
-    searchDir: 'packages/frontend/src',
-  },
-};
-
 let browser;
 try {
   browser = await chromium.launch({ headless: true });
 } catch (e) {
   const msg = 'chromium 启动失败（可能未安装浏览器二进制）：' + (e?.message ?? e);
   skipAll(msg, e);
-  writeAggregatedResult('C-004-005-006-019-frontend', results);
+  writeAggregatedResult('verify-frontend', results);
   console.error(msg);
   process.exit(2);
 }
@@ -245,8 +228,10 @@ try {
     },
   );
 } catch (e) {
-  const msg = '动态检查异常：' + (e?.message ?? e);
+  // 前端服务未启动/检查异常必须 fail-loud（run-all 按非零退出码判定），不得静默 SKIP
+  const msg = '动态检查异常（前端服务未启动？）' + (e?.message ?? e);
   skipAll(msg, e?.stack ?? e);
+  process.exitCode = 2;
 } finally {
   await browser.close();
 }

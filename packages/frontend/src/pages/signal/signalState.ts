@@ -10,6 +10,7 @@ import { useAnalysisState, useComputeTool } from '../../hooks/miscHooks.js';
 import { apiPostJSON } from '@/utils/apiClient';
 import i18n from '../../i18n/index.js';
 import { DEFAULT_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
+import { normalizeTicker } from '@/utils/ticker';
 
 export type SignalDir = 'buy' | 'sell' | null;
 function buildSignalRequest(
@@ -19,7 +20,7 @@ function buildSignalRequest(
   startDate: string,
   endDate: string,
 ): SignalAnalysisRequest {
-  return { ticker: ticker.trim().toUpperCase(), ...cfg, startDate, endDate, signalType };
+  return { ticker: normalizeTicker(ticker), ...cfg, startDate, endDate, signalType };
 }
 export interface DualSignalResponse {
   signal1: SignalAnalysisResult;

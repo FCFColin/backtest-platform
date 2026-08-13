@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { X } from 'lucide-react';
 import { Badge, Button, Input } from '@/components/ui/uiComponents';
 import { cn } from '@/lib/utils';
+import { normalizeTicker } from '@/utils/ticker';
 interface TickerTagInputProps {
   tickers: string[];
   onChange: (tickers: string[]) => void;
@@ -53,7 +54,7 @@ export function TickerTagInput({
   const resolvedPlaceholder = placeholder ?? t('Enter a ticker and press Enter to add...');
   const [input, setInput] = useState('');
   const addTicker = (raw: string): boolean => {
-    const code = raw.trim().toUpperCase();
+    const code = normalizeTicker(raw);
     if (!code || tickers.includes(code)) return false;
     onChange([...tickers, code]);
     return true;
@@ -74,7 +75,7 @@ export function TickerTagInput({
     e.preventDefault();
     const next = [...tickers];
     for (const raw of e.clipboardData.getData('text').split(/[\s,;]+/)) {
-      const code = raw.trim().toUpperCase();
+      const code = normalizeTicker(raw);
       if (code && !next.includes(code)) next.push(code);
     }
     onChange(next);

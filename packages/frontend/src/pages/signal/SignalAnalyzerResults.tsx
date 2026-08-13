@@ -17,14 +17,12 @@ interface SignalRow {
 interface StatCardProps {
   label: string;
   value: string;
-  hint?: string;
 }
-function StatCard({ label, value, hint }: StatCardProps) {
+function StatCard({ label, value }: StatCardProps) {
   return (
     <Card className="p-3">
       <div className="text-caption text-fg-tertiary">{label}</div>
       <div className="mt-1 font-mono text-h1 font-semibold tabular-nums text-fg">{value}</div>
-      {hint && <div className="mt-0.5 text-caption text-fg-tertiary">{hint}</div>}
     </Card>
   );
 }

@@ -5,6 +5,7 @@ import { apiFetch } from '@/utils/apiClient';
 import { extractApiErrorDetail } from '@/store/backtestHelpers.js';
 import { pollJobStatus } from '@/store/backtestStore.js';
 import { DEFAULT_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
+import { normalizeTicker } from '@/utils/ticker';
 import {
   countCombinations,
   getParamLabelKeys,
@@ -61,7 +62,7 @@ export function useTacticalGridState(t: TFunction): TacticalGridState {
     runCompute: runSearch,
   } = useComputeTool<TacticalGridResponse>(
     async () => {
-      const trimmedTicker = s.ticker.trim().toUpperCase();
+      const trimmedTicker = normalizeTicker(s.ticker);
       const res = await apiFetch('/api/v1/tactical-grid/search', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

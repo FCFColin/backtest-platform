@@ -57,15 +57,25 @@ export function DateField({
   label,
   value,
   onChange,
+  fallback,
+  disabled,
 }: {
   id?: string;
   label: string;
   value: string;
   onChange: (v: string) => void;
+  fallback?: string;
+  disabled?: boolean;
 }) {
   return (
     <LabeledField htmlFor={id} label={label}>
-      <Input id={id} type="date" value={value} onChange={(e) => onChange(e.target.value)} />
+      <Input
+        id={id}
+        type="date"
+        value={value || fallback}
+        onChange={(e) => onChange(e.target.value)}
+        disabled={disabled}
+      />
     </LabeledField>
   );
 }

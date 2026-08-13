@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { RebalanceFrequency } from '@backtest/shared';
-import { Input, AffixInput } from '@/components/ui/uiComponents';
-import { LabeledField, SelectField } from '@/components/form/sharedFields';
+import { AffixInput } from '@/components/ui/uiComponents';
+import { LabeledField, SelectField, DateField } from '@/components/form/sharedFields';
 import { ParamSection } from './TacticalSignalEditor';
 import { REBALANCE_OPTIONS } from './TacticalUtils';
 
@@ -35,22 +35,18 @@ export function BacktestParamsFields({
     <ParamSection title={t('Backtest Parameters')}>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {children}
-        <LabeledField htmlFor={`${idPrefix}-start-date`} label={t('Start Date')}>
-          <Input
-            id={`${idPrefix}-start-date`}
-            type="date"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-          />
-        </LabeledField>
-        <LabeledField htmlFor={`${idPrefix}-end-date`} label={t('End Date')}>
-          <Input
-            id={`${idPrefix}-end-date`}
-            type="date"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-          />
-        </LabeledField>
+        <DateField
+          id={`${idPrefix}-start-date`}
+          label={t('Start Date')}
+          value={startDate}
+          onChange={setStartDate}
+        />
+        <DateField
+          id={`${idPrefix}-end-date`}
+          label={t('End Date')}
+          value={endDate}
+          onChange={setEndDate}
+        />
         <LabeledField htmlFor={valueId} label={t('Initial Capital')}>
           <AffixInput
             id={valueId}
