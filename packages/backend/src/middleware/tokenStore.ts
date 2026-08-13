@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import { config } from '../config/index.js';
 import { logger } from '../utils/logger.js';
+import { sha256Hex } from '../utils/crypto.js';
 import { RedisUnavailableError } from '../utils/errors.js';
 import { appRedis, getRedisHealth, markRedisUnhealthy } from '../infrastructure/redisClient.js';
 import { requireRedis } from '../utils/redisFallback.js';
@@ -48,8 +49,9 @@ export const ROLE_TTL: Record<Role, number> = {
 };
 
 export const redisKeys = {
-  refreshToken: (token: string) => `${REFRESH_TOKEN_PREFIX}${token}`,
-  usedRefreshToken: (token: string) => `${REFRESH_TOKEN_PREFIX}used:${token}`,
+  // refresh token 仅存 sha256（防 Redis 泄露即会话接管，与 API key/invitation 一致）
+  refreshToken: (tokenHash: string) => `${REFRESH_TOKEN_PREFIX}${tokenHash}`,
+  usedRefreshToken: (tokenHash: string) => `${REFRESH_TOKEN_PREFIX}used:${tokenHash}`,
   family: (familyId: string) => `${TOKEN_FAMILY_PREFIX}${familyId}`,
   userFamilies: (userId: string) => `user_families:${userId}`,
   userRevoked: (userId: string) => `user_revoked:${userId}`,
@@ -82,10 +84,15 @@ export async function generateRefreshToken(
     platformAdmin: tenant?.platformAdmin,
   };
   try {
-    await appRedis.set(redisKeys.refreshToken(token), JSON.stringify(entry), 'EX', ttlSec);
+    await appRedis.set(
+      redisKeys.refreshToken(sha256Hex(token)),
+      JSON.stringify(entry),
+      'EX',
+      ttlSec,
+    );
     await appRedis.set(
       redisKeys.family(familyId),
-      JSON.stringify({ lastToken: token, revoked: false } satisfies TokenFamilyEntry),
+      JSON.stringify({ lastToken: sha256Hex(token), revoked: false } satisfies TokenFamilyEntry),
       'EX',
       ttlSec,
     );
@@ -120,7 +127,8 @@ export async function revokeRefreshToken(refreshToken: string): Promise<void> {
   await requireRedis(`revoke:${refreshToken}`, () => revokeRefreshTokenRedis(refreshToken));
 }
 async function revokeRefreshTokenRedis(refreshToken: string): Promise<void> {
-  const tokenKey = redisKeys.refreshToken(refreshToken);
+  const tokenHash = sha256Hex(refreshToken);
+  const tokenKey = redisKeys.refreshToken(tokenHash);
   const entry = await readEntry<RefreshTokenEntry>(tokenKey);
   if (entry) {
     await revokeFamilyRedis(entry.familyId);
@@ -134,7 +142,7 @@ async function revokeRefreshTokenRedis(refreshToken: string): Promise<void> {
     );
     logger.info({ familyId: entry.familyId }, '[jwtAuth] Redis: Refresh Token 及其 Family 已撤销');
   }
-  const usedKey = redisKeys.usedRefreshToken(refreshToken);
+  const usedKey = redisKeys.usedRefreshToken(tokenHash);
   const used = await readEntry<{ familyId: string }>(usedKey);
   if (used) {
     await revokeFamilyRedis(used.familyId);
@@ -190,7 +198,8 @@ async function issueRotatedTokens(
 async function refreshAccessTokenRedis(
   refreshToken: string,
 ): Promise<{ accessToken: string; refreshToken: string } | null> {
-  const tokenKey = redisKeys.refreshToken(refreshToken);
+  const tokenHash = sha256Hex(refreshToken);
+  const tokenKey = redisKeys.refreshToken(tokenHash);
   // P0: GETDEL 原子认领——并发/重放同一 token 时仅一个请求拿到 entry，其余进入复用检测
   const claimed = await appRedis.getdel(tokenKey);
   if (claimed === null) return checkReuseAndRevoke(refreshToken);
@@ -223,7 +232,7 @@ async function refreshAccessTokenRedis(
     );
     return null;
   }
-  const usedKey = redisKeys.usedRefreshToken(refreshToken);
+  const usedKey = redisKeys.usedRefreshToken(tokenHash);
   await appRedis.set(
     usedKey,
     JSON.stringify({ familyId: entry.familyId }),
@@ -233,7 +242,9 @@ async function refreshAccessTokenRedis(
   return issueRotatedTokens(entry);
 }
 async function checkReuseAndRevoke(refreshToken: string): Promise<null> {
-  const used = await readEntry<{ familyId: string }>(redisKeys.usedRefreshToken(refreshToken));
+  const used = await readEntry<{ familyId: string }>(
+    redisKeys.usedRefreshToken(sha256Hex(refreshToken)),
+  );
   if (!used) return null;
   logger.warn(
     { familyId: used.familyId },
