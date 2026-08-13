@@ -35,17 +35,18 @@ x-base:
     POSTGRES_USER: backtest
     POSTGRES_PASSWORD: backtest
     POSTGRES_DB: backtest
-  env-node: &env-node
-    NODE_ENV: production
+  env-node:
+    &env-node # 本地 dev 编排：单实例 redis + development 与 .env 一致（生产 HA 以 k8s/*.yaml 为准）
+    NODE_ENV: development
     GO_ENGINE_URL: http://engine-go:5004
     GO_DATA_SERVICE_URL: http://data-fetcher:5003
     DATABASE_URL: postgresql://backtest_app:backtest_app_dev@postgres:5432/backtest
+    JWT_SECRET: ${JWT_SECRET:-dev-only-jwt-secret-change-in-production}
     ENGINE_AUTH_TOKEN: ${ENGINE_AUTH_TOKEN:-dev-engine-auth-token}
     DATA_SERVICE_AUTH_TOKEN: ${DATA_SERVICE_AUTH_TOKEN:-dev-data-service-auth-token}
     METRICS_AUTH_TOKEN: ${METRICS_AUTH_TOKEN:-dev-metrics-token}
-    REDIS_URL: redis://redis-master:6379
-    REDIS_SENTINELS: redis-sentinel-1:26379,redis-sentinel-2:26379,redis-sentinel-3:26379
-    REDIS_SENTINEL_NAME: mymaster
+    REDIS_URL: redis://redis:6379
+    DEV_SKIP_AUTH: 'true' # chaos 测试以无认证请求探活，dev 编排放行认证中间件
   redis-replica: &redis-replica
     <<: *redis-img
     command:
@@ -69,10 +70,7 @@ x-base:
   dep-pg-engine-redis: &dep-pg-engine-redis
     postgres: { condition: service_healthy }
     engine-go: { condition: service_healthy }
-    redis-master: { condition: service_healthy }
-    redis-sentinel-1: { condition: service_healthy }
-    redis-sentinel-2: { condition: service_healthy }
-    redis-sentinel-3: { condition: service_healthy }
+    redis: { condition: service_healthy }
 
 services:
   postgres:
@@ -208,7 +206,7 @@ services:
     healthcheck:
       test:
         - 'CMD-SHELL'
-        - 'node -e "const r=new(require(\"ioredis\")({sentinels:[{host:\"redis-sentinel-1\",port:26379}],name:\"mymaster\"}));r.get(\"worker:heartbeat\").then(v=>{r.quit();process.exit(v?0:1)}).catch(()=>process.exit(1))"'
+        - 'node -e "const r=new(require(\"ioredis\")(\"redis://redis:6379\"));r.get(\"worker:heartbeat\").then(v=>{r.quit();process.exit(v?0:1)}).catch(()=>process.exit(1))"'
       interval: 30s
       timeout: 5s
       start_period: 20s
