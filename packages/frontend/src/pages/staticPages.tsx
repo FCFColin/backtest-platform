@@ -9,7 +9,6 @@ import {
   Database,
   Mail,
   MessageSquare,
-  Github,
   GitCommit,
   Plus,
   Wrench,
@@ -300,7 +299,6 @@ const CONTACT_CLS =
   'flex items-center gap-3 rounded-xl border border-border bg-input-bg p-4 no-underline text-fg-secondary transition-colors hover:border-border-strong';
 function ContactCards() {
   const { t } = useTranslation();
-  const addToast = useToastStore((s) => s.addToast);
   return (
     <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
       <a href="mailto:support@example.com" className={CONTACT_CLS}>
@@ -310,19 +308,6 @@ function ContactCards() {
           <div className="text-caption text-fg-tertiary">support@example.com</div>
         </div>
       </a>
-      <button
-        type="button"
-        onClick={() => addToast('warning', t('GitHub repository link not yet configured'))}
-        className={CONTACT_CLS}
-      >
-        <Github className="size-5 text-brand" />
-        <div>
-          <div className="text-body font-semibold">{t('GitHub Issues')}</div>
-          <div className="text-caption text-fg-tertiary">
-            {t('Submit bugs or feature requests')}
-          </div>
-        </div>
-      </button>
     </div>
   );
 }

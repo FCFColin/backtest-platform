@@ -173,6 +173,5 @@ export async function importLocalConfigsOnce(): Promise<void> {
       });
     }
     localStorage.setItem(IMPORT_FLAG, 'done');
-    // eslint-disable-next-line no-empty -- 导入标记写入失败，下次登录再尝试
   } catch {}
 }

@@ -6,7 +6,6 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 import { Spinner } from '@/components/ui/uiComponents';
 import { onNavEnd } from '../utils/performanceReporter.js';
 import { lazyDefault, lazyNamed } from '@/utils/lazyImport';
-import { PlaceholderPage } from '@/pages/errors/ErrorPages';
 import NotFoundPage from '@/pages/errors/ErrorPages';
 import {
   PAGE_LOADERS,
@@ -93,16 +92,6 @@ const TOOL_ROUTES: RouteDef[] = [
   { path: '/multi-signal', element: <MultiSignalPage />, name: 'multi-signal' },
   { path: '/letf-slippage', element: page('letf-slippage'), name: 'letf-slippage' },
   { path: '/goal-optimizer', element: page('goal-optimizer'), name: 'goal-optimizer' },
-  {
-    path: '/portfolio-comparison',
-    element: (
-      <PlaceholderPage
-        titleKey="portfolioComparison.title"
-        descKey="portfolioComparison.description"
-      />
-    ),
-    name: 'portfolio-comparison',
-  },
 ];
 const PUBLIC_ROUTES: RouteDef[] = [
   { path: '/about', element: <AboutPage />, name: 'about' },

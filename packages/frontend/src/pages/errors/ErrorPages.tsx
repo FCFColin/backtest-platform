@@ -4,7 +4,6 @@ import { Link } from 'react-router';
 import { FileQuestion } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { Button, Card } from '@/components/ui/uiComponents';
-import { StaticPageShell } from '@/components/layout/ToolPageLayout.js';
 interface StatusErrorPageProps {
   statusCode: number;
   icon: LucideIcon;
@@ -31,14 +30,6 @@ function StatusErrorPage({
         {action && <div className="mt-2">{action}</div>}
       </Card>
     </div>
-  );
-}
-export function PlaceholderPage({ titleKey, descKey }: { titleKey: string; descKey: string }) {
-  const { t } = useTranslation();
-  return (
-    <StaticPageShell title={t(titleKey)} titleClassName="text-h1">
-      <p className="text-body text-fg-secondary">{t(descKey)}</p>
-    </StaticPageShell>
   );
 }
 function NotFoundPage(): ReactNode {
