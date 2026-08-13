@@ -25,10 +25,10 @@ jobs:
         working-directory: data-fetcher
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
 
       - name: Setup Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff
         with:
           go-version: '1.26.5'
           cache-dependency-path: data-fetcher/go.sum
@@ -47,10 +47,10 @@ jobs:
         working-directory: engine-go
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
 
       - name: Setup Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff
         with:
           go-version: '1.26.5'
           cache-dependency-path: engine-go/go.sum
@@ -67,7 +67,7 @@ jobs:
     permissions:
       security-events: write # SARIF 上传到 GitHub Security tab
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
       - name: Build API image
         run: docker build -f Dockerfile.backend -t backtest-api:scan .
       # 构建上下文统一为仓库根（Dockerfile 内 COPY data-fetcher/ 与 packages/go-shared）
@@ -139,7 +139,7 @@ jobs:
           SCRIPT
       - name: Upload SARIF
         if: always()
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@c3400c2f38909e0dcf3c3a41f2030a8217be5d3e
         with:
           sarif_file: trivy-results.sarif
       - name: Security gate (block on CRITICAL/HIGH)
@@ -179,7 +179,7 @@ jobs:
           format: cyclonedx-json
           output-file: sbom-backtest-worker.json
       - name: Upload SBOMs
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: sbom-cyclonedx
           path: sbom-*.json
@@ -189,7 +189,7 @@ jobs:
     name: Line Count Stats
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
       - name: Install scc
         run: |
           curl -sL https://github.com/boyter/scc/releases/download/v3.7.0/scc_Linux_x86_64.tar.gz -o scc.tar.gz

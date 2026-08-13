@@ -20,10 +20,10 @@ jobs:
     permissions:
       security-events: write # gitleaks-action 上传 SARIF 到 Security tab
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           fetch-depth: 0
-      - uses: gitleaks/gitleaks-action@v2
+      - uses: gitleaks/gitleaks-action@dcedce43c6f43de0b836d1fe38946645c9c638dc
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -33,7 +33,7 @@ jobs:
     permissions:
       security-events: write # SARIF 上传到 GitHub Security tab
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
       # 固定 commit SHA（CVE-2026-33634 供应链事件后 trivy-action 禁用可变 tag）
       - name: trivy-fs
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
@@ -48,7 +48,7 @@ jobs:
           # 使 CRITICAL/HIGH 漏洞成为门禁失败，而非仅 SARIF 注解
           exit-code: 1
       - name: Upload Trivy SARIF
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@c3400c2f38909e0dcf3c3a41f2030a8217be5d3e
         if: always()
         with:
           sarif_file: trivy-results.sarif
@@ -57,7 +57,7 @@ jobs:
     name: Lint + TypeScript Check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
       - uses: ./.github/actions/pnpm-setup
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -66,6 +66,10 @@ jobs:
       - run: pnpm exec eslint . --max-warnings 10
       - run: pnpm format:check
       - run: pnpm check
+      # 层间依赖纪律门禁（C-024）：只 gate 分层规则，no-circular 环作为记录输出
+      - run: pnpm run depcheck:layer
+      # 重复代码门禁（jscpd --threshold 5）：与 DADR-052 依赖/健康门禁配套
+      - run: pnpm run simplify
       # i18n 键完整性门禁：防止收敛误删仍被引用的键（历史回归：e8a0d805 / 83f9be11）
       - run: pnpm run audit:i18n
       # 供应链门禁：prod 依赖 CRITICAL/HIGH 漏洞阻断，moderate/low 仅告警（scripts/audit-supply.mjs）
@@ -75,8 +79,8 @@ jobs:
     name: Migration Integrity Check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: ${{ env.NODE_VERSION }}
       - run: node scripts/check-migrations.mjs
@@ -87,7 +91,7 @@ jobs:
     env:
       RUN_TESTCONTAINERS: '1'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
       - uses: ./.github/actions/pnpm-setup
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -100,18 +104,20 @@ jobs:
     name: CRITICAL Fix Verification
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
       - uses: ./.github/actions/pnpm-setup
         with:
           node-version: ${{ env.NODE_VERSION }}
           pnpm-version: ${{ env.PNPM_VERSION }}
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff
         with:
           go-version: '1.26.5'
           cache-dependency-path: |
             engine-go/go.sum
             data-fetcher/go.sum
             packages/go-shared/go.sum
+      # 静态验证门禁（verify-static 不依赖 DB/前端，--skip 不影响其执行）：
+      # C-015 ADR 一致性 / C-016 CHANGELOG / C-017 迁移 / C-019 前端死代码等
       - name: Run static verification scripts
         run: pnpm verify:critical --skip-db --skip-frontend
       # Go 官方漏洞扫描：基于调用图只报实际受影响漏洞
@@ -129,8 +135,8 @@ jobs:
     name: Go Lint (golangci-lint)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff
         with:
           go-version: '1.26.5'
           cache-dependency-path: |
@@ -138,19 +144,19 @@ jobs:
             data-fetcher/go.sum
             packages/go-shared/go.sum
       - name: golangci-lint (engine-go)
-        uses: golangci/golangci-lint-action@v9
+        uses: golangci/golangci-lint-action@db9de0fc1a667e1a49d2291a1a042dff081d78f6
         with:
           version: v2.12.2
           working-directory: engine-go
           args: --config=../.golangci.yml
       - name: golangci-lint (data-fetcher)
-        uses: golangci/golangci-lint-action@v9
+        uses: golangci/golangci-lint-action@db9de0fc1a667e1a49d2291a1a042dff081d78f6
         with:
           version: v2.12.2
           working-directory: data-fetcher
           args: --config=../.golangci.yml
       - name: golangci-lint (go-shared)
-        uses: golangci/golangci-lint-action@v9
+        uses: golangci/golangci-lint-action@db9de0fc1a667e1a49d2291a1a042dff081d78f6
         with:
           version: v2.12.2
           working-directory: packages/go-shared
@@ -160,7 +166,7 @@ jobs:
     name: Dead Code Detection
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
       - uses: ./.github/actions/pnpm-setup
         with:
           node-version: ${{ env.NODE_VERSION }}
