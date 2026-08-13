@@ -50,7 +50,8 @@ func optimizeMinVolatility(mu []float64, sigma [][]float64, c Constraints, numIt
 	if lipConst <= 0 {
 		lipConst = 1.0
 	}
-	step := 1.0 / lipConst
+	// ∇(wᵀΣw) = 2Σw 的 Lipschitz 常数为 2·λmax，步长取 1/L 保证投影梯度收敛
+	step := 1.0 / (2.0 * lipConst)
 	w := make([]float64, n)
 	copy(w, weights)
 	for iter := 0; iter < projIterations; iter++ {
