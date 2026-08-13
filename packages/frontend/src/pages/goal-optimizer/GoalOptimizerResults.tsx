@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import type { EChartsOption } from 'echarts';
 import type { GoalOptimizerResult } from '@backtest/shared';
-import { fmtPct, fmtDollar } from '@/utils/format';
+import { fmtPct, fmtAmount } from '@/utils/format';
 import { useGoalOptimizerState, type GoalOptimizerState } from '@/hooks/useGoalOptimizerState.js';
 import { GoalOptimizerParamsPanel } from './GoalOptimizerParams.js';
 import { ComputeToolShell, type ComputeToolConfig } from '../../components/shells/index.js';
@@ -45,7 +45,7 @@ function ProbabilityDistributionChart({
     },
     tooltip: tooltipOption(
       axisTooltipFormatter(
-        (label) => fmtDollar(Number(label)),
+        (label) => fmtAmount(Number(label)),
         (v) => [`${(v * 100).toFixed(2)}%`, t('Probability')],
       ),
     ),
@@ -140,7 +140,7 @@ function OptimalPathChart({
     tooltip: tooltipOption(
       axisTooltipFormatter(
         (label) => t('Year {{year}}', { year: label }),
-        (v) => [fmtDollar(v), ''],
+        (v) => [fmtAmount(v), ''],
       ),
     ),
     legend: { top: 0, textStyle: { color: 'hsl(var(--fg-tertiary))', fontSize: 12 } },
@@ -164,7 +164,7 @@ function RecommendationCards({
     { label: t('Expected Annual Return'), value: fmtPct(recommendation.expectedReturn) },
     {
       label: t('Required Annual Contribution'),
-      value: fmtDollar(recommendation.requiredContribution),
+      value: fmtAmount(recommendation.requiredContribution),
     },
     { label: t('Success Rate'), value: fmtPct(recommendation.successRate), color: probColor },
   ] as const;
@@ -205,8 +205,8 @@ function GoalOptimizerResultsPanel({ state }: { state: GoalOptimizerState }) {
             <Progress value={r.successProbability * 100} className="mt-4 h-2 w-full max-w-xs" />
             <div className="mt-3 text-caption text-fg-tertiary">
               {t('Target {{target}} · Initial {{initial}} · {{years}} years', {
-                target: fmtDollar(state.targetAmount),
-                initial: fmtDollar(state.initialAmount),
+                target: fmtAmount(state.targetAmount),
+                initial: fmtAmount(state.initialAmount),
                 years: state.years,
               })}
             </div>

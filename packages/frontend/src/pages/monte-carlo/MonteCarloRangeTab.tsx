@@ -10,7 +10,7 @@ import {
   tooltipRow,
 } from '@/components/charts/chartUtils.js';
 import { getPortfolioColor } from '@/lib/chart-theme.js';
-import { fmtDollar } from '@/utils/format';
+import { fmtAmount } from '@/utils/format';
 import { useChartAnimation } from '@/hooks/miscHooks';
 import EChart from '@/components/charts/EChart.js';
 import { HistogramChart, NoDataCard } from './HistogramChart.js';
@@ -138,17 +138,17 @@ function MonteCarloTerminalHistogram({
           {
             label: p5Label,
             color: getPortfolioColor(3),
-            value: t('charts.annualReturn.p5', { value: fmtDollar(p5Val) }),
+            value: t('charts.annualReturn.p5', { value: fmtAmount(p5Val) }),
           },
           {
             label: p50Label,
             color: getPortfolioColor(2),
-            value: t('Median', { value: fmtDollar(p50Val) }),
+            value: t('Median', { value: fmtAmount(p50Val) }),
           },
           {
             label: p95Label,
             color: getPortfolioColor(4),
-            value: t('charts.annualReturn.p95', { value: fmtDollar(p95Val) }),
+            value: t('charts.annualReturn.p95', { value: fmtAmount(p95Val) }),
           },
         ]}
       />

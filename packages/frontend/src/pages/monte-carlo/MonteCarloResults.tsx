@@ -18,7 +18,7 @@ import {
   type ComputeToolConfig,
 } from '../../components/shells/index.js';
 import { MiniStatCard } from '../../components/cards.js';
-import { fmtDollar } from '@/utils/format';
+import { fmtAmount } from '@/utils/format';
 import { SimpleTable, type SimpleTableColumn } from '@/components/tables.js';
 import { McParamsPanel } from './MonteCarloParams.js';
 import type { DistMetric, McState, PortfolioMode, ResultTab } from './monteCarloUtils.js';
@@ -57,11 +57,11 @@ export function StatsGrid({
     <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
       <MiniStatCard
         label={t('Median Final Value')}
-        value={fmtDollar(r.statistics.medianFinalValue * startingValue)}
+        value={fmtAmount(r.statistics.medianFinalValue * startingValue)}
       />
       <MiniStatCard
         label={t('Mean Final Value')}
-        value={fmtDollar(r.statistics.meanFinalValue * startingValue)}
+        value={fmtAmount(r.statistics.meanFinalValue * startingValue)}
       />
       <MiniStatCard
         label={t('Capital Preservation')}

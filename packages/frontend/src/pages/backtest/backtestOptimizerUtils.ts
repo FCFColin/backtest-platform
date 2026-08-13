@@ -7,7 +7,7 @@ import {
   type OptimizeResultItem,
   type RebalanceFrequency,
 } from '@backtest/shared';
-import { fmtPct, fmtNum, fmtDollar } from '@/utils/format';
+import { fmtPct, fmtNum, fmtAmount } from '@/utils/format';
 import type { TableColumn } from '../../components/tables.js';
 import { apiFetch } from '@/utils/apiClient';
 import { extractApiErrorDetail } from '@/store/backtestHelpers.js';
@@ -54,7 +54,7 @@ export const TABLE_COLUMNS: TableColumn<OptimizeResultItem>[] = [
     key: 'initialCapital',
     label: i18n.t('Initial Capital'),
     sortValue: (r) => r.initialCapital,
-    render: (r) => fmtDollar(r.initialCapital),
+    render: (r) => fmtAmount(r.initialCapital),
   },
   pctCol('cagr', i18n.t('stats.cagr')),
   pctCol('maxDrawdown', i18n.t('Max Drawdown')),
@@ -213,7 +213,7 @@ export function buildBestMetrics(
           ? `阈值(${best.rebalanceThreshold}%)`
           : i18n.t(REBALANCE_LABELS[best.rebalanceFrequency]) || best.rebalanceFrequency,
     },
-    { label: '初始资金', value: fmtDollar(best.initialCapital) },
+    { label: '初始资金', value: fmtAmount(best.initialCapital) },
     ...BEST_METRIC_DEFS.map(([key, label, fmt]) => ({ label, value: fmt(best[key] as number) })),
   ];
 }

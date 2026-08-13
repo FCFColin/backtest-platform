@@ -1,4 +1,5 @@
 import i18n from '@/i18n/index.js';
+import { useSettingsStore } from '@/store/settingsStore';
 import type { PortfolioResult } from '@backtest/shared';
 
 const NULL = '—';
@@ -14,7 +15,9 @@ export function formatDuration(days: number | null | undefined): string {
 }
 
 export const fmtPct = (v: number | undefined | null, decimals = 2): string =>
-  v == null || Number.isNaN(v) ? NULL : `${(v * 100).toFixed(decimals)}%`;
+  v == null || Number.isNaN(v)
+    ? NULL
+    : `${(v * 100).toFixed(decimals).replace(/^-0(?:\.0+)?$/, '0')}%`;
 export const fmtRatio = (v: number | undefined | null): string =>
   v == null || Number.isNaN(v) ? NULL : v.toFixed(2);
 export const fmtNum = (v: number | undefined | null, decimals = 2): string =>
@@ -22,17 +25,13 @@ export const fmtNum = (v: number | undefined | null, decimals = 2): string =>
 
 export function formatPercentSigned(value: number | null | undefined, digits = 2): string {
   if (invalid(value)) return NULL;
-  const pct = value * 100;
-  return `${pct >= 0 ? '+' : ''}${pct.toFixed(digits)}%`;
+  const fixed = (value * 100).toFixed(digits);
+  if (/^-0(?:\.0+)?$/.test(fixed)) return `${fixed.slice(1)}%`;
+  return `${value >= 0 ? '+' : ''}${fixed}%`;
 }
 
-function fmtMoney(v: number, currency?: string): string {
-  if (currency)
-    return v.toLocaleString(undefined, { style: 'currency', currency, maximumFractionDigits: 0 });
-  return `$${v.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
-}
-
-export const fmtDollar = (v: number): string => fmtMoney(v);
+export const fmtAmount = (v: number): string =>
+  formatCurrency(v, useSettingsStore.getState().currency.toUpperCase(), 0);
 
 export function formatCurrency(
   value: number | null | undefined,

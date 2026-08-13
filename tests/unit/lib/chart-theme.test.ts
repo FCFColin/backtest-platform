@@ -5,7 +5,6 @@ import {
   YEAR_ONLY_TICK_FORMATTER,
   DATE_TICK_FORMATTER,
   SMART_DATE_INTERVAL,
-  currencyFormatter,
   CHART_MARGIN,
   getCorrelationColor,
 } from '../../../packages/frontend/src/lib/chart-theme.js';
@@ -72,23 +71,6 @@ describe('SMART_DATE_INTERVAL', () => {
     [1000, 60],
   ])('%i 个月应返回 %i（%i 月内每 N 月一个刻度）', (months, interval) => {
     expect(SMART_DATE_INTERVAL(months)).toBe(interval);
-  });
-});
-
-describe('currencyFormatter', () => {
-  it.each([
-    [350000, 0, '$350,000'],
-    [0, 0, '$0'],
-    [350000.99, 0, '$350,001'],
-    [350000, 2, '$350,000.00'],
-    [350000.5, 2, '$350,000.50'],
-  ] as const)('digits=%i 时应格式化 %i 为 %s', (value, digits, expected) => {
-    expect(currencyFormatter(value, 'USD', digits)).toBe(expected);
-  });
-
-  it('支持自定义货币', () => {
-    expect(currencyFormatter(1000, 'EUR')).toContain('1,000');
-    expect(currencyFormatter(99.99, 'EUR', 2)).toContain('99.99');
   });
 });
 

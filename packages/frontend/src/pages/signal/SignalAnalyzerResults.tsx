@@ -1,6 +1,6 @@
 ﻿import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { fmtPct, fmtRatio, fmtDollar, downsample } from '@/utils/format';
+import { fmtPct, fmtRatio, fmtAmount, downsample } from '@/utils/format';
 import type { SignalAnalysisResult } from '@backtest/shared/types/signal';
 import type { MultiSignalResponse } from './signalState.js';
 import { Card, Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/uiComponents';
@@ -51,7 +51,7 @@ function buildSignalColumns(t: (key: string) => string): TableColumn<SignalRow>[
     {
       key: 'price',
       label: t('Price'),
-      render: (r) => fmtDollar(r.price),
+      render: (r) => fmtAmount(r.price),
       sortValue: (r) => r.price,
     },
   ];

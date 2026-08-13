@@ -10,7 +10,7 @@ import {
 } from '@/components/charts/chartUtils.js';
 import { getPortfolioColor } from '@/lib/chart-theme.js';
 import { cn } from '@/lib/utils';
-import { fmtDollar } from '@/utils/format';
+import { fmtAmount } from '@/utils/format';
 import { useChartAnimation } from '@/hooks/miscHooks';
 import EChart from '@/components/charts/EChart.js';
 import { HistogramChart, NoDataCard } from './HistogramChart.js';
@@ -169,7 +169,7 @@ export function MonteCarloScenariosTab({
     tooltip: tooltipOption(
       axisTooltipFormatter(
         (label) => yearLabelFormatter(t, Number(label)),
-        (v) => fmtDollar(v),
+        (v) => fmtAmount(v),
       ),
     ),
     legend: { top: 0, textStyle: { color: 'hsl(var(--fg-tertiary))', fontSize: 12 } },

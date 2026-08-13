@@ -8,7 +8,7 @@ import {
 import { apiFetch } from '@/utils/apiClient';
 import i18n from '@/i18n/index.js';
 import { validatePortfolioCore } from '@/utils/validation';
-import { fmtDollar, fmtNum, fmtPct, percentile, mean, std } from '@/utils/format';
+import { fmtAmount, fmtNum, fmtPct, percentile, mean, std } from '@/utils/format';
 import {
   DEFAULT_BACKTEST_START_DATE,
   DEFAULT_END_DATE,
@@ -225,7 +225,7 @@ export function useMonteCarloState() {
 }
 export type McState = ReturnType<typeof useMonteCarloState>;
 const DIST_METRICS: Array<{ key: DistMetric; labelKey: string; format: (v: number) => string }> = [
-  { key: 'finalValue', labelKey: 'lumpSumDca.stats.finalValue', format: fmtDollar },
+  { key: 'finalValue', labelKey: 'lumpSumDca.stats.finalValue', format: fmtAmount },
   { key: 'cagr', labelKey: 'stats.cagr', format: fmtPct },
   { key: 'maxDrawdown', labelKey: 'Max Drawdown', format: fmtPct },
   { key: 'volatility', labelKey: 'Volatility', format: fmtPct },
@@ -331,7 +331,7 @@ export function buildSummaryData(r: MonteCarloResult, startingValue: number, t: 
     const m = mean(vals);
     const s = std(vals);
     const fmt = METRIC_FORMAT[key];
-    const values: Record<string, string> = { Std: key === 'finalValue' ? fmtDollar(s) : fmtNum(s) };
+    const values: Record<string, string> = { Std: key === 'finalValue' ? fmtAmount(s) : fmtNum(s) };
     for (const [name, frac] of SUMMARY_QUANTILES) {
       values[name] = fmt(
         frac === -1 ? m : frac === 0 ? Math.min(...vals) : frac === 1 ? Math.max(...vals) : p(frac),

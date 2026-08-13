@@ -328,6 +328,7 @@ function BasicParamsGrid() {
     handleDateRangeChange,
     handleDateChange,
     handleNum,
+    updateParameter,
   } = useParamField();
   const dateFields = [
     ['startDate', t('Start Date'), parameters.startDate || DEFAULT_BACKTEST_START_DATE],
@@ -378,7 +379,11 @@ function BasicParamsGrid() {
         label={t('Currency')}
         type="select"
         value={currency}
-        onValueChange={(v) => useSettingsStore.getState().setCurrency(v as 'usd' | 'cny')}
+        onValueChange={(v) => {
+          const next = v as 'usd' | 'cny';
+          updateParameter('baseCurrency', next);
+          useSettingsStore.getState().setCurrency(next);
+        }}
         options={CURRENCY_OPTIONS}
       />
     </div>

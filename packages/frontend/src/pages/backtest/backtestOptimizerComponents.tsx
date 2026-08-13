@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next';
 
 import { REBALANCE_FREQUENCY_OPTIONS } from '@backtest/shared';
 import { getPortfolioColor } from '@/lib/chart-theme.js';
+import { fmtAmount } from '@/utils/format';
 import {
   ParamsPanel,
   ParamGroup,
@@ -345,11 +346,8 @@ function GrowthComparisonChart({ best, benchmarkGrowth }: GrowthComparisonChartP
         height={320}
         margin={{ left: 8, right: 20, top: 5, bottom: 5 }}
         xTickFormatter={(d: number | string) => String(d).substring(0, 7)}
-        yTickFormatter={(v: number) => `$${v.toLocaleString('en-US')}`}
-        tooltipFormatter={(v: number, name: string) => [
-          `$${v.toLocaleString('en-US')}`,
-          nameMap[name] ?? name,
-        ]}
+        yTickFormatter={(v: number) => fmtAmount(v)}
+        tooltipFormatter={(v: number, name: string) => [fmtAmount(v), nameMap[name] ?? name]}
         tooltipLabelFormatter={(d: string) => d}
         showLegend
         legendFormatter={(name: string) => nameMap[name] ?? name}
