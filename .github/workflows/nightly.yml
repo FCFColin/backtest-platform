@@ -77,9 +77,11 @@ jobs:
         run: docker build -f engine-go/Dockerfile -t engine-go:scan .
       - name: Build worker image
         run: docker build -f docker/worker/Dockerfile -t backtest-worker:scan .
+      - name: Build frontend image
+        run: docker build -f Dockerfile.frontend -t frontend:scan .
 
       # Trivy 镜像扫描（nightly 而非 PR，检测最终交付镜像的基础层/产物漏洞）
-      # 每个扫描 continue-on-error 确保 4 镜像全部扫完并生成完整 SARIF，末尾 gate 统一判定
+      # 每个扫描 continue-on-error 确保 5 镜像全部扫完并生成完整 SARIF，末尾 gate 统一判定
       - name: Trivy scan API
         id: trivy-api
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
@@ -124,13 +126,24 @@ jobs:
           ignore-unfixed: true
           format: sarif
           output: trivy-worker.sarif
+      - name: Trivy scan frontend
+        id: trivy-frontend
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
+        continue-on-error: true
+        with:
+          image-ref: frontend:scan
+          severity: CRITICAL,HIGH
+          exit-code: 1
+          ignore-unfixed: true
+          format: sarif
+          output: trivy-frontend.sarif
 
       - name: Merge SARIF
         if: always()
         run: |
           node <<'SCRIPT'
           const fs = require('fs');
-          const files = ['trivy-api.sarif', 'trivy-data-fetcher.sarif', 'trivy-engine.sarif', 'trivy-worker.sarif'];
+          const files = ['trivy-api.sarif', 'trivy-data-fetcher.sarif', 'trivy-engine.sarif', 'trivy-worker.sarif', 'trivy-frontend.sarif'];
           const merged = { $schema: 'https://json.schemastore.org/sarif-2.1.0.json', version: '2.1.0', runs: [] };
           for (const f of files) {
             if (fs.existsSync(f)) merged.runs.push(...JSON.parse(fs.readFileSync(f, 'utf8')).runs);
@@ -148,7 +161,8 @@ jobs:
           if [ "${{ steps.trivy-api.outcome }}" = "failure" ] || \
              [ "${{ steps.trivy-data-fetcher.outcome }}" = "failure" ] || \
              [ "${{ steps.trivy-engine.outcome }}" = "failure" ] || \
-             [ "${{ steps.trivy-worker.outcome }}" = "failure" ]; then
+             [ "${{ steps.trivy-worker.outcome }}" = "failure" ] || \
+             [ "${{ steps.trivy-frontend.outcome }}" = "failure" ]; then
             echo "::error::Trivy 发现 CRITICAL/HIGH 可修复漏洞，阻断"
             exit 1
           fi
@@ -178,12 +192,67 @@ jobs:
           image: backtest-worker:scan
           format: cyclonedx-json
           output-file: sbom-backtest-worker.json
+      - name: SBOM (frontend)
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610
+        with:
+          image: frontend:scan
+          format: cyclonedx-json
+          output-file: sbom-frontend.json
       - name: Upload SBOMs
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: sbom-cyclonedx
           path: sbom-*.json
           retention-days: 30
+
+  e2e-and-chaos:
+    name: E2E + Chaos
+    runs-on: ubuntu-latest
+    env:
+      NODE_VERSION: '20'
+      PNPM_VERSION: '11.5.3'
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+
+      - name: Setup pnpm
+        uses: ./.github/actions/pnpm-setup
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          pnpm-version: ${{ env.PNPM_VERSION }}
+
+      - name: Start infra containers
+        run: docker compose up -d postgres redis engine-go data-fetcher
+
+      - name: Build frontend (SERVE_STATIC 供 Playwright)
+        run: pnpm build:frontend
+
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps chromium firefox webkit
+
+      # webServer (scripts/e2e-servers.mjs) 以 tsx 起后端并绑定 API_PORT 15001；
+      # E2E 结束后 playwright 会终止该进程，sleep 让端口释放后再由 compose api 接管
+      - name: Run E2E
+        run: pnpm test:e2e:ui
+        env:
+          JWT_SECRET: dev-only-jwt-secret-change-in-production
+          ENGINE_AUTH_TOKEN: dev-engine-auth-token
+          DATA_SERVICE_AUTH_TOKEN: dev-data-service-auth-token
+
+      - name: Start API + worker containers
+        run: |
+          sleep 5
+          docker compose up -d api worker
+
+      - name: Run Chaos tests
+        run: pnpm test:chaos
+        env:
+          METRICS_AUTH_TOKEN: dev-metrics-token
+
+      - name: Teardown compose stack
+        if: always()
+        run: docker compose down --remove-orphans
 
   loc-stats:
     name: Line Count Stats
