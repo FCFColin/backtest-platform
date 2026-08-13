@@ -1,5 +1,7 @@
 import type { CSSProperties, ReactNode } from 'react';
 import { Loader2 } from 'lucide-react';
+import { Link } from 'react-router';
+import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils.js';
 import { Field, FieldLabel } from '@/components/form/Field.js';
 import { Button, Card } from '@/components/ui/uiComponents';
@@ -44,6 +46,23 @@ export default function AuthPageLayout({
     </div>
   );
 }
+export function LoginRequiredCard({ message }: { message: string }) {
+  const { t } = useTranslation();
+  return (
+    <div className="page-container pt-0 pb-3 sm:pb-4 max-w-[720px]">
+      <Card className="p-7 mt-10 text-center">
+        <p className="text-fg-tertiary">
+          {t('Please')}{' '}
+          <Link to="/login" className="text-brand">
+            {t('Log In')}
+          </Link>{' '}
+          {message}
+        </p>
+      </Card>
+    </div>
+  );
+}
+
 interface AuthSubmitButtonProps {
   loading: boolean;
   icon: ReactNode;

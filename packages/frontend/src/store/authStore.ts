@@ -152,7 +152,6 @@ async function logoutAction(set: SetFn): Promise<void> {
       method: 'DELETE',
       credentials: 'include',
     });
-    // eslint-disable-next-line no-empty -- 服务端撤销失败也要清空本地会话
   } catch {}
   clearTokens();
   set({ user: null, org: null, orgs: [], idleTimeoutMs: 0 });
@@ -184,7 +183,6 @@ async function loadOrgsAction(set: SetFn): Promise<void> {
     const activeOrgId: string | null = body?.data?.activeOrgId ?? null;
     const active = orgs.find((o) => o.orgId === activeOrgId) ?? null;
     set((s) => ({ orgs, org: active ?? s.org }));
-    // eslint-disable-next-line no-empty -- 组织列表拉取失败，保持现有状态
   } catch {}
 }
 async function initAction(set: SetFn, get: GetFn): Promise<void> {

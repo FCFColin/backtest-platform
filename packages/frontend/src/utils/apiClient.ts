@@ -51,7 +51,6 @@ function getApiKey(): string {
   try {
     const stored = sessionStorage.getItem(ADMIN_API_KEY_STORAGE);
     if (stored) return atob(stored);
-    // eslint-disable-next-line no-empty -- sessionStorage 可能不可用（隐私模式/SSR），静默回退到 localStorage
   } catch {}
   try {
     const stored = localStorage.getItem(ADMIN_API_KEY_STORAGE);
@@ -112,7 +111,6 @@ async function handleResponseToast(res: Response): Promise<void> {
             : i18n.t('Some data unavailable, results may be incomplete'),
         );
     }
-    // eslint-disable-next-line no-empty -- 非 JSON 响应体无法解析为 { error, degraded } 结构，跳过 Toast 处理
   } catch {}
 }
 export async function apiFetch(

@@ -8,6 +8,7 @@ import { useSettingsStore } from '@/store/settingsStore';
 import { importLocalConfigsOnce } from '@/utils/portfolioStorage';
 import { SectionTitle, PrefRow } from '../../components/cards.js';
 import { StandardPageShell } from '../../components/shells/index.js';
+import { SegmentedControl } from '../../components/form/SegmentedControl.js';
 import { Button, Card } from '@/components/ui/uiComponents';
 const SELECT_CLASS = 'bg-input-bg text-fg border border-border-subtle rounded font-medium';
 const CURRENCY_OPTS = [
@@ -62,11 +63,11 @@ function ThemeToggleRow({
   setTheme: (v: ThemePref) => void;
   t: ReturnType<typeof useTranslation>['t'];
 }) {
-  const options = [
+  const options: { value: ThemePref; label: string }[] = [
     { value: 'light', label: t('Light theme') },
     { value: 'dark', label: t('Dark theme') },
     { value: 'system', label: t('System theme') },
-  ] as const;
+  ];
   return (
     <PrefRow
       icon={<Palette className="w-4 h-4" />}
@@ -79,19 +80,7 @@ function ThemeToggleRow({
             : t('Currently light theme')
       }
     >
-      <div className="mini-tabs">
-        {options.map(({ value, label }) => (
-          <button
-            key={value}
-            type="button"
-            onClick={() => setTheme(value)}
-            className={`mini-tab ${theme === value ? 'active' : ''}`}
-            data-testid={`theme-option-${value}`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+      <SegmentedControl value={theme} onChange={setTheme} options={options} />
     </PrefRow>
   );
 }

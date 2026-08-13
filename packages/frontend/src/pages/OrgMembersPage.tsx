@@ -1,38 +1,19 @@
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router';
 import { Users, Loader2, Mail, Send, Trash2 } from 'lucide-react';
 import { StandardPageShell } from '../components/shells/index.js';
-import { useAuthStore } from '@/store/authStore';
+import { useOrgAuth } from '@/hooks/miscHooks';
+import { LoginRequiredCard } from '@/components/auth/formFields';
 import { ErrorBanner } from '@/components/stateDisplay';
 import { useOrgMembersState } from './org/hooks/useOrgMembersState.js';
 import { ROLES, type Invitation, type Member, type Role } from './org/orgTypes.js';
 import { Button, Card } from '@/components/ui/uiComponents';
 const TH = 'text-left text-xs font-semibold text-fg-tertiary px-[10px] py-2';
 const TD = 'text-label text-fg-secondary py-2 px-[10px]';
-function UnauthedMembers() {
-  const { t } = useTranslation();
-  return (
-    <div className="page-container pt-0 pb-3 sm:pb-4 max-w-[720px]">
-      <Card className="p-7 mt-10 text-center">
-        <p className="text-fg-tertiary">
-          {t('Please')}{' '}
-          <Link to="/login" className="text-brand">
-            {t('Log In')}
-          </Link>{' '}
-          {t('to manage organization members.')}
-        </p>
-      </Card>
-    </div>
-  );
-}
 export default function OrgMembersPage() {
   const { t } = useTranslation();
-  const isAuthed = useAuthStore((s) => s.isAuthenticated());
-  const org = useAuthStore((s) => s.org);
-  const orgRole = useAuthStore((s) => s.user?.orgRole ?? null);
-  const isAdmin = orgRole === 'owner' || orgRole === 'admin';
+  const { isAuthed, org, isAdmin } = useOrgAuth();
   const {
     members,
     invitations,
@@ -48,7 +29,7 @@ export default function OrgMembersPage() {
   useEffect(() => {
     if (isAuthed) void load();
   }, [isAuthed, load]);
-  if (!isAuthed) return <UnauthedMembers />;
+  if (!isAuthed) return <LoginRequiredCard message={t('to manage organization members.')} />;
   return (
     <StandardPageShell
       config={{

@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router';
 import { CreditCard, Loader2, ExternalLink, Check } from 'lucide-react';
 import { StandardPageShell } from '../../components/shells/index.js';
 import { useTranslation } from 'react-i18next';
 import { apiFetch } from '@/utils/apiClient';
-import { useAuthStore } from '@/store/authStore';
+import { useOrgAuth } from '@/hooks/miscHooks';
+import { LoginRequiredCard } from '@/components/auth/formFields';
 import { ErrorBanner } from '@/components/stateDisplay';
 import { cn } from '@/lib/utils';
 import { BILLABLE_PLANS, planPrice, planPeriod } from '@/lib/pricing';
@@ -191,26 +191,9 @@ function useBillingState(isAuthed: boolean) {
 }
 export default function BillingPage() {
   const { t } = useTranslation();
-  const isAuthed = useAuthStore((s) => s.isAuthenticated());
-  const org = useAuthStore((s) => s.org);
-  const orgRole = useAuthStore((s) => s.user?.orgRole ?? null);
-  const isAdmin = orgRole === 'owner' || orgRole === 'admin';
+  const { isAuthed, org, isAdmin } = useOrgAuth();
   const { state, loading, busy, error, checkout, openPortal } = useBillingState(isAuthed);
-  if (!isAuthed) {
-    return (
-      <div className="page-container pt-0 pb-3 sm:pb-4 max-w-[720px]">
-        <Card className="p-7 mt-10 text-center">
-          <p className="text-fg-tertiary">
-            {t('Please')}{' '}
-            <Link to="/login" className="text-brand">
-              {t('Log In')}
-            </Link>{' '}
-            {t('to manage your subscription.')}
-          </p>
-        </Card>
-      </div>
-    );
-  }
+  if (!isAuthed) return <LoginRequiredCard message={t('to manage your subscription.')} />;
   const currentPlan = state?.subscription?.plan ?? org?.plan ?? 'free';
   const statusPrefix = state?.subscription?.status
     ? t('Status: {{status}}', { status: state.subscription.status })
