@@ -257,6 +257,28 @@ describe('fetchMissingFromGoService', () => {
     expect(Object.keys(r.result)).toHaveLength(0);
     expect(cacheMocks.writeCache).not.toHaveBeenCalled();
   });
+
+  it('部分 ticker 取到数据时缓存不应写入（防止局部结果钉住缺失项）', async () => {
+    const bodyFor = (ticker: string) =>
+      Buffer.from(ticker === 'SPY' ? goBody([{ date: '2024-01-02', close: 400 }]) : '{}');
+    globalThis.fetch = vi.fn().mockImplementation(async (url: string) => ({
+      ok: true,
+      status: 200,
+      headers: { get: () => null },
+      body: (async function* () {
+        yield bodyFor(url.includes('/price/SPY') ? 'SPY' : 'QQQ');
+      })(),
+    }));
+    const r = await fetchMissingFromGoService(
+      ['SPY', 'QQQ'],
+      '2024-01-01',
+      '2024-01-31',
+      'test-key',
+    );
+    expect(r.result.SPY).toBeDefined();
+    expect(r.result.QQQ).toBeUndefined();
+    expect(cacheMocks.writeCache).not.toHaveBeenCalled();
+  });
 });
 
 describe('searchTickersFromDb', () => {

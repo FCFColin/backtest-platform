@@ -161,7 +161,11 @@ export async function fetchMissingFromGoService(
       }
     }),
   );
-  if (Object.keys(goResult).length > 0) await writeCache(cacheKey, goResult, HISTORY_CACHE_TTL_SEC);
+  const stillMissingAfterGo = stillMissing.filter(
+    (t) => !goResult[t] || Object.keys(goResult[t]).length === 0,
+  );
+  // 仅当全部取齐才写缓存，避免局部结果把缺失 ticker 钉在缓存里直到 TTL 过期
+  if (stillMissingAfterGo.length === 0) await writeCache(cacheKey, goResult, HISTORY_CACHE_TTL_SEC);
   return { result: goResult, degraded };
 }
 

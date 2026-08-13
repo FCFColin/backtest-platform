@@ -3,7 +3,9 @@ import { getReadPool } from './pool.js';
 import { logger } from '../utils/logger.js';
 import { toDateStr } from '../utils/misc.js';
 
-const exchangeRateCache: Record<string, Record<string, number>> = {};
+// Map 保持插入序便于 FIFO 淘汰，防止任意 base/target 组合撑爆内存
+const CACHE_MAX_ENTRIES = 100;
+const exchangeRateCache = new Map<string, Record<string, number>>();
 
 export async function loadCpiSeriesFromDb(
   country: string,
@@ -27,7 +29,8 @@ export async function loadExchangeRatesFromDb(
   target = 'CNY',
 ): Promise<Record<string, number>> {
   const cacheKey = `${base}_${target}`;
-  if (exchangeRateCache[cacheKey]) return exchangeRateCache[cacheKey];
+  const cached = exchangeRateCache.get(cacheKey);
+  if (cached) return cached;
 
   try {
     const pool = getReadPool();
@@ -39,7 +42,11 @@ export async function loadExchangeRatesFromDb(
     );
     const map: Record<string, number> = {};
     for (const row of rows) map[toDateStr(row.date)] = row.rate;
-    exchangeRateCache[cacheKey] = map;
+    exchangeRateCache.set(cacheKey, map);
+    if (exchangeRateCache.size > CACHE_MAX_ENTRIES) {
+      const oldest = exchangeRateCache.keys().next().value;
+      if (oldest) exchangeRateCache.delete(oldest);
+    }
     return map;
   } catch (err) {
     logger.warn({ err: err as Error, base, target }, '[macroData] 汇率查询失败');

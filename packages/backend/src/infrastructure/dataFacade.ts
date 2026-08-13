@@ -91,6 +91,20 @@ function logInvalidTickers(invalidTickers: string[]): void {
   );
 }
 
+function applyCachedHistory(
+  cached: unknown,
+  tickersToFetch: string[],
+  result: Record<string, Record<string, number>>,
+): string[] | null {
+  const cacheResult = cached as Record<string, Record<string, number>>;
+  Object.assign(result, cacheResult);
+  // 历史脏缓存可能只覆盖局部 ticker：返回仍缺失的集合，调用方对它们落 Go 补取
+  const cachedMissing = tickersToFetch.filter(
+    (t) => !cacheResult[t] || Object.keys(cacheResult[t]).length === 0,
+  );
+  return cachedMissing.length === 0 ? null : cachedMissing;
+}
+
 async function fetchHistoryDataImpl(
   tickers: string[],
   startDate: string,
@@ -130,12 +144,9 @@ async function fetchHistoryDataImpl(
   } = await queryPricesFromDb(validTickers, startDate, endDate, hasUnknownTickers);
   Object.assign(result, dbResult);
 
-  if (dbDegraded) {
-    degraded = true;
-    degradedWarning = '数据库不可用，部分数据可能缺失';
-  }
+  if (dbDegraded) [degraded, degradedWarning] = [true, '数据库不可用，部分数据可能缺失'];
 
-  const tickersToFetch = [...missingTickers, ...unknownTickers];
+  let tickersToFetch = [...missingTickers, ...unknownTickers];
 
   if (tickersToFetch.length === 0) {
     span.setAttribute('cache_hit', true);
@@ -155,12 +166,15 @@ async function fetchHistoryDataImpl(
   const cached = await readCache(cacheKey);
   if (cached) {
     span.setAttribute('cache_hit', true);
-    span.setAttribute('missing_count', tickersToFetch.length);
-    Object.assign(result, cached);
-    logger.info(
-      `[dataService] fetchHistoryData: ${totalFetchable} tickers, ${tickersToFetch.length} missing (cache hit), took ${Date.now() - fetchStart}ms`,
-    );
-    return { data: result, degraded, degradedWarning };
+    const cachedMissing = applyCachedHistory(cached, tickersToFetch, result);
+    if (cachedMissing === null) {
+      span.setAttribute('missing_count', 0);
+      logger.info(
+        `[dataService] fetchHistoryData: ${totalFetchable} tickers, ${tickersToFetch.length} missing (cache hit), took ${Date.now() - fetchStart}ms`,
+      );
+      return { data: result, degraded, degradedWarning };
+    }
+    tickersToFetch = cachedMissing;
   }
 
   span.setAttribute('cache_hit', false);

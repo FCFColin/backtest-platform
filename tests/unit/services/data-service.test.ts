@@ -445,6 +445,22 @@ describe('extended scenarios', () => {
         { data: { ...d('AAPL', 100), ...d('NEW', 50) }, cacheRead: true },
       ],
       [
+        '局部脏缓存应补取仍缺失的标的（不当作完整命中）',
+        ['AAPL', 'MSFT', 'GOOG'],
+        {
+          valid: ['AAPL'],
+          result: d('AAPL', 100),
+          missing: ['MSFT', 'GOOG'],
+          cached: d('MSFT', 200),
+          go: { result: d('GOOG', 300), degraded: false },
+        },
+        {
+          data: { ...d('AAPL', 100), ...d('MSFT', 200), ...d('GOOG', 300) },
+          degraded: false,
+          goArgs: ['GOOG'],
+        },
+      ],
+      [
         'Go 补齐全部缺失（degraded=false）',
         ['AAPL', 'MSFT'],
         {
