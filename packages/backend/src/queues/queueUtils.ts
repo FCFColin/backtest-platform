@@ -193,6 +193,8 @@ async function healthCheckMain(): Promise<void> {
   process.exit(healthy ? 0 : 1);
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+// main-guard：bundle 中所有模块共享 bundle 的 import.meta.url，仅靠它会把健康检查误当主程序运行；
+// 追加入口文件名判断，确保只在直接执行 queueUtils.ts（dev）时触发。
+if (process.argv[1]?.endsWith('queueUtils.ts')) {
   void healthCheckMain();
 }
