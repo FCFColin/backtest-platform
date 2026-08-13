@@ -88,7 +88,6 @@ export async function runEfficientFrontier(
   tickers: string[],
   parameters: BacktestParameters,
   numPoints?: number,
-  riskFreeRate?: number,
 ): Promise<{ data: Record<string, unknown>; warnings: Warning[]; dateRange: DateRangeInfo }> {
   return runCompute(
     '/api/engine/efficient-frontier',
@@ -96,10 +95,14 @@ export async function runEfficientFrontier(
     parameters,
     {
       numPoints: numPoints || 20,
-      riskFreeRate: riskFreeRate || 0.02,
     },
     frontierResultSchema,
   );
+}
+
+interface OptimizeItemResult extends OptimizeResultItem {
+  growthCurve: Array<{ date: string; value: number }>;
+  benchmarkGrowth: Array<{ date: string; value: number }> | null;
 }
 
 async function runBacktestGroups(
@@ -108,8 +111,8 @@ async function runBacktestGroups(
   parameters: OptimizeRequest['parameters'],
   priceData: Record<string, Record<string, number>>,
   macro: MacroData,
-): Promise<{ items: OptimizeResultItem[] }> {
-  const items: OptimizeResultItem[] = [];
+): Promise<{ items: OptimizeItemResult[] }> {
+  const items: OptimizeItemResult[] = [];
   const byCapital = new Map<number, Combo[]>();
   for (const c of combos) {
     if (!byCapital.has(c.capital)) byCapital.set(c.capital, []);
@@ -136,6 +139,7 @@ async function runBacktestGroups(
       },
       backtestResultSchema,
     );
+    const benchmarkGrowth = btResult.benchmarkGrowth ?? null;
     for (let j = 0; j < group.length; j++) {
       const stats = btResult.portfolios[j].statistics;
       items.push({
@@ -148,48 +152,13 @@ async function runBacktestGroups(
         sortino: stats.sortino,
         stdev: stats.stdev,
         calmar: stats.calmar ?? 0,
+        // 组回测已含 growthCurve/benchmarkGrowth，best 不再重跑（同一入参，结果一致）
+        growthCurve: btResult.portfolios[j].growthCurve,
+        benchmarkGrowth,
       });
     }
   }
   return { items };
-}
-
-async function computeBestResult(
-  bestItem: OptimizeResultItem,
-  portfolio: OptimizeRequest['portfolio'],
-  parameters: OptimizeRequest['parameters'],
-  priceData: Record<string, Record<string, number>>,
-  macro: MacroData,
-): Promise<{
-  best: BestResultItem;
-  benchmarkGrowth: Array<{ date: string; value: number }> | null;
-}> {
-  const bestPortfolios: Portfolio[] = [
-    {
-      id: 'best',
-      name: '最优组合',
-      assets: portfolio.assets.map((a) => ({ ticker: a.ticker, weight: a.weight })),
-      rebalanceFrequency: bestItem.rebalanceFrequency,
-      rebalanceThreshold: bestItem.rebalanceThreshold,
-      rebalanceOffset: 0,
-      drag: 0,
-      totalReturn: true,
-    },
-  ];
-  const bestResult = await callEngineStrict<BacktestResult>(
-    '/api/engine/backtest',
-    {
-      portfolios: bestPortfolios.map(toEngineBody),
-      priceData,
-      ...macro,
-      params: buildEngineParams(buildBacktestParameters(parameters, bestItem.initialCapital)),
-    },
-    backtestResultSchema,
-  );
-  return {
-    best: { ...bestItem, growthCurve: bestResult.portfolios[0].growthCurve },
-    benchmarkGrowth: bestResult.benchmarkGrowth || null,
-  };
 }
 
 export async function executeOptimization(body: Record<string, unknown>): Promise<{
@@ -225,10 +194,14 @@ export async function executeOptimization(body: Record<string, unknown>): Promis
   const { items } = await runBacktestGroups(combos, portfolio, parameters, priceData, macro);
   const filtered = filterByConstraints(items, constraints);
   filtered.sort((a, b) => objectiveValue(b, objective) - objectiveValue(a, objective));
-  const computed =
-    filtered.length > 0
-      ? await computeBestResult(filtered[0], portfolio, parameters, priceData, macro)
-      : null;
+  let computed: {
+    best: BestResultItem;
+    benchmarkGrowth: OptimizeItemResult['benchmarkGrowth'];
+  } | null = null;
+  if (filtered.length > 0) {
+    const { benchmarkGrowth, ...rest } = filtered[0] as OptimizeItemResult;
+    computed = { best: rest, benchmarkGrowth };
+  }
   logger.info(
     `[backtest-optimizer] 优化完成：${combos.length} 组合，${filtered.length} 通过过滤，耗时 ${Date.now() - startTime}ms`,
   );

@@ -126,7 +126,6 @@ export const monteCarloSchema = z
         minBlockYears: z.number().optional(),
         maxBlockYears: z.number().optional(),
         successThreshold: z.number().optional(),
-        withReplacement: z.boolean().optional(),
         seed: z.number().optional(),
       })
       .optional(),
@@ -145,7 +144,6 @@ export const optimizeSchema = z.object({
     })
     .optional(),
   parameters: backtestParametersSchema,
-  riskFreeRate: z.number().optional(),
   numIterations: z.number().optional(),
 });
 
@@ -153,7 +151,6 @@ export const efficientFrontierSchema = z.object({
   tickers: tickerListSchema,
   numPoints: z.number().optional(),
   parameters: backtestParametersSchema,
-  riskFreeRate: z.number().optional(),
   numIterations: z.number().optional(),
 });
 

@@ -95,34 +95,32 @@ describe('executeOptimization', () => {
   });
   it('有效请求应返回成功并包含 results/best', async () => {
     mocks.fetchHistoryData.mockResolvedValueOnce(mockPriceDataResponse());
-    mocks.callEngineStrict
-      .mockResolvedValueOnce({
-        portfolios: [
-          {
-            statistics: {
-              cagr: 0.12,
-              maxDrawdown: 0.15,
-              sharpe: 1.5,
-              sortino: 1.8,
-              stdev: 0.2,
-              calmar: 0.8,
-            },
+    mocks.callEngineStrict.mockResolvedValueOnce({
+      portfolios: [
+        {
+          statistics: {
+            cagr: 0.12,
+            maxDrawdown: 0.15,
+            sharpe: 1.5,
+            sortino: 1.8,
+            stdev: 0.2,
+            calmar: 0.8,
           },
-          {
-            statistics: {
-              cagr: 0.1,
-              maxDrawdown: 0.2,
-              sharpe: 1.2,
-              sortino: 1.4,
-              stdev: 0.25,
-              calmar: 0.5,
-            },
+          growthCurve: [{ date: '2020-01-01', value: 10000 }],
+        },
+        {
+          statistics: {
+            cagr: 0.1,
+            maxDrawdown: 0.2,
+            sharpe: 1.2,
+            sortino: 1.4,
+            stdev: 0.25,
+            calmar: 0.5,
           },
-        ],
-      })
-      .mockResolvedValueOnce({
-        portfolios: [{ growthCurve: [{ date: '2020-01-01', value: 10000 }] }],
-      });
+          growthCurve: [{ date: '2020-01-01', value: 9000 }],
+        },
+      ],
+    });
 
     const result = await executeOptimization(validBody());
     expect(result.success).toBe(true);
@@ -131,7 +129,11 @@ describe('executeOptimization', () => {
     expect((data.results as unknown[]).length).toBe(2);
     expect(data.best).toBeDefined();
     expect((data.best as Record<string, unknown>).cagr).toBe(0.12);
-    expect(mocks.callEngineStrict).toHaveBeenCalledTimes(2);
+    // best 复用组回测的 growthCurve，不再重跑（ADR 见 optimize-service 注释）
+    expect((data.best as Record<string, unknown>).growthCurve).toEqual([
+      { date: '2020-01-01', value: 10000 },
+    ]);
+    expect(mocks.callEngineStrict).toHaveBeenCalledTimes(1);
   });
   it('引擎不可用时抛出 EngineUnavailableError（fail-closed）', async () => {
     mocks.fetchHistoryData.mockResolvedValueOnce(mockPriceDataResponse());
@@ -234,27 +236,19 @@ describe('runEfficientFrontier', () => {
     vi.clearAllMocks();
   });
 
-  it.each<[string, number | undefined, number | undefined, unknown, unknown, string[]]>([
+  it.each<[string, number | undefined, unknown, unknown, string[]]>([
     [
-      '正常路径：默认 numPoints=20, riskFreeRate=0.02',
+      '正常路径：默认 numPoints=20',
       undefined,
-      undefined,
-      expect.objectContaining({ tickers: ['AAPL', 'SPY'], numPoints: 20, riskFreeRate: 0.02 }),
+      expect.objectContaining({ tickers: ['AAPL', 'SPY'], numPoints: 20 }),
       { frontier: [{ return: 0.1, risk: 0.15 }] },
       ['AAPL', 'SPY'],
     ],
-    [
-      '自定义 numPoints 和 riskFreeRate 应传入引擎',
-      50,
-      0.05,
-      expect.objectContaining({ numPoints: 50, riskFreeRate: 0.05 }),
-      {},
-      ['AAPL'],
-    ],
-  ])('%s', async (_n, numPoints, riskFreeRate, engineExpect, engineRes, tickers) => {
+    ['自定义 numPoints 应传入引擎', 50, expect.objectContaining({ numPoints: 50 }), {}, ['AAPL']],
+  ])('%s', async (_n, numPoints, engineExpect, engineRes, tickers) => {
     mocks.fetchHistoryData.mockResolvedValue(priceData());
     mocks.callEngineStrict.mockResolvedValue(engineRes);
-    const result = await runEfficientFrontier(tickers, params, numPoints, riskFreeRate);
+    const result = await runEfficientFrontier(tickers, params, numPoints);
     expect(mocks.callEngineStrict).toHaveBeenCalledWith(
       '/api/engine/efficient-frontier',
       engineExpect,

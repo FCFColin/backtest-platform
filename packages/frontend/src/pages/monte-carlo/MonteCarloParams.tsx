@@ -2,7 +2,6 @@ import { useEffect, useState, useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import {
-  Checkbox,
   Input,
   Select,
   SelectContent,
@@ -219,14 +218,6 @@ function SimParamsSection({ s }: { s: McState }) {
         {fields.map((cfg) => (
           <BasicField key={cfg.labelKey} t={t} cfg={cfg} />
         ))}
-        <Field>
-          <FieldLabel htmlFor="mc-with-replacement">{t('With Replacement')}</FieldLabel>
-          <Checkbox
-            id="mc-with-replacement"
-            checked={s.withReplacement}
-            onCheckedChange={(c) => s.setWithReplacement(c === true)}
-          />
-        </Field>
       </div>
     </section>
   );

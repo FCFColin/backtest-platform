@@ -145,7 +145,6 @@ describe('monteCarloSchema', () => {
             minBlockYears: 1,
             maxBlockYears: 3,
             successThreshold: 1.0,
-            withReplacement: true,
             seed: 42,
           },
         },

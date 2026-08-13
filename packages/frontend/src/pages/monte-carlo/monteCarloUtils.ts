@@ -150,7 +150,6 @@ const MC_INITIAL = {
   startingValue: 100000,
   minBlock: 1,
   maxBlock: 5,
-  withReplacement: true,
   startDate: DEFAULT_BACKTEST_START_DATE,
   endDate: DEFAULT_END_DATE,
   randomSeed: '',
@@ -196,7 +195,6 @@ async function executeSimulation(s: McSetters, ops: PortfolioOps): Promise<void>
       numSimulations: s.numSimulations,
       minBlockYears: s.minBlock,
       maxBlockYears: s.maxBlock,
-      withReplacement: s.withReplacement,
       seed: s.randomSeed ? Number(s.randomSeed) : undefined,
     },
     objectives: {

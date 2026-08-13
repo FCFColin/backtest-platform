@@ -183,13 +183,12 @@ router.post(
     'Efficient frontier error',
     'EFFICIENT_FRONTIER_ERROR',
     async (req) => {
-      const { tickers, numPoints, parameters, riskFreeRate } = req.body as {
+      const { tickers, numPoints, parameters } = req.body as {
         tickers: string[];
         numPoints?: number;
         parameters: BacktestParameters;
-        riskFreeRate?: number;
       };
-      return runEfficientFrontier(tickers, parameters, numPoints, riskFreeRate);
+      return runEfficientFrontier(tickers, parameters, numPoints);
     },
   ),
 );
