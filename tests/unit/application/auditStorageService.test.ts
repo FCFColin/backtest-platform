@@ -75,7 +75,9 @@ function setupExport(payload: unknown, sig: string) {
   poolMocks.pool.query.mockResolvedValueOnce({
     rows: [makeDbRow({ payload, hmac_signature: sig })],
   });
-  poolMocks.pool.query.mockResolvedValueOnce({ rows: [{ payload, hmac_signature: sig }] });
+  poolMocks.pool.query.mockResolvedValueOnce({
+    rows: [{ payload_text: JSON.stringify(payload), hmac_signature: sig }],
+  });
   poolMocks.pool.query.mockResolvedValue({ rows: [] });
 }
 describe('auditStorageService', () => {
@@ -111,24 +113,34 @@ describe('auditStorageService', () => {
     });
   });
   describe('writeAuditLog', () => {
-    it('应 INSERT 审计日志并返回 ID（含 HMAC 签名）', async () => {
+    const canonicalPayload = (entry: AuditLogEntry): string => JSON.stringify(entry.payload);
+    it('应 INSERT 并回写 HMAC 签名（覆盖 jsonb 规范化后的精确字节）', async () => {
+      const entry = makeEntry();
+      const payloadText = canonicalPayload(entry);
       poolMocks.pool.query
         .mockResolvedValueOnce({ rows: [] })
-        .mockResolvedValueOnce({ rows: [{ id: LOG_ID }] });
-      const entry = makeEntry();
+        .mockResolvedValueOnce({ rows: [{ id: LOG_ID, payload: payloadText }] })
+        .mockResolvedValueOnce({ rows: [] });
       expect(await writeAuditLog(entry, poolMocks.pool)).toBe(LOG_ID);
       expect(callSql(1)).toContain('INSERT INTO audit_logs');
-      expect(callSql(1)).toContain('RETURNING id');
+      expect(callSql(1)).toContain('RETURNING id, payload::text');
       const args = callArgs(1);
       expect(args[0]).toBe('AuditEvent');
       expect(args[1]).toBe(USER_ID);
       expect(args[4]).toBe('CREATE');
-      expect(args[8]).toBe(hmac(entry.payload));
+      expect(args[8]).toBe('');
+      const update = poolMocks.pool.query.mock.calls.find((c) =>
+        (c[0] as string).includes('UPDATE audit_logs SET hmac_signature'),
+      );
+      expect(update).toBeDefined();
+      expect(update![1][1]).toBe(hmac(payloadText));
+      expect(update![1][2]).toBeNull();
     });
     it('可选字段为 null 时应传 null 而非 undefined', async () => {
       poolMocks.pool.query
         .mockResolvedValueOnce({ rows: [] })
-        .mockResolvedValueOnce({ rows: [{ id: LOG_ID }] });
+        .mockResolvedValueOnce({ rows: [{ id: LOG_ID, payload: '{}' }] })
+        .mockResolvedValueOnce({ rows: [] });
       await writeAuditLog(
         makeEntry({ userId: null, orgId: null, resourceType: null, resourceId: null }),
         poolMocks.pool,
@@ -147,6 +159,27 @@ describe('auditStorageService', () => {
       const result = await writeAuditLog(makeEntry(), poolMocks.pool, 'outbox-1');
       expect(result).toBe(LOG_ID);
       expect(poolMocks.pool.query.mock.calls[1][0]).toContain('ON CONFLICT (outbox_event_id)');
+      expect(
+        poolMocks.pool.query.mock.calls.some((c) => (c[0] as string).includes('UPDATE audit_logs')),
+      ).toBe(false);
+    });
+    it('P0 回归：jsonb 键序规范化后签名仍可验证（写读字节一致）', async () => {
+      const canonicalText =
+        '{"method":"POST","result":"ok","timestamp":"2026-07-25T10:00:00Z","userAgent":"ua","statusCode":200}';
+      poolMocks.pool.query
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [{ id: LOG_ID, payload: canonicalText }] })
+        .mockResolvedValueOnce({ rows: [] });
+      const id = await writeAuditLog(makeEntry(), poolMocks.pool);
+      expect(id).toBe(LOG_ID);
+      const update = poolMocks.pool.query.mock.calls.find((c) =>
+        (c[0] as string).includes('UPDATE audit_logs SET hmac_signature'),
+      );
+      expect(update![1][1]).toBe(hmac(canonicalText));
+      poolMocks.pool.query.mockResolvedValueOnce({
+        rows: [{ payload_text: canonicalText, hmac_signature: hmac(canonicalText) }],
+      });
+      expect((await verifyAuditIntegrity(LOG_ID)).valid).toBe(true);
     });
   });
   describe('getUnexportedAuditLogs', () => {
@@ -206,24 +239,24 @@ describe('auditStorageService', () => {
       {
         name: '有效签名应返回 valid=true',
         payload: { method: 'POST', path: '/api/v1/backtest' },
-        sigFn: (p: unknown) => hmac(p),
+        sig: hmac(JSON.stringify({ method: 'POST', path: '/api/v1/backtest' })),
         valid: true,
       },
       {
         name: '篡改 payload 后应返回 valid=false',
         payload: { method: 'DELETE', path: '/api/v1/admin/keys/xxx' },
-        sigFn: () => hmac({ method: 'POST', path: '/api/v1/backtest' }),
+        sig: hmac(JSON.stringify({ method: 'POST', path: '/api/v1/backtest' })),
         valid: false,
       },
       {
         name: '篡改 hmac_signature 后应返回 valid=false',
         payload: { method: 'POST' },
-        sigFn: () => 'a'.repeat(64),
+        sig: 'a'.repeat(64),
         valid: false,
       },
-    ])('$name', async ({ payload, sigFn, valid }) => {
+    ])('$name', async ({ payload, sig, valid }) => {
       poolMocks.pool.query.mockResolvedValueOnce({
-        rows: [{ payload, hmac_signature: sigFn(payload) }],
+        rows: [{ payload_text: JSON.stringify(payload), hmac_signature: sig }],
       });
       expect((await verifyAuditIntegrity(LOG_ID)).valid).toBe(valid);
     });
@@ -238,7 +271,7 @@ describe('auditStorageService', () => {
     it('未配置 AUDIT_HMAC_KEY 时应返回 valid=false（fail-closed，D2-010）', async () => {
       config.AUDIT_HMAC_KEY = '';
       poolMocks.pool.query.mockResolvedValueOnce({
-        rows: [{ payload: { a: 1 }, hmac_signature: 'some-sig' }],
+        rows: [{ payload_text: '{"a":1}', hmac_signature: 'some-sig' }],
       });
       expect(await verifyAuditIntegrity(LOG_ID)).toMatchObject({ valid: false, expected: '' });
     });
@@ -286,7 +319,7 @@ describe('auditStorageService', () => {
         rows: [makeDbRow({ payload, hmac_signature: tamperedSig })],
       });
       poolMocks.pool.query.mockResolvedValueOnce({
-        rows: [{ payload, hmac_signature: tamperedSig }],
+        rows: [{ payload_text: JSON.stringify(payload), hmac_signature: tamperedSig }],
       });
       const result = await exportPendingAuditLogs();
       expect(result).toMatchObject({ processed: 1, skipped: 1, exported: 0 });
@@ -299,7 +332,7 @@ describe('auditStorageService', () => {
         rows: [makeDbRow({ payload, hmac_signature: signature })],
       });
       poolMocks.pool.query.mockResolvedValueOnce({
-        rows: [{ payload, hmac_signature: signature }],
+        rows: [{ payload_text: JSON.stringify(payload), hmac_signature: signature }],
       });
       minioMocks.uploadAuditObject.mockResolvedValue(false);
       const result = await exportPendingAuditLogs();

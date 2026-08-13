@@ -59,7 +59,6 @@ export async function writeAuditLog(
   outboxEventId?: string,
 ): Promise<string | null> {
   const payloadStr = JSON.stringify(entry.payload);
-  const signature = signAuditEntry(payloadStr);
   const prevResult = await client.query(
     'SELECT id, hmac_signature FROM audit_logs ORDER BY created_at DESC, id DESC LIMIT 1',
   );
@@ -67,8 +66,10 @@ export async function writeAuditLog(
   const prevHash = prevRow
     ? computePrevHash(prevRow.id as string, prevRow.hmac_signature as string)
     : null;
+  // P0: 签名必须覆盖 jsonb 规范化后的精确字节（PG 按"键长→字节序"重排键序），
+  // 故先 INSERT 返回 payload::text，再回写签名——同一事务（withTenant）内原子。
   const { rows } = await client.query(
-    `INSERT INTO audit_logs (event_type, user_id, org_id, ip_address, action, resource_type, resource_id, payload, hmac_signature, prev_hash, outbox_event_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10, $11) ON CONFLICT (outbox_event_id) WHERE outbox_event_id IS NOT NULL DO NOTHING RETURNING id`,
+    `INSERT INTO audit_logs (event_type, user_id, org_id, ip_address, action, resource_type, resource_id, payload, hmac_signature, prev_hash, outbox_event_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10, $11) ON CONFLICT (outbox_event_id) WHERE outbox_event_id IS NOT NULL DO NOTHING RETURNING id, payload::text`,
     [
       entry.eventType,
       entry.userId ?? null,
@@ -78,29 +79,38 @@ export async function writeAuditLog(
       entry.resourceType ?? null,
       entry.resourceId ?? null,
       payloadStr,
-      signature,
+      '',
       prevHash,
       outboxEventId ?? null,
     ],
   );
-  const id = rows[0]?.id as string | undefined;
-  if (!id && outboxEventId) {
-    const existing = await client.query('SELECT id FROM audit_logs WHERE outbox_event_id = $1', [
-      outboxEventId,
-    ]);
-    return (existing.rows[0]?.id as string | undefined) ?? null;
+  const row = rows[0];
+  if (!row) {
+    if (outboxEventId) {
+      const existing = await client.query('SELECT id FROM audit_logs WHERE outbox_event_id = $1', [
+        outboxEventId,
+      ]);
+      return (existing.rows[0]?.id as string | undefined) ?? null;
+    }
+    return null;
   }
+  const signature = signAuditEntry(row.payload as string);
+  await client.query('UPDATE audit_logs SET hmac_signature = $2, prev_hash = $3 WHERE id = $1', [
+    row.id,
+    signature,
+    prevHash,
+  ]);
   logger.debug(
     {
       module: 'auditStorage',
-      id,
+      id: row.id,
       eventType: entry.eventType,
       action: entry.action,
       hasPrevHash: prevHash !== null,
     },
     '[auditStorage] 审计日志已写入（含链式 prev_hash）',
   );
-  return id ?? null;
+  return row.id as string;
 }
 
 export async function getUnexportedAuditLogs(
@@ -132,18 +142,19 @@ export async function markExported(ids: string[], objectKey: string): Promise<vo
 export async function verifyAuditIntegrity(
   logId: string,
 ): Promise<{ valid: boolean; expected: string; actual: string }> {
+  // P0: 签名基于 payload::text（jsonb 规范化后的精确字节），与 writeAuditLog 回写时一致
   const { rows } = await withPlatformContext((client) =>
-    client.query(`SELECT payload, hmac_signature FROM audit_logs WHERE id = $1`, [logId]),
+    client.query(
+      'SELECT payload::text AS payload_text, hmac_signature FROM audit_logs WHERE id = $1',
+      [logId],
+    ),
   );
   if (rows.length === 0) return { valid: false, expected: '', actual: '' };
   const storedSignature = rows[0].hmac_signature as string;
-  const payload = rows[0].payload;
+  const payloadText = rows[0].payload_text as string;
   const key = config.AUDIT_HMAC_KEY;
   if (!key) return { valid: false, expected: '', actual: storedSignature };
-  const expected = crypto
-    .createHmac('sha256', key)
-    .update(typeof payload === 'string' ? payload : JSON.stringify(payload))
-    .digest('hex');
+  const expected = crypto.createHmac('sha256', key).update(payloadText).digest('hex');
   const sigBuf = Buffer.from(storedSignature);
   const expBuf = Buffer.from(expected);
   const valid = sigBuf.length === expBuf.length && crypto.timingSafeEqual(sigBuf, expBuf);
