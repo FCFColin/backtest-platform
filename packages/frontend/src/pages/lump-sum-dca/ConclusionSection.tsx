@@ -4,6 +4,7 @@ import { AlertTriangle, TrendingDown, TrendingUp } from 'lucide-react';
 import { getPortfolioColor } from '@/lib/chart-theme.js';
 import { Card } from '@/components/ui/uiComponents';
 import { SimpleTable, type SimpleTableColumn } from '@/components/tables.js';
+import { mergeRowsByDate } from '@/utils/format.js';
 import { TimeSeriesLineChart } from '@/components/charts/TimeSeriesLineChart.js';
 import type { CompareResult, LumpSumVsDCAState } from '../../hooks/useLumpSumVsDCAState.js';
 function GrowthCurveChart({
@@ -13,15 +14,17 @@ function GrowthCurveChart({
   results: CompareResult[];
   fmtMoney: (v: number) => string;
 }) {
-  const chartData = useMemo(() => {
-    const merged: Record<string, Record<string, string | number>> = {};
-    results.forEach((r) =>
-      r.growthCurve.forEach((p) => {
-        (merged[p.date] ??= { date: p.date })[r.label] = p.value;
-      }),
-    );
-    return Object.values(merged).sort((a, b) => String(a.date).localeCompare(String(b.date)));
-  }, [results]);
+  const chartData = useMemo(
+    () =>
+      mergeRowsByDate(
+        results.map((r) => ({
+          key: r.label,
+          rows: r.growthCurve,
+          value: (p: { date: string; value: number }) => p.value,
+        })),
+      ),
+    [results],
+  );
   return (
     <TimeSeriesLineChart
       data={chartData}

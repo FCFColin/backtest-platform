@@ -102,6 +102,22 @@ export function mergePortfolioSeries<T, P extends Pick<PortfolioResult, 'name'>>
     .map(([, value]) => value);
 }
 
+export function mergeRowsByDate<R extends { date: string }>(
+  series: Array<{
+    key: string;
+    rows: Array<R>;
+    value: (row: R) => number;
+  }>,
+): Array<Record<string, string | number>> {
+  const merged: Record<string, Record<string, string | number>> = {};
+  for (const { key, rows, value } of series) {
+    for (const row of rows) {
+      (merged[row.date] ??= { date: row.date })[key] = value(row);
+    }
+  }
+  return Object.values(merged).sort((a, b) => String(a.date).localeCompare(String(b.date)));
+}
+
 function toCSV(data: Array<Record<string, string | number | undefined | null>>): string {
   if (data.length === 0) return '';
   const headers = Object.keys(data[0]);

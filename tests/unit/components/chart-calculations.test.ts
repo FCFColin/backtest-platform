@@ -14,6 +14,7 @@ import {
   mean,
   std,
   mergePortfolioSeries,
+  mergeRowsByDate,
 } from '../../../packages/frontend/src/utils/format.js';
 
 describe('chartCalculations.computeRollingMetric', () => {
@@ -147,5 +148,20 @@ describe('stats', () => {
     expect(rows).toHaveLength(2);
     expect(rows[0]).toMatchObject({ date: '2020-01-01', A: 100, B: 200 });
     expect(rows[1]).toMatchObject({ date: '2020-01-02', A: 110 });
+  });
+
+  it('mergeRowsByDate 应按键合并行并按日期排序', () => {
+    const rows = mergeRowsByDate([
+      {
+        key: 'p1',
+        rows: [{ date: '2020-03-01' }, { date: '2020-01-01' }],
+        value: (r) => Number(r.date.slice(8)),
+      },
+      { key: 'p2', rows: [{ date: '2020-01-01' }], value: () => 7 },
+    ]);
+    expect(rows).toEqual([
+      { date: '2020-01-01', p1: 1, p2: 7 },
+      { date: '2020-03-01', p1: 1 },
+    ]);
   });
 });
