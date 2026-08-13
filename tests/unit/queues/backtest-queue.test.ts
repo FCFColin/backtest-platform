@@ -2,6 +2,7 @@ import '../../helpers/loggerMock.js';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createConfigMocks } from '../../helpers/mockFactories.js';
 import { loggerMocks } from '../../helpers/loggerFixture.js';
+import { redisModuleMock } from '../../helpers/redisFixture.js';
 
 const queueInstanceMocks = vi.hoisted(() => ({
   on: vi.fn(),
@@ -25,26 +26,15 @@ vi.mock('ioredis', () => ({
   default: vi.fn(() => ({ on: vi.fn(), publish: vi.fn().mockResolvedValue(undefined) })),
 }));
 
-vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () => ({
-  buildRedisBaseOptions: vi.fn(() => ({
-    host: 'localhost',
-    port: 6379,
-    maxRetriesPerRequest: null,
-    enableReadyCheck: false,
-  })),
-  bullmqConnectionOptions: {
-    host: 'localhost',
-    port: 6379,
-    maxRetriesPerRequest: null,
-    enableReadyCheck: false,
-  },
-  isSentinelMode: false,
-  appRedis: { on: vi.fn(), publish: vi.fn().mockResolvedValue(undefined) },
+vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () => redisModuleMock);
+
+const queueUtilsMocks = vi.hoisted(() => ({
+  isFinalFailure: vi.fn(() => false),
 }));
 
 vi.mock('../../../packages/backend/src/queues/queueUtils.js', () => ({
   createDeadLetterQueue: vi.fn(() => ({ on: vi.fn() })),
-  isFinalFailure: vi.fn(() => false),
+  isFinalFailure: queueUtilsMocks.isFinalFailure,
   transferToDlq: vi.fn(),
   SOURCE_QUEUE_FAIL_RETENTION_AGE_SECONDS: 86400 * 7,
 }));
@@ -58,6 +48,7 @@ import {
   backtestQueue,
   createBacktestWorker,
 } from '../../../packages/backend/src/queues/backtestQueue.js';
+import { appRedis } from '../../../packages/backend/src/infrastructure/redisClient.js';
 describe('backtestQueue', () => {
   it('应导出 Queue 实例，使用正确连接配置并注册 error 回调', () => {
     expect(backtestQueue).toBeDefined();
@@ -160,6 +151,28 @@ describe('createBacktestWorker', () => {
       'Backtest job failed',
     );
     expect(() => failedCallback(null, new Error('job not found'))).not.toThrow();
+  });
+
+  it('failed 事件：仅终态失败向 WS 广播，中间重试失败不广播', () => {
+    makeWorker();
+    const failedCallback = getCallback('failed') as (job: unknown, err: Error) => void;
+    // workerFactory 的 DLQ 判定与 onFailed 各调用一次 isFinalFailure，用实现而非 Once 保证一致
+    queueUtilsMocks.isFinalFailure.mockImplementation(
+      (job: { attemptsMade: number }) => job.attemptsMade >= 3,
+    );
+    failedCallback(
+      { id: 'job-retry', data: { type: 'grid-search' }, attemptsMade: 1 },
+      new Error('transient'),
+    );
+    expect(appRedis.publish).not.toHaveBeenCalled();
+    failedCallback(
+      { id: 'job-final', data: { type: 'grid-search' }, attemptsMade: 3 },
+      new Error('final failure'),
+    );
+    expect(appRedis.publish).toHaveBeenCalledWith(
+      'backtest:progress:job-final',
+      expect.stringContaining('"status":"failed"'),
+    );
   });
 
   it('error 事件应记录 error 日志', () => {

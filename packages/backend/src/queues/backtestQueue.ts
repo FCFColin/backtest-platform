@@ -6,7 +6,11 @@ import {
 } from '../infrastructure/redisClient.js';
 import { config } from '../config/index.js';
 import { logger } from '../utils/logger.js';
-import { createDeadLetterQueue, SOURCE_QUEUE_FAIL_RETENTION_AGE_SECONDS } from './queueUtils.js';
+import {
+  createDeadLetterQueue,
+  isFinalFailure,
+  SOURCE_QUEUE_FAIL_RETENTION_AGE_SECONDS,
+} from './queueUtils.js';
 import { createQueueWorker } from './workerFactory.js';
 
 export interface BacktestJobData {
@@ -100,7 +104,10 @@ export function createBacktestWorker(
         'Backtest job failed',
       );
       const jobId = job?.id ? String(job.id) : '';
-      if (jobId) publishBacktestProgress(jobId, { jobId, status: 'failed', error: err.message });
+      // 仅终态失败才通知 WS 客户端（与 DLQ 同判据）；中间重试失败静默重试
+      if (job && jobId && isFinalFailure(job)) {
+        publishBacktestProgress(jobId, { jobId, status: 'failed', error: err.message });
+      }
     },
     // P1-04: Redis Pub/Sub 实时进度推送（多 Pod 广播，DADR-045）
     onProgress: (job, progress) => {

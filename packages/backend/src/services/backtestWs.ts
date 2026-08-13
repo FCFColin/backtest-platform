@@ -61,7 +61,7 @@ async function subscribeChannel(channel: string, ws: WebSocket): Promise<void> {
       await subscribePromise;
     } catch (err) {
       channelSubscriptions.delete(channel);
-      channelClients.delete(channel);
+      clients.delete(ws); // 只摘除本连接，避免误删同 channel 其他客户端订阅
       throw err;
     }
   } else {
