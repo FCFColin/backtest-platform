@@ -1,9 +1,21 @@
+import { createRequire } from 'module';
 import pino from 'pino';
 import pinoHttp from 'pino-http';
 import { randomUUID } from 'crypto';
 import { trace, context } from '@opentelemetry/api';
 
 const isDev = process.env.NODE_ENV === 'development';
+
+// esbuild bundle 会把 pino-pretty 内联，导致 pino transport 找不到文件；仅当可解析时才启用 pretty 输出
+const prettyTransport = (() => {
+  if (!isDev) return false;
+  try {
+    createRequire(import.meta.url).resolve('pino-pretty');
+    return true;
+  } catch {
+    return false;
+  }
+})();
 
 function otelMixin(): Record<string, string> {
   const span = trace.getSpan(context.active());
@@ -41,7 +53,7 @@ const logger = pino({
     ],
     censor: '[Redacted]',
   },
-  ...(isDev
+  ...(prettyTransport
     ? {
         transport: {
           target: 'pino-pretty',

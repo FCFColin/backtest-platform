@@ -202,7 +202,8 @@ app.use(notFoundHandler);
 
 // P1-04: 创建 HTTP server 并挂载 WebSocket 实时进度端点 (/api/v1/ws/runs/:jobId)
 const server = createServer(app);
-setupBacktestWebSocket(server);
+// backtestWs 用于优雅停机时断开活动连接（否则 server.close() 会等 WS socket 直到超时强杀）
+export const backtestWs = setupBacktestWebSocket(server);
 
 export { server };
 export default app;

@@ -1,5 +1,4 @@
-import { initTracing, shutdownTracing } from '../tracing.js';
-initTracing();
+import { shutdownTracing } from '../tracing.js';
 
 import { validateConfig } from '../config/index.js';
 import { logger } from '../utils/logger.js';

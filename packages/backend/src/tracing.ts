@@ -47,12 +47,13 @@ const sdk = new NodeSDK({
   ],
 });
 
-export function initTracing(): void {
-  try {
-    sdk.start();
-  } catch (err) {
-    logger.warn({ err }, 'OpenTelemetry 初始化失败，链路追踪不可用');
-  }
+// SDK 必须在任何可能产生 span 的模块（app.js/worker.js 等）求值前启动：
+// 入口文件将 tracing 作为首个 import，ESM 按 import 声明顺序深度求值依赖，
+// 因此此处模块级启动保证了 app.js 求值前 SDK 已就绪（此前由 initTracing() 显式调用，时机不可靠）。
+try {
+  sdk.start();
+} catch (err) {
+  logger.warn({ err }, 'OpenTelemetry 初始化失败，链路追踪不可用');
 }
 
 export async function shutdownTracing(): Promise<void> {

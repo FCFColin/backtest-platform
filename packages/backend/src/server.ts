@@ -1,7 +1,6 @@
-import { initTracing, shutdownTracing } from './tracing.js';
-initTracing();
+import { shutdownTracing } from './tracing.js';
 
-import app, { server } from './app.js';
+import app, { server, backtestWs } from './app.js';
 import { config, validateConfig } from './config/index.js';
 import { logger } from './utils/logger.js';
 import { createShutdownOnce } from './utils/gracefulShutdown.js';
@@ -91,7 +90,11 @@ server.on('error', (error: NodeJS.ErrnoException) => {
 
 const shutdown = createShutdownOnce({
   onShutdown: async () => {
+    // 先断开活动 WS 客户端：Node 的 server.close() 不回收 upgrade 后的 socket，
+    // 不关掉它们 close 回调永不触发（优雅停机会一直挂到超时强杀）。
+    backtestWs.close();
     await new Promise<void>((resolve) => server.close(() => resolve()));
+    appRedis.disconnect();
     if (outboxConsumer) {
       await outboxConsumer.stop();
       outboxConsumer = null;
@@ -110,10 +113,11 @@ process.on('uncaughtException', (err) => {
   shutdown('uncaughtException', 1);
 });
 
-// P0-01：未处理 Promise 拒绝必须终止进程——Node 未来版本会将 unhandledRejection 直接 crash。
+// P0-01：未处理 Promise 拒绝必须终止进程——Node 未来版本会将 unhandledRejection 直接 crash；
+// 与 uncaughtException 一致走优雅关闭（保证审计链/DB 落盘后再退出，退出码 1）。
 process.on('unhandledRejection', (reason) => {
-  logger.error({ err: reason }, '[server] 未处理 Promise 拒绝，终止进程');
-  process.exit(1);
+  logger.error({ err: reason }, '[server] 未处理 Promise 拒绝，启动优雅关闭后终止进程');
+  shutdown('unhandledRejection', 1);
 });
 
 export default app;

@@ -148,7 +148,7 @@ function handleConnection(ws: WebSocket, jobId: string, userId: string): void {
     });
 }
 
-export function setupBacktestWebSocket(server: Server): void {
+export function setupBacktestWebSocket(server: Server): WebSocketServer {
   const wss = new WebSocketServer({ noServer: true });
   server.on('upgrade', (req, socket, head) => {
     const jobId = extractJobId(req);
@@ -182,4 +182,5 @@ export function setupBacktestWebSocket(server: Server): void {
       });
   });
   logger.info('[ws] Backtest WebSocket 服务端已挂载 (/api/v1/ws/runs/:jobId)');
+  return wss;
 }

@@ -47,6 +47,7 @@ prefetchMeta().catch(() => {});
 interface PipeableStream {
   pipe: <T extends NodeJS.WritableStream>(destination: T) => T;
   abort: (reason?: unknown) => void;
+  on: (event: 'error', listener: (err: Error) => void) => void;
 }
 
 type RenderFn = (url: string, nonce: string) => PipeableStream | Promise<PipeableStream>;
@@ -227,6 +228,13 @@ export async function ssrMiddleware(req: Request, res: Response): Promise<void> 
     let body = head;
     const passThrough = new PassThrough();
     passThrough.pipe(res, { end: false });
+    // 渲染流异常若不监听会触发 unhandled 'error' 崩溃进程；响应头已发出，只能截断收尾
+    const abortStream = (err: Error) => {
+      logger.error({ err, url: req.url }, '[ssr] 渲染流错误，终止响应');
+      res.end();
+    };
+    passThrough.on('error', abortStream);
+    stream.on('error', abortStream);
     passThrough.on('data', (chunk: Buffer) => {
       body += chunk.toString();
     });

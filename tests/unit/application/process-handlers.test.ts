@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { loggerMocks } from '../../helpers/loggerFixture.js';
 
 vi.mock('../../../packages/backend/src/tracing.js', () => ({
-  initTracing: vi.fn(),
+  shutdownTracing: vi.fn().mockResolvedValue(undefined),
 }));
 
 const mockServer = {
@@ -21,6 +21,7 @@ const mockServer = {
 vi.mock('../../../packages/backend/src/app.js', () => ({
   default: vi.fn(),
   server: mockServer,
+  backtestWs: { close: vi.fn() },
 }));
 
 vi.mock('../../../packages/backend/src/config/env.js', () => ({
@@ -92,7 +93,7 @@ describe('P0-01: uncaughtException / unhandledRejection 必须终止进程', () 
     vi.restoreAllMocks();
   });
 
-  it('unhandledRejection 触发后应同步调用 process.exit(1)', async () => {
+  it('unhandledRejection 触发后应经优雅关闭最终调用 process.exit(1)', async () => {
     await import('../../../packages/backend/src/server.js');
 
     await new Promise((resolve) => setTimeout(resolve, 100));
@@ -104,7 +105,7 @@ describe('P0-01: uncaughtException / unhandledRejection 必须终止进程', () 
     process.emit('unhandledRejection', reason);
 
     expect(loggerMocks.error).toHaveBeenCalled();
-    expect(exitSpy).toHaveBeenCalledWith(1);
+    await vi.waitFor(() => expect(exitSpy).toHaveBeenCalledWith(1));
   });
 
   it('uncaughtException 触发后应通过优雅关闭最终调用 process.exit(1)', async () => {
