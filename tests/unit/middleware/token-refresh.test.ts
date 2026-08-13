@@ -8,6 +8,7 @@ import {
   NEWLINE_INJECTION_KEY,
 } from '../../helpers/authFixtures.js';
 import { RedisUnavailableError } from '../../../packages/backend/src/utils/errors.js';
+import { sha256Hex } from '../../../packages/backend/src/utils/crypto.js';
 // userRepo 的 vi.mock 在 jwtAuth.shared.ts 中注册（提升执行）；本文件的
 // getUserById 静态 import 必须位于 shared import 之后，才能命中同一 mock 实例
 import {
@@ -48,7 +49,7 @@ async function expiredTokenByFakeTimers(ttlSeconds: number) {
 }
 async function expireStoredToken(user: string) {
   const t = await generateRefreshToken(user, 'admin');
-  const key = `refresh_token:${t}`;
+  const key = `refresh_token:${sha256Hex(t)}`;
   const entry = JSON.parse(redisMocks.store.get(key)!);
   entry.expiresAt = Math.floor(Date.now() / 1000) - 10;
   redisMocks.store.set(key, JSON.stringify(entry));
@@ -79,7 +80,7 @@ describe('Refresh Token 生命周期与 Redis', () => {
     const family = JSON.parse(
       [...redisMocks.store.entries()].find(([k]) => k.startsWith('token_family:'))![1],
     );
-    expect(family.lastToken).toBe(t);
+    expect(family.lastToken).toBe(sha256Hex(t));
     expect(family.revoked).toBe(false);
     expect(redisMocks.sadd).toHaveBeenCalledWith(
       expect.stringContaining('user_families:user-1'),
@@ -103,8 +104,8 @@ describe('Refresh Token 生命周期与 Redis', () => {
       org_role: 'owner',
       platform_admin: true,
     });
-    expect(redisMocks.store.has(`refresh_token:${t}`)).toBe(false);
-    expect(redisMocks.store.has(`refresh_token:used:${t}`)).toBe(true);
+    expect(redisMocks.store.has(`refresh_token:${sha256Hex(t)}`)).toBe(false);
+    expect(redisMocks.store.has(`refresh_token:used:${sha256Hex(t)}`)).toBe(true);
     let chain = r!.refreshToken;
     for (let i = 0; i < 3; i++) {
       const next = await refreshAccessToken(chain);
@@ -114,14 +115,14 @@ describe('Refresh Token 生命周期与 Redis', () => {
     expect(await refreshAccessToken(t)).toBeNull();
     expect(await refreshAccessToken(r!.refreshToken)).toBeNull();
     const t2 = await generateRefreshToken('revoke-user', 'admin');
-    const entry = JSON.parse(redisMocks.store.get(`refresh_token:${t2}`)!);
+    const entry = JSON.parse(redisMocks.store.get(`refresh_token:${sha256Hex(t2)}`)!);
     await revokeRefreshToken(t2);
     expect(JSON.parse(redisMocks.store.get(`token_family:${entry.familyId}`)!).revoked).toBe(true);
-    expect(redisMocks.store.has(`refresh_token:${t2}`)).toBe(false);
+    expect(redisMocks.store.has(`refresh_token:${sha256Hex(t2)}`)).toBe(false);
     const t3 = await generateRefreshToken('revoke-used', 'admin');
     await refreshAccessToken(t3);
     await revokeRefreshToken(t3);
-    expect(redisMocks.store.has(`refresh_token:used:${t3}`)).toBe(false);
+    expect(redisMocks.store.has(`refresh_token:used:${sha256Hex(t3)}`)).toBe(false);
     const a1 = await generateRefreshToken('revoke-all-user', 'admin');
     const a2 = await generateRefreshToken('revoke-all-user', 'analyst');
     await revokeAllUserSessions('revoke-all-user');
@@ -137,7 +138,7 @@ describe('Refresh Token 生命周期与 Redis', () => {
     [
       'Redis entry 已过期',
       async () => expireStoredToken('redis-expired'),
-      (t: string) => expect(redisMocks.store.has(`refresh_token:${t}`)).toBe(false),
+      (t: string) => expect(redisMocks.store.has(`refresh_token:${sha256Hex(t)}`)).toBe(false),
     ],
   ])('%s 应返回 null 并清理', async (_n, build, extra) => {
     const t = await build();
@@ -155,7 +156,7 @@ describe('Refresh Token 生命周期与 Redis', () => {
       tenantId: 'org-removed',
       orgRole: 'admin',
     });
-    const entry = JSON.parse(redisMocks.store.get(`refresh_token:${t}`)!);
+    const entry = JSON.parse(redisMocks.store.get(`refresh_token:${sha256Hex(t)}`)!);
     mockMembershipActive();
     vi.mocked(membershipMocks.getMembership).mockResolvedValueOnce(null);
     expect(await refreshAccessToken(t)).toBeNull();
@@ -419,7 +420,7 @@ describe('idempotencyKey 中间件', () => {
         redisMocks.get.mockRejectedValueOnce(new Error('redis read failed'));
       },
     ],
-  ])('%s 时应 fail-closed 返回 503（ADR-045）', async (_n, arrange) => {
+  ])('%s 时应 fail-closed 返回 503（DADR-045）', async (_n, arrange) => {
     arrange();
     const { req, res, next } = createIdempotencyReqRes('redis-down-key');
     idempotencyKey(req, res, next);

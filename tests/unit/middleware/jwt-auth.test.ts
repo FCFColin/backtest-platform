@@ -15,6 +15,7 @@ import {
   awaitMiddleware,
 } from '../../helpers/expressMocks.js';
 import { expectProblem } from '../../helpers/routeAssertions.js';
+import { sha256Hex } from '../../../packages/backend/src/utils/crypto.js';
 import {
   mocks,
   redisMocks,
@@ -193,7 +194,7 @@ describe('jwtAuth 与相关中间件', () => {
   });
   it.each([
     [
-      'DB API Key（ADR-033）',
+      'DB API Key（ADR-009）',
       { orgId: 'org-11111111-1111-1111-1111', keyId: 'key-22222222-2222-2222-2222' },
       {
         role: 'analyst',
@@ -269,7 +270,7 @@ describe('jwtAuth 与相关中间件', () => {
     const t = await generateRefreshToken('disabled-redis-refresh', 'admin');
     mockUser(false, 'readonly');
     expect(await refreshAccessToken(t)).toBeNull();
-    expect(redisMocks.store.get(`refresh_token:${t}`)).toBeUndefined();
+    expect(redisMocks.store.get(`refresh_token:${sha256Hex(t)}`)).toBeUndefined();
   });
   it('optionalJwtAuth：有效 Bearer 应设置 req.user 并放行', async () => {
     const token = await generateToken('user-1', 'analyst');

@@ -5,7 +5,7 @@ import {
   createJwtAuthConfigMocks,
   type JwtAuthConfigMocks,
 } from '../../helpers/mockFactories.js';
-import { loggerMocks } from '../../helpers/loggerFixture.js';
+import '../../helpers/loggerMock.js';
 import { createJwtAuthUserRepoMock } from '../../helpers/authFixtures.js';
 import { getUserById } from '../../../packages/backend/src/repositories/userRepo.js';
 
@@ -25,7 +25,6 @@ vi.mock('../../../packages/backend/src/config/index.js', () => ({
   config: Object.assign(internalMocks.configContainer.config, createJwtAuthConfigMocks()),
   validateConfig: vi.fn(),
 }));
-vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: loggerMocks }));
 vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () =>
   createRedisModuleMock(
     { withStore: true, withSets: true, withHandlers: true, withMemoryHelpers: true },
