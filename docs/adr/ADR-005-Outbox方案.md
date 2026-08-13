@@ -1,4 +1,4 @@
-# ADR-005: 事件溯源/Outbox 方案（PostgreSQL LISTEN/NOTIFY + 强一致 + CDC 扩展）
+# ADR-005: Outbox 方案（PostgreSQL LISTEN/NOTIFY + 强一致 + CDC 扩展）
 
 > **企业理由**：业务数据与事件发布的原子性、审计日志的防篡改性是金融回测平台数据一致性与合规性的核心保障。异步消息系统的两大正确性陷阱是"重复投递"与"丢失投递"——Outbox 解决丢失，去重键与消费者幂等解决重复。
 
@@ -48,7 +48,7 @@ Outbox 的唯一写入点为 backtest-service 的事务写入。BacktestComplete
 - (-) LISTEN/NOTIFY 不支持跨进程负载均衡，多实例需行级锁（SELECT FOR UPDATE SKIP LOCKED）或启用 CDC
 - (-) CDC 模式运维开销增加（Kafka + Zookeeper + Debezium Connect，3 服务），outbox 表需定期清理
 - (-) event_id 可空以兼容历史行——新代码应始终提供
-- (-) 已知缺口：audit_logs 无 event_id 唯一键，outbox 重试与审计写入之间非严格幂等（审计防篡改链已保证完整性）；如需严格幂等需迁移为 audit_logs 增加唯一 event_id 列
+- (~) 已知缺口已关闭（migration 006）：`audit_logs` 增加 `outbox_event_id` UUID + 部分唯一索引（NULL 兼容历史行），outbox 重试与审计写入恢复严格幂等
 - (-) 放弃 pg-boss——功能完整但抽象层过厚，与 BullMQ（DADR-053）职责重叠；放弃 NATS——CDC 通路采用更成熟的 Kafka 生态
 
 ## 现状确认（2026-08 增补）

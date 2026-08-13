@@ -36,7 +36,7 @@ migrations/ 由自研 runner（packages/backend/src/db/migrations.ts, schema_mig
 | Refresh Token / 限流计数 / 幂等键 | 7d / 60s / 1h | fail-closed 503 |
 | 数据缓存                          | 3600s         | 跳过缓存        |
 
-requireRedis 封装: Redis 不可用显式 503（非内存降级, DADR-018/045）。
+requireRedis 封装: Redis 不可用显式 503（非内存降级, DADR-018）。
 
 ## 5. 共享类型 (packages/shared/types/)
 
@@ -50,4 +50,4 @@ Barrel export from index.ts。关键类型: Portfolio, BacktestParameters, Stati
 
 ## 7. 关键 ADR 对照
 
-ADR-002 PostgreSQL / 013 DDD / 014 Outbox+CDC / 017 JWT+RBAC+API Key / 032 多租户 RLS / 045 Redis fail-closed 分化。完整索引见 [ARCHITECTURE.md](../ARCHITECTURE.md#11-adr-索引)。
+ADR-002 PostgreSQL / 004 DDD / 005 Outbox+CDC / 007 JWT+RBAC+API Key / 009 多租户 RLS / DADR-018 Redis fail-closed（已删除决策）。完整索引见 [ARCHITECTURE.md](../ARCHITECTURE.md#11-adr-索引)。

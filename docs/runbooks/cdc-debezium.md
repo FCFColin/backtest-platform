@@ -1,6 +1,6 @@
 # CDC Debezium Runbook（P3-05）
 
-> 架构与决策见 [ADR-005](../adr/ADR-005-事件溯源Outbox方案.md)：PostgreSQL(outbox) → Debezium Connector → Kafka → 消费组（多 Pod 分区消费），替代 LISTEN/NOTIFY。
+> 架构与决策见 [ADR-005](../adr/ADR-005-Outbox方案.md)：PostgreSQL(outbox) → Debezium Connector → Kafka → 消费组（多 Pod 分区消费），替代 LISTEN/NOTIFY。
 
 ## 本地启动
 

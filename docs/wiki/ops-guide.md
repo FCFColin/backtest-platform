@@ -14,8 +14,8 @@ Node.js 20+, Go 1.26+, pnpm, PostgreSQL 14+, Redis 6+。
 
     pnpm install
     pnpm dev          # 前端(15173) + 后端 API(15001)
-    cd engine-go && go run ./cmd/server    # Go 引擎 :15004
-    cd data-fetcher && go run main.go      # Go 数据服务 :15003
+    cd engine-go && go run ./cmd/server    # Go 引擎 :5004（docker 宿主映射 :15004）
+    cd data-fetcher && go run main.go      # Go 数据服务 :5003（docker 宿主映射 :15003）
 
 ## 3. 环境变量速查
 
@@ -54,5 +54,5 @@ Node.js 20+, Go 1.26+, pnpm, PostgreSQL 14+, Redis 6+。
 | 遗留 slice 死代码未清理                                                   | API Key 路径 /api/v1/keys     | withComputeHandler 统一计算端点            | audit_logs 链式 hash（HMAC）         |
 | CSV 导出多处重复实现                                                      | services/ 已迁入 application/ | PowerShell BOM 用 WriteAllText(UTF8,无BOM) | RLS 不启用: 市场/outbox              |
 | react-router v8 单包(无 dom)                                              | Worker 独立进程               | 降级: data-fetcher 有 degraded, 引擎无     | FORCE RLS: backtest_app 无 BYPASSRLS |
-| authStore 不持久化                                                        | Stripe Webhook 无 jwtAuth     | 引擎不可用 503 非 200+degraded             | PgBouncer 必须 SET LOCAL             |
+| authStore 不持久化                                                        | Stripe Webhook 无 jwtAuth     | 引擎不可用 503 非 200+degraded             | 最小权限 backtest_app（无 CREATE）   |
 | Module Federation 预留（DADR-050 已删除，vite.config.ts 内 exposes 保留） | opossum + gobreaker           |                                            | Redis: 认证 fail-closed, 缓存跳过    |

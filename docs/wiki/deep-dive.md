@@ -73,7 +73,7 @@ CDC 扩展: Debezium → Kafka（多 Pod 扩展, 见 runbooks/cdc-debezium.md）
 | dataFacade.ts                         | 数据门面（PG→Go 降级, 透传 degraded 标记）                     |
 | repositories/                         | 仓储层（withTenant RLS）                                       |
 
-## 9. 熔断与限流 (DADR-016)
+## 9. 熔断与限流（DADR-016 已删除，行为保留）
 
 Go 引擎/PostgreSQL: opossum（fail-closed 503 / 降级）；数据服务上游: gobreaker。50% 失败率 Open, 10s HalfOpen。
 限流分层: apiLimiter(100/min) > computeLimiter(10/min) > adminLimiter(30/min)。Redis 不可用 fail-closed。
@@ -96,7 +96,7 @@ Go 引擎/PostgreSQL: opossum（fail-closed 503 / 降级）；数据服务上游
 
 ## 12. 多架构与配置
 
-multi-stage（scratch/alpine）+ amd64/arm64（buildx）；SBOM(CycloneDX, nightly)（DADR-052）。config/: env.ts（Zod）、limits.ts（ADR-010）。
+multi-stage（scratch/alpine）+ amd64/arm64（buildx）；SBOM(CycloneDX, nightly)。config/: env.ts（Zod）、limits.ts（ADR-010）。
 
 ## 13. 关键约束
 

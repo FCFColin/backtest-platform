@@ -32,14 +32,14 @@
 
 ```powershell
 pnpm install          # 安装依赖
-docker compose up -d  # PostgreSQL + Redis
-pnpm dev              # 前端 15173 + API 15001（自动启动 Go 引擎）
+pnpm dev:all          # 全栈开发：PG/Redis + Go 引擎/数据服务 + API 15001（托管前端构建产物）
 ```
 
-前端热更新：`pnpm dev:hmr` ｜ 完整依赖栈：`make up` 后再 `pnpm dev`
+最小开发（仅前端+API，Go 引擎不可用时计算端点 503）：`pnpm dev`
 
-Go 引擎（不启动时正确性关键计算返回 503）：`cd engine-go && go run ./cmd/server`
-Go 数据服务：`cd data-fetcher && go run main.go`
+手动启动 Go 服务（`pnpm dev:all` 已自动启动，无需手动）：
+`cd engine-go && go run ./cmd/server`（默认 :5004，docker 宿主映射 :15004）
+`cd data-fetcher && go run main.go`（默认 :5003，docker 宿主映射 :15003）
 
 ## 目录结构
 

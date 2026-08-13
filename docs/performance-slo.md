@@ -10,11 +10,11 @@
 
 ## Frontend Page Load SLO
 
-| Metric                  | Target        | Measurement                                  |
-| ----------------------- | ------------- | -------------------------------------------- |
-| Route navigation timing | < 100ms (P95) | `[Performance/navigation]` via RUM           |
-| Initial page load (FCP) | < 500ms (P95) | `performance.getEntriesByType('navigation')` |
-| Web Vital LCP           | < 2.5s        | `web-vitals` library                         |
+| Metric                  | Target        | Measurement                                |
+| ----------------------- | ------------- | ------------------------------------------ |
+| Route navigation timing | < 700ms (P95) | `PAGE_LOAD_BUDGET_NAV`(e2e page-load spec) |
+| Initial page load (FCP) | < 700ms (P95) | `PAGE_LOAD_BUDGET_FCP`(e2e page-load spec) |
+| Web Vital LCP           | < 2.5s        | `web-vitals` library                       |
 
 ## k8s Pod Resource Standards（与 k8s/deployments.yaml、postgres.yaml 一致）
 

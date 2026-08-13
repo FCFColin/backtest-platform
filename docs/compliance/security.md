@@ -10,7 +10,7 @@
 | 应用层 | 输入验证/SQLi/XSS/CSRF    | Zod schema，参数化查询，React 转义+CSP，JWT Bearer |
 | 主机层 | 镜像/依赖扫描/最小权限    | Trivy+pnpm audit+govulncheck，非 root 容器         |
 
-告警规则: AuthFailureSpike（登录失败率 >50%/5min, P1）；WAFBlocked（WAF >100/min, P1）；RateLimitTriggered（429 >10%/min, P2）。
+告警规则: SuspiciousLoginActivity（IP 封锁 >3/5min, critical）；GoEngineDown/PostgresDown（关键服务不可用, critical）；HighErrorRate（5xx >5%/5min, warning）；HighLatency/HighP90Latency（SLO 违约, warning）。完整规则见 `docker/prometheus/rules.yml` 与 `k8s/prometheus-rules.yaml`。
 
 ## 2. 网络架构与区域边界
 
