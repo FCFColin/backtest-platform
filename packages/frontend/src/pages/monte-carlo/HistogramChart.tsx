@@ -3,10 +3,10 @@ import type { EChartsOption } from 'echarts';
 import { Card } from '@/components/ui/uiComponents';
 import { TableEmpty } from '@/components/stateDisplay.js';
 import {
-  AXIS_TEXT,
-  BORDER_SOFT,
   axisTooltipFormatter,
+  categoryAxis,
   tooltipOption,
+  valueYAxis,
 } from '@/components/charts/chartUtils.js';
 import { getPortfolioColor } from '@/lib/chart-theme.js';
 import { useReducedMotion } from '@/hooks/miscHooks.js';
@@ -61,21 +61,11 @@ export function HistogramChart({
   }
   const option: EChartsOption = {
     grid: { top: 20, right: 20, bottom: 20, left: 60 },
-    xAxis: {
-      type: 'category',
-      data: data.map((d) => d.range),
-      axisLabel: { ...AXIS_TEXT, interval: 3 },
-      axisLine: { lineStyle: { color: BORDER_SOFT } },
-      axisTick: { show: false },
-      splitLine: { show: false },
-    },
-    yAxis: {
-      type: 'value',
-      axisLabel: AXIS_TEXT,
-      axisLine: { show: false },
-      axisTick: { show: false },
-      splitLine: { lineStyle: { color: BORDER_SOFT, opacity: 0.6 } },
-    },
+    xAxis: categoryAxis(
+      data.map((d) => d.range),
+      { interval: 3 },
+    ),
+    yAxis: valueYAxis(),
     tooltip: tooltipOption(axisTooltipFormatter(undefined, tooltipFormatter)),
     series: seriesArr as EChartsOption['series'],
     animation: !disableTooltipAnimation && !reducedMotion,

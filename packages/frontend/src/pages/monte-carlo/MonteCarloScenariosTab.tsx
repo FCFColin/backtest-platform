@@ -3,10 +3,10 @@ import type { EChartsOption } from 'echarts';
 import { Card } from '@/components/ui/uiComponents';
 import type { MonteCarloResult } from '@backtest/shared';
 import {
-  AXIS_TEXT,
-  BORDER_SOFT,
   axisTooltipFormatter,
+  categoryAxis,
   tooltipOption,
+  valueYAxis,
 } from '@/components/charts/chartUtils.js';
 import { getPortfolioColor } from '@/lib/chart-theme.js';
 import { cn } from '@/lib/utils';
@@ -147,25 +147,14 @@ export function MonteCarloScenariosTab({
   if (data.length === 0) return <NoDataCard />;
   const option: EChartsOption = {
     grid: { top: 10, right: 30, left: 10, bottom: 20 },
-    xAxis: {
-      type: 'category',
-      data: data.map((d) => d.month),
-      axisLabel: {
-        ...AXIS_TEXT,
+    xAxis: categoryAxis(
+      data.map((d) => d.month),
+      {
         formatter: (v: string) => monthFormatter(Number(v)),
         interval: 11,
       },
-      axisLine: { lineStyle: { color: BORDER_SOFT } },
-      axisTick: { show: false },
-      splitLine: { show: false },
-    },
-    yAxis: {
-      type: 'value',
-      axisLabel: { ...AXIS_TEXT, formatter: dollarKFormatter },
-      axisLine: { show: false },
-      axisTick: { show: false },
-      splitLine: { lineStyle: { color: BORDER_SOFT, opacity: 0.6 } },
-    },
+    ),
+    yAxis: valueYAxis({ formatter: dollarKFormatter }),
     tooltip: tooltipOption(
       axisTooltipFormatter(
         (label) => yearLabelFormatter(t, Number(label)),

@@ -7,10 +7,11 @@ import { GoalOptimizerParamsPanel } from './GoalOptimizerParams.js';
 import { ComputeToolShell, type ComputeToolConfig } from '../../components/shells/index.js';
 import { getPortfolioColor } from '@/lib/chart-theme.js';
 import {
-  AXIS_TEXT,
-  BORDER_SOFT,
   axisTooltipFormatter,
+  categoryAxis,
   tooltipOption,
+  valueXAxis,
+  valueYAxis,
 } from '@/components/charts/chartUtils.js';
 import EChart from '@/components/charts/EChart.js';
 import ChartCard from '@/components/ChartCard.js';
@@ -29,20 +30,8 @@ function ProbabilityDistributionChart({
   const { t } = useTranslation();
   const option: EChartsOption = {
     grid: GRID,
-    xAxis: {
-      type: 'value',
-      axisLabel: { ...AXIS_TEXT, formatter: (v: number) => `$${(v / 1000).toFixed(0)}k` },
-      axisLine: { lineStyle: { color: BORDER_SOFT } },
-      axisTick: { show: false },
-      splitLine: { show: false },
-    },
-    yAxis: {
-      type: 'value',
-      axisLabel: { ...AXIS_TEXT, formatter: (v: number) => `${(v * 100).toFixed(1)}%` },
-      axisLine: { show: false },
-      axisTick: { show: false },
-      splitLine: { lineStyle: { color: BORDER_SOFT, opacity: 0.6 } },
-    },
+    xAxis: valueXAxis((v: number) => `$${(v / 1000).toFixed(0)}k`),
+    yAxis: valueYAxis({ formatter: (v: number) => `${(v * 100).toFixed(1)}%` }),
     tooltip: tooltipOption(
       axisTooltipFormatter(
         (label) => fmtAmount(Number(label)),
@@ -122,21 +111,8 @@ function OptimalPathChart({
   };
   const option: EChartsOption = {
     grid: GRID,
-    xAxis: {
-      type: 'category',
-      data: years,
-      axisLabel: { ...AXIS_TEXT, formatter: (v: string) => `${v}y` },
-      axisLine: { lineStyle: { color: BORDER_SOFT } },
-      axisTick: { show: false },
-      splitLine: { show: false },
-    },
-    yAxis: {
-      type: 'value',
-      axisLabel: { ...AXIS_TEXT, formatter: (v: number) => `$${(v / 1000).toFixed(0)}k` },
-      axisLine: { show: false },
-      axisTick: { show: false },
-      splitLine: { lineStyle: { color: BORDER_SOFT, opacity: 0.6 } },
-    },
+    xAxis: categoryAxis(years, { formatter: (v: string) => `${v}y` }),
+    yAxis: valueYAxis({ formatter: (v: number) => `$${(v / 1000).toFixed(0)}k` }),
     tooltip: tooltipOption(
       axisTooltipFormatter(
         (label) => t('Year {{year}}', { year: label }),

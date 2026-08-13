@@ -10,10 +10,10 @@ import {
   type RebalancingState,
 } from './rebalancingSensitivityUtils.js';
 import {
-  AXIS_TEXT,
-  BORDER_SOFT,
   axisTooltipFormatter,
+  categoryAxis,
   tooltipOption,
+  valueYAxis,
 } from '@/components/charts/chartUtils.js';
 import { getPortfolioColor } from '@/lib/chart-theme.js';
 import EChart from '@/components/charts/EChart.js';
@@ -68,21 +68,8 @@ function DistributionTab({ results }: { results: FreqResult[] }) {
   }));
   const option: EChartsOption = {
     grid: { top: 20, right: 40, bottom: 20, left: 80 },
-    xAxis: {
-      type: 'category',
-      data: data.map((d) => d.name),
-      axisLabel: AXIS_TEXT,
-      axisLine: { lineStyle: { color: BORDER_SOFT } },
-      axisTick: { show: false },
-      splitLine: { show: false },
-    },
-    yAxis: {
-      type: 'value',
-      axisLabel: { ...AXIS_TEXT, formatter: (v: number) => `${v}%` },
-      axisLine: { show: false },
-      axisTick: { show: false },
-      splitLine: { lineStyle: { color: BORDER_SOFT, opacity: 0.6 } },
-    },
+    xAxis: categoryAxis(data.map((d) => d.name)),
+    yAxis: valueYAxis({ formatter: (v: number) => `${v}%` }),
     tooltip: tooltipOption(axisTooltipFormatter(undefined, (v) => `${v}%`)),
     legend: { top: 0, textStyle: { color: 'hsl(var(--fg-tertiary))', fontSize: 12 } },
     series: [
@@ -130,21 +117,8 @@ function OffsetSelector({ s }: { s: RebalancingState }) {
 function OffsetBarChart({ offsetData }: { offsetData: Array<{ offset: string; cagr: number }> }) {
   const option: EChartsOption = {
     grid: { top: 20, right: 40, bottom: 20, left: 80 },
-    xAxis: {
-      type: 'category',
-      data: offsetData.map((d) => d.offset),
-      axisLabel: AXIS_TEXT,
-      axisLine: { lineStyle: { color: BORDER_SOFT } },
-      axisTick: { show: false },
-      splitLine: { show: false },
-    },
-    yAxis: {
-      type: 'value',
-      axisLabel: { ...AXIS_TEXT, formatter: (v: number) => `${v}%` },
-      axisLine: { show: false },
-      axisTick: { show: false },
-      splitLine: { lineStyle: { color: BORDER_SOFT, opacity: 0.6 } },
-    },
+    xAxis: categoryAxis(offsetData.map((d) => d.offset)),
+    yAxis: valueYAxis({ formatter: (v: number) => `${v}%` }),
     tooltip: tooltipOption(axisTooltipFormatter(undefined, (v) => `${v}%`)),
     series: [
       {
@@ -163,21 +137,11 @@ function OffsetBarChart({ offsetData }: { offsetData: Array<{ offset: string; ca
 function OffsetGrowthChart({ data }: { data: Array<{ date: string; value: number }> }) {
   const option: EChartsOption = {
     grid: { top: 20, right: 40, bottom: 20, left: 80 },
-    xAxis: {
-      type: 'category',
-      data: data.map((d) => d.date),
-      axisLabel: { ...AXIS_TEXT, formatter: (v: string) => v.slice(0, 7) },
-      axisLine: { lineStyle: { color: BORDER_SOFT } },
-      axisTick: { show: false },
-      splitLine: { show: false },
-    },
-    yAxis: {
-      type: 'value',
-      axisLabel: { ...AXIS_TEXT, formatter: (v: number) => v.toLocaleString() },
-      axisLine: { show: false },
-      axisTick: { show: false },
-      splitLine: { lineStyle: { color: BORDER_SOFT, opacity: 0.6 } },
-    },
+    xAxis: categoryAxis(
+      data.map((d) => d.date),
+      { formatter: (v: string) => v.slice(0, 7) },
+    ),
+    yAxis: valueYAxis({ formatter: (v: number) => v.toLocaleString() }),
     tooltip: tooltipOption(axisTooltipFormatter()),
     series: [
       {

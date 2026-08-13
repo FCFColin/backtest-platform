@@ -12,11 +12,11 @@ import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants
 import { getCorrelationColor, getPortfolioColor } from '@/lib/chart-theme.js';
 import EChart from '@/components/charts/EChart.js';
 import {
-  AXIS_TEXT,
-  BORDER_SOFT,
   axisTooltipFormatter,
+  categoryAxis,
   getCorrelationTextColor,
   tooltipOption,
+  valueYAxis,
 } from '@/components/charts/chartUtils.js';
 import { TimeSeriesLineChart } from '@/components/charts/TimeSeriesLineChart.js';
 import { MatrixHeatmap } from '@/components/charts/tables.js';
@@ -144,21 +144,8 @@ function EigenvalueBarChart({ data }: { data: { component: string; eigenvalue: n
   const { t } = useTranslation();
   const option: EChartsOption = {
     grid: { top: 20, right: 40, bottom: 20, left: 80 },
-    xAxis: {
-      type: 'category',
-      data: data.map((d) => d.component),
-      axisLabel: AXIS_TEXT,
-      axisLine: { lineStyle: { color: BORDER_SOFT } },
-      axisTick: { show: false },
-      splitLine: { show: false },
-    },
-    yAxis: {
-      type: 'value',
-      axisLabel: { ...AXIS_TEXT, formatter: (v: number) => v.toFixed(2) },
-      axisLine: { show: false },
-      axisTick: { show: false },
-      splitLine: { lineStyle: { color: BORDER_SOFT, opacity: 0.6 } },
-    },
+    xAxis: categoryAxis(data.map((d) => d.component)),
+    yAxis: valueYAxis({ formatter: (v: number) => v.toFixed(2) }),
     tooltip: tooltipOption(
       axisTooltipFormatter(undefined, (v) => [v.toFixed(4), t('Eigenvalues')]),
     ),

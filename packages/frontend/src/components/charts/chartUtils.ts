@@ -7,6 +7,54 @@ export const AXIS_TEXT = {
   fontFamily: 'Geist Mono Variable',
 } as const;
 export const BORDER_SOFT = 'hsl(var(--border-soft))';
+type ValueFormatter = (v: number) => string;
+function axisLabel(formatter?: ValueFormatter) {
+  return { ...AXIS_TEXT, ...(formatter ? { formatter } : {}) };
+}
+export function valueXAxis(formatter?: ValueFormatter) {
+  return {
+    type: 'value' as const,
+    axisLabel: axisLabel(formatter),
+    axisLine: { lineStyle: { color: BORDER_SOFT } },
+    axisTick: { show: false },
+    splitLine: { show: false },
+  };
+}
+export function valueYAxis(opts: { formatter?: ValueFormatter; min?: number; max?: number } = {}) {
+  return {
+    type: 'value' as const,
+    ...(opts.min !== undefined ? { min: opts.min } : {}),
+    ...(opts.max !== undefined ? { max: opts.max } : {}),
+    axisLabel: axisLabel(opts.formatter),
+    axisLine: { show: false },
+    axisTick: { show: false },
+    splitLine: { lineStyle: { color: BORDER_SOFT, opacity: 0.6 } },
+  };
+}
+export function categoryAxis(
+  data: (string | number)[],
+  opts: {
+    formatter?: (v: string) => string;
+    interval?: number | 'auto' | ((index: number, value: string) => boolean);
+    name?: string;
+  } = {},
+) {
+  return {
+    type: 'category' as const,
+    data,
+    ...(opts.name
+      ? { name: opts.name, nameLocation: 'middle' as const, nameGap: 30, nameTextStyle: AXIS_TEXT }
+      : {}),
+    axisLabel: {
+      ...AXIS_TEXT,
+      ...(opts.interval !== undefined ? { interval: opts.interval } : {}),
+      ...(opts.formatter ? { formatter: opts.formatter } : {}),
+    },
+    axisLine: { lineStyle: { color: BORDER_SOFT } },
+    axisTick: { show: false },
+    splitLine: { show: false },
+  };
+}
 export const tooltipRow = (marker: string, name: string, value: string) =>
   `<div style="display:flex;align-items:center;gap:8px;padding:2px 0">${marker}<span style="color:hsl(var(--fg-tertiary))">${name}</span><span style="margin-left:auto;font-weight:600;font-family:monospace;color:hsl(var(--fg))">${value}</span></div>`;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- ECharts tooltip formatter 类型过于复杂，手动构造 option

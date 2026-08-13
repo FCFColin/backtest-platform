@@ -3,11 +3,11 @@ import type { EChartsOption } from 'echarts';
 import { Card } from '@/components/ui/uiComponents';
 import type { MonteCarloResult } from '@backtest/shared';
 import {
-  AXIS_TEXT,
-  BORDER_SOFT,
   axisTooltipFormatter,
+  categoryAxis,
   tooltipOption,
   tooltipRow,
+  valueYAxis,
 } from '@/components/charts/chartUtils.js';
 import { getPortfolioColor } from '@/lib/chart-theme.js';
 import { fmtAmount } from '@/utils/format';
@@ -64,25 +64,11 @@ function FanChart({ data }: { data: FanDataPoint[] }) {
   const byMonth = new Map(data.map((d) => [d.month, d]));
   const option: EChartsOption = {
     grid: { top: 10, right: 30, left: 60, bottom: 40 },
-    xAxis: {
-      type: 'category',
-      data: months,
-      axisLabel: {
-        ...AXIS_TEXT,
-        formatter: (v: string) => monthFormatter(Number(v)),
-        interval: (i: number) => data[i].month % 12 === 0,
-      },
-      axisLine: { lineStyle: { color: BORDER_SOFT } },
-      axisTick: { show: false },
-      splitLine: { show: false },
-    },
-    yAxis: {
-      type: 'value',
-      axisLabel: { ...AXIS_TEXT, formatter: dollarKFormatter },
-      axisLine: { show: false },
-      axisTick: { show: false },
-      splitLine: { lineStyle: { color: BORDER_SOFT, opacity: 0.6 } },
-    },
+    xAxis: categoryAxis(months, {
+      formatter: (v: string) => monthFormatter(Number(v)),
+      interval: (i: number) => data[i].month % 12 === 0,
+    }),
+    yAxis: valueYAxis({ formatter: dollarKFormatter }),
     tooltip: tooltipOption((p: { axisValue: string; marker: string }) => {
       const d = byMonth.get(Number(p.axisValue));
       if (!d) return '';
@@ -175,27 +161,11 @@ export function MonteCarloSuccessTab({ r }: { r: MonteCarloResult }) {
   ];
   const option: EChartsOption = {
     grid: { top: 10, right: 30, left: 10, bottom: 20 },
-    xAxis: {
-      type: 'category',
-      data: data.map((d) => d.year),
-      name: t('Years'),
-      nameLocation: 'middle',
-      nameGap: 30,
-      nameTextStyle: AXIS_TEXT,
-      axisLabel: AXIS_TEXT,
-      axisLine: { lineStyle: { color: BORDER_SOFT } },
-      axisTick: { show: false },
-      splitLine: { show: false },
-    },
-    yAxis: {
-      type: 'value',
-      min: 0,
-      max: 100,
-      axisLabel: { ...AXIS_TEXT, formatter: (v: number) => `${v}%` },
-      axisLine: { show: false },
-      axisTick: { show: false },
-      splitLine: { lineStyle: { color: BORDER_SOFT, opacity: 0.6 } },
-    },
+    xAxis: categoryAxis(
+      data.map((d) => d.year),
+      { name: t('Years') },
+    ),
+    yAxis: valueYAxis({ min: 0, max: 100, formatter: (v: number) => `${v}%` }),
     tooltip: tooltipOption(axisTooltipFormatter(undefined, (v) => `${v}%`)),
     legend: { top: 0, textStyle: { color: 'hsl(var(--fg-tertiary))', fontSize: 12 } },
     series: successLines.map((l) => ({
