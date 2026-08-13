@@ -1,5 +1,5 @@
 import type { Router } from 'express';
-import { startExpressApp, type TestServer } from './expressApp.js';
+import { startExpressApp, type TestServer, type TestRequest } from './expressApp.js';
 import { mockBacktestResult } from './storeFixtures.js';
 import { ValidationError } from '../../packages/backend/src/utils/errors.js';
 import {
@@ -216,8 +216,28 @@ const DEFAULT_PRICE_DATA = {
   BND: { '2024-01-02': 72.3, '2024-01-03': 72.5 },
 };
 
-export const createBacktestApp = (routes: Router): Promise<TestServer> =>
-  startExpressApp((app) => app.use('/api/backtest', routes), { bodyLimit: '10mb' });
+export interface BacktestServerOptions {
+  auth?: { user?: Partial<NonNullable<TestRequest['user']>>; tenantId?: string };
+}
+
+// 与生产 app.ts 挂载一致（/api/v1/backtest），statusUrl 契约才能闭环
+export const createBacktestApp = (
+  routes: Router,
+  opts: BacktestServerOptions = {},
+): Promise<TestServer> =>
+  startExpressApp(
+    (app) => {
+      if (opts.auth) {
+        app.use((req: TestRequest, _res, next) => {
+          if (opts.auth!.user) req.user = { sub: 'test-user', role: 'admin', ...opts.auth!.user };
+          if (opts.auth!.tenantId !== undefined) req.tenantId = opts.auth!.tenantId;
+          next();
+        });
+      }
+      app.use('/api/v1/backtest', routes);
+    },
+    { bodyLimit: '10mb' },
+  );
 
 export const createValidRequestBody = () => ({
   portfolios: [
@@ -234,6 +254,7 @@ export const createValidPortfolio = () => ({
 export async function setupPortfolioServer(
   routes: Router,
   m: BacktestMockHandles,
+  opts: BacktestServerOptions = {},
 ): Promise<TestServer> {
   const { vi } = await import('vitest');
   vi.clearAllMocks();
@@ -252,7 +273,7 @@ export async function setupPortfolioServer(
       ],
     }),
   });
-  return createBacktestApp(routes);
+  return createBacktestApp(routes, opts);
 }
 
 export async function startEngineRouteServer(
