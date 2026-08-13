@@ -66,7 +66,7 @@ export async function generateToken(
   };
   const isRs256 = JWT_ALGORITHM === 'RS256';
   const key = isRs256 ? await getOrCachePrivateKey() : await getOrCacheHS256Key();
-  return new SignJWT(payload)
+  return new SignJWT({ ...payload })
     .setProtectedHeader({ alg: isRs256 ? 'RS256' : 'HS256' })
     .setIssuedAt(payload.iat)
     .setExpirationTime(payload.exp)
