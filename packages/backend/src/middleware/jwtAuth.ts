@@ -1,62 +1,44 @@
-import crypto from 'crypto';
-import fs from 'fs';
-import type { Request, Response, NextFunction } from 'express';
-import { SignJWT, generateKeyPair, importPKCS8, importSPKI, importJWK, jwtVerify } from 'jose';
+import type { Response, NextFunction } from 'express';
+import { jwtVerify } from 'jose';
 import { trace, type Span } from '@opentelemetry/api';
 import { config } from '../config/index.js';
-import { logger } from '../utils/logger.js';
-import { sendProblem, errorMessage } from '../utils/errors.js';
+import { sendProblem } from '../utils/errors.js';
 import { recordAuthFailure, getRoutePattern } from '../utils/metrics.js';
-import type { OrgRole } from '@backtest/shared/types/org';
 import { authenticateWithApiKey } from './apiKeyAuth.js';
+import { isAccessTokenRevokedForUser, isUserSessionValid } from './tokenStore.js';
 import {
   ACCESS_TOKEN_EXPIRES_IN_SEC,
+  attachAuthLogContext,
+  authLog,
+  denyAuth,
+  hashUserId,
+  type AuthenticatedRequest,
+  type JwtPayload,
+} from './authShared.js';
+import { getOrCachePublicKey, getOrCacheHS256Key } from './jwtSigner.js';
+
+export {
+  OrgRole,
+  type Role,
+  type TenantContext,
+  type JwtPayload,
+  type AuthenticatedRequest,
+  type TenantedRequest,
+  RT_COOKIE,
+  ACCESS_TOKEN_EXPIRES_IN_SEC,
   ROLE_TTL,
-  isAccessTokenRevokedForUser,
-  isUserSessionValid,
-} from './tokenStore.js';
+  hashUserId,
+  attachAuthLogContext,
+  authCtx,
+  denyAuth,
+} from './authShared.js';
+export {
+  generateToken,
+  getOrCachePrivateKey,
+  getOrCachePublicKey,
+  getOrCacheHS256Key,
+} from './jwtSigner.js';
 
-export type { OrgRole };
-export type Role = 'admin' | 'analyst' | 'readonly';
-
-export interface TenantContext {
-  tenantId?: string;
-  orgRole?: OrgRole;
-  platformAdmin?: boolean;
-}
-export interface JwtPayload {
-  sub: string;
-  role: Role;
-  tenant_id?: string;
-  org_role?: OrgRole;
-  platform_admin?: boolean;
-  api_key_id?: string;
-  iat: number;
-  exp: number;
-}
-export interface AuthenticatedRequest extends Request {
-  user?: JwtPayload | null;
-  tenantId?: string;
-}
-export interface TenantedRequest extends Request {
-  user?: JwtPayload | null;
-  tenantId: string;
-}
-
-export const RT_COOKIE = 'rt';
-
-export const hashUserId = (sub: string | undefined): string | undefined =>
-  sub ? crypto.createHash('sha256').update(sub).digest('hex').slice(0, 16) : undefined;
-
-export function attachAuthLogContext(req: AuthenticatedRequest): void {
-  const sub = req.user?.sub;
-  if (!sub) return;
-  const r = req as AuthenticatedRequest & {
-    log?: { child: (b: Record<string, unknown>) => unknown };
-  };
-  if (r.log?.child)
-    r.log = r.log.child({ user_id: hashUserId(sub), role: req.user?.role }) as typeof r.log;
-}
 export function requireUser(
   req: AuthenticatedRequest,
   res: Response,
@@ -66,102 +48,6 @@ export function requireUser(
     return false;
   }
   return true;
-}
-
-type AuthLogLevel = 'info' | 'warn' | 'error';
-function authLog(
-  level: AuthLogLevel,
-  middleware: string,
-  req: AuthenticatedRequest,
-  msg: string,
-  extra: Record<string, unknown> = {},
-): void {
-  logger[level]({ middleware, path: req.path, requestId: req.id, ...extra }, `[jwtAuth] ${msg}`);
-}
-export const authCtx = (_middleware: string, req: AuthenticatedRequest) => ({
-  path: req.path,
-  requestId: req.id,
-});
-export const denyAuth = (
-  req: AuthenticatedRequest,
-  res: Response,
-  code: string,
-  error: string,
-  opts?: { middleware?: string; failureCode?: string; extra?: Record<string, unknown> },
-): void => {
-  authLog('warn', opts?.middleware ?? 'jwtAuth', req, 'JWT 认证失败', { error, ...opts?.extra });
-  if (opts?.failureCode) recordAuthFailure(getRoutePattern(req), opts.failureCode);
-  sendProblem(res, 401, code);
-};
-
-type JoseKey = Exclude<Awaited<ReturnType<typeof importPKCS8>>, Uint8Array> | Uint8Array;
-const JWT_SECRET = config.JWT_SECRET;
-const JWT_ALGORITHM = config.JWT_ALGORITHM;
-let devKeyPair: { privateKey: JoseKey; publicKey: JoseKey } | null = null;
-
-async function generateDevKeyPair(): Promise<{ privateKey: JoseKey; publicKey: JoseKey }> {
-  if (devKeyPair) return devKeyPair;
-  const { publicKey, privateKey } = await generateKeyPair('RS256', { modulusLength: 2048 });
-  devKeyPair = { publicKey, privateKey };
-  logger.info('[jwtAuth] 已自动生成开发环境 RSA 密钥对（进程重启后失效）');
-  return devKeyPair;
-}
-function readPemFile(filePath: string): string {
-  try {
-    return fs.readFileSync(filePath, 'utf-8');
-  } catch (err) {
-    throw new Error(`无法读取 PEM 文件: ${filePath} - ${errorMessage(err)}`);
-  }
-}
-async function loadKey(type: 'private' | 'public'): Promise<JoseKey> {
-  const cfg =
-    type === 'private'
-      ? { direct: config.JWT_PRIVATE_KEY, file: config.JWT_PRIVATE_KEY_FILE, imp: importPKCS8 }
-      : { direct: config.JWT_PUBLIC_KEY, file: config.JWT_PUBLIC_KEY_FILE, imp: importSPKI };
-  if (cfg.direct) return cfg.imp(cfg.direct, 'RS256');
-  if (cfg.file) return cfg.imp(readPemFile(cfg.file), 'RS256');
-  if (config.NODE_ENV !== 'production') {
-    const pair = await generateDevKeyPair();
-    return type === 'private' ? pair.privateKey : pair.publicKey;
-  }
-  throw new Error(
-    `RS256 模式下必须配置 JWT_${type.toUpperCase()}_KEY 或 JWT_${type.toUpperCase()}_KEY_FILE`,
-  );
-}
-const getHS256Key = () =>
-  importJWK({ kty: 'oct', k: Buffer.from(JWT_SECRET, 'utf-8').toString('base64url') }, 'HS256');
-const cacheOnce = <T>(load: () => Promise<T>): (() => Promise<T>) => {
-  let cached: T | null = null;
-  return async () => (cached ??= await load());
-};
-export const getOrCachePrivateKey = cacheOnce(() => loadKey('private'));
-export const getOrCachePublicKey = cacheOnce(() => loadKey('public'));
-export const getOrCacheHS256Key = cacheOnce(getHS256Key);
-
-async function signConfiguredJwt(payload: JwtPayload): Promise<string> {
-  const isRs256 = JWT_ALGORITHM === 'RS256';
-  const key = isRs256 ? await getOrCachePrivateKey() : await getOrCacheHS256Key();
-  return new SignJWT({ ...payload })
-    .setProtectedHeader({ alg: isRs256 ? 'RS256' : 'HS256' })
-    .setIssuedAt(payload.iat)
-    .setExpirationTime(payload.exp)
-    .sign(key);
-}
-export async function generateToken(
-  userId: string,
-  role: Role,
-  tenant?: TenantContext,
-): Promise<string> {
-  const now = Math.floor(Date.now() / 1000);
-  return signConfiguredJwt({
-    sub: userId,
-    role,
-    iat: now,
-    exp: now + (ROLE_TTL[role] || config.JWT_ACCESS_TTL),
-    ...(tenant?.tenantId && { tenant_id: tenant.tenantId }),
-    ...(tenant?.orgRole && { org_role: tenant.orgRole }),
-    ...(tenant?.platformAdmin && { platform_admin: true }),
-  });
 }
 
 const tracer = trace.getTracer('backtest-platform', '1.0.0');
@@ -194,7 +80,7 @@ async function validateJwtPayload(
 export async function verifyToken(token: string): Promise<JwtPayload | null> {
   return tracer.startActiveSpan('jwt.verifyJwt', async (span) => {
     try {
-      const alg: 'RS256' | 'HS256' = JWT_ALGORITHM === 'HS256' ? 'HS256' : 'RS256';
+      const alg: 'RS256' | 'HS256' = config.JWT_ALGORITHM === 'HS256' ? 'HS256' : 'RS256';
       const key = alg === 'RS256' ? await getOrCachePublicKey() : await getOrCacheHS256Key();
       try {
         const { payload } = await jwtVerify(token, key, { algorithms: [alg] });

@@ -3,9 +3,15 @@ import { logger } from '../utils/logger.js';
 import { sendProblem } from '../utils/errors.js';
 import { withTimeout, TimeoutError } from '../utils/misc.js';
 import { verifyApiKey } from '../infrastructure/apiKeyVerifier.js';
-import { authCtx, denyAuth, attachAuthLogContext, hashUserId } from './jwtAuth.js';
-import type { AuthenticatedRequest, JwtPayload } from './jwtAuth.js';
-import { ACCESS_TOKEN_EXPIRES_IN_SEC } from './tokenStore.js';
+import {
+  authCtx,
+  denyAuth,
+  attachAuthLogContext,
+  hashUserId,
+  ACCESS_TOKEN_EXPIRES_IN_SEC,
+  type AuthenticatedRequest,
+  type JwtPayload,
+} from './authShared.js';
 
 async function resolveApiKeyUser(apiKey: string): Promise<JwtPayload | null> {
   if (typeof apiKey !== 'string' || apiKey.length === 0 || apiKey.length > 128) return null;

@@ -1,7 +1,7 @@
-// ADR-035: accept 凭高熵令牌跨组织边界读取，随后注入租户上下文（RLS WITH CHECK 需 org_id 匹配）
+// ADR-009: accept 凭高熵令牌跨组织边界读取，随后注入租户上下文（RLS WITH CHECK 需 org_id 匹配）
 import { withTransaction } from '../../db/pool.js';
 import { logger } from '../../utils/logger.js';
-import type { OrgRole } from '../../middleware/jwtAuth.js';
+import type { OrgRole } from '@backtest/shared/types/org';
 import { sha256Hex } from '../../utils/crypto.js';
 
 export {

@@ -1,9 +1,9 @@
-// ADR-035: 令牌仅存哈希、有过期、可吊销；创建走 withTenant（invitations 的 WITH CHECK 无逃逸），列表/撤销靠 USING 逃逸放行
+// ADR-009: 令牌仅存哈希、有过期、可吊销；创建走 withTenant（invitations 的 WITH CHECK 无逃逸），列表/撤销靠 USING 逃逸放行
 import crypto from 'crypto';
 import { getPool, withTenant, withTenantReadOnly } from '../db/pool.js';
 import { logger } from '../utils/logger.js';
 import { sha256Hex } from '../utils/crypto.js';
-import type { OrgRole } from '../middleware/jwtAuth.js';
+import type { OrgRole } from '@backtest/shared/types/org';
 import { rowMapper, queryMany, iso, toIso } from './rowMapper.js';
 
 const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;

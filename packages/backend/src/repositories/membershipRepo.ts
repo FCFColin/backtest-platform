@@ -1,6 +1,6 @@
-// ADR-032: organizations/memberships 未启用 RLS（鸡生蛋问题），直接用主连接池
+// ADR-009: organizations/memberships 未启用 RLS（鸡生蛋问题），直接用主连接池
 import { getPool } from '../db/pool.js';
-import type { OrgRole } from '../middleware/jwtAuth.js';
+import type { OrgRole } from '@backtest/shared/types/org';
 import { rowMapper, queryRow, queryMany, iso } from './rowMapper.js';
 
 export type GlobalRole = 'admin' | 'analyst' | 'readonly';

@@ -1,7 +1,7 @@
-// ADR-032: organizations/memberships 未启用 RLS（鸡生蛋问题），直接用主连接池查询
+// ADR-009: organizations/memberships 未启用 RLS（鸡生蛋问题），直接用主连接池查询
 import { getPool } from '../../db/pool.js';
 import { logger } from '../../utils/logger.js';
-import type { OrgRole } from '../../middleware/jwtAuth.js';
+import type { OrgRole } from '@backtest/shared/types/org';
 import {
   getUserMemberships,
   type Membership,

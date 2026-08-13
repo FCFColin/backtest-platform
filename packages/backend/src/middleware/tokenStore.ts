@@ -7,8 +7,8 @@ import { appRedis, getRedisHealth, markRedisUnhealthy } from '../infrastructure/
 import { requireRedis } from '../utils/redisFallback.js';
 import { getUserById } from '../repositories/userRepo.js';
 import { getMembership, orgRoleToGlobalRole } from '../application/org/membershipService.js';
-import { generateToken, hashUserId } from './jwtAuth.js';
-import type { Role, TenantContext } from './jwtAuth.js';
+import { hashUserId, type Role, type TenantContext } from './authShared.js';
+import { generateToken } from './jwtSigner.js';
 import type { OrgRole } from '@backtest/shared/types/org';
 
 const SYSTEM_USER_IDS = new Set(['dev-user']);
@@ -37,16 +37,9 @@ interface TokenFamilyEntry {
   revoked: boolean;
 }
 
-export const ACCESS_TOKEN_EXPIRES_IN_SEC = config.JWT_ACCESS_TTL;
 const REFRESH_TOKEN_EXPIRES_IN_SEC = config.JWT_REFRESH_TTL;
 const REFRESH_TOKEN_PREFIX = 'refresh_token:';
 const TOKEN_FAMILY_PREFIX = 'token_family:';
-
-export const ROLE_TTL: Record<Role, number> = {
-  readonly: config.SESSION_IDLE_TIMEOUT_READONLY_SEC,
-  analyst: config.SESSION_IDLE_TIMEOUT_ANALYST_SEC,
-  admin: 0,
-};
 
 export const redisKeys = {
   // refresh token 仅存 sha256（防 Redis 泄露即会话接管，与 API key/invitation 一致）
@@ -210,7 +203,7 @@ async function refreshAccessTokenRedis(
     logger.warn({ userId: hashUserId(entry.userId) }, '[jwtAuth] 用户已停用，拒绝 refresh');
     return null;
   }
-  // 刷新时复核当前成员资格（ADR-032）：已移除/降级/组织停用即时生效，不依赖旧 family 吊销
+  // 刷新时复核当前成员资格（ADR-009）：已移除/降级/组织停用即时生效，不依赖旧 family 吊销
   if (entry.tenantId) {
     const membership = await getMembership(entry.userId, entry.tenantId);
     if (!membership || membership.orgStatus !== 'active') {

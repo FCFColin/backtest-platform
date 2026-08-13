@@ -6,7 +6,7 @@ import type { PoolClient } from 'pg';
 import { getPool } from '../db/pool.js';
 import { writeEventInTransaction } from '../infrastructure/outbox.js';
 import { auditOutboxWriteFailures } from '../utils/metrics.js';
-import type { AuthenticatedRequest } from './jwtAuth.js';
+import type { AuthenticatedRequest } from './authShared.js';
 
 const auditLogger = logger.child({ audit: true, module: 'audit' });
 const WRITE_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);

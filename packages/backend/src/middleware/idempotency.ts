@@ -3,7 +3,7 @@ import { logger } from '../utils/logger.js';
 import { sendProblem } from '../utils/errors.js';
 import { appRedis, getRedisHealth, markRedisUnhealthy } from '../infrastructure/redisClient.js';
 import { readEntry, redisKeys } from './tokenStore.js';
-import type { AuthenticatedRequest } from './jwtAuth.js';
+import type { AuthenticatedRequest } from './authShared.js';
 
 interface CachedResult {
   statusCode: number;
