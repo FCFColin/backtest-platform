@@ -6,6 +6,7 @@ import billingRoutes, {
   billingWebhookHandler,
 } from '../../../packages/backend/src/routes/billingRoutes.js';
 import { appRedis } from '../../../packages/backend/src/infrastructure/redisClient.js';
+import { NoStripeCustomerError } from '../../../packages/backend/src/utils/errors.js';
 
 describe('billingRoutes', () => {
   let server: TestServer;
@@ -72,7 +73,9 @@ describe('billingRoutes', () => {
 
   it('POST /portal 无客户记录返回 404', async () => {
     mocks.svc.isBillingEnabled.mockReturnValue(true);
-    mocks.svc.createPortalSession.mockRejectedValueOnce(new Error('no_customer'));
+    mocks.svc.createPortalSession.mockRejectedValueOnce(
+      new NoStripeCustomerError('no customer for org'),
+    );
     server = await startApp('/api/v1/billing', billingRoutes, { sub: 'user-1' });
     const res = await fetch(`${server.url}/api/v1/billing/portal`, { method: 'POST' });
     expect(res.status).toBe(404);

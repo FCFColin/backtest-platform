@@ -54,6 +54,20 @@ export class RedisUnavailableError extends ApplicationError {
   }
 }
 
+/** Stripe 未配置对应 plan 的 price（503，计费配置缺失）。name 不显式设置，pino 按构造器名序列化。 */
+export class BillingNotConfiguredError extends ApplicationError {
+  readonly statusCode = 503;
+  readonly errorCode = 'PRICE_NOT_CONFIGURED';
+  readonly errorTitle = 'Billing not configured';
+}
+
+/** 组织尚未建立 Stripe 客户（404）。 */
+export class NoStripeCustomerError extends ApplicationError {
+  readonly statusCode = 404;
+  readonly errorCode = 'NO_CUSTOMER';
+  readonly errorTitle = 'No billing customer';
+}
+
 /** 上游 4xx 透传（ADR-008：4xx 参数错误不降级为 503 fail-closed）。 */
 export class UpstreamProblemError extends Error {
   readonly status: number;

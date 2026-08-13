@@ -2,6 +2,7 @@ import '../../helpers/loggerMock.js';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createConfigMocks } from '../../helpers/mockFactories.js';
 import { redisMocks, redisModuleMock } from '../../helpers/redisFixture.js';
+import { NoStripeCustomerError } from '../../../packages/backend/src/utils/errors.js';
 
 const dbMocks = vi.hoisted(() => ({
   query: vi.fn(),
@@ -308,7 +309,9 @@ describe('createPortalSession', () => {
   ])('%s', async (_n, customerRows, expectedUrl, throws) => {
     dbMocks.client.query.mockResolvedValueOnce(customerRows);
     if (throws) {
-      await expect(createPortalSession(ORG, 'http://return')).rejects.toThrow('no_customer');
+      await expect(createPortalSession(ORG, 'http://return')).rejects.toBeInstanceOf(
+        NoStripeCustomerError,
+      );
     } else {
       stripeMocks.billingPortal.sessions.create.mockResolvedValueOnce({ url: expectedUrl });
       expect(await createPortalSession(ORG, 'http://return')).toBe(expectedUrl);

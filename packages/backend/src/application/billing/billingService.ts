@@ -2,6 +2,7 @@ import Stripe from 'stripe';
 import { config } from '../../config/index.js';
 import { withTenant, withPlatformContext } from '../../db/pool.js';
 import { logger } from '../../utils/logger.js';
+import { BillingNotConfiguredError, NoStripeCustomerError } from '../../utils/errors.js';
 
 type BillablePlan = 'pro' | 'enterprise';
 
@@ -66,7 +67,7 @@ export async function createCheckoutSession(input: {
 }): Promise<string> {
   const s = requiredStripe();
   const price = priceIdForPlan(input.plan);
-  if (!price) throw new Error('price_not_configured');
+  if (!price) throw new BillingNotConfiguredError(`price not configured for plan ${input.plan}`);
   const session = await s.checkout.sessions.create({
     mode: 'subscription',
     customer: await ensureCustomer(input.orgId, input.email),
@@ -85,7 +86,7 @@ export async function createPortalSession(orgId: string, returnUrl: string): Pro
   const { rows } = await withTenant(orgId, (client) =>
     client.query('SELECT stripe_customer_id FROM stripe_customers WHERE org_id = $1', [orgId]),
   );
-  if (rows.length === 0) throw new Error('no_customer');
+  if (rows.length === 0) throw new NoStripeCustomerError(`no Stripe customer for org ${orgId}`);
   const session = await s.billingPortal.sessions.create({
     customer: rows[0].stripe_customer_id as string,
     return_url: returnUrl,

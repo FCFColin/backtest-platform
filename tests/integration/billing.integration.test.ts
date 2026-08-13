@@ -28,6 +28,7 @@ vi.mock('../../packages/backend/src/application/billing/billingService.js', () =
 }));
 
 import billingRoutes from '../../packages/backend/src/routes/billingRoutes.js';
+import { NoStripeCustomerError } from '../../packages/backend/src/utils/errors.js';
 
 const orgId = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
 const userId = 'user-id-billing';
@@ -83,7 +84,7 @@ describe('计费路由集成测试', () => {
 
   it('POST /portal 计费启用但无 customer 返回 404', async () => {
     billingEnabledMock.mockReturnValue(true);
-    createPortalSessionMock.mockRejectedValueOnce(new Error('no_customer'));
+    createPortalSessionMock.mockRejectedValueOnce(new NoStripeCustomerError('no customer for org'));
     const { res, body } = await server.post('/portal');
     expect(res.status).toBe(404);
     expect(body.error.code).toBe('NO_CUSTOMER');

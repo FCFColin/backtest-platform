@@ -8,7 +8,7 @@ import { logger } from '../utils/logger.js';
 import { config } from '../config/index.js';
 import { requireTenant } from '../middleware/tenantContext.js';
 import { requirePermission, Permission } from '../middleware/rbac.js';
-import { requireTenantId, sendData, crudRouteHandler } from './routeUtils.js';
+import { requireTenantId, sendData, asyncRouteHandler } from './routeUtils.js';
 import { appRedis } from '../infrastructure/redisClient.js';
 import {
   isBillingEnabled,
@@ -35,7 +35,7 @@ router.use(requireTenant);
 
 router.get(
   '/subscription',
-  crudRouteHandler(
+  asyncRouteHandler(
     async (req, res) => {
       const tenantId = requireTenantId(req, res);
       if (!tenantId) return;
@@ -55,31 +55,21 @@ router.post(
   '/checkout',
   requireAdmin,
   validate(checkoutSchema),
-  crudRouteHandler(
+  asyncRouteHandler(
     async (req, res) => {
       if (!requireBillingEnabled(res)) return;
       const { plan } = req.body as { plan: 'pro' | 'enterprise' };
       const base = config.APP_BASE_URL;
-      try {
-        const tenantId = requireTenantId(req, res);
-        if (!tenantId) return;
-        const url = await createCheckoutSession({
-          orgId: tenantId,
-          plan,
-          email: undefined,
-          successUrl: `${base}/account?billing=success`,
-          cancelUrl: `${base}/pricing?billing=cancel`,
-        });
-        sendData(res, { url });
-      } catch (err) {
-        const msg = String(err);
-        if (msg.includes('price_not_configured')) {
-          sendProblem(res, 503, 'PRICE_NOT_CONFIGURED');
-          return;
-        }
-        logger.error({ err: msg, orgId: req.tenantId }, '[billingRoutes] 创建 Checkout 失败');
-        sendProblem(res, 502, 'CHECKOUT_FAILED');
-      }
+      const tenantId = requireTenantId(req, res);
+      if (!tenantId) return;
+      const url = await createCheckoutSession({
+        orgId: tenantId,
+        plan,
+        email: undefined,
+        successUrl: `${base}/account?billing=success`,
+        cancelUrl: `${base}/pricing?billing=cancel`,
+      });
+      sendData(res, { url });
     },
     { logMsg: '[billingRoutes] 创建 Checkout 失败', code: 'CHECKOUT_FAILED' },
   ),
@@ -89,23 +79,13 @@ router.post(
   '/portal',
   requireAdmin,
   validate(emptyBodySchema),
-  crudRouteHandler(
+  asyncRouteHandler(
     async (req, res) => {
       if (!requireBillingEnabled(res)) return;
-      try {
-        const tenantId = requireTenantId(req, res);
-        if (!tenantId) return;
-        const url = await createPortalSession(tenantId, `${config.APP_BASE_URL}/account`);
-        sendData(res, { url });
-      } catch (err) {
-        const msg = String(err);
-        if (msg.includes('no_customer')) {
-          sendProblem(res, 404, 'NO_CUSTOMER');
-          return;
-        }
-        logger.error({ err: msg, orgId: req.tenantId }, '[billingRoutes] 创建 Portal 失败');
-        sendProblem(res, 502, 'PORTAL_FAILED');
-      }
+      const tenantId = requireTenantId(req, res);
+      if (!tenantId) return;
+      const url = await createPortalSession(tenantId, `${config.APP_BASE_URL}/account`);
+      sendData(res, { url });
     },
     { logMsg: '[billingRoutes] 创建 Portal 失败', code: 'PORTAL_FAILED' },
   ),
