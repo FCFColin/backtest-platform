@@ -42,14 +42,6 @@ func (p *yahooProvider) FetchStockDaily(ticker, startDate, endDate string) ([]pr
 	}
 	return prices, nil
 }
-func (p *yahooProvider) SearchTicker(query string) ([]provider.TickerInfo, error) {
-	url := fmt.Sprintf("https://query1.finance.yahoo.com/v1/finance/search?q=%s&quotesCount=20&newsCount=0", query)
-	results, err := httpclient.DoGetWithBreaker(base.Breaker, base.HTTPClient, url, parseSearchResponse)
-	if err != nil {
-		return nil, fmt.Errorf("yfinance SearchTicker 失败: %w", err)
-	}
-	return results, nil
-}
 
 type chartResponse struct {
 	Chart struct {
@@ -122,30 +114,4 @@ func parseChartResponse(body []byte) ([]provider.DailyPrice, error) {
 		prices = append(prices, p)
 	}
 	return prices, nil
-}
-
-type searchResponse struct {
-	Quotes []struct {
-		Symbol    string `json:"symbol"`
-		ShortName string `json:"shortname"`
-		LongName  string `json:"longname"`
-		QuoteType string `json:"quoteType"`
-		Exchange  string `json:"exchange"`
-	} `json:"quotes"`
-}
-
-func parseSearchResponse(body []byte) ([]provider.TickerInfo, error) {
-	var resp searchResponse
-	if err := json.Unmarshal(body, &resp); err != nil {
-		return nil, fmt.Errorf("JSON 解析失败: %w", err)
-	}
-	var results []provider.TickerInfo
-	for _, q := range resp.Quotes {
-		name := q.ShortName
-		if name == "" {
-			name = q.LongName
-		}
-		results = append(results, provider.TickerInfo{Ticker: q.Symbol, Name: name, Market: "美股"})
-	}
-	return results, nil
 }

@@ -42,9 +42,6 @@ func (p *akshareProvider) FetchStockDaily(ticker, startDate, endDate string) ([]
 func doWithRetry(url string) ([]provider.DailyPrice, error) {
 	return httpclient.DoGetWithBreaker(base.Breaker, base.HTTPClient, url, parseDailyPrices)
 }
-func (p *akshareProvider) SearchTicker(query string) ([]provider.TickerInfo, error) {
-	return nil, fmt.Errorf("akshare SearchTicker 未实现（需要使用东方财富搜索接口）")
-}
 func parseCodeAndMarket(ticker string) (code, market string) {
 	upper := strings.ToUpper(ticker)
 	isSH := strings.HasSuffix(upper, "_SH") || strings.HasSuffix(upper, ".SH")

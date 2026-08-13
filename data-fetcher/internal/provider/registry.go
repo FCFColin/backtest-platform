@@ -19,16 +19,9 @@ type DailyPrice struct {
 	Volume        int64
 	AdjustedClose float64
 }
-type TickerInfo struct {
-	Ticker   string
-	Name     string
-	Market   string
-	Exchange string
-}
 type Provider interface {
 	Name() string
 	FetchStockDaily(ticker, startDate, endDate string) ([]DailyPrice, error)
-	SearchTicker(query string) ([]TickerInfo, error)
 }
 type Registry struct {
 	providers  map[string]Provider

@@ -21,9 +21,6 @@ func (m *mockProvider) FetchStockDaily(ticker, startDate, endDate string) ([]Dai
 	}
 	return m.prices, nil
 }
-func (m *mockProvider) SearchTicker(query string) ([]TickerInfo, error) {
-	return nil, nil
-}
 func TestNewRegistry(t *testing.T) {
 	r := NewRegistry([]string{"akshare", "finnhub", "yfinance"})
 	if r == nil {

@@ -26,19 +26,6 @@ func TestNewProvider_WithAPIKey(t *testing.T) {
 	}
 }
 
-func TestSearchTicker_NotImplemented(t *testing.T) {
-	os.Setenv("TWELVE_DATA_API_KEY", "test-key")
-	defer os.Unsetenv("TWELVE_DATA_API_KEY")
-	p := NewProvider()
-	if p == nil {
-		t.Fatal("provider is nil")
-	}
-	_, err := p.SearchTicker("test")
-	if err == nil {
-		t.Fatal("expected error for unimplemented SearchTicker, got nil")
-	}
-}
-
 func TestParseTimeSeries(t *testing.T) {
 	cases := []testutil.ParseCase[string, []provider.DailyPrice]{
 		{Name: "success", In: `{

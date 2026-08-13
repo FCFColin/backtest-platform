@@ -105,14 +105,6 @@ func TestNewProvider_Name(t *testing.T) {
 	}
 }
 
-func TestSearchTicker_NotImplemented(t *testing.T) {
-	p := NewProvider()
-	_, err := p.SearchTicker("test")
-	if err == nil {
-		t.Fatal("expected error for unimplemented SearchTicker, got nil")
-	}
-}
-
 func TestDoWithRetry(t *testing.T) {
 	orig := base.HTTPClient
 	defer func() { base.HTTPClient = orig }()

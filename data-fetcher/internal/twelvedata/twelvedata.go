@@ -35,9 +35,6 @@ func (p *twelveDataProvider) FetchStockDaily(ticker, startDate, endDate string) 
 		return parseTimeSeries(body, startDate, endDate)
 	})
 }
-func (p *twelveDataProvider) SearchTicker(query string) ([]provider.TickerInfo, error) {
-	return nil, fmt.Errorf("twelvedata SearchTicker 未实现（使用 Finnhub 或 yfinance 搜索）")
-}
 
 type timeSeriesResponse struct {
 	Status  string `json:"status"`

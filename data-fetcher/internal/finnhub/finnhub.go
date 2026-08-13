@@ -41,10 +41,6 @@ func (p *finnhubProvider) FetchStockDaily(ticker, startDate, endDate string) ([]
 		baseURL, ticker, startUnix, endUnix, p.apiKey)
 	return httpclient.DoGetWithBreaker(base.Breaker, base.HTTPClient, url, parseCandleResponse)
 }
-func (p *finnhubProvider) SearchTicker(query string) ([]provider.TickerInfo, error) {
-	url := fmt.Sprintf("%s/search?q=%s&token=%s", baseURL, query, p.apiKey)
-	return httpclient.DoGetWithBreaker(base.Breaker, base.HTTPClient, url, parseSearchResponse)
-}
 
 type candleResponse struct {
 	S string    `json:"s"`
@@ -54,13 +50,6 @@ type candleResponse struct {
 	L []float64 `json:"l"`
 	C []float64 `json:"c"`
 	V []float64 `json:"v"`
-}
-type searchResponse struct {
-	Result []struct {
-		Symbol      string `json:"symbol"`
-		Description string `json:"description"`
-		Type        string `json:"type"`
-	} `json:"result"`
 }
 
 func parseCandleResponse(body []byte) ([]provider.DailyPrice, error) {
@@ -92,15 +81,4 @@ func parseCandleResponse(body []byte) ([]provider.DailyPrice, error) {
 			Volume: int64(resp.V[i]), AdjustedClose: resp.C[i]})
 	}
 	return prices, nil
-}
-func parseSearchResponse(body []byte) ([]provider.TickerInfo, error) {
-	var resp searchResponse
-	if err := json.Unmarshal(body, &resp); err != nil {
-		return nil, fmt.Errorf("JSON 解析失败: %w", err)
-	}
-	var results []provider.TickerInfo
-	for _, r := range resp.Result {
-		results = append(results, provider.TickerInfo{Ticker: r.Symbol, Name: r.Description, Market: "美股"})
-	}
-	return results, nil
 }

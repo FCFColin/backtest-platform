@@ -53,25 +53,6 @@ func TestParseCandleResponse(t *testing.T) {
 	}, testutil.AssertPricesEqual)
 }
 
-func TestParseSearchResponse(t *testing.T) {
-	cases := []testutil.ParseCase[string, []provider.TickerInfo]{
-		{Name: "success", In: `{
-			"result":[
-				{"symbol":"AAPL","description":"Apple Inc","type":"Common Stock"},
-				{"symbol":"MSFT","description":"Microsoft Corp","type":"Common Stock"}
-			]
-		}`, Want: []provider.TickerInfo{
-			{Ticker: "AAPL", Name: "Apple Inc", Market: "美股"},
-			{Ticker: "MSFT", Name: "Microsoft Corp", Market: "美股"},
-		}},
-		{Name: "empty result", In: `{"result":[]}`, Want: nil},
-		{Name: "malformed json", In: `{invalid`, Want: nil, WantErr: true},
-	}
-	testutil.RunParse(t, cases, func(body string) ([]provider.TickerInfo, error) {
-		return parseSearchResponse([]byte(body))
-	}, testutil.AssertEqual[provider.TickerInfo])
-}
-
 func TestNewProvider_WithoutAPIKey(t *testing.T) {
 	t.Setenv("FINNHUB_API_KEY", "")
 	if p := NewProvider(); p != nil {

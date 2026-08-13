@@ -56,25 +56,6 @@ func TestParseChartResponse(t *testing.T) {
 	}, testutil.AssertPricesEqual)
 }
 
-func TestParseSearchResponse(t *testing.T) {
-	cases := []testutil.ParseCase[string, []provider.TickerInfo]{
-		{Name: "success", In: `{
-			"quotes":[
-				{"symbol":"AAPL","shortname":"Apple Inc","longname":"Apple Inc.","quoteType":"EQUITY","exchange":"Nasdaq"},
-				{"symbol":"MSFT","shortname":"","longname":"Microsoft Corporation","quoteType":"EQUITY","exchange":"Nasdaq"}
-			]
-		}`, Want: []provider.TickerInfo{
-			{Ticker: "AAPL", Name: "Apple Inc", Market: "美股"},
-			{Ticker: "MSFT", Name: "Microsoft Corporation", Market: "美股"},
-		}},
-		{Name: "empty quotes", In: `{"quotes":[]}`, Want: nil},
-		{Name: "malformed json", In: `{invalid`, Want: nil, WantErr: true},
-	}
-	testutil.RunParse(t, cases, func(body string) ([]provider.TickerInfo, error) {
-		return parseSearchResponse([]byte(body))
-	}, testutil.AssertEqual[provider.TickerInfo])
-}
-
 func TestFetchStockDaily_HTTPError(t *testing.T) {
 	orig := base.HTTPClient
 	defer func() { base.HTTPClient = orig }()
