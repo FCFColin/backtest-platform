@@ -10,6 +10,9 @@ import { getPool } from './pool.js';
 
 const MIGRATIONS_DIR = config.MIGRATIONS_DIR;
 
+/** 会话级 advisory lock 键：多实例并发迁移互斥（同一连接内可重入）。 */
+const MIGRATION_LOCK_ID = 725449110;
+
 function readMigrationFile(filename: string): string {
   return fs.readFileSync(path.join(MIGRATIONS_DIR, filename), 'utf-8');
 }
@@ -47,6 +50,7 @@ export async function initSchema(): Promise<void> {
   const client = await getPool().connect();
   const t0 = Date.now();
   try {
+    await client.query('SELECT pg_advisory_lock($1)', [MIGRATION_LOCK_ID]);
     await client.query(`
       CREATE TABLE IF NOT EXISTS schema_migrations (
         version INTEGER PRIMARY KEY,
@@ -80,6 +84,7 @@ export async function initSchema(): Promise<void> {
     }
     logger.info({ durationMs: Date.now() - t0 }, '[db] Schema 迁移完成');
   } finally {
+    await client.query('SELECT pg_advisory_unlock($1)', [MIGRATION_LOCK_ID]);
     client.release();
   }
 }
@@ -87,6 +92,7 @@ export async function initSchema(): Promise<void> {
 export async function rollbackSchema(targetVersion: number): Promise<void> {
   const client = await getPool().connect();
   try {
+    await client.query('SELECT pg_advisory_lock($1)', [MIGRATION_LOCK_ID]);
     const { rows } = await client.query(
       'SELECT version FROM schema_migrations ORDER BY version DESC',
     );
@@ -113,6 +119,7 @@ export async function rollbackSchema(targetVersion: number): Promise<void> {
     }
     logger.info({ targetVersion }, '[db] Schema 回滚完成');
   } finally {
+    await client.query('SELECT pg_advisory_unlock($1)', [MIGRATION_LOCK_ID]);
     client.release();
   }
 }

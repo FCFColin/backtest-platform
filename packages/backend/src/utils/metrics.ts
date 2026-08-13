@@ -140,6 +140,10 @@ const COUNTER_DEFS = {
     help: 'Total number of audit outbox event write failures (non-transactional path)',
     labels: [],
   },
+  dlq_transfers_total: {
+    help: 'Total jobs transferred to a dead letter queue (final failure)',
+    labels: ['queue'],
+  },
 } as const;
 const ctr = Object.fromEntries(
   Object.entries(COUNTER_DEFS).map(([name, def]) => [name, counter(name, def.help, def.labels)]),
@@ -150,6 +154,8 @@ export const engineUnavailableTotal = ctr.engine_unavailable_total;
 export const authIpLockoutCounter = ctr.auth_ip_lockout_total;
 export const quotaEnforcementFailures = ctr.quota_enforcement_failures_total;
 export const auditOutboxWriteFailures = ctr.audit_outbox_write_failures_total;
+export const recordDlqTransfer = (queue: string): void =>
+  ctr.dlq_transfers_total.inc({ queue: sanitizeMetricLabel(queue) });
 
 function sanitizeMetricLabel(value: string, maxLength = 64, allowSlash = false): string {
   const pattern = allowSlash ? /[^a-zA-Z0-9_/-]/g : /[^a-zA-Z0-9_-]/g;

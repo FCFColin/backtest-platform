@@ -1,6 +1,7 @@
 import { Queue } from 'bullmq';
 import { bullmqConnectionOptions, appRedis } from '../infrastructure/redisClient.js';
 import { logger } from '../utils/logger.js';
+import { recordDlqTransfer } from '../utils/metrics.js';
 import { requireRedis } from '../utils/redisFallback.js';
 
 export const SOURCE_QUEUE_FAIL_RETENTION_AGE_SECONDS = 86400 * 7;
@@ -67,6 +68,7 @@ export async function transferToDlq<T>(
   };
   try {
     await dlq.add(`dlq:${sourceQueueName}`, dlqData, { jobId: sourceJobId });
+    recordDlqTransfer(sourceQueueName);
     logger.warn(
       {
         module: 'dlqConfig',

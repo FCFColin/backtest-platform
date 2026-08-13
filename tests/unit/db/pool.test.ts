@@ -204,6 +204,7 @@ describe('db/migrations', () => {
 
   it('initSchema 在无待迁移时应跳过', async () => {
     poolMocks.mockClient.query
+      .mockResolvedValueOnce({ rows: [] }) // pg_advisory_lock
       .mockResolvedValueOnce({ rows: [] }) // CREATE TABLE
       .mockResolvedValueOnce({ rows: [{ version: 1 }] }); // applied versions
     const { initSchema } = await import('../../../packages/backend/src/db/migrations.js');
@@ -213,6 +214,7 @@ describe('db/migrations', () => {
 
   it('initSchema 有待执行迁移时应执行 up SQL', async () => {
     poolMocks.mockClient.query
+      .mockResolvedValueOnce({ rows: [] }) // pg_advisory_lock
       .mockResolvedValueOnce({ rows: [] }) // CREATE TABLE
       .mockResolvedValueOnce({ rows: [] }) // SELECT versions - none applied
       .mockResolvedValueOnce({ rows: [] }) // BEGIN
@@ -226,15 +228,17 @@ describe('db/migrations', () => {
   });
 
   it('rollbackSchema 无需回滚时应直接返回', async () => {
-    poolMocks.mockClient.query.mockResolvedValueOnce({
-      rows: [{ version: 1 }],
-    });
+    poolMocks.mockClient.query
+      .mockResolvedValueOnce({ rows: [] }) // pg_advisory_lock
+      .mockResolvedValueOnce({ rows: [{ version: 1 }] });
     const { rollbackSchema } = await import('../../../packages/backend/src/db/migrations.js');
     await expect(rollbackSchema(1)).resolves.toBeUndefined();
   });
 
   it('rollbackSchema 应执行 down 迁移', async () => {
-    poolMocks.mockClient.query.mockResolvedValueOnce({ rows: [{ version: 1 }] });
+    poolMocks.mockClient.query
+      .mockResolvedValueOnce({ rows: [] }) // pg_advisory_lock
+      .mockResolvedValueOnce({ rows: [{ version: 1 }] });
     const { rollbackSchema } = await import('../../../packages/backend/src/db/migrations.js');
     await expect(rollbackSchema(0)).resolves.toBeUndefined();
     expect(poolMocks.mockClient.query).toHaveBeenCalledWith('BEGIN');
