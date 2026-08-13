@@ -1,6 +1,5 @@
 import { useState, useMemo } from 'react';
 import { TrendingUp, DollarSign } from 'lucide-react';
-import { Area } from 'recharts';
 import { useTranslation } from 'react-i18next';
 import { CalcCard } from './BaseCalculatorUI.js';
 import { formatPct, formatNum } from './baseCalculatorUtils.js';
@@ -24,16 +23,8 @@ function ValueCurveChart({
         xTickInterval="preserveStartEnd"
         yTickFormatter={formatNum}
         tooltipFormatter={(v: number) => [formatNum(v), t('Final Value')]}
-      >
-        <Area
-          type="monotone"
-          dataKey="value"
-          stroke={getPortfolioColor(0)}
-          fill={getPortfolioColor(0)}
-          fillOpacity={0.12}
-          strokeWidth={2}
-        />
-      </SimpleAreaChart>
+        series={[{ dataKey: 'value', color: getPortfolioColor(0), width: 2, areaOpacity: 0.12 }]}
+      />
     </div>
   );
 }

@@ -96,9 +96,7 @@ function AboutContent() {
       <div className="mt-6 rounded-lg bg-input-bg p-4 text-label text-fg-tertiary">
         <div className="mb-2 font-semibold text-fg-secondary">{t('Tech Stack')}</div>
         <div>
-          {t(
-            'Go (backtest engine + data service) · TypeScript (frontend + API) · React + Recharts',
-          )}
+          {t('Go (backtest engine + data service) · TypeScript (frontend + API) · React + ECharts')}
         </div>
       </div>
     </div>

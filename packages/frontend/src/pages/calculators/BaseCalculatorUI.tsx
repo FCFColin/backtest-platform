@@ -1,7 +1,6 @@
 import { useState, useMemo } from 'react';
 import type { ElementType, ReactNode } from 'react';
 import { ChevronDown, PieChart } from 'lucide-react';
-import { Line, Area } from 'recharts';
 import { useTranslation } from 'react-i18next';
 import { getPortfolioColor } from '@/lib/chart-theme.js';
 import {
@@ -200,15 +199,8 @@ function TwoFundChart({ data }: { data: Array<{ wA: number; cagr: number; vol: n
         tooltipLabelFormatter={(l) =>
           t('Volatility: {{value}}', { value: `${Number(l).toFixed(2)}%` })
         }
-      >
-        <Line
-          type="monotone"
-          dataKey="cagr"
-          stroke={getPortfolioColor(0)}
-          strokeWidth={2}
-          dot={false}
-        />
-      </SimpleLineChart>
+        series={[{ dataKey: 'cagr', color: getPortfolioColor(0), width: 2 }]}
+      />
     </div>
   );
 }
@@ -223,16 +215,8 @@ export function SWRChart({ data }: { data: Array<{ year: number; ratio: number }
         showLegend={false}
         yTickFormatter={(v) => v.toFixed(1)}
         tooltipFormatter={(v: number) => [v.toFixed(3), t('Asset Ratio')]}
-      >
-        <Area
-          type="monotone"
-          dataKey="ratio"
-          stroke={getPortfolioColor(2)}
-          fill={getPortfolioColor(2)}
-          fillOpacity={0.12}
-          strokeWidth={2}
-        />
-      </SimpleAreaChart>
+        series={[{ dataKey: 'ratio', color: getPortfolioColor(2), width: 2, areaOpacity: 0.12 }]}
+      />
     </div>
   );
 }
