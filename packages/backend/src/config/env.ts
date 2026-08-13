@@ -42,8 +42,11 @@ const serverConfig = {
   CORS_ORIGINS: parseCorsOrigins(process.env.CORS_ORIGINS),
   TRUST_PROXY_HOPS: Number.parseInt(process.env.TRUST_PROXY_HOPS ?? '1', 10),
   COMPUTE_RATE_LIMIT_MAX: int(process.env.COMPUTE_RATE_LIMIT_MAX, '10'),
+  DISABLE_RATE_LIMIT: bool(process.env.DISABLE_RATE_LIMIT),
   SYNC_COMPUTE_TIMEOUT_MS: int(process.env.SYNC_COMPUTE_TIMEOUT_MS, '30000'),
   WORKER_CONCURRENCY: int(process.env.WORKER_CONCURRENCY, '3'),
+  MAX_RESPONSE_BODY_SIZE: int(process.env.MAX_RESPONSE_BODY_SIZE, String(50 * 1024 * 1024)),
+  OUTBOX_RETENTION_DAYS: int(process.env.OUTBOX_RETENTION_DAYS, '7'),
   APP_BASE_URL: str(process.env.APP_BASE_URL, 'http://localhost:15173'),
   PROJECT_ROOT,
   MIGRATIONS_DIR: path.resolve(PROJECT_ROOT, 'migrations'),
@@ -85,7 +88,7 @@ export const authConfig = {
 const databaseConfig = {
   DATABASE_URL: str(
     process.env.DATABASE_URL,
-    'postgresql://backtest:backtest@localhost:5432/backtest',
+    'postgresql://backtest_app:backtest_app_dev@localhost:5432/backtest',
   ),
   DATABASE_READ_URL: str(process.env.DATABASE_READ_URL, ''),
   DB_STATEMENT_TIMEOUT_MS: int(process.env.DB_STATEMENT_TIMEOUT_MS, '10000'),

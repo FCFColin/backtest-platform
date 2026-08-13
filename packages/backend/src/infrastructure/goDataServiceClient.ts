@@ -1,10 +1,7 @@
 import { config } from '../config/index.js';
 import { registerSemaphoreMetrics } from '../utils/metrics.js';
 
-const MAX_RESPONSE_BODY_SIZE = parseInt(
-  process.env.MAX_RESPONSE_BODY_SIZE || String(50 * 1024 * 1024),
-  10,
-);
+const MAX_RESPONSE_BODY_SIZE = config.MAX_RESPONSE_BODY_SIZE;
 
 class Semaphore {
   private permits: number;
@@ -58,10 +55,12 @@ registerSemaphoreMetrics('go_data_service', defaultGoServiceSemaphore.total(), (
   defaultGoServiceSemaphore.available(),
 );
 
+const MAX_TENANT_SEMAPHORES = 1000;
 function getTenantSemaphore(orgId?: string): Semaphore {
   if (!orgId) return defaultGoServiceSemaphore;
   let sem = tenantSemaphores.get(orgId);
   if (!sem) {
+    if (tenantSemaphores.size >= MAX_TENANT_SEMAPHORES) return defaultGoServiceSemaphore;
     sem = new Semaphore(TENANT_SEMAPHORE_LIMIT);
     tenantSemaphores.set(orgId, sem);
   }

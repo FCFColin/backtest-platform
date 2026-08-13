@@ -20,7 +20,6 @@ const outboxOldestUnprocessedAgeSeconds = mkGauge(
 );
 const outboxTotalRows = mkGauge('outbox_total_rows', 'Total outbox rows');
 
-const OUTBOX_RETENTION_DAYS = parseInt(process.env.OUTBOX_RETENTION_DAYS || '7', 10);
 /** 事件发布并发上限（D3-003：批量并发处理，避免串行阻塞） */
 const OUTBOX_PUBLISH_CONCURRENCY = 10;
 
@@ -49,30 +48,18 @@ export class OutboxPublisher {
   private connectionString: string;
 
   constructor(private pool: pg.Pool) {
-    this.connectionString = (pool.options as { connectionString?: string }).connectionString ?? '';
-    logger.info(
-      { module: 'outboxPublisher', hasConnectionString: !!this.connectionString },
-      'OutboxPublisher constructed',
-    );
+    this.connectionString = config.DATABASE_URL;
   }
 
   async start(): Promise<void> {
-    moduleLog(
-      'info',
-      { connectionString: this.connectionString ? '[set]' : '[empty]' },
-      'OutboxPublisher connecting via dedicated pg.Client...',
-    );
-    this.listener = new pg.Client({ connectionString: this.connectionString });
+    this.listener = new pg.Client({
+      connectionString: this.connectionString,
+      ssl: config.NODE_ENV === 'production' ? { rejectUnauthorized: true } : undefined,
+    });
     try {
       await this.listener.connect();
-      moduleLog('info', {}, 'OutboxPublisher pg.Client connected successfully');
       await this.listener.query('LISTEN outbox_channel');
       this.listener.on('notification', (msg: { channel: string; payload?: string }) => {
-        moduleLog(
-          'debug',
-          { channel: msg.channel, payloadLength: msg.payload?.length },
-          'OutboxPublisher notification received',
-        );
         if (msg.channel === 'outbox_channel')
           this.handleNotification().catch((err) =>
             logError(err, 'Unhandled error in handleNotification'),
@@ -84,7 +71,7 @@ export class OutboxPublisher {
       this.listener.on('end', () =>
         moduleLog('warn', {}, 'OutboxPublisher pg.Client connection ended'),
       );
-      moduleLog('info', {}, 'OutboxPublisher started, listening on outbox_channel');
+      moduleLog('info', {}, 'OutboxPublisher listening on outbox_channel');
     } catch (err) {
       logError(err, 'OutboxPublisher listener start failed, LISTEN disabled');
       if (this.listener) {
@@ -119,16 +106,8 @@ export class OutboxPublisher {
       );
       const processedIds: string[] = [];
       settled.forEach((s, i) => {
-        if (s.status === 'fulfilled') {
-          processedIds.push(s.value);
-          moduleLog(
-            'info',
-            { eventId: s.value, eventType: events[i].event_type },
-            'Outbox event processed',
-          );
-        } else {
-          logError(s.reason, 'Failed to process outbox event', { eventId: events[i].id });
-        }
+        if (s.status === 'fulfilled') processedIds.push(s.value);
+        else logError(s.reason, 'Failed to process outbox event', { eventId: events[i].id });
       });
       if (processedIds.length > 0)
         await client.query('UPDATE outbox SET processed_at = NOW() WHERE id = ANY($1)', [
@@ -159,18 +138,15 @@ export class OutboxPublisher {
   }
 
   async stop(): Promise<void> {
-    moduleLog('info', { hasListener: !!this.listener }, 'OutboxPublisher stopping...');
     this.stopCompensationScanner();
     if (this.listener) {
       try {
         await this.listener.query('UNLISTEN outbox_channel');
-        moduleLog('info', {}, 'OutboxPublisher UNLISTEN issued');
         await this.listener.end();
       } catch (err) {
         logError(err, 'Error stopping OutboxPublisher listener');
       }
       this.listener = null;
-      moduleLog('info', {}, 'OutboxPublisher stopped, pg.Client closed');
     }
   }
 
@@ -222,12 +198,12 @@ export class OutboxPublisher {
     try {
       const result = await this.pool.query(
         `DELETE FROM outbox WHERE id IN (SELECT id FROM outbox WHERE processed_at IS NOT NULL AND created_at < NOW() - INTERVAL '1 day' * $1 ORDER BY created_at ASC LIMIT 10000)`,
-        [OUTBOX_RETENTION_DAYS],
+        [config.OUTBOX_RETENTION_DAYS],
       );
       if (result.rowCount && result.rowCount > 0)
         moduleLog(
           'info',
-          { deleted: result.rowCount, retentionDays: OUTBOX_RETENTION_DAYS },
+          { deleted: result.rowCount, retentionDays: config.OUTBOX_RETENTION_DAYS },
           'Cleaned up processed outbox events',
         );
       return result.rowCount ?? 0;
@@ -251,17 +227,8 @@ export class OutboxPublisher {
 export function createOutboxConsumer(pool: pg.Pool, mode?: 'listen' | 'kafka'): OutboxConsumer {
   const useKafka = mode === 'kafka' || (mode === undefined && config.CDC_KAFKA_ENABLED);
   if (useKafka) {
-    moduleLog(
-      'info',
-      { cdc: true },
-      'createOutboxConsumer: 使用 CDC/Kafka 通路（OutboxKafkaConsumer）',
-    );
+    moduleLog('info', { cdc: true }, 'OutboxConsumer: CDC/Kafka 通路');
     return new OutboxKafkaConsumer();
   }
-  moduleLog(
-    'info',
-    { cdc: false },
-    'createOutboxConsumer: 使用 LISTEN/NOTIFY 通路（OutboxPublisher）',
-  );
   return new OutboxPublisher(pool);
 }

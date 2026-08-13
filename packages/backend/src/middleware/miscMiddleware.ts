@@ -3,6 +3,7 @@ import type { ZodSchema } from 'zod';
 import swaggerUi from 'swagger-ui-express';
 import { sendProblem } from '../utils/errors.js';
 import { generateOpenApiDocument } from '../schemas/openapi-registry.js';
+import { config } from '../config/index.js';
 
 function createValidator(source: 'body' | 'query', statusCode: number) {
   return (schema: ZodSchema) => (req: Request, res: Response, next: NextFunction) => {
@@ -20,7 +21,7 @@ export const validate = createValidator('body', 400);
 export const validateQuery = createValidator('query', 422);
 
 export function setupOpenApiUi(app: Application): void {
-  if (process.env.NODE_ENV === 'production') return;
+  if (config.NODE_ENV === 'production') return;
   const document = generateOpenApiDocument();
   app.use(
     '/api/docs',

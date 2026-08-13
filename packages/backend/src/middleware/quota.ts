@@ -93,6 +93,8 @@ export function enforceQuota(metric: string) {
         }
       }
 
+      // 计数为尽力而为：配额判定读的是判定前写入的 DB 计数，异步写失败只可能多放行少量用量，
+      // 不构成越权/超额安全面；await 会为每次计算请求串行加一次 DB+Redis 往返延迟，故不阻塞
       void recordUsage(tenantId, metric, 1, { path: req.path });
       next();
     } catch (err) {
