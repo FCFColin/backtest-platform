@@ -100,6 +100,7 @@ export function createAuthConfigMock() {
 }
 
 export function createAuthJwtAuthMocks(target: Record<string, unknown> = {}) {
+  target.RT_COOKIE = 'rt';
   target.generateToken = vi.fn();
   target.generateRefreshToken = vi.fn();
   target.refreshAccessToken = vi.fn();
@@ -123,6 +124,7 @@ export function createAuthJwtAuthMocks(target: Record<string, unknown> = {}) {
 export function createAuthUserServiceMocks(target: Record<string, unknown> = {}) {
   target.verifyUser = vi.fn();
   target.anonymizeUser = vi.fn();
+  target.registerUser = vi.fn();
   return target;
 }
 

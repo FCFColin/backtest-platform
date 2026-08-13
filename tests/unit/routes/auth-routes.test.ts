@@ -4,7 +4,7 @@ import { startExpressApp, reqJson } from '../../helpers/expressApp.js';
 import { withServer } from '../../helpers/serverLifecycle.js';
 import { expectError } from '../../helpers/routeAssertions.js';
 import { loggerMocks } from '../../helpers/loggerFixture.js';
-import { createWithTransactionMock } from '../../helpers/poolFixture.js';
+import '../../helpers/loggerMock.js';
 import {
   validPasswordLoginPayload,
   createAuthRoutesConfig,
@@ -28,8 +28,6 @@ const mocks = vi.hoisted(() => ({
   membershipService: {} as Record<string, unknown>,
   registration: {
     getUserByEmail: vi.fn(),
-    createUserTx: vi.fn(),
-    getClient: vi.fn(),
     issueEmailVerificationToken: vi.fn(),
     verifyEmailToken: vi.fn(),
     sendVerificationEmail: vi.fn(),
@@ -55,7 +53,6 @@ vi.mock('../../../packages/backend/src/repositories/userRepo.js', () => {
   return {
     ...mocks.userService,
     getUserByEmail: mocks.registration.getUserByEmail,
-    createUserTx: mocks.registration.createUserTx,
   };
 });
 vi.mock('../../../packages/backend/src/application/auth/loginLockout.js', () =>
@@ -76,13 +73,9 @@ vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () => ({
     on: vi.fn(),
   },
 }));
-vi.mock('../../../packages/backend/src/db/pool.js', () => ({
-  withTransaction: createWithTransactionMock(() => mocks.registration.getClient()),
-}));
 vi.mock('../../../packages/backend/src/infrastructure/mailService.js', () => ({
   sendVerificationEmail: mocks.registration.sendVerificationEmail,
 }));
-vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: loggerMocks }));
 import authRoutes from '../../../packages/backend/src/routes/authRoutes.js';
 type VFn = ReturnType<typeof vi.fn>;
 const fn = (m: Record<string, unknown>, k: string): VFn => m[k] as VFn;
@@ -350,8 +343,7 @@ describe('authRegistrationRoutes', () => {
   const getServer = withServer(() => {
     vi.clearAllMocks();
     fn(mocks.registration, 'getUserByEmail').mockResolvedValue(null);
-    fn(mocks.registration, 'createUserTx').mockResolvedValue(userRecord('user-uuid-123', 'admin'));
-    fn(mocks.registration, 'getClient').mockResolvedValue(makeClient());
+    fn(mocks.userService, 'registerUser').mockResolvedValue('user-uuid-123');
     fn(mocks.registration, 'issueEmailVerificationToken').mockResolvedValue('token-abc');
     fn(mocks.registration, 'verifyEmailToken').mockResolvedValue('user-uuid-123');
     fn(mocks.registration, 'sendVerificationEmail').mockResolvedValue(undefined);
@@ -359,15 +351,6 @@ describe('authRegistrationRoutes', () => {
     return startExpressApp((app) => app.use('/api/v1/auth', authRoutes));
   });
   const regUrl = (p: string) => `${getServer().url}/api/v1/auth/${p}`;
-  function makeClient(overrides: Record<string, unknown> = {}) {
-    const query = vi
-      .fn()
-      .mockResolvedValueOnce({})
-      .mockResolvedValueOnce({ rows: [{ id: 'org-uuid-123' }] })
-      .mockResolvedValueOnce({})
-      .mockResolvedValueOnce({});
-    return { query, release: vi.fn(), ...overrides };
-  }
   const EMAIL = 'new@example.com';
   const validRegisterBody = {
     username: 'nu',
@@ -375,28 +358,27 @@ describe('authRegistrationRoutes', () => {
     password: 'secret123456',
     orgName: 'Acme',
   };
-  it('注册成功应返回 201 + userId，事务正确提交且发送验证邮件', async () => {
+  it('注册成功应返回 201 + userId，事务由 userService 完成并发送验证邮件', async () => {
     const { res, body } = await apiPost(regUrl('register'), validRegisterBody);
     expect(res.status).toBe(201);
     expect(body.data.userId).toBe('user-uuid-123');
-    const client = await fn(mocks.registration, 'getClient').mock.results[0].value;
-    const sqls = client.query.mock.calls.map((c: unknown[]) => String(c[0]));
-    const has = (f: string) => sqls.some((s) => s.includes(f));
-    expect(
-      ['BEGIN', 'COMMIT', 'INSERT INTO organizations', 'INSERT INTO memberships'].every(has),
-    ).toBe(true);
+    expect(fn(mocks.userService, 'registerUser')).toHaveBeenCalledWith(
+      'nu',
+      'secret123456',
+      EMAIL,
+      'Acme',
+    );
     expect(mocks.registration.issueEmailVerificationToken).toHaveBeenCalledWith('user-uuid-123');
     expect(mocks.registration.sendVerificationEmail).toHaveBeenCalledWith(EMAIL, 'token-abc');
-    expect(client.release).toHaveBeenCalled();
   });
-  it('邮箱已被注册应返回 409 EMAIL_TAKEN，不进入事务', async () => {
+  it('邮箱已被注册应返回 409 EMAIL_TAKEN，不进入注册流程', async () => {
     fn(mocks.registration, 'getUserByEmail').mockResolvedValueOnce(
       userRecord('existing-user', 'analyst'),
     );
     const { res, body } = await apiPost(regUrl('register'), validRegisterBody);
     expect(res.status).toBe(409);
     expect(body.error.code).toBe('EMAIL_TAKEN');
-    expect(mocks.registration.getClient).not.toHaveBeenCalled();
+    expect(fn(mocks.userService, 'registerUser')).not.toHaveBeenCalled();
   });
   it.each([
     [
@@ -406,14 +388,11 @@ describe('authRegistrationRoutes', () => {
       'ACCOUNT_CONFLICT',
     ],
     ['其他异常', new Error('connection lost'), 500, 'REGISTER_FAILED'],
-  ])('事务中%s 应返回 %i %s 并 ROLLBACK', async (_n, err, status, code) => {
-    const client = makeClient();
-    client.query.mockReset().mockResolvedValueOnce({}).mockRejectedValueOnce(err);
-    fn(mocks.registration, 'getClient').mockResolvedValueOnce(client);
+  ])('userService 抛出%s 应返回 %i %s', async (_n, err, status, code) => {
+    fn(mocks.userService, 'registerUser').mockRejectedValueOnce(err);
     const { res, body } = await apiPost(regUrl('register'), validRegisterBody);
     expect(res.status).toBe(status);
     expect(body.error.code).toBe(code);
-    expect(client.query.mock.calls.map((c: unknown[]) => c[0])).toContain('ROLLBACK');
     expect(mocks.registration.sendVerificationEmail).not.toHaveBeenCalled();
     if (status === 500) expect(loggerMocks.error).toHaveBeenCalled();
   });

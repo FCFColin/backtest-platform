@@ -36,6 +36,7 @@ import {
   verifyUser,
   issueEmailVerificationToken,
   verifyEmailToken,
+  registerUser,
 } from '../../../packages/backend/src/application/auth/userService.js';
 
 const reset = () => {
@@ -224,6 +225,53 @@ describe('createUserTx - 事务内创建用户', () => {
         expect.arrayContaining([username, 'hashed-password', role, null]),
       );
     }
+  });
+});
+describe('registerUser - 注册即创建个人组织（ADR-009）', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.pool.connect.mockResolvedValue(mocks.poolClient);
+    mocks.poolClient.query.mockReset();
+    mocks.poolClient.release.mockReset();
+    mocks.argon2.hash.mockResolvedValue('hashed-password');
+  });
+  it('应在单事务中创建用户 + 组织 + owner 成员并返回 userId', async () => {
+    mocks.poolClient.query
+      .mockResolvedValueOnce({})
+      .mockResolvedValueOnce({ rows: [mockUserRecord({ id: 'u1', role: 'analyst' })] })
+      .mockResolvedValueOnce({ rows: [{ id: 'org-1' }] })
+      .mockResolvedValueOnce({});
+    expect(await registerUser('nu', 'pass123', 'new@test.com', 'Acme Corp')).toBe('u1');
+    const sqls = mocks.poolClient.query.mock.calls.map((c) => String(c[0]));
+    expect(['BEGIN', 'COMMIT'].every((s) => sqls.includes(s))).toBe(true);
+    expect(sqls.some((s) => s.includes('INSERT INTO organizations'))).toBe(true);
+    const membershipCall = mocks.poolClient.query.mock.calls.find((c) =>
+      String(c[0]).includes('INSERT INTO memberships'),
+    );
+    expect(membershipCall?.[0]).toContain("role) VALUES ($1, $2, 'owner')");
+    expect(membershipCall?.[1]).toEqual(['org-1', 'u1']);
+    expect(mocks.poolClient.release).toHaveBeenCalled();
+  });
+  it('组织 slug 由 orgName 派生并追加随机后缀', async () => {
+    mocks.poolClient.query
+      .mockResolvedValueOnce({})
+      .mockResolvedValueOnce({ rows: [mockUserRecord({ id: 'u1' })] })
+      .mockResolvedValueOnce({ rows: [{ id: 'org-1' }] })
+      .mockResolvedValueOnce({});
+    await registerUser('nu', 'pass', 'e@t.com', 'Acme Corp');
+    const orgCall = mocks.poolClient.query.mock.calls.find((c) =>
+      String(c[0]).includes('INSERT INTO organizations'),
+    );
+    expect(orgCall?.[1][1]).toBe('acme-corp-mocked-random-token');
+  });
+  it('唯一约束冲突时应回滚并抛出（由路由层映射为 409）', async () => {
+    mocks.poolClient.query
+      .mockResolvedValueOnce({})
+      .mockResolvedValueOnce({ rows: [mockUserRecord({ id: 'u1' })] })
+      .mockRejectedValueOnce(new Error('duplicate key value violates unique constraint'));
+    await expect(registerUser('nu', 'pass', 'e@t.com', 'Acme')).rejects.toThrow('duplicate key');
+    expect(mocks.poolClient.query).toHaveBeenCalledWith('ROLLBACK');
+    expect(mocks.poolClient.release).toHaveBeenCalled();
   });
 });
 describe('issueEmailVerificationToken - 签发邮箱验证令牌', () => {
