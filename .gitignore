@@ -113,6 +113,7 @@ docs/inspections/archive/
 
 # Test output artifacts
 test-output.*
+*.tsbuildinfo
 
 # Go coverage and binary artifacts
 engine-go/*.exe
