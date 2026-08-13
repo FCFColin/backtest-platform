@@ -1,6 +1,6 @@
 # 回测平台 — 多语言统一命令入口（T-26，维度7 开发者体验）
 #
-# 企业为何需要：服务跨 TS/Go 两种语言各有独立工具链（Rust/Python 已退役，ADR-008），
+# 企业为何需要：服务跨 TS/Go 两种语言各有独立工具链（Rust/Python 已退役，ADR-003），
 # 新成员需记忆异构命令。统一的 Makefile 提供一致的动词（install/dev/test/lint/check），
 # 降低上手成本与心智负担，并使 CI 与本地命令对齐（减少"本地能过 CI 挂"）。
 #
@@ -16,7 +16,7 @@ help: ## 显示所有可用命令
 install: ## 安装 Node 依赖（pnpm lockfile）
 	pnpm install
 
-dev: ## SaaS 本地开发（预构建前端+API:5001，自动拉起 engine-go）
+dev: ## SaaS 本地开发（预构建前端+API:15001，自动拉起 engine-go）
 	pnpm run dev
 
 up: ## 启动依赖容器（postgres/redis/engine/data）

@@ -47,7 +47,7 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email_unique ON users (lower(email)) WHERE email IS NOT NULL;
 
--- Outbox (ADR-014: 事件与业务数据事务一致性)
+-- Outbox (ADR-005: 事件与业务数据事务一致性)
 CREATE TABLE IF NOT EXISTS outbox (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(), aggregate_type VARCHAR(100) NOT NULL, aggregate_id VARCHAR(100) NOT NULL,
   event_type VARCHAR(100) NOT NULL, payload JSONB NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), processed_at TIMESTAMPTZ,
@@ -74,7 +74,7 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO ba
 REVOKE CREATE ON SCHEMA public FROM PUBLIC;
 DO $$ BEGIN IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'backtest_app') THEN ALTER ROLE backtest_app NOBYPASSRLS; END IF; END $$;
 
--- 多租户隔离 (ADR-032)
+-- 多租户隔离 (ADR-009)
 CREATE TABLE IF NOT EXISTS organizations (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(), name VARCHAR(120) NOT NULL, slug VARCHAR(80) NOT NULL UNIQUE,
   plan VARCHAR(20) NOT NULL DEFAULT 'free' CHECK (plan IN ('free', 'pro', 'enterprise')),
@@ -136,7 +136,7 @@ BEGIN
   END LOOP;
 END $$;
 
--- 自助注册与邀请 (ADR-035)
+-- 自助注册与邀请 (ADR-009)
 CREATE TABLE IF NOT EXISTS email_verification_tokens (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(), user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   token_hash TEXT NOT NULL UNIQUE, expires_at TIMESTAMPTZ NOT NULL, consumed_at TIMESTAMPTZ, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -153,7 +153,7 @@ CREATE INDEX IF NOT EXISTS idx_invitations_email ON invitations(lower(email));
 CREATE UNIQUE INDEX IF NOT EXISTS idx_invitations_pending ON invitations(org_id, lower(email)) WHERE accepted_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_fk_invitations_invited_by ON invitations (invited_by);
 
--- Stripe 计费 (ADR-036)
+-- Stripe 计费 (ADR-010)
 CREATE TABLE IF NOT EXISTS stripe_customers ( org_id UUID PRIMARY KEY REFERENCES organizations(id) ON DELETE CASCADE, stripe_customer_id TEXT NOT NULL UNIQUE, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW() );
 CREATE TABLE IF NOT EXISTS subscriptions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(), org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
@@ -163,7 +163,7 @@ CREATE TABLE IF NOT EXISTS subscriptions (
 );
 CREATE INDEX IF NOT EXISTS idx_subscriptions_org ON subscriptions(org_id);
 
--- 用量计量与配额 (ADR-037)
+-- 用量计量与配额 (ADR-010)
 CREATE TABLE IF NOT EXISTS usage_events ( id UUID PRIMARY KEY DEFAULT gen_random_uuid(), org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE, metric VARCHAR(40) NOT NULL, quantity INTEGER NOT NULL DEFAULT 1, metadata JSONB, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW() );
 CREATE INDEX IF NOT EXISTS idx_usage_events_org_metric ON usage_events(org_id, metric, created_at);
 CREATE TABLE IF NOT EXISTS usage_counters ( org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE, period VARCHAR(7) NOT NULL, metric VARCHAR(40) NOT NULL, count INTEGER NOT NULL DEFAULT 0, updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), PRIMARY KEY (org_id, period, metric) );
@@ -175,7 +175,7 @@ BEGIN
   END LOOP;
 END $$;
 
--- TimescaleDB hypertable + 列压缩 + CAGG (ADR-007)
+-- TimescaleDB hypertable + 列压缩 + CAGG (ADR-002)
 CREATE EXTENSION IF NOT EXISTS timescaledb;
 ALTER TABLE prices DROP CONSTRAINT IF EXISTS prices_pkey;
 SELECT create_hypertable('prices', 'date', chunk_time_interval => INTERVAL '3 months', migrate_data => TRUE, if_not_exists => TRUE);

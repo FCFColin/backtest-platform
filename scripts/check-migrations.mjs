@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * CI 迁移完整性检查（ADR-007）。
+ * CI 迁移完整性检查（ADR-002）。
  *
  * 检查项：
  * 1. 迁移文件命名遵循 NNN_descriptive_name.sql 约定（3 位零填充序号）

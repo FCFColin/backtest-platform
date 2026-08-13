@@ -8,7 +8,7 @@ data:
   TRUST_PROXY_HOPS: '2'
   GO_ENGINE_URL: 'http://engine-go:5004'
   GO_DATA_SERVICE_URL: 'http://data-fetcher:5003'
-  # Redis: 单实例回退，仅当 REDIS_SENTINELS 未设置时生效（ADR-045 向后兼容）
+  # Redis: 单实例回退，仅当 REDIS_SENTINELS 未设置时生效（DADR-045 向后兼容）
   # 生产环境使用 Sentinel 高可用，凭证经 Secret 注入
   REDIS_URL: 'redis://redis:6379'
   REDIS_SENTINELS: 'redis-0.redis:26379,redis-1.redis:26379,redis-2.redis:26379'

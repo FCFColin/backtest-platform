@@ -85,14 +85,14 @@ spec:
           labels: { severity: critical, service: engine-go, category: availability }
           annotations:
             summary: 'Go engine down ({{ $labels.instance }})'
-            description: 'ADR-031: API fail-closed 503 when engine unreachable.'
+            description: 'ADR-008: API fail-closed 503 when engine unreachable.'
             runbook_url: 'https://backtest.platform/runbooks/platform-alerts#go-engine-down'
         - alert: CircuitBreakerOpen
           expr: circuit_breaker_state == 1
           labels: { severity: critical, service: api, category: resilience }
           annotations:
             summary: 'Circuit breaker open ({{ $labels.name }})'
-            description: 'ADR-016: check downstream dependency health.'
+            description: 'DADR-016: check downstream dependency health.'
             runbook_url: 'https://backtest.platform/runbooks/platform-alerts#circuit-breaker-open'
         - alert: PostgresDown
           expr: pg_up == 0
@@ -100,7 +100,7 @@ spec:
           labels: { severity: critical, service: postgres, category: availability }
           annotations:
             summary: 'PostgreSQL down ({{ $labels.instance }})'
-            description: 'ADR-007: PostgreSQL is primary data store.'
+            description: 'ADR-002: PostgreSQL is primary data store.'
             runbook_url: 'https://backtest.platform/runbooks/platform-alerts#postgres-down'
         - alert: BacktestQueueDepth
           expr: bullmq_queue_size > 100

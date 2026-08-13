@@ -1,4 +1,4 @@
--- 平台旁路（ADR-032）：break-glass key 轮换/吊销、Stripe webhook 等无租户运维路径会被 RLS WITH CHECK 拦截。
+-- 平台旁路（ADR-009）：break-glass key 轮换/吊销、Stripe webhook 等无租户运维路径会被 RLS WITH CHECK 拦截。
 -- api_keys/invitations 的 USING 侧已有 NULLIF 逃生（GUC 未设时全行可见），仅写入侧补平台旁路；
 -- stripe_customers 全策略补平台旁路。
 DO $$

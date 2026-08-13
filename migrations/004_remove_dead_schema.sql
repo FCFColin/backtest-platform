@@ -1,4 +1,4 @@
--- 004: 退役死 schema（ADR-048）
+-- 004: 退役死 schema（ADR-012）
 -- *_numeric 列仅由 data-fetcher 写入、无任何读取方；org_memberships 零生产消费者（后端用 memberships）；
 -- idx_ff_factors_date 与 fama_french_factors(date) 主键索引重复；prices_monthly 缺 backtest_app SELECT 授权。
 

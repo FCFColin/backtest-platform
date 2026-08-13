@@ -11,7 +11,7 @@
 │ Vite    │            │ TS ESM   │            └────────────┘
 └─────────┘            │          │  引擎不可用：fail-closed
                        │          │  → 503 + Retry-After（同步）
-                       │          │  → 入队重试（异步）   (ADR-031)
+                       │          │  → 入队重试（异步）   (ADR-008)
                        │          │    HTTP    ┌────────────┐
                        │          │ ─────────▶ │ Go 数据    │ (缺失标的实时拉取)
                        └──────────┘            └────────────┘
@@ -24,7 +24,7 @@
 | Go 计算引擎 | Go         | `engine-go/`             | 15004 | 主计算引擎（回测/MC/优化/前沿/分析） |
 | Go 数据服务 | Go         | `data-fetcher/`          | 15003 | 主数据服务                           |
 
-降级策略（ADR-031 fail-closed）与多租户 SaaS（ADR-032/036）详见 `docs/adr/`。
+降级策略（ADR-008 fail-closed）与多租户 SaaS（ADR-009/ADR-010）详见 `docs/adr/`。
 
 ## 快速启动
 
@@ -68,16 +68,16 @@ pnpm test:unit    # 仅单元测试
 
 ## 环境变量
 
-| 变量                  | 默认值                   | 说明                                      |
-| --------------------- | ------------------------ | ----------------------------------------- |
-| `GO_ENGINE_URL`       | `http://127.0.0.1:15004` | Go 计算引擎地址（唯一引擎）               |
-| `GO_DATA_SERVICE_URL` | `http://127.0.0.1:15003` | Go 数据服务地址                           |
-| `DATABASE_URL`        | -                        | PostgreSQL 连接串                         |
-| `REDIS_URL`           | -                        | Redis 连接串（会话/限流/队列）            |
-| `NODE_ENV`            | -                        | 环境（development 显示错误详情）          |
-| `APP_BASE_URL`        | `http://localhost:15173` | 验证/邀请/计费跳转链接基址（ADR-032/036） |
-| `EMAIL_TRANSPORT`     | `console`                | 邮件传输：`console`/`smtp`（ADR-032）     |
-| `STRIPE_SECRET_KEY`   | -                        | Stripe 密钥（留空则计费端点返回 503）     |
+| 变量                  | 默认值                   | 说明                                          |
+| --------------------- | ------------------------ | --------------------------------------------- |
+| `GO_ENGINE_URL`       | `http://127.0.0.1:15004` | Go 计算引擎地址（唯一引擎）                   |
+| `GO_DATA_SERVICE_URL` | `http://127.0.0.1:15003` | Go 数据服务地址                               |
+| `DATABASE_URL`        | -                        | PostgreSQL 连接串                             |
+| `REDIS_URL`           | -                        | Redis 连接串（会话/限流/队列）                |
+| `NODE_ENV`            | -                        | 环境（development 显示错误详情）              |
+| `APP_BASE_URL`        | `http://localhost:15173` | 验证/邀请/计费跳转链接基址（ADR-009/ADR-010） |
+| `EMAIL_TRANSPORT`     | `console`                | 邮件传输：`console`/`smtp`（ADR-009）         |
+| `STRIPE_SECRET_KEY`   | -                        | Stripe 密钥（留空则计费端点返回 503）         |
 
 ## 文档
 
