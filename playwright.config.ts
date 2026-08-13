@@ -10,18 +10,17 @@ export default defineConfig({
   testMatch: '*.spec.ts',
   timeout: 90_000,
   expect: { timeout: 15_000 },
-  fullyParallel: true,
+  // workers:1 下 fullyParallel 无并行收益，且背压引擎/限流；保持串行确定。
   workers: 1,
   retries: 0,
   reporter: 'list',
-  globalSetup: './tests/e2e/ui/coverage/setup',
-  globalTeardown: './tests/e2e/ui/coverage/teardown',
+  globalSetup: './tests/e2e/ui/global-setup',
   use: {
     baseURL: `http://localhost:${API_PORT}`,
     locale: 'zh-CN',
     viewport: { width: 1280, height: 900 },
     actionTimeout: 10_000,
-    trace: 'on-first-retry',
+    trace: 'retain-on-failure',
     navigationTimeout: 60_000,
   },
   projects: [

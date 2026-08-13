@@ -2,7 +2,6 @@
 dist/
 build/
 coverage/
-.nyc_output/
 
 # Dependencies
 node_modules/

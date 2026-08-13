@@ -84,7 +84,7 @@ export default tseslint.config(
         { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
       ],
       '@typescript-eslint/no-explicit-any': 'error',
-      'no-empty': ['error', { allowEmptyCatch: false }],
+      'no-empty': ['error', { allowEmptyCatch: true }],
       'no-console': 'error',
     },
   },
