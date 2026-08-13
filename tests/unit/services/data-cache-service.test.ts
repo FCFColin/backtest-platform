@@ -1,15 +1,28 @@
 import '../../helpers/loggerMock.js';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const { redisStub, healthMock } = vi.hoisted(() => {
-  const store = new Map<string, string>();
+const { redisStub, healthMock, markUnhealthy } = vi.hoisted(() => {
+  const store = new Map<string, { value: string; expiresAt: number }>();
   const globToRegex = (pattern: string): RegExp =>
     new RegExp('^' + pattern.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*') + '$');
   const redisStub = {
     store,
-    get: vi.fn(async (key: string) => store.get(key) ?? null),
-    set: vi.fn(async (key: string, value: string) => {
-      store.set(key, value);
+    get: vi.fn(async (key: string) => {
+      const e = store.get(key);
+      if (!e) return null;
+      if (e.expiresAt !== 0 && e.expiresAt <= Date.now()) {
+        store.delete(key);
+        return null;
+      }
+      return e.value;
+    }),
+    set: vi.fn(async (key: string, value: string, ...rest: unknown[]) => {
+      let expiresAt = 0;
+      const exIdx = rest.indexOf('EX');
+      if (exIdx >= 0 && typeof rest[exIdx + 1] === 'number') {
+        expiresAt = Date.now() + (rest[exIdx + 1] as number) * 1000;
+      }
+      store.set(key, { value, expiresAt });
       return 'OK';
     }),
     del: vi.fn(async (...keys: string[]) => {
@@ -20,13 +33,17 @@ const { redisStub, healthMock } = vi.hoisted(() => {
     scan: vi.fn(async (_cursor: string, ...args: unknown[]) => {
       const pattern = String(args[1]);
       const re = globToRegex(pattern);
-      const matched = [...store.keys()].filter((k) => re.test(k));
+      const matched = [...store.keys()].filter((k) => {
+        const e = store.get(k)!;
+        return re.test(k) && (e.expiresAt === 0 || e.expiresAt > Date.now());
+      });
       return ['0', matched];
     }),
   };
 
   const healthMock = { getRedisHealth: vi.fn().mockResolvedValue(true) };
-  return { redisStub, healthMock };
+  const markUnhealthy = vi.fn();
+  return { redisStub, healthMock, markUnhealthy };
 });
 
 vi.mock('../../../packages/backend/src/utils/metrics.js', () => ({
@@ -37,7 +54,7 @@ vi.mock('../../../packages/backend/src/utils/metrics.js', () => ({
 vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () => ({
   appRedis: redisStub,
   getRedisHealth: healthMock.getRedisHealth,
-  markRedisUnhealthy: vi.fn(),
+  markRedisUnhealthy: markUnhealthy,
 }));
 
 import {
@@ -104,7 +121,7 @@ describe('readCache', () => {
 
   it('L1 未命中但 L2 命中应回填 L1 并返回数据', async () => {
     const key = getCacheKey('history', { tickers: 'SPY' });
-    redisStub.store.set(key, JSON.stringify({ price: 200 }));
+    redisStub.store.set(key, { value: JSON.stringify({ price: 200 }), expiresAt: 0 });
 
     const got = await readCache(key);
     expect(got).toEqual({ price: 200 });
@@ -120,6 +137,21 @@ describe('readCache', () => {
     const got = await readCache(key);
     expect(got).toBeNull();
     expect(redisStub.get).toHaveBeenCalledWith(key);
+  });
+
+  it('L2 条目过期（Redis EX TTL）时返回 null', async () => {
+    const key = getCacheKey('history', { tickers: 'SPY' });
+    redisStub.store.set(key, { value: JSON.stringify({ price: 1 }), expiresAt: Date.now() - 1000 });
+    const got = await readCache(key);
+    expect(got).toBeNull();
+  });
+
+  it('Redis 命令抛错时降级返回 null 并标记不可用', async () => {
+    redisStub.get.mockRejectedValueOnce(new Error('ECONNRESET'));
+    const key = getCacheKey('history', { tickers: 'SPY' });
+    const got = await readCache(key);
+    expect(got).toBeNull();
+    expect(markUnhealthy).toHaveBeenCalled();
   });
 
   it('Redis 不可用时应降级返回 null 且不抛出', async () => {
@@ -153,7 +185,7 @@ describe('writeCache', () => {
     await writeCache(key, big, HISTORY_CACHE_TTL_SEC);
     const stored = redisStub.store.get(key);
     expect(stored).toBeDefined();
-    expect(stored!.startsWith('gzip:')).toBe(true);
+    expect(stored!.value.startsWith('gzip:')).toBe(true);
     const got = await readCache(key);
     expect(got).toEqual(big);
   });
