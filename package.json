@@ -21,7 +21,7 @@
     "check": "turbo run check",
     "test": "vitest run --project node --project browser",
     "test:unit": "vitest run tests/unit",
-    "test:chaos": "vitest run --project chaos",
+    "test:chaos": "vitest run --project chaos --maxWorkers=1",
     "test:integration": "vitest run tests/integration",
     "test:integration:docker": "cross-env RUN_TESTCONTAINERS=1 vitest run tests/integration",
     "test:contract": "vitest run tests/contract",

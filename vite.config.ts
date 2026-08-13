@@ -173,6 +173,8 @@ export default defineConfig(async () => {
             include: ['tests/chaos/**/*.test.ts'],
             testTimeout: 120000,
             hookTimeout: 60000,
+            // 实验共享同一 docker 栈全局状态，串行由脚本层 --maxWorkers=1 保证
+            //（maxWorkers/minWorkers/fileParallelism 为 NonProjectOptions，项目级配置会被忽略）
           },
           resolve: { alias: { '@': path.resolve(projectRoot, './packages/frontend/src') } },
         },

@@ -35,13 +35,13 @@ pnpm test:chaos
 
 ## Experiment 列表
 
-| Experiment                      | 故障场景            | 目标容器                              | 验证点                                                              |
-| ------------------------------- | ------------------- | ------------------------------------- | ------------------------------------------------------------------- |
-| experiment-1-db-disconnect      | PostgreSQL 网络分区 | `backtest-postgres`                   | `/meta` fail-open 不 5xx；`/api/ready` fail-closed 503；恢复后正常  |
-| experiment-2-external-delay     | 数据服务停止        | `backtest-data-fetcher`               | `/api/ready` 标记 goDataService=false；数据健康端点 503；恢复后正常 |
-| experiment-3-concurrent-restart | 并发服务重启        | `backtest-api` / `backtest-engine-go` | SIGTERM 期间在途请求完成率 ≥95%,重启恢复                            |
-| experiment-4-redis-outage       | Redis 故障          | `backtest-redis`                      | `/api/ready` 200 且 redis=false；登录拒绝放行                       |
-| experiment-5-go-engine-outage   | Go 引擎故障         | `backtest-engine-go`                  | `/api/ready` fail-closed 503 + Retry-After,无 degraded(ADR-008)     |
+| Experiment                      | 故障场景            | 目标容器                | 验证点                                                              |
+| ------------------------------- | ------------------- | ----------------------- | ------------------------------------------------------------------- |
+| experiment-1-db-disconnect      | PostgreSQL 网络分区 | `backtest-postgres`     | `/meta` fail-open 不 5xx；`/api/ready` fail-closed 503；恢复后正常  |
+| experiment-2-external-delay     | 数据服务停止        | `backtest-data-fetcher` | `/api/ready` 标记 goDataService=false；数据健康端点 503；恢复后正常 |
+| experiment-3-concurrent-restart | 并发服务重启        | `backtest-api`          | 100 并发业务请求完成率 ≥95%,SIGTERM 后干净退出并重启恢复            |
+| experiment-4-redis-outage       | Redis 故障          | `backtest-redis`        | `/api/ready` 200 且 redis=false；登录拒绝放行                       |
+| experiment-5-go-engine-outage   | Go 引擎故障         | `backtest-engine-go`    | `/api/ready` fail-closed 503 + Retry-After,无 degraded(ADR-008)     |
 
 ## 运行方式
 

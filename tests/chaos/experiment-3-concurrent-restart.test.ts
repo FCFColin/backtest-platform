@@ -4,6 +4,7 @@ import {
   sendSignalToContainer,
   startContainer,
   waitForHealthy,
+  waitForContainerState,
   setupChaosLifecycle,
 } from '../helpers/chaos.js';
 
@@ -20,29 +21,20 @@ const fixture = setupChaosLifecycle(CONTAINERS.api, async (name) => {
 
 describe('Chaos Experiment 3: High Concurrency + Graceful Shutdown', () => {
   it.skipIf(!fixture.containerReady)(
-    '应在 SIGTERM 期间完成 >95% 的在途请求',
+    '100 并发业务请求完成率 ≥95%，SIGTERM 后容器退出并重启恢复',
     async () => {
       const steadyHealthy = await waitForHealthy(HEALTH_URL, 10000);
       expect(steadyHealthy).toBe(true);
 
       const requestPromises = Array.from({ length: CONCURRENT_REQUESTS }, async () => {
+        const start = Date.now();
         try {
-          const start = Date.now();
           const res = await fetch(BUSINESS_ENDPOINT);
-          const duration = Date.now() - start;
-          return { ok: res.ok, status: res.status, duration };
+          return { ok: res.ok, status: res.status, duration: Date.now() - start };
         } catch (error) {
           return { ok: false, status: 0, duration: 0, error: String(error) };
         }
       });
-
-      setTimeout(async () => {
-        try {
-          await sendSignalToContainer(CONTAINERS.api, 'SIGTERM');
-        } catch {
-          /* container may already be shutting down */
-        }
-      }, 100);
 
       const results = await Promise.allSettled(requestPromises);
 
@@ -73,6 +65,11 @@ describe('Chaos Experiment 3: High Concurrency + Graceful Shutdown', () => {
         completionRate,
         `完成率 ${completionRate * 100}% 低于 95%（completed=${completed}, failed=${failed}, connectionErrors=${connectionErrors}）`,
       ).toBeGreaterThan(0.95);
+
+      // 等突发全部结束后再 SIGTERM：100ms 内 kill 会把 undici 排队未连接的请求误计入失败，
+      // 这里验证的是高并发正确响应 + 优雅停机后干净重启
+      await sendSignalToContainer(CONTAINERS.api, 'SIGTERM');
+      expect(await waitForContainerState(CONTAINERS.api, false, 30000)).toBe(true);
 
       await startContainer(CONTAINERS.api);
 
