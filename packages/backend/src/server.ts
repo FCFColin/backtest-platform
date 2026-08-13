@@ -14,14 +14,12 @@ import { registerTimescaleMetrics, registerQueueMetrics } from './utils/metrics.
 import { backtestQueue } from './queues/backtestQueue.js';
 import { dataUpdateQueue } from './queues/queueDefinitions.js';
 import { eventDispatcher } from './domain/events/events.js';
-import { BacktestCompletedHandler } from './application/completedHandlers.js';
 import { AuditEventHandler } from './application/auditEventHandler.js';
 // P3-05：OutboxConsumer 接口类型——由 createOutboxConsumer 工厂按 CDC_KAFKA_ENABLED 选择实现
 import type { OutboxConsumer } from './infrastructure/outboxPublisher.js';
 
 validateConfig();
 
-eventDispatcher.register(new BacktestCompletedHandler());
 eventDispatcher.register(new AuditEventHandler());
 
 let outboxConsumer: OutboxConsumer | null = null;

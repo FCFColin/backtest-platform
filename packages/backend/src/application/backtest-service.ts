@@ -1,9 +1,7 @@
-import { randomUUID } from 'crypto';
 import { trace } from '@opentelemetry/api';
 import { callEngineStrict } from '../utils/engineClient.js';
+import { backtestResultSchema } from '../schemas/engineSchemas.js';
 import { buildEngineParams } from './backtest/backtestEngineUtils.js';
-import { withTransaction } from '../db/pool.js';
-import { writeEventInTransaction } from '../infrastructure/outbox.js';
 import { logger } from '../utils/logger.js';
 import { recordBacktestRequest } from '../utils/metrics.js';
 import { Portfolio as DomainPortfolio } from '../domain/aggregates/portfolio.js';
@@ -41,12 +39,9 @@ export async function runPortfolioBacktest(opts: {
   portfolios: Portfolio[];
   parameters: BacktestParameters;
   tenantId?: string;
-  ownerUserId?: string;
   onProgress?: (pct: number) => void;
-  /** 异步队列路径已自行落库（worker.persistRunIfTenant），不再重复发布完成事件 */
-  publishEvent?: boolean;
 }): Promise<{ result: unknown; warnings: Warning[]; dateRange: DateRangeInfo }> {
-  const { portfolios, parameters, tenantId, ownerUserId, onProgress, publishEvent } = opts;
+  const { portfolios, parameters, tenantId, onProgress } = opts;
   onProgress?.(5);
   const { allTickers, warnings } = preparePortfolioBacktest(portfolios, parameters);
   onProgress?.(10);
@@ -73,9 +68,6 @@ export async function runPortfolioBacktest(opts: {
       priceData,
       cpiData,
       exchangeRates,
-      tenantId,
-      ownerUserId,
-      publishEvent,
     }),
     config.BACKTEST_SYNC_TIMEOUT_MS,
     'portfolio-backtest',
@@ -96,7 +88,6 @@ export async function runPortfolioBacktest(opts: {
 }
 
 /** @throws {EngineUnavailableError} ADR-031 */
-
 export async function runBacktest(
   params: BacktestExecutionParams,
 ): Promise<BacktestExecutionResult> {
@@ -117,7 +108,6 @@ export async function runBacktest(
         },
         'Starting backtest',
       );
-      const aggregateId = randomUUID();
       const filteredPriceData = filterPriceData(priceData, allTickers);
       span.setAttribute('cache_hit', Object.keys(filteredPriceData).length === allTickers.size);
       const engineBody = {
@@ -127,22 +117,11 @@ export async function runBacktest(
         cpiData,
         exchangeRates,
       };
-      const result = await callEngineStrict<BacktestResult>('/api/engine/backtest', engineBody);
-      const firstStats = result.portfolios[0]?.statistics;
-      const eventPayload = {
-        startingValue: parameters.startingValue,
-        portfolioCount: portfolios.length,
-        totalReturn: firstStats?.totalReturn,
-        maxDrawdown: firstStats?.maxDrawdown,
-        sharpeRatio: firstStats?.sharpe,
-        tenantId: params.tenantId,
-        ownerUserId: params.ownerUserId,
-      };
-      if (params.publishEvent !== false) {
-        void publishBacktestEvent(aggregateId, randomUUID(), eventPayload).catch((err) =>
-          logger.error({ err, aggregateId }, 'Failed to write BacktestCompleted event to outbox'),
-        );
-      }
+      const result = await callEngineStrict<BacktestResult>(
+        '/api/engine/backtest',
+        engineBody,
+        backtestResultSchema,
+      );
       logger.info('Backtest completed');
       recordBacktestRequest('portfolio', 'sync', 'success');
       return { result };
@@ -152,22 +131,5 @@ export async function runBacktest(
     } finally {
       span.end();
     }
-  });
-}
-
-async function publishBacktestEvent(
-  aggregateId: string,
-  eventId: string,
-  eventPayload: Record<string, unknown>,
-): Promise<void> {
-  await withTransaction(async (client) => {
-    await writeEventInTransaction(client, {
-      aggregateType: 'BacktestSession',
-      aggregateId,
-      eventType: 'BacktestCompleted',
-      payload: { ...eventPayload, occurredAt: new Date().toISOString() },
-      eventId,
-    });
-    await client.query('NOTIFY outbox_channel');
   });
 }
