@@ -16,7 +16,8 @@ import {
   type TacticalGridRequest,
 } from '../application/grid-application-service.js';
 import { crudRouteHandler } from './routeUtils.js';
-import { submitQueueJob, jobAccessGranted } from './jobSubmission.js';
+import { submitQueueJob } from './jobSubmission.js';
+import { jobAccessGranted } from '../middleware/jobAccess.js';
 
 const router = Router();
 export const jobRoutes = router;

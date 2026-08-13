@@ -2,10 +2,44 @@ import argon2 from 'argon2';
 import crypto from 'crypto';
 import { getPool, withTransaction } from '../../db/pool.js';
 import { logger } from '../../utils/logger.js';
-import { rowToUser, type User } from '../../repositories/userRepo.js';
+import { rowToUser, createUserTx, type User } from '../../repositories/userRepo.js';
 import { sha256Hex } from '../../utils/crypto.js';
 
 const EMAIL_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
+
+function slugify(s: string): string {
+  return (
+    s
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 60) || 'org'
+  );
+}
+
+// ADR-032: 注册即创建个人组织，用户为 owner；冲突由调用方按唯一约束翻译为 409
+export async function registerUser(
+  username: string,
+  password: string,
+  email: string,
+  orgName: string,
+): Promise<string> {
+  return withTransaction(async (client) => {
+    const user = await createUserTx(client, username, password, email, 'analyst');
+    const slug = `${slugify(orgName)}-${crypto.randomBytes(3).toString('hex')}`;
+    const orgRes = await client.query(
+      'INSERT INTO organizations (name, slug) VALUES ($1, $2) RETURNING id',
+      [orgName, slug],
+    );
+    const orgId = orgRes.rows[0].id as string;
+    await client.query("INSERT INTO memberships (org_id, user_id, role) VALUES ($1, $2, 'owner')", [
+      orgId,
+      user.id,
+    ]);
+    return user.id;
+  });
+}
 
 export async function verifyUser(username: string, password: string): Promise<User | null> {
   const pool = getPool();

@@ -6,7 +6,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { randomBytes } from 'node:crypto';
 import { config } from './config/index.js';
 import { logger } from './utils/logger.js';
-import { RT_COOKIE } from './routes/authRoutes.js';
+import { RT_COOKIE } from './middleware/jwtAuth.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = path.resolve(__dirname, '..', '..', '..');

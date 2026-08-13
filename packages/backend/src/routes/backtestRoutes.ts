@@ -12,7 +12,8 @@ import { searchTickers } from '../infrastructure/dataFacade.js';
 import { SYNTHETIC_TICKERS } from '../infrastructure/dataServices.js';
 import { sendProblem } from '../utils/errors.js';
 import { asyncRouteHandler, crudRouteHandler, computeRoute } from './routeUtils.js';
-import { submitQueueJob, jobAccessGranted } from './jobSubmission.js';
+import { submitQueueJob } from './jobSubmission.js';
+import { jobAccessGranted } from '../middleware/jobAccess.js';
 import type { AuthenticatedRequest } from '../middleware/jwtAuth.js';
 import { backtestQueue, type BacktestJobResult } from '../queues/backtestQueue.js';
 import { validate } from '../middleware/miscMiddleware.js';
@@ -31,8 +32,8 @@ router.get(
   '/search',
   asyncRouteHandler(
     async (req: Request, res: Response): Promise<void> => {
-      const query = req.query.query as string;
-      const limit = parseInt(req.query.limit as string, 10) || 10;
+      const query = req.query.query as string | undefined;
+      const limit = parseInt((req.query.limit as string | undefined) ?? '', 10) || 10;
       if (!query || query.trim().length === 0) {
         sendProblem(res, 422, 'MISSING_PARAMS');
         return;

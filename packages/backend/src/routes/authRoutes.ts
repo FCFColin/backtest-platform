@@ -1,9 +1,8 @@
 import { Router, type Response } from 'express';
-import { randomBytes } from 'node:crypto';
 import { logger } from '../utils/logger.js';
 import { sendProblem } from '../utils/errors.js';
 import { asyncRouteHandler, crudRouteHandler } from './routeUtils.js';
-import { authConfig } from '../config/index.js';
+import { authConfig, config } from '../config/index.js';
 import {
   generateToken,
   generateRefreshToken,
@@ -13,6 +12,7 @@ import {
   jwtAuth,
   hashUserId,
   requireUser,
+  RT_COOKIE,
   type AuthenticatedRequest,
   type TenantContext,
   type Role,
@@ -26,11 +26,11 @@ import {
 } from '../schemas/tactical.js';
 import {
   verifyUser,
+  registerUser,
   issueEmailVerificationToken,
   verifyEmailToken,
 } from '../application/auth/userService.js';
-import { createUserTx, getUserByEmail } from '../repositories/userRepo.js';
-import { withTransaction } from '../db/pool.js';
+import { getUserByEmail } from '../repositories/userRepo.js';
 import { sendVerificationEmail } from '../infrastructure/mailService.js';
 import {
   isLockedOut,
@@ -48,10 +48,9 @@ import {
   type Membership,
 } from '../application/org/membershipService.js';
 
-export const RT_COOKIE = 'rt';
 const RT_COOKIE_BASE = {
   httpOnly: true,
-  secure: process.env.NODE_ENV === 'production',
+  secure: config.NODE_ENV === 'production',
   sameSite: 'strict' as const,
   path: '/api/v1/auth',
 };
@@ -80,26 +79,13 @@ const orgSummary = (m: Membership) => ({
 
 const router = Router();
 
-function slugify(s: string): string {
-  return (
-    s
-      .toLowerCase()
-      .trim()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '')
-      .slice(0, 60) || 'org'
-  );
-}
-
 router.post(
   '/login/password',
   validate(loginPasswordSchema),
   asyncRouteHandler(
     async (req, res) => {
       const { username, password } = req.body;
-      const xff = req.headers['x-forwarded-for'];
-      const clientIp =
-        typeof xff === 'string' && xff.length > 0 ? xff.split(',')[0].trim() : (req.ip ?? '');
+      const clientIp = req.ip ?? '';
       const ipBlockTtl = await isIpBlocked(clientIp); // P0-05：IP 维度撞库检测（等保三级 8.1.4 b)）
       if (ipBlockTtl > 0) {
         logger.warn({ clientIp: 'hidden', ipBlockTtl }, '[auth] IP 被封锁，拒绝登录');
@@ -175,20 +161,7 @@ router.post(
 
       let userId = '';
       try {
-        await withTransaction(async (client) => {
-          const user = await createUserTx(client, username, password, email, 'analyst');
-          userId = user.id;
-          const slug = `${slugify(orgName)}-${randomBytes(3).toString('hex')}`;
-          const orgRes = await client.query(
-            'INSERT INTO organizations (name, slug) VALUES ($1, $2) RETURNING id',
-            [orgName, slug],
-          );
-          const orgId = orgRes.rows[0].id as string;
-          await client.query(
-            "INSERT INTO memberships (org_id, user_id, role) VALUES ($1, $2, 'owner')",
-            [orgId, userId],
-          );
-        });
+        userId = await registerUser(username, password, email, orgName);
       } catch (err) {
         const msg = String(err);
         if (msg.includes('duplicate key') || msg.includes('unique')) {

@@ -43,6 +43,8 @@ export interface TenantedRequest extends Request {
   tenantId: string;
 }
 
+export const RT_COOKIE = 'rt';
+
 export const hashUserId = (sub: string | undefined): string | undefined =>
   sub ? crypto.createHash('sha256').update(sub).digest('hex').slice(0, 16) : undefined;
 

@@ -1,13 +1,12 @@
 // API Key 管理路由 — 组织密钥（ADR-033）+ 平台 break-glass 密钥（P0-04）
-import { Router, type Request, type Response, type NextFunction } from 'express';
+import { Router, type Request, type Response } from 'express';
 import { z } from 'zod';
 import { validate } from '../middleware/miscMiddleware.js';
 import { sendProblem } from '../utils/errors.js';
 import { logger } from '../utils/logger.js';
-import { recordAuthFailure, getRoutePattern } from '../utils/metrics.js';
 import { jwtAuth, auditLog, type AuthenticatedRequest } from '../middleware/jwtAuth.js';
 import { crudMiddleware } from '../middleware/middlewareChains.js';
-import { Permission } from '../middleware/rbac.js';
+import { Permission, requirePlatformAdmin } from '../middleware/rbac.js';
 import {
   createApiKey,
   listApiKeys,
@@ -80,15 +79,6 @@ router.delete(
     },
   ),
 );
-
-function requirePlatformAdmin(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
-  if (req.user?.platform_admin !== true) {
-    recordAuthFailure(getRoutePattern(req), 'not_platform_admin');
-    sendProblem(res, 403, 'INSUFFICIENT_PERMISSION');
-    return;
-  }
-  next();
-}
 
 const rotateSchema = z.object({
   name: z.string().trim().min(1, '名称不能为空').max(120, '名称过长').optional(),

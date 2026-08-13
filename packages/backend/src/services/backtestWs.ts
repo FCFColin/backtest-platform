@@ -4,7 +4,7 @@ import type { Duplex } from 'node:stream';
 import IORedis from 'ioredis';
 import client from 'prom-client';
 import { verifyToken } from '../middleware/jwtAuth.js';
-import { jobAccessGranted } from '../routes/jobSubmission.js';
+import { jobAccessGranted } from '../middleware/jobAccess.js';
 import { backtestQueue } from '../queues/backtestQueue.js';
 import { buildRedisBaseOptions } from '../infrastructure/redisClient.js';
 import { logger } from '../utils/logger.js';
