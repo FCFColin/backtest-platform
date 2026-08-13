@@ -17,7 +17,8 @@ import { Button } from '@/components/ui/uiComponents';
 import { ResultsShell } from '@/components/resultsShell.js';
 import { MiniStatCard } from '@/components/cards.js';
 import { fmtPct, fmtNum } from '@/utils/format';
-import { XYScatterChart, ChartEmptyState } from '@/components/charts/sharedChartContent.js';
+import { XYScatterChart } from '@/components/charts/sharedChartContent.js';
+import { ChartEmptyState } from '@/components/stateDisplay.js';
 const METRICS_ROWS: { key: keyof Statistics; labelKey: string; fmt: 'pct' | 'num' }[] = [
   { key: 'cagr', labelKey: 'stats.cagr', fmt: 'pct' },
   { key: 'stdev', labelKey: 'Volatility', fmt: 'pct' },
@@ -83,6 +84,7 @@ function WeightBarChart({
 }: {
   data: Array<{ ticker: string; weight: number; fill: string }>;
 }) {
+  const { t } = useTranslation();
   const option: EChartsOption = {
     grid: { left: 60, right: 40, top: 5, bottom: 5, containLabel: false },
     xAxis: {
@@ -118,7 +120,7 @@ function WeightBarChart({
       },
     ],
   };
-  return <EChart option={option} height={data.length * 48 + 20} ariaLabel="Optimal Weights" />;
+  return <EChart option={option} height={data.length * 48 + 20} ariaLabel={t('Optimal Weights')} />;
 }
 function MetricsTable({
   backtestStats,
@@ -202,7 +204,7 @@ export function OptimizerResults({ s }: { s: EfficientFrontierState }) {
       error={s.error}
       isLoading={s.isLoading}
       hasResults={!!s.results}
-      errorPrefix={`${t('Optimization Failed')}：`}
+      errorPrefix={`${t('Optimization Failed')}: `}
       loadingLabel={t('Optimizing...')}
       emptyTitle={t(
         'Configure parameters on the left and click "Start Calculation" to see optimal weights',

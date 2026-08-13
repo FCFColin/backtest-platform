@@ -11,6 +11,7 @@ import {
   X,
   Wifi,
   WifiOff,
+  BarChart3,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Alert, AlertDescription } from '@/components/ui/uiComponents';
@@ -247,6 +248,24 @@ export function Toast() {
           <ToastCard toast={t} />
         </div>
       ))}
+    </div>
+  );
+}
+
+// 独立于 EChart，避免结果页仅需空态时拖入 echarts（首屏体积敏感）
+type ChartEmptyStateProps = { message?: string; height?: string };
+export function ChartEmptyState({ message, height = '280px' }: ChartEmptyStateProps) {
+  const { t } = useTranslation();
+  return (
+    <div
+      className="flex items-center justify-center border border-dashed border-border-subtle rounded-lg"
+      style={{ height }}
+      data-testid="chart-empty-state"
+    >
+      <div className="text-center text-fg-tertiary">
+        <BarChart3 className="h-8 w-8 mx-auto mb-2 opacity-40" />
+        <p className="text-caption">{message ?? t('No data')}</p>
+      </div>
     </div>
   );
 }

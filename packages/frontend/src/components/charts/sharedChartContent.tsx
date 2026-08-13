@@ -1,6 +1,4 @@
-﻿import { useTranslation } from 'react-i18next';
-import { BarChart3 } from 'lucide-react';
-import type { EChartsOption } from 'echarts';
+﻿import type { EChartsOption } from 'echarts';
 import { CHART_MARGIN, getPortfolioColor } from '@/lib/chart-theme.js';
 import type { TooltipValueFormatter } from '@/lib/chart-theme.js';
 import { useChartAnimation } from '@/hooks/miscHooks.js';
@@ -526,25 +524,5 @@ export function XYScatterChart({
   };
   return (
     <EChart option={option} height={height} ariaLabel={`${xName} vs ${yName}`} onClick={onClick} />
-  );
-}
-
-interface ChartEmptyStateProps {
-  message?: string;
-  height?: string;
-}
-export function ChartEmptyState({ message, height = '280px' }: ChartEmptyStateProps) {
-  const { t } = useTranslation();
-  return (
-    <div
-      className="flex items-center justify-center border border-dashed border-border-subtle rounded-lg"
-      style={{ height }}
-      data-testid="chart-empty-state"
-    >
-      <div className="text-center text-fg-tertiary">
-        <BarChart3 className="h-8 w-8 mx-auto mb-2 opacity-40" />
-        <p className="text-caption">{message ?? t('No data')}</p>
-      </div>
-    </div>
   );
 }

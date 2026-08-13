@@ -94,7 +94,7 @@ function RollingLineChart({
       height={400}
       defaultStrokeWidth={1.5}
       yTickFormatter={isPct ? (v) => `${v.toFixed(0)}%` : (v) => v.toFixed(1)}
-      tooltipValueFormatter={(v) => [isPct ? `${v.toFixed(2)}%` : v.toFixed(3), '']}
+      tooltipValueFormatter={(v) => (isPct ? `${v.toFixed(2)}%` : v.toFixed(3))}
       tooltipLabelFormatter={(label) => `${t('Date')}: ${label}`}
       referenceY={
         metric === 'excess' || metric === 'skewness' || metric === 'kurtosis' ? 0 : undefined
@@ -189,7 +189,7 @@ export default function RollingReturnChart({ portfolios }: RollingReturnChartPro
         height={300}
         defaultStrokeWidth={1.5}
         yTickFormatter={(v) => `${v.toFixed(0)}%`}
-        tooltipValueFormatter={(v) => [`${v.toFixed(2)}%`, '']}
+        tooltipValueFormatter={(v) => `${v.toFixed(2)}%`}
         tooltipLabelFormatter={(label) => t('Date: {{label}}', { label })}
         showBrush
       />

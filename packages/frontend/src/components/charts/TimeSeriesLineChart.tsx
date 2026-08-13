@@ -67,8 +67,6 @@ function normalizeSeries(
     };
   });
 }
-const defaultYTickFormatter = (v: number): string =>
-  v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v.toFixed(0);
 const defaultTooltipValueFormatter: TooltipValueFormatter = (v: number): [string, string] => [
   fmtAmount(v),
   '',
@@ -79,7 +77,7 @@ export function TimeSeriesLineChart({
   series,
   xDataKey = 'date',
   height = 350,
-  yTickFormatter = defaultYTickFormatter,
+  yTickFormatter = (v) => v.toFixed(0),
   tooltipValueFormatter = defaultTooltipValueFormatter,
   tooltipLabelFormatter,
   yDomain,

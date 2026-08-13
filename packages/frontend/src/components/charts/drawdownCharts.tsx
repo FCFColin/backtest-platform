@@ -6,9 +6,16 @@ import {
   CHART_MARGIN,
   getPortfolioColor,
 } from '@/lib/chart-theme.js';
-import { fmtPct, downsample, DOWNSAMPLE_THRESHOLD, DOWNSAMPLE_TARGET } from '@/utils/format.js';
+import {
+  fmtPct,
+  downsample,
+  DOWNSAMPLE_THRESHOLD,
+  DOWNSAMPLE_TARGET,
+  mergeRowsByDate,
+} from '@/utils/format.js';
 import { totalMonths } from './chartUtils.js';
-import { ChartEmptyState, SimpleAreaChart } from '@/components/charts/sharedChartContent.js';
+import { SimpleAreaChart } from '@/components/charts/sharedChartContent.js';
+import { ChartEmptyState } from '@/components/stateDisplay.js';
 
 interface DrawdownChartProps {
   portfolios: Array<{
@@ -19,14 +26,13 @@ interface DrawdownChartProps {
 }
 function useDrawdownData(portfolios: DrawdownChartProps['portfolios']) {
   return useMemo(() => {
-    const merged: Record<string, Record<string, string | number>> = {};
-    portfolios.forEach((p) => {
-      p.drawdownCurve.forEach((point) => {
-        if (!merged[point.date]) merged[point.date] = { date: point.date };
-        merged[point.date][p.id] = -Math.abs(point.drawdown);
-      });
-    });
-    const rows = Object.values(merged).sort((a, b) => String(a.date).localeCompare(String(b.date)));
+    const rows = mergeRowsByDate(
+      portfolios.map((p) => ({
+        key: p.id,
+        rows: p.drawdownCurve,
+        value: (point: { date: string; drawdown: number }) => -Math.abs(point.drawdown),
+      })),
+    );
     return rows.length > DOWNSAMPLE_THRESHOLD ? downsample(rows, DOWNSAMPLE_TARGET) : rows;
   }, [portfolios]);
 }

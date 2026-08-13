@@ -2,7 +2,8 @@ import { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Eye, EyeOff, FunctionSquare } from 'lucide-react';
 import { Button } from '@/components/ui/uiComponents.js';
-import { ChartEmptyState, SimpleChart } from '@/components/charts/sharedChartContent.js';
+import { SimpleChart } from '@/components/charts/sharedChartContent.js';
+import { ChartEmptyState } from '@/components/stateDisplay.js';
 import { totalMonths } from './chartUtils.js';
 import {
   dateAxisTickFormatter,
@@ -14,6 +15,7 @@ import {
   downsample,
   DOWNSAMPLE_THRESHOLD,
   DOWNSAMPLE_TARGET,
+  mergeRowsByDate,
 } from '@/utils/format.js';
 import { cn } from '@/lib/utils.js';
 interface GrowthChartProps {
@@ -178,16 +180,17 @@ export function GrowthChart({ portfolios, currency = 'USD' }: GrowthChartProps) 
       return next;
     });
   };
-  const chartData = useMemo(() => {
-    const merged: Record<string, Record<string, string | number>> = {};
-    portfolios.forEach((p) =>
-      p.growthCurve.forEach((point) => {
-        if (!merged[point.date]) merged[point.date] = { date: point.date };
-        merged[point.date][p.id] = point.value;
-      }),
-    );
-    return Object.values(merged).sort((a, b) => String(a.date).localeCompare(String(b.date)));
-  }, [portfolios]);
+  const chartData = useMemo(
+    () =>
+      mergeRowsByDate(
+        portfolios.map((p) => ({
+          key: p.id,
+          rows: p.growthCurve,
+          value: (point: { date: string; value: number }) => point.value,
+        })),
+      ),
+    [portfolios],
+  );
   const filteredData = useMemo(() => {
     let data = chartData;
     if (timeRange !== 'MAX' && chartData.length > 0) {

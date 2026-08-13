@@ -130,7 +130,7 @@ export default function AnnualReturnChart({ portfolios, results }: AnnualReturnC
         seriesNames={seriesNames}
         xDataKey="year"
         yTickFormatter={(v: number) => `${v.toFixed(0)}%`}
-        tooltipValueFormatter={(value: number) => [`${value.toFixed(2)}%`, '']}
+        tooltipValueFormatter={(value: number) => `${value.toFixed(2)}%`}
         barRadius={2}
       />
       {portfolios?.map((p, idx) => (

@@ -4,13 +4,13 @@ import { type Portfolio } from '@backtest/shared';
 import { downsample, DOWNSAMPLE_THRESHOLD, DOWNSAMPLE_TARGET } from '../../utils/format.js';
 import { CHART_MARGIN, DATE_TICK_FORMATTER, getPortfolioColor } from '@/lib/chart-theme.js';
 import {
-  AXIS_TEXT,
-  BORDER_SOFT,
   axisTooltipFormatter,
+  categoryAxis,
   tooltipOption,
   tooltipRow,
+  valueYAxis,
 } from './chartUtils.js';
-import { ChartEmptyState } from './sharedChartContent.js';
+import { ChartEmptyState } from '@/components/stateDisplay.js';
 import { useChartAnimation } from '@/hooks/miscHooks.js';
 import EChart from './EChart.js';
 import ChartCard from '../ChartCard.js';
@@ -118,23 +118,11 @@ function AllocationAreaChart({
   };
   const option: EChartsOption = {
     grid,
-    xAxis: {
-      type: 'category',
-      data: data.map((d) => String(d.date)),
-      axisLabel: { ...AXIS_TEXT, formatter: DATE_TICK_FORMATTER },
-      axisLine: { lineStyle: { color: BORDER_SOFT } },
-      axisTick: { show: false },
-      splitLine: { show: false },
-    },
-    yAxis: {
-      type: 'value',
-      min: 0,
-      max: 100,
-      axisLabel: { ...AXIS_TEXT, formatter: (v: number) => `${v}%` },
-      axisLine: { show: false },
-      axisTick: { show: false },
-      splitLine: { lineStyle: { color: BORDER_SOFT, opacity: 0.6 } },
-    },
+    xAxis: categoryAxis(
+      data.map((d) => String(d.date)),
+      { formatter: DATE_TICK_FORMATTER },
+    ),
+    yAxis: valueYAxis({ min: 0, max: 100, formatter: (v: number) => `${v}%` }),
     tooltip: tooltipOption(
       axisTooltipFormatter(
         (label) => String(label),

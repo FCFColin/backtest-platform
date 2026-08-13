@@ -2,7 +2,8 @@ import { memo, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { type AssetAnalysisResult, type PortfolioResult } from '@backtest/shared';
 import { getHeatColor } from '@/lib/chart-theme.js';
-import { BarChartContent, ChartEmptyState } from './sharedChartContent.js';
+import { BarChartContent } from './sharedChartContent.js';
+import { ChartEmptyState } from '@/components/stateDisplay.js';
 import { TimeSeriesLineChart } from './TimeSeriesLineChart.js';
 import { downsample, DOWNSAMPLE_THRESHOLD, DOWNSAMPLE_TARGET } from '../../utils/format.js';
 import { useAnalysisData } from '../../hooks/useAnalysisData.js';
@@ -285,7 +286,7 @@ export function SeasonalityChart({ portfolios }: SeasonalityChartProps) {
         xDataKey="month"
         height={400}
         yTickFormatter={(v) => `${v.toFixed(0)}%`}
-        tooltipValueFormatter={(v) => [`${v.toFixed(2)}%`, '']}
+        tooltipValueFormatter={(v) => `${v.toFixed(2)}%`}
         yLabel={t('Average Return')}
         barRadius={2}
         signColorSingleSeries

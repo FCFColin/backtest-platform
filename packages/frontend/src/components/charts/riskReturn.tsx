@@ -2,7 +2,8 @@
 import { useTranslation } from 'react-i18next';
 import { type AssetAnalysisResult, type PortfolioResult } from '@backtest/shared';
 import { getPortfolioColor } from '@/lib/chart-theme.js';
-import { ChartEmptyState, ScatterChartContent, XYScatterChart } from './sharedChartContent.js';
+import { ScatterChartContent, XYScatterChart } from './sharedChartContent.js';
+import { ChartEmptyState } from '@/components/stateDisplay.js';
 import { type RiskMetricKey } from './chartUtils.js';
 import ChartCard from '../ChartCard.js';
 import { MiniSelect } from '@/components/ui/uiComponents';
