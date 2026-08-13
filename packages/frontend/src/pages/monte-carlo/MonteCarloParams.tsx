@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import {
@@ -138,10 +138,12 @@ interface FieldConfig {
   placeholder?: string;
 }
 function BasicField({ t, cfg }: { t: TFunction; cfg: FieldConfig }) {
+  const inputId = useId();
   return (
     <Field>
-      <FieldLabel>{t(cfg.labelKey)}</FieldLabel>
+      <FieldLabel htmlFor={inputId}>{t(cfg.labelKey)}</FieldLabel>
       <AffixInput
+        id={inputId}
         type={cfg.type ?? 'text'}
         value={cfg.value}
         onChange={(e) => cfg.onChange(e.target.value)}
@@ -218,7 +220,7 @@ function SimParamsSection({ s }: { s: McState }) {
           <BasicField key={cfg.labelKey} t={t} cfg={cfg} />
         ))}
         <Field>
-          <FieldLabel>{t('With Replacement')}</FieldLabel>
+          <FieldLabel htmlFor="mc-with-replacement">{t('With Replacement')}</FieldLabel>
           <Checkbox
             id="mc-with-replacement"
             checked={s.withReplacement}

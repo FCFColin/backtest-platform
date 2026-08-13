@@ -5,8 +5,8 @@ import { LogIn, UserPlus, MailCheck } from 'lucide-react';
 import { z } from 'zod';
 import { useAuthStore } from '@/store/authStore';
 import { ErrorBanner } from '@/components/stateDisplay';
-import { Checkbox, Button } from '@/components/ui/uiComponents';
-import AuthPageLayout, { AuthFormField, AuthSubmitButton } from '@/components/auth/formFields';
+import { Checkbox, Button, LoadingButton } from '@/components/ui/uiComponents';
+import AuthPageLayout, { AuthFormField } from '@/components/auth/formFields';
 const loginSchema = z.object({
   username: z.string().min(1, 'auth.login.usernameRequired'),
   password: z.string().min(1, 'auth.login.passwordRequired'),
@@ -85,12 +85,15 @@ export default function LoginPage() {
           autoComplete="current-password"
         />
         <ErrorBanner message={formError || error || sessionMessage} />
-        <AuthSubmitButton
-          loading={loading}
-          icon={<LogIn className="w-4 h-4" />}
-          label={t('Log In')}
-          loadingLabel={t('Logging in...')}
-        />
+        <LoadingButton
+          type="submit"
+          isLoading={loading}
+          loadingText={t('Logging in...')}
+          className="mt-1 h-[42px]"
+        >
+          <LogIn className="w-4 h-4" />
+          {t('Log In')}
+        </LoadingButton>
       </form>
     </AuthPageLayout>
   );
@@ -217,12 +220,15 @@ export function SignupPage() {
         <AuthFormField label={t('Organization Name')} value={orgName} onChange={setOrgName} />
         <TermsCheckbox accepted={termsAccepted} onChange={setTermsAccepted} />
         <ErrorBanner message={formError || error} />
-        <AuthSubmitButton
-          loading={loading}
-          icon={<UserPlus className="w-4 h-4" />}
-          label={t('Sign Up')}
-          loadingLabel={t('Signing up...')}
-        />
+        <LoadingButton
+          type="submit"
+          isLoading={loading}
+          loadingText={t('Signing up...')}
+          className="mt-1 h-[42px]"
+        >
+          <UserPlus className="w-4 h-4" />
+          {t('Sign Up')}
+        </LoadingButton>
       </form>
     </AuthPageLayout>
   );

@@ -29,7 +29,7 @@ interface KpiCardProps {
 const COLOR_CLASSES: Record<KpiColor, string> = {
   blue: 'bg-brand/10 text-brand',
   green: 'bg-success/10 text-success',
-  purple: 'bg-brand/15 text-brand',
+  purple: 'bg-[hsl(var(--chart-5))]/15 text-[hsl(var(--chart-5))]',
   orange: 'bg-warning/10 text-warning',
   red: 'bg-danger/10 text-danger',
 };
@@ -100,9 +100,11 @@ export function ServiceStatusBadge({
       <Badge
         variant={config.badgeVariant}
         size="sm"
+        role="img"
+        aria-label={t(config.labelKey)}
         className={cn('gap-0 px-1', config.overrideClassName)}
       >
-        <Icon className={iconSize} />
+        <Icon className={iconSize} aria-hidden="true" />
       </Badge>
     );
   }
@@ -180,6 +182,7 @@ export default function AdminLayout() {
         <header className="flex h-14 shrink-0 items-center gap-3 border-b border-border bg-surface px-4">
           <button
             className="rounded p-1.5 hover:bg-hover lg:hidden"
+            aria-label={t('adminLayout.openMenu')}
             onClick={() => setMobileOpen(true)}
           >
             <Menu className="h-5 w-5 text-fg-secondary" />

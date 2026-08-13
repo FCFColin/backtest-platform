@@ -1,10 +1,10 @@
 import type { CSSProperties, ReactNode } from 'react';
-import { Loader2 } from 'lucide-react';
+import { useId } from 'react';
 import { Link } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils.js';
 import { Field, FieldLabel } from '@/components/form/Field.js';
-import { Button, Card } from '@/components/ui/uiComponents';
+import { Card } from '@/components/ui/uiComponents';
 interface AuthPageLayoutProps {
   icon?: ReactNode;
   title: ReactNode;
@@ -63,20 +63,6 @@ export function LoginRequiredCard({ message }: { message: string }) {
   );
 }
 
-interface AuthSubmitButtonProps {
-  loading: boolean;
-  icon: ReactNode;
-  label: string;
-  loadingLabel: string;
-}
-export function AuthSubmitButton({ loading, icon, label, loadingLabel }: AuthSubmitButtonProps) {
-  return (
-    <Button type="submit" variant="primary" className="mt-1 h-[42px]" disabled={loading}>
-      {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : icon}
-      {loading ? loadingLabel : label}
-    </Button>
-  );
-}
 interface BrandIconBadgeProps {
   icon: ReactNode;
   size?: 'sm' | 'lg';
@@ -117,10 +103,12 @@ export function AuthFormField({
   minLength,
   style,
 }: AuthFormFieldProps) {
+  const inputId = useId();
   return (
     <Field>
-      <FieldLabel>{label}</FieldLabel>
+      <FieldLabel htmlFor={inputId}>{label}</FieldLabel>
       <input
+        id={inputId}
         type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}

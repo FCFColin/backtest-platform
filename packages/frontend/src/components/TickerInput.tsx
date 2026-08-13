@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Input } from '@/components/ui/uiComponents';
 import { cn } from '@/lib/utils';
@@ -17,32 +17,35 @@ interface TickerInputProps {
 function resolveDisplayName(name: string, t: (key: string) => string): string {
   return name.startsWith('components.') ? t(name) : name;
 }
-function handleDropdownKey(e: React.KeyboardEvent, onSelect: () => void) {
-  if (e.key === 'Enter' || e.key === ' ') {
-    e.preventDefault();
-    onSelect();
-  }
-}
 function TickerDropdown({
   suggestions,
   selectedIndex,
   fetchingRemote,
   onSelect,
   onHover,
+  listboxId,
 }: {
   suggestions: TickerSuggestion[];
   selectedIndex: number;
   fetchingRemote: boolean;
   onSelect: (s: TickerSuggestion) => void;
   onHover: (idx: number) => void;
+  listboxId: string;
 }) {
   const { t } = useTranslation();
   return (
-    <div className="absolute z-50 mt-1 w-full overflow-hidden rounded-md border border-border bg-elevated shadow-lg">
+    <div
+      id={listboxId}
+      role="listbox"
+      aria-label={t('Ticker suggestions')}
+      className="absolute z-50 mt-1 w-full overflow-hidden rounded-md border border-border bg-elevated shadow-lg"
+    >
       {suggestions.map((s, i) => (
         <div
           key={s.ticker}
-          role="button"
+          role="option"
+          id={`${listboxId}-${i}`}
+          aria-selected={i === selectedIndex}
           tabIndex={0}
           className={cn(
             'flex cursor-default items-center gap-2 px-3 py-1.5 text-caption transition-colors duration-150',
@@ -52,7 +55,12 @@ function TickerDropdown({
             e.preventDefault();
             onSelect(s);
           }}
-          onKeyDown={(e) => handleDropdownKey(e, () => onSelect(s))}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              onSelect(s);
+            }
+          }}
           onMouseEnter={() => onHover(i)}
         >
           <span className="font-mono font-medium text-fg">{s.ticker}</span>
@@ -70,11 +78,10 @@ function TickerDropdown({
           <span className="text-fg-tertiary">{resolveDisplayName(s.market, t)}</span>
         </div>
       ))}
-      {fetchingRemote && (
-        <div className="px-3 py-1.5 text-caption text-fg-tertiary">{t('Searching...')}</div>
-      )}
-      {!fetchingRemote && suggestions.length === 0 && (
-        <div className="px-3 py-1.5 text-caption text-fg-tertiary">{t('No matching tickers')}</div>
+      {suggestions.length === 0 && (
+        <div className="px-3 py-1.5 text-caption text-fg-tertiary">
+          {fetchingRemote ? t('Searching...') : t('No matching tickers')}
+        </div>
       )}
     </div>
   );
@@ -113,12 +120,7 @@ function useTickerSearch() {
       }
     }, 300);
   }, []);
-  useEffect(
-    () => () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    },
-    [],
-  );
+  useEffect(() => () => clearTimeout(debounceRef.current), []);
   return {
     suggestions,
     fetchingRemote,
@@ -131,6 +133,7 @@ function useTickerSearch() {
 export default function TickerInput({ value, onChange, placeholder, className }: TickerInputProps) {
   const { t } = useTranslation();
   const [focused, setFocused] = useState(false);
+  const listboxId = useId();
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const {
@@ -156,6 +159,7 @@ export default function TickerInput({ value, onChange, placeholder, className }:
     setFocused(false);
     inputRef.current?.blur();
   };
+  const listOpen = focused && value.trim().length >= 2;
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (suggestions.length === 0) return;
     if (e.key === 'ArrowDown') {
@@ -178,6 +182,11 @@ export default function TickerInput({ value, onChange, placeholder, className }:
         ref={inputRef}
         type="text"
         value={value}
+        role="combobox"
+        aria-expanded={listOpen}
+        aria-controls={listboxId}
+        aria-autocomplete="list"
+        aria-activedescendant={selectedIndex >= 0 ? `${listboxId}-${selectedIndex}` : undefined}
         onChange={(e) => {
           onChange(e.target.value);
           updateSuggestions(e.target.value);
@@ -192,13 +201,14 @@ export default function TickerInput({ value, onChange, placeholder, className }:
         spellCheck={false}
         className={className}
       />
-      {focused && value.trim().length >= 2 && (
+      {listOpen && (
         <TickerDropdown
           suggestions={suggestions}
           selectedIndex={selectedIndex}
           fetchingRemote={fetchingRemote}
           onSelect={handleSelect}
           onHover={setSelectedIndex}
+          listboxId={listboxId}
         />
       )}
     </div>

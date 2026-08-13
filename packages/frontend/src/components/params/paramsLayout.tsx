@@ -25,7 +25,7 @@ interface ParamCardProps {
 export function ParamCard({ label, children, fullWidth, style, className }: ParamCardProps) {
   return (
     <div className={cn('flex flex-col gap-1.5', fullWidth && 'w-full', className)} style={style}>
-      {label && <label className="text-caption text-fg-tertiary">{label}</label>}
+      {label && <span className="text-caption text-fg-tertiary">{label}</span>}
       <div className="min-w-0">{children}</div>
     </div>
   );
