@@ -142,7 +142,7 @@ export function ServiceStatusTable({ services }: { services: ServiceHealthView[]
 const SIDEBAR_ITEMS = [
   { to: '/admin', icon: LayoutDashboard, labelKey: 'adminLayout.dashboard', end: true },
   { to: '/admin/monitor', icon: Activity, labelKey: 'adminLayout.monitor' },
-  { to: '/admin/data', icon: Database, labelKey: 'Data Management' },
+  { to: '/admin/data', icon: Database, labelKey: 'adminLayout.dataManagement' },
   { to: '/admin/settings', icon: Settings, labelKey: 'adminLayout.settings' },
 ];
 export default function AdminLayout() {

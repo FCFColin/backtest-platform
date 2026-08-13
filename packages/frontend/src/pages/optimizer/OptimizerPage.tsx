@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
+import i18n from '@/i18n/index.js';
 import { OptimizerParams } from './OptimizerParams.js';
 import { OptimizerResults } from './OptimizerResults.js';
 import { useOptimizerState } from './OptimizerUtils.js';
@@ -11,6 +12,21 @@ function OptimizerParamsWrapper({ state }: { state: EfficientFrontierState }) {
 function OptimizerResultsWrapper({ state }: { state: EfficientFrontierState }) {
   return <OptimizerResults s={state} />;
 }
+const OPTIMIZER_PRESETS = [
+  ['optimizer.presets.equityBond6040', ['VTI', 'BND'], 'maxSharpe', 5, 95],
+  ['optimizer.presets.threeFund', ['VTI', 'VXUS', 'BND'], 'maxSharpe'],
+  ['optimizer.presets.minVolatility', ['VTI', 'VXUS', 'BND', 'QQQ'], 'minVolatility'],
+] as const;
+const buildPresets = (s: EfficientFrontierState) =>
+  OPTIMIZER_PRESETS.map(([key, tickers, objective, min = 0, max = 100]) => ({
+    label: i18n.t(key),
+    onClick: () => {
+      s.setTickers([...tickers]);
+      s.setObjective(objective);
+      s.setMinWeight(min);
+      s.setMaxWeight(max);
+    },
+  }));
 const config: ComputeToolConfig<EfficientFrontierState> = {
   titleKey: 'nav.portfolioOptimize',
   seoDescKey: 'optimizer.seoDesc',
@@ -25,6 +41,7 @@ const config: ComputeToolConfig<EfficientFrontierState> = {
     { titleKey: 'nav.monteCarlo', href: '/monte-carlo' },
   ],
   hideParamsTitle: true,
+  presets: buildPresets,
   params: OptimizerParamsWrapper,
   results: OptimizerResultsWrapper,
 };
