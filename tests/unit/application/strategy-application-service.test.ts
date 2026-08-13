@@ -254,16 +254,13 @@ describe('strategy-application-services', () => {
       expect(result.data[0].weight).toBe(100);
     });
 
-    it('benchmark 回测失败时应降级为空结果', async () => {
+    it('benchmark 回测失败时应 fail-closed（ADR-008，不再降级为空结果）', async () => {
       mockPriceData({ SPY: { '2020-01-01': 100, '2020-01-02': 101 } });
       engineMocks.callEngineStrict
         .mockResolvedValueOnce({ portfolio: emptyPortfolio('tactical'), signalHistory: [] })
         .mockRejectedValueOnce(new Error('benchmark error'));
 
-      const result = await executeTacticalBacktest(backtestParams);
-      expect(result.data.benchmark).toBeDefined();
-      expect(result.data.benchmark.growthCurve).toEqual([]);
-      expect(result.data.benchmark.name).toBe('等权基准');
+      await expect(executeTacticalBacktest(backtestParams)).rejects.toThrow('benchmark error');
     });
 
     it.each([

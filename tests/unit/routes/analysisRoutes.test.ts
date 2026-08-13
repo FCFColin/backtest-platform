@@ -465,7 +465,7 @@ describe('tacticalRoutes - POST /api/tactical/backtest', () => {
     const { res } = await post(getServer(), '/api/v1/tactical/backtest', validBacktestReq());
     expect(res.status).toBe(500);
   });
-  it('基准回测失败时应使用空结果兜底', async () => {
+  it('基准回测失败应 fail-closed（ADR-008，不再空结果兜底）', async () => {
     engineMocks.callEngineStrict
       .mockReset()
       .mockResolvedValueOnce({
@@ -473,10 +473,8 @@ describe('tacticalRoutes - POST /api/tactical/backtest', () => {
         signalHistory,
       })
       .mockRejectedValueOnce(new Error('benchmark error'));
-    const { res, body } = await post(getServer(), '/api/v1/tactical/backtest', validBacktestReq());
-    expect(res.status).toBe(200);
-    expect(body.success).toBe(true);
-    expect(body.data.benchmark.growthCurve).toEqual([]);
+    const { res } = await post(getServer(), '/api/v1/tactical/backtest', validBacktestReq());
+    expect(res.status).toBe(500);
   });
 });
 

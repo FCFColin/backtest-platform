@@ -8,8 +8,6 @@ import { backtestResultSchema, tacticalBacktestResultSchema } from '../schemas/e
 import { buildEngineParams } from './backtest/backtestEngineUtils.js';
 import { Portfolio as DomainPortfolio } from '../domain/aggregates/portfolio.js';
 import { Ticker, Weight } from '../domain/value-objects/index.js';
-import { createEmptyStatistics } from '@backtest/shared/types';
-import { logger } from '../utils/logger.js';
 import {
   ensurePriceDataExists,
   ensureSufficientTradingDays,
@@ -66,33 +64,16 @@ async function runBenchmarkBacktest(params: BenchmarkParams): Promise<PortfolioR
     oneTimeCashflows: [],
   };
 
-  try {
-    const engineResp = await callEngineStrict<{ portfolios: PortfolioResult[] }>(
-      '/api/engine/backtest',
-      {
-        portfolios: [benchmarkPortfolio.toEngineBody()],
-        priceData,
-        params: buildEngineParams(benchmarkParams),
-      },
-      backtestResultSchema,
-    );
-    return engineResp.portfolios[0];
-  } catch (err) {
-    logger.warn(`[tactical] 基准回测失败，使用空结果: ${(err as Error).message}`);
-    return createEmptyPortfolioResult();
-  }
-}
-
-function createEmptyPortfolioResult(): PortfolioResult {
-  return {
-    name: '等权基准',
-    growthCurve: [],
-    drawdownCurve: [],
-    rollingReturns: [],
-    annualReturns: [],
-    monthlyReturns: [],
-    statistics: createEmptyStatistics(),
-  } satisfies PortfolioResult;
+  const engineResp = await callEngineStrict<{ portfolios: PortfolioResult[] }>(
+    '/api/engine/backtest',
+    {
+      portfolios: [benchmarkPortfolio.toEngineBody()],
+      priceData,
+      params: buildEngineParams(benchmarkParams),
+    },
+    backtestResultSchema,
+  );
+  return engineResp.portfolios[0];
 }
 
 // @throws ValidationError 无效标的或交易日不足

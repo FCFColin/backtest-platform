@@ -151,6 +151,7 @@ export async function getBacktestResultCache(key: string): Promise<BacktestResul
     if (Date.now() > entry.expiresAt) {
       cache.delete(key);
     } else {
+      // 命中后删除重插，维持 Map 插入序 = LRU 序，便于 getCache 最早淘汰冷条目
       cache.delete(key);
       cache.set(key, entry);
       recordCacheHit('backtest_result_cache', true);

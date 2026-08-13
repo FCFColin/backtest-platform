@@ -4,7 +4,7 @@ import { withTimeout, isValidDate } from '../utils/misc.js';
 import { loadExchangeRatesFromDb } from '../db/macroData.js';
 import { ValidationError } from '../utils/errors.js';
 import { DomainValidationError } from '../domain/value-objects/index.js';
-import { MAX_TICKERS } from '@backtest/shared/constants';
+import { MAX_PORTFOLIOS, MAX_TICKERS } from '@backtest/shared/constants';
 import type { Portfolio, BacktestParameters, BacktestResult, PriceData } from '@backtest/shared';
 import { Portfolio as DomainPortfolio } from '../domain/aggregates/portfolio.js';
 
@@ -66,7 +66,7 @@ export function preparePortfolioBacktest(
     for (const ticker of portfolio.tickers) allTickers.add(ticker);
     totalAssets += portfolio.holdingCount;
   }
-  if (portfolios.length > MAX_TICKERS || totalAssets > MAX_TICKERS)
+  if (portfolios.length > MAX_PORTFOLIOS || totalAssets > MAX_TICKERS)
     throw new ValidationError(`Portfolio or asset count exceeds limit (max ${MAX_TICKERS})`);
   if (parameters.benchmarkTicker) allTickers.add(parameters.benchmarkTicker);
   return { allTickers, warnings: [] as Warning[] };

@@ -25,7 +25,7 @@ const varByFrequencySchema = z.object({
 });
 const freqStatsSchema = z.object({ daily: num, monthly: num, annual: num });
 
-export const statisticsSchema = z
+const statisticsSchema = z
   .object({
     cagr: num,
     mwrr: num,
