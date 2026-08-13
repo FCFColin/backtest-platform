@@ -1,6 +1,5 @@
 import { vi } from 'vitest';
 import { mockBacktestQueue, mockConfigModule } from '../../helpers/mockFactories.js';
-import { loggerMocks } from '../../helpers/middlewareMocks.js';
 import {
   configureAnalysisMocks,
   configureMonteCarloMocks,
@@ -41,7 +40,7 @@ const internalMocks = vi.hoisted(() => ({
 }));
 
 import '../../helpers/middlewareMocks.js';
-vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: loggerMocks }));
+import '../../helpers/loggerMock.js';
 vi.mock('../../../packages/backend/src/application/backtest-service.js', () => ({
   runPortfolioBacktest: internalMocks.m.runPortfolioBacktest,
   runBacktest: internalMocks.m.runBacktest,
@@ -61,7 +60,6 @@ vi.mock('../../../packages/backend/src/infrastructure/dataFacade.js', () => ({
   fetchHistoryData: internalMocks.m.fetchHistoryData,
   validateTickers: internalMocks.m.validateTickers,
   initDb: vi.fn(),
-  invalidateCache: vi.fn(),
 }));
 vi.mock('../../../packages/backend/src/infrastructure/dataServices.js', () => ({
   SYNTHETIC_TICKERS: [

@@ -1,8 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach, afterAll } from 'vitest';
-import { loggerMocks } from '../../helpers/loggerFixture.js';
+import '../../helpers/loggerMock.js';
 import { redisModuleMock } from '../../helpers/redisFixture.js';
 import { engineModuleMock } from '../../helpers/engineFixture.js';
-vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: loggerMocks }));
 vi.mock('../../../packages/backend/src/queues/backtestQueue.js', () => ({
   createBacktestWorker: vi.fn(() => ({ close: vi.fn().mockResolvedValue(undefined) })),
 }));
@@ -212,7 +211,7 @@ describe('processBacktestJob - 任务分发', () => {
     expect(markJobProcessed).not.toHaveBeenCalled();
   });
 
-  describe('tenant-fair 调度（ADR-037）', () => {
+  describe('tenant-fair 调度（ADR-010）', () => {
     const proSlot = () => {
       mockOrg('pro');
       vi.mocked(appRedis.incr).mockResolvedValueOnce(1);

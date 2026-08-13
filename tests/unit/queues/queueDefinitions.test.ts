@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { loggerMocks } from '../../helpers/loggerFixture.js';
+import '../../helpers/loggerMock.js';
 
 const { queueMocks, workerMocks } = vi.hoisted(() => {
   const queueInstances: Record<string, unknown> = {};
@@ -35,7 +35,6 @@ vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () => ({
   bullmqConnectionOptions: { host: 'localhost', port: 6379 },
   isSentinelMode: false,
 }));
-vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: loggerMocks }));
 vi.mock('../../../packages/backend/src/application/auditExporter.js', () => ({
   exportPendingAuditLogs: vi.fn().mockResolvedValue({ exported: 0 }),
 }));

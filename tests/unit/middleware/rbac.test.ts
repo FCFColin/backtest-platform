@@ -1,5 +1,5 @@
 ﻿import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { loggerMocks } from '../../helpers/loggerFixture.js';
+import '../../helpers/loggerMock.js';
 import { requirePermission, Permission } from '../../../packages/backend/src/middleware/rbac.js';
 import {
   createMockRequest as createMockRequestBase,
@@ -7,7 +7,6 @@ import {
   createMockNext,
 } from '../../helpers/expressMocks.js';
 import { expectProblem } from '../../helpers/routeAssertions.js';
-vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: loggerMocks }));
 function createMockRequest(
   user: { sub: string; role: string; org_role?: string; platform_admin?: boolean } | null,
 ) {

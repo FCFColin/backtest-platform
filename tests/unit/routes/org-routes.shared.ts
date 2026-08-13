@@ -1,7 +1,7 @@
 import { vi } from 'vitest';
 import { startExpressApp, type TestServer, type TestRequest } from '../../helpers/expressApp.js';
 import { createConfigMocks } from '../../helpers/mockFactories.js';
-import { loggerMocks } from '../../helpers/loggerFixture.js';
+import '../../helpers/loggerMock.js';
 import type { Router } from 'express';
 
 const internalMocks = vi.hoisted(() => ({
@@ -44,7 +44,6 @@ vi.mock(
 );
 vi.mock('../../../packages/backend/src/infrastructure/mailService.js', () => internalMocks.mail);
 vi.mock('../../../packages/backend/src/middleware/tokenStore.js', () => internalMocks.token);
-vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: loggerMocks }));
 import '../../helpers/middlewareMocks.js';
 vi.mock('../../../packages/backend/src/middleware/miscMiddleware.js', () => ({
   validate: (schema: unknown) => (req: TestRequest, res: unknown, next: () => void) => {
