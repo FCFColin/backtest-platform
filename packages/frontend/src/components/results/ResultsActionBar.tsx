@@ -24,6 +24,7 @@ export function ResultsActionBar({ timeRange, onExport }: ResultsActionBarProps)
     if (sentinelRef.current) observer.observe(sentinelRef.current);
     return () => observer.disconnect();
   }, []);
+  const years = Number.isInteger(timeRange.years) ? timeRange.years : +timeRange.years.toFixed(1);
   return (
     <>
       <div ref={sentinelRef} className="h-0" />
@@ -40,7 +41,7 @@ export function ResultsActionBar({ timeRange, onExport }: ResultsActionBarProps)
             <h2 className="text-h3">{t('Results')}</h2>
             <span className="text-caption text-fg-tertiary font-mono tabular-nums">
               {t('{{years}} yrs · {{start}} to {{end}}', {
-                years: timeRange.years.toFixed(2),
+                years,
                 start: timeRange.start,
                 end: timeRange.end,
               })}

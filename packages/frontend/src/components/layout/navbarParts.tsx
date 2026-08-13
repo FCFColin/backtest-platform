@@ -155,41 +155,43 @@ export function NavbarActions() {
     useSettingsStore.getState().setCurrency(currency === 'usd' ? 'cny' : 'usd');
   return (
     <div className="flex items-center gap-1">
-      <Button
-        variant="icon"
-        size="icon"
-        onClick={toggleTheme}
-        title={
-          theme === 'system'
-            ? t('Switch to light theme')
-            : theme === 'dark'
-              ? t('Switch to system theme')
-              : t('Switch to dark theme')
-        }
-        aria-label={
-          theme === 'system'
-            ? t('Switch to light theme')
-            : theme === 'dark'
-              ? t('Switch to system theme')
-              : t('Switch to dark theme')
-        }
-        data-testid="theme-toggle"
-      >
-        {theme === 'dark' ? <Sun /> : theme === 'system' ? <Monitor /> : <MoonStar />}
-      </Button>
-      <Button
-        variant="secondary"
-        size="sm"
-        onClick={toggleCurrency}
-        title={t('Switch currency')}
-        aria-label={`${t('Switch currency')} (${currency === 'usd' ? 'USD' : 'CNY'})`}
-        data-testid="currency-selector"
-      >
-        {currency === 'usd' ? 'USD' : 'CNY'}
-      </Button>
-      <div className="w-px h-6 bg-border mx-1" />
-      <NotificationBell />
-      <div className="w-px h-6 bg-border mx-1" />
+      <div className="hidden md:flex items-center gap-1">
+        <Button
+          variant="icon"
+          size="icon"
+          onClick={toggleTheme}
+          title={
+            theme === 'system'
+              ? t('Switch to light theme')
+              : theme === 'dark'
+                ? t('Switch to system theme')
+                : t('Switch to dark theme')
+          }
+          aria-label={
+            theme === 'system'
+              ? t('Switch to light theme')
+              : theme === 'dark'
+                ? t('Switch to system theme')
+                : t('Switch to dark theme')
+          }
+          data-testid="theme-toggle"
+        >
+          {theme === 'dark' ? <Sun /> : theme === 'system' ? <Monitor /> : <MoonStar />}
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={toggleCurrency}
+          title={t('Switch currency')}
+          aria-label={`${t('Switch currency')} (${currency === 'usd' ? 'USD' : 'CNY'})`}
+          data-testid="currency-selector"
+        >
+          {currency === 'usd' ? 'USD' : 'CNY'}
+        </Button>
+        <div className="w-px h-6 bg-border mx-1" />
+        <NotificationBell />
+        <div className="w-px h-6 bg-border mx-1" />
+      </div>
       {user ? (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

@@ -4,7 +4,7 @@ const animate = require('tailwindcss-animate');
 
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-  darkMode: ['class', '[data-theme="dark"]'],
+  darkMode: '[data-theme="dark"]',
   content: [
     path.resolve(__dirname, 'index.html'),
     path.resolve(__dirname, 'packages/frontend/src/**/*.{js,ts,jsx,tsx}'),
@@ -96,6 +96,7 @@ module.exports = {
       },
       boxShadow: {
         md: 'var(--shadow-md)',
+        lg: 'var(--shadow-lg)',
         card: 'var(--shadow-card)',
       },
       keyframes: {

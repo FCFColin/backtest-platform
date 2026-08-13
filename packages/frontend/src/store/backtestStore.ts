@@ -93,6 +93,7 @@ async function runBacktestAction(set: SetFn, get: GetFn): Promise<void> {
       headers: { 'Content-Type': 'application/json' },
       signal: controller.signal,
       body: JSON.stringify(buildBacktestRequestBody(portfolios, parameters)),
+      silent: true,
     });
     const json = await response.json();
     if (!response.ok) throw new Error(extractApiErrorDetail(json));
@@ -109,7 +110,7 @@ async function runBacktestAction(set: SetFn, get: GetFn): Promise<void> {
     processResponseWarnings(resultJson);
     if (requestId === currentRequestId) {
       startTransition(() => {
-        set({ results, activeTab: 'summary', error: null });
+        set({ results, error: null });
       });
     }
   } catch (error) {

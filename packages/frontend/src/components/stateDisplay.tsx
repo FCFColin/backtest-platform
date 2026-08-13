@@ -227,11 +227,11 @@ function ToastCard({ toast }: { toast: ToastItem }) {
       <Button
         variant="icon"
         size="icon"
-        className="h-6 w-6 shrink-0 -m-1"
+        className="h-8 w-8 shrink-0 -m-1"
         onClick={dismiss}
         aria-label={t('Dismiss')}
       >
-        <X className="size-3.5" />
+        <X className="size-4" />
       </Button>
     </div>
   );

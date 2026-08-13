@@ -36,7 +36,7 @@ export function HistogramChart({
 }) {
   const { t } = useTranslation();
   const reducedMotion = useReducedMotion();
-  if (data.length === 0) return null;
+  if (data.length === 0) return <NoDataCard />;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 需要动态添加 markLine 属性
   const seriesArr: any[] = [
     {

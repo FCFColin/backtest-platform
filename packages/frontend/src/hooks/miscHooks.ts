@@ -208,7 +208,6 @@ export function useComputeTool<TResult>(
   const runCompute = useCallback(() => {
     const ve = validateFn?.();
     if (ve) return void setError(ve);
-    setResults(null);
     run(async () => {
       setResults(await computeFn());
     });

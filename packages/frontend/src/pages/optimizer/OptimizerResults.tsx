@@ -17,7 +17,7 @@ import { Button } from '@/components/ui/uiComponents';
 import { ResultsShell } from '@/components/resultsShell.js';
 import { MiniStatCard } from '@/components/cards.js';
 import { fmtPct, fmtNum } from '@/utils/format';
-import { XYScatterChart } from '@/components/charts/sharedChartContent.js';
+import { XYScatterChart, ChartEmptyState } from '@/components/charts/sharedChartContent.js';
 const METRICS_ROWS: { key: keyof Statistics; labelKey: string; fmt: 'pct' | 'num' }[] = [
   { key: 'cagr', labelKey: 'stats.cagr', fmt: 'pct' },
   { key: 'stdev', labelKey: 'Volatility', fmt: 'pct' },
@@ -155,7 +155,7 @@ function FrontierChart({
   results: OptimizerResultExt;
 }) {
   const { t } = useTranslation();
-  if (data.length === 0) return null;
+  if (data.length === 0) return <ChartEmptyState message={t('No data')} />;
   return (
     <XYScatterChart
       xKey="expectedVolatility"

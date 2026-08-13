@@ -1,7 +1,7 @@
 import type { TFunction } from 'i18next';
 import pricingData from '@/pages/account/pricing/pricingData.json';
 
-export interface PlanFeatureEntry {
+interface PlanFeatureEntry {
   key: string;
   included: boolean;
 }

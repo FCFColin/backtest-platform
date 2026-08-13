@@ -10,7 +10,6 @@ import type { PortfolioResult, TimeSeriesPoint } from '@backtest/shared';
 interface YearlyReturnsTableProps {
   portfolios: PortfolioResult[];
   benchmarkGrowth?: TimeSeriesPoint[];
-  benchmarkName?: string;
 }
 interface YearlyRow {
   year: number;
@@ -123,11 +122,7 @@ function TableBody({
     </tbody>
   );
 }
-export function YearlyReturnsTable({
-  portfolios,
-  benchmarkGrowth,
-  benchmarkName,
-}: YearlyReturnsTableProps) {
+export function YearlyReturnsTable({ portfolios, benchmarkGrowth }: YearlyReturnsTableProps) {
   const { t } = useTranslation();
   const { rows, hasBenchmark } = useMemo(
     () => buildYearlyRows(portfolios, benchmarkGrowth),
@@ -163,7 +158,7 @@ export function YearlyReturnsTable({
                 ))}
                 {hasBenchmark && (
                   <th className="h-10 px-3 text-right text-fg-tertiary text-label-tiny">
-                    {benchmarkName ?? t('Benchmark')}
+                    {t('Benchmark')}
                   </th>
                 )}
                 {hasBenchmark && showVsBenchmark && (

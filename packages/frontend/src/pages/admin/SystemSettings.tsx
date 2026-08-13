@@ -61,9 +61,8 @@ function RuntimeEnvSection({ config }: { config: AppConfig }) {
 }
 interface DataManagementProps {
   onClearCache: () => void;
-  onRestart: (service: string) => void;
 }
-function DataManagementSection({ onClearCache, onRestart }: DataManagementProps) {
+function DataManagementSection({ onClearCache }: DataManagementProps) {
   const { t } = useTranslation();
   return (
     <Card className="p-4">
@@ -79,10 +78,6 @@ function DataManagementSection({ onClearCache, onRestart }: DataManagementProps)
           <RotateCcw className="h-4 w-4" />
           {t('Refetch Data')}
         </button>
-        <Button variant="secondary" onClick={() => onRestart('Go')}>
-          <RefreshCw className="h-4 w-4" />
-          {t('Refresh Go Cache')}
-        </Button>
       </div>
       <p className="mt-3 text-xs text-fg-tertiary">{t('Refresh data cache or refetch data')}</p>
     </Card>
@@ -156,10 +151,6 @@ export default function SystemSettings() {
     }
     clearMsgTimerRef.current = setTimeout(() => setSaveMsg(''), 5000);
   };
-  const handleRestart = (service: string) => {
-    setSaveMsg(t('Please restart the {{service}} service', { service }));
-    clearMsgTimerRef.current = setTimeout(() => setSaveMsg(''), 5000);
-  };
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
@@ -171,7 +162,7 @@ export default function SystemSettings() {
       </div>
       <ServiceConfigSection services={config.services} />
       <RuntimeEnvSection config={config} />
-      <DataManagementSection onClearCache={handleClearCache} onRestart={handleRestart} />
+      <DataManagementSection onClearCache={handleClearCache} />
       <ArchitectureSection />
     </div>
   );

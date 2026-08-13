@@ -144,10 +144,12 @@ async function apiJSON<T>(
   errorMsg = i18n.t('Request failed'),
 ): Promise<T> {
   const res = await apiFetch(url, init);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const json = await res.json();
-  if (json.success === false) throw new Error((json.error?.detail ?? json.error) || errorMsg);
-  return (json.data ?? json) as T;
+  const json = await res.json().catch(() => null);
+  if (!res.ok) {
+    throw new Error(resolveErrorMessage(json?.error) || errorMsg);
+  }
+  if (json?.success === false) throw new Error((json.error?.detail ?? json.error) || errorMsg);
+  return (json?.data ?? json) as T;
 }
 export const apiPostJSON = <T>(url: string, body: unknown, errorMsg = i18n.t('Request failed')) =>
   apiJSON<T>(

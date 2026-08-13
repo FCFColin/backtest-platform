@@ -73,7 +73,7 @@ interface ResultRowProps {
   value: ReactNode;
   tone?: ResultTone;
 }
-export function ResultRow({ label, value, tone = 'default' }: ResultRowProps) {
+function ResultRow({ label, value, tone = 'default' }: ResultRowProps) {
   return (
     <div className="flex items-center justify-between border-b border-border-subtle py-1.5 last:border-b-0">
       <span className="text-label text-fg-tertiary">{label}</span>
@@ -85,7 +85,7 @@ export function ResultRow({ label, value, tone = 'default' }: ResultRowProps) {
     </div>
   );
 }
-export function InfoBox({ children }: { children: ReactNode }) {
+function InfoBox({ children }: { children: ReactNode }) {
   return (
     <div className="mt-2.5 rounded-md bg-input-bg p-3 text-caption leading-relaxed text-fg-tertiary">
       {children}
@@ -98,7 +98,7 @@ interface CollapsibleCardProps {
   defaultOpen?: boolean;
   children: ReactNode;
 }
-export function CollapsibleCard({
+function CollapsibleCard({
   icon: Icon,
   title,
   defaultOpen = false,

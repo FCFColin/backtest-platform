@@ -141,7 +141,7 @@ export function PortfolioCard({
       <div data-testid="portfolio-assets" className="flex flex-col gap-1.5">
         {portfolio.assets.map((asset, i) => (
           <AssetWeightRow
-            key={i}
+            key={asset.id ?? `row-${i}`}
             asset={asset}
             onUpdate={(newAsset) =>
               setAssets(portfolio.assets.map((a, idx) => (idx === i ? newAsset : a)))
@@ -154,7 +154,9 @@ export function PortfolioCard({
             variant="ghost"
             size="sm"
             className="text-caption text-fg-tertiary hover:text-fg -ml-2"
-            onClick={() => setAssets([...portfolio.assets, { ticker: '', weight: 0 }])}
+            onClick={() =>
+              setAssets([...portfolio.assets, ...toAssetsWithIds([{ ticker: '', weight: 0 }])])
+            }
           >
             + {t('Add Asset')}
           </Button>

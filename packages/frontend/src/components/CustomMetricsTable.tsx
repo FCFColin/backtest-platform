@@ -11,6 +11,7 @@ import {
   DropdownMenuCheckboxItem,
 } from './ui/uiComponents.js';
 import { StatisticsTableHeader, MetricsRows } from './statistics-table/index.js';
+import { TableEmpty } from '@/components/stateDisplay.js';
 import type { StatRow } from './statistics-table/types.js';
 interface CustomMetricsTableProps {
   portfolios: PortfolioResult[];
@@ -107,7 +108,7 @@ export default function CustomMetricsTable({ portfolios }: CustomMetricsTablePro
   if (portfolios.length === 0) {
     return (
       <ChartCard title={t('My Metrics')}>
-        <div className="text-label text-fg-tertiary">{t('No data')}</div>
+        <TableEmpty message={t('No data')} />
       </ChartCard>
     );
   }

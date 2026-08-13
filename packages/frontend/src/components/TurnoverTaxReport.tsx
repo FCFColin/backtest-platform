@@ -7,6 +7,7 @@ import { fmtPct } from '@/utils/format';
 import { Input } from '@/components/ui/uiComponents';
 import { cn } from '@/lib/utils';
 import ChartCard from './ChartCard.js';
+import { TableEmpty } from '@/components/stateDisplay.js';
 interface TurnoverTaxReportProps {
   portfolios: PortfolioResult[];
 }
@@ -69,12 +70,14 @@ function buildTurnoverColumns(
     {
       key: 'turnover',
       label: t('Annual Turnover'),
+      align: 'right',
       render: (row) => rightCell(fmtPct(row.turnover), 'text-fg'),
       sortValue: (row) => row.turnover ?? -1,
     },
     {
       key: 'taxDrag',
       label: t('Tax Drag'),
+      align: 'right',
       render: (row) =>
         rightCell(fmtPct(row.taxDrag), row.taxDrag != null ? 'text-neg' : 'text-fg-tertiary'),
       sortValue: (row) => row.taxDrag ?? -1,
@@ -82,12 +85,14 @@ function buildTurnoverColumns(
     {
       key: 'observations',
       label: t('Observations'),
+      align: 'right',
       render: (row) => rightCell(row.observations, 'text-fg-secondary'),
       sortValue: (row) => row.observations,
     },
     {
       key: 'years',
       label: t('Years'),
+      align: 'right',
       render: (row) =>
         rightCell(row.years > 0 ? row.years.toFixed(1) : '\u2014', 'text-fg-secondary'),
       sortValue: (row) => row.years,
@@ -151,7 +156,7 @@ export default function TurnoverTaxReport({ portfolios }: TurnoverTaxReportProps
           initialSortDir="desc"
         />
       ) : (
-        <div className="text-body text-fg-tertiary">{t('No data')}</div>
+        <TableEmpty message={t('No data')} />
       )}
     </ChartCard>
   );

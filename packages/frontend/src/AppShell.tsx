@@ -26,6 +26,7 @@ export default function AppShell() {
   }, [initAuth]);
   useEffect(() => {
     onNavStart();
+    window.scrollTo(0, 0);
   }, [location.pathname]);
   useEffect(() => {
     initVitalsReporting();

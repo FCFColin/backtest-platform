@@ -8,7 +8,13 @@ import { onNavEnd } from '../utils/performanceReporter.js';
 import { lazyDefault, lazyNamed } from '@/utils/lazyImport';
 import { PlaceholderPage } from '@/pages/errors/ErrorPages';
 import NotFoundPage from '@/pages/errors/ErrorPages';
-import { PAGE_LOADERS, type PageName } from './pageLoaders.js';
+import {
+  PAGE_LOADERS,
+  TacticalGridPage,
+  DualSignalPage,
+  MultiSignalPage,
+  type PageName,
+} from './pageLoaders.js';
 
 const page = (name: PageName) => createElement(PAGE_LOADERS[name]);
 const LoginPage = lazyDefault(() => import('@/pages/auth/LoginPage'));
@@ -16,18 +22,6 @@ const SignupPage = lazyNamed(() => import('@/pages/auth/LoginPage'), 'SignupPage
 const PricingPage = lazyDefault(() => import('@/pages/account/PricingPage'));
 const AccountPage = lazyDefault(() => import('@/pages/account/AccountPage'));
 const DataEnginePage = lazyDefault(() => import('@/pages/data-engine/DataEnginePage'));
-const DualSignalPage = lazyNamed(
-  () => import('@/pages/signal/SignalAnalyzerPage'),
-  'DualSignalPage',
-);
-const MultiSignalPage = lazyNamed(
-  () => import('@/pages/signal/SignalAnalyzerPage'),
-  'MultiSignalPage',
-);
-const TacticalGridPage = lazyNamed(
-  () => import('@/pages/tactical/TacticalPage'),
-  'TacticalGridPage',
-);
 const AboutPage = lazyNamed(() => import('@/pages/staticPages'), 'AboutPage');
 const ContactPage = lazyNamed(() => import('@/pages/staticPages'), 'ContactPage');
 const HelpPage = lazyDefault(() => import('@/pages/HelpPage'));

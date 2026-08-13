@@ -1,6 +1,6 @@
 import { lazyNamed } from '@/utils/lazyImport';
 
-const loaders = {
+const importers = {
   backtest: () => import('@/pages/backtest/BacktestPage'),
   analysis: () => import('@/pages/analysis/AnalysisResults'),
   'monte-carlo': () => import('@/pages/monte-carlo/MonteCarloResults'),
@@ -19,19 +19,22 @@ const loaders = {
   'goal-optimizer': () => import('@/pages/goal-optimizer/GoalOptimizerResults'),
 } as const;
 
-export type PageName = keyof typeof loaders;
+export type PageName = keyof typeof importers;
 
-const preloaders: Record<string, () => Promise<unknown>> = {
-  ...loaders,
-  'tactical-grid': () => import('@/pages/tactical/TacticalPage'),
-  'dual-signal': () => import('@/pages/signal/SignalAnalyzerPage'),
-  'multi-signal': () => import('@/pages/signal/SignalAnalyzerPage'),
+export const PAGE_LOADERS = Object.fromEntries(
+  Object.entries(importers).map(([k, v]) => [k, lazyNamed(v, 'default')]),
+);
+
+export const TacticalGridPage = lazyNamed(importers.tactical, 'TacticalGridPage');
+export const DualSignalPage = lazyNamed(importers['signal-analyzer'], 'DualSignalPage');
+export const MultiSignalPage = lazyNamed(importers['signal-analyzer'], 'MultiSignalPage');
+
+const preloadAliases: Record<string, PageName> = {
+  'tactical-grid': 'tactical',
+  'dual-signal': 'signal-analyzer',
+  'multi-signal': 'signal-analyzer',
 };
 
 export const preloadPage = (name: string): void => {
-  preloaders[name]?.().catch(() => {});
+  importers[(preloadAliases[name] ?? name) as PageName]?.().catch(() => {});
 };
-
-export const PAGE_LOADERS = Object.fromEntries(
-  Object.entries(loaders).map(([k, v]) => [k, lazyNamed(v, 'default')]),
-);

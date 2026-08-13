@@ -86,7 +86,7 @@ function BaseTable<T extends Record<string, any>>({
                     onSort &&
                       'cursor-pointer text-left hover:text-fg transition-colors duration-150',
                     col.align === 'right' ? 'text-right' : 'text-left',
-                    col.sticky === 'left' && 'sticky left-0 z-10',
+                    col.sticky === 'left' && 'sticky left-0 z-10 bg-elevated',
                   )}
                   style={TH_BORDER}
                 >
@@ -183,6 +183,9 @@ function sortRows<T extends Record<string, any>>(
   if (!col) return 0;
   const av = col.sortValue ? col.sortValue(a) : a[sortKey];
   const bv = col.sortValue ? col.sortValue(b) : b[sortKey];
+  if (av == null && bv == null) return 0;
+  if (av == null) return 1; // 空值恒排末尾，与升/降序无关
+  if (bv == null) return -1;
   if (av === bv) return 0;
   return sortDir === 'asc' ? (av < bv ? -1 : 1) : av < bv ? 1 : -1;
 }
