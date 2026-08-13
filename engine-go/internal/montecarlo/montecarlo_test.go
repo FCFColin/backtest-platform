@@ -4,6 +4,7 @@ import (
 	"context"
 	"engine-go/internal/enginetest"
 	"math"
+	"slices"
 	"testing"
 	"time"
 )
@@ -37,6 +38,32 @@ func TestRunMonteCarlo(t *testing.T) {
 		_, err := RunMonteCarlo(context.Background(), req)
 		if err == nil {
 			t.Fatal("空资产应返回错误")
+		}
+	})
+	t.Run("固定 seed 结果可复现", func(t *testing.T) {
+		seed := int64(42)
+		req := MonteCarloRequest{
+			Portfolio: MCPortfolioInput{Name: "60/40",
+				Assets:             []AssetInput{{Ticker: "VTI", Weight: 60}, {Ticker: "BND", Weight: 40}},
+				RebalanceFrequency: "monthly", TotalReturn: true,
+			},
+			PriceData: enginetest.ThreeTickerData(time.Date(2020, 1, 2, 0, 0, 0, 0, time.UTC), 500, 0.0003),
+			Params:    MCBacktestParams{StartDate: "2020-01-02", EndDate: "2021-12-31", StartingValue: 10000},
+			MCParams:  MCSimParams{NumSimulations: 20, NumYears: 5, MinBlockYears: 1, MaxBlockYears: 2, Seed: &seed},
+		}
+		r1, err1 := RunMonteCarlo(context.Background(), req)
+		if err1 != nil {
+			t.Fatalf("RunMonteCarlo 返回错误: %v", err1)
+		}
+		r2, err2 := RunMonteCarlo(context.Background(), req)
+		if err2 != nil {
+			t.Fatalf("RunMonteCarlo 返回错误: %v", err2)
+		}
+		if r1.Statistics.MeanFinalValue != r2.Statistics.MeanFinalValue {
+			t.Errorf("固定 seed 时统计不可复现: %v != %v", r1.Statistics.MeanFinalValue, r2.Statistics.MeanFinalValue)
+		}
+		if !slices.Equal(r1.FinalDistribution, r2.FinalDistribution) {
+			t.Error("固定 seed 时终值分布不可复现")
 		}
 	})
 }

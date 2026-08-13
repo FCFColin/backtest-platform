@@ -11,6 +11,17 @@ import (
 )
 
 func runSimulations(ctx context.Context, historicalReturns []float64, totalDays int, numSims int, mcParams MCSimParams, startingValue float64) [][]float64 {
+	var baseSeed int64
+	if mcParams.Seed != nil {
+		baseSeed = *mcParams.Seed
+	} else {
+		var seedBuf [8]byte
+		if _, err := rand.Read(seedBuf[:]); err == nil {
+			baseSeed = int64(binary.LittleEndian.Uint64(seedBuf[:]) >> 1)
+		} else {
+			baseSeed = time.Now().UnixNano()
+		}
+	}
 	numCPU := runtime.NumCPU()
 	if numCPU > numSims {
 		numCPU = numSims
@@ -36,20 +47,15 @@ func runSimulations(ctx context.Context, historicalReturns []float64, totalDays 
 		wg.Add(1)
 		go func(start, n int) {
 			defer wg.Done()
-			var seed int64
-			var seedBuf [8]byte
-			if _, err := rand.Read(seedBuf[:]); err == nil {
-				seed = int64(binary.LittleEndian.Uint64(seedBuf[:]) >> 1)
-			} else {
-				seed = time.Now().UnixNano() + int64(start)
-			}
-			rng := mrand.New(mrand.NewSource(seed))
 			for i := start; i < start+n; i++ {
 				select {
 				case <-ctx.Done():
 					return
 				default:
 				}
+				// 每条路径独立 RNG（种子 = baseSeed + 全局 sim 索引），
+				// 固定 seed 时结果与 CPU 核数无关、可复现；未指定 seed 时 baseSeed 随机
+				rng := mrand.New(mrand.NewSource(baseSeed + int64(i)))
 				path := make([]float64, totalDays)
 				generatePath(path, historicalReturns, totalDays, mcParams, startingValue, rng)
 				paths[i] = path

@@ -96,12 +96,27 @@ func bindCompute[T any, R any](c *gin.Context, code, bindMsg, errMsg, spanName s
 	}
 }
 
-var maxGoroutinesForHealth = 10000
+var maxGoroutinesForHealth = envInt("ENGINE_MAX_GOROUTINES", 10000)
 
-func init() {
-	if v := os.Getenv("ENGINE_MAX_GOROUTINES"); v != "" {
-		if n, err := strconv.Atoi(v); err == nil && n > 0 {
-			maxGoroutinesForHealth = n
+// computeSemaphore 全局计算并发上限：限流仅按 IP 生效，多 IP 并发需此护栏防 CPU 耗尽。
+var computeSemaphore = make(chan struct{}, envInt("ENGINE_MAX_CONCURRENCY", 16))
+
+func envInt(key string, def int) int {
+	if n, err := strconv.Atoi(os.Getenv(key)); err == nil && n > 0 {
+		return n
+	}
+	return def
+}
+
+func computeConcurrencyLimit() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		select {
+		case computeSemaphore <- struct{}{}:
+			defer func() { <-computeSemaphore }()
+			c.Next()
+		default:
+			sharedhttp.NewProblem(c, http.StatusServiceUnavailable, "COMPUTE_OVERLOAD", "Computation Overloaded", "并发计算请求已满，请稍后重试")
+			c.Abort()
 		}
 	}
 }
@@ -334,7 +349,7 @@ func SetupRouter(metricsHandler http.Handler) *gin.Engine {
 		r.GET("/metrics", gin.WrapH(metricsHandler))
 	}
 	authed := r.Group("/")
-	authed.Use(gosharedmw.SharedTokenAuthMiddleware("X-Engine-Auth", "ENGINE_AUTH_TOKEN", "missing X-Engine-Auth header", "no ENGINE_AUTH_TOKEN configured"), middleware.RateLimitMiddleware(0.5, 30))
+	authed.Use(gosharedmw.SharedTokenAuthMiddleware("X-Engine-Auth", "ENGINE_AUTH_TOKEN", "missing X-Engine-Auth header", "no ENGINE_AUTH_TOKEN configured"), middleware.RateLimitMiddleware(0.5, 30), computeConcurrencyLimit())
 	{
 		authed.POST("/api/engine/backtest", handleBacktest)
 		authed.POST("/api/engine/analysis", handleAnalysis)

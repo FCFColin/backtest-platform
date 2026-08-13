@@ -317,6 +317,8 @@ func CalcMaxDrawdown(values []float64) MaxDrawdownResult {
 		return acc
 	})
 }
+
+// CalcAvgDrawdown 返回处于回撤状态期间的日均水下深度（非各回撤事件的均值）。
 func CalcAvgDrawdown(values []float64) float64 {
 	r := reduceDrawdowns(values, [2]float64{}, func(a [2]float64, dd float64, _, _ int) [2]float64 {
 		if dd > 0 {

@@ -98,6 +98,11 @@ func getObjectiveValue(m GridCombinationMetrics, objective string) float64 {
 	}
 }
 func RunGridSearch(ctx context.Context, req TacticalGridRequest) (*TacticalGridResponse, error) {
+	switch strings.ToLower(req.Indicator) {
+	case "rsi", "sma", "ema":
+	default:
+		return nil, engineutil.NewInputError("不支持的指标 %q（可选 rsi/sma/ema）", req.Indicator)
+	}
 	p1Vals := generateRange(req.Param1.Min, req.Param1.Max, req.Param1.Step)
 	p2Vals := generateRange(req.Param2.Min, req.Param2.Max, req.Param2.Step)
 	total := len(p1Vals) * len(p2Vals)

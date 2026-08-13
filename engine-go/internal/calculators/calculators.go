@@ -44,26 +44,19 @@ type SWRResult struct {
 const (
 	maxSWRYears       = 100
 	maxFrontierPoints = 1000
+	numSWRSims        = 1000
+	safeRateTarget    = 0.95
 )
 
-func CalcSWR(req SWRRequest) SWRResult {
-	if req.InitialAmount <= 0 || req.Years <= 0 {
-		return SWRResult{}
-	}
-	years := int(req.Years)
-	if years > maxSWRYears {
-		years = maxSWRYears
-	}
-	numSims := 1000
+// simulateWithdrawal 用固定种子的路径模拟求给定年提款额下的成功率与组合极值。
+func simulateWithdrawal(req SWRRequest, years int, rnd *rand.Rand, withdrawal float64) (rate, minPort, maxPort float64) {
+	minPort, maxPort = math.Inf(1), math.Inf(-1)
 	survivalCount := 0
-	minPort := math.Inf(1)
-	maxPort := math.Inf(-1)
-	rnd := rand.New(rand.NewSource(42))
-	for s := 0; s < numSims; s++ {
+	for s := 0; s < numSWRSims; s++ {
 		portfolio := req.InitialAmount
 		for y := 0; y < years; y++ {
 			ret := mathutil.GaussianRandom(rnd, req.MeanReturn, req.Stdev)
-			portfolio = portfolio*(1+ret) - req.AnnualWithdrawal
+			portfolio = portfolio*(1+ret) - withdrawal
 			if portfolio <= 0 {
 				portfolio = 0
 				break
@@ -79,9 +72,29 @@ func CalcSWR(req SWRRequest) SWRResult {
 			maxPort = portfolio
 		}
 	}
-	successRate := float64(survivalCount) / float64(numSims)
-	safe := req.InitialAmount * successRate * 0.9
-	return SWRResult{SuccessRate: successRate, MinPortfolio: minPort, MaxPortfolio: maxPort, SafeWithdrawal: safe}
+	return float64(survivalCount) / float64(numSWRSims), minPort, maxPort
+}
+
+func CalcSWR(req SWRRequest) SWRResult {
+	if req.InitialAmount <= 0 || req.Years <= 0 {
+		return SWRResult{}
+	}
+	years := int(req.Years)
+	if years > maxSWRYears {
+		years = maxSWRYears
+	}
+	successRate, minPort, maxPort := simulateWithdrawal(req, years, rand.New(rand.NewSource(42)), req.AnnualWithdrawal)
+	// 安全提款额 = 使成功率达到 95% 的最大年提款额（二分求解，固定种子保证可复现）
+	lo, hi := 0.0, req.InitialAmount
+	for hi-lo > 1 {
+		mid := (lo + hi) / 2
+		if rate, _, _ := simulateWithdrawal(req, years, rand.New(rand.NewSource(42)), mid); rate >= safeRateTarget {
+			lo = mid
+		} else {
+			hi = mid
+		}
+	}
+	return SWRResult{SuccessRate: successRate, MinPortfolio: minPort, MaxPortfolio: maxPort, SafeWithdrawal: lo}
 }
 
 type TwoFundFrontierRequest struct {

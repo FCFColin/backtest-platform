@@ -108,6 +108,23 @@ func aggregateRank(activeSignals []TradingSignal, allTickers []string, rc *Ranki
 	}
 	return result
 }
+
+// aggregateVoting 投票聚合：每个活跃信号为其 TargetWeights 中的标的各投一票，
+// 权重按票数比例归一（未获票的标的分摊 0）。
+func aggregateVoting(activeSignals []TradingSignal, allTickers []string) []WeightEntry {
+	votes := make(map[string]int, len(allTickers))
+	for _, sig := range activeSignals {
+		for _, w := range sig.TargetWeights {
+			votes[w.Ticker]++
+		}
+	}
+	entries := make([]WeightEntry, 0, len(votes))
+	for t, v := range votes {
+		entries = append(entries, WeightEntry{Ticker: t, Weight: float64(v)})
+	}
+	return normalizeWeights(entries, allTickers)
+}
+
 func aggregateSignals(strategy TacticalStrategy, activeFlags map[string][]bool, dateIdx int, allTickers []string) []WeightEntry {
 	var activeSignals []TradingSignal
 	for _, sig := range strategy.Signals {
@@ -127,6 +144,8 @@ func aggregateSignals(strategy TacticalStrategy, activeFlags map[string][]bool, 
 		return aggregateWeightedAverage(activeSignals, allTickers)
 	case "rank":
 		return aggregateRank(activeSignals, allTickers, strategy.RankingConfig)
+	case "voting":
+		return aggregateVoting(activeSignals, allTickers)
 	default:
 		return normalizeWeights(activeSignals[0].TargetWeights, allTickers)
 	}

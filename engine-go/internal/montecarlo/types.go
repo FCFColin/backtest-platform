@@ -34,6 +34,7 @@ type MCSimParams struct {
 	MinBlockYears    int     `json:"minBlockYears"`
 	MaxBlockYears    int     `json:"maxBlockYears"`
 	SuccessThreshold float64 `json:"successThreshold"`
+	Seed             *int64  `json:"seed"` // 固定种子使模拟可复现；nil 时随机
 }
 type MonteCarloResult struct {
 	Percentiles          MCPercentiles          `json:"percentiles"`

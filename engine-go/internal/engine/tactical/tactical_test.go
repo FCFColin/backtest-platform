@@ -100,6 +100,23 @@ func TestRunTacticalBacktest_RankClearsUnselected(t *testing.T) {
 		t.Errorf("rank topN=1 应选中单一 ticker, got %+v", r.SignalHistory)
 	}
 }
+
+func TestAggregateSignals_Voting(t *testing.T) {
+	// 两个活跃信号各投一票：A 获 2 票、B 获 1 票 → 权重 2/3、1/3
+	strategy := TacticalStrategy{
+		ID: "s1", Name: "vote", AggregationMethod: "voting",
+		Signals: []TradingSignal{
+			{ID: "sig1", Name: "看A", TargetWeights: []WeightEntry{{Ticker: "A", Weight: 1}}},
+			{ID: "sig2", Name: "看AB", TargetWeights: []WeightEntry{{Ticker: "A", Weight: 1}, {Ticker: "B", Weight: 1}}},
+		},
+	}
+	flags := map[string][]bool{"sig1": {true}, "sig2": {true}}
+	got := aggregateSignals(strategy, flags, 0, []string{"A", "B"})
+	if len(got) != 2 || math.Abs(got[0].Weight-2.0/3.0) > 1e-6 || math.Abs(got[1].Weight-1.0/3.0) > 1e-6 {
+		t.Errorf("voting 权重应为 A=2/3 B=1/3, got %+v", got)
+	}
+}
+
 func TestRunTacticalBacktest_WithSignal(t *testing.T) {
 	req := baseTacticalReq(TacticalStrategy{
 		ID: "s1", Name: "sma-cross", Signals: []TradingSignal{{ID: "sig1", Name: "SMA交叉",
