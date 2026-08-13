@@ -1,3 +1,5 @@
+# 固定项目名：仓库目录非 ASCII（中文）时 compose 默认 project name 会为空报错。
+name: backtest
 x-base:
   # 本地 dev 编排：镜像用浮动 tag + pull_policy 保可用，生产版本以 k8s/*.yaml 钉版为准
   timescale: &timescale
@@ -337,7 +339,7 @@ services:
     <<: *restart-unless
 
   ofelia:
-    image: mcuadros/ofelia:latest
+    image: mcuadros/ofelia:0.3.22
     container_name: backtest-ofelia
     command: daemon --docker
     depends_on: { postgres: { condition: service_healthy } }
@@ -354,7 +356,7 @@ services:
     <<: *restart-unless
 
   minio:
-    image: minio/minio:latest
+    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
     container_name: backtest-minio
     ports: ['127.0.0.1:9000:9000', '127.0.0.1:9001:9001']
     environment: { MINIO_ROOT_USER: minioadmin, MINIO_ROOT_PASSWORD: minioadmin }
