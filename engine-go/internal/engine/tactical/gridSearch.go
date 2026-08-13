@@ -80,7 +80,7 @@ func buildSyntheticPrices(dates []string, prices []float64, signals []bool) map[
 		if prices[i-1] > 0 {
 			actualRet = prices[i]/prices[i-1] - 1
 		}
-		if signals[i] {
+		if signals[i-1] {
 			prev *= 1 + actualRet
 		}
 		synthetic[dates[i]] = prev

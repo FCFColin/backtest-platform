@@ -233,3 +233,15 @@ func TestGetObjectiveValue(t *testing.T) {
 		})
 	}
 }
+func TestBuildSyntheticPricesNoLookahead(t *testing.T) {
+	dates := []string{"2024-01-02", "2024-01-03", "2024-01-04"}
+	prices := []float64{100, 110, 121}
+	signals := []bool{false, true, false}
+	got := buildSyntheticPrices(dates, prices, signals)
+	want := map[string]float64{"2024-01-02": 100, "2024-01-03": 100, "2024-01-04": 110}
+	for d, w := range want {
+		if g, ok := got[d]; !ok || math.Abs(g-w) > 1e-9 {
+			t.Errorf("synthetic[%s] = %v, want %v", d, g, w)
+		}
+	}
+}
