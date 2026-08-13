@@ -11,7 +11,7 @@ import (
 
 const tradingDaysPerYear = engineutil.TradingDaysPerYear
 
-// 资源预算（防恶意超大入参拖垮计算，ADR-031 fail-closed 配套）：
+// 资源预算（防恶意超大入参拖垮计算，ADR-008 fail-closed 配套）：
 // years 上限 100 年；numSims × 交易日总天数上限，超出按预算降采样。
 const (
 	maxGoalOptimizeYears = 100

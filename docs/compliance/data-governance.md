@@ -15,24 +15,24 @@ GDPR: 被遗忘权(anonymize/delete)、最小化(仅 username+hash)、可追溯(
 
 ## 2. 加密策略
 
-| 层级           | 对象                | 算法                                      | 密钥管理                    |
-| -------------- | ------------------- | ----------------------------------------- | --------------------------- |
-| 传输           | 网络通信            | TLS 1.2/1.3                               | Let's Encrypt               |
-| 密码 / API Key | 用户密码 / 组织密钥 | bcrypt(cost=12) / argon2id + SHA-256 索引 | 内置盐 / K8s Secret         |
-| 审计 / JWT     | HMAC 签名 / Token   | HMAC-SHA256 / RS256(生产) HS256(开发)     | AUDIT_HMAC_KEY / K8s Secret |
-| 备份           | WAL-G               | Brotli + 可选 KMS                         | WALG_ENVELOP                |
+| 层级           | 对象                | 算法                                  | 密钥管理                    |
+| -------------- | ------------------- | ------------------------------------- | --------------------------- |
+| 传输           | 网络通信            | TLS 1.2/1.3                           | Let's Encrypt               |
+| 密码 / API Key | 用户密码 / 组织密钥 | argon2id + SHA-256 索引               | 内置盐 / K8s Secret         |
+| 审计 / JWT     | HMAC 签名 / Token   | HMAC-SHA256 / RS256(生产) HS256(开发) | AUDIT_HMAC_KEY / K8s Secret |
+| 备份           | WAL-G               | Brotli + 可选 KMS                     | WALG_ENVELOP                |
 
 轮换: JWT 90 天（新钥签名→等 TTL→移旧公钥）；审计 HMAC 180 天（新日志新钥, 旧钥验历史）。TLS 最低 1.2, 推荐 1.3；仅 AES-GCM + ChaCha20-Poly1305。
 
 ## 3. RBAC 与多租户
 
-角色与权限定义、多租户 RLS 隔离实现见 ADR-017/ADR-032（共享 schema + tenant_id + withTenant 事务内 SET LOCAL；市场数据表不启用 RLS 全局共享）。
+角色与权限定义、多租户 RLS 隔离实现见 ADR-007/ADR-009（共享 schema + tenant_id + withTenant 事务内 SET LOCAL；市场数据表不启用 RLS 全局共享）。
 
 ## 4. 认证与会话
 
-JWT / x-api-key / Idempotency-Key / break-glass 模型见 ADR-017。
-会话: Access 15min / Refresh 7d / 空闲 30min / 绝对 24h；同用户最多 5 个活跃 Refresh Token；MFA/TOTP 管理员强制。
-密码: 12 位+四类字符, 90 天轮换, 历史 5 次不重复；5 次失败锁 15min, IP 10 次/h 封 1h。
+JWT / x-api-key / Idempotency-Key / break-glass 模型见 ADR-007。
+会话: Access 15min / Refresh 7d / 空闲 30min / 绝对 24h；同用户最多 5 个活跃 Refresh Token；MFA/TOTP 未实施（users.mfa_secret/mfa_backup_codes 列为遗留死列，见 ADR-013）。
+密码: 至少 12 位（无字符类/轮换/历史约束）；锁定: 5 次失败锁 15min, IP 10 次/5min 封 1h（ANOMALY_LOGIN_* 可配）。
 
 ## 5. 备份与恢复
 
@@ -40,8 +40,8 @@ JWT / x-api-key / Idempotency-Key / break-glass 模型见 ADR-017。
 
 ## 6. 等保对照
 
-| 条款              | 要求                                                   | 状态 |
-| ----------------- | ------------------------------------------------------ | ---- |
-| 8.1.3.1           | 访问控制(RBAC+RLS)                                     | OK   |
-| 8.1.4.1 / 8.1.4.2 | 身份鉴别(JWT+MFA+密码策略) / 数据保密性(分级+加密+TLS) | OK   |
-| 8.1.4             | 数据备份与恢复(WAL-G+PITR)                             | OK   |
+| 条款              | 要求                                                           | 状态 |
+| ----------------- | -------------------------------------------------------------- | ---- |
+| 8.1.3.1           | 访问控制(RBAC+RLS)                                             | OK   |
+| 8.1.4.1 / 8.1.4.2 | 身份鉴别(JWT+密码策略；MFA 未实施) / 数据保密性(分级+加密+TLS) | 部分 |
+| 8.1.4             | 数据备份与恢复(WAL-G+PITR)                                     | OK   |

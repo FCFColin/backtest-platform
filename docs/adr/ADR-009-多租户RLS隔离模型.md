@@ -1,6 +1,6 @@
-# ADR-032: 多租户 SaaS（RLS 隔离 + 服务端持久化 + BFF 认证 + 自助注册）
+# ADR-009: 多租户 SaaS（RLS 隔离 + 服务端持久化 + BFF 认证 + 自助注册）
 
-| 状态 | 已接受 | 日期 | 2026-06-25 | 合并 | 原 ADR-034/035 | 关联 | ADR-007, ADR-017 |
+| 状态 | 已接受 | 日期 | 2026-06-25 | 合并 | 原 ADR-009 | 关联 | ADR-002, ADR-007 |
 
 ## Context
 
@@ -32,3 +32,11 @@
 - (+) 纵深防御：查询遗漏 WHERE 时 RLS 仍拒绝跨租户行
 - (-) 必须设上下文：忘记 withTenant 会报错（fail-safe）
 - (-) 禁止用 SET（会话级），必须 SET LOCAL（事务级）防 PgBouncer 串租户
+
+## 现状确认（2026-08 增补）：读路径鉴权层次
+
+- 写路径一律走 `requirePermission` 角色细分（ADR-007 RBAC），无漏网。
+- 读路径为半开放设计，属有意取舍，明示如下：
+  - 市场数据只读端点（dataRoutes 的 `/health`、`/cpi/*`、`/meta`、`/factors`、`/ticker-meta`）匿名可读——市场数据全局共享（本 ADR §1），不按租户/角色细分。
+  - 组织内读端点（orgs/members、billing/subscription、api-keys 列表）仅要求租户内认证，`owner/admin/analyst/readonly` 角色均可读；角色细分仅作用于写与计算端点。如需收紧（如 billing 仅 owner 可读）为增量改动，单独走 RBAC。
+- 收紧/放宽本层次须更新此处并配套契约测试。

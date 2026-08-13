@@ -1,13 +1,13 @@
-# ADR-054: 退役死 schema（CAGG / visible_to_roles / queued 枚举 / 冗余索引）
+# ADR-013: 退役死 schema（CAGG / visible_to_roles / queued 枚举 / 冗余索引）
 
-| 状态 | 已接受 | 日期 | 2026-08-10 | 合并 | — | 关联 | ADR-014, ADR-032, ADR-048 |
+| 状态 | 已接受 | 日期 | 2026-08-10 | 合并 | — | 关联 | ADR-005, ADR-009, ADR-012 |
 
 ## Context
 
-全仓库收敛审计第二轮（ADR-048 之后的 schema 层）发现以下对象自引入起零查询消费者或零有效利用，保留仅增加 schema 面与维护面：
+全仓库收敛审计第二轮（ADR-012 之后的 schema 层）发现以下对象自引入起零查询消费者或零有效利用，保留仅增加 schema 面与维护面：
 
 1. **daily_aggregate / weekly_aggregate 连续聚合视图**：001 建立后确认无任何查询消费者（仅 prices_monthly 有消费者）。
-2. **portfolios.visible_to_roles**：无任何代码读写——多租户共享经 tenant_id / memberships 与 RLS（ADR-032）。
+2. **portfolios.visible_to_roles**：无任何代码读写——多租户共享经 tenant_id / memberships 与 RLS（ADR-009）。
 3. **backtest_runs.queued**：DB 层死枚举——应用层 domain 'queued' 由 `backtestRunRepo` STATUS_MAP 映射为 'pending' 写入，DB 默认值从未生效。
 4. **idx_backtest_runs_tenant**：被 `idx_backtest_runs_tenant_created(tenant_id, created_at DESC)` 复合索引完全覆盖。
 5. **idx_users_mfa_enabled**：布尔低选择性部分索引，无任何查询利用。

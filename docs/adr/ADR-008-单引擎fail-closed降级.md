@@ -1,6 +1,6 @@
-# ADR-031: 单 Go 引擎 + Fail-Closed 降级
+# ADR-008: 单 Go 引擎 + Fail-Closed 降级
 
-| 状态 | 已接受 | 日期 | 2026-06-25 | 取代 | ADR-003 | 关联 | ADR-008, ADR-016 |
+| 状态 | 已接受 | 日期 | 2026-06-25 | 取代 | DADR-003 | 关联 | ADR-003, DADR-016 |
 
 ## Context
 

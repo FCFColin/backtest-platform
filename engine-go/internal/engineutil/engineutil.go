@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-// InputError 标记客户端入参导致的失败（映射为 4xx，不触发熔断器，ADR-031）。
+// InputError 标记客户端入参导致的失败（映射为 4xx，不触发熔断器，ADR-008）。
 type InputError struct{ msg string }
 
 func (e *InputError) Error() string { return e.msg }

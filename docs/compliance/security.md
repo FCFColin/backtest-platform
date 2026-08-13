@@ -21,6 +21,8 @@
 | 5001        | API        | 内网(APISIX 代理) | JWT+RBAC           |
 | 5003-5004   | Go 服务    | 内网              | Auth Token         |
 
+> 上表为容器内端口；主机访问经 docker-compose 映射为 15001/15003/15004（见 [ARCHITECTURE.md §4](../ARCHITECTURE.md#4-服务与端口)）。
+
 通信加密: 客户端→APISIX TLS 强制；API→PG/Redis TLS 强制(生产)。网络隔离: K8s NetworkPolicy 默认拒绝；pg_hba.conf 限制来源。多可用区: K8s 跨 2+ AZ；PG 主+流复制跨 AZ；Redis Sentinel 跨 AZ。
 
 ## 3. 安全开发（SDL）

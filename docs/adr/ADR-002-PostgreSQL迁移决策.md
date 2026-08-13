@@ -1,10 +1,10 @@
-# ADR-007: 数据库从 SQLite 迁移至 PostgreSQL
+# ADR-002: 数据库从 SQLite 迁移至 PostgreSQL
 
-| 状态 | 已接受 | 日期 | 2026-06-23 | 取代 | ADR-006 |
+| 状态 | 已接受 | 日期 | 2026-06-23 | 取代 | DADR-006 |
 
 ## Context
 
-SQLite 单文件无法跨 Pod 共享（K8s 2 副本无法安全扩展），写入串行瓶颈，无连接池，缺企业级运维工具。ADR-008 Go 迁移需要 pgx 驱动。
+SQLite 单文件无法跨 Pod 共享（K8s 2 副本无法安全扩展），写入串行瓶颈，无连接池，缺企业级运维工具。ADR-003 Go 迁移需要 pgx 驱动。
 
 ## Decision
 

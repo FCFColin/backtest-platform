@@ -16,26 +16,28 @@
 | Initial page load (FCP) | < 500ms (P95) | `performance.getEntriesByType('navigation')` |
 | Web Vital LCP           | < 2.5s        | `web-vitals` library                         |
 
-## k8s Pod Resource Standards
+## k8s Pod Resource Standards（与 k8s/deployments.yaml、postgres.yaml 一致）
 
-| Service             | Requests (CPU/Mem) | Limits (CPU/Mem) |
-| ------------------- | ------------------ | ---------------- |
-| api (Express)       | 250m / 256Mi       | 1 / 512Mi        |
-| frontend (Vite/SSR) | 100m / 128Mi       | 500m / 256Mi     |
-| engine-go           | 500m / 512Mi       | 2 / 1Gi          |
-| data-fetcher (Go)   | 200m / 256Mi       | 1 / 512Mi        |
-| worker (BullMQ)     | 200m / 256Mi       | 1 / 512Mi        |
-| redis               | 200m / 256Mi       | 1 / 512Mi        |
-| postgres            | 500m / 1Gi         | 2 / 2Gi          |
+| Service           | Requests (CPU/Mem) | Limits (CPU/Mem) |
+| ----------------- | ------------------ | ---------------- |
+| api (Express)     | 500m / 256Mi       | 1 / 1Gi          |
+| frontend (nginx)  | 100m / 64Mi        | 500m / 256Mi     |
+| engine-go         | 1 / 512Mi          | 2 / 2Gi          |
+| data-fetcher (Go) | 500m / 256Mi       | 1 / 512Mi        |
+| worker (BullMQ)   | 500m / 512Mi       | 1 / 1Gi          |
+| redis             | 未配置             | 未配置           |
+| postgres          | 250m / 128Mi       | 500m / 256Mi     |
 
-## HPA Thresholds
+## HPA Thresholds（与 k8s/hpas.yaml 一致；均为 CPU 指标）
 
-| Service      | Metric             | Target            | Min/Max Pods |
-| ------------ | ------------------ | ----------------- | ------------ |
-| api          | CPU / Memory / P99 | 70% / 80% / 800ms | 2 / 10       |
-| engine-go    | CPU / Queue depth  | 70% / 100         | 2 / 8        |
-| data-fetcher | CPU                | 70%               | 2 / 6        |
-| worker       | Queue depth        | 50                | 1 / 4        |
+| Service      | Metric | Target | Min/Max Pods |
+| ------------ | ------ | ------ | ------------ |
+| api          | CPU    | 70%    | 2 / 10       |
+| engine-go    | CPU    | 70%    | 2 / 10       |
+| data-fetcher | CPU    | 70%    | 2 / 6        |
+| worker       | CPU    | 70%    | 1 / 5        |
+
+内存/P99/队列深度指标未配置（需部署 prometheus-adapter/KEDA 的 external metrics，当前未纳入）。
 
 ## Pod Anti-Affinity
 

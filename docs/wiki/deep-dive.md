@@ -23,7 +23,7 @@
 | dataRoutes                | /api/v1/data                                          | optionalJwtAuth + assignGuestReadonly                    |
 | dataManageRoutes          | /api/v1/data/manage                                   | readOnlyAuth + DATA_READ + auditLog + 幂等               |
 | backtestRoutes            | /api/v1/backtest                                      | computeMiddleware(BACKTEST_RUN) + computeLimiter(10/min) |
-| analysisRoutes            | /api/v1/{pca,letf,goal-optimizer,tactical,signal,...} | 各路由独立链（ADR-042 合并）                             |
+| analysisRoutes            | /api/v1/{pca,letf,goal-optimizer,tactical,signal,...} | 各路由独立链（ADR-011 合并）                             |
 | authRoutes                | /api/v1/auth                                          | 公开（登录/注册/验证）+ 独立限流                         |
 | apiKeyRoutes              | /api/v1/keys, /api/v1/admin/keys                      | crudMiddleware(ADMIN_ACCESS)                             |
 | workspaceRoutes           | /api/v1/{runs,configs,portfolios,tactical/configs}    | crudMiddleware（tenantCrudRoutes 工厂）                  |
@@ -43,7 +43,7 @@
 | helmet / cors                                  | 安全头 / CORS_ORIGINS 白名单（生产 hard-fail） |
 | express.json / apiLimiter                      | JSON(10mb) / 全局限流(100 req/min)             |
 | jwtAuth / resolveTenant / requirePermission(X) | JWT(jose RS256) / tenant_id 解析 / RBAC 校验   |
-| enforceQuota / auditLog / idempotencyKey       | 计划配额(ADR-036) / 审计(HMAC) / 幂等(Redis)   |
+| enforceQuota / auditLog / idempotencyKey       | 计划配额(ADR-010) / 审计(HMAC) / 幂等(Redis)   |
 
 ## 5. 应用服务层 (application/)
 
@@ -59,7 +59,7 @@
 - aggregates/run.ts: Run 聚合根（queued→running→completed/failed）；portfolio.ts: validateWeightSum
 - events/ RunStarted/Completed/Failed/Cancelled；services/ grid-search, optimizer-domain；value-objects/ ticker, weight
 
-## 7. Outbox 模式 (ADR-014)
+## 7. Outbox 模式 (ADR-005)
 
 outboxWriter.ts（事务内写入, 与业务原子）→ outboxPublisher.ts（LISTEN/NOTIFY + 幂等）。
 CDC 扩展: Debezium → Kafka（多 Pod 扩展, 见 runbooks/cdc-debezium.md）。
@@ -73,7 +73,7 @@ CDC 扩展: Debezium → Kafka（多 Pod 扩展, 见 runbooks/cdc-debezium.md）
 | dataFacade.ts                         | 数据门面（PG→Go 降级, 透传 degraded 标记）                     |
 | repositories/                         | 仓储层（withTenant RLS）                                       |
 
-## 9. 熔断与限流 (ADR-016)
+## 9. 熔断与限流 (DADR-016)
 
 Go 引擎/PostgreSQL: opossum（fail-closed 503 / 降级）；数据服务上游: gobreaker。50% 失败率 Open, 10s HalfOpen。
 限流分层: apiLimiter(100/min) > computeLimiter(10/min) > adminLimiter(30/min)。Redis 不可用 fail-closed。
@@ -88,7 +88,7 @@ Go 引擎/PostgreSQL: opossum（fail-closed 503 / 降级）；数据服务上游
     internal/{signal,goaloptimizer,calculators,indicators}/  信号/目标优化/计算器/指标
     packages/go-shared/    共享包（observability/otel.go）
 
-失败策略 (ADR-031): callEngineStrict → 503+Retry-After（同步）或 BullMQ 重试（异步）。OTel → OTLP HTTP → SaaS。
+失败策略 (ADR-008): callEngineStrict → 503+Retry-After（同步）或 BullMQ 重试（异步）。OTel → OTLP HTTP → SaaS。
 
 ## 11. Go 数据服务 (data-fetcher/)
 
@@ -96,7 +96,7 @@ Go 引擎/PostgreSQL: opossum（fail-closed 503 / 降级）；数据服务上游
 
 ## 12. 多架构与配置
 
-multi-stage（scratch/alpine）+ amd64/arm64（buildx）；SBOM(CycloneDX, nightly)（ADR-052）。config/: env.ts（Zod）、limits.ts（ADR-036）。
+multi-stage（scratch/alpine）+ amd64/arm64（buildx）；SBOM(CycloneDX, nightly)（DADR-052）。config/: env.ts（Zod）、limits.ts（ADR-010）。
 
 ## 13. 关键约束
 

@@ -1,6 +1,6 @@
 // Package observability 提供 OpenTelemetry 与 Prometheus 指标初始化的跨服务共享实现。
 //
-// 企业理由（ADR-015 + OTel SaaS 替换决策）：engine-go 与 data-fetcher 原各自维护
+// 企业理由（ADR-006 + OTel SaaS 替换决策）：engine-go 与 data-fetcher 原各自维护
 // 100% 相同的 OTel 初始化代码（~70 行），违反 DRY。本包收口为单一权威实现，
 // 同时支持通过标准 OTel 环境变量切换 SaaS 后端（Honeycomb / Datadog / Axiom），
 // 移除对自建 collector 的依赖。

@@ -12,22 +12,22 @@
 
 ## 2. 技术栈
 
-| 层              | 技术                                                     |
-| --------------- | -------------------------------------------------------- |
-| 前端            | React 18 + TS + Vite 6 + Tailwind 3 + Zustand + Recharts |
-| 后端 API        | Express 4 + TS(ESM) + tsx                                |
-| 引擎            | Go(engine-go, gin + gonum) — 唯一计算引擎                |
-| 数据服务        | Go(data-fetcher, gin)                                    |
-| 数据库 / 缓存   | PostgreSQL(pg) / Redis(ioredis + BullMQ)                 |
-| 验证 / 可观测性 | Zod v4 / pino + OTel + prom-client                       |
+| 层              | 技术                                                    |
+| --------------- | ------------------------------------------------------- |
+| 前端            | React 19 + TS + Vite 6 + Tailwind 3 + Zustand + ECharts |
+| 后端 API        | Express 4 + TS(ESM) + tsx                               |
+| 引擎            | Go(engine-go, gin + gonum) — 唯一计算引擎               |
+| 数据服务        | Go(data-fetcher, gin)                                   |
+| 数据库 / 缓存   | PostgreSQL(pg) / Redis(ioredis + BullMQ)                |
+| 验证 / 可观测性 | Zod v4 / pino + OTel + prom-client                      |
 
 ## 3. 降级策略
 
 | 场景              | 策略                                     | 响应                                |
 | ----------------- | ---------------------------------------- | ----------------------------------- |
-| 引擎不可用        | fail-closed(ADR-031)                     | 503 + Retry-After, 无 degraded 字段 |
+| 引擎不可用        | fail-closed(ADR-008)                     | 503 + Retry-After, 无 degraded 字段 |
 | PostgreSQL 不可用 | 降级到 Go 数据服务(缺失 ticker 实时抓取) | degraded: true + degradedWarning    |
-| Redis 不可用      | fail-closed(ADR-018/045)                 | 503(认证/限流), 跳过缓存(数据)      |
+| Redis 不可用      | fail-closed(DADR-018/045)                | 503(认证/限流), 跳过缓存(数据)      |
 
 ## 4. 服务与端口
 
@@ -58,12 +58,12 @@
 
 > 详见 [wiki/deep-dive.md](./wiki/deep-dive.md)
 
-## 7. 认证授权 (ADR-017)
+## 7. 认证授权 (ADR-007)
 
 JWT(jose, RS256) Access 15min；Refresh 7d + 轮换（Redis, httpOnly Cookie, BFF）；
-x-api-key → analyst 角色；RBAC 三角色 × 七权限；Idempotency-Key 中间件；tenant_id + RLS(ADR-032)。
+x-api-key → analyst 角色；RBAC 三角色 × 七权限；Idempotency-Key 中间件；tenant_id + RLS(ADR-009)。
 
-## 8. 可观测性 (ADR-015)
+## 8. 可观测性 (ADR-006)
 
 | 支柱        | Node.js                  | Go                         |
 | ----------- | ------------------------ | -------------------------- |
@@ -72,7 +72,7 @@ x-api-key → analyst 角色；RBAC 三角色 × 七权限；Idempotency-Key 中
 
 Trace: 各服务 → OTLP HTTP → SaaS 后端。Go OTel 收口到 packages/go-shared/observability/otel.go。
 
-## 9. 熔断器 (ADR-016)
+## 9. 熔断器 (DADR-016)
 
 | 服务         | 熔断器        | 保护               |
 | ------------ | ------------- | ------------------ |
@@ -84,7 +84,7 @@ Trace: 各服务 → OTLP HTTP → SaaS 后端。Go OTel 收口到 packages/go-s
 
 ## 10. 数据存储演进
 
-JSON(ADR-002) → SQLite(ADR-006) → PostgreSQL(ADR-007)。行情持久化于 PostgreSQL，data/ 仅作运行期缓存。
+JSON(DADR-002) → SQLite(DADR-006) → PostgreSQL(ADR-002)。行情持久化于 PostgreSQL，data/ 仅作运行期缓存。
 
 ## 11. ADR 索引
 

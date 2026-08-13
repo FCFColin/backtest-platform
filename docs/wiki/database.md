@@ -22,7 +22,7 @@ migrations/ 由自研 runner（packages/backend/src/db/migrations.ts, schema_mig
 | tickers / users / api_keys | search_vector GIN / username UNIQUE / key_hash UNIQUE      |
 | audit_logs / outbox        | created_at, user_id / processed_at, idempotency_key UNIQUE |
 
-## 3. 行级安全 (RLS) — ADR-032
+## 3. 行级安全 (RLS) — ADR-009
 
 - 会话变量: app.current_tenant_id（SET LOCAL）
 - 策略: USING(tenant_id = current_setting(...)) WITH CHECK 同条件
@@ -36,7 +36,7 @@ migrations/ 由自研 runner（packages/backend/src/db/migrations.ts, schema_mig
 | Refresh Token / 限流计数 / 幂等键 | 7d / 60s / 1h | fail-closed 503 |
 | 数据缓存                          | 3600s         | 跳过缓存        |
 
-requireRedis 封装: Redis 不可用显式 503（非内存降级, ADR-018/045）。
+requireRedis 封装: Redis 不可用显式 503（非内存降级, DADR-018/045）。
 
 ## 5. 共享类型 (packages/shared/types/)
 
@@ -46,8 +46,8 @@ Barrel export from index.ts。关键类型: Portfolio, BacktestParameters, Stati
 
 `{ success: false, error: { type, title, status, code, detail } }`。
 类型化错误: AppError 基类 → ValidationError/AuthError/EngineUnavailableError 等；ErrorCodes 常量。
-降级差异: 数据服务 degraded: true + degradedWarning；引擎 503 无 degraded（ADR-031）。
+降级差异: 数据服务 degraded: true + degradedWarning；引擎 503 无 degraded（ADR-008）。
 
 ## 7. 关键 ADR 对照
 
-ADR-007 PostgreSQL / 013 DDD / 014 Outbox+CDC / 017 JWT+RBAC+API Key / 032 多租户 RLS / 045 Redis fail-closed 分化。完整索引见 [ARCHITECTURE.md](../ARCHITECTURE.md#11-adr-索引)。
+ADR-002 PostgreSQL / 013 DDD / 014 Outbox+CDC / 017 JWT+RBAC+API Key / 032 多租户 RLS / 045 Redis fail-closed 分化。完整索引见 [ARCHITECTURE.md](../ARCHITECTURE.md#11-adr-索引)。
