@@ -37,26 +37,10 @@ func RunParse[In, Out any](t *testing.T, cases []ParseCase[In, Out], parse func(
 
 func AssertPricesEqual(t *testing.T, got, want []provider.DailyPrice) {
 	t.Helper()
-	AssertPrices(t, got, want...)
-}
-
-func AssertEqual[T comparable](t *testing.T, got, want []T) {
-	t.Helper()
-	if len(got) != len(want) {
-		t.Fatalf("expected %d results, got %d", len(want), len(got))
-	}
-	for i, w := range want {
-		if got[i] != w {
-			t.Errorf("results[%d] = %+v, want %+v", i, got[i], w)
-		}
-	}
-}
-
-func AssertPrices(t *testing.T, got []provider.DailyPrice, want ...provider.DailyPrice) {
-	t.Helper()
 	if len(got) != len(want) {
 		t.Fatalf("expected %d prices, got %d", len(want), len(got))
 	}
+
 	for i, w := range want {
 		g := got[i]
 		if g.Date != w.Date {
