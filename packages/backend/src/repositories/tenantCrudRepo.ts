@@ -1,4 +1,5 @@
 import { withTenant, withTenantReadOnly } from '../db/pool.js';
+import { queryRow, queryMany } from './rowMapper.js';
 
 interface TenantCrudConfig<TRecord, TInput> {
   table: string;
@@ -25,19 +26,19 @@ export function createTenantCrudRepo<TRecord, TInput>(cfg: TenantCrudConfig<TRec
     toUpdate,
   } = cfg;
   const get = async (tenantId: string, id: string): Promise<TRecord | null> =>
-    withTenantReadOnly(tenantId, async (client) => {
-      const { rows } = await client.query(`SELECT ${selectCols} FROM ${table} WHERE id = $1`, [id]);
-      return rows.length > 0 ? mapRow(rows[0]) : null;
-    });
+    withTenantReadOnly(tenantId, (client) =>
+      queryRow(client, `SELECT ${selectCols} FROM ${table} WHERE id = $1`, [id], mapRow),
+    );
   return {
     list: async (tenantId: string, limit = 50, offset = 0): Promise<TRecord[]> =>
-      withTenantReadOnly(tenantId, async (client) => {
-        const { rows } = await client.query(
+      withTenantReadOnly(tenantId, (client) =>
+        queryMany(
+          client,
           `SELECT ${selectCols} FROM ${table} ORDER BY ${orderBy} LIMIT $1 OFFSET $2`,
           [sanitizeLimit(limit), Math.max(0, Math.trunc(offset))],
-        );
-        return rows.map(mapRow);
-      }),
+          mapRow,
+        ),
+      ),
     get,
     create: async (tenantId: string, ownerUserId: string | null, input: TInput): Promise<TRecord> =>
       withTenant(tenantId, async (client) => {
@@ -50,14 +51,15 @@ export function createTenantCrudRepo<TRecord, TInput>(cfg: TenantCrudConfig<TRec
         return mapRow(rows[0]);
       }),
     update: async (tenantId: string, id: string, input: TInput): Promise<TRecord | null> =>
-      withTenant(tenantId, async (client) => {
+      withTenant(tenantId, (client) => {
         const set = typeof updateSet === 'string' ? updateSet : updateSet(input);
         if (!set) return get(tenantId, id);
-        const { rows } = await client.query(
+        return queryRow(
+          client,
           `UPDATE ${table} SET ${set} WHERE id = $1 RETURNING ${selectCols}`,
           [id, ...toUpdate(id, input)],
+          mapRow,
         );
-        return rows.length > 0 ? mapRow(rows[0]) : null;
       }),
     delete: async (tenantId: string, id: string): Promise<boolean> =>
       withTenant(tenantId, async (client) => {

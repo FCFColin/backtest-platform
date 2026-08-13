@@ -87,7 +87,7 @@ export class Portfolio {
     id: string,
     name: string,
     holdings: PortfolioHolding[],
-    config?: Partial<Pick<Portfolio, ConfigKeys>>,
+    config?: PortfolioConfig,
   ): Portfolio {
     return new Portfolio({ id, name, holdings, ...config });
   }
@@ -155,5 +155,3 @@ export class Portfolio {
     }
   }
 }
-
-type ConfigKeys = PortfolioConfigKeys;

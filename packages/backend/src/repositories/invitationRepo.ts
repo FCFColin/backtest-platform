@@ -4,7 +4,7 @@ import { getPool, withTenant, withTenantReadOnly } from '../db/pool.js';
 import { logger } from '../utils/logger.js';
 import { sha256Hex } from '../utils/crypto.js';
 import type { OrgRole } from '../middleware/jwtAuth.js';
-import { rowMapper, iso, toIso } from './rowMapper.js';
+import { rowMapper, queryMany, iso, toIso } from './rowMapper.js';
 
 const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -60,14 +60,15 @@ export async function createInvitation(
 }
 
 export async function listInvitations(orgId: string): Promise<InvitationRecord[]> {
-  return withTenantReadOnly(orgId, async (client) => {
-    const { rows } = await client.query(
+  return withTenantReadOnly(orgId, (client) =>
+    queryMany(
+      client,
       `SELECT id, org_id, email, role, invited_by, expires_at, accepted_at, created_at
          FROM invitations WHERE org_id = $1 ORDER BY created_at DESC`,
       [orgId],
-    );
-    return rows.map(mapRow);
-  });
+      mapRow,
+    ),
+  );
 }
 
 export async function revokeInvitation(orgId: string, id: string): Promise<boolean> {

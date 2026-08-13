@@ -1,6 +1,6 @@
 // ADR-032: 组织作为租户边界，未启用 RLS，由应用层强制隔离
 import { getPool } from '../db/pool.js';
-import { rowMapper } from './rowMapper.js';
+import { rowMapper, queryRow } from './rowMapper.js';
 
 interface OrgSummary {
   orgId: string;
@@ -19,13 +19,12 @@ const mapOrgSummary = rowMapper<OrgSummary>({
 });
 
 export async function getOrg(orgId: string): Promise<OrgSummary | null> {
-  const pool = getPool();
-  const { rows } = await pool.query(
+  return queryRow(
+    getPool(),
     'SELECT id, name, slug, plan, status FROM organizations WHERE id = $1',
     [orgId],
+    mapOrgSummary,
   );
-  if (rows.length === 0) return null;
-  return mapOrgSummary(rows[0]);
 }
 
 export async function updateOrgName(orgId: string, name: string): Promise<boolean> {

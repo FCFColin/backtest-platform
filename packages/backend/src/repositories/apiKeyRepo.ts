@@ -2,7 +2,7 @@ import crypto from 'crypto';
 import { getPool, withTenant, withPlatformContext } from '../db/pool.js';
 import { logger } from '../utils/logger.js';
 import { sha256Hex, hashApiKeyArgon2id } from '../utils/crypto.js';
-import { rowMapper, iso, toIso } from './rowMapper.js';
+import { rowMapper, queryMany, iso, toIso } from './rowMapper.js';
 
 export const KEY_PREFIX = 'bpk_live_';
 const DISPLAY_PREFIX_LEN = 16;
@@ -100,13 +100,14 @@ export async function createApiKey(
 }
 
 export async function listApiKeys(orgId: string): Promise<ApiKeyRecord[]> {
-  const { rows } = await withTenant(orgId, (client) =>
-    client.query(
+  return withTenant(orgId, (client) =>
+    queryMany(
+      client,
       `SELECT ${PLATFORM_KEY_COLUMNS} FROM api_keys WHERE org_id = $1 ORDER BY created_at DESC`,
       [orgId],
+      mapRow,
     ),
   );
-  return rows.map(mapRow);
 }
 
 export async function revokeApiKey(orgId: string, keyId: string): Promise<boolean> {
@@ -192,10 +193,12 @@ export async function rotatePlatformAdminKey(
 }
 
 export async function listPlatformAdminKeys(): Promise<ApiKeyRecord[]> {
-  const { rows } = await getPool().query(
+  return queryMany(
+    getPool(),
     `SELECT ${PLATFORM_KEY_COLUMNS} FROM api_keys WHERE is_platform_admin = TRUE ORDER BY created_at DESC`,
+    [],
+    mapRow,
   );
-  return rows.map(mapRow);
 }
 
 export async function revokePlatformAdminKey(keyId: string): Promise<boolean> {
@@ -218,9 +221,10 @@ export async function countActivePlatformAdminKeys(): Promise<number> {
 }
 
 export async function findStaleApiKeys(thresholdDays: number): Promise<StaleApiKey[]> {
-  const { rows } = await getPool().query(
+  return queryMany(
+    getPool(),
     `SELECT id, org_id, is_platform_admin, name, key_prefix, last_used_at, created_at FROM api_keys WHERE revoked_at IS NULL AND (expires_at IS NULL OR expires_at > NOW()) AND (last_used_at IS NULL OR last_used_at < NOW() - make_interval(days => $1))`,
     [thresholdDays],
+    mapStaleApiKey,
   );
-  return rows.map(mapStaleApiKey);
 }

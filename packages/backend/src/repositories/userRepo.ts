@@ -2,7 +2,7 @@ import argon2 from 'argon2';
 import type { PoolClient } from 'pg';
 import { getPool } from '../db/pool.js';
 import { logger } from '../utils/logger.js';
-import { rowMapper } from './rowMapper.js';
+import { rowMapper, queryRow } from './rowMapper.js';
 
 export interface User {
   id: string;
@@ -45,25 +45,21 @@ export async function createUserTx(
 }
 
 export async function getUserByEmail(email: string): Promise<User | null> {
-  const pool = getPool();
-  const { rows } = await pool.query(
+  return queryRow(
+    getPool(),
     'SELECT id, username, role, created_at, is_active FROM users WHERE lower(email) = lower($1)',
     [email],
+    rowToUser,
   );
-  if (rows.length === 0) return null;
-  return rowToUser(rows[0]);
 }
 
 export async function getUserById(id: string): Promise<User | null> {
-  const pool = getPool();
-  const { rows } = await pool.query(
+  return queryRow(
+    getPool(),
     'SELECT id, username, role, created_at, is_active FROM users WHERE id = $1',
     [id],
+    rowToUser,
   );
-
-  if (rows.length === 0) return null;
-
-  return rowToUser(rows[0]);
 }
 
 export async function anonymizeUser(id: string): Promise<boolean> {

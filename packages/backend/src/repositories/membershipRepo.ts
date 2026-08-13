@@ -1,7 +1,7 @@
 // ADR-032: organizations/memberships 未启用 RLS（鸡生蛋问题），直接用主连接池
 import { getPool } from '../db/pool.js';
 import type { OrgRole } from '../middleware/jwtAuth.js';
-import { rowMapper, iso } from './rowMapper.js';
+import { rowMapper, queryRow, queryMany, iso } from './rowMapper.js';
 
 export type GlobalRole = 'admin' | 'analyst' | 'readonly';
 
@@ -39,8 +39,8 @@ const mapOrgMember = rowMapper<OrgMember>({
 });
 
 export async function getUserMemberships(userId: string): Promise<Membership[]> {
-  const pool = getPool();
-  const { rows } = await pool.query(
+  return queryMany(
+    getPool(),
     `SELECT m.org_id, m.role,
             o.name AS org_name, o.slug AS org_slug, o.plan AS org_plan, o.status AS org_status
        FROM memberships m
@@ -48,32 +48,32 @@ export async function getUserMemberships(userId: string): Promise<Membership[]> 
       WHERE m.user_id = $1
       ORDER BY m.created_at ASC`,
     [userId],
+    mapRow,
   );
-  return rows.map(mapRow);
 }
 
 // switch-org 必须验证用户确属目标组织，否则可伪造 orgId 越权
 export async function getMembership(userId: string, orgId: string): Promise<Membership | null> {
-  const pool = getPool();
-  const { rows } = await pool.query(
+  return queryRow(
+    getPool(),
     `SELECT m.org_id, m.role,
             o.name AS org_name, o.slug AS org_slug, o.plan AS org_plan, o.status AS org_status
        FROM memberships m
        JOIN organizations o ON o.id = m.org_id
       WHERE m.user_id = $1 AND m.org_id = $2`,
     [userId, orgId],
+    mapRow,
   );
-  return rows.length > 0 ? mapRow(rows[0]) : null;
 }
 
 export async function listOrgMembers(orgId: string): Promise<OrgMember[]> {
-  const pool = getPool();
-  const { rows } = await pool.query(
+  return queryMany(
+    getPool(),
     `SELECT m.user_id, m.role, m.created_at, u.username, u.email
        FROM memberships m JOIN users u ON u.id = m.user_id
       WHERE m.org_id = $1
       ORDER BY m.created_at ASC`,
     [orgId],
+    mapOrgMember,
   );
-  return rows.map(mapOrgMember);
 }
