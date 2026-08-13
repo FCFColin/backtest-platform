@@ -12,7 +12,7 @@ export interface TickerAggRow {
   last_date: string | null;
 }
 
-interface TickerRowState {
+export interface TickerRowState {
   earliest: string | null;
   latest: string | null;
   tickers5y: number;
@@ -22,21 +22,21 @@ interface TickerRowState {
   allPoints: number[];
 }
 
-export interface ProcessTickerRowOpts {
-  row: TickerAggRow;
+export interface MarketStatsAccumulators {
   byMarket: DbMarketStats['by_market'];
   byType: Record<string, number>;
   byExchange: Record<string, number>;
+}
+
+export interface MarketStatsRowAccumulators extends MarketStatsAccumulators {
   byDecade: Record<string, number>;
   byYearCount: Record<string, number>;
   sampleTickers: DbMarketStats['sample_tickers'];
   state: TickerRowState;
 }
 
-export interface MarketStatsAccumulators {
-  byMarket: DbMarketStats['by_market'];
-  byType: Record<string, number>;
-  byExchange: Record<string, number>;
+export interface ProcessTickerRowOpts extends MarketStatsRowAccumulators {
+  row: TickerAggRow;
 }
 
 export interface DbEngineStatusResult {

@@ -1,6 +1,7 @@
 import type {
   DbMarketStats,
   TickerAggRow,
+  MarketStatsRowAccumulators,
   ProcessTickerRowOpts,
   MarketStatsAccumulators,
 } from './marketStatsTypes.js';
@@ -126,25 +127,13 @@ export function processTickerRow(opts: ProcessTickerRowOpts): void {
   }
 }
 
-export function buildMarketStatsResult(args: {
-  rows: TickerAggRow[];
-  byMarket: DbMarketStats['by_market'];
-  byType: Record<string, number>;
-  byExchange: Record<string, number>;
-  byDecade: Record<string, number>;
-  byYearCount: Record<string, number>;
-  sampleTickers: DbMarketStats['sample_tickers'];
-  state: {
-    earliest: string | null;
-    latest: string | null;
-    tickers5y: number;
-    tickers10y: number;
-    tickers20y: number;
-    totalDataPoints: number;
-  };
-  allPoints: number[];
-  storageBytes: number;
-}): DbMarketStats {
+export function buildMarketStatsResult(
+  args: MarketStatsRowAccumulators & {
+    rows: TickerAggRow[];
+    allPoints: number[];
+    storageBytes: number;
+  },
+): DbMarketStats {
   const {
     rows,
     byMarket,
