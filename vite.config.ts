@@ -129,6 +129,7 @@ export default defineConfig(async () => {
                   'jose',
                   'argon2',
                   'bullmq',
+                  'minio',
                   'zod',
                   'stripe',
                   'ioredis',
