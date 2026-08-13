@@ -171,6 +171,9 @@ const TAB_RENDERERS: Record<string, (c: TabCtx) => ReactNode> = {
       <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-4 items-start">
         <SummarySidebar
           stats={firstPf?.statistics ?? createEmptyStatistics()}
+          name={firstPf?.name}
+          color={getPortfolioColor(0)}
+          count={pf.length}
           totalYears={annualReturns.length}
           positiveYears={positiveYears}
         />

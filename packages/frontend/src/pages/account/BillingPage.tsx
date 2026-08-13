@@ -198,6 +198,11 @@ export default function BillingPage() {
   const statusPrefix = state?.subscription?.status
     ? t('Status: {{status}}', { status: state.subscription.status })
     : '';
+  const renewLabel = state?.subscription?.currentPeriodEnd
+    ? t('Renews on {{date}}', {
+        date: new Date(state.subscription.currentPeriodEnd).toLocaleDateString(),
+      })
+    : '';
   return (
     <StandardPageShell
       config={{
@@ -211,6 +216,7 @@ export default function BillingPage() {
           {t('Current plan:')}
           <strong className="capitalize">{currentPlan}</strong>
           {statusPrefix}
+          {renewLabel && ` · ${renewLabel}`}
         </p>
         <BillingContent
           state={state}

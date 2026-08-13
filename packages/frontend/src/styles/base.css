@@ -184,6 +184,13 @@ a:hover {
   white-space: nowrap;
   background: transparent;
 }
+.stat-table thead th:first-child,
+.stat-table tbody td:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--bg-surface);
+}
 .stat-table-metric-cell {
   text-align: left;
   padding: 7px 12px;
@@ -196,7 +203,7 @@ a:hover {
   white-space: nowrap;
 }
 .stat-table-num {
-  font-family: 'Geist Mono Variable', 'JetBrains Mono', monospace;
+  font-family: 'Geist Mono Variable', monospace;
   font-variant-numeric: tabular-nums;
   font-feature-settings: 'tnum';
   color: var(--text-strong);
@@ -204,6 +211,12 @@ a:hover {
 }
 .stat-table-data-row td {
   border-bottom: 1px solid color-mix(in srgb, var(--border-soft) 30%, transparent);
+}
+.stat-table-data-row:nth-child(even) td {
+  background: color-mix(in srgb, var(--bg-subtle) 40%, transparent);
+}
+.stat-table-data-row:nth-child(even) td:first-child {
+  background: color-mix(in srgb, var(--bg-subtle) 40%, var(--bg-surface));
 }
 .stat-table-data-row:hover td {
   background-color: color-mix(in srgb, var(--bg-subtle) 50%, transparent);

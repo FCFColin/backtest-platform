@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { LineChart } from 'lucide-react';
 import { type AssetAnalysisResult, type Statistics } from '@backtest/shared';
 import { getPortfolioColor } from '@/lib/chart-theme.js';
+import { getColorClass } from '@/components/charts/chartUtils.js';
 import { ResultsShell } from '@/components/resultsShell.js';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/uiComponents';
 import { useAnalysisData } from '../../hooks/useAnalysisData.js';
@@ -208,11 +209,16 @@ export default function AnalysisPage() {
   const s = useAnalysisPageState();
   return <ComputeToolShell config={config} state={s} />;
 }
-type StatCol = { key: keyof Statistics; labelKey: string; fmt: 'pct' | 'ratio' | 'duration' };
+type StatCol = {
+  key: keyof Statistics;
+  labelKey: string;
+  fmt: 'pct' | 'ratio' | 'duration';
+  colorize?: boolean;
+};
 const STATS_COLUMNS: StatCol[] = [
-  { key: 'cagr', labelKey: 'stats.cagr', fmt: 'pct' },
-  { key: 'maxDrawdown', labelKey: 'Max Drawdown', fmt: 'pct' },
-  { key: 'avgDrawdown', labelKey: 'Avg Drawdown', fmt: 'pct' },
+  { key: 'cagr', labelKey: 'stats.cagr', fmt: 'pct', colorize: true },
+  { key: 'maxDrawdown', labelKey: 'Max Drawdown', fmt: 'pct', colorize: true },
+  { key: 'avgDrawdown', labelKey: 'Avg Drawdown', fmt: 'pct', colorize: true },
   { key: 'maxDrawdownDuration', labelKey: 'analysis.maxDrawdownDuration', fmt: 'duration' },
   { key: 'stdev', labelKey: 'backtest.stdev', fmt: 'pct' },
   { key: 'sharpe', labelKey: 'backtest.sharpeRatio', fmt: 'ratio' },
@@ -249,7 +255,11 @@ export const StatsTable = memo(function StatsTable({
         </span>
       ),
       align: 'right' as const,
-      render: (c: StatCol) => fmt(tk.statistics[c.key] as number | undefined, c.fmt),
+      render: (c: StatCol) => {
+        const v = tk.statistics[c.key] as number | undefined;
+        const text = fmt(v, c.fmt);
+        return c.colorize && v != null ? <span className={getColorClass(v)}>{text}</span> : text;
+      },
     })),
   ];
   return <SimpleTable columns={columns} data={rows} rowKey={(c) => c.key} />;
