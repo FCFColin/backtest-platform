@@ -49,22 +49,13 @@ export const getOrCachePrivateKey = cacheOnce(() => loadKey('private'));
 export const getOrCachePublicKey = cacheOnce(() => loadKey('public'));
 export const getOrCacheHS256Key = cacheOnce(getHS256Key);
 
-async function signConfiguredJwt(payload: JwtPayload): Promise<string> {
-  const isRs256 = JWT_ALGORITHM === 'RS256';
-  const key = isRs256 ? await getOrCachePrivateKey() : await getOrCacheHS256Key();
-  return new SignJWT({ ...payload })
-    .setProtectedHeader({ alg: isRs256 ? 'RS256' : 'HS256' })
-    .setIssuedAt(payload.iat)
-    .setExpirationTime(payload.exp)
-    .sign(key);
-}
 export async function generateToken(
   userId: string,
   role: Role,
   tenant?: TenantContext,
 ): Promise<string> {
   const now = Math.floor(Date.now() / 1000);
-  return signConfiguredJwt({
+  const payload: JwtPayload = {
     sub: userId,
     role,
     iat: now,
@@ -72,5 +63,12 @@ export async function generateToken(
     ...(tenant?.tenantId && { tenant_id: tenant.tenantId }),
     ...(tenant?.orgRole && { org_role: tenant.orgRole }),
     ...(tenant?.platformAdmin && { platform_admin: true }),
-  });
+  };
+  const isRs256 = JWT_ALGORITHM === 'RS256';
+  const key = isRs256 ? await getOrCachePrivateKey() : await getOrCacheHS256Key();
+  return new SignJWT(payload)
+    .setProtectedHeader({ alg: isRs256 ? 'RS256' : 'HS256' })
+    .setIssuedAt(payload.iat)
+    .setExpirationTime(payload.exp)
+    .sign(key);
 }

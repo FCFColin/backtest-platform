@@ -65,10 +65,6 @@ export function authLog(
 ): void {
   logger[level]({ middleware, path: req.path, requestId: req.id, ...extra }, `[jwtAuth] ${msg}`);
 }
-export const authCtx = (_middleware: string, req: AuthenticatedRequest) => ({
-  path: req.path,
-  requestId: req.id,
-});
 export const denyAuth = (
   req: AuthenticatedRequest,
   res: Response,

@@ -1,10 +1,9 @@
 import type { Response, NextFunction } from 'express';
-import { logger } from '../utils/logger.js';
 import { sendProblem } from '../utils/errors.js';
 import { withTimeout, TimeoutError } from '../utils/misc.js';
 import { verifyApiKey } from '../infrastructure/apiKeyVerifier.js';
 import {
-  authCtx,
+  authLog,
   denyAuth,
   attachAuthLogContext,
   hashUserId,
@@ -33,25 +32,6 @@ async function resolveApiKeyUser(apiKey: string): Promise<JwtPayload | null> {
     ...common,
   };
 }
-function logApiKeyAuth(req: AuthenticatedRequest, middleware: string): void {
-  logger.info(
-    {
-      ...authCtx(middleware, req),
-      userId: hashUserId(req.user?.sub),
-      role: req.user?.role,
-      tenantId: req.user?.tenant_id,
-      platformAdmin: req.user?.platform_admin === true,
-    },
-    '[jwtAuth] API Key 认证通过',
-  );
-}
-function logAnonymous(req: AuthenticatedRequest): void {
-  logger.info(
-    { ...authCtx('optionalJwtAuth', req) },
-    '[jwtAuth] 无有效 Bearer Token/API Key，匿名放行',
-  );
-}
-
 const API_KEY_RESOLUTION_TIMEOUT_MS = 5000;
 export async function authenticateWithApiKey(
   req: AuthenticatedRequest,
@@ -64,7 +44,7 @@ export async function authenticateWithApiKey(
   if (!apiKey) {
     if (!optional) return;
     req.user = null;
-    logAnonymous(req);
+    authLog('info', 'optionalJwtAuth', req, '无有效 Bearer Token/API Key，匿名放行');
     next();
     return;
   }
@@ -75,29 +55,31 @@ export async function authenticateWithApiKey(
     if (user) {
       req.user = user;
       attachAuthLogContext(req);
-      logApiKeyAuth(req, middleware);
+      authLog('info', middleware, req, 'API Key 认证通过', {
+        userId: hashUserId(req.user?.sub),
+        role: req.user?.role,
+        tenantId: req.user?.tenant_id,
+        platformAdmin: req.user?.platform_admin === true,
+      });
       next();
       return;
     }
     if (optional) {
       req.user = null;
-      logAnonymous(req);
+      authLog('info', 'optionalJwtAuth', req, '无有效 Bearer Token/API Key，匿名放行');
       next();
       return;
     }
     denyAuth(req, res, 'INVALID_API_KEY', 'API Key 无效', { middleware });
   } catch (err) {
     if (optional && err instanceof TimeoutError) {
-      logger.warn({ ...authCtx(middleware, req) }, '[jwtAuth] API Key 解析超时（5s），返回 504');
+      authLog('warn', middleware, req, 'API Key 解析超时（5s），返回 504');
       sendProblem(res, 504, 'GATEWAY_TIMEOUT', 'API Key Resolution Timeout', {
         detail: 'The API key resolution service did not respond within 5 seconds',
       });
       return;
     }
-    logger.error(
-      { ...authCtx(middleware, req), err },
-      '[jwtAuth] API Key 验证基础设施错误，fail-closed 503',
-    );
+    authLog('error', middleware, req, 'API Key 验证基础设施错误，fail-closed 503', { err });
     sendProblem(res, 503, 'AUTH_SERVICE_UNAVAILABLE', 'Authentication Service Unavailable', {
       detail: 'API key validation service is temporarily unavailable',
     });

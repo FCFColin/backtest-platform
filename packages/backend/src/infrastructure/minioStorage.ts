@@ -5,9 +5,7 @@ import { logger } from '../utils/logger.js';
 const AUDIT_BUCKET = 'audit-logs';
 let minioClient: Client | null = null;
 
-export function isMinioConfigured(): boolean {
-  return Boolean(config.MINIO_ENDPOINT);
-}
+export const isMinioConfigured = (): boolean => Boolean(config.MINIO_ENDPOINT);
 
 function getClient(): Client | null {
   if (!isMinioConfigured()) return null;
