@@ -1,12 +1,8 @@
 import '../../helpers/loggerMock.js';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { redisModuleMock } from '../../helpers/redisFixture.js';
 
-vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () => ({
-  appRedis: { set: vi.fn(), get: vi.fn(), del: vi.fn() },
-  getRedisHealth: vi.fn(async () => true),
-  markRedisUnhealthy: vi.fn(),
-  bullmqConnectionOptions: {},
-}));
+vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () => redisModuleMock);
 
 vi.mock('bullmq', () => ({
   Queue: vi

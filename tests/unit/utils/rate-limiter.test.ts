@@ -1,5 +1,6 @@
 import '../../helpers/loggerMock.js';
 import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest';
+import { redisModuleMock } from '../../helpers/redisFixture.js';
 import type { Request, Response, NextFunction } from 'express';
 import crypto from 'node:crypto';
 // RedisStore 可在"成功/抛错"间切换：抛错时模拟 Redis 不可用（P0-05 fail-closed）
@@ -14,9 +15,7 @@ vi.mock('rate-limit-redis', () => ({
     return { sendCommand: vi.fn() };
   }),
 }));
-vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () => ({
-  appRedis: { call: vi.fn() },
-}));
+vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () => redisModuleMock);
 vi.mock('../../../packages/backend/src/config/index.js', () => ({
   config: { COMPUTE_RATE_LIMIT_MAX: 10 },
 }));

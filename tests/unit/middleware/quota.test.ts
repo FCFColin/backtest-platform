@@ -1,23 +1,11 @@
 import '../../helpers/loggerMock.js';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { redisModuleMock } from '../../helpers/redisFixture.js';
 
 const mocks = vi.hoisted(() => ({
   getOrg: vi.fn(),
   getMonthlyUsage: vi.fn(),
   recordUsage: vi.fn(),
-  appRedis: {
-    eval: vi.fn(),
-    ttl: vi.fn(),
-    ping: vi.fn(),
-    get: vi.fn(),
-    set: vi.fn(),
-    incr: vi.fn(),
-    decr: vi.fn(),
-    expire: vi.fn(),
-    info: vi.fn(),
-    on: vi.fn(),
-    quit: vi.fn(),
-  },
   quotaEnforcementFailures: { inc: vi.fn() },
 }));
 
@@ -28,14 +16,7 @@ vi.mock('../../../packages/backend/src/application/billing/usageService.js', () 
   getMonthlyUsage: mocks.getMonthlyUsage,
   recordUsage: mocks.recordUsage,
 }));
-vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () => ({
-  appRedis: mocks.appRedis,
-  isSentinelMode: false,
-  getRedisHealth: vi.fn().mockResolvedValue(true),
-  markRedisUnhealthy: vi.fn(),
-  buildRedisBaseOptions: vi.fn(() => ({ host: 'localhost', port: 6379 })),
-  checkSentinelMaster: vi.fn().mockResolvedValue({ isMaster: null, connectedSlaves: null }),
-}));
+vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () => redisModuleMock);
 vi.mock('../../../packages/backend/src/utils/metrics.js', () => ({
   quotaEnforcementFailures: mocks.quotaEnforcementFailures,
   httpRequestDurationMicroseconds: { observe: vi.fn() },

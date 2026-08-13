@@ -3,6 +3,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { startExpressApp } from '../../helpers/expressApp.js';
 import { withServer } from '../../helpers/serverLifecycle.js';
 import { createConfigMocks } from '../../helpers/mockFactories.js';
+import { redisModuleMock } from '../../helpers/redisFixture.js';
 
 const originalFetch = globalThis.fetch;
 
@@ -25,11 +26,7 @@ vi.mock('../../../packages/backend/src/db/pool.js', () => ({
   getReadPool: () => ({ query: dbMocks.query }),
 }));
 
-vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () => ({
-  appRedis: { ping: vi.fn().mockResolvedValue('PONG') },
-  checkSentinelMaster: vi.fn().mockResolvedValue({ isMaster: null, connectedSlaves: null }),
-  isSentinelMode: false,
-}));
+vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () => redisModuleMock);
 
 import { config } from '../../../packages/backend/src/config/index.js';
 import healthRoutes from '../../../packages/backend/src/routes/healthRoutes.js';
