@@ -13,6 +13,7 @@ vi.mock('../../../packages/backend/src/config/index.js', () => ({
     },
     GO_DATA_SERVICE_TIMEOUT_MS: 5000,
     DATA_SERVICE_AUTH_TOKEN: 'test-token',
+    MAX_RESPONSE_BODY_SIZE: 100,
   },
 }));
 

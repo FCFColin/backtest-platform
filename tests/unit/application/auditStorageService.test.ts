@@ -10,7 +10,7 @@ const minioMocks = vi.hoisted(() => ({
   uploadAuditObject: vi.fn().mockResolvedValue(true),
   isMinioConfigured: vi.fn(() => true),
 }));
-vi.mock('../../../packages/backend/src/infrastructure/dataServices.js', () => ({
+vi.mock('../../../packages/backend/src/infrastructure/minioStorage.js', () => ({
   ensureBucketExists: minioMocks.ensureBucketExists,
   uploadAuditObject: minioMocks.uploadAuditObject,
   isMinioConfigured: minioMocks.isMinioConfigured,

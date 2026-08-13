@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type pg from 'pg';
 import { createMockClient } from '../../helpers/mockFactories.js';
 import { loggerMocks } from '../../helpers/loggerFixture.js';
+import '../../helpers/loggerMock.js';
 
 const eventMocks = vi.hoisted(() => ({ dispatch: vi.fn(async () => {}) }));
 const clientMock = vi.hoisted(() => ({
@@ -11,7 +12,6 @@ const clientMock = vi.hoisted(() => ({
   on: vi.fn(),
 }));
 
-vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: loggerMocks }));
 vi.mock('../../../packages/backend/src/domain/events/events.js', () => ({
   eventDispatcher: { dispatch: eventMocks.dispatch },
 }));
@@ -24,7 +24,7 @@ vi.mock('../../../packages/backend/src/utils/metrics.js', () => ({
   getPrometheusRegister: () => ({ registerMetric: vi.fn() }),
 }));
 vi.mock('../../../packages/backend/src/config/index.js', () => ({
-  config: { CDC_KAFKA_ENABLED: false },
+  config: { CDC_KAFKA_ENABLED: false, OUTBOX_RETENTION_DAYS: 7 },
 }));
 vi.mock('../../../packages/backend/src/infrastructure/outboxKafkaConsumer.js', () => ({
   OutboxKafkaConsumer: vi.fn(),
@@ -289,9 +289,10 @@ describe('OutboxPublisher', () => {
       expect(sqlString).toContain('$1');
       expect(sqlString).toContain("INTERVAL '1 day' * $1");
     });
-    it('OUTBOX_RETENTION_DAYS 环境变量可配置且通过参数传递', async () => {
-      const originalValue = process.env.OUTBOX_RETENTION_DAYS;
-      process.env.OUTBOX_RETENTION_DAYS = '30';
+    it('OUTBOX_RETENTION_DAYS 由 config 配置且通过参数传递（非硬编码）', async () => {
+      vi.doMock('../../../packages/backend/src/config/index.js', () => ({
+        config: { CDC_KAFKA_ENABLED: false, OUTBOX_RETENTION_DAYS: 30 },
+      }));
       vi.resetModules();
       const { OutboxPublisher: FreshPublisher } =
         await import('../../../packages/backend/src/infrastructure/outboxPublisher.js');
@@ -299,7 +300,6 @@ describe('OutboxPublisher', () => {
       await freshPublisher.cleanupProcessedOutboxEvents();
       const callArgs = mockPool.query.mock.calls[mockPool.query.mock.calls.length - 1];
       expect(callArgs[1][0]).toBe(30);
-      process.env.OUTBOX_RETENTION_DAYS = originalValue;
     });
   });
 });

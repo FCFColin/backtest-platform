@@ -11,6 +11,7 @@ const configMocks = vi.hoisted(() => ({
   COMPUTE_RATE_LIMIT_MAX: 10,
   NODE_ENV: 'test',
   REDIS_URL: 'redis://localhost:6379',
+  MAX_RESPONSE_BODY_SIZE: 100,
 }));
 
 const cbMocks = vi.hoisted(() => ({
