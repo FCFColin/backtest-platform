@@ -1,4 +1,4 @@
-import '../../helpers/loggerMock.js';
+import '../helpers/loggerMock.js';
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { execSync } from 'node:child_process';
@@ -11,7 +11,7 @@ const poolHolder = vi.hoisted(() => ({ pool: null as pg.Pool | null }));
 
 // 不能用 importOriginal — 真实 withTenant 闭包捕获真实 getPool，会绕过 mock
 // 连到 config.DATABASE_URL 默认库。这里内联与 pool.ts 等价的实现（UUID 校验 + 事务包装），
-vi.mock('../../../packages/backend/src/db/pool.js', () => {
+vi.mock('../../packages/backend/src/db/pool.js', () => {
   const check = (tenantId: string) => {
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(tenantId)) {
       throw new Error(`withTenant: 非法 tenantId（需为 UUID）: ${tenantId}`);
@@ -113,7 +113,7 @@ describe.skipIf(!dockerAvailable)('withTenant RLS 强制点（testcontainers PG,
   });
 
   it('27.1 应能读取当前租户的数据（set_config 生效）', async () => {
-    const { withTenant } = await import('../../../packages/backend/src/db/pool.js');
+    const { withTenant } = await import('../../packages/backend/src/db/pool.js');
     const rows = await withTenant(ORG_A, async (client) => {
       const result = await client.query('SELECT name FROM portfolios');
       return result.rows;
@@ -123,7 +123,7 @@ describe.skipIf(!dockerAvailable)('withTenant RLS 强制点（testcontainers PG,
   });
 
   it('27.1 跨租户读取应返回零行（RLS USING 策略生效）', async () => {
-    const { withTenant } = await import('../../../packages/backend/src/db/pool.js');
+    const { withTenant } = await import('../../packages/backend/src/db/pool.js');
     const rows = await withTenant(ORG_B, async (client) => {
       const result = await client.query('SELECT name FROM portfolios');
       return result.rows;
@@ -132,7 +132,7 @@ describe.skipIf(!dockerAvailable)('withTenant RLS 强制点（testcontainers PG,
   });
 
   it('27.1 跨租户写入应被拒绝（RLS WITH CHECK 策略生效，事务回滚）', async () => {
-    const { withTenant } = await import('../../../packages/backend/src/db/pool.js');
+    const { withTenant } = await import('../../packages/backend/src/db/pool.js');
     await expect(
       withTenant(ORG_A, async (client) => {
         await client.query(
@@ -151,7 +151,7 @@ describe.skipIf(!dockerAvailable)('withTenant RLS 强制点（testcontainers PG,
   });
 
   it('27.2 is_local=true 在事务结束后失效（PgBouncer 连接复用安全）', async () => {
-    const { withTenant } = await import('../../../packages/backend/src/db/pool.js');
+    const { withTenant } = await import('../../packages/backend/src/db/pool.js');
     await withTenant(ORG_A, async (client) => {
       await client.query('SELECT 1');
     });
@@ -173,7 +173,7 @@ describe.skipIf(!dockerAvailable)('withTenant RLS 强制点（testcontainers PG,
   });
 
   it('27.1 非法 tenantId 应在连接前拒绝（UUID 校验）', async () => {
-    const { withTenant } = await import('../../../packages/backend/src/db/pool.js');
+    const { withTenant } = await import('../../packages/backend/src/db/pool.js');
     await expect(withTenant('not-a-uuid', async () => 'ok')).rejects.toThrow(/非法 tenantId/);
   });
 });

@@ -21,15 +21,6 @@ const networkAction =
 export const disconnectContainer = networkAction('disconnect');
 export const reconnectContainer = networkAction('connect');
 
-async function isDockerAvailable(): Promise<boolean> {
-  try {
-    await execAsync('docker info');
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 // skipIf 在收集期求值（beforeAll 尚未运行），故需同步探测 docker，否则实验恒被跳过
 function isDockerAvailableSync(): boolean {
   try {
@@ -60,17 +51,6 @@ async function isContainerRunning(containerName: string): Promise<boolean> {
   } catch {
     return false;
   }
-}
-
-export async function getCircuitBreakerState(
-  breakerName: string,
-  metricsUrl: string = 'http://127.0.0.1:15001/metrics',
-): Promise<number> {
-  const response = await fetch(metricsUrl);
-  const text = await response.text();
-  const regex = new RegExp(`circuit_breaker_state\\{[^}]*name="${breakerName}"[^}]*\\}\\s+(\\d+)`);
-  const match = text.match(regex);
-  return match ? parseInt(match[1], 10) : -1;
 }
 
 export async function sendSignalToContainer(
@@ -137,55 +117,21 @@ export async function withContainerStopped<T>(
   }
 }
 
-interface ChaosFixture {
-  dockerAvailable: boolean;
-  containerRunning: boolean;
-  recover: () => Promise<void>;
-}
-
-async function setupChaosFixture(
-  containerName: string,
-  recoverFn: (name: string) => Promise<void> = startContainer,
-): Promise<ChaosFixture> {
-  const dockerAvailable = await isDockerAvailable();
-  let containerRunning = false;
-  if (dockerAvailable) {
-    containerRunning = await isContainerRunning(containerName);
-  }
-  return {
-    dockerAvailable,
-    containerRunning,
-    recover: async () => {
-      if (dockerAvailable && containerRunning) {
-        try {
-          await recoverFn(containerName);
-        } catch {
-          /* recovery may fail, continue */
-        }
-      }
-    },
-  };
-}
-
 export function setupChaosLifecycle(containerName: string, recoverFn = startContainer) {
-  let current: ChaosFixture = {
-    dockerAvailable: false,
-    containerRunning: false,
-    recover: async () => {},
-  };
+  let containerReady = false;
   beforeAll(async () => {
-    current = await setupChaosFixture(containerName, recoverFn);
+    containerReady = await isContainerRunning(containerName);
   }, 30000);
   afterAll(async () => {
-    await current.recover();
+    if (containerReady) {
+      try {
+        await recoverFn(containerName);
+      } catch {
+        /* recovery may fail, continue */
+      }
+    }
   }, 30000);
   return {
-    get dockerAvailable() {
-      return isDockerAvailableSync();
-    },
-    get containerRunning() {
-      return current.containerRunning;
-    },
     // 收集期同步门控：docker 可用且容器在跑才执行实验，否则显式 skip
     get containerReady() {
       return isDockerAvailableSync() && isContainerRunningSync(containerName);

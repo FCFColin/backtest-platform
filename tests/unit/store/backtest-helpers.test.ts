@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 
-vi.mock('../../../../packages/frontend/src/i18n/index.js', () => ({
+vi.mock('../../../packages/frontend/src/i18n/index.js', () => ({
   default: {
     t: (key: string, opts?: Record<string, unknown>) => {
       if (!opts) return key;
@@ -18,7 +18,7 @@ import {
   normalizeBacktestResult,
   validatePortfolios,
   defaultParameters,
-} from '../../../../packages/frontend/src/store/backtestHelpers.js';
+} from '../../../packages/frontend/src/store/backtestHelpers.js';
 
 describe('extractApiErrorDetail', () => {
   it.each([

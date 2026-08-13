@@ -15,7 +15,7 @@
 
 ### 由 Playwright 自动启动
 
-- **Backend API**:Playwright `webServer` 配置自动运行 `npx tsx packages/backend/src/server.ts`,监听 `http://localhost:15001/api/health`
+- **Backend API**:Playwright `webServer` 配置自动运行 `node scripts/e2e-servers.mjs`(wrapper 拉起后端并轮询 `http://localhost:15001/api/health`)
 - **前端静态文件**:由后端 API 服务(`SERVE_STATIC=true`,在 `playwright.config.ts` 的 `webServer.env` 中设置)
 
 ### 环境变量

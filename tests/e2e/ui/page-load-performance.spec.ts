@@ -18,7 +18,7 @@ test.describe('页面加载性能预算', () => {
     await ctx.close();
   });
 
-  test('P1: 首页 FCP < 100ms', async ({ page }) => {
+  test(`P1: 首页 FCP < ${FCP_BUDGET_MS}ms`, async ({ page }) => {
     await page.goto('/', { waitUntil: 'domcontentloaded' });
 
     const fcp = await page.evaluate(

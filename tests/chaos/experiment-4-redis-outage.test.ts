@@ -67,7 +67,8 @@ describe('Chaos Experiment 4: Redis 中断', () => {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username: 'chaos-user', password: 'wrong-password' }),
           });
-          expect([401, 429, 503]).toContain(loginRes.status);
+          // 限流器 Redis store 故障时 passOnStoreError=false → next(err) 500；lockout requireRedis → 503；均属拒绝放行
+          expect([401, 429, 503, 500]).toContain(loginRes.status);
         },
         { settleMs: 0 },
       );
