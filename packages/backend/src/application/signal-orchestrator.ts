@@ -1,4 +1,4 @@
-// 纯透传到引擎、不涉及 domain 聚合根的编排器（ADR-031）
+// 纯透传到引擎、不涉及 domain 聚合根的编排器（ADR-008）
 import type {
   SignalAnalysisRequest,
   DualSignalConfig,

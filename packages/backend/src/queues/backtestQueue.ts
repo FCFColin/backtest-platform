@@ -13,7 +13,7 @@ export interface BacktestJobData {
   type: 'optimizer' | 'grid-search' | 'portfolio';
   payload: Record<string, unknown>;
   userId?: string;
-  /** 提交任务的租户（组织）UUID，用于结果持久化的 RLS 隔离与所有权校验（ADR-034） */
+  /** 提交任务的租户（组织）UUID，用于结果持久化的 RLS 隔离与所有权校验（ADR-009） */
   tenantId?: string;
   /** 提交者用户 UUID（区别于 API Key 调用方，后者为 null） */
   ownerUserId?: string | null;
@@ -52,7 +52,7 @@ backtestQueue.on('error', (err) => {
 
 const PROGRESS_CHANNEL_PREFIX = 'backtest:progress:';
 
-// ADR-045: 多 Pod 广播——每个 API Pod 各自订阅同一 channel，Worker 只需 publish 一次
+// DADR-045: 多 Pod 广播——每个 API Pod 各自订阅同一 channel，Worker 只需 publish 一次
 function publishBacktestProgress(jobId: string, payload: Record<string, unknown>): void {
   const channel = `${PROGRESS_CHANNEL_PREFIX}${jobId}`;
   appRedis.publish(channel, JSON.stringify(payload)).catch((err) => {
@@ -102,7 +102,7 @@ export function createBacktestWorker(
       const jobId = job?.id ? String(job.id) : '';
       if (jobId) publishBacktestProgress(jobId, { jobId, status: 'failed', error: err.message });
     },
-    // P1-04: Redis Pub/Sub 实时进度推送（多 Pod 广播，ADR-045）
+    // P1-04: Redis Pub/Sub 实时进度推送（多 Pod 广播，DADR-045）
     onProgress: (job, progress) => {
       const jobId = String(job.id);
       const progressPct = typeof progress === 'number' ? progress : undefined;

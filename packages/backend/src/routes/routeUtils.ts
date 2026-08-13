@@ -119,7 +119,7 @@ type SyncComputeOpts = {
 };
 
 // 服务返回 { data, degraded? } 形态时（与 dataRoutes 的 sendDegraded 契约一致），
-// 在响应顶层透出 degraded，供前端 apiClient 全局提示（ADR-031 数据降级可观测性）。
+// 在响应顶层透出 degraded，供前端 apiClient 全局提示（ADR-008 数据降级可观测性）。
 // 判别依据：plainCompute 服务统一返回 DegradedResult（恒带 degraded key）；引擎 envelope 只有 success/data。
 function isBacktestResult(r: unknown): r is BacktestResult {
   return typeof r === 'object' && r !== null && 'data' in r && 'degraded' in r;

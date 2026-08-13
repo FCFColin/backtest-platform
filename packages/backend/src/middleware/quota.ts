@@ -1,4 +1,4 @@
-// ADR-036 / P0-04: 组织查询失败时 fail-closed 503（防免费用户绕过）；月度用量以 usage_counters（DB 权威）为准
+// ADR-010 / P0-04: 组织查询失败时 fail-closed 503（防免费用户绕过）；月度用量以 usage_counters（DB 权威）为准
 import { type Response, type NextFunction } from 'express';
 import { sendProblem } from '../utils/errors.js';
 import { logger } from '../utils/logger.js';

@@ -44,7 +44,7 @@ export function submitQueueJob(cfg: SubmitQueueJobConfig): RequestHandler {
             tenantId: authReq.tenantId,
             ownerUserId: ownerOf(authReq),
           } as BacktestJobData,
-          // BullMQ 自增数字 id 写不进 backtest_runs 的 UUID 主键（ADR-034），故显式 UUID
+          // BullMQ 自增数字 id 写不进 backtest_runs 的 UUID 主键（ADR-009），故显式 UUID
           { jobId: randomUUID() },
         );
         const jobId = job.id!;

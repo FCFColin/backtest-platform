@@ -1,4 +1,4 @@
-// ADR-033 + P0-04: Redis 吊销缓存为 DB revoked_at 之外的跨 Pod 二次防线
+// ADR-009 + P0-04: Redis 吊销缓存为 DB revoked_at 之外的跨 Pod 二次防线
 import { getPool, withTenant } from '../db/pool.js';
 import { logger } from '../utils/logger.js';
 import { KEY_PREFIX, PLATFORM_ADMIN_KEY_MAX_TTL_DAYS } from '../repositories/apiKeyRepo.js';

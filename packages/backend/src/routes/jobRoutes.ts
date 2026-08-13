@@ -48,7 +48,7 @@ function buildJobResult(
   return result;
 }
 
-// GET /api/v1/jobs/:id — 仅任务提交者或 admin 可读取（ADR-019 IDOR 防护）
+// GET /api/v1/jobs/:id — 仅任务提交者或 admin 可读取（ADR-007 IDOR 防护）
 router.get(
   '/jobs/:id',
   jwtAuth,
@@ -86,7 +86,7 @@ router.get(
   ),
 );
 
-// POST /api/v1/backtest-optimizer/optimize — 队列不可用时 fail-closed 503 per ADR-031
+// POST /api/v1/backtest-optimizer/optimize — 队列不可用时 fail-closed 503 per ADR-008
 router.post(
   '/backtest-optimizer/optimize',
   ...computeMiddleware(Permission.OPTIMIZER_RUN),

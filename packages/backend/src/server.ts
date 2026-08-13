@@ -70,7 +70,7 @@ server.listen(PORT, async () => {
   }
   try {
     // P3-05：通过工厂创建 Outbox 消费器——CDC_KAFKA_ENABLED=true 走 Kafka CDC，
-    // 否则走 LISTEN/NOTIFY（默认，零额外依赖）。详见 ADR-051。
+    // 否则走 LISTEN/NOTIFY（默认，零额外依赖）。详见 ADR-005。
     outboxConsumer = createOutboxConsumer(getPool());
     await outboxConsumer.start();
   } catch (err) {

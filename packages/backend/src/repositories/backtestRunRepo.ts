@@ -1,4 +1,4 @@
-// ADR-034/013: domain status 'queued' → DB 'pending'（不破坏迁移）
+// ADR-009/ADR-004: domain status 'queued' → DB 'pending'（不破坏迁移）
 import { withTenant } from '../db/pool.js';
 import { Run, type RunStatus } from '../domain/aggregates/run.js';
 import { rowMapper, iso } from './rowMapper.js';

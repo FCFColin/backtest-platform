@@ -105,7 +105,7 @@ export async function withTransaction<T>(
   }
 }
 
-// RLS GUC 注入（ADR-032）：SET LOCAL 使 RLS 策略在事务内生效，提交后自动清除。
+// RLS GUC 注入（ADR-009）：SET LOCAL 使 RLS 策略在事务内生效，提交后自动清除。
 async function withGucContext<T>(
   gucs: Record<string, string>,
   fn: (client: pg.PoolClient) => Promise<T>,

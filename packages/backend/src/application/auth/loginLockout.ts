@@ -1,4 +1,4 @@
-// T-12 / OWASP A07 / 等保三级 8.1.4 b: 用户名 5 次→锁 15min / IP 5min 10 次→封 1h。ADR-045: Redis 故障抛 503
+// T-12 / OWASP A07 / 等保三级 8.1.4 b: 用户名 5 次→锁 15min / IP 5min 10 次→封 1h。DADR-045: Redis 故障抛 503
 import { appRedis } from '../../infrastructure/redisClient.js';
 import { logger } from '../../utils/logger.js';
 import { requireRedis } from '../../utils/redisFallback.js';

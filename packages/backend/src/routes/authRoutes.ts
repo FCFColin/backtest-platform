@@ -108,7 +108,7 @@ router.post(
         return;
       }
       await clearFailures(username);
-      // 多租户上下文（ADR-032）：org 成员角色覆盖全局角色（owner→admin）
+      // 多租户上下文（ADR-009）：org 成员角色覆盖全局角色（owner→admin）
       const platformAdmin = await isPlatformAdmin(user.id);
       const membership = await resolveDefaultOrg(user.id);
       let effectiveRole = user.role;

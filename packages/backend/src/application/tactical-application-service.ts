@@ -1,4 +1,4 @@
-﻿// ADR-031: 计算逻辑在 Go 引擎 /api/engine/tactical-backtest
+﻿// ADR-008: 计算逻辑在 Go 引擎 /api/engine/tactical-backtest
 import type { TacticalStrategy } from '@backtest/shared/types/tactical';
 import type { PortfolioResult, RebalanceFrequency } from '@backtest/shared/types/index';
 import type { TacticalBacktestRequest } from '../schemas/tactical.js';

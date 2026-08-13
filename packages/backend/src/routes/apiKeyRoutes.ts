@@ -1,4 +1,4 @@
-// API Key 管理路由 — 组织密钥（ADR-033）+ 平台 break-glass 密钥（P0-04）
+// API Key 管理路由 — 组织密钥（ADR-009）+ 平台 break-glass 密钥（P0-04）
 import { Router, type Request, type Response } from 'express';
 import { z } from 'zod';
 import { validate } from '../middleware/miscMiddleware.js';

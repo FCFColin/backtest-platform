@@ -165,7 +165,7 @@ app.use(
   dataManageRoutes,
 );
 app.use('/api/v1/backtest', ...computeMiddleware(Permission.BACKTEST_RUN), backtestRoutes);
-// 分析/计算/密钥/工作台/平台端点合并挂载（ADR-042）：内部按子路径应用不同中间件链
+// 分析/计算/密钥/工作台/平台端点合并挂载（ADR-011）：内部按子路径应用不同中间件链
 app.use('/api/v1', analysisRoutes);
 app.use('/api/v1/admin', adminRoutes);
 app.use('/api/v1/auth', authRoutes);

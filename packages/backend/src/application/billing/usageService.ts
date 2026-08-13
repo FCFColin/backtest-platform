@@ -1,4 +1,4 @@
-// ADR-037: 双写 usage_events（审计/BI）+ usage_counters（配额权威），Redis 快路径读
+// ADR-010: 双写 usage_events（审计/BI）+ usage_counters（配额权威），Redis 快路径读
 import { withTenant } from '../../db/pool.js';
 import { appRedis } from '../../infrastructure/redisClient.js';
 import { logger } from '../../utils/logger.js';

@@ -1,4 +1,4 @@
-// ADR-007: PG 为唯一运行时源，缺失数据走 Go data-fetcher
+// ADR-002: PG 为唯一运行时源，缺失数据走 Go data-fetcher
 
 import { trace, type Span } from '@opentelemetry/api';
 import { logger } from '../utils/logger.js';

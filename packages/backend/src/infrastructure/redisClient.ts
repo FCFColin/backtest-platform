@@ -2,7 +2,7 @@ import IORedis, { type RedisOptions } from 'ioredis';
 import { config } from '../config/env.js';
 import { logger } from '../utils/logger.js';
 
-// Architecture: Redis Sentinel 高可用连接（ADR-045）
+// Architecture: Redis Sentinel 高可用连接（DADR-045）
 // 单实例 Redis 是单点故障；Sentinel 模式下 ioredis 自动查询 master 地址，故障转移后自动重连新 master。
 // 权衡：1主+2从+3Sentinel 资源占用更高，但 100K MAU 无需分片，Sentinel 比 Cluster 运维更简单且 BullMQ 兼容性更好。
 
@@ -139,7 +139,7 @@ export function markRedisUnhealthy(): void {
   setRedisHealth(false);
 }
 
-// Sentinel master 健康检测（T6 / ADR-045）
+// Sentinel master 健康检测（T6 / DADR-045）
 // ping 成功只能证明当前节点存活，无法证明"是 master"或"从节点拓扑健康"。
 // 通过 INFO replication 检查 role:master 与 connected_slaves>=1；非 Sentinel 模式返回 null（仅 ping 已足够）。
 interface SentinelMasterHealth {

@@ -34,7 +34,7 @@ import {
 
 const tracer = trace.getTracer('backtest-platform', '1.0.0');
 
-/** @throws {ValidationError} 日期/标的非法; @throws {EngineUnavailableError} ADR-031 */
+/** @throws {ValidationError} 日期/标的非法; @throws {EngineUnavailableError} ADR-008 */
 export async function runPortfolioBacktest(opts: {
   portfolios: Portfolio[];
   parameters: BacktestParameters;
@@ -87,7 +87,7 @@ export async function runPortfolioBacktest(opts: {
   return { result: compressBacktestResultForSync(result), warnings, dateRange };
 }
 
-/** @throws {EngineUnavailableError} ADR-031 */
+/** @throws {EngineUnavailableError} ADR-008 */
 export async function runBacktest(
   params: BacktestExecutionParams,
 ): Promise<BacktestExecutionResult> {

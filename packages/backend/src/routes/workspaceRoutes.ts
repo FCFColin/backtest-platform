@@ -1,4 +1,4 @@
-// 用户回测工作台资源 CRUD（运行历史/命名配置/组合/战术配置），按 req.tenantId 隔离（ADR-034 / RLS）
+// 用户回测工作台资源 CRUD（运行历史/命名配置/组合/战术配置），按 req.tenantId 隔离（ADR-009 / RLS）
 import { Router } from 'express';
 import type { Response } from 'express';
 import type { AuthenticatedRequest } from '../middleware/jwtAuth.js';

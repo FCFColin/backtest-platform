@@ -1,4 +1,4 @@
-// Architecture: Outbox Kafka 消费器（P3-05 CDC 替代通路，ADR-051）
+// Architecture: Outbox Kafka 消费器（P3-05 CDC 替代通路，ADR-005）
 // 多 Pod 场景下 LISTEN/NOTIFY 会重复处理事件；CDC 经 Debezium 读 WAL → Kafka → 消费组实现跨 Pod 负载均衡。
 // 权衡：kafkajs 运行时动态 import，未安装时降级 no-op；不更新 outbox.processed_at（写回会被 Debezium 再捕获形成反馈环），
 import { config } from '../config/index.js';
@@ -129,7 +129,7 @@ export class OutboxKafkaConsumer implements OutboxConsumer {
       );
       return;
     }
-    // Debezium outbox 消息若带行 id，透传供消费端幂等（ADR-014）
+    // Debezium outbox 消息若带行 id，透传供消费端幂等（ADR-005）
     const outboxEventId =
       typeof eventPayload.id === 'string'
         ? eventPayload.id

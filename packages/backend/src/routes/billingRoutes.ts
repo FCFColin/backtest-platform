@@ -1,4 +1,4 @@
-// 计费路由（Stripe，ADR-036）。webhook 在 app.ts 单独挂载（需原始请求体 + 免鉴权）
+// 计费路由（Stripe，ADR-010）。webhook 在 app.ts 单独挂载（需原始请求体 + 免鉴权）
 import { Router, type Request, type Response } from 'express';
 import { z } from 'zod';
 import { validate } from '../middleware/miscMiddleware.js';
@@ -115,14 +115,14 @@ const STRIPE_EVENT_DEDUP_TTL_SECONDS = 24 * 60 * 60;
 
 const STRIPE_EVENT_KEY_PREFIX = 'stripe:event:';
 
-// ADR-036: Stripe webhook 幂等去重（24h TTL，防重复开通订阅）
+// ADR-010: Stripe webhook 幂等去重（24h TTL，防重复开通订阅）
 async function isStripeEventNew(eventId: string): Promise<boolean> {
   const key = `${STRIPE_EVENT_KEY_PREFIX}${eventId}`;
   const result = await appRedis.set(key, '1', 'EX', STRIPE_EVENT_DEDUP_TTL_SECONDS, 'NX');
   return result === 'OK';
 }
 
-// ADR-036: 由 app.ts 用 express.raw 在全局 json 之前挂载以保证签名校验拿到原始字节
+// ADR-010: 由 app.ts 用 express.raw 在全局 json 之前挂载以保证签名校验拿到原始字节
 // P2-4: Redis SET NX EX 事件去重防 Stripe 重试重复执行
 export async function billingWebhookHandler(req: Request, res: Response): Promise<void> {
   if (!isBillingEnabled()) {

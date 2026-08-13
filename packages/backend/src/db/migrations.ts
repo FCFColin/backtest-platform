@@ -1,5 +1,5 @@
 /**
- * PostgreSQL Schema 迁移管理（ADR-007）。
+ * PostgreSQL Schema 迁移管理（ADR-002）。
  * 迁移 SQL 已重基线为单个 001_initial_schema.sql（45 个历史迁移合并）。
  */
 import fs from 'fs';

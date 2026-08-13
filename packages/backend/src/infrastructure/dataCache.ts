@@ -1,4 +1,4 @@
-// P0-01: L1 LRU + L2 Redis 两级缓存；Redis 不可用时 L2 静默跳过（ADR-031）；多租户 key 前缀（ADR-032）
+// P0-01: L1 LRU + L2 Redis 两级缓存；Redis 不可用时 L2 静默跳过（ADR-008）；多租户 key 前缀（ADR-009）
 import { gzipSync, gunzipSync } from 'node:zlib';
 import { createHash } from 'node:crypto';
 import { logger } from '../utils/logger.js';

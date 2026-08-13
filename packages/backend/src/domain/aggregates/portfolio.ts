@@ -131,7 +131,7 @@ export class Portfolio {
     };
   }
 
-  /** ADR-013: 持久化使用领域验证后的 DTO，非原始请求体 */
+  /** ADR-004: 持久化使用领域验证后的 DTO，非原始请求体 */
   toPersistenceDTO(): {
     name: string;
     assets: { ticker: string; weight: number }[];

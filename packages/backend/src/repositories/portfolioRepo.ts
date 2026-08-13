@@ -1,4 +1,4 @@
-// ADR-032/034: RLS 强制租户隔离（读 withTenantReadOnly，写 withTenant）
+// ADR-009: RLS 强制租户隔离（读 withTenantReadOnly，写 withTenant）
 import crypto from 'node:crypto';
 import {
   Portfolio as DomainPortfolio,

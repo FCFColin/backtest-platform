@@ -131,7 +131,7 @@ export class OutboxPublisher {
       eventType: event.event_type,
       aggregateType: event.aggregate_type,
       aggregateId: event.aggregate_id,
-      // 透传 outbox 行 id 供消费端幂等（ADR-014）：重复投递不再重复落库
+      // 透传 outbox 行 id 供消费端幂等（ADR-005）：重复投递不再重复落库
       payload: { ...payload, __outboxEventId: event.id },
       occurredAt: new Date(event.created_at),
     });
@@ -221,7 +221,7 @@ export class OutboxPublisher {
   }
 }
 
-// P3-05 替代通路（ADR-051）：默认 LISTEN/NOTIFY（单实例零依赖）；多 Pod 水平扩展时 CDC via Debezium → Kafka → 消费组。
+// P3-05 替代通路（ADR-005）：默认 LISTEN/NOTIFY（单实例零依赖）；多 Pod 水平扩展时 CDC via Debezium → Kafka → 消费组。
 // server.ts 调用 createOutboxConsumer(getPool()) 按 CDC_KAFKA_ENABLED 透明切换通路。
 
 export function createOutboxConsumer(pool: pg.Pool, mode?: 'listen' | 'kafka'): OutboxConsumer {

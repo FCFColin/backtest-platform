@@ -1,4 +1,4 @@
-// 引擎响应契约 schema（ADR-031 配套）：与 engine-go/internal/**/types.go 字段保持同步，
+// 引擎响应契约 schema（ADR-008 配套）：与 engine-go/internal/**/types.go 字段保持同步，
 // 由 callEngineStrict 在返回 data 前做 safeParse，Go 侧改名/改型时在此 fail-closed 暴露。
 import { z } from 'zod';
 

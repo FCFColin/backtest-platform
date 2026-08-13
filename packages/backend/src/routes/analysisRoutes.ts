@@ -1,4 +1,4 @@
-// 分析类路由合并入口（ADR-042）：letf/calculators/pca/goal-optimizer/factor-regression/tactical/signal
+// 分析类路由合并入口（ADR-011）：letf/calculators/pca/goal-optimizer/factor-regression/tactical/signal
 import { Router } from 'express';
 import { z } from 'zod';
 import type { LETFRequest, PCARequest, GoalOptimizerRequest } from '@backtest/shared/types';

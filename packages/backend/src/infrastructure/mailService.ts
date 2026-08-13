@@ -1,4 +1,4 @@
-// ADR-035: 生产走 SMTP，开发走 console（日志打印链接）
+// ADR-009: 生产走 SMTP，开发走 console（日志打印链接）
 import nodemailer, { type Transporter } from 'nodemailer';
 import { config } from '../config/index.js';
 import { logger } from '../utils/logger.js';

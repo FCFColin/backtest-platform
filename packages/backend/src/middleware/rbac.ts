@@ -62,7 +62,7 @@ function hasPermission(role: Role | string, permission: Permission): boolean {
   return perms ? perms.has(permission) : false;
 }
 
-// 多租户下角色以"用户在当前活跃组织内的成员角色"为准（ADR-032），
+// 多租户下角色以"用户在当前活跃组织内的成员角色"为准（ADR-009），
 function effectiveRole(user: NonNullable<AuthenticatedRequest['user']>): string {
   const orgRole = user.org_role;
   if (orgRole) return orgRole === 'owner' ? Role.ADMIN : orgRole;

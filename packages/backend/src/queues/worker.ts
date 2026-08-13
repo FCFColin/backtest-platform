@@ -26,7 +26,7 @@ const inflightKey = (tenantId: string): string => `inflight:${tenantId}`;
 const DEFER_DELAY_MS = 10_000;
 
 // 延迟重试：先 moveToDelayed 再把 job 移出 active，避免 DelayedError 让 job 停在 active
-// 而走 stalled 检查（maxStalledCount=1 时二次即永久失败，BullMQ 5.79 语义，ADR-037 公平调度失效）。
+// 而走 stalled 检查（maxStalledCount=1 时二次即永久失败，BullMQ 5.79 语义，ADR-010 公平调度失效）。
 async function deferJob(job: Job<BacktestJobData>, reason: string): Promise<never> {
   try {
     await job.moveToDelayed(Date.now() + DEFER_DELAY_MS, job.token);
@@ -174,7 +174,7 @@ async function dispatchJob(job: Job<BacktestJobData>): Promise<BacktestJobResult
   }
 }
 
-// 将异步任务最终状态（成功/失败）落库到 backtest_runs（租户隔离，ADR-034）。
+// 将异步任务最终状态（成功/失败）落库到 backtest_runs（租户隔离，ADR-009）。
 async function persistRunIfTenant(
   job: Job<BacktestJobData>,
   finalize: (run: Run) => void,
@@ -202,7 +202,7 @@ async function persistRunIfTenant(
 
 export async function processBacktestJob(job: Job<BacktestJobData>): Promise<BacktestJobResult> {
   const { tenantId } = job.data;
-  // Tenant-fair 调度（ADR-037）：限制单租户在途任务数
+  // Tenant-fair 调度（ADR-010）：限制单租户在途任务数
   let slotAcquired = false;
   if (tenantId) slotAcquired = await acquireTenantSlot(job);
   try {

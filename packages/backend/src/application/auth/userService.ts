@@ -18,7 +18,7 @@ function slugify(s: string): string {
   );
 }
 
-// ADR-032: 注册即创建个人组织，用户为 owner；冲突由调用方按唯一约束翻译为 409
+// ADR-009: 注册即创建个人组织，用户为 owner；冲突由调用方按唯一约束翻译为 409
 export async function registerUser(
   username: string,
   password: string,

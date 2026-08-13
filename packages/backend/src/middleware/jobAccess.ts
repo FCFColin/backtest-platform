@@ -1,6 +1,6 @@
 import type { AuthenticatedRequest } from './jwtAuth.js';
 
-/** 任务所有权/租户判定（ADR-019 IDOR 防护）。所有调用点均在强制鉴权后执行，无凭证一律拒绝（fail-closed）。 */
+/** 任务所有权/租户判定（ADR-007 IDOR 防护）。所有调用点均在强制鉴权后执行，无凭证一律拒绝（fail-closed）。 */
 export function jobAccessGranted(
   job: { data?: { userId?: string; tenantId?: string } },
   requester: AuthenticatedRequest['user'],

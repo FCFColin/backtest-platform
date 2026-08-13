@@ -1,4 +1,4 @@
-/** 租户解析中间件（ADR-032）：把 JWT tenant_id 解析到 req.tenantId，供 RLS 事务使用。软解析放行，requireTenant 强制。 */
+/** 租户解析中间件（ADR-009）：把 JWT tenant_id 解析到 req.tenantId，供 RLS 事务使用。软解析放行，requireTenant 强制。 */
 import type { Response, NextFunction } from 'express';
 import type { AuthenticatedRequest, TenantedRequest } from './jwtAuth.js';
 import { sendProblem } from '../utils/errors.js';

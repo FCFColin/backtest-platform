@@ -1,4 +1,4 @@
-// ADR-032: 组织作为租户边界，未启用 RLS，由应用层强制隔离
+// ADR-009: 组织作为租户边界，未启用 RLS，由应用层强制隔离
 import { getPool } from '../db/pool.js';
 import { rowMapper, queryRow } from './rowMapper.js';
 
