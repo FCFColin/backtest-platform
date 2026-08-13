@@ -167,7 +167,7 @@ export function setupBacktestWebSocket(server: Server): void {
           return;
         }
         if (socket.destroyed) return;
-        // ADR-019 IDOR 防护：仅任务所有者/同租户可订阅进度（与 /runs/:jobId 同判定）
+        // ADR-007 IDOR 防护：仅任务所有者/同租户可订阅进度（与 /runs/:jobId 同判定）
         const job = await backtestQueue.getJob(jobId);
         if (!job || !jobAccessGranted(job, payload, payload.tenant_id)) {
           logger.warn({ jobId, userId: payload.sub }, '[ws] 越权订阅被拒绝');

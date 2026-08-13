@@ -112,7 +112,7 @@ describe('loginLockout', () => {
   it.each([
     ['clearFailures', clearFailures, 'frank'],
     ['recordFailure', recordFailure, 'dave'],
-  ] as const)('Redis 不可用时 %s 应抛出 RedisUnavailableError（ADR-045）', async (_n, fn, key) => {
+  ] as const)('Redis 不可用时 %s 应抛出 RedisUnavailableError（DADR-045）', async (_n, fn, key) => {
     redisMocks.useMemoryFallback();
     await expect(fn(key)).rejects.toThrow('Redis unavailable');
   });

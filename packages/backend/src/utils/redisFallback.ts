@@ -1,4 +1,4 @@
-// ADR-045: HA 架构下 Redis 故障时内存降级是反模式（跨 Pod 状态不一致）
+// DADR-045: HA 架构下 Redis 故障时内存降级是反模式（跨 Pod 状态不一致）
 // 本模块统一封装 requireRedis：不可用时抛 RedisUnavailableError，由路由层翻译为 503
 import { getRedisHealth, markRedisUnhealthy } from '../infrastructure/redisClient.js';
 import { logger } from './logger.js';

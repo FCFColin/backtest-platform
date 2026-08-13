@@ -28,7 +28,7 @@ function parseUpstreamProblem(status: number, body: string): UpstreamProblemErro
 }
 
 // 4xx: 参数错误，抛 UpstreamProblemError 透传原始状态码（不降级为 503）
-// 5xx/超时/网络异常: 返回 null，由调用方走降级路径（ADR-031 fail-closed）
+// 5xx/超时/网络异常: 返回 null，由调用方走降级路径（ADR-008 fail-closed）
 export async function callService(
   baseUrl: string,
   endpoint: string,

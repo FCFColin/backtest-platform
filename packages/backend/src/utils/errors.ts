@@ -3,7 +3,7 @@ import type { Response } from 'express';
 
 interface SendProblemOptions {
   detail?: string;
-  /** 用于引擎 fail-closed 503（ADR-031） */
+  /** 用于引擎 fail-closed 503（ADR-008） */
   headers?: Record<string, string>;
 }
 
@@ -43,7 +43,7 @@ export class DataNotFoundError extends ApplicationError {
   }
 }
 
-/** Redis 不可用（503，ADR-045）。HA 下静默降级比显式失败更危险。 */
+/** Redis 不可用（503，DADR-045）。HA 下静默降级比显式失败更危险。 */
 export class RedisUnavailableError extends ApplicationError {
   readonly statusCode = 503;
   readonly errorCode = 'REDIS_UNAVAILABLE';
@@ -54,7 +54,7 @@ export class RedisUnavailableError extends ApplicationError {
   }
 }
 
-/** 上游 4xx 透传（ADR-031：4xx 参数错误不降级为 503 fail-closed）。 */
+/** 上游 4xx 透传（ADR-008：4xx 参数错误不降级为 503 fail-closed）。 */
 export class UpstreamProblemError extends Error {
   readonly status: number;
   readonly code: string;
