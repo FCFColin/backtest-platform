@@ -46,7 +46,7 @@ interface EngineCase {
 const engineCases: EngineCase[] = [
   {
     name: 'analysis',
-    path: '/api/backtest/analysis',
+    path: '/api/v1/backtest/analysis',
     enginePath: '/api/engine/analysis',
     errorCode: 'ANALYSIS_ERROR',
     logOnError: true,
@@ -99,7 +99,7 @@ const engineCases: EngineCase[] = [
   },
   {
     name: 'monte-carlo',
-    path: '/api/backtest/monte-carlo',
+    path: '/api/v1/backtest/monte-carlo',
     enginePath: '/api/engine/monte-carlo',
     errorCode: 'MONTE_CARLO_ERROR',
     logOnError: false,
@@ -172,7 +172,7 @@ const engineCases: EngineCase[] = [
   },
   {
     name: 'optimize',
-    path: '/api/backtest/optimize',
+    path: '/api/v1/backtest/optimize',
     enginePath: '/api/engine/optimize',
     errorCode: 'OPTIMIZATION_ERROR',
     logOnError: false,
@@ -220,7 +220,7 @@ const engineCases: EngineCase[] = [
   },
   {
     name: 'efficient-frontier',
-    path: '/api/backtest/efficient-frontier',
+    path: '/api/v1/backtest/efficient-frontier',
     enginePath: '/api/engine/efficient-frontier',
     errorCode: 'EFFICIENT_FRONTIER_ERROR',
     logOnError: false,
@@ -379,12 +379,12 @@ describe.each([
   });
 });
 
-describe('backtestRoutes - POST /api/backtest/portfolio', () => {
+describe('backtestRoutes - POST /api/v1/backtest/portfolio', () => {
   const getServer = withServer(portfolioJobServer);
   it('有效参数应入队并返回 202（响应不含 portfolios 数据）', async () => {
     queueMocks.add.mockResolvedValue({ id: 'job-test-001' });
     const { res, json } = await postJson(
-      `${getServer().url}/api/backtest/portfolio`,
+      `${getServer().url}/api/v1/backtest/portfolio`,
       createValidRequestBody(),
     );
     expect(res.status).toBe(202);
@@ -399,7 +399,7 @@ describe('backtestRoutes - POST /api/backtest/portfolio', () => {
     queueMocks.add.mockResolvedValue({ id: 'job-test-001' });
     const body = createValidRequestBody();
     body.parameters.benchmarkTicker = 'SPY';
-    await postJson(`${getServer().url}/api/backtest/portfolio`, body);
+    await postJson(`${getServer().url}/api/v1/backtest/portfolio`, body);
     expect(queueMocks.add).toHaveBeenCalledTimes(1);
     const [jobName, jobData] = queueMocks.add.mock.calls[0];
     expect(jobName).toBe('portfolio');
@@ -428,7 +428,7 @@ describe('backtestRoutes - POST /api/backtest/portfolio', () => {
       () => ({ portfolios: [], parameters: { startDate: '2024-01-01', endDate: '2024-06-30' } }),
     ],
   ])('%s 应返回 400（zod 校验失败）且不入队', async (_n, getBody) => {
-    const { res, json } = await postJson(`${getServer().url}/api/backtest/portfolio`, getBody());
+    const { res, json } = await postJson(`${getServer().url}/api/v1/backtest/portfolio`, getBody());
     expect(res.status).toBe(400);
     expect(json.error.title).toBe('VALIDATION_ERROR');
     expect(queueMocks.add).not.toHaveBeenCalled();
@@ -436,7 +436,7 @@ describe('backtestRoutes - POST /api/backtest/portfolio', () => {
   it('队列不可用时应 fail-closed 返回 503 + Retry-After（ADR-008）', async () => {
     queueMocks.add.mockRejectedValueOnce(new Error('Redis unavailable'));
     const { res, json } = await postJson(
-      `${getServer().url}/api/backtest/portfolio`,
+      `${getServer().url}/api/v1/backtest/portfolio`,
       createValidRequestBody(),
     );
     expect(res.status).toBe(503);
@@ -446,7 +446,7 @@ describe('backtestRoutes - POST /api/backtest/portfolio', () => {
   });
   it('X-Backtest-Sync: true 时仍走异步路径返回 202（同步路径已移除）', async () => {
     queueMocks.add.mockResolvedValue({ id: 'job-async-002' });
-    const res = await fetch(`${getServer().url}/api/backtest/portfolio`, {
+    const res = await fetch(`${getServer().url}/api/v1/backtest/portfolio`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Backtest-Sync': 'true' },
       body: JSON.stringify(createValidRequestBody()),
@@ -459,7 +459,7 @@ describe('backtestRoutes - POST /api/backtest/portfolio', () => {
   });
 });
 
-describe('backtestRoutes - POST /api/backtest/portfolio/series', () => {
+describe('backtestRoutes - POST /api/v1/backtest/portfolio/series', () => {
   const getServer = withServer(() => setupPortfolioServer(backtestRoutes, m));
   it('缓存命中时应返回请求的序列字段', async () => {
     const body = createValidRequestBody();
@@ -467,7 +467,7 @@ describe('backtestRoutes - POST /api/backtest/portfolio/series', () => {
       backtestCacheKey(body.portfolios, body.parameters, undefined),
       mockBacktestResult(),
     );
-    const { res, json } = await postJson(`${getServer().url}/api/backtest/portfolio/series`, {
+    const { res, json } = await postJson(`${getServer().url}/api/v1/backtest/portfolio/series`, {
       ...body,
       series: ['rollingReturns'],
     });
@@ -478,7 +478,7 @@ describe('backtestRoutes - POST /api/backtest/portfolio/series', () => {
   it('缓存未命中时应返回 404', async () => {
     const body = createValidRequestBody();
     // 与缓存命中用例的 body 保持差异，避免命中前置用例写入的同键缓存（缓存为模块级）
-    const { res } = await postJson(`${getServer().url}/api/backtest/portfolio/series`, {
+    const { res } = await postJson(`${getServer().url}/api/v1/backtest/portfolio/series`, {
       ...body,
       parameters: { ...body.parameters, startingValue: 99999 },
       series: ['rollingReturns'],
@@ -487,26 +487,26 @@ describe('backtestRoutes - POST /api/backtest/portfolio/series', () => {
   });
 });
 
-describe('backtestRoutes - GET /api/backtest/search', () => {
+describe('backtestRoutes - GET /api/v1/backtest/search', () => {
   const getServer = withServer(() => {
     vi.clearAllMocks();
     return createBacktestApp(backtestRoutes);
   });
   it('应返回搜索结果', async () => {
     m.searchTickers.mockResolvedValue([{ ticker: 'AAPL', name: 'Apple', market: 'US' }]);
-    const { res, json } = await get(`${getServer().url}/api/backtest/search?query=aapl`);
+    const { res, json } = await get(`${getServer().url}/api/v1/backtest/search?query=aapl`);
     expect(res.status).toBe(200);
     expect(json.success).toBe(true);
     expect(json.data).toHaveLength(1);
     expect(json.data[0].ticker).toBe('AAPL');
   });
   it('缺少 query 参数应返回 422', async () => {
-    const { res } = await get(`${getServer().url}/api/backtest/search`);
+    const { res } = await get(`${getServer().url}/api/v1/backtest/search`);
     expect(res.status).toBe(422);
   });
   it('搜索服务抛错时应返回 500', async () => {
     m.searchTickers.mockRejectedValue(new Error('search failed'));
-    const { res } = await get(`${getServer().url}/api/backtest/search?query=aapl`);
+    const { res } = await get(`${getServer().url}/api/v1/backtest/search?query=aapl`);
     expect(res.status).toBe(500);
   });
 });
@@ -526,7 +526,7 @@ function createMockJob(overrides: Record<string, unknown> = {}) {
   };
 }
 
-describe('backtestRoutes - GET /api/backtest/runs/:jobId — 状态查询', () => {
+describe('backtestRoutes - GET /api/v1/backtest/runs/:jobId — 状态查询', () => {
   // jobAccessGranted 已 fail-closed（ADR-007）：状态查询必须在强制鉴权后执行，故注入已认证请求上下文
   const getServer = withServer(() => {
     queueMocks.add.mockReset();
@@ -537,7 +537,7 @@ describe('backtestRoutes - GET /api/backtest/runs/:jobId — 状态查询', () =
         req.tenantId = 'tenant-456';
         next();
       });
-      app.use('/api/backtest', backtestRoutes);
+      app.use('/api/v1/backtest', backtestRoutes);
     });
   });
   const completedResult = {
@@ -583,7 +583,7 @@ describe('backtestRoutes - GET /api/backtest/runs/:jobId — 状态查询', () =
     ],
   ])('%s', async (_n, job, expected) => {
     queueMocks.getJob.mockResolvedValue(createMockJob(job));
-    const { res, json } = await get(`${getServer().url}/api/backtest/runs/${job.id}`);
+    const { res, json } = await get(`${getServer().url}/api/v1/backtest/runs/${job.id}`);
     expect(res.status).toBe(200);
     expect(json.success).toBe(true);
     expect(json.data.jobId).toBe(job.id);
@@ -596,7 +596,7 @@ describe('backtestRoutes - GET /api/backtest/runs/:jobId — 状态查询', () =
   });
   it('任务不存在时返回 404', async () => {
     queueMocks.getJob.mockResolvedValue(null);
-    const { res, json } = await get(`${getServer().url}/api/backtest/runs/nonexistent`);
+    const { res, json } = await get(`${getServer().url}/api/v1/backtest/runs/nonexistent`);
     expect(res.status).toBe(404);
     expect(json.success).toBe(false);
     expect(json.error.code).toBe('JOB_NOT_FOUND');

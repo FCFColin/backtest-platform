@@ -127,30 +127,36 @@ describe('P0-01 T3 · 异步回测全链路集成测试', () => {
   let server: { url: string; close: () => Promise<void> };
 
   const submit = (headers: Record<string, string> = {}) =>
-    fetch(`${server.url}/api/backtest/portfolio`, {
+    fetch(`${server.url}/api/v1/backtest/portfolio`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...headers },
       body: JSON.stringify(createValidRequestBody()),
     });
-  const poll = async (jobId: string) => {
-    const res = await fetch(`${server.url}/api/backtest/runs/${jobId}`);
+  const pollStatus = async (statusUrl: string) => {
+    const res = await fetch(`${server.url}${statusUrl}`);
     return { res, json: await res.json() };
   };
 
   beforeEach(async () => {
     jobStore.clear();
-    server = await setupPortfolioServer(backtestRoutes, m);
-
-    queueMocks.add.mockImplementation(async (name: string, data: Record<string, unknown>) => {
-      const jobId = `job-${jobStore.size + 1}`;
-      jobStore.set(jobId, {
-        id: jobId,
-        state: 'delayed',
-        progress: 0,
-        data,
-      });
-      return { id: jobId };
+    // GET /runs 走 jobAccessGranted（ADR-007 fail-closed），必须注入已认证请求上下文
+    server = await setupPortfolioServer(backtestRoutes, m, {
+      auth: { user: { sub: 'test-user', role: 'admin' }, tenantId: 'tenant-456' },
     });
+
+    // 生产按 ADR-009 传 UUID jobId 作为 BullMQ 选项，mock 须采纳同一 id 才能让提交/轮询闭环
+    queueMocks.add.mockImplementation(
+      async (name: string, data: Record<string, unknown>, opts?: { jobId?: string }) => {
+        const jobId = opts?.jobId ?? `job-${jobStore.size + 1}`;
+        jobStore.set(jobId, {
+          id: jobId,
+          state: 'delayed',
+          progress: 0,
+          data,
+        });
+        return { id: jobId };
+      },
+    );
 
     queueMocks.getJob.mockImplementation(async (jobId: string) => {
       const job = jobStore.get(jobId);
@@ -182,7 +188,7 @@ describe('P0-01 T3 · 异步回测全链路集成测试', () => {
 
     const jobId = submitJson.data.jobId;
 
-    const { res: initialRes, json: initialJson } = await poll(jobId);
+    const { res: initialRes, json: initialJson } = await pollStatus(submitJson.data.statusUrl);
     expect(initialRes.status).toBe(200);
     expect(initialJson.data.status).toBe('queued');
 
@@ -196,7 +202,7 @@ describe('P0-01 T3 · 异步回测全链路集成测试', () => {
     job.progress = 100;
     job.returnvalue = { status: 'completed', result: mockResult };
 
-    const { res: finalRes, json: finalJson } = await poll(jobId);
+    const { res: finalRes, json: finalJson } = await pollStatus(submitJson.data.statusUrl);
     expect(finalRes.status).toBe(200);
     expect(finalJson.data.status).toBe('completed');
     expect(finalJson.data.progress).toBe(100);
@@ -214,7 +220,7 @@ describe('P0-01 T3 · 异步回测全链路集成测试', () => {
     job.progress = 30;
     job.failedReason = 'Engine timeout after 90s';
 
-    const { res: pollRes, json: pollJson } = await poll(jobId);
+    const { res: pollRes, json: pollJson } = await pollStatus(submitJson.data.statusUrl);
     expect(pollRes.status).toBe(200);
     expect(pollJson.data.status).toBe('failed');
     expect(pollJson.data.error).toBe('Engine timeout after 90s');
@@ -234,7 +240,7 @@ describe('P0-01 T3 · 异步回测全链路集成测试', () => {
   });
 
   it('场景4: 任务不存在时返回 404', async () => {
-    const { res, json } = await poll('nonexistent-job');
+    const { res, json } = await pollStatus('/api/v1/backtest/runs/nonexistent-job');
     expect(res.status).toBe(404);
     expect(json.success).toBe(false);
     expect(json.error.code).toBe('JOB_NOT_FOUND');

@@ -58,6 +58,8 @@ describe('优化器全链路集成测试', () => {
         tenantId: orgId,
         ownerUserId: userId,
       }),
+      // ADR-009：BullMQ 自增 id 写不进 UUID 主键，显式传 UUID jobId
+      expect.objectContaining({ jobId: expect.any(String) }),
     );
   });
 
