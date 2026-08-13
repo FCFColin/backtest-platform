@@ -15,7 +15,7 @@ export interface BacktestRunRecord {
   createdAt: string;
 }
 
-export interface BacktestRunSaveInput {
+interface BacktestRunSaveInput {
   id: string;
   name?: string | null;
   request: unknown;

@@ -123,32 +123,18 @@ function buildSsrHead(templateHead: string, nonce: string): string {
     );
   }
 
-  const KEY_PAGES = [
-    'MonteCarloPage',
-    'OptimizerPage',
-    'AboutPage',
-    'AnalysisPage',
-    'PricingPage',
-    'TacticalPage',
-    'HelpPage',
-    'LoginPage',
-  ];
+  // modulepreload 首访链路 chunk；原正则要求 `Page-` 后缀匹配不到真实产物名，此名单与实际 chunk 对齐
+  const KEY_PAGE_RE =
+    /^(BacktestPage|AnalysisResults|MonteCarloResults|OptimizerPage|staticPages|PricingPage|HelpPage|LoginPage)-.*\.js$/;
   try {
     const assets = fs.readdirSync(path.resolve(FRONTEND_DIST, 'assets'));
-    const allPages = assets.filter((f) =>
-      /^(MonteCarlo|Optimizer|Analysis|About|Pricing|Login|BacktestOptimizer|SignalAnalyzer|TacticalPage|DataEngine|EfficientFrontier|Calculators|FactorRegression|PCAPage|LETFSlippage|GoalOptimizer|RebalancingSensitivity|LumpSumVsDCA|TacticalGrid|DualSignal|MultiSignal|AdminDashboard|SystemMonitor|DataManagement|SystemSettings|ChartBenchmark)Page-.*\.js$/.test(
-        f,
-      ),
-    );
-    const preloadLinks = allPages
-      .map((f) => {
-        const isKey = KEY_PAGES.some((k) => f.startsWith(k));
-        return `<link rel="${isKey ? 'modulepreload' : 'prefetch'}" href="/assets/${f}" crossorigin>`;
-      })
+    const preloadLinks = assets
+      .filter((f) => KEY_PAGE_RE.test(f))
+      .map((f) => `<link rel="modulepreload" href="/assets/${f}" crossorigin>`)
       .join('\n    ');
     const vendorPrefetch = assets
       .filter((f) =>
-        /^(YAxis|generateCategoricalChart|shared-utils|util-vendor|i18n-vendor|icon-vendor|ui-vendor|state-vendor|react-router|react-dom-client)-.*\.js$/.test(
+        /^(shared-utils|util-vendor|i18n-vendor|icon-vendor|ui-vendor|state-vendor|react-router|react-dom-client)-.*\.js$/.test(
           f,
         ),
       )
