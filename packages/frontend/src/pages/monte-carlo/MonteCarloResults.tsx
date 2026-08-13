@@ -199,6 +199,7 @@ function MonteCarloResultsPanel({ s }: { s: McState }) {
       isLoading={isLoading}
       hasResults={Boolean(results1 || results2)}
       errorPrefix={`${t('Simulation failed')}: `}
+      loadingLabel={t('Running simulations...')}
       emptyTitle={t('Configure parameters on the left and click "Start Simulation" to see results')}
       onRetry={s.runSimulation}
     >

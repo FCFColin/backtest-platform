@@ -99,7 +99,8 @@ async function runBacktestAction(set: SetFn, get: GetFn): Promise<void> {
     if (!response.ok) throw new Error(extractApiErrorDetail(json));
     if (json.success === false) {
       useToastStore.getState().addToast('error', extractApiErrorDetail(json));
-      set({ results: null, error: extractApiErrorDetail(json) });
+      // 保留上一次结果，避免失败清空已有分析
+      set({ error: extractApiErrorDetail(json) });
       return;
     }
     const resultJson =
@@ -115,7 +116,8 @@ async function runBacktestAction(set: SetFn, get: GetFn): Promise<void> {
     }
   } catch (error) {
     if (requestId !== currentRequestId) return;
-    set({ results: null, error: handleBacktestError(error) });
+    // 保留上一次结果，失败仅展示错误横幅
+    set({ error: handleBacktestError(error) });
   } finally {
     clearTimeout(timeoutId);
     setIfCurrent(set, requestId, { isLoading: false, _abortController: null });

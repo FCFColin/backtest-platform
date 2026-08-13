@@ -182,8 +182,7 @@ async function executeSimulation(s: McSetters, ops: PortfolioOps): Promise<void>
   }
   s.setIsLoading(true);
   s.setError(null);
-  s.setResults1(null);
-  s.setResults2(null);
+  // 保留上一次结果，失败仅展示错误横幅
   const reqBody = {
     parameters: buildBacktestParameters(s.startDate, s.endDate, {
       startingValue: s.startingValue,

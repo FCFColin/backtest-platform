@@ -159,6 +159,9 @@ function BacktestToolbar(props: BacktestToolbarProps) {
           <ChevronDown className="size-3.5" />
         </Button>
       </div>
+      {portfolioCount === 0 && (
+        <p className="text-caption text-fg-tertiary">{t('Please add at least one portfolio')}</p>
+      )}
       {props.showSaveInput && (
         <SaveInputRow
           configName={props.configName}

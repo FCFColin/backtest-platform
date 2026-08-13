@@ -24,7 +24,7 @@ import { SimpleTable, type SimpleTableColumn } from '@/components/tables.js';
 import { TabFallback } from '@/components/shells';
 import ChartCard from '@/components/ChartCard.js';
 import { ResultsShell } from '@/components/resultsShell.js';
-import { ChartEmptyState } from '@/components/charts/sharedChartContent.js';
+import { ChartEmptyState, ErrorBanner } from '@/components/stateDisplay.js';
 import { lazyNamed } from '@/utils/lazyImport';
 import {
   type Portfolio,
@@ -173,7 +173,6 @@ const TAB_RENDERERS: Record<string, (c: TabCtx) => ReactNode> = {
           stats={firstPf?.statistics ?? createEmptyStatistics()}
           name={firstPf?.name}
           color={getPortfolioColor(0)}
-          count={pf.length}
           totalYears={annualReturns.length}
           positiveYears={positiveYears}
         />
@@ -308,6 +307,7 @@ export function ResultsContent() {
   const renderer = TAB_RENDERERS[activeTab];
   return (
     <div className="space-y-4">
+      {error && <ErrorBanner message={error} className="mb-2" />}
       <ResultsActionBar
         timeRange={computeTimeRange(results)}
         onExport={(format) => {

@@ -10,7 +10,6 @@ interface SummarySidebarProps {
   positiveYears: number;
   name?: string;
   color?: string;
-  count?: number;
 }
 interface MetricItem {
   labelKey: string;
@@ -56,7 +55,6 @@ export function SummarySidebar({
   positiveYears,
   name,
   color,
-  count = 1,
 }: SummarySidebarProps) {
   const { t } = useTranslation();
   const metrics = buildMetrics(stats, totalYears, positiveYears);
@@ -92,9 +90,6 @@ export function SummarySidebar({
               style={{ backgroundColor: color }}
             />
             <span className="text-caption text-fg-secondary truncate">{name}</span>
-            {count > 1 && (
-              <span className="text-caption text-fg-tertiary shrink-0">1 / {count}</span>
-            )}
           </div>
         )}
         <dl className="space-y-2.5">

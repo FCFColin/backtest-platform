@@ -61,8 +61,8 @@ export function DrawdownEpisodes({ episodes }: DrawdownEpisodesProps) {
       <DrawdownSummary episodes={episodes} />
       {/* 回撤列表 */}
       <div>
-        {displayed.map((ep, i) => (
-          <DrawdownEpisodeRow key={i} episode={ep} testId={`episode-row-${i}`} />
+        {displayed.map((ep) => (
+          <DrawdownEpisodeRow key={ep.peakDate} episode={ep} />
         ))}
         {hasMore && (
           <div className="p-4 border-t border-border-subtle text-center">
@@ -83,44 +83,35 @@ export function DrawdownEpisodes({ episodes }: DrawdownEpisodesProps) {
 }
 function DrawdownSummary({ episodes }: { episodes: DrawdownEpisode[] }) {
   const { t } = useTranslation();
-  const summary = {
-    total: episodes.length,
-    maxDepth: episodes.length > 0 ? Math.min(...episodes.map((e) => e.depth)) : null,
-    avgDepth:
-      episodes.length > 0 ? episodes.reduce((s, e) => s + e.depth, 0) / episodes.length : null,
-    avgRecovery:
-      episodes.filter((e) => e.recoveryTime > 0).reduce((s, e) => s + e.recoveryTime, 0) /
-      Math.max(episodes.filter((e) => e.recoveryTime > 0).length, 1),
-  };
+  const avg = (xs: number[]) => (xs.length > 0 ? xs.reduce((s, v) => s + v, 0) / xs.length : null);
+  const maxDepth = episodes.length > 0 ? Math.min(...episodes.map((e) => e.depth)) : null;
+  const avgDepth = avg(episodes.map((e) => e.depth));
+  const avgRecovery = avg(episodes.filter((e) => e.recoveryTime > 0).map((e) => e.recoveryTime));
+  const avgRecoveryText = avgRecovery === null ? '—' : formatDuration(Math.round(avgRecovery));
+  const neg = (v: number | null) => v !== null && v < 0;
+  const metrics = [
+    { label: t('Total Drawdowns'), value: String(episodes.length) },
+    { label: t('Max Drawdown'), value: fmtPct(maxDepth), neg: neg(maxDepth) },
+    { label: t('Avg Drawdown'), value: fmtPct(avgDepth), neg: neg(avgDepth) },
+    { label: t('Avg Recovery Duration'), value: avgRecoveryText },
+  ];
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-6 px-6 py-4 border-b border-border-subtle">
-      <div>
-        <div className="text-label-tiny text-fg-tertiary">{t('Total Drawdowns')}</div>
-        <div className="text-h3 font-mono tabular-nums">{summary.total}</div>
-      </div>
-      <div>
-        <div className="text-label-tiny text-fg-tertiary">{t('Max Drawdown')}</div>
-        <div className="text-h3 font-mono tabular-nums text-neg">{fmtPct(summary.maxDepth)}</div>
-      </div>
-      <div>
-        <div className="text-label-tiny text-fg-tertiary">{t('Avg Drawdown')}</div>
-        <div className="text-h3 font-mono tabular-nums text-neg">{fmtPct(summary.avgDepth)}</div>
-      </div>
-      <div>
-        <div className="text-label-tiny text-fg-tertiary">{t('Avg Recovery Duration')}</div>
-        <div className="text-h3 font-mono tabular-nums">
-          {formatDuration(Math.round(summary.avgRecovery))}
+      {metrics.map((m) => (
+        <div key={m.label}>
+          <div className="text-label-tiny text-fg-tertiary">{m.label}</div>
+          <div className={cn('text-h3 font-mono tabular-nums', m.neg && 'text-neg')}>{m.value}</div>
         </div>
-      </div>
+      ))}
     </div>
   );
 }
-function DrawdownEpisodeRow({ episode, testId }: { episode: DrawdownEpisode; testId: string }) {
+function DrawdownEpisodeRow({ episode }: { episode: DrawdownEpisode }) {
   const [expanded, setExpanded] = useState(false);
   const { t } = useTranslation();
   const sev = getSeverity(episode.depth);
   return (
-    <div className="border-b border-border-subtle last:border-b-0" data-testid={testId}>
+    <div className="border-b border-border-subtle last:border-b-0">
       <button
         onClick={() => setExpanded(!expanded)}
         className="w-full flex items-stretch hover:bg-hover/50 transition-colors"
