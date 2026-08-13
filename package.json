@@ -25,6 +25,7 @@
     "test:unit": "vitest run tests/unit",
     "test:chaos": "vitest run --project chaos",
     "test:integration": "vitest run tests/integration",
+    "test:integration:docker": "cross-env RUN_TESTCONTAINERS=1 vitest run tests/integration",
     "test:contract": "vitest run tests/contract",
     "test:e2e:ui": "playwright test",
     "test:e2e:backtest": "playwright test tests/e2e/ui/backtest",
@@ -33,7 +34,7 @@
     "test:coverage:check": "vitest run --coverage --coverage.reporter=json-summary && node scripts/check-coverage.mjs",
     "test:docker": "cross-env RUN_TESTCONTAINERS=1 vitest run",
     "test:property": "vitest run tests/property",
-    "simplify": "jscpd packages/backend/src/ packages/frontend/src/ --reporters json,html --output report",
+    "simplify": "jscpd packages/backend/src/ packages/frontend/src/ --reporters json,html --output report --threshold 5",
     "deadcode": "knip",
     "audit:i18n": "node scripts/verify-i18n.mjs",
     "audit:contract": "node scripts/verify-backtest-contract.mjs",
@@ -42,6 +43,7 @@
     "audit:all": "pnpm run audit:i18n && pnpm run audit:contract",
     "audit:supply": "node scripts/audit-supply.mjs",
     "verify:critical": "node scripts/verify/run-all.mjs",
+    "depcheck:layer": "node scripts/verify/verify-depcruise.mjs",
     "prepare": "husky || true"
   },
   "devDependencies": {

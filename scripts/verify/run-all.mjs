@@ -51,9 +51,12 @@ for (const script of scripts) {
 }
 
 const issueResults = [];
+const scriptNames = new Set(scripts.map((s) => s.replace(/\.mjs$/, '')));
 if (existsSync(OUTPUT_DIR)) {
   for (const f of readdirSync(OUTPUT_DIR)) {
     if (!f.endsWith('-reverify.json')) continue;
+    const aggregateId = f.replace(/-reverify\.json$/, '');
+    if (!scriptNames.has(aggregateId)) continue;
     try {
       const data = JSON.parse(readFileSync(join(OUTPUT_DIR, f), 'utf-8'));
       if (data.results && typeof data.results === 'object' && !Array.isArray(data.results)) {
