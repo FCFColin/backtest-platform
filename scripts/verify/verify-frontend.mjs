@@ -236,4 +236,4 @@ try {
   await browser.close();
 }
 
-writeAggregatedResult('C-004-005-006-019-frontend', results);
+writeAggregatedResult('verify-frontend', results);

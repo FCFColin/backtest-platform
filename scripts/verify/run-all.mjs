@@ -11,6 +11,7 @@ const onlyArg = args.find((a) => a.startsWith('--only='))?.split('=')[1];
 const patternArg = args.find((a) => a.startsWith('--pattern='))?.split('=')[1];
 const skipFrontend = args.includes('--skip-frontend');
 const skipDb = args.includes('--skip-db');
+const runStartMs = Date.now();
 
 const allScripts = readdirSync(VERIFY_DIR)
   .filter((f) => f.endsWith('.mjs') && !f.startsWith('_') && f !== 'run-all.mjs')
@@ -57,15 +58,21 @@ if (existsSync(OUTPUT_DIR)) {
     if (!f.endsWith('-reverify.json')) continue;
     const aggregateId = f.replace(/-reverify\.json$/, '');
     if (!scriptNames.has(aggregateId)) continue;
+    let data;
     try {
-      const data = JSON.parse(readFileSync(join(OUTPUT_DIR, f), 'utf-8'));
-      if (data.results && typeof data.results === 'object' && !Array.isArray(data.results)) {
-        for (const [subId, sub] of Object.entries(data.results)) {
-          const id = /^(C|H)\d+$/.test(subId) ? subId.replace(/^(C|H)(\d+)$/, '$1-$2') : subId;
-          issueResults.push({ issueId: id, ...sub });
-        }
-      } else if (data.issueId) issueResults.push(data);
-    } catch {}
+      data = JSON.parse(readFileSync(join(OUTPUT_DIR, f), 'utf-8'));
+    } catch {
+      continue;
+    }
+    // 只采纳本次运行新写的结果；脚本崩溃/未运行时遗留的过期文件不计入报告
+    const writtenAt = Date.parse(data.timestamp ?? '');
+    if (Number.isNaN(writtenAt) || writtenAt < runStartMs) continue;
+    if (data.results && typeof data.results === 'object' && !Array.isArray(data.results)) {
+      for (const [subId, sub] of Object.entries(data.results)) {
+        const id = /^(C|H)\d+$/.test(subId) ? subId.replace(/^(C|H)(\d+)$/, '$1-$2') : subId;
+        issueResults.push({ issueId: id, script: aggregateId, ...sub });
+      }
+    } else if (data.issueId) issueResults.push({ ...data, script: aggregateId });
   }
 }
 
@@ -77,7 +84,7 @@ const rows = issueResults
   .sort((a, b) => a.issueId.localeCompare(b.issueId))
   .map((r) => {
     const icon = r.status === 'PASS' ? '✓' : r.status === 'SKIP' ? '○' : '✗';
-    const script = results.find((x) => x.script.includes(r.issueId))?.script ?? '-';
+    const script = r.script ?? '-';
     const summary = (r.summary ?? '').replace(/\|/g, '\\|').slice(0, 200);
     return `| ${r.issueId} | ${icon} ${r.status} | ${summary} | ${script} |`;
   })

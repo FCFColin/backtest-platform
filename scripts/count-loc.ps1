@@ -1,10 +1,9 @@
 # count-loc.ps1 — scc 行数统计
-# 基线 179,541 行，目标 <= 89,770 行（-50%）/ 125,678 行（-30%）
+# 基线 179,541 行；目标 <= 100,000 行（AGENTS.md）
 
 $root = Split-Path -Parent $PSScriptRoot
 $baseline = 179541
-$target50 = 89770
-$target30 = [math]::Floor($baseline * 0.70)
+$target = 100000
 $exclude = 'node_modules,dist,dist-ssr,.dev-logs,coverage,.git,data,report,.turbo,.cache,.vite,playwright-report,test-results,docs/audit,.github,.husky,.devcontainer,docker,config,k8s'
 
 $result = scc $root --exclude-dir $exclude --no-cocomo --sort lines --format json | ConvertFrom-Json
@@ -20,8 +19,7 @@ $result | Sort-Object Lines -Descending | ForEach-Object {
 Write-Host ''
 Write-Host ('=== 全仓库合计: {0} lines in {1} files ===' -f $total, ($result | Measure-Object -Property Count -Sum).Sum)
 Write-Host ('=== vs 基线 {0}: net -{1} (-{2}%) ===' -f $baseline, $cut, $pct)
-Write-Host ('=== 距 -30% ({0}): 需再减 {1} 行 | 距 -50% ({2}): 需再减 {3} 行 ===' -f `
-  $target30, ($total - $target30), $target50, ($total - $target50))
+Write-Host ('=== 距目标 {0} (<=100k): 需再减 {1} 行 ===' -f $target, ($total - $target))
 
 Write-Host "`n=== Top 30 largest files ==="
 $files = scc $root --exclude-dir $exclude --no-cocomo --by-file --sort lines --format json 2>$null | ConvertFrom-Json

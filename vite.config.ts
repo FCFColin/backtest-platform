@@ -21,8 +21,6 @@ const sharedTypeAliases: Record<string, string> = {
   '@backtest/shared': `${sharedTypesDir}/index.ts`,
 };
 
-const enableCoverage = process.env.VITE_COVERAGE === 'true';
-
 const feNm = (p: string) => path.resolve(projectRoot, 'packages/frontend/node_modules', p);
 const FE_PACKAGES = [
   'react',
@@ -79,7 +77,7 @@ function ssrLocalesCopy(): Plugin {
   };
 }
 
-export default defineConfig(async ({ command }) => {
+export default defineConfig(async () => {
   const { federation } = await import('@originjs/vite-plugin-federation').catch(() => ({
     federation: null,
   }));
@@ -98,7 +96,7 @@ export default defineConfig(async ({ command }) => {
             name: 'node',
             globals: true,
             include: [
-              'tests/unit/{api,application,config,db,domain,federation,infrastructure,middleware,queues,repositories,routes,schemas,services,lib,styles}/**/*.test.ts',
+              'tests/unit/{application,config,db,domain,federation,infrastructure,middleware,queues,repositories,routes,schemas,services,lib,styles}/**/*.test.ts',
               'tests/unit/utils/**/*.test.ts',
               'tests/integration/**/*.test.ts',
               'tests/contract/**/*.test.ts',
@@ -227,18 +225,6 @@ export default defineConfig(async ({ command }) => {
         : []),
       react(),
       (await import('vite-tsconfig-paths')).default(),
-      ...(enableCoverage && command === 'serve'
-        ? [
-            (await import('vite-plugin-istanbul')).default({
-              include: ['packages/frontend/src/**'],
-              exclude: ['node_modules', 'tests/**', 'packages/frontend/src/i18n/**'],
-              extension: ['.ts', '.tsx'],
-              cypress: false,
-              requireEnv: true,
-              forceBuildInstrument: false,
-            }),
-          ]
-        : []),
     ],
     css: {
       postcss: {

@@ -160,8 +160,8 @@ export async function runCheck(results, issueId, fn) {
 }
 
 export function finishVerify(aggregateId, results) {
-  writeAggregatedResult(aggregateId, results);
-  process.exit(0);
+  const allPass = writeAggregatedResult(aggregateId, results);
+  process.exit(allPass ? 0 : 1);
 }
 
 export const PROJECT_ROOT_PATH = PROJECT_ROOT;

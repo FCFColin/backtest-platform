@@ -7,21 +7,29 @@ const results = {};
 await runCheck(results, 'C-014', () => {
   if (!existsSync(join(PROJECT_ROOT_PATH, 'engine-go')))
     return { status: 'FAIL', summary: 'engine-go 目录不存在' };
-  const testR = runCmd('cd engine-go && go test ./... -coverprofile=coverage.out', {
-    timeout: 300000,
+  // -race：并发数据竞争是引擎/数据服务最高风险（block bootstrap、多 worker 并行模拟）
+  const testR = runCmd('cd engine-go && go test -race ./... -coverprofile=coverage.out', {
+    timeout: 600000,
   });
   if (testR.code !== 0)
     return {
       status: 'FAIL',
-      summary: `go test 失败 (exit ${testR.code})`,
+      summary: `go test -race 失败 (exit ${testR.code})`,
       details: { outputTail: (testR.out + testR.err).slice(-2000) },
     };
-  const dfR = runCmd('cd data-fetcher && go test ./...', { timeout: 300000 });
+  const dfR = runCmd('cd data-fetcher && go test -race ./...', { timeout: 600000 });
   if (dfR.code !== 0)
     return {
       status: 'FAIL',
-      summary: `data-fetcher go test 失败 (exit ${dfR.code})`,
+      summary: `data-fetcher go test -race 失败 (exit ${dfR.code})`,
       details: { outputTail: (dfR.out + dfR.err).slice(-2000) },
+    };
+  const sharedR = runCmd('cd packages/go-shared && go test ./...', { timeout: 300000 });
+  if (sharedR.code !== 0)
+    return {
+      status: 'FAIL',
+      summary: `go-shared go test 失败 (exit ${sharedR.code})`,
+      details: { outputTail: (sharedR.out + sharedR.err).slice(-2000) },
     };
   const coverR = runCmd('cd engine-go && go tool cover -func=coverage.out');
   if (coverR.code !== 0 || !coverR.out.trim())
