@@ -30,7 +30,7 @@ COPY packages/shared/package.json packages/shared/
 COPY packages/backend/package.json packages/backend/
 RUN npm install -g pnpm@11.5.3 && pnpm install --frozen-lockfile --prod
 
-COPY --from=builder /app/packages/backend/dist/server.js ./dist/server.js
+COPY --from=builder /app/packages/backend/dist/server.js ./packages/backend/dist/server.js
 COPY migrations/ /migrations/
 
 EXPOSE 5001
@@ -39,4 +39,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
   CMD wget -qO- http://127.0.0.1:5001/api/health || exit 1
 
 USER node
-CMD ["node", "dist/server.js"]
+CMD ["node", "packages/backend/dist/server.js"]
