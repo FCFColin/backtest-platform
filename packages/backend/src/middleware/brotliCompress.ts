@@ -25,7 +25,13 @@ export function brotliCompress(req: Request, res: Response, next: NextFunction):
   res.end = function (chunk?: Buffer | string, ..._args: unknown[]): void {
     if (chunk) body = Buffer.concat([body, Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)]);
 
-    if (body.length < 1024 || res.statusCode === 204 || res.statusCode === 304) {
+    // 压缩需全量缓冲；超限响应原样透传（复用 goDataServiceClient 同一上限，防内存 DoS）
+    if (
+      body.length < 1024 ||
+      body.length > config.MAX_RESPONSE_BODY_SIZE ||
+      res.statusCode === 204 ||
+      res.statusCode === 304
+    ) {
       res.setHeader('Content-Length', String(body.length));
       originalWrite(body);
       originalEnd();
