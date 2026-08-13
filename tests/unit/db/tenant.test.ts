@@ -66,7 +66,7 @@ const MIGRATION_FILES = ['001_initial_schema.sql'];
 const ORG_A = '11111111-1111-1111-1111-111111111111';
 const ORG_B = '22222222-2222-2222-2222-222222222222';
 
-describe.skipIf(!dockerAvailable)('withTenant RLS 强制点（testcontainers PG, ADR-032）', () => {
+describe.skipIf(!dockerAvailable)('withTenant RLS 强制点（testcontainers PG, ADR-009）', () => {
   let container: StartedPostgreSqlContainer;
   let adminPool: pg.Pool;
   let appPool: pg.Pool;

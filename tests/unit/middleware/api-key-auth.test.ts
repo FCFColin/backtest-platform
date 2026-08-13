@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createMockMiddleware } from '../../helpers/expressMocks.js';
-import { loggerMocks } from '../../helpers/loggerFixture.js';
+import '../../helpers/loggerMock.js';
 
 const mocks = vi.hoisted(() => ({
   verifyApiKey: vi.fn(),
@@ -9,7 +9,6 @@ const mocks = vi.hoisted(() => ({
   hashUserId: vi.fn().mockReturnValue('hashed'),
 }));
 
-vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: loggerMocks }));
 vi.mock('../../../packages/backend/src/infrastructure/apiKeyVerifier.js', () => ({
   verifyApiKey: mocks.verifyApiKey,
 }));
@@ -78,7 +77,7 @@ describe('handleApiKeyAuth', () => {
       expect(next).not.toHaveBeenCalled();
     }
   });
-  // D4-010 / ADR-045：基础设施错误（Redis/DB）fail-closed 503，不再静默吞掉返回 401
+  // D4-010 / DADR-045：基础设施错误（Redis/DB）fail-closed 503，不再静默吞掉返回 401
   it('verifyApiKey 抛出异常应返回 503 AUTH_SERVICE_UNAVAILABLE（fail-closed）（D4-010）', async () => {
     mocks.verifyApiKey.mockRejectedValueOnce(new Error('DB connection error'));
     const { req, res, next } = createMockMiddleware({ headers: { 'x-api-key': 'bpk_live_key' } });
@@ -122,7 +121,7 @@ describe('handleOptionalApiKey', () => {
     if (expected) expect(req.user).toMatchObject(expected);
     else expect(req.user).toBeNull();
   });
-  // D4-010 / ADR-045：基础设施错误 fail-closed 503，不再匿名放行（安全优先）
+  // D4-010 / DADR-045：基础设施错误 fail-closed 503，不再匿名放行（安全优先）
   it('verifyApiKey 抛出异常应返回 503 AUTH_SERVICE_UNAVAILABLE（fail-closed）（D4-010）', async () => {
     mocks.verifyApiKey.mockRejectedValueOnce(new Error('DB connection failed'));
     const { req, res, next } = createMockMiddleware({ headers: { 'x-api-key': 'bpk_live_key' } });

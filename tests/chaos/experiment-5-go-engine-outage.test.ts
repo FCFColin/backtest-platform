@@ -1,8 +1,8 @@
 /**
  * Chaos Experiment 5: Go 引擎中断
  *
- * SRE：验证 Go 引擎不可用时的 fail-closed 降级行为（ADR-031）。
- * Go 是唯一回测计算引擎（ADR-008），故障应 fail-closed 而非静默降级。
+ * SRE：验证 Go 引擎不可用时的 fail-closed 降级行为（ADR-008）。
+ * Go 是唯一回测计算引擎（ADR-003），故障应 fail-closed 而非静默降级。
  */
 import { describe, it, expect } from 'vitest';
 import { CONTAINERS, withContainerStopped, setupChaosLifecycle } from '../helpers/chaos.js';
@@ -59,7 +59,7 @@ describe('Chaos Experiment 5: Go 引擎中断', () => {
   });
 
   it.skipIf(!fixture.containerReady)(
-    '响应不应包含 degraded 字段（ADR-031 fail-closed）',
+    '响应不应包含 degraded 字段（ADR-008 fail-closed）',
     async () => {
       await withEngineStopped(async () => {
         const res = await fetch(BACKTEST_URL, {

@@ -78,7 +78,7 @@ describe('backtestOptimizerRoutes - POST /api/backtest-optimizer/optimize', () =
     expect(queueMocks.add).toHaveBeenCalledTimes(1);
   });
 
-  it('BullMQ 不可用时应 fail-closed 返回 503 + Retry-After（ADR-031）', async () => {
+  it('BullMQ 不可用时应 fail-closed 返回 503 + Retry-After（ADR-008）', async () => {
     queueMocks.add.mockRejectedValue(new Error('Redis unavailable'));
 
     const { res, body } = await server.post(OPTIMIZE_PATH, createValidRequest());
@@ -121,6 +121,7 @@ describe('认证用户请求', () => {
         ownerUserId: 'user-123',
         tenantId: 'tenant-456',
       }),
+      expect.objectContaining({ jobId: expect.any(String) }),
     );
   });
 });

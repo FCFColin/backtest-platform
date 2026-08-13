@@ -7,7 +7,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, '../../..');
 const viteConfigText = fs.readFileSync(path.resolve(repoRoot, 'vite.config.ts'), 'utf8');
 
-describe('federation config (ADR-050)', () => {
+describe('federation config (DADR-050)', () => {
   it('vite.config.ts 注册 backtest_host federation 并暴露 OptimizerPage / SignalAnalyzerPage', () => {
     expect(viteConfigText).toContain('@originjs/vite-plugin-federation');
     expect(viteConfigText).toContain("name: 'backtest_host'");

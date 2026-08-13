@@ -1,7 +1,7 @@
 import '../helpers/loggerMock.js'; /**
  * 异步任务状态查询集成测试（RO-049）
  *
- * 验证 ADR-019 IDOR 防护：任务结果仅提交者本人或 admin 可读，且需通过多租户隔离。
+ * 验证 ADR-007 IDOR 防护：任务结果仅提交者本人或 admin 可读，且需通过多租户隔离。
  * backtestQueue 被 mock 以注入可控的 job.data（owner/tenant）。
  * 鉴权中间件可按用例切换角色，覆盖 admin 放行、非 admin 越权拒绝、跨租户拒绝。
  */

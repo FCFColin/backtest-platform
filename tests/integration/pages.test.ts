@@ -85,7 +85,7 @@ describe('引擎状态指示器', () => {
     const res = await fetch(`${BASE_URL}/api/ready`);
     const json = await res.json();
     expect(json.success).toBe(true);
-    // ADR-031 fail-closed：Go 引擎不可用时就绪降级，计算端点返回 503
+    // ADR-008 fail-closed：Go 引擎不可用时就绪降级，计算端点返回 503
     if (json.data.engine.go === false) {
       expect(json.data.status).toBe('degraded');
     }

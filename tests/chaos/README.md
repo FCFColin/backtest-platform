@@ -39,7 +39,7 @@ pnpm test:chaos
 | experiment-2-external-delay     | 外部数据服务延迟    | `backtest-data-fetcher`               | 超时熔断 + 降级                        |
 | experiment-3-concurrent-restart | 并发服务重启        | `backtest-api` / `backtest-engine-go` | 重启期间无 5xx,恢复后正常              |
 | experiment-4-redis-outage       | Redis 故障          | `backtest-redis`                      | 限流/会话降级到内存                    |
-| experiment-5-go-engine-outage   | Go 引擎故障         | `backtest-engine-go`                  | fail-closed 503 + Retry-After(ADR-031) |
+| experiment-5-go-engine-outage   | Go 引擎故障         | `backtest-engine-go`                  | fail-closed 503 + Retry-After(ADR-008) |
 
 ## 运行方式
 

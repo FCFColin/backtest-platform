@@ -213,7 +213,7 @@ describe('runPortfolioBacktest', () => {
     await run();
     expect(engineMocks.callEngineStrict.mock.calls[0][1].params).toBeDefined();
   });
-  it('引擎不可用时应抛出错误（fail-closed ADR-031）', async () => {
+  it('引擎不可用时应抛出错误（fail-closed ADR-008）', async () => {
     engineMocks.callEngineStrict.mockRejectedValue(new Error('ENGINE_UNAVAILABLE'));
     await expect(run()).rejects.toThrow('ENGINE_UNAVAILABLE');
   });

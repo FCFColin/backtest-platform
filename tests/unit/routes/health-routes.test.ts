@@ -101,7 +101,7 @@ describe('healthRoutes', () => {
       expect(body.data.dependencies.database).toBe(true);
     });
 
-    it('无鉴权且 Go 引擎不可用时应 fail-closed 返回 503 + Retry-After（ADR-031）', async () => {
+    it('无鉴权且 Go 引擎不可用时应 fail-closed 返回 503 + Retry-After（ADR-008）', async () => {
       globalThis.fetch = createFetchMock({
         goEngine: new Error('ECONNREFUSED'),
       }) as typeof fetch;

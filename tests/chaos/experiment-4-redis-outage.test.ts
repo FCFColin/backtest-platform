@@ -1,7 +1,7 @@
 /**
  * Chaos Experiment 4: Redis 中断（vitest 集成测试）
  *
- * SRE：验证 Redis 不可用时的分级降级行为（ADR-018 / ADR-020）。
+ * SRE：验证 Redis 不可用时的分级降级行为（DADR-018 / DADR-020）。
  * 企业为何需要：Redis 承载限流、会话、幂等、队列。它的故障不应让整个 API 崩溃，
  * 但安全敏感路径（登录/计算限流）必须 fail-closed，只读路径 fail-open——本实验验证该契约。
  *

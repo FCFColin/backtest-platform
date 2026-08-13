@@ -72,7 +72,6 @@ vi.mock('../../packages/backend/src/infrastructure/dataFacade.js', () => ({
   fetchHistoryData: m.fetchHistoryData,
   validateTickers: m.validateTickers,
   initDb: vi.fn(),
-  invalidateCache: vi.fn(),
 }));
 vi.mock('../../packages/backend/src/application/backtest-helpers.js', () => ({
   preparePortfolioBacktest: m.preparePortfolioBacktest,
@@ -240,11 +239,11 @@ describe('P0-01 T3 · 异步回测全链路集成测试', () => {
     expect(json.success).toBe(false);
     expect(json.error.code).toBe('JOB_NOT_FOUND');
   });
-  it('场景5: 队列不可用时 fail-closed 返回 503（ADR-031）', async () => {
+  it('场景5: 队列不可用时 fail-closed 返回 503（ADR-008）', async () => {
     queueMocks.add.mockRejectedValue(new Error('Redis connection refused'));
 
     const res = await submit();
-    // ADR-031: 队列不可用时 fail-closed 返回 503 + Retry-After，不再回退同步执行
+    // ADR-008: 队列不可用时 fail-closed 返回 503 + Retry-After，不再回退同步执行
     expect(res.status).toBe(503);
     expect(res.headers.get('Retry-After')).toBe('30');
     const json = await res.json();

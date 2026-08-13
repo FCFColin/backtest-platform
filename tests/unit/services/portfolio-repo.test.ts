@@ -18,7 +18,7 @@ vi.mock('../../../packages/backend/src/config/env.js', () => ({
 }));
 
 // redisClient 断言依赖模块加载期（import 时）记录的 IORedis 构造调用。
-// ADR-045 后 redisClient.ts 统一使用 (options) 单参数形式（buildRedisBaseOptions）。
+// DADR-045 后 redisClient.ts 统一使用 (options) 单参数形式（buildRedisBaseOptions）。
 const ioredisMocks = vi.hoisted(() => {
   const instances: Array<{ options: Record<string, unknown>; on: ReturnType<typeof vi.fn> }> = [];
   return {
@@ -122,9 +122,9 @@ describe('redisConnection 与 appRedis 配置隔离', () => {
   });
 });
 
-// ADR-045：Sentinel 模式连接选项
+// DADR-045：Sentinel 模式连接选项
 
-describe('Redis Sentinel 模式（ADR-045）', () => {
+describe('Redis Sentinel 模式（DADR-045）', () => {
   it('配置 REDIS_SENTINELS 时应使用 Sentinel 连接选项', async () => {
     vi.resetModules();
     const sentinelConfig = createConfigMocks({

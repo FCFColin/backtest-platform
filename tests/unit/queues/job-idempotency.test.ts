@@ -62,7 +62,7 @@ describe('jobIdempotency', () => {
     await expect(tryClaimJobProcessing('job-3', 'test')).resolves.toBe('in_progress');
   });
 
-  it('Redis 操作失败时应抛出 RedisUnavailableError（ADR-045）', async () => {
+  it('Redis 操作失败时应抛出 RedisUnavailableError（DADR-045）', async () => {
     redisMocks.exists.mockRejectedValueOnce(new Error('redis down'));
     await expect(tryClaimJobProcessing('job-4', 'test')).rejects.toThrow(RedisUnavailableError);
     expect(redisMocks.markRedisUnhealthy).toHaveBeenCalled();

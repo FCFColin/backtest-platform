@@ -1,5 +1,5 @@
 import '../helpers/loggerMock.js'; /**
- * API Key 管理集成测试（RO-049 / ADR-033）
+ * API Key 管理集成测试（RO-049 / ADR-009）
  *
  * 跨层验证：Express 路由 → apiKeyService（sha256 哈希、软吊销）→ PostgreSQL。
  * 安全断言：明文密钥仅创建时一次性返回，列表不含明文/哈希，吊销后不可用。

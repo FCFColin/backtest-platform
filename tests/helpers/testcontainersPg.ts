@@ -45,7 +45,7 @@ export async function setupTestContainer(): Promise<TestContainerContext> {
   await initSchema();
 
   // 001_initial_schema 迁移已创建 backtest_app（NOBYPASSRLS）+ 全部授权；
-  // 应用层改连非超管 backtest_app，否则超管绕过 RLS 使租户隔离断言失真（ADR-032）
+  // 应用层改连非超管 backtest_app，否则超管绕过 RLS 使租户隔离断言失真（ADR-009）
   const appUrl = new URL(connectionString);
   appUrl.username = 'backtest_app';
   appUrl.password = 'change-me-in-deploy';

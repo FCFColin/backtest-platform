@@ -3,7 +3,7 @@ import '../helpers/loggerMock.js';
  * 优化器全链路集成测试（RO-049 SubTask 33.1）
  *
  * 跨层验证：Express 路由 → Zod 校验 → BullMQ 异步提交 → 响应。
- * 重点覆盖 ADR-034 异步任务携带租户/owner 归属，与 ADR-031 fail-closed。
+ * 重点覆盖 ADR-009 异步任务携带租户/owner 归属，与 ADR-008 fail-closed。
  */
 import { describe, it, expect, vi } from 'vitest';
 import { useTestServer } from '../helpers/expressApp.js';
@@ -42,7 +42,7 @@ const validBody = {
 };
 
 describe('优化器全链路集成测试', () => {
-  it('POST /optimize 队列可用时返回 202 + jobId（携带租户归属 ADR-034）', async () => {
+  it('POST /optimize 队列可用时返回 202 + jobId（携带租户归属 ADR-009）', async () => {
     queueAddMock.mockResolvedValueOnce({ id: 'job-async-1' });
 
     const { res, body } = await server.post('/backtest-optimizer/optimize', validBody);
@@ -61,7 +61,7 @@ describe('优化器全链路集成测试', () => {
     );
   });
 
-  it('POST /optimize 队列不可用时 fail-closed 返回 503（ADR-031）', async () => {
+  it('POST /optimize 队列不可用时 fail-closed 返回 503（ADR-008）', async () => {
     queueAddMock.mockRejectedValueOnce(new Error('Redis 不可用'));
 
     const { res, body } = await server.post('/backtest-optimizer/optimize', validBody);
