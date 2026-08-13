@@ -1,4 +1,5 @@
-import type { Portfolio, BacktestParameters } from '@backtest/shared';
+import type { BacktestParameters, Portfolio } from '@backtest/shared';
+import { mockPortfolio as baseMockPortfolio } from './storeFixtures.js';
 
 export const mockParameters: BacktestParameters = {
   startDate: '2020-01-02',
@@ -10,8 +11,7 @@ export const mockParameters: BacktestParameters = {
 };
 
 export function mockPortfolio(overrides: Partial<Portfolio> = {}): Portfolio {
-  return {
-    id: 'p1',
+  return baseMockPortfolio({
     name: 'Test Portfolio',
     assets: [
       { ticker: 'AAPL', weight: 60 },
@@ -19,5 +19,5 @@ export function mockPortfolio(overrides: Partial<Portfolio> = {}): Portfolio {
     ],
     rebalanceFrequency: 'monthly',
     ...overrides,
-  };
+  });
 }

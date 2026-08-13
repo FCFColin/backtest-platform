@@ -6,14 +6,13 @@ import {
   DATE_TICK_FORMATTER,
   SMART_DATE_INTERVAL,
   currencyFormatter,
-  CHART_TOOLTIP_STYLE,
   CHART_MARGIN,
-  CHART_GRID_PROPS,
-  AXIS_TICK_STYLE,
-  CHART_LINE_STYLE,
   getCorrelationColor,
-  wrapTooltipFormatter,
 } from '../../../packages/frontend/src/lib/chart-theme.js';
+import {
+  AXIS_TEXT,
+  tooltipOption,
+} from '../../../packages/frontend/src/components/charts/chartUtils.js';
 
 describe('CHART_COLORS', () => {
   it('包含 8 种颜色', () => {
@@ -93,16 +92,16 @@ describe('currencyFormatter', () => {
   });
 });
 
-describe('CHART_TOOLTIP_STYLE', () => {
+describe('tooltipOption', () => {
   it.each([
     ['backgroundColor 使用 chart-tooltip-bg CSS 变量', 'backgroundColor', 'chart-tooltip-bg'],
-    ['backdropFilter 包含 blur', 'backdropFilter', 'blur'],
+    ['backdropFilter 包含 blur', 'extraCssText', 'blur'],
   ] as const)('%s', (_label, key, substring) => {
-    expect(CHART_TOOLTIP_STYLE[key]).toContain(substring);
+    expect(tooltipOption(undefined)[key]).toContain(substring);
   });
 
   it('borderRadius 为 8px', () => {
-    expect(CHART_TOOLTIP_STYLE.borderRadius).toBe('8px');
+    expect(tooltipOption(undefined).extraCssText).toContain('border-radius: 8px');
   });
 });
 
@@ -115,39 +114,16 @@ describe('CHART_MARGIN', () => {
   });
 });
 
-describe('CHART_GRID_PROPS', () => {
-  it.each([
-    ['vertical 为 true（开启垂直网格）', 'vertical', true],
-    ['horizontal 为 true', 'horizontal', true],
-  ] as const)('%s', (_label, key, expected) => {
-    expect(CHART_GRID_PROPS[key]).toBe(expected);
-  });
-});
-
-describe('AXIS_TICK_STYLE', () => {
+describe('AXIS_TEXT', () => {
   it.each([
     ['fontSize 为 11', 'fontSize', 11],
     ['fontFamily 为 Geist Mono Variable', 'fontFamily', 'Geist Mono Variable'],
   ] as const)('%s', (_label, key, expected) => {
-    expect(AXIS_TICK_STYLE[key]).toBe(expected);
+    expect(AXIS_TEXT[key]).toBe(expected);
   });
 
   it('使用 fg-tertiary CSS 变量', () => {
-    expect(AXIS_TICK_STYLE.fill).toContain('fg-tertiary');
-  });
-});
-
-describe('CHART_LINE_STYLE', () => {
-  it.each([
-    ['strokeWidth 为 2.5', 'strokeWidth', 2.5],
-    ['dot 为 false（隐藏默认点）', 'dot', false],
-    ['isAnimationActive 为 false（关闭内建动画）', 'isAnimationActive', false],
-  ] as const)('%s', (_label, key, expected) => {
-    expect(CHART_LINE_STYLE[key]).toBe(expected);
-  });
-
-  it('activeDot 包含 r 和 strokeWidth', () => {
-    expect(CHART_LINE_STYLE.activeDot).toEqual({ r: 4, strokeWidth: 2 });
+    expect(AXIS_TEXT.color).toContain('fg-tertiary');
   });
 });
 
@@ -158,37 +134,5 @@ describe('getCorrelationColor', () => {
     ['0（中性）', 0, 'hsl(var(--surface))'],
   ] as const)('%s 应返回 %s', (_label, value, expected) => {
     expect(getCorrelationColor(value)).toBe(expected);
-  });
-});
-
-describe('wrapTooltipFormatter', () => {
-  it('undefined formatter 返回 undefined', () => {
-    expect(wrapTooltipFormatter(undefined)).toBeUndefined();
-  });
-
-  it('包装返回 [value, name] 元组', () => {
-    const formatter = (_value: number, _name: string) => '$100';
-    const wrapped = wrapTooltipFormatter(formatter)!;
-    const result = wrapped(100, 'Portfolio A');
-    expect(result[0]).toBe('$100');
-    expect(result[1]).toBe('Portfolio A');
-  });
-
-  it('包装返回 [formattedValue, formattedName] 元组', () => {
-    const formatter = (_value: number, _name: string) => ['$100', 'Custom'] as [string, string];
-    const wrapped = wrapTooltipFormatter(formatter)!;
-    const result = wrapped(100, 'Original');
-    expect(result[0]).toBe('$100');
-    expect(result[1]).toBe('Custom');
-  });
-
-  it('formatter 抛异常时返回兜底值', () => {
-    const formatter = () => {
-      throw new Error('test');
-    };
-    const wrapped = wrapTooltipFormatter(formatter)!;
-    const result = wrapped(42, 'Test');
-    expect(result[0]).toBe('42');
-    expect(result[1]).toBe('Test');
   });
 });

@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it } from 'vitest';
 import SwaggerParser from '@apidevtools/swagger-parser';
 import fs from 'fs';
 import path from 'path';
@@ -76,16 +76,26 @@ function extractRoutesFromFile(
   const content = fs.readFileSync(filePath, 'utf8');
   const routes: Array<{ method: string; path: string }> = [];
 
-  const routeRegex = /\brouter\.(get|post|put|delete|patch)\(\s*['"`]([^'"`]+)['"`]/g;
+  // 匹配裸 router. 与命名路由（analysisRouter. 等）两种声明：
+  // 可选前缀 + [Rr]outer 尾部（首个字符若被消费，裸 router 将无法命中）。
+  const ROUTER = String.raw`\b(?:[A-Za-z_$][\w$]*)?[Rr]outer`;
+
+  const routeRegex = new RegExp(
+    `(${ROUTER})\\.(get|post|put|delete|patch)\\(\\s*['"\`]([^'"\`]+)['"\`]`,
+    'g',
+  );
   let match: RegExpExecArray | null;
   while ((match = routeRegex.exec(content)) !== null) {
-    routes.push({ method: match[1].toUpperCase(), path: match[2] });
+    routes.push({ method: match[2].toUpperCase(), path: match[3] });
   }
 
-  const chainRegex = /\brouter\.route\(\s*['"`]([^'"`]+)['"`]\s*\)([^;]+)/g;
+  const chainRegex = new RegExp(
+    `(${ROUTER})\\.route\\(\\s*['"\`]([^'"\`]+)['"\`]\\s*\\)([^;]+)`,
+    'g',
+  );
   while ((match = chainRegex.exec(content)) !== null) {
-    const routePath = match[1];
-    const chain = match[2];
+    const routePath = match[2];
+    const chain = match[3];
     const methodRegex = /\.(get|post|put|delete|patch)\(/g;
     let m: RegExpExecArray | null;
     while ((m = methodRegex.exec(chain)) !== null) {
@@ -93,12 +103,18 @@ function extractRoutesFromFile(
     }
   }
 
-  const useRegex = /\brouter\.use\(\s*(\w+Routes)\s*\)/g;
+  const useRegex = new RegExp(`(${ROUTER})\\.use\\(\\s*(\\w+Routes)\\s*\\)`, 'g');
   while ((match = useRegex.exec(content)) !== null) {
-    const subPath = resolveImportPath(filePath, match[1]);
+    const subPath = resolveImportPath(filePath, match[2]);
     if (subPath) {
       routes.push(...extractRoutesFromFile(subPath, seen));
     }
+  }
+
+  // 辅助函数注册（registerSignalRoute(mode, '/signal/analyze', schema)）：路径为字符串字面量参数。
+  const helperRegex = /registerSignalRoute\(\s*'\w+'\s*,\s*'([^']+)'\s*,/g;
+  while ((match = helperRegex.exec(content)) !== null) {
+    routes.push({ method: 'POST', path: match[1] });
   }
 
   return routes;
@@ -108,19 +124,26 @@ function expressToOpenApiPath(exprPath: string): string {
   return normalizePath(exprPath.replace(/:(\w+)/g, '{$1}'));
 }
 
+// tenantCrudRoutes 合成路径：按 router.use('子路径', ...) 块推导真实子前缀与 update 支持，
+// 而非凭空生成 '/' 与 '/{id}'（后者在非根挂载下产生不存在的假路径）。
 function factoryRoutesFromFile(
   content: string,
   specPrefix: string,
 ): Array<{ method: string; path: string }> {
   if (!content.includes('tenantCrudRoutes(')) return [];
-  const routes: Array<{ method: string; path: string }> = [
-    { method: 'GET', path: specPrefix },
-    { method: 'POST', path: specPrefix },
-    { method: 'GET', path: `${specPrefix}/{id}` },
-    { method: 'DELETE', path: `${specPrefix}/{id}` },
-  ];
-  if (/\bupdate\s*:/.test(content)) {
-    routes.push({ method: 'PUT', path: `${specPrefix}/{id}` });
+  const routes: Array<{ method: string; path: string }> = [];
+  const blockRegex = /router\.use\(\s*['"`]([^'"`]+)['"`][\s\S]*?\)\s*;/g;
+  let match: RegExpExecArray | null;
+  while ((match = blockRegex.exec(content)) !== null) {
+    const base = normalizePath(specPrefix + match[1]);
+    const hasUpdate = /\bupdate\s*:/.test(match[0]);
+    routes.push(
+      { method: 'GET', path: base },
+      { method: 'POST', path: base },
+      { method: 'GET', path: `${base}/{id}` },
+      { method: 'DELETE', path: `${base}/{id}` },
+    );
+    if (hasUpdate) routes.push({ method: 'PUT', path: `${base}/{id}` });
   }
   return routes;
 }
@@ -151,70 +174,48 @@ function buildImplementedPaths(): SpecPaths {
   return result;
 }
 
-const EXEMPT_PREFIXES = ['/health', '/ready', '/metrics'];
+// 挂载在 /api（非 /api/v1）的探活端点，spec 以 /health /ready /metrics 登记，双向豁免。
+const EXEMPT_PATHS = ['/health', '/ready', '/metrics'];
 
 const mounts = extractMountPoints();
 
-const assertCoverage = (covered: number, required: number, label: string, missing: string[]) => {
-  if (covered >= required) return;
-  throw new Error(
-    `${label} ${(covered * 100).toFixed(1)}% < ${required * 100}%，缺失:\n${missing.slice(0, 15).join('\n')}`,
-  );
+const assertNoMissing = (missing: string[], label: string): void => {
+  if (missing.length > 0) {
+    throw new Error(`${label} ${missing.length} 个缺口:\n${missing.join('\n')}`);
+  }
 };
 
 describe('OpenAPI 契约测试 — API 实现一致性（D5-009）', () => {
   const specPathsPromise = extractSpecPaths();
   const implementedPaths = buildImplementedPaths();
 
-  it('应从 app.ts 提取 ≥12 个路由挂载点（ADR-042 合并挂载后实际 12 个）', () => {
-    expect(mounts.length).toBeGreaterThanOrEqual(12);
-  });
-
-  it('应从路由文件提取 ≥40 个实现路径', () => {
-    expect(implementedPaths.size).toBeGreaterThanOrEqual(40);
-  });
-
-  it('spec 中 ≥60% 的路径应在 Express 实现中存在', async () => {
+  it('spec 中的每个路径+方法都应在 Express 实现中存在（豁免探活端点）', async () => {
     const specPaths = await specPathsPromise;
-    const implemented = new Set(implementedPaths.keys());
-    const missingPaths = [...specPaths.keys()].filter((p) => !implemented.has(p));
-    assertCoverage(
-      (specPaths.size - missingPaths.length) / specPaths.size,
-      0.6,
-      'spec 路径实现覆盖率',
-      missingPaths,
-    );
-  });
-
-  it('Express 实现的路径 ≥60% 应在 spec 中有记录（豁免 /health /ready /metrics）', async () => {
-    const specPaths = await specPathsPromise;
-    const nonExempt = [...implementedPaths.keys()].filter(
-      (p) => !EXEMPT_PREFIXES.some((ep) => p.startsWith(ep)),
-    );
-    const undocumented = nonExempt.filter((p) => !specPaths.has(p));
-    assertCoverage(
-      (nonExempt.length - undocumented.length) / nonExempt.length,
-      0.6,
-      '实现路径 spec 覆盖率',
-      undocumented,
-    );
-  });
-
-  it('spec 与实现共有的路径，HTTP 方法应一致', async () => {
-    const specPaths = await specPathsPromise;
-    const mismatches: string[] = [];
-    for (const [p, specMethods] of specPaths) {
-      const implMethods = implementedPaths.get(p);
-      if (!implMethods) continue;
-      for (const m of specMethods) {
-        if (!implMethods.has(m)) {
-          mismatches.push(`${p}: spec 定义 ${m} 但实现中未找到`);
+    const implemented = new Map([...implementedPaths].map(([p, m]) => [p, new Set([...m])]));
+    const missing: string[] = [];
+    for (const [p, methods] of specPaths) {
+      if (EXEMPT_PATHS.includes(p)) continue;
+      for (const m of methods) {
+        if (!implemented.get(p)?.has(m)) {
+          missing.push(`${m} ${p}（spec 有定义，实现中未找到）`);
         }
       }
     }
-    if (mismatches.length > 0) {
-      throw new Error(`HTTP 方法不一致:\n${mismatches.slice(0, 10).join('\n')}`);
+    assertNoMissing(missing, 'spec→实现');
+  });
+
+  it('Express 实现中的每个路径+方法都应在 spec 中有记录（豁免探活端点）', async () => {
+    const specPaths = await specPathsPromise;
+    const undocumented: string[] = [];
+    for (const [p, methods] of implementedPaths) {
+      if (EXEMPT_PATHS.includes(p)) continue;
+      for (const m of methods) {
+        if (!specPaths.get(p)?.has(m)) {
+          undocumented.push(`${m} ${p}（实现存在，spec 未记录）`);
+        }
+      }
     }
+    assertNoMissing(undocumented, '实现→spec');
   });
 
   it('应无重复路由定义（同一路径 + 方法在单个路由文件中仅定义一次）', () => {
