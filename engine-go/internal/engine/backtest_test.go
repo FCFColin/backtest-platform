@@ -202,8 +202,8 @@ func TestMWRRCashflowSchedule(t *testing.T) {
 	}
 	want := []Cashflow{
 		{Value: -1000, Time: 0},
-		{Value: 500, Time: 5.0 / tradingDaysPerYear},
-		{Value: 100, Time: 21.0 / tradingDaysPerYear},
+		{Value: -500, Time: 5.0 / tradingDaysPerYear},
+		{Value: -100, Time: 21.0 / tradingDaysPerYear},
 	}
 	if len(cfs) != len(want) {
 		t.Fatalf("现金流数量 = %d，期望 %d", len(cfs), len(want))
@@ -238,5 +238,52 @@ func TestMissingAssetBuysAtFirstPrice(t *testing.T) {
 	want := 500 + 500*math.Pow(1.01, 6) // B 延迟到首个有价日买入并增长 6 个交易日
 	if math.Abs(final-want) > 0.01 {
 		t.Errorf("终值 = %.4f，期望 %.4f（缺失资产应延迟买入而非丢失分配）", final, want)
+	}
+}
+func TestRebalanceOffset(t *testing.T) {
+	// 11 个连续日历日 2023-01-02..01-12：B 于第 4 日起翻倍制造漂移；ISO 周切换在第 7 日（01-09）。
+	dates := enginetest.Dates("2023-01-02", 11)
+	priceA := make(map[string]float64, len(dates))
+	priceB := make(map[string]float64, len(dates))
+	for i, d := range dates {
+		priceA[d] = 100
+		if i < 4 {
+			priceB[d] = 100
+		} else {
+			priceB[d] = 200
+		}
+	}
+	priceData := PriceDataMap{"A": priceA, "B": priceB}
+	tradingDates := make([]time.Time, len(dates))
+	for i, d := range dates {
+		tradingDates[i], _ = time.Parse("2006-01-02", d)
+	}
+	tests := []struct {
+		name     string
+		offset   int
+		wantDate string
+	}{
+		{"无偏移在周界当日再平衡", 0, "2023-01-09"},
+		{"偏移 3 延迟 3 个交易日后再平衡", 3, "2023-01-12"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pf := PortfolioInput{
+				Name:               "t",
+				Assets:             []AssetInput{{Ticker: "A", Weight: 50}, {Ticker: "B", Weight: 50}},
+				RebalanceFrequency: "weekly",
+				RebalanceOffset:    tt.offset,
+			}
+			_, allocHist, _, err := computeGrowthCurve(pf, priceData, nil, nil, tradingDates, BacktestParams{StartingValue: 1000})
+			if err != nil {
+				t.Fatalf("computeGrowthCurve 返回错误: %v", err)
+			}
+			reb := allocHist[len(allocHist)-1]
+			if reb.Date != tt.wantDate {
+				t.Fatalf("再平衡日 = %s，期望 %s（分配历史: %v）", reb.Date, tt.wantDate, allocHist)
+			}
+			assertFloatApprox(t, reb.Weights[0], 0.5, "权重 A")
+			assertFloatApprox(t, reb.Weights[1], 0.5, "权重 B")
+		})
 	}
 }

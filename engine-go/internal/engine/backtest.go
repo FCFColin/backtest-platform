@@ -145,6 +145,7 @@ func computeGrowthCurve(pf PortfolioInput, priceData PriceDataMap, cpiData map[s
 	liquidated := false
 	prev := dates[0]
 	lastRebalanceDi := 0
+	rebalanceIn := -1
 	for di, date := range dates {
 		if liquidated {
 			curve, vals = appendZeroDay(curve, vals, date)
@@ -168,7 +169,8 @@ func computeGrowthCurve(pf PortfolioInput, priceData PriceDataMap, cpiData map[s
 		currentWeights := glidepathWeights(weights, glidepathTo, di, glidepathYears)
 		cfAmount := cfMap[date] + otcMap[date]
 		if cfAmount != 0 {
-			mwrrCashflows = append(mwrrCashflows, Cashflow{Value: cfAmount, Time: float64(di) / tradingDaysPerYear})
+			// 投入为负、回收为正（CalcMWRR IRR 约定，statistics_test.go TestCalcMWRR）
+			mwrrCashflows = append(mwrrCashflows, Cashflow{Value: -cfAmount, Time: float64(di) / tradingDaysPerYear})
 			pv += cfAmount
 			if pv > 0 {
 				recalculateShares(holdings, &shares, lastPrices, currentWeights, pv, pf, gp, date)
@@ -181,9 +183,19 @@ func computeGrowthCurve(pf PortfolioInput, priceData PriceDataMap, cpiData map[s
 			prev = date
 			continue
 		}
-		if di > 0 && engineutil.ShouldRebalance(pf.RebalanceFrequency, prev, date, pf.RebalanceThreshold, holdings, currentWeights, pv, pf.RebalanceBands) {
-			recalculateShares(holdings, &shares, lastPrices, currentWeights, pv, pf, gp, date)
-			lastRebalanceDi = di
+		if di > 0 && rebalanceIn > 0 {
+			rebalanceIn--
+			if rebalanceIn == 0 {
+				recalculateShares(holdings, &shares, lastPrices, currentWeights, pv, pf, gp, date)
+				lastRebalanceDi = di
+			}
+		} else if di > 0 && rebalanceIn < 0 && engineutil.ShouldRebalance(pf.RebalanceFrequency, prev, date, pf.RebalanceThreshold, holdings, currentWeights, pv, pf.RebalanceBands) {
+			if pf.RebalanceOffset > 0 {
+				rebalanceIn = pf.RebalanceOffset
+			} else {
+				recalculateShares(holdings, &shares, lastPrices, currentWeights, pv, pf, gp, date)
+				lastRebalanceDi = di
+			}
 		}
 		curve = append(curve, DataPoint{Date: date, Value: pv})
 		vals = append(vals, pv)
