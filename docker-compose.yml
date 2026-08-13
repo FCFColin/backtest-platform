@@ -206,7 +206,8 @@ services:
     healthcheck:
       test:
         - 'CMD-SHELL'
-        - 'node -e "const r=new(require(\"ioredis\")(\"redis://redis:6379\"));r.get(\"worker:heartbeat\").then(v=>{r.quit();process.exit(v?0:1)}).catch(()=>process.exit(1))"'
+        # ioredis 安装在 packages/backend/node_modules（pnpm 工作区布局），须在此目录下 require
+        - 'cd /app/packages/backend && node -e "const r=new (require(\"ioredis\"))(\"redis://redis:6379\");r.get(\"worker:heartbeat\").then(v=>{r.quit();process.exit(v?0:1)}).catch(()=>process.exit(1))"'
       interval: 30s
       timeout: 5s
       start_period: 20s
