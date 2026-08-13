@@ -1,6 +1,10 @@
 import '../../helpers/loggerMock.js';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { engineModuleMock } from '../../helpers/engineFixture.js';
+import {
+  optimizeResultSchema,
+  frontierResultSchema,
+} from '../../../packages/backend/src/schemas/engineSchemas.js';
 
 const mocks = vi.hoisted(() => ({
   callEngineStrict: vi.fn(),
@@ -167,6 +171,7 @@ describe('runOptimization', () => {
         constraints: { minWeight: 0, maxWeight: 1 },
         numIterations: 10000,
       }),
+      optimizeResultSchema,
     );
     expect(result.data).toEqual({ weights: { AAPL: 0.6, SPY: 0.4 }, sharpe: 1.5 });
     expect(result.warnings).toEqual([]);
@@ -199,6 +204,7 @@ describe('runOptimization', () => {
         expect(mocks.callEngineStrict).toHaveBeenCalledWith(
           '/api/engine/optimize',
           expect.objectContaining({ numIterations: 100000 }),
+          optimizeResultSchema,
         ),
       ['AAPL'],
       'maxSharpe',
@@ -252,6 +258,7 @@ describe('runEfficientFrontier', () => {
     expect(mocks.callEngineStrict).toHaveBeenCalledWith(
       '/api/engine/efficient-frontier',
       engineExpect,
+      frontierResultSchema,
     );
     if (numPoints === undefined) {
       expect(result.data).toEqual(engineRes);

@@ -123,13 +123,13 @@ export function configureMonteCarloMocks(m: BacktestMockHandles): void {
     },
   );
 
+  // 与 backtest-helpers.ts MC_PARAMS_ALLOWED_KEYS（Go MCSimParams）保持一致
   const MC_ALLOWED = new Set([
     'numSimulations',
-    'blockSize',
-    'withReplacement',
-    'confidenceLevel',
-    'distribution',
-    'seed',
+    'numYears',
+    'minBlockYears',
+    'maxBlockYears',
+    'successThreshold',
   ]);
   m.sanitizeMcParams.mockImplementation((mcParams: object | undefined) => {
     if (!mcParams || typeof mcParams !== 'object' || Array.isArray(mcParams)) return {};

@@ -36,6 +36,10 @@ vi.mock('../../../packages/backend/src/utils/metrics.js', async (importOriginal)
 
 import analysisRoutes from '../../../packages/backend/src/routes/analysisRoutes.js';
 import { jobRoutes } from '../../../packages/backend/src/routes/jobRoutes.js';
+import {
+  factorRegressionResultSchema,
+  calculatorResultSchema,
+} from '../../../packages/backend/src/schemas/engineSchemas.js';
 
 const mockPcaResult = {
   eigenvalues: [2.5, 0.3, 0.2],
@@ -293,17 +297,22 @@ describe('analysisRoutes - FactorRegression: POST /api/v1/analysis/factor-regres
     expect(engineMocks.callEngineStrict).toHaveBeenCalledWith(
       '/api/engine/factor-regression',
       validBody,
+      factorRegressionResultSchema,
     );
   });
   it('省略 factors/startDate/endDate 时使用默认值', async () => {
     await post(getServer(), '/api/v1/analysis/factor-regression', minimalBody);
-    expect(engineMocks.callEngineStrict).toHaveBeenCalledWith('/api/engine/factor-regression', {
-      monthlyReturns: [0.01],
-      ffData: [{ mktRF: 0.02 }],
-      factors: ['mktRF', 'smb', 'hml'],
-      startDate: '',
-      endDate: '',
-    });
+    expect(engineMocks.callEngineStrict).toHaveBeenCalledWith(
+      '/api/engine/factor-regression',
+      {
+        monthlyReturns: [0.01],
+        ffData: [{ mktRF: 0.02 }],
+        factors: ['mktRF', 'smb', 'hml'],
+        startDate: '',
+        endDate: '',
+      },
+      factorRegressionResultSchema,
+    );
   });
   it.each([
     ['缺失 monthlyReturns', { ffData: [{ mktRF: 0.02 }] }],
@@ -346,7 +355,11 @@ describe('analysisRoutes - Calculator: POST /api/v1/calculators/:type', () => {
     const { res, body: json } = await post(getServer(), `/api/v1/calculators/${type}`, body);
     expect(res.status).toBe(200);
     expect(json.data).toEqual({ result: 'ok' });
-    expect(engineMocks.callEngineStrict).toHaveBeenCalledWith('/api/engine/calculators', expected);
+    expect(engineMocks.callEngineStrict).toHaveBeenCalledWith(
+      '/api/engine/calculators',
+      expected,
+      calculatorResultSchema[type as keyof typeof calculatorResultSchema],
+    );
   });
   it('无效 type 应返回 422 CALC_INVALID_TYPE 且不调用引擎', async () => {
     const { res, body } = await post(getServer(), '/api/v1/calculators/invalid', {});
@@ -354,7 +367,7 @@ describe('analysisRoutes - Calculator: POST /api/v1/calculators/:type', () => {
     expect(body.error.code).toBe('CALC_INVALID_TYPE');
     expect(engineMocks.callEngineStrict).not.toHaveBeenCalled();
   });
-  it('引擎抛 EngineUnavailableError 应返回 503 + Retry-After（ADR-031 fail-closed）', async () => {
+  it('引擎抛 EngineUnavailableError 应返回 503 + Retry-After（ADR-008 fail-closed）', async () => {
     engineMocks.callEngineStrict.mockRejectedValueOnce(
       new engineModuleMock.EngineUnavailableError('/api/engine/calculators'),
     );
@@ -636,6 +649,7 @@ describe('认证用户请求', () => {
         ownerUserId: 'user-123',
         tenantId: 'tenant-456',
       }),
+      expect.objectContaining({ jobId: expect.any(String) }),
     );
   });
 });

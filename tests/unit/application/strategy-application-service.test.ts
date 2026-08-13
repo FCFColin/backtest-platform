@@ -31,6 +31,10 @@ import {
   executeGridSearch,
   MAX_GRID_COMBINATIONS,
 } from '../../../packages/backend/src/application/grid-application-service.js';
+import {
+  signalResultSchema,
+  tacticalGridResultSchema,
+} from '../../../packages/backend/src/schemas/engineSchemas.js';
 
 const mockSignalResult = {
   signals: [
@@ -144,11 +148,15 @@ describe('strategy-application-services', () => {
 
         const result = await run();
 
-        expect(engineMocks.callEngineStrict).toHaveBeenCalledWith('/api/engine/signal-analyze', {
-          mode,
-          ...payload,
-          priceData: history,
-        });
+        expect(engineMocks.callEngineStrict).toHaveBeenCalledWith(
+          '/api/engine/signal-analyze',
+          {
+            mode,
+            ...payload,
+            priceData: history,
+          },
+          signalResultSchema[mode as keyof typeof signalResultSchema],
+        );
         expect((result as { data: unknown }).data).toBe(mockSignalResult);
       });
 
@@ -360,6 +368,7 @@ describe('strategy-application-services', () => {
       expect(engineMocks.callEngineStrict).toHaveBeenCalledWith(
         '/api/engine/tactical-grid-search',
         expect.objectContaining({ indicator: 'sma' }),
+        tacticalGridResultSchema,
       );
       expect(loggerMocks.info).toHaveBeenCalled();
     });

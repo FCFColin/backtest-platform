@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { PCARequest, GoalOptimizerRequest } from '@backtest/shared';
-import type { LETFRequest } from '@backtest/shared';
-import { loggerMocks } from '../../helpers/loggerFixture.js';
+import type { PCARequest, GoalOptimizerRequest, LETFRequest } from '@backtest/shared';
+import '../../helpers/loggerMock.js';
 import { engineMocks, engineModuleMock } from '../../helpers/engineFixture.js';
 
 const dataMocks = vi.hoisted(() => ({ fetchHistoryData: vi.fn() }));
@@ -13,7 +12,6 @@ vi.mock('../../../packages/backend/src/utils/engineClient.js', () => engineModul
 vi.mock('../../../packages/backend/src/infrastructure/dataFacade.js', () => ({
   fetchHistoryData: dataMocks.fetchHistoryData,
 }));
-vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: loggerMocks }));
 vi.mock('../../../packages/backend/src/application/backtest-helpers.js', () => ({
   fetchPriceDataWithRange: helpersMocks.fetchPriceDataWithRange,
   calculateDateRange: helpersMocks.calculateDateRange,
@@ -51,6 +49,12 @@ import {
   executeGoalOptimizeWithFetch,
 } from '../../../packages/backend/src/application/analysis-orchestrator.js';
 import { normalizeTickers } from '../../../packages/backend/src/application/backtest/backtestEngineUtils.js';
+import {
+  analysisResultSchema,
+  pcaResultSchema,
+  letfResultSchema,
+  goalOptimizeResultSchema,
+} from '../../../packages/backend/src/schemas/engineSchemas.js';
 
 const mockPriceData = {
   AAPL: { '2020-01-02': 100, '2020-01-03': 101, '2020-01-06': 102 },
@@ -102,6 +106,7 @@ describe('analysis-service', () => {
       mockPcaResult,
       '/api/engine/pca',
       { tickers: ['AAPL', 'SPY'], priceData: mockPriceData, numComponents: 2 },
+      pcaResultSchema,
     ],
     [
       'executeLetfAnalyze',
@@ -109,6 +114,7 @@ describe('analysis-service', () => {
       { annualDecay: 0.05, effectiveLeverage: [2.8] },
       '/api/engine/letf-analyze',
       { letfTicker: 'SSO', benchmarkTicker: 'SPY', leverage: 2, priceData: LETF_PRICE },
+      letfResultSchema,
     ],
     [
       'executeGoalOptimize',
@@ -116,11 +122,12 @@ describe('analysis-service', () => {
       { successProbability: 0.75 },
       '/api/engine/goal-optimize',
       { ...GOAL_REQ, priceData: mockPriceData, startDate: '2020-01-01', endDate: '2020-12-31' },
+      goalOptimizeResultSchema,
     ],
-  ])('%s 应使用正确参数调用引擎并返回结果', async (_n, fn, result, endpoint, expected) => {
+  ])('%s 应使用正确参数调用引擎并返回结果', async (_n, fn, result, endpoint, expected, schema) => {
     mockEngine(result);
     expect(await fn()).toBe(result);
-    expect(engineMocks.callEngineStrict).toHaveBeenCalledWith(endpoint, expected);
+    expect(engineMocks.callEngineStrict).toHaveBeenCalledWith(endpoint, expected, schema);
   });
 
   it.each([
@@ -268,6 +275,7 @@ describe('analysis-service', () => {
       expect(engineMocks.callEngineStrict).toHaveBeenCalledWith(
         '/api/engine/analysis',
         expect.objectContaining({ tickers: ['AAPL', 'SPY'], priceData: mockPriceData }),
+        analysisResultSchema,
       );
       expect(result.data).toMatchObject({
         tickers: ['AAPL', 'SPY'],
@@ -302,6 +310,7 @@ describe('analysis-service', () => {
       expect(engineMocks.callEngineStrict).toHaveBeenCalledWith(
         '/api/engine/analysis',
         expect.objectContaining({ tickers: ['AAPL'] }),
+        analysisResultSchema,
       );
     });
     it('所有 ticker 数据缺失时应抛出 ValidationError 且不调用引擎', async () => {
