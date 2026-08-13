@@ -26,8 +26,9 @@ const PORT = config.API_PORT;
 
 server.listen(PORT, async () => {
   logger.info(`Server ready on port ${PORT}`);
+  // initDb 内部优雅降级不抛出（dataFacade.ts）；DB 恢复后靠 worker fail-fast 兜底，见 data-service.test.ts
+  await initDb();
   try {
-    await initDb();
     // P1-01：注册 TimescaleDB 指标采集器（chunk 压缩率、CAGG 行数等）
     registerTimescaleMetrics(async (sql) => {
       const { rows } = await getReadPool().query(sql);
@@ -65,7 +66,7 @@ server.listen(PORT, async () => {
     const { warmMetaCache } = await import('./routes/dataRoutes.js');
     await warmMetaCache();
   } catch (err) {
-    logger.warn({ err }, '[startup] 数据库初始化失败');
+    logger.warn({ err }, '[startup] 非关键初始化失败，服务继续运行');
   }
   try {
     // P3-05：通过工厂创建 Outbox 消费器——CDC_KAFKA_ENABLED=true 走 Kafka CDC，

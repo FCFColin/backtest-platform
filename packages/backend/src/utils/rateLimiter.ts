@@ -14,13 +14,32 @@ const rateLimiterRedisUnavailableCounter = new client.Counter({
   registers: [getPrometheusRegister()],
 });
 
+// 限流命令必须有界：ioredis 断线时命令进入离线队列，重连成功前不会 resolve，
+// 无超时会让被限流端点（含登录等安全路径）在 Redis 故障时挂 0-30s 才报错。
+// 超时后 fail-closed（passOnStoreError=false → next(err) → 500），符合拒绝放行的降级契约。
+const RATE_LIMITER_REDIS_TIMEOUT_MS = 2_000;
+function sendRedisCommand(...args: string[]): Promise<RedisReply> {
+  const command = (appRedis.call as (...a: string[]) => Promise<unknown>)(
+    ...args,
+  ) as Promise<RedisReply>;
+  return Promise.race([
+    command,
+    new Promise<never>((_, reject) => {
+      const timer = setTimeout(
+        () =>
+          reject(
+            new Error(`rate limiter redis command exceeded ${RATE_LIMITER_REDIS_TIMEOUT_MS}ms`),
+          ),
+        RATE_LIMITER_REDIS_TIMEOUT_MS,
+      );
+      timer.unref();
+    }),
+  ]);
+}
+
 let redisAvailable = false;
 try {
-  new RedisStore({
-    sendCommand: (...args: string[]) =>
-      (appRedis.call as (...a: string[]) => Promise<unknown>)(...args) as Promise<RedisReply>,
-    prefix: 'rl:health:',
-  });
+  new RedisStore({ sendCommand: sendRedisCommand, prefix: 'rl:health:' });
   redisAvailable = true;
 } catch {
   logger.error('[rate-limit] Redis 不可用，所有限流器将 fail-closed (503)');
@@ -30,11 +49,7 @@ try {
 function createRateLimiterStore(prefix: string): RedisStore | undefined {
   if (!redisAvailable) return undefined;
   try {
-    return new RedisStore({
-      sendCommand: (...args: string[]) =>
-        (appRedis.call as (...a: string[]) => Promise<unknown>)(...args) as Promise<RedisReply>,
-      prefix,
-    });
+    return new RedisStore({ sendCommand: sendRedisCommand, prefix });
   } catch {
     logger.warn(`[rate-limit] Redis Store 创建失败 (${prefix})，限流器 fail-closed`);
     rateLimiterRedisUnavailableCounter.inc();

@@ -49,9 +49,27 @@ async function checkHttp(url: string, timeoutMs = 2000): Promise<boolean> {
   }
 }
 
+const PROBE_TIMEOUT_MS = 3_000;
+
+// 就绪探测必须整体有界：网络分区/依赖故障时在途查询或 ioredis 离线队列命令会无限挂起
+//（pool 的 connectionTimeoutMillis 仅对新建连接生效），无超时会让探针被全局
+// requestTimeout 30s 打成 408 而非快速 fail-closed（503/200+degraded）
+function withProbeTimeout<T>(promise: Promise<T>): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) => {
+      const timer = setTimeout(
+        () => reject(new Error(`probe exceeded ${PROBE_TIMEOUT_MS}ms`)),
+        PROBE_TIMEOUT_MS,
+      );
+      timer.unref();
+    }),
+  ]);
+}
+
 async function checkDatabase(): Promise<boolean> {
   try {
-    await getPool().query('SELECT 1');
+    await withProbeTimeout(getPool().query('SELECT 1'));
     return true;
   } catch {
     return false;
@@ -60,7 +78,7 @@ async function checkDatabase(): Promise<boolean> {
 
 async function checkRedis(): Promise<boolean> {
   try {
-    return (await appRedis.ping()) === 'PONG';
+    return (await withProbeTimeout(appRedis.ping())) === 'PONG';
   } catch {
     return false;
   }
