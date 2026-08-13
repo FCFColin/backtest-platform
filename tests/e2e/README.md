@@ -1,6 +1,6 @@
 # E2E 测试(Playwright)
 
-通过 Playwright 在真实浏览器中验证用户端到端流程:回测、优化、蒙特卡洛、导航、登录、i18n、页面冒烟等。
+通过 Playwright 在真实浏览器中验证用户端到端流程:回测、优化、蒙特卡洛、导航、登录、页面冒烟等。
 
 ## 运行前置条件
 
@@ -45,19 +45,21 @@ pnpm test:e2e:ui:headed
 ## 跳过条件
 
 - **PostgreSQL / Redis 不可用**:`webServer` 健康检查失败,Playwright 启动超时(60s),所有 spec 失败
-- **engine-go / data-fetcher 不可用**:回测/优化 spec 会因 503 fail-closed 失败(ADR-031)
+- **engine-go / data-fetcher 不可用**:回测/优化 spec 会因 503 fail-closed 失败(ADR-008)
 
-## Spec 列表
+## Spec 列表（位于 `tests/e2e/ui/`）
 
-| Spec                           | 覆盖场景                                          |
-| ------------------------------ | ------------------------------------------------- |
-| `analysis.spec.ts`             | 资产分析页面                                      |
-| `backtest.spec.ts`             | 回测主流程(含 T1 默认回测 + T16 跨页面状态持久化) |
-| `backtest-performance.spec.ts` | 回测首屏性能预算(`E2E_BACKTEST_PERF_MS`)          |
-| `data-engine.spec.ts`          | 数据引擎页面                                      |
-| `i18n.spec.ts`                 | 国际化(中英文切换)                                |
-| `login.spec.ts`                | 登录流程                                          |
-| `monte-carlo.spec.ts`          | 蒙特卡洛模拟                                      |
-| `navigation.spec.ts`           | 导航                                              |
-| `optimizer.spec.ts`            | 组合优化                                          |
-| `page-smoke.spec.ts`           | 页面冒烟                                          |
+| Spec                               | 覆盖场景                                          |
+| ---------------------------------- | ------------------------------------------------- |
+| `ui/analysis.spec.ts`              | 资产分析页面                                      |
+| `ui/backtest.spec.ts`              | 回测主流程(含 T1 默认回测 + T16 跨页面状态持久化) |
+| `ui/backtest-performance.spec.ts`  | 回测首屏性能预算(`E2E_BACKTEST_PERF_MS`)          |
+| `ui/data-engine.spec.ts`           | 数据引擎页面                                      |
+| `ui/fuzz-random.spec.ts`           | 随机数据 fuzz 冒烟                                |
+| `ui/login.spec.ts`                 | 登录流程                                          |
+| `ui/monte-carlo.spec.ts`           | 蒙特卡洛模拟                                      |
+| `ui/navigation.spec.ts`            | 导航                                              |
+| `ui/optimizer.spec.ts`             | 组合优化                                          |
+| `ui/page-load-performance.spec.ts` | 页面加载性能预算                                  |
+| `ui/page-smoke.spec.ts`            | 页面冒烟                                          |
+| `ui/tactical.spec.ts`              | 战术分配页面                                      |

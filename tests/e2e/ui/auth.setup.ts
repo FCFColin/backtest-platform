@@ -30,7 +30,7 @@ setup('E2E 注册、登录并创建 API Key', async ({ request }) => {
   const { apiKey } = (await keyRes.json()).data;
   const state = await request.storageState();
   state.origins.push({
-    origin: 'http://localhost:15001',
+    origin: `http://localhost:${process.env.API_PORT ?? '15001'}`,
     localStorage: [{ name: 'admin_api_key', value: Buffer.from(apiKey).toString('base64') }],
   });
   mkdirSync('.auth', { recursive: true });
