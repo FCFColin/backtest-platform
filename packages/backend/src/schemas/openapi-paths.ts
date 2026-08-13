@@ -266,7 +266,6 @@ function registerAllPaths(): void {
   sec('post', '/auth/switch-org', 'auth', '切换当前组织', [400, 401, 403]);
   sec('delete', '/auth/me', 'auth', '注销账户', AUTH_500_ERR);
   pubReg('post', '/auth/verify-email', 'auth', '邮箱验证', [400, 404]);
-  sec('post', '/auth/resend-verification', 'auth', '重发验证邮件', [401, 429]);
   sec('post', '/keys', 'saas-keys', '创建组织 API Key', [400, 401, 422], { body: KEY_BODY });
   sec('get', '/keys', 'saas-keys', '列出组织 API Key', [401]);
   sec('delete', '/keys/{id}', 'saas-keys', '吊销组织 API Key', NOT_FOUND_ERR, WITH_ID_PARAM);
@@ -419,6 +418,8 @@ function registerAllPaths(): void {
   sec('get', '/data/cpi/{country}', 'data', '获取 CPI 数据', [400, 401, 404, 503], {
     params: z.object({ country: z.enum(['us', 'cn']) }),
   });
+  sec('get', '/data/health', 'data', '数据服务健康状态', [401, 503]);
+  sec('get', '/data/factors', 'data', 'Fama-French 因子数据', [401, 503]);
   sec('get', '/data/meta', 'data', '获取数据元信息', AUTH_500_ERR);
   sec('get', '/data/ticker-meta', 'data', '查询单个 ticker 元数据', [400, 401], {
     query: z.object({ ticker: z.string() }),
@@ -521,7 +522,7 @@ export function generateOpenApiDocument() {
       title: '回测平台 API',
       version: '1.0.0',
       description:
-        '回测平台提供组合回测、资产分析、蒙特卡洛模拟、组合优化、有效前沿、战术分配、信号分析、PCA、LETF、目标优化等量化投资工具。\n\n## 认证\n- 计算端点必须携带 JWT Bearer Token（Authorization: Bearer <accessToken>）\n- 管理端点需 JWT + RBAC 权限\n- 兼容模式：x-api-key 请求头（过渡用，不推荐生产长期依赖）\n- 认证流程：POST /auth/login/password -> accessToken + refreshToken\n- 健康检查 /health 与 /metrics 无需用户 JWT\n\n## 速率限制\n- 普通 API：100 次/15 分钟/IP\n- 计算密集型 API（backtest、backtest-optimizer）：10 次/分钟/IP\n\n## 错误格式\n- 所有错误使用 RFC 7807 Problem Details：{ success: false, error: { type, title, status, code, detail } }\n- 数据服务降级响应包含 degraded: true + degradedWarning（仅数据端点；引擎端点 fail-closed 返回 503 + Retry-After，见 ADR-031）',
+        '回测平台提供组合回测、资产分析、蒙特卡洛模拟、组合优化、有效前沿、战术分配、信号分析、PCA、LETF、目标优化等量化投资工具。\n\n## 认证\n- 计算端点必须携带 JWT Bearer Token（Authorization: Bearer <accessToken>）\n- 管理端点需 JWT + RBAC 权限\n- 兼容模式：x-api-key 请求头（过渡用，不推荐生产长期依赖）\n- 认证流程：POST /auth/login/password -> accessToken + refreshToken\n- 健康检查 /health 与 /metrics 无需用户 JWT\n\n## 速率限制\n- 普通 API：100 次/15 分钟/IP\n- 计算密集型 API（backtest、backtest-optimizer）：10 次/分钟/IP\n\n## 错误格式\n- 所有错误使用 RFC 7807 Problem Details：{ success: false, error: { type, title, status, code, detail } }\n- 数据服务降级响应包含 degraded: true + degradedWarning（仅数据端点；引擎端点 fail-closed 返回 503 + Retry-After，见 ADR-008）',
     },
     servers: [{ url: 'http://localhost:15001/api/v1', description: '本地开发环境' }],
     tags: TAGS.map((name) => ({ name })),
