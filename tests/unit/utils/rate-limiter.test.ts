@@ -92,12 +92,6 @@ describe('rateLimiter — keyGenerator（Redis 可用路径）', () => {
       hashKey('apikey', 'bpk_live_test123'),
     ],
     [
-      'computeRateLimitKey: tenantId 优先于 JWT/API Key/IP',
-      computeOpts,
-      { tenantId: 'org-123' },
-      'tenant:org-123',
-    ],
-    [
       'computeRateLimitKey: Bearer token 按原始 token 哈希分桶（不信任可伪造的 JWT payload）',
       computeOpts,
       {

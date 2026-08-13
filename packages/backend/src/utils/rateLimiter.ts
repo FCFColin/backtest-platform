@@ -43,8 +43,6 @@ function createRateLimiterStore(prefix: string): RedisStore | undefined {
 }
 
 function computeRateLimitKey(req: Request): string {
-  const tenantId = (req as { tenantId?: string }).tenantId;
-  if (typeof tenantId === 'string' && tenantId.length > 0) return `tenant:${tenantId}`;
   // 限流先于认证执行，JWT payload 可被伪造，不得信任——按原始 token 哈希分桶，
   // 伪造 token 只会烧自己桶，无法污染目标用户配额
   const authHeader = req.headers.authorization;

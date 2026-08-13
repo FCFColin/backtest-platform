@@ -163,12 +163,12 @@ router.post(
       try {
         userId = await registerUser(username, password, email, orgName);
       } catch (err) {
-        const msg = String(err);
-        if (msg.includes('duplicate key') || msg.includes('unique')) {
+        // 23505 = PG unique_violation（并发重复注册的竞态，注册前检查无法覆盖）
+        if ((err as { code?: string }).code === '23505') {
           sendProblem(res, 409, 'ACCOUNT_CONFLICT');
           return;
         }
-        logger.error({ err: msg }, '[auth] 注册失败');
+        logger.error({ err: String(err) }, '[auth] 注册失败');
         sendProblem(res, 500, 'REGISTER_FAILED');
         return;
       }

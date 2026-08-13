@@ -43,7 +43,12 @@ async function handleWithRedis(
   res: Response,
   next: NextFunction,
 ): Promise<void> {
-  const principal = (req as AuthenticatedRequest).user?.tenant_id ?? req.ip ?? 'anonymous';
+  // principal 优先用户 id（sub）而非租户 id：同一用户重复提交命中同一缓存，跨用户同租户不串
+  const principal =
+    (req as AuthenticatedRequest).user?.sub ??
+    (req as AuthenticatedRequest).user?.tenant_id ??
+    req.ip ??
+    'anonymous';
   const redisKey = redisKeys.idempotency(`${principal}:${key}`);
   if (!(await getRedisHealth())) return redisUnavailable(res);
   try {
