@@ -96,13 +96,16 @@ func (ds *DataStore) GetPriceData(ctx context.Context, ticker, startDate, endDat
 		var date time.Time
 		var adjClose *float64
 		if err := rows.Scan(&date, &p.Open, &p.High, &p.Low, &p.Close, &p.Volume, &adjClose); err != nil {
-			return nil, false, fmt.Errorf("扫描价格行失败: %w", err)
+			return nil, false, fmt.Errorf("%w: 扫描价格行失败: %v", ErrDBQuery, err)
 		}
 		p.Date = date.Format("2006-01-02")
 		if adjClose != nil {
 			p.AdjClose = *adjClose
 		}
 		prices = append(prices, p)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, false, fmt.Errorf("%w: 迭代价格行失败: %v", ErrDBQuery, err)
 	}
 	if len(prices) > 0 {
 		return prices, false, nil
@@ -225,6 +228,9 @@ func (ds *DataStore) SearchTickers(ctx context.Context, query string, limit int)
 			return nil, fmt.Errorf("扫描搜索结果失败: %w", err)
 		}
 		results = append(results, r)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("迭代搜索结果失败: %w", err)
 	}
 	return results, nil
 }
