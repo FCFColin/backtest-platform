@@ -58,8 +58,13 @@ func (r *Registry) forMarket(allow ...string) []Provider {
 	}
 	return result
 }
+
+// ErrAllProvidersEmpty 表示所有数据源均成功返回但无该标的数据（区别于上游故障，→404）。
+var ErrAllProvidersEmpty = fmt.Errorf("all providers returned empty data")
+
 func FetchWithFallback(providers []Provider, ticker, startDate, endDate string) ([]DailyPrice, string, error) {
 	var lastErr error
+	anyError := false
 	for _, p := range providers {
 		prices, err := p.FetchStockDaily(ticker, startDate, endDate)
 		if err == nil && len(prices) > 0 {
@@ -67,6 +72,8 @@ func FetchWithFallback(providers []Provider, ticker, startDate, endDate string) 
 		}
 		if err == nil {
 			err = fmt.Errorf("%s 返回空数据", p.Name())
+		} else {
+			anyError = true
 		}
 		lastErr = err
 		slog.Warn("数据源获取失败，切换到下一个",
@@ -74,6 +81,9 @@ func FetchWithFallback(providers []Provider, ticker, startDate, endDate string) 
 			"ticker", ticker,
 			"error", err,
 		)
+	}
+	if !anyError {
+		return nil, "", ErrAllProvidersEmpty
 	}
 	return nil, "", fmt.Errorf("所有数据源均失败: %w", lastErr)
 }

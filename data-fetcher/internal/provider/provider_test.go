@@ -163,6 +163,25 @@ func TestFetchWithFallback_AllFail(t *testing.T) {
 		t.Errorf("p2 should be called once, got %d", p2.calls)
 	}
 }
+func TestFetchWithFallback_AllEmpty_ReturnsErrAllProvidersEmpty(t *testing.T) {
+	p1 := &mockProvider{name: "p1"}
+	p2 := &mockProvider{name: "p2"}
+	_, _, err := FetchWithFallback([]Provider{p1, p2}, "AAPL", "2024-01-01", "2024-01-31")
+	if !errors.Is(err, ErrAllProvidersEmpty) {
+		t.Fatalf("all-empty error = %v, want ErrAllProvidersEmpty", err)
+	}
+}
+func TestFetchWithFallback_AllFail_NotErrAllProvidersEmpty(t *testing.T) {
+	p1 := &mockProvider{name: "p1", err: errors.New("p1 down")}
+	p2 := &mockProvider{name: "p2", err: errors.New("p2 down")}
+	_, _, err := FetchWithFallback([]Provider{p1, p2}, "AAPL", "2024-01-01", "2024-01-31")
+	if err == nil {
+		t.Fatal("expected error when all providers fail, got nil")
+	}
+	if errors.Is(err, ErrAllProvidersEmpty) {
+		t.Fatalf("provider failures must not be reported as empty: %v", err)
+	}
+}
 func TestFetchWithFallback_EmptyProviderList(t *testing.T) {
 	_, _, err := FetchWithFallback([]Provider{}, "AAPL", "2024-01-01", "2024-01-31")
 	if err == nil {

@@ -61,11 +61,15 @@ func HandlePriceData(ds *store.DataStore) gin.HandlerFunc {
 		endDate := c.Query("end")
 		prices, degraded, err := ds.GetPriceData(c.Request.Context(), ticker, startDate, endDate)
 		if err != nil {
-			if errors.Is(err, store.ErrDBQuery) {
+			switch {
+			case errors.Is(err, store.ErrDBQuery):
 				sharedhttp.NewProblem(c, http.StatusInternalServerError, "DATA_QUERY_FAILED", "Data Query Failed", "查询价格数据失败")
-				return
+			case errors.Is(err, store.ErrProviderUnavailable):
+				slog.Warn("实时数据源抓取失败，上游暂不可用", "ticker", ticker, "error", err)
+				sharedhttp.NewDegradedProblem(c, http.StatusServiceUnavailable, "DATA_PROVIDER_UNAVAILABLE", "Data Provider Unavailable", "实时数据源暂不可用，请稍后重试")
+			default:
+				sharedhttp.NewProblem(c, http.StatusNotFound, "DATA_NOT_FOUND", "Data Not Found", "标的数据不存在")
 			}
-			sharedhttp.NewProblem(c, http.StatusNotFound, "DATA_NOT_FOUND", "Data Not Found", "标的数据不存在")
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": prices, "degraded": degraded})
@@ -105,7 +109,13 @@ func HandleBatchPriceData(ds *store.DataStore) gin.HandlerFunc {
 				prices, degraded, err := ds.GetPriceData(c.Request.Context(), t, req.StartDate, req.EndDate)
 				mu.Lock()
 				if err != nil {
-					result[t] = map[string]string{"error": "标的数据不可用"}
+					if errors.Is(err, store.ErrProviderUnavailable) {
+						slog.Warn("批量抓取失败，上游暂不可用", "ticker", t, "error", err)
+						result[t] = map[string]interface{}{"error": "实时数据源暂不可用", "degraded": true}
+						degradedCount++
+					} else {
+						result[t] = map[string]string{"error": "标的数据不存在"}
+					}
 				} else {
 					result[t] = prices
 					if degraded {

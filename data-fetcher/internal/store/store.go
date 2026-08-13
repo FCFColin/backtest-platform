@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/tls"
 	"data-fetcher/internal/provider"
+	"errors"
 	"fmt"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -36,6 +37,9 @@ type DataStore struct {
 
 // ErrDBQuery 区分基础设施故障（→500）与数据不存在（→404），避免 DB 故障被误报为缺失 ticker。
 var ErrDBQuery = fmt.Errorf("db query failed")
+
+// ErrProviderUnavailable 表示实时数据源抓取失败（上游宕机/超时），区别于"标的不存在"（→503+degraded）。
+var ErrProviderUnavailable = fmt.Errorf("provider fetch failed")
 
 func New(ctx context.Context, databaseURL string, reg *provider.Registry) (*DataStore, error) {
 	if databaseURL == "" {
@@ -106,6 +110,9 @@ func (ds *DataStore) GetPriceData(ctx context.Context, ticker, startDate, endDat
 	startDate, endDate = defaultDateRange(startDate, endDate)
 	fetchedPrices, err := ds.fetchAndStoreFromProvider(ctx, ticker, startDate, endDate)
 	if err != nil {
+		if errors.Is(err, ErrProviderUnavailable) {
+			return nil, false, err
+		}
 		return nil, false, fmt.Errorf("标的数据不存在: %s", ticker)
 	}
 	return filterPricePointsByDate(fetchedPrices, startDate, endDate), true, nil
@@ -140,7 +147,10 @@ func (ds *DataStore) fetchAndStoreFromProvider(ctx context.Context, ticker, star
 	goStart, goEnd := defaultDateRange(startDate, endDate)
 	dailyPrices, providerName, err := provider.FetchWithFallback(providers, ticker, goStart, goEnd)
 	if err != nil {
-		return nil, fmt.Errorf("从 provider 获取 %s 失败: %w", ticker, err)
+		if errors.Is(err, provider.ErrAllProvidersEmpty) {
+			return nil, fmt.Errorf("标的数据不存在: %s", ticker)
+		}
+		return nil, fmt.Errorf("%w: 从 provider 获取 %s 失败: %v", ErrProviderUnavailable, ticker, err)
 	}
 	if len(dailyPrices) == 0 {
 		slog.Warn("provider 无数据返回", "ticker", ticker, "provider", providerName)

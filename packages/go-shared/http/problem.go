@@ -13,6 +13,8 @@ type Problem struct {
 	Status int    `json:"status"`
 	Code   string `json:"code"`
 	Detail string `json:"detail"`
+	// Degraded 表示请求因上游降级/不可用而失败（区别于客户端请求错误）。
+	Degraded bool `json:"degraded,omitempty"`
 }
 
 // NewProblem 发送 RFC 7807 Problem Details JSON 错误响应。
@@ -29,5 +31,17 @@ func NewProblem(c *gin.Context, status int, code, title, detail string) {
 		Status: status,
 		Code:   code,
 		Detail: detail,
+	})
+}
+
+// NewDegradedProblem 同 NewProblem，但带 degraded 标记（上游数据源不可用等降级失败）。
+func NewDegradedProblem(c *gin.Context, status int, code, title, detail string) {
+	c.JSON(status, Problem{
+		Type:     "https://backtest.platform/errors/" + code,
+		Title:    title,
+		Status:   status,
+		Code:     code,
+		Detail:   detail,
+		Degraded: true,
 	})
 }
