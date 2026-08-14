@@ -7,7 +7,7 @@ import { validate } from '../middleware/miscMiddleware.js';
 import { sendProblem } from '../utils/errors.js';
 import { callEngineStrict } from '../utils/engineClient.js';
 import { factorRegressionResultSchema, calculatorResultSchema } from '../schemas/engineSchemas.js';
-import { computeMiddleware, computeMiddlewareNoQuota } from '../middleware/middlewareChains.js';
+import { computeMiddleware } from '../middleware/middlewareChains.js';
 import { Permission } from '../middleware/rbac.js';
 import {
   pcaAnalyzeSchema,
@@ -97,7 +97,7 @@ analysisRouter.post(
 
 analysisRouter.post(
   '/analysis/factor-regression',
-  ...computeMiddlewareNoQuota(Permission.BACKTEST_RUN),
+  ...computeMiddleware(Permission.BACKTEST_RUN),
   validate(factorRegressionSchema),
   plainCompute(
     'factor-regression',
@@ -123,7 +123,7 @@ analysisRouter.post(
 const VALID_CALC_TYPES = ['cagr', 'swr', 'frontier'];
 analysisRouter.post(
   '/calculators/:type',
-  ...computeMiddlewareNoQuota(Permission.BACKTEST_RUN),
+  ...computeMiddleware(Permission.BACKTEST_RUN),
   validate(calculatorBodySchema),
   plainCompute(
     'calculator',
@@ -202,7 +202,7 @@ function logSignalContext(mode: SignalMode, body: Record<string, unknown>): void
 function registerSignalRoute(mode: SignalMode, path: string, schema: z.ZodTypeAny) {
   analysisRouter.post(
     path,
-    ...computeMiddlewareNoQuota(Permission.SIGNAL_READ),
+    ...computeMiddleware(Permission.SIGNAL_READ),
     validate(schema),
     plainCompute(
       `signal-${mode}`,

@@ -155,7 +155,6 @@ app.use('/api/v1/auth/refresh', refreshLimiter);
 app.use('/api', healthRoutes); // 健康检查在全局限流器之前，避免探活被 429 误杀
 app.use('/api/', apiLimiter);
 
-app.use('/api/v1/data', ...readOnlyAuth, dataRoutes);
 app.use(
   '/api/v1/data/manage',
   ...readOnlyAuth,
@@ -164,6 +163,7 @@ app.use(
   idempotencyKey,
   dataManageRoutes,
 );
+app.use('/api/v1/data', ...readOnlyAuth, dataRoutes);
 app.use('/api/v1/backtest', ...computeMiddleware(Permission.BACKTEST_RUN), backtestRoutes);
 // 分析/计算/密钥/工作台/平台端点合并挂载（ADR-011）：内部按子路径应用不同中间件链
 app.use('/api/v1', analysisRoutes);

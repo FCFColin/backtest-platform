@@ -15,18 +15,18 @@ const computeQuotaHandler: RequestHandler = (req, res, next) => {
   void enforceQuota(USAGE_METRIC.BACKTEST)(req, res, next);
 };
 
-function computeChain(permission: Permission, withQuota: boolean): RequestHandler[] {
+function computeChain(permission: Permission): RequestHandler[] {
   return [
     jwtAuth,
     resolveTenant,
+    requireTenant,
     requirePermission(permission),
-    ...(withQuota ? [computeQuotaHandler] : []),
+    computeQuotaHandler,
     auditLog,
   ];
 }
 
-export const computeMiddleware = (permission: Permission) => computeChain(permission, true);
-export const computeMiddlewareNoQuota = (permission: Permission) => computeChain(permission, false);
+export const computeMiddleware = (permission: Permission) => computeChain(permission);
 export const crudMiddleware = (permission: Permission) => [
   jwtAuth,
   resolveTenant,
