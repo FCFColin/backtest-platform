@@ -14,7 +14,7 @@ import {
   TabFallback,
   type ComputeToolConfig,
 } from '../../components/shells/index.js';
-import { useComputeTool, useListState, useSetterState } from '../../hooks/miscHooks.js';
+import { useComputeTool, useSetterState } from '../../hooks/miscHooks.js';
 import { fmtPct, fmtRatio } from '@/utils/format';
 import { SimpleTable, type SimpleTableColumn } from '@/components/tables.js';
 import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
@@ -22,14 +22,7 @@ import { normalizeTicker } from '@/utils/ticker';
 import { lazyNamed } from '@/utils/lazyImport';
 function useAnalysisPageState() {
   const { t } = useTranslation();
-  const {
-    items: tickers,
-    setItems: setTickers,
-    addItem: addTicker,
-    removeItem: removeTicker,
-    updateItem,
-  } = useListState<string>(['SPY', 'TLT', 'GLD'], () => '', 1);
-  const updateTicker = (idx: number, val: string) => updateItem(idx, () => val);
+  const [tickers, setTickers] = useState(['SPY', 'TLT', 'GLD']);
   const s = useSetterState({
     startDate: DEFAULT_BACKTEST_START_DATE,
     endDate: DEFAULT_END_DATE,
@@ -69,9 +62,6 @@ function useAnalysisPageState() {
     results,
     setTickers,
     setResults,
-    addTicker,
-    removeTicker,
-    updateTicker,
     runAnalysis,
   };
 }

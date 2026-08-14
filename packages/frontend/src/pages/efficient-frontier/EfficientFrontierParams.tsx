@@ -4,7 +4,7 @@ import { Checkbox, Input, AffixInput } from '@/components/ui/uiComponents';
 import { Field, FieldLabel } from '@/components/form/Field';
 import { SectionHeader, SelectField, RunButton, DateField } from '@/components/form/sharedFields';
 import { TickerTagInput } from '../../components/form/TickerTagInput.js';
-import { useTagDiff, AllHistoryCheckbox } from '@/components/params/toolFields.js';
+import { AllHistoryCheckbox } from '@/components/params/toolFields.js';
 import type { SolveSpeed, FrontierSolver, ReturnObjective } from './EfficientFrontierUtils.js';
 import type { FrontierState } from './EfficientFrontierUtils.js';
 const solveSpeedOptions = (t: TFunction): { value: SolveSpeed; label: string }[] => [
@@ -33,13 +33,12 @@ interface FrontierParamsProps {
 }
 function TickerListSection({ s }: { s: FrontierState }) {
   const { t } = useTranslation();
-  const handleTagChange = useTagDiff(s.tickers, s.addTicker, s.removeTicker, s.updateTicker);
   return (
     <section className="flex flex-col gap-3">
       <SectionHeader title={t('Ticker List')} />
       <TickerTagInput
         tickers={s.tickers.filter(Boolean)}
-        onChange={handleTagChange}
+        onChange={s.setTickers}
         minCount={2}
         placeholder={t('Enter ticker, e.g. VTI')}
       />

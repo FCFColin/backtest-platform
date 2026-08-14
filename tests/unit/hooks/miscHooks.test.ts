@@ -263,7 +263,7 @@ describe('useReducedMotion / useChartAnimation', () => {
   it('useChartAnimation 应随大数据集/减动偏好关闭动画', () => {
     stubMatchMedia(true);
     const { result } = renderHook(() => useChartAnimation(true));
-    expect(result.current).toEqual({ isAnimationActive: false, animationDuration: 0 });
+    expect(result.current).toEqual({ isAnimationActive: false });
   });
 });
 

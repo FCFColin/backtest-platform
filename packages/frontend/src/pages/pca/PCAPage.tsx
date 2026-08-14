@@ -6,7 +6,7 @@ import { type PCAResult } from '@backtest/shared';
 import { Card, buttonVariants, LoadingButton, AffixInput } from '@/components/ui/uiComponents';
 import { CollapsibleSection } from '@/components/cards.js';
 import { ResultsShell } from '@/components/resultsShell.js';
-import { useComputeTool, useListState } from '../../hooks/miscHooks.js';
+import { useComputeTool } from '../../hooks/miscHooks.js';
 import { apiPostJSON } from '@/utils/apiClient';
 import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
 import { getCorrelationColor, getPortfolioColor } from '@/lib/chart-theme.js';
@@ -24,17 +24,10 @@ import { Field, FieldLabel, FieldDescription } from '../../components/form/Field
 import { DateField } from '../../components/form/sharedFields.js';
 import { TickerTagInput } from '../../components/form/TickerTagInput.js';
 import { ComputeToolShell, type ComputeToolConfig } from '../../components/shells/index.js';
-import { useTagDiff } from '@/components/params/toolFields.js';
 import { XYScatterChart } from '@/components/charts/sharedChartContent.js';
 function usePcaPageState() {
   const { t } = useTranslation();
-  const {
-    items: tickers,
-    addItem: addTicker,
-    removeItem: removeTicker,
-    updateItem,
-  } = useListState<string>(['SPY', 'TLT', 'GLD', 'QQQ'], () => '', 1);
-  const updateTicker = (idx: number, val: string) => updateItem(idx, () => val);
+  const [tickers, setTickers] = useState(['SPY', 'TLT', 'GLD', 'QQQ']);
   const [startDate, setStartDate] = useState(DEFAULT_BACKTEST_START_DATE);
   const [endDate, setEndDate] = useState(DEFAULT_END_DATE);
   const [numComponents, setNumComponents] = useState<number | ''>('');
@@ -64,15 +57,13 @@ function usePcaPageState() {
   );
   return {
     tickers,
+    setTickers,
     startDate,
     endDate,
     numComponents,
     isLoading,
     error,
     results,
-    addTicker,
-    removeTicker,
-    updateTicker,
     setStartDate,
     setEndDate,
     setNumComponents,
@@ -82,15 +73,14 @@ function usePcaPageState() {
 type PCAState = ReturnType<typeof usePcaPageState>;
 function PCAParamsPanel({ state: s }: { state: PCAState }) {
   const { t } = useTranslation();
-  const handleTagChange = useTagDiff(s.tickers, s.addTicker, s.removeTicker, s.updateTicker);
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
       <div className="col-span-full">
         <Field>
           <FieldLabel>{t('Asset Selection')}</FieldLabel>
           <TickerTagInput
-            tickers={s.tickers}
-            onChange={handleTagChange}
+            tickers={s.tickers.filter(Boolean)}
+            onChange={s.setTickers}
             minCount={2}
             placeholder={t('Enter symbol, e.g. SPY')}
           />

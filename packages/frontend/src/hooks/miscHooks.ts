@@ -105,8 +105,7 @@ export function useReducedMotion(): boolean {
 
 export function useChartAnimation(isLargeDataset: boolean) {
   const reducedMotion = useReducedMotion();
-  const animated = !isLargeDataset && !reducedMotion;
-  return { isAnimationActive: animated, animationDuration: animated ? 150 : 0 };
+  return { isAnimationActive: !isLargeDataset && !reducedMotion };
 }
 
 export function useTheme() {
@@ -157,22 +156,18 @@ export function useAdminFetch<T>(
     setLoading(true);
     try {
       const res = await apiFetch(url);
-      if (!res.ok) {
-        setLoading(false);
-        return;
-      }
+      if (!res.ok) return;
       const json = await res.json();
-      if (!json.success || !json.data) {
-        setLoading(false);
-        return;
+      if (json.success && json.data) {
+        setData(parser(json.data));
+        setLastRefresh(new Date().toLocaleTimeString(i18n.language));
       }
-      setData(parser(json.data));
     } catch (error) {
       reportError(error, { component: componentName, action: 'fetch' });
       useToastStore.getState().addToast('error', t('Load failed'));
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
-    setLastRefresh(new Date().toLocaleTimeString('zh-CN'));
   };
   return { data, loading, lastRefresh, fetch };
 }

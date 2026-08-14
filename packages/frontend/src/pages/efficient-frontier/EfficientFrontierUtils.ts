@@ -1,12 +1,7 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import i18n from '@/i18n/index.js';
 import { useNavigate } from 'react-router';
-import {
-  useAsyncAction,
-  useListState,
-  useOptimizerLikeState,
-  useSetterState,
-} from '../../hooks/miscHooks.js';
+import { useAsyncAction, useOptimizerLikeState, useSetterState } from '../../hooks/miscHooks.js';
 import { apiFetch, apiPostJSON } from '@/utils/apiClient';
 import type { EfficientFrontierResult, EfficientFrontierPoint } from '@backtest/shared';
 import { buildBacktestParameters, buildSinglePortfolioBody } from '@/utils/constants';
@@ -129,13 +124,7 @@ function computeFrontierDerivedData(results: EfficientFrontierResult | null) {
 }
 function useEfficientFrontierStateInner() {
   const navigate = useNavigate();
-  const {
-    items: tickers,
-    setItems: setTickers,
-    addItem,
-    removeItem,
-    updateItem,
-  } = useListState(['VTI', 'VXUS', 'BND', 'TLT'], () => '', 2);
+  const [tickers, setTickers] = useState(['VTI', 'VXUS', 'BND', 'TLT']);
   const { startDate, setStartDate, endDate, setEndDate, results, setResults } =
     useOptimizerLikeState<EfficientFrontierResult>();
   const s = useSetterState({
@@ -155,9 +144,6 @@ function useEfficientFrontierStateInner() {
     navigate,
     tickers,
     setTickers,
-    addTicker: addItem,
-    removeTicker: removeItem,
-    updateTicker: (i: number, val: string) => updateItem(i, () => val),
     startDate,
     setStartDate,
     endDate,

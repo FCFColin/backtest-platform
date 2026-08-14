@@ -4,7 +4,7 @@ import { Field } from '@/components/form/Field';
 import { buttonVariants } from '@/components/ui/uiComponents';
 import { LabeledField, DollarInput, RunButton, DateField } from '@/components/form/sharedFields';
 import { TickerTagInput } from '@/components/form/TickerTagInput.js';
-import { AllHistoryCheckbox, useEmptyRowTagChange } from '@/components/params/toolFields.js';
+import { AllHistoryCheckbox } from '@/components/params/toolFields.js';
 import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
 import { cn } from '@/lib/utils';
 import type { TFunction } from 'i18next';
@@ -56,13 +56,12 @@ function MonthWindowField({
 export function AnalysisParamsPanel(props: AnalysisParamsPanelProps) {
   const { t } = useTranslation();
   const allHistory = props.startDate === '' && props.endDate === '';
-  const handleTagChange = useEmptyRowTagChange(props.tickers, props.setTickers);
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 items-end">
       <Field className="sm:col-span-2 lg:col-span-3">
         <TickerTagInput
           tickers={props.tickers.filter(Boolean)}
-          onChange={handleTagChange}
+          onChange={props.setTickers}
           minCount={1}
           placeholder={t('Enter symbol, e.g. SPY')}
         />

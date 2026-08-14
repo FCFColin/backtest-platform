@@ -4,7 +4,6 @@ import { Button, Input, Switch } from '@/components/ui/uiComponents';
 import { Field, FieldLabel } from '@/components/form/Field.js';
 import { CollapsibleSection } from '@/components/cards.js';
 import { TickerTagInput } from '@/components/form/TickerTagInput.js';
-import { useEmptyRowTagChange } from '@/components/params/toolFields.js';
 import {
   SectionHeader,
   LabeledField,
@@ -27,7 +26,6 @@ const SOLVERS = [
 
 function TickerEditor({ s }: { s: EfficientFrontierState }) {
   const { t } = useTranslation();
-  const handleTagChange = useEmptyRowTagChange(s.tickers, s.setTickers);
   return (
     <section className="flex flex-col gap-3">
       <SectionHeader
@@ -36,7 +34,7 @@ function TickerEditor({ s }: { s: EfficientFrontierState }) {
       />
       <TickerTagInput
         tickers={s.tickers.filter(Boolean)}
-        onChange={handleTagChange}
+        onChange={s.setTickers}
         minCount={2}
         placeholder={t('Enter ticker, e.g. VTI')}
       />
