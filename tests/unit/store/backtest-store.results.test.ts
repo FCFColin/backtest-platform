@@ -15,6 +15,7 @@ import {
 } from '../../../packages/frontend/src/store/backtestHelpers.js';
 import { useBacktestStore } from '../../../packages/frontend/src/store/backtestStore.js';
 import { mockBacktestResult, mockPortfolioResult } from '../../helpers/storeFixtures.js';
+import { mockPortfolio, mockBacktestParams } from '../../helpers/storeFixtures.js';
 import {
   resetBacktestStoreState,
   mockFetchOnce,
@@ -191,6 +192,30 @@ describe('runBacktest', () => {
     expect(S().isLoading).toBe(false);
     reject(new Error('stale error'));
     await vi.waitFor(() => expect(S().isLoading).toBe(false));
+  });
+});
+describe('resultsStale 过期标记', () => {
+  it('参数变更标记过期，重新运行后清除', async () => {
+    mockFetchOnce(mockFetch, okPayload());
+    await S().runBacktest();
+    expect(S().resultsStale).toBe(false);
+    S().updateParameter('startingValue', 50000);
+    expect(S().resultsStale).toBe(true);
+    mockFetchOnce(mockFetch, okPayload());
+    await S().runBacktest();
+    expect(S().resultsStale).toBe(false);
+  });
+  it('组合变更标记过期', async () => {
+    mockFetchOnce(mockFetch, okPayload());
+    await S().runBacktest();
+    S().updatePortfolio('p1', { drag: 1 });
+    expect(S().resultsStale).toBe(true);
+  });
+  it('loadFromShare 重置过期标记', () => {
+    S().updateParameter('startingValue', 50000);
+    expect(S().resultsStale).toBe(true);
+    S().loadFromShare({ portfolios: [mockPortfolio()], parameters: mockBacktestParams() });
+    expect(S().resultsStale).toBe(false);
   });
 });
 describe('enrichSeries', () => {

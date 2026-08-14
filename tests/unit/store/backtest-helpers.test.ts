@@ -78,7 +78,6 @@ const validPortfolio = {
   rebalanceFrequency: 'quarterly' as const,
   rebalanceOffset: 0,
   drag: 0,
-  totalReturn: true,
 };
 
 describe('validatePortfolios', () => {
@@ -92,7 +91,6 @@ describe('validatePortfolios', () => {
         rebalanceFrequency: 'quarterly' as const,
         rebalanceOffset: 0,
         drag: 0,
-        totalReturn: true,
       },
     ];
     expect(validatePortfolios(portfolios)).toBe(
@@ -112,7 +110,6 @@ describe('validatePortfolios', () => {
         rebalanceFrequency: 'quarterly' as const,
         rebalanceOffset: 0,
         drag: 0,
-        totalReturn: true,
       },
     ];
     expect(validatePortfolios(portfolios)).toBe('Bad Weight weights sum to 80.00%, should be 100%');

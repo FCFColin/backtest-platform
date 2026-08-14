@@ -56,7 +56,6 @@ export const defaultParameters: BacktestParameters = {
   adjustForInflation: false,
   rollingWindowMonths: 12,
   benchmarkTicker: 'SPY',
-  extendedWithdrawalStats: false,
   cashflowLegs: [],
   oneTimeCashflows: [],
 };
@@ -73,7 +72,6 @@ export const createEmptyPortfolio = (counter: number): Portfolio => {
     rebalanceFrequency: 'quarterly',
     rebalanceOffset: 0,
     drag: 0,
-    totalReturn: true,
   };
 };
 export const toAssetsWithIds = (
@@ -94,7 +92,6 @@ export const createPortfolioFromPreset = (presetId: string, counter: number): Po
     rebalanceFrequency: preset.rebalanceFrequency ?? 'quarterly',
     rebalanceOffset: 0,
     drag: 0,
-    totalReturn: true,
   };
 };
 export function validatePortfolios(portfolios: Portfolio[]): string | null {
@@ -122,7 +119,6 @@ const PORTFOLIO_BODY_KEYS = [
   'rebalanceOffset',
   'rebalanceBands',
   'drag',
-  'totalReturn',
   'isGlidepath',
   'glidepathToWeights',
   'glidepathYears',

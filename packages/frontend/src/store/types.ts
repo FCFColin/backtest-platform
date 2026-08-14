@@ -10,6 +10,7 @@ export interface BacktestState {
   portfolios: Portfolio[];
   portfolioCounter: number;
   results: BacktestResult | null;
+  resultsStale: boolean;
   error: string | null;
   isLoading: boolean;
   activeTab: string;
@@ -31,7 +32,6 @@ export interface BacktestState {
         | 'rebalanceOffset'
         | 'rebalanceBands'
         | 'drag'
-        | 'totalReturn'
         | 'isGlidepath'
         | 'glidepathFrom'
         | 'glidepathTo'

@@ -66,6 +66,8 @@ export async function pollJobStatus(
 const setIfCurrent = (set: SetFn, requestId: number, patch: Partial<BacktestState>) => {
   if (requestId === currentRequestId) set(patch);
 };
+// 任何参数/组合变更都会使已有结果过期，集中标记避免各 mutation 遗漏
+const stale = <T>(patch: T): T & { resultsStale: true } => ({ ...patch, resultsStale: true });
 async function runBacktestAction(set: SetFn, get: GetFn): Promise<void> {
   const requestId = ++currentRequestId;
   const prevController = get()._abortController;
@@ -111,7 +113,7 @@ async function runBacktestAction(set: SetFn, get: GetFn): Promise<void> {
     processResponseWarnings(resultJson);
     if (requestId === currentRequestId) {
       startTransition(() => {
-        set({ results, error: null });
+        set({ results, error: null, resultsStale: false });
       });
     }
   } catch (error) {
@@ -184,6 +186,7 @@ function loadFromShareAction(
     })),
     parameters: { ...defaultParameters, ...data.parameters },
     results: null,
+    resultsStale: false,
     error: null,
     activeTab: 'summary' as const,
     portfolioCounter: maxId,
@@ -200,14 +203,16 @@ const patchParams = <T extends CashflowLeg | OneTimeCashflow>(
   key: 'cashflowLegs' | 'oneTimeCashflows',
   fn: (l: T[], state: BacktestState) => T[],
 ) =>
-  set((state) => ({
-    parameters: {
-      ...state.parameters,
-      [key]: fn((state.parameters[key] as T[] | undefined) ?? [], state),
-    },
-  }));
+  set((state) =>
+    stale({
+      parameters: {
+        ...state.parameters,
+        [key]: fn((state.parameters[key] as T[] | undefined) ?? [], state),
+      },
+    }),
+  );
 const patchAssets = (set: SetFn, id: string, fn: (p: Portfolio) => Portfolio) =>
-  set((state) => ({ portfolios: mapPortfolio(state, id, fn) }));
+  set((state) => stale({ portfolios: mapPortfolio(state, id, fn) }));
 function crudActions<T extends CashflowLeg | OneTimeCashflow>(
   set: SetFn,
   key: 'cashflowLegs' | 'oneTimeCashflows',
@@ -231,7 +236,6 @@ export const useBacktestStore = create<BacktestState>()((set, get) => {
         amount: 0,
         type: 'contribution',
         frequency: 'yearly',
-        offset: 0,
       }) as CashflowLeg,
   );
   const otc = crudActions(
@@ -249,6 +253,7 @@ export const useBacktestStore = create<BacktestState>()((set, get) => {
     portfolios: [] as Portfolio[],
     portfolioCounter: 0,
     results: null as BacktestResult | null,
+    resultsStale: false,
     error: null as string | null,
     isLoading: false,
     activeTab: 'summary',
@@ -257,16 +262,18 @@ export const useBacktestStore = create<BacktestState>()((set, get) => {
     parameters: defaultParameters as BacktestParameters,
     addPortfolio: (presetId?: string) => {
       const next = get().portfolioCounter + 1;
-      set((state) => ({
-        portfolioCounter: next,
-        portfolios: [
-          ...state.portfolios,
-          presetId ? createPortfolioFromPreset(presetId, next) : createEmptyPortfolio(next),
-        ],
-      }));
+      set((state) =>
+        stale({
+          portfolioCounter: next,
+          portfolios: [
+            ...state.portfolios,
+            presetId ? createPortfolioFromPreset(presetId, next) : createEmptyPortfolio(next),
+          ],
+        }),
+      );
     },
     removePortfolio: (id: string) =>
-      set((state) => ({ portfolios: state.portfolios.filter((p) => p.id !== id) })),
+      set((state) => stale({ portfolios: state.portfolios.filter((p) => p.id !== id) })),
     duplicatePortfolio: (id: string) => {
       const next = get().portfolioCounter + 1;
       set((state) => {
@@ -278,7 +285,7 @@ export const useBacktestStore = create<BacktestState>()((set, get) => {
           name: `${source.name} (${i18n.t('Copy')})`,
           assets: source.assets.map((a) => ({ ...a })),
         };
-        return { portfolioCounter: next, portfolios: [...state.portfolios, copy] };
+        return stale({ portfolioCounter: next, portfolios: [...state.portfolios, copy] });
       });
     },
     updatePortfolio: (id, updates) => patchAssets(set, id, (p) => ({ ...p, ...updates })),
@@ -299,14 +306,13 @@ export const useBacktestStore = create<BacktestState>()((set, get) => {
           rebalanceFrequency: from.rebalanceFrequency,
           rebalanceOffset: from.rebalanceOffset,
           drag: from.drag ?? 0,
-          totalReturn: from.totalReturn ?? true,
           isGlidepath: true,
           glidepathFrom: fromId,
           glidepathTo: toId,
           glidepathYears: years,
           glidepathToWeights: toWeights,
         };
-        return { portfolioCounter: next, portfolios: [...state.portfolios, gp] };
+        return stale({ portfolioCounter: next, portfolios: [...state.portfolios, gp] });
       });
     },
     addCashflowLeg: cf.add,
@@ -316,7 +322,7 @@ export const useBacktestStore = create<BacktestState>()((set, get) => {
     removeOneTimeCashflow: otc.remove,
     updateOneTimeCashflow: otc.update,
     updateParameter: <K extends keyof BacktestParameters>(key: K, value: BacktestParameters[K]) =>
-      set((state) => ({ parameters: { ...state.parameters, [key]: value } })),
+      set((state) => stale({ parameters: { ...state.parameters, [key]: value } })),
     runBacktest: () => runBacktestAction(set, get),
     enrichSeries: (series: BacktestSeriesField[]) => enrichSeriesAction(set, get, series),
     setActiveTab: (tab: string) => set({ activeTab: tab }),
