@@ -8,6 +8,8 @@ import {
   tacticalBacktestSchema,
   tacticalWhatIfSchema,
   tacticalGridSearchSchema,
+  createAnnouncementSchema,
+  errorReportSchema,
 } from './tactical.js';
 import {
   portfolioBodySchema,
@@ -23,7 +25,6 @@ import {
   anyJsonSchema,
 } from './backtest.js';
 import {
-  searchQuerySchema,
   tickerListQuerySchema,
   tickerSearchQuerySchema,
   signalAnalyzeSchema,
@@ -328,12 +329,7 @@ function registerAllPaths(): void {
     '当前有效的公告列表',
   );
   sec('post', '/announcements', 'announcements', '发布公告（仅管理员）', VALIDATION_ERR, {
-    body: z.object({
-      title: z.string().min(1).max(255),
-      body: z.string().min(1),
-      category: z.enum(['display', 'maintenance', 'other']).optional(),
-      severity: z.enum(['debug', 'info', 'warning', 'error']).optional(),
-    }),
+    body: createAnnouncementSchema,
   });
   pubReg(
     'post',
@@ -342,16 +338,13 @@ function registerAllPaths(): void {
     '前端错误上报端点',
     [400, 422, 429, 500],
     undefined,
-    z.object({
-      type: z.enum(['javascript', 'command']).optional(),
-      message: z.string().min(1).max(2048),
-      stack: z.string().optional(),
-      url: z.string().url().optional(),
-      userId: z.string().optional(),
-    }),
+    errorReportSchema,
   );
   sec('get', '/backtest/search', 'backtest', '搜索可回测标的', [400, 401, 422], {
-    query: searchQuerySchema,
+    query: z.object({
+      query: z.string().min(1).max(100),
+      limit: z.coerce.number().int().min(1).max(200).optional(),
+    }),
   });
   sec('post', '/backtest/portfolio', 'backtest', '组合回测', BACKTEST_ERR, {
     body: portfolioBacktestSchema,

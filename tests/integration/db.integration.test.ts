@@ -6,7 +6,11 @@ import {
   type TestContainerContext,
 } from '../helpers/testcontainersPg.js';
 
-import { initSchema, rollbackSchema } from '../../packages/backend/src/db/migrations.js';
+import {
+  initSchema,
+  rollbackSchema,
+  migrations,
+} from '../../packages/backend/src/db/migrations.js';
 import { getPool, closeDb } from '../../packages/backend/src/db/pool.js';
 import { config } from '../../packages/backend/src/config/index.js';
 
@@ -47,7 +51,7 @@ describe.skipIf(!dockerAvailable)('PostgreSQL 集成测试（testcontainers）',
     const pool = getPool();
     const { rows } = await pool.query('SELECT version FROM schema_migrations ORDER BY version');
     const versions = rows.map((r: { version: number }) => r.version);
-    expect(versions).toEqual([1, 2, 3, 4, 5, 6]);
+    expect(versions).toEqual(migrations.map((m) => m.version));
     await expect(getPool().query('SELECT 1')).resolves.toBeDefined();
   });
 

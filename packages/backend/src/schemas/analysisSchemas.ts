@@ -13,28 +13,6 @@ const paginationQuerySchema = {
   limit: z.coerce.number().int().min(1).max(200).default(50),
 };
 
-export const historyQuerySchema = z
-  .object({
-    tickers: z.string().min(1),
-    startDate: z.string().date(),
-    endDate: z.string().date(),
-  })
-  .refine((q) => q.startDate <= q.endDate, {
-    message: 'startDate must be before or equal to endDate',
-    path: ['endDate'],
-  });
-
-export const searchQuerySchema = z.object({
-  query: z.string().min(1).max(100),
-  market: z.string().max(50).optional(),
-});
-
-export const cpiQuerySchema = z.object({
-  country: z.enum(['us', 'cn', 'US', 'CN']).optional(),
-  startDate: z.string().date().optional(),
-  endDate: z.string().date().optional(),
-});
-
 export const tickerListQuerySchema = z.object(paginationQuerySchema);
 
 export const tickerSearchQuerySchema = z.object({
@@ -71,7 +49,6 @@ export const goalOptimizerSchema = z.object({
   constraints: z
     .object({
       maxDrawdown: z.number().optional(),
-      minSuccessRate: z.number().optional(),
       maxVolatility: z.number().optional(),
     })
     .optional(),

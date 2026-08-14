@@ -50,61 +50,6 @@ describe('registerSchema', () => {
   });
 });
 
-import { describe, it, expect } from 'vitest';
-import {
-  historyQuerySchema,
-  searchQuerySchema,
-  cpiQuerySchema,
-} from '../../../packages/backend/src/schemas/analysisSchemas.js';
-
-describe('historyQuerySchema', () => {
-  it.each([
-    [
-      '应接受合法查询',
-      { tickers: 'VTI,BND', startDate: '2020-01-01', endDate: '2024-12-31' },
-      true,
-    ],
-    [
-      'startDate > endDate 应拒绝',
-      { tickers: 'VTI', startDate: '2024-12-31', endDate: '2020-01-01' },
-      false,
-    ],
-    ['空 tickers 应拒绝', { tickers: '', startDate: '2020-01-01', endDate: '2024-12-31' }, false],
-    [
-      '非法日期格式应拒绝',
-      { tickers: 'VTI', startDate: '01/01/2020', endDate: '2024-12-31' },
-      false,
-    ],
-  ])('%s', (label, data, shouldPass) => {
-    expect(historyQuerySchema.safeParse(data).success).toBe(shouldPass);
-  });
-});
-
-describe('searchQuerySchema', () => {
-  it.each([
-    ['应接受合法搜索词', { query: 'VTI' }, true],
-    ['空 query 应拒绝', { query: '' }, false],
-    ['超过 100 字符应拒绝', { query: 'a'.repeat(101) }, false],
-    ['可选 market 字段', { query: 'VTI', market: 'US' }, true],
-  ])('%s', (label, data, shouldPass) => {
-    expect(searchQuerySchema.safeParse(data).success).toBe(shouldPass);
-  });
-});
-
-describe('cpiQuerySchema', () => {
-  it('所有字段可选', () => {
-    const r = cpiQuerySchema.safeParse({});
-    expect(r.success).toBe(true);
-  });
-
-  it('country 仅接受 us/cn/US/CN', () => {
-    expect(cpiQuerySchema.safeParse({ country: 'us' }).success).toBe(true);
-    expect(cpiQuerySchema.safeParse({ country: 'cn' }).success).toBe(true);
-    expect(cpiQuerySchema.safeParse({ country: 'jp' }).success).toBe(false);
-  });
-});
-
-import { describe, it, expect } from 'vitest';
 import {
   portfolioBodySchema,
   savedConfigBodySchema,

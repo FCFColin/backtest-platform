@@ -17,7 +17,7 @@ function readMigrationFile(filename: string): string {
   return fs.readFileSync(path.join(MIGRATIONS_DIR, filename), 'utf-8');
 }
 
-const migrations: Array<{ version: number; upFile: string; downFile: string }> = [
+export const migrations: Array<{ version: number; upFile: string; downFile: string }> = [
   { version: 1, upFile: '001_initial_schema.sql', downFile: '001_initial_schema_down.sql' },
   {
     version: 2,
