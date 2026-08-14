@@ -8,6 +8,8 @@ import { logger } from '../utils/logger.js';
 import { recordBacktestRequest, recordDegradedResponse } from '../utils/metrics.js';
 import type { AuthenticatedRequest } from '../middleware/jwtAuth.js';
 import { hasTenant } from '../middleware/tenantContext.js';
+import { jobAccessGranted } from '../middleware/jobAccess.js';
+import { backtestQueue } from '../queues/backtestQueue.js';
 import { validate } from '../middleware/miscMiddleware.js';
 import type { Warning } from '../application/backtest-helpers.js';
 
@@ -58,6 +60,26 @@ export function requireUuidParam(res: Response, id: string | undefined): boolean
     return false;
   }
   return true;
+}
+
+export type Job = NonNullable<Awaited<ReturnType<typeof backtestQueue.getJob>>>;
+
+// 查找 + IDOR 鉴权 + 404/400 响应一次性收敛（ADR-007），backtest/jobs 两条状态路由共用
+export async function resolveAuthorizedJob(
+  req: AuthenticatedRequest,
+  res: Response,
+  jobId: string,
+): Promise<Job | null> {
+  if (!jobId) {
+    sendProblem(res, 400, 'INVALID_ID');
+    return null;
+  }
+  const job = await backtestQueue.getJob(jobId);
+  if (!job || !jobAccessGranted(job, req.user, req.tenantId)) {
+    sendProblem(res, 404, 'JOB_NOT_FOUND');
+    return null;
+  }
+  return job;
 }
 
 interface RouteErrorConfig {

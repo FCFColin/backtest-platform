@@ -11,11 +11,15 @@ import {
 import { searchTickers } from '../infrastructure/dataFacade.js';
 import { SYNTHETIC_TICKERS } from '../infrastructure/dataServices.js';
 import { sendProblem } from '../utils/errors.js';
-import { asyncRouteHandler, crudRouteHandler, computeRoute } from './routeUtils.js';
+import {
+  asyncRouteHandler,
+  crudRouteHandler,
+  computeRoute,
+  resolveAuthorizedJob,
+} from './routeUtils.js';
 import { submitQueueJob } from './jobSubmission.js';
-import { jobAccessGranted } from '../middleware/jobAccess.js';
 import type { AuthenticatedRequest } from '../middleware/jwtAuth.js';
-import { backtestQueue, type BacktestJobResult } from '../queues/backtestQueue.js';
+import type { BacktestJobResult } from '../queues/backtestQueue.js';
 import { validate } from '../middleware/miscMiddleware.js';
 import {
   portfolioBacktestSchema,
@@ -78,23 +82,11 @@ router.get(
   '/runs/:jobId',
   crudRouteHandler(
     async (req, res): Promise<void> => {
-      const jobId = req.params.jobId;
-      if (!jobId) {
-        sendProblem(res, 400, 'INVALID_ID');
-        return;
-      }
-      const job = await backtestQueue.getJob(jobId);
-      if (!job) {
-        sendProblem(res, 404, 'JOB_NOT_FOUND');
-        return;
-      }
-      if (!jobAccessGranted(job, req.user, req.tenantId)) {
-        sendProblem(res, 404, 'JOB_NOT_FOUND');
-        return;
-      }
+      const job = await resolveAuthorizedJob(req, res, req.params.jobId!);
+      if (!job) return;
       const status = mapJobState(await job.getState());
       const progress = typeof job.progress === 'number' ? job.progress : 0;
-      const data: Record<string, unknown> = { jobId, status, progress };
+      const data: Record<string, unknown> = { jobId: job.id, status, progress };
       if (status === 'completed' && job.returnvalue) {
         const returnValue = job.returnvalue as BacktestJobResult;
         if (returnValue.status === 'completed' && returnValue.result)

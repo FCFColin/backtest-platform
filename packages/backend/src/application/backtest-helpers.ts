@@ -93,19 +93,6 @@ export function collectInvalidTickerWarnings(
   return invalidTickers;
 }
 
-/** 数据服务降级时追加 DATA_DEGRADED warning（消除 5 处重复的降级告警样板）。 */
-export function pushDegradedWarning(
-  warnings: Warning[],
-  degraded: boolean,
-  degradedWarning?: string,
-): void {
-  if (degraded)
-    warnings.push({
-      code: 'DATA_DEGRADED',
-      message: degradedWarning || '数据服务降级，部分数据可能缺失',
-    });
-}
-
 export function clampParametersToDataRange<
   T extends Pick<BacktestParameters, 'startDate' | 'endDate'>,
 >(parameters: T, effectiveStartDate: string, effectiveEndDate: string): T {
@@ -172,40 +159,6 @@ export function calculateDateRange(
   return range;
 }
 
-export async function fetchPriceDataWithRange(
-  tickers: string[],
-  startDate: string,
-  endDate: string,
-): Promise<{
-  priceData: Record<string, Record<string, number>>;
-  effectiveStartDate: string;
-  effectiveEndDate: string;
-  degraded: boolean;
-  degradedWarning?: string;
-}> {
-  const result = await withTimeout(
-    fetchHistoryData(tickers, startDate, endDate),
-    60_000,
-    'fetch-history-data',
-  );
-  let effectiveStart = startDate;
-  let effectiveEnd = endDate;
-  if (Object.keys(result.data).length > 0) {
-    const range = inferDateRangeFromData(result.data);
-    if (range) {
-      effectiveStart = range.min;
-      effectiveEnd = range.max;
-    }
-  }
-  return {
-    priceData: result.data,
-    effectiveStartDate: effectiveStart,
-    effectiveEndDate: effectiveEnd,
-    degraded: result.degraded,
-    degradedWarning: result.degradedWarning,
-  };
-}
-
 export async function preparePriceDataAndWarnings(
   tickers: string[],
   startDate: string,
@@ -219,12 +172,35 @@ export async function preparePriceDataAndWarnings(
   allTickers: Set<string>;
 }> {
   const warnings: Warning[] = [];
-  const { priceData, effectiveStartDate, effectiveEndDate, degraded, degradedWarning } =
-    await fetchPriceDataWithRange(tickers, startDate, endDate);
+  const result = await withTimeout(
+    fetchHistoryData(tickers, startDate, endDate),
+    60_000,
+    'fetch-history-data',
+  );
+  let effectiveStartDate = startDate;
+  let effectiveEndDate = endDate;
+  if (Object.keys(result.data).length > 0) {
+    const range = inferDateRangeFromData(result.data);
+    if (range) {
+      effectiveStartDate = range.min;
+      effectiveEndDate = range.max;
+    }
+  }
   const allTickers = new Set(tickers);
-  const invalidTickers = collectInvalidTickerWarnings(allTickers, priceData, warnings);
-  pushDegradedWarning(warnings, degraded, degradedWarning);
-  return { priceData, warnings, invalidTickers, effectiveStartDate, effectiveEndDate, allTickers };
+  const invalidTickers = collectInvalidTickerWarnings(allTickers, result.data, warnings);
+  if (result.degraded)
+    warnings.push({
+      code: 'DATA_DEGRADED',
+      message: result.degradedWarning || '数据服务降级，部分数据可能缺失',
+    });
+  return {
+    priceData: result.data,
+    warnings,
+    invalidTickers,
+    effectiveStartDate,
+    effectiveEndDate,
+    allTickers,
+  };
 }
 
 export interface MacroData {

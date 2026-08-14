@@ -1,5 +1,4 @@
 import { Router, type Request, type Response, type NextFunction } from 'express';
-import { backtestQueue } from '../queues/backtestQueue.js';
 import { jwtAuth } from '../middleware/jwtAuth.js';
 import { resolveTenant } from '../middleware/tenantContext.js';
 import { computeMiddleware } from '../middleware/middlewareChains.js';
@@ -15,17 +14,13 @@ import {
   MAX_GRID_COMBINATIONS,
   type TacticalGridRequest,
 } from '../application/grid-application-service.js';
-import { crudRouteHandler } from './routeUtils.js';
+import { crudRouteHandler, resolveAuthorizedJob, type Job } from './routeUtils.js';
 import { submitQueueJob } from './jobSubmission.js';
-import { jobAccessGranted } from '../middleware/jobAccess.js';
 
 const router = Router();
 export const jobRoutes = router;
 
-function buildJobResult(
-  job: NonNullable<Awaited<ReturnType<typeof backtestQueue.getJob>>>,
-  state: string,
-): Record<string, unknown> {
+function buildJobResult(job: Job, state: string): Record<string, unknown> {
   const result: Record<string, unknown> = {
     id: job.id,
     type: job.data.type,
@@ -61,20 +56,8 @@ router.get(
         return;
       }
 
-      const job = await backtestQueue.getJob(req.params.id);
-      if (!job) {
-        sendProblem(res, 404, 'JOB_NOT_FOUND');
-        return;
-      }
-
-      if (!jobAccessGranted(job, requester, req.tenantId)) {
-        logger.warn(
-          { middleware: 'jobRoutes', jobId: req.params.id, requester: requester.sub },
-          '[jobRoutes] 拒绝越权访问任务结果',
-        );
-        sendProblem(res, 404, 'JOB_NOT_FOUND');
-        return;
-      }
+      const job = await resolveAuthorizedJob(req, res, req.params.id!);
+      if (!job) return;
 
       const state = await job.getState();
       res.json({ success: true, data: buildJobResult(job, state) });

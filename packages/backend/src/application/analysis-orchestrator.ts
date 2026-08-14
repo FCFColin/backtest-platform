@@ -18,41 +18,29 @@ import { buildEngineParams } from './backtest/backtestEngineUtils.js';
 import { ValidationError } from '../utils/errors.js';
 import { toDateStr, todayStr } from '../utils/misc.js';
 import { ensurePriceDataExists, normalizeTickers } from './backtest/backtestEngineUtils.js';
-import {
-  fetchPriceDataWithRange,
-  calculateDateRange,
-  pushDegradedWarning,
-} from './backtest-helpers.js';
+import { calculateDateRange, preparePriceDataAndWarnings } from './backtest-helpers.js';
 import type { Warning, DateRangeInfo, DegradedResult } from './backtest-helpers.js';
 
 export async function runAnalysis(
   tickers: string[],
   parameters: BacktestParameters,
 ): Promise<{ data: Record<string, unknown>; warnings: Warning[]; dateRange: DateRangeInfo }> {
-  const { priceData, degraded, degradedWarning } = await fetchPriceDataWithRange(
+  const { priceData, warnings, invalidTickers } = await preparePriceDataAndWarnings(
     tickers,
     parameters.startDate,
     parameters.endDate,
   );
-  const warnings: Warning[] = [];
-
-  pushDegradedWarning(warnings, degraded, degradedWarning);
-
-  const validTickers = tickers.filter((t) => priceData[t] && Object.keys(priceData[t]).length > 0);
-  if (validTickers.length === 0) {
+  if (Object.keys(priceData).length === 0) {
     throw new ValidationError(`Price data unavailable for all tickers: ${tickers.join(', ')}`);
   }
-  const missing = tickers.filter((t) => !validTickers.includes(t));
-  const hasMissing = missing.length > 0;
-  if (hasMissing) {
-    logger.warn(`[analysis] 部分标的价格数据缺失，已忽略: ${missing.join(', ')}`);
-    warnings.push({ code: 'TICKER_NOT_FOUND', tickers: missing });
+  if (invalidTickers.length > 0) {
+    logger.warn(`[analysis] 部分标的价格数据缺失，已忽略: ${invalidTickers.join(', ')}`);
   }
 
   const result = await callEngineStrict<Record<string, unknown>>(
     '/api/engine/analysis',
     {
-      tickers: validTickers,
+      tickers: tickers.filter((t) => priceData[t] && Object.keys(priceData[t]).length > 0),
       priceData,
       params: buildEngineParams(parameters),
     },
@@ -63,7 +51,7 @@ export async function runAnalysis(
     parameters.startDate,
     parameters.endDate,
     priceData,
-    hasMissing ? missing : undefined,
+    invalidTickers.length ? invalidTickers : undefined,
   );
 
   const engineData = result as { assets?: unknown[]; correlations?: unknown[][] };
