@@ -1,24 +1,8 @@
 import type { Router } from 'express';
 import { startExpressApp, type TestServer, type TestRequest } from './expressApp.js';
 import { mockBacktestResult } from './storeFixtures.js';
-import { ValidationError } from '../../packages/backend/src/utils/errors.js';
-import {
-  setBacktestResultCache,
-  backtestCacheKey,
-  compressBacktestResultForSync,
-} from '../../packages/backend/src/application/backtest/backtestResultUtils.js';
 
 type MockFn = ReturnType<(typeof import('vitest'))['fn']>;
-
-export class EngineUnavailableErrorStub extends Error {
-  readonly retryAfterSeconds: number;
-  readonly code = 'ENGINE_UNAVAILABLE';
-  constructor(endpoint = 'engine', retryAfterSeconds = 30) {
-    super(`计算引擎暂不可用（${endpoint}），请稍后重试`);
-    this.name = 'EngineUnavailableError';
-    this.retryAfterSeconds = retryAfterSeconds;
-  }
-}
 
 export interface BacktestMockHandles {
   runBacktest: MockFn;
@@ -39,55 +23,6 @@ export interface BacktestMockHandles {
   loadMacroData: MockFn;
   validateTickers: MockFn;
   portfolioToDomain: MockFn;
-}
-
-export function configurePortfolioBacktestMocks(m: BacktestMockHandles): void {
-  m.preparePortfolioBacktest.mockImplementation(
-    (portfolios: { assets: { ticker: string }[] }[], parameters: { benchmarkTicker?: string }) => {
-      const allTickers = new Set<string>();
-      for (const p of portfolios) for (const a of p.assets) allTickers.add(a.ticker);
-      if (parameters?.benchmarkTicker) allTickers.add(parameters.benchmarkTicker);
-      return { allTickers, warnings: [] as string[] };
-    },
-  );
-
-  m.runPortfolioBacktest.mockImplementation(
-    async (opts: {
-      portfolios: { assets: { ticker: string }[] }[];
-      parameters: { startDate: string; endDate: string; benchmarkTicker?: string };
-      tenantId?: string;
-      ownerUserId?: string;
-    }) => {
-      const { portfolios, parameters, tenantId, ownerUserId } = opts;
-      const { allTickers, warnings } = m.preparePortfolioBacktest(portfolios, parameters);
-      const priceData = (await m.fetchHistoryData(
-        Array.from(allTickers),
-        parameters.startDate,
-        parameters.endDate,
-      )) as Record<string, Record<string, number>>;
-      const invalidTickers: string[] = [];
-      for (const ticker of allTickers) {
-        if (!priceData[ticker] || Object.keys(priceData[ticker]).length === 0)
-          invalidTickers.push(ticker);
-      }
-      if (invalidTickers.length > 0)
-        throw new ValidationError(
-          `以下标的代码无效：${invalidTickers.join(', ')}`,
-          'INVALID_TICKERS',
-        );
-      const { result } = await m.runBacktest({
-        portfolios,
-        parameters,
-        priceData,
-        tenantId,
-        ownerUserId,
-      });
-      void setBacktestResultCache(backtestCacheKey(portfolios, parameters, tenantId), result);
-      return { result: compressBacktestResultForSync(result), warnings };
-    },
-  );
-
-  m.collectInvalidTickerWarnings.mockImplementation(() => []);
 }
 
 export function configureAnalysisMocks(m: BacktestMockHandles): void {

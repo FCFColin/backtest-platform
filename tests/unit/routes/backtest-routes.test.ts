@@ -10,8 +10,8 @@ import {
   createBacktestApp,
   setupPortfolioServer,
   startEngineRouteServer,
-  EngineUnavailableErrorStub,
 } from '../../helpers/backtestRoutesFixtures.js';
+import { EngineUnavailableErrorStub } from '../../helpers/engineFixture.js';
 import {
   setBacktestResultCache,
   backtestCacheKey,

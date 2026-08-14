@@ -4,11 +4,10 @@ import {
   configureAnalysisMocks,
   configureMonteCarloMocks,
   configureOptimizationMocks,
-  configurePortfolioBacktestMocks,
   configureTickerHelpersMocks,
-  EngineUnavailableErrorStub,
   type BacktestMockHandles,
 } from '../../helpers/backtestRoutesFixtures.js';
+import { EngineUnavailableErrorStub } from '../../helpers/engineFixture.js';
 
 const internalMocks = vi.hoisted(() => ({
   m: {
@@ -106,7 +105,6 @@ vi.mock('fs', () => ({
   readFileSync: internalMocks.fs.readFileSync,
 }));
 
-configurePortfolioBacktestMocks(internalMocks.m);
 configureAnalysisMocks(internalMocks.m);
 configureMonteCarloMocks(internalMocks.m);
 configureOptimizationMocks(internalMocks.m);
