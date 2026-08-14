@@ -129,11 +129,58 @@ function renderRoutes(routes: RouteDef[], protect = false): ReactNode[] {
   ));
 }
 
+const ROUTE_TITLES: Record<string, string> = {
+  '/': 'nav.portfolioBacktest',
+  '/analysis': 'nav.assetAnalysis',
+  '/monte-carlo': 'nav.monteCarlo',
+  '/optimizer': 'nav.portfolioOptimize',
+  '/efficient-frontier': 'nav.efficientFrontier',
+  '/data-engine': 'nav.dataEngine',
+  '/rebalancing-sensitivity': 'nav.rebalancingSensitivity',
+  '/lumpsum-vs-dca': 'nav.lumpsumVsDca',
+  '/factor-regression': 'nav.factorRegression',
+  '/calculators': 'nav.calculators',
+  '/tactical': 'nav.tacticalAllocation',
+  '/tactical-grid': 'nav.tacticalGrid',
+  '/backtest-optimizer': 'nav.backtestOptimizer',
+  '/pca': 'nav.pca',
+  '/signal-analyzer': 'nav.signalAnalyzer',
+  '/dual-signal': 'nav.dualSignal',
+  '/multi-signal': 'nav.multiSignal',
+  '/letf-slippage': 'nav.letfAnalysis',
+  '/goal-optimizer': 'nav.goalOptimizer',
+  '/about': 'nav.about',
+  '/limits': 'nav.about',
+  '/upgrade': 'nav.about',
+  '/pricing': 'nav.pricing',
+  '/contact': 'Contact',
+  '/help': 'Help',
+  '/changelog': 'Changelog',
+  '/login': 'Login',
+  '/signup': 'Sign Up',
+  '/verify-email': 'Verify Email',
+  '/accept-invite': 'Accept Invite',
+  '/legal/terms': 'Terms of Service',
+  '/legal/privacy': 'Privacy Policy',
+  '/legal/disclaimer': 'Disclaimer',
+  '/account': 'Account',
+  '/org/members': 'Organization Members',
+  '/billing': 'Billing',
+  '/admin': 'Admin Dashboard',
+  '/admin/monitor': 'System Monitor',
+  '/admin/data': 'Data Management',
+  '/admin/settings': 'System Settings',
+  '/*': 'Page Not Found',
+};
+
 function RouteChangeTracker(): null {
+  const { t } = useTranslation();
   const location = useLocation();
   useEffect(() => {
     onNavEnd(location.pathname);
-  }, [location]);
+    const key = ROUTE_TITLES[location.pathname];
+    document.title = key ? `${t(key)} · Backtest Platform` : 'Backtest Platform';
+  }, [location, t]);
   return null;
 }
 
