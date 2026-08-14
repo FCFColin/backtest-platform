@@ -1,6 +1,7 @@
 import { useState, type ComponentType, type ReactNode } from 'react';
 import { Outlet, NavLink, useLocation } from 'react-router';
 import { useTranslation } from 'react-i18next';
+import { useMediaQuery } from '../../hooks/miscHooks.js';
 import {
   LayoutDashboard,
   Activity,
@@ -212,8 +213,12 @@ function AdminSidebar({
   setMobileOpen: (v: boolean) => void;
   t: (key: string) => string;
 }) {
+  const isDesktop = useMediaQuery('(min-width: 1024px)');
+  const offscreen = !mobileOpen && !isDesktop;
   return (
     <aside
+      aria-hidden={offscreen}
+      inert={offscreen ? true : undefined}
       className={cn(
         'fixed inset-y-0 left-0 z-50 flex flex-col border-r border-border bg-surface text-fg-secondary transition-all duration-300 ease-in-out',
         'lg:relative lg:z-auto',

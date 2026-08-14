@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router';
-import { BarChart3, ChevronDown } from 'lucide-react';
-import { Menu } from 'lucide-react';
+import { BarChart3, ChevronDown, Menu } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import {
   Button,
@@ -20,6 +19,7 @@ import {
   SheetTitle,
   NavbarActions,
   PlanBadge,
+  ThemeCurrencyButtons,
 } from './navbarParts.js';
 import { planTier } from '@/utils/orgPlan';
 
@@ -162,7 +162,7 @@ function NavbarMobileMenu({
   return (
     <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
       <SheetTrigger asChild>
-        <Button variant="icon" size="icon" className="md:hidden" aria-label={t('Menu')}>
+        <Button variant="icon" size="icon" className="lg:hidden" aria-label={t('Menu')}>
           <Menu />
         </Button>
       </SheetTrigger>
@@ -176,25 +176,41 @@ function NavbarMobileMenu({
           className="mt-6 flex-col items-stretch gap-1"
         />
         <div className="mt-4 flex flex-col gap-1">
-          {DIRECT_LINKS.map((link) => (
-            <Link
-              key={link.to}
-              to={link.to}
-              className={cn(navLinkClass, isActive(link.to) && 'text-brand')}
-              aria-current={isActive(link.to) ? 'page' : undefined}
-              data-testid="nav-direct"
-            >
-              {t(`nav.${link.key}`)}
-            </Link>
-          ))}
+          <DirectLinks isActive={isActive} t={t} />
+        </div>
+        <div className="mt-4 flex items-center gap-2 border-t border-border-subtle pt-4">
+          <ThemeCurrencyButtons />
         </div>
       </SheetContent>
     </Sheet>
   );
 }
 
-export { PromoBar } from './navbarParts.js';
-export { PlanBadge } from './navbarParts.js';
+function DirectLinks({
+  isActive,
+  t,
+}: {
+  isActive: (to: string) => boolean;
+  t: (key: string) => string;
+}) {
+  return (
+    <>
+      {DIRECT_LINKS.map((link) => (
+        <Link
+          key={link.to}
+          to={link.to}
+          className={cn(navLinkClass, isActive(link.to) && 'text-brand')}
+          aria-current={isActive(link.to) ? 'page' : undefined}
+          data-testid="nav-direct"
+        >
+          {t(`nav.${link.key}`)}
+        </Link>
+      ))}
+    </>
+  );
+}
+
+export { PlanBadge, PromoBar } from './navbarParts.js';
 
 export default function Navbar() {
   const location = useLocation();
@@ -231,26 +247,16 @@ export default function Navbar() {
           <PlanBadge tier={planTier(org?.plan)} />
         </div>
         <div className="flex-1" />
-        <div className="hidden md:flex items-center gap-1">
+        <div className="hidden lg:flex items-center gap-1">
           <NavGroupsContainer
             openGroup={openGroup}
             isActive={isActive}
             onToggle={setOpenGroup}
             t={t}
           />
-          {DIRECT_LINKS.map((link) => (
-            <Link
-              key={link.to}
-              to={link.to}
-              className={cn(navLinkClass, isActive(link.to) && 'text-brand')}
-              aria-current={isActive(link.to) ? 'page' : undefined}
-              data-testid="nav-direct"
-            >
-              {t(`nav.${link.key}`)}
-            </Link>
-          ))}
+          <DirectLinks isActive={isActive} t={t} />
         </div>
-        <div className="hidden md:block w-px h-6 bg-border" />
+        <div className="hidden lg:block w-px h-6 bg-border" />
         <NavbarActions />
       </div>
     </nav>

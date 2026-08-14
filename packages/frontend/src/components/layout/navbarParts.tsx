@@ -71,7 +71,7 @@ const SheetTitle = ({ className, children }: { className?: string; children: Rea
     {children}
   </SheetPrimitive.Title>
 );
-export { Sheet, SheetTrigger, SheetContent, SheetTitle };
+export { Sheet, SheetTrigger, SheetContent, SheetTitle, ThemeCurrencyButtons };
 
 function NotificationBell() {
   const { t } = useTranslation();
@@ -143,51 +143,48 @@ function NotificationBell() {
   );
 }
 
-export function NavbarActions() {
+function ThemeCurrencyButtons() {
   const { t } = useTranslation();
   const { theme, toggleTheme } = useTheme();
   const currency = useSettingsStore((s) => s.currency);
+  const toggleCurrency = () =>
+    useSettingsStore.getState().setCurrency(currency === 'usd' ? 'cny' : 'usd');
+  return (
+    <>
+      <Button
+        variant="icon"
+        size="icon"
+        onClick={toggleTheme}
+        title={t('Switch theme')}
+        aria-label={t('Switch theme')}
+        data-testid="theme-toggle"
+      >
+        {theme === 'dark' ? <Sun /> : theme === 'system' ? <Monitor /> : <MoonStar />}
+      </Button>
+      <Button
+        variant="secondary"
+        size="sm"
+        onClick={toggleCurrency}
+        title={t('Switch currency')}
+        aria-label={`${t('Switch currency')} (${currency === 'usd' ? 'USD' : 'CNY'})`}
+        data-testid="currency-selector"
+      >
+        {currency === 'usd' ? 'USD' : 'CNY'}
+      </Button>
+    </>
+  );
+}
+
+export function NavbarActions() {
+  const { t } = useTranslation();
   const user = useAuthStore((s) => s.user);
   const org = useAuthStore((s) => s.org);
   const logout = useAuthStore((s) => s.logout);
   const navigate = useNavigate();
-  const toggleCurrency = () =>
-    useSettingsStore.getState().setCurrency(currency === 'usd' ? 'cny' : 'usd');
   return (
     <div className="flex items-center gap-1">
-      <div className="hidden md:flex items-center gap-1">
-        <Button
-          variant="icon"
-          size="icon"
-          onClick={toggleTheme}
-          title={
-            theme === 'system'
-              ? t('Switch to light theme')
-              : theme === 'dark'
-                ? t('Switch to system theme')
-                : t('Switch to dark theme')
-          }
-          aria-label={
-            theme === 'system'
-              ? t('Switch to light theme')
-              : theme === 'dark'
-                ? t('Switch to system theme')
-                : t('Switch to dark theme')
-          }
-          data-testid="theme-toggle"
-        >
-          {theme === 'dark' ? <Sun /> : theme === 'system' ? <Monitor /> : <MoonStar />}
-        </Button>
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={toggleCurrency}
-          title={t('Switch currency')}
-          aria-label={`${t('Switch currency')} (${currency === 'usd' ? 'USD' : 'CNY'})`}
-          data-testid="currency-selector"
-        >
-          {currency === 'usd' ? 'USD' : 'CNY'}
-        </Button>
+      <div className="hidden lg:flex items-center gap-1">
+        <ThemeCurrencyButtons />
         <div className="w-px h-6 bg-border mx-1" />
         <NotificationBell />
         <div className="w-px h-6 bg-border mx-1" />
