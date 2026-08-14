@@ -1,5 +1,5 @@
 import { TRADING_DAYS_PER_YEAR } from '@backtest/shared/constants';
-import { pickByAbsThreshold } from '@/lib/chart-theme.js';
+import { CHART_MARGIN, pickByAbsThreshold } from '@/lib/chart-theme.js';
 
 export const AXIS_TEXT = {
   color: 'hsl(var(--fg-tertiary))',
@@ -7,25 +7,72 @@ export const AXIS_TEXT = {
   fontFamily: 'Geist Mono Variable',
 } as const;
 export const BORDER_SOFT = 'hsl(var(--border-soft))';
+export type Margin = { top?: number; right?: number; bottom?: number; left?: number };
 type ValueFormatter = (v: number) => string;
-function axisLabel(formatter?: ValueFormatter) {
-  return { ...AXIS_TEXT, ...(formatter ? { formatter } : {}) };
+function axisLabel(formatter?: ValueFormatter, fontSize?: number) {
+  return {
+    ...AXIS_TEXT,
+    ...(formatter ? { formatter } : {}),
+    ...(fontSize !== undefined ? { fontSize } : {}),
+  };
 }
-export function valueXAxis(formatter?: ValueFormatter) {
+export function chartGrid(
+  margin: Margin = CHART_MARGIN,
+  opts: { legendBottom?: number; dataZoomBottom?: number } = {},
+) {
+  return {
+    left: margin.left ?? CHART_MARGIN.left,
+    right: margin.right ?? CHART_MARGIN.right,
+    top: margin.top ?? CHART_MARGIN.top,
+    bottom:
+      (margin.bottom ?? CHART_MARGIN.bottom) +
+      (opts.legendBottom ?? 0) +
+      (opts.dataZoomBottom ?? 0),
+  };
+}
+export function chartLegend(
+  opts: { top?: number; bottom?: number; formatter?: (name: string) => string } = {},
+) {
+  return {
+    ...(opts.top !== undefined ? { top: opts.top } : { bottom: opts.bottom ?? 0 }),
+    textStyle: { color: 'hsl(var(--fg-tertiary))', fontSize: 12 },
+    ...(opts.formatter ? { formatter: opts.formatter } : {}),
+  };
+}
+interface AxisNameOpts {
+  name?: string;
+  nameGap?: number;
+  fontSize?: number;
+}
+function axisName(name: string | undefined, nameGap: number, nameRotate = 0) {
+  return name
+    ? { name, nameLocation: 'middle' as const, nameGap, nameRotate, nameTextStyle: AXIS_TEXT }
+    : {};
+}
+export function valueXAxis(opts: { formatter?: ValueFormatter } & AxisNameOpts = {}) {
   return {
     type: 'value' as const,
-    axisLabel: axisLabel(formatter),
+    ...axisName(opts.name, opts.nameGap ?? 34),
+    axisLabel: axisLabel(opts.formatter, opts.fontSize),
     axisLine: { lineStyle: { color: BORDER_SOFT } },
     axisTick: { show: false },
     splitLine: { show: false },
   };
 }
-export function valueYAxis(opts: { formatter?: ValueFormatter; min?: number; max?: number } = {}) {
+export function valueYAxis(
+  opts: {
+    formatter?: ValueFormatter;
+    min?: number;
+    max?: number;
+    type?: 'log';
+  } & AxisNameOpts = {},
+) {
   return {
-    type: 'value' as const,
+    type: (opts.type ?? 'value') as 'value' | 'log',
     ...(opts.min !== undefined ? { min: opts.min } : {}),
     ...(opts.max !== undefined ? { max: opts.max } : {}),
-    axisLabel: axisLabel(opts.formatter),
+    ...axisName(opts.name, opts.nameGap ?? 52, 90),
+    axisLabel: axisLabel(opts.formatter, opts.fontSize),
     axisLine: { show: false },
     axisTick: { show: false },
     splitLine: { lineStyle: { color: BORDER_SOFT, opacity: 0.6 } },
@@ -37,22 +84,49 @@ export function categoryAxis(
     formatter?: (v: string) => string;
     interval?: number | 'auto' | ((index: number, value: string) => boolean);
     name?: string;
+    nameGap?: number;
+    fontSize?: number;
   } = {},
 ) {
   return {
     type: 'category' as const,
     data,
-    ...(opts.name
-      ? { name: opts.name, nameLocation: 'middle' as const, nameGap: 30, nameTextStyle: AXIS_TEXT }
-      : {}),
+    ...axisName(opts.name, opts.nameGap ?? 30),
     axisLabel: {
       ...AXIS_TEXT,
+      ...(opts.fontSize !== undefined ? { fontSize: opts.fontSize } : {}),
       ...(opts.interval !== undefined ? { interval: opts.interval } : {}),
       ...(opts.formatter ? { formatter: opts.formatter } : {}),
     },
     axisLine: { lineStyle: { color: BORDER_SOFT } },
     axisTick: { show: false },
     splitLine: { show: false },
+  };
+}
+export type ReferenceLine = {
+  axis: 'x' | 'y';
+  value: number | string;
+  label?: string;
+  color?: string;
+  dash?: string;
+};
+export function markLineData(referenceLines: ReferenceLine[], defaultColor: string) {
+  return {
+    silent: true,
+    data: referenceLines.map((rl) => ({
+      [rl.axis === 'x' ? 'xAxis' : 'yAxis']: rl.value,
+      lineStyle: { color: rl.color ?? defaultColor, type: rl.dash ?? 'dashed' },
+      ...(rl.label ? { label: { formatter: rl.label, position: 'insideEndTop' as const } } : {}),
+    })),
+  };
+}
+export function scatterLabel() {
+  return {
+    show: true,
+    position: 'right' as const,
+    formatter: (p: { name: string }) => p.name,
+    color: 'hsl(var(--text-muted))',
+    fontSize: 11,
   };
 }
 function escapeHtml(value: string): string {

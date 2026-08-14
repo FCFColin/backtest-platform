@@ -1,18 +1,10 @@
 import { useTranslation } from 'react-i18next';
-import type { EChartsOption } from 'echarts';
 import { Card } from '@/components/ui/uiComponents';
 import type { MonteCarloResult } from '@backtest/shared';
-import {
-  axisTooltipFormatter,
-  categoryAxis,
-  tooltipOption,
-  valueYAxis,
-} from '@/components/charts/chartUtils.js';
 import { getPortfolioColor } from '@/lib/chart-theme.js';
 import { cn } from '@/lib/utils';
 import { fmtAmount } from '@/utils/format';
-import { useChartAnimation } from '@/hooks/miscHooks';
-import EChart from '@/components/charts/EChart.js';
+import { SimpleChart } from '@/components/charts/sharedChartContent.js';
 import { HistogramChart, NoDataCard } from './HistogramChart.js';
 import {
   METRIC_FORMAT,
@@ -143,40 +135,31 @@ export function MonteCarloScenariosTab({
 }) {
   const { t } = useTranslation();
   const { data } = buildScenarioData(r, startingValue);
-  const anim = useChartAnimation(data.length >= 100);
   if (data.length === 0) return <NoDataCard />;
-  const option: EChartsOption = {
-    grid: { top: 10, right: 30, left: 10, bottom: 20 },
-    xAxis: categoryAxis(
-      data.map((d) => d.month),
-      {
-        formatter: (v: string) => monthFormatter(Number(v)),
-        interval: 11,
-      },
-    ),
-    yAxis: valueYAxis({ formatter: dollarKFormatter }),
-    tooltip: tooltipOption(
-      axisTooltipFormatter(
-        (label) => yearLabelFormatter(t, Number(label)),
-        (v) => fmtAmount(v),
-      ),
-    ),
-    legend: { top: 0, textStyle: { color: 'hsl(var(--fg-tertiary))', fontSize: 12 } },
-    series: SCENARIO_LINES.map((l) => ({
-      name: l.name,
-      type: 'line',
-      smooth: true,
-      data: data.map((d) => d[l.key]),
-      lineStyle: { width: l.width, color: l.color },
-      itemStyle: { color: l.color },
-      symbol: 'none',
-      emphasis: { focus: 'series' },
-    })) as EChartsOption['series'],
-    animation: anim.isAnimationActive,
-  };
   return (
     <Card className="p-5">
-      <EChart option={option} height={450} ariaLabel={t('Scenario Paths')} />
+      <SimpleChart
+        type="line"
+        data={data}
+        height={450}
+        margin={{ top: 10, right: 30, left: 10, bottom: 20 }}
+        xDataKey="month"
+        xType="category"
+        xTickFormatter={(v) => monthFormatter(Number(v))}
+        xTickInterval={11}
+        yTickFormatter={dollarKFormatter}
+        legendPosition="top"
+        tooltipFormatter={(v) => fmtAmount(v)}
+        tooltipLabelFormatter={(label) => yearLabelFormatter(t, Number(label))}
+        ariaLabel={t('Scenario Paths')}
+        series={SCENARIO_LINES.map((l) => ({
+          name: l.name,
+          dataKey: l.key,
+          color: l.color,
+          width: l.width,
+          smooth: true,
+        }))}
+      />
     </Card>
   );
 }

@@ -2,17 +2,16 @@ import { useTranslation } from 'react-i18next';
 import type { EChartsOption } from 'echarts';
 import { Card } from '@/components/ui/uiComponents';
 import type { MonteCarloResult } from '@backtest/shared';
+import { getPortfolioColor } from '@/lib/chart-theme.js';
+import { fmtAmount } from '@/utils/format';
 import {
-  axisTooltipFormatter,
   categoryAxis,
   tooltipOption,
   tooltipRow,
   valueYAxis,
 } from '@/components/charts/chartUtils.js';
-import { getPortfolioColor } from '@/lib/chart-theme.js';
-import { fmtAmount } from '@/utils/format';
-import { useChartAnimation } from '@/hooks/miscHooks';
 import EChart from '@/components/charts/EChart.js';
+import { SimpleChart } from '@/components/charts/sharedChartContent.js';
 import { HistogramChart, NoDataCard } from './HistogramChart.js';
 import {
   buildFanChartData,
@@ -144,7 +143,6 @@ function MonteCarloTerminalHistogram({
 export function MonteCarloSuccessTab({ r }: { r: MonteCarloResult }) {
   const { t } = useTranslation();
   const data = buildSuccessData(r);
-  const anim = useChartAnimation(data.length >= 100);
   if (data.length === 0) return <NoDataCard />;
   const successLines: Array<{
     key: 'survival' | 'capitalPreservation' | 'profit';
@@ -159,30 +157,28 @@ export function MonteCarloSuccessTab({ r }: { r: MonteCarloResult }) {
     },
     { key: 'profit', color: getPortfolioColor(1), nameKey: 'monteCarlo.results.profitProb' },
   ];
-  const option: EChartsOption = {
-    grid: { top: 10, right: 30, left: 10, bottom: 20 },
-    xAxis: categoryAxis(
-      data.map((d) => d.year),
-      { name: t('Years') },
-    ),
-    yAxis: valueYAxis({ min: 0, max: 100, formatter: (v: number) => `${v}%` }),
-    tooltip: tooltipOption(axisTooltipFormatter(undefined, (v) => `${v}%`)),
-    legend: { top: 0, textStyle: { color: 'hsl(var(--fg-tertiary))', fontSize: 12 } },
-    series: successLines.map((l) => ({
-      name: t(l.nameKey),
-      type: 'line',
-      smooth: true,
-      data: data.map((d) => d[l.key]),
-      lineStyle: { width: 2, color: l.color },
-      itemStyle: { color: l.color },
-      symbol: 'none',
-      emphasis: { focus: 'series' },
-    })) as EChartsOption['series'],
-    animation: anim.isAnimationActive,
-  };
   return (
     <Card className="p-5">
-      <EChart option={option} height={400} ariaLabel={t('Success Probability')} />
+      <SimpleChart
+        type="line"
+        data={data}
+        height={400}
+        margin={{ top: 10, right: 30, left: 10, bottom: 20 }}
+        xType="category"
+        xLabel={t('Years')}
+        yTickFormatter={(v) => `${v}%`}
+        yDomain={[0, 100]}
+        legendPosition="top"
+        tooltipFormatter={(v) => `${v}%`}
+        ariaLabel={t('Success Probability')}
+        series={successLines.map((l) => ({
+          name: t(l.nameKey),
+          dataKey: l.key,
+          color: l.color,
+          width: 2,
+          smooth: true,
+        }))}
+      />
     </Card>
   );
 }

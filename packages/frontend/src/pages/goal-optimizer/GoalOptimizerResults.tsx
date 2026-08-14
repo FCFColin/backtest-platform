@@ -30,7 +30,7 @@ function ProbabilityDistributionChart({
   const { t } = useTranslation();
   const option: EChartsOption = {
     grid: GRID,
-    xAxis: valueXAxis((v: number) => `$${(v / 1000).toFixed(0)}k`),
+    xAxis: valueXAxis({ formatter: (v: number) => `$${(v / 1000).toFixed(0)}k` }),
     yAxis: valueYAxis({ formatter: (v: number) => fmtPct(v, 1) }),
     tooltip: tooltipOption(
       axisTooltipFormatter(

@@ -2,16 +2,10 @@
 import type { EChartsOption } from 'echarts';
 import { type Portfolio } from '@backtest/shared';
 import { downsample, DOWNSAMPLE_THRESHOLD, DOWNSAMPLE_TARGET } from '../../utils/format.js';
-import { CHART_MARGIN, DATE_TICK_FORMATTER, getPortfolioColor } from '@/lib/chart-theme.js';
-import {
-  axisTooltipFormatter,
-  categoryAxis,
-  tooltipOption,
-  tooltipRow,
-  valueYAxis,
-} from './chartUtils.js';
+import { DATE_TICK_FORMATTER, getPortfolioColor } from '@/lib/chart-theme.js';
+import { tooltipOption, tooltipRow } from './chartUtils.js';
+import { SimpleChart } from './sharedChartContent.js';
 import { ChartEmptyState } from '@/components/stateDisplay.js';
-import { useChartAnimation } from '@/hooks/miscHooks.js';
 import EChart from './EChart.js';
 import ChartCard from '../ChartCard.js';
 
@@ -111,46 +105,29 @@ function AllocationAreaChart({
   showBrush: boolean;
   fillOpacity: number;
 }) {
-  const animated = useChartAnimation(data.length >= 100).isAnimationActive;
-  const grid = {
-    ...CHART_MARGIN,
-    bottom: (CHART_MARGIN.bottom ?? 20) + 24 + (showBrush ? 28 : 0),
-  };
-  const option: EChartsOption = {
-    grid,
-    xAxis: categoryAxis(
-      data.map((d) => String(d.date)),
-      { formatter: DATE_TICK_FORMATTER },
-    ),
-    yAxis: valueYAxis({ min: 0, max: 100, formatter: (v: number) => `${v}%` }),
-    tooltip: tooltipOption(
-      axisTooltipFormatter(
-        (label) => String(label),
-        (value, name) => [`${value.toFixed(1)}%`, name],
-      ),
-    ),
-    legend: { bottom: 0, textStyle: { color: 'hsl(var(--fg-tertiary))', fontSize: 12 } },
-    dataZoom: showBrush
-      ? [{ type: 'slider', height: 18, bottom: 0, borderColor: 'transparent' }]
-      : undefined,
-    series: assets.map((asset, idx) => ({
-      name: asset.ticker,
-      type: 'area',
-      stack: 'total',
-      smooth: true,
-      data: data.map((d) => Number(d[asset.ticker]) || 0),
-      lineStyle: { width: 1, color: getPortfolioColor(idx) },
-      itemStyle: { color: getPortfolioColor(idx) },
-      areaStyle: { opacity: fillOpacity },
-      symbol: 'none',
-      emphasis: { focus: 'series' },
-    })) as EChartsOption['series'],
-    animation: animated,
-  };
   return (
-    <div role="img" aria-label={assets.map((a) => a.ticker).join(', ')}>
-      <EChart option={option} height={400} />
-    </div>
+    <SimpleChart
+      type="area"
+      height={400}
+      xType="category"
+      xTickFormatter={DATE_TICK_FORMATTER}
+      yDomain={[0, 100]}
+      yTickFormatter={(v: number) => `${v}%`}
+      showLegend
+      dataZoom={showBrush}
+      tooltipFormatter={(value, name) => [`${value.toFixed(1)}%`, name]}
+      ariaLabel={assets.map((a) => a.ticker).join(', ')}
+      data={data}
+      series={assets.map((asset, idx) => ({
+        name: asset.ticker,
+        dataKey: asset.ticker,
+        stackId: 'total',
+        width: 1,
+        smooth: true,
+        areaOpacity: fillOpacity,
+        color: getPortfolioColor(idx),
+      }))}
+    />
   );
 }
 function AllocationHistoryChart({
