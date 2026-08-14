@@ -3,7 +3,6 @@ import { Play } from 'lucide-react';
 import { ComputeToolShell, type ComputeToolConfig } from '@/components/shells/index.js';
 import {
   Card,
-  Switch,
   AffixInput,
   Select,
   SelectTrigger,
@@ -26,8 +25,6 @@ function DcaParamsSection({
   setDcaPeriods,
   startingValue,
   baseCurrency,
-  investTbill,
-  setInvestTbill,
 }: {
   dcaFrequency: DcaFrequency;
   setDcaFrequency: (v: DcaFrequency) => void;
@@ -35,8 +32,6 @@ function DcaParamsSection({
   setDcaPeriods: (v: number) => void;
   startingValue: number;
   baseCurrency: 'usd' | 'cny';
-  investTbill: boolean;
-  setInvestTbill: (v: boolean) => void;
 }) {
   const { t } = useTranslation();
   const prefix = baseCurrency === 'usd' ? '$' : '¥';
@@ -79,12 +74,6 @@ function DcaParamsSection({
             readOnly
           />
         </Field>
-        <div className="flex h-10 items-center gap-2">
-          <Switch checked={investTbill} onCheckedChange={setInvestTbill} />
-          <span className="text-caption text-fg-secondary">
-            {t('Put uninvested funds in T-Bill')}
-          </span>
-        </div>
       </div>
     </div>
   );
@@ -114,8 +103,6 @@ function LumpSumVsDCAParamsForm({ state }: { state: LumpSumVsDCAState }) {
         setDcaPeriods={state.setDcaPeriods}
         startingValue={state.startingValue}
         baseCurrency={state.baseCurrency}
-        investTbill={state.investTbill}
-        setInvestTbill={state.setInvestTbill}
       />
       <PortfolioEditor
         singleMode

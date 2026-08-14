@@ -114,7 +114,6 @@ export function FutureValueCalculator() {
 export function CAGRAssumptionCalculator() {
   const { t } = useTranslation();
   const [cagr, setCagr] = useState(8);
-  const [vol, setVol] = useState(15);
   const [years, setYears] = useState(20);
   const [initial, setInitial] = useState(10000);
   const { finalValue, curve } = useMemo(() => {
@@ -132,7 +131,6 @@ export function CAGRAssumptionCalculator() {
       cols={2}
       fields={[
         { label: t('Expected Return'), value: cagr, onChange: setCagr, suffix: '%' },
-        { label: t('Volatility'), value: vol, onChange: setVol, suffix: '%' },
         { label: t('Time'), value: years, onChange: setYears, suffix: t('y'), step: 1 },
         { label: t('Initial Capital'), value: initial, onChange: setInitial, step: 1000 },
       ]}

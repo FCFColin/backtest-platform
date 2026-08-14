@@ -77,7 +77,6 @@ function useLumpSumVsDCAStateInner() {
     adjustForInflation: false,
     dcaFrequency: 'monthly' as DcaFrequency,
     dcaPeriods: 12,
-    investTbill: false,
     results: [] as CompareResult[],
   });
   const { isLoading, error, run, setError } = useAsyncAction();

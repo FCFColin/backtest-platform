@@ -8,7 +8,6 @@ interface FFDataPoint {
   hml: number;
   rf: number;
 }
-export type ReturnFrequency = 'monthly' | 'daily';
 export interface FactorRegressionResult {
   alpha: number;
   beta: number;
@@ -26,8 +25,6 @@ interface FetchRegressionParams {
   startDate: string;
   endDate: string;
   selectedFactors: string[];
-  returnFrequency: ReturnFrequency;
-  rfSource: string;
 }
 export const FACTOR_OPTIONS = [
   {
@@ -45,10 +42,6 @@ export const FACTOR_OPTIONS = [
     label: 'factorRegression.factors.hml',
     desc: 'factorRegression.factors.hmlDesc',
   },
-];
-export const RF_SOURCE_OPTIONS = [
-  { value: 'us-3m', label: 'factorRegression.rfSources.us3m' },
-  { value: 'us-1y', label: 'factorRegression.rfSources.us1y' },
 ];
 export const FACTOR_COLORS = {
   alpha: getPortfolioColor(0),

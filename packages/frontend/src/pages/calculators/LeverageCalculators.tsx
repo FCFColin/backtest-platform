@@ -12,7 +12,8 @@ export function LeverageDecayCalculator() {
     const sigma = baseVol / 100;
     const l = leverage;
     const volDrag = ((l * l - l) * sigma * sigma) / 2;
-    const totalDecay = volDrag * years;
+    // 复利累加：与 info 文案公式一致（年化拖累逐年复利）
+    const totalDecay = 1 - Math.pow(1 - volDrag, years);
     const effectiveReturn = -totalDecay;
     return { volDrag, totalDecay, effectiveReturn };
   }, [baseVol, leverage, years]);
@@ -144,34 +145,52 @@ interface OptionLeverageComputation {
   intrinsic: number;
   timeValue: number;
 }
+function erf(x: number): number {
+  const sign = x < 0 ? -1 : 1;
+  const a = Math.abs(x);
+  const t = 1 / (1 + 0.3275911 * a);
+  const y =
+    1 -
+    ((((1.061405429 * t - 1.453152027) * t + 1.421413741) * t - 0.284496736) * t + 0.254829592) *
+      t *
+      Math.exp(-a * a);
+  return sign * y;
+}
+function normCdf(x: number): number {
+  return 0.5 * (1 + erf(x / Math.SQRT2));
+}
+// Black-Scholes 看涨期权 delta（r=0 简化），杠杆 = delta × S / P
 function computeOptionLeverage(
   spotPrice: number,
   strikePrice: number,
   optionPrice: number,
+  impliedVol: number,
+  daysToExpiry: number,
 ): OptionLeverageComputation {
   if (optionPrice <= 0 || spotPrice <= 0)
     return { leverage: 0, delta: 0, intrinsic: 0, timeValue: 0 };
   const intrinsic = Math.max(spotPrice - strikePrice, 0);
   const timeValue = optionPrice - intrinsic;
-  const approxDelta = Math.min(
-    1,
-    Math.max(
-      0.01,
-      (optionPrice / spotPrice) * (spotPrice / optionPrice > 1 ? 1 : spotPrice / optionPrice),
-    ),
-  );
-  const leverageRatio = (approxDelta * spotPrice) / (optionPrice > 0 ? optionPrice : 1);
-  return { leverage: leverageRatio, delta: approxDelta, intrinsic, timeValue };
+  const sigma = impliedVol / 100;
+  const sqrtT = Math.sqrt(daysToExpiry / 365);
+  const d1 =
+    sigma > 0 && sqrtT > 0 && strikePrice > 0
+      ? (Math.log(spotPrice / strikePrice) + (sigma * sigma * (daysToExpiry / 365)) / 2) /
+        (sigma * sqrtT)
+      : 0;
+  const delta = normCdf(d1);
+  return { leverage: (delta * spotPrice) / optionPrice, delta, intrinsic, timeValue };
 }
 export function OptionLeverageCalculator() {
   const { t } = useTranslation();
   const [spotPrice, setSpotPrice] = useState(100);
   const [strikePrice, setStrikePrice] = useState(105);
   const [optionPrice, setOptionPrice] = useState(5);
-  const [contractMultiplier, setContractMultiplier] = useState(100);
+  const [impliedVol, setImpliedVol] = useState(25);
+  const [daysToExpiry, setDaysToExpiry] = useState(30);
   const result = useMemo(
-    () => computeOptionLeverage(spotPrice, strikePrice, optionPrice),
-    [spotPrice, strikePrice, optionPrice],
+    () => computeOptionLeverage(spotPrice, strikePrice, optionPrice, impliedVol, daysToExpiry),
+    [spotPrice, strikePrice, optionPrice, impliedVol, daysToExpiry],
   );
   return (
     <CalcCard
@@ -183,10 +202,19 @@ export function OptionLeverageCalculator() {
         { label: t('Strike Price'), value: strikePrice, onChange: setStrikePrice, step: 1 },
         { label: t('Option Price'), value: optionPrice, onChange: setOptionPrice, step: 0.5 },
         {
-          label: t('Contract Multiplier'),
-          value: contractMultiplier,
-          onChange: setContractMultiplier,
+          label: t('Implied Volatility'),
+          value: impliedVol,
+          onChange: setImpliedVol,
+          suffix: '%',
           step: 1,
+        },
+        {
+          label: t('Days to Expiry'),
+          value: daysToExpiry,
+          onChange: setDaysToExpiry,
+          suffix: t('d'),
+          step: 1,
+          min: 1,
         },
       ]}
       rows={[
@@ -196,7 +224,7 @@ export function OptionLeverageCalculator() {
         { label: t('Time Value'), value: result.timeValue.toFixed(2) },
       ]}
       info={t(
-        'Option Formula: Leverage Ratio = (Delta × Underlying Price + Option Price) / (Option Price × Contract Multiplier)',
+        'Option Formula: Leverage Ratio = (Black-Scholes Delta × Underlying Price) / Option Price',
       )}
     />
   );

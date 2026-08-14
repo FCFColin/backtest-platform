@@ -11,13 +11,10 @@ import { validateAssetWeights } from '@/utils/validation';
 import type {
   AssetItem,
   FactorRegressionResult,
-  ReturnFrequency,
 } from '../pages/factor-regression/factorRegressionUtils.js';
 export interface FactorRegressionState {
   startDate: string;
   endDate: string;
-  returnFrequency: ReturnFrequency;
-  rfSource: string;
   selectedFactors: string[];
   assets: AssetItem[];
   totalWeight: number;
@@ -27,8 +24,6 @@ export interface FactorRegressionState {
   runRegression: () => void;
   setStartDate: (v: string) => void;
   setEndDate: (v: string) => void;
-  setReturnFrequency: (v: ReturnFrequency) => void;
-  setRfSource: (v: string) => void;
   toggleFactor: (key: string) => void;
   addAsset: () => void;
   removeAsset: (i: number) => void;
@@ -57,8 +52,6 @@ export function useFactorRegressionState(t: TFunction): FactorRegressionState {
   const s = useSetterState({
     startDate: DEFAULT_BACKTEST_START_DATE,
     endDate: DEFAULT_END_DATE,
-    returnFrequency: 'monthly' as ReturnFrequency,
-    rfSource: 'us-3m',
     selectedFactors: ['mktRF', 'smb', 'hml'] as string[],
     result: null as FactorRegressionResult | null,
   });
@@ -88,8 +81,6 @@ export function useFactorRegressionState(t: TFunction): FactorRegressionState {
           startDate: s.startDate,
           endDate: s.endDate,
           selectedFactors: s.selectedFactors,
-          returnFrequency: s.returnFrequency,
-          rfSource: s.rfSource,
         });
         s.setResult(r);
       } catch (e) {

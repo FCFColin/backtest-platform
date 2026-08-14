@@ -3,8 +3,8 @@ import { badgeVariants } from '@/components/ui/uiComponents';
 import { AllHistoryCheckbox } from '@/components/params/toolFields.js';
 import PortfolioEditor from '../../components/PortfolioEditor.js';
 import { Field, FieldLabel } from '../../components/form/Field.js';
-import { DateField, SelectField, RunButton } from '@/components/form/sharedFields';
-import { FACTOR_OPTIONS, RF_SOURCE_OPTIONS } from './factorRegressionUtils.js';
+import { DateField, RunButton } from '@/components/form/sharedFields';
+import { FACTOR_OPTIONS } from './factorRegressionUtils.js';
 import type { FactorRegressionState } from '@/hooks/useFactorRegressionState.js';
 
 function FactorSelector({
@@ -60,23 +60,6 @@ export function FactorRegressionParamsPanel({ state: s }: { state: FactorRegress
         onChange={s.setStartDate}
       />
       <DateField id="fr-end-date" label={t('End Date')} value={s.endDate} onChange={s.setEndDate} />
-      <SelectField
-        id="fr-freq"
-        label={t('Return Frequency')}
-        value={s.returnFrequency}
-        onChange={s.setReturnFrequency}
-        options={[
-          { value: 'monthly', label: t('Monthly') },
-          { value: 'daily', label: t('Daily') },
-        ]}
-      />
-      <SelectField
-        id="fr-rf"
-        label={t('Risk-Free Rate')}
-        value={s.rfSource}
-        onChange={s.setRfSource}
-        options={RF_SOURCE_OPTIONS.map((o) => ({ value: o.value, label: t(o.label) }))}
-      />
       <div className="col-span-full">
         <Field>
           <FieldLabel>{t('Factor Selection (Multi-select)')}</FieldLabel>
