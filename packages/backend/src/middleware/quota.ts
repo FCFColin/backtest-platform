@@ -1,5 +1,5 @@
 // ADR-010 / P0-04: 组织查询失败时 fail-closed 503（防免费用户绕过）；月度用量以 usage_counters（DB 权威）为准
-import { type Response, type NextFunction } from 'express';
+import { type Response, type NextFunction, type RequestHandler } from 'express';
 import { sendProblem } from '../utils/errors.js';
 import { logger } from '../utils/logger.js';
 import { type AuthenticatedRequest } from './jwtAuth.js';
@@ -28,6 +28,55 @@ function extractTickerCount(body: unknown): number {
   return count;
 }
 
+type OrgStatus =
+  { ok: true; plan: string | null } | { ok: false; reason: 'org_suspended' | 'org_query_failed' };
+
+// 组织状态（plan + suspended）查询，enforceQuota 与 enforceOrgActive 共用；查询失败 fail-closed（P0-04）
+async function getOrgStatus(tenantId: string): Promise<OrgStatus> {
+  try {
+    const org = await getOrg(tenantId);
+    return org?.status === 'suspended'
+      ? { ok: false, reason: 'org_suspended' }
+      : { ok: true, plan: org?.plan ?? null };
+  } catch (err) {
+    logger.error({ err: String(err), tenantId }, '[quota] 组织查询失败，fail-closed');
+    return { ok: false, reason: 'org_query_failed' };
+  }
+}
+
+function sendOrgProblem(res: Response, reason: 'org_suspended' | 'org_query_failed'): void {
+  if (reason === 'org_suspended') {
+    sendProblem(res, 402, 'ORG_SUSPENDED', 'Organization suspended', {
+      detail: 'Billing suspended. Please renew your subscription.',
+    });
+    return;
+  }
+  sendProblem(res, 503, 'SERVICE_TEMPORARILY_UNAVAILABLE', 'Service temporarily unavailable', {
+    detail: 'Service temporarily unavailable. Please try again later.',
+    headers: { 'Retry-After': '30' },
+  });
+}
+
+// 非 compute 路由的组织停用检查（挂 orgs/billing/workspace 链，补齐 quota 只覆盖 compute 的缺口）；平台管理员豁免
+export function enforceOrgActive(): RequestHandler {
+  return (req, res, next) => {
+    const authReq = req as AuthenticatedRequest;
+    if (authReq.user?.platform_admin === true || !authReq.tenantId) {
+      next();
+      return;
+    }
+    void (async () => {
+      const status = await getOrgStatus(authReq.tenantId!);
+      if (status.ok) {
+        next();
+        return;
+      }
+      quotaEnforcementFailures.inc({ quota_key: 'org_active', reason: status.reason });
+      sendOrgProblem(res, status.reason);
+    })();
+  };
+}
+
 export function enforceQuota(metric: string) {
   return async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
     if (req.method === 'GET') {
@@ -49,35 +98,14 @@ export function enforceQuota(metric: string) {
     }
 
     try {
-      let plan: string | null = null;
-      try {
-        const org = await getOrg(tenantId);
-        plan = org?.plan ?? null;
-        if (org?.status === 'suspended') {
-          quotaEnforcementFailures.inc({ quota_key: metric, reason: 'org_suspended' });
-          sendProblem(res, 402, 'ORG_SUSPENDED', 'Organization suspended', {
-            detail: 'Billing suspended. Please renew your subscription.',
-          });
-          return;
-        }
-      } catch (err) {
-        // P0-04：组织查询失败时 fail-closed（不再 fail-open）
-        logger.error({ err: String(err), tenantId }, '[quota] 组织查询失败，fail-closed');
-        quotaEnforcementFailures.inc({ quota_key: metric, reason: 'org_query_failed' });
-        sendProblem(
-          res,
-          503,
-          'SERVICE_TEMPORARILY_UNAVAILABLE',
-          'Service temporarily unavailable',
-          {
-            detail: 'Service temporarily unavailable. Please try again later.',
-            headers: { 'Retry-After': '30' },
-          },
-        );
+      const status = await getOrgStatus(tenantId);
+      if (!status.ok) {
+        quotaEnforcementFailures.inc({ quota_key: metric, reason: status.reason });
+        sendOrgProblem(res, status.reason);
         return;
       }
 
-      const limits = getPlanLimits(plan);
+      const limits = getPlanLimits(status.plan);
 
       const tickerCount = extractTickerCount(req.body);
       if (tickerCount > limits.maxTickers) {

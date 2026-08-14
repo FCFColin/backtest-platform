@@ -6,6 +6,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { randomBytes } from 'node:crypto';
 import { config } from './config/index.js';
 import { logger } from './utils/logger.js';
+import { buildCspHeader } from './utils/csp.js';
 import { RT_COOKIE } from './middleware/jwtAuth.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -55,21 +56,21 @@ type RenderFn = (url: string, nonce: string) => PipeableStream | Promise<Pipeabl
 let renderFn: RenderFn | null = null;
 let htmlTemplate: { head: string; tail: string } | null = null;
 
-const ssrCache = new Map<string, { html: string; ts: number }>();
+const ssrCache = new Map<string, { html: string; nonce: string; ts: number }>();
 const CACHE_TTL = 60_000;
 const CACHE_MAX = 20;
-function getCached(key: string): string | null {
+function getCached(key: string): { html: string; nonce: string; ts: number } | null {
   const entry = ssrCache.get(key);
-  if (entry && Date.now() - entry.ts < CACHE_TTL) return entry.html;
+  if (entry && Date.now() - entry.ts < CACHE_TTL) return entry;
   ssrCache.delete(key);
   return null;
 }
-function setCache(key: string, html: string): void {
+function setCache(key: string, html: string, nonce: string): void {
   if (ssrCache.size >= CACHE_MAX) {
     const oldest = ssrCache.keys().next().value;
     if (oldest) ssrCache.delete(oldest);
   }
-  ssrCache.set(key, { html, ts: Date.now() });
+  ssrCache.set(key, { html, nonce, ts: Date.now() });
 }
 
 function loadHtmlTemplate(): { head: string; tail: string } | null {
@@ -179,7 +180,9 @@ export async function ssrMiddleware(req: Request, res: Response): Promise<void> 
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('X-Cache', 'HIT');
     res.setHeader('Server-Timing', `cache;dur=${cachedMs}`);
-    res.send(cached);
+    // 缓存 HTML 内联脚本带渲染时 nonce，CSP 头须同步为同一 nonce，否则缓存命中后内联脚本被 CSP 拦截
+    res.setHeader('Content-Security-Policy', buildCspHeader(cached.nonce));
+    res.send(cached.html);
     return;
   }
 
@@ -228,7 +231,7 @@ export async function ssrMiddleware(req: Request, res: Response): Promise<void> 
       body += tail;
       res.end(tail);
       if (!req.headers.authorization && !req.cookies?.[RT_COOKIE]) {
-        setCache(url, body);
+        setCache(url, body, nonce);
       }
     });
 

@@ -9,6 +9,7 @@ import { jwtAuth, auditLog, idempotencyKey } from './middleware/jwtAuth.js';
 import { resolveTenant } from './middleware/tenantContext.js';
 import { computeMiddleware, readOnlyAuth } from './middleware/middlewareChains.js';
 import { requirePermission, Permission } from './middleware/rbac.js';
+import { enforceOrgActive } from './middleware/quota.js';
 import { httpLogger, logger } from './utils/logger.js';
 import { requestContextStorage } from './utils/requestContext.js';
 import {
@@ -38,6 +39,7 @@ import workspaceRoutes from './routes/workspaceRoutes.js';
 import platformRoutes from './routes/platformRoutes.js';
 import healthRoutes from './routes/healthRoutes.js';
 import { errorHandler, notFoundHandler, requestTimeout } from './middleware/errorHandler.js';
+import { buildCspHeader } from './utils/csp.js';
 import { brotliCompress, createEarlyHintsMiddleware } from './middleware/brotliCompress.js';
 import { setupOpenApiUi } from './middleware/miscMiddleware.js';
 import { setupBacktestWebSocket } from './services/backtestWs.js';
@@ -106,11 +108,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
     !req.path.startsWith('/api/') &&
     !req.path.startsWith('/assets/') &&
     req.path !== '/favicon.svg';
-  const scriptSrc = isPage ? `'self' 'nonce-${nonce}'` : "'self'";
-  res.setHeader(
-    'Content-Security-Policy',
-    `default-src 'self'; script-src ${scriptSrc}; style-src 'self' 'unsafe-inline'; img-src 'self' data:;`,
-  );
+  res.setHeader('Content-Security-Policy', buildCspHeader(nonce, isPage));
   next();
 });
 app.use((_req: Request, res: Response, next: NextFunction) => {
@@ -140,13 +138,14 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cookieParser()); // P0-1 BFF 模式：解析 httpOnly Cookie 中的 Refresh Token
 
-app.use('/api/v1/backtest', (req, _res, next) => {
-  if (req.method === 'GET') return next();
+// 计算端点限流：单次挂载，避免 backtest 前缀与 backtest-optimizer 等重叠路径被计双次；
+// 仅纯 /backtest 前缀的 GET（runs 列表等）跳过，重叠子路径（backtest-optimizer 等）照常限流
+app.use('/api/v1', (req, _res, next) => {
+  const paths = COMPUTE_PATHS.filter((p) => req.path.startsWith(p));
+  if (paths.length === 0) return next();
+  if (req.method === 'GET' && paths.length === 1 && paths[0] === '/api/v1/backtest') return next();
   computeLimiter(req, _res, next);
 });
-for (const p of COMPUTE_PATHS) {
-  if (p !== '/api/v1/backtest') app.use(p, computeLimiter);
-}
 app.use('/api/v1/admin', adminLimiter);
 app.use('/api/v1/data/manage', adminLimiter);
 app.use('/api/v1/auth/login', loginLimiter);
@@ -169,8 +168,8 @@ app.use('/api/v1/backtest', ...computeMiddleware(Permission.BACKTEST_RUN), backt
 app.use('/api/v1', analysisRoutes);
 app.use('/api/v1/admin', adminRoutes);
 app.use('/api/v1/auth', authRoutes);
-app.use('/api/v1/orgs', jwtAuth, resolveTenant, orgRoutes);
-app.use('/api/v1/billing', jwtAuth, resolveTenant, billingRoutes);
+app.use('/api/v1/orgs', jwtAuth, resolveTenant, enforceOrgActive(), orgRoutes);
+app.use('/api/v1/billing', jwtAuth, resolveTenant, enforceOrgActive(), billingRoutes);
 app.use('/api/v1', jobRoutes);
 app.use('/api/v1', apiKeyRoutes);
 app.use('/api/v1', workspaceRoutes);

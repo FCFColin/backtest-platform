@@ -3,6 +3,7 @@ import { Router } from 'express';
 import type { Response } from 'express';
 import type { AuthenticatedRequest } from '../middleware/jwtAuth.js';
 import { crudMiddleware } from '../middleware/middlewareChains.js';
+import { enforceOrgActive } from '../middleware/quota.js';
 import { Permission } from '../middleware/rbac.js';
 import { tenantCrudRoutes, requireTenantId, ownerOf } from './routeUtils.js';
 import { sendProblem } from '../utils/errors.js';
@@ -33,6 +34,9 @@ import {
 } from '../repositories/portfolioRepo.js';
 
 const router = Router();
+
+// 停用组织拒绝工作台 CRUD（quota 只覆盖 compute 路径，此处补齐）
+router.use(enforceOrgActive());
 
 router.use(
   '/runs',

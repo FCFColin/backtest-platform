@@ -21,6 +21,7 @@ function computeChain(permission: Permission): RequestHandler[] {
     resolveTenant,
     requireTenant,
     requirePermission(permission),
+    idempotencyKey,
     computeQuotaHandler,
     auditLog,
   ];

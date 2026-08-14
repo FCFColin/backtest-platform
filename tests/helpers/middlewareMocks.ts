@@ -69,6 +69,7 @@ vi.mock('../../packages/backend/src/middleware/rbac.js', () => {
 });
 vi.mock('../../packages/backend/src/middleware/quota.js', () => ({
   enforceQuota: () => (_req: unknown, _res: unknown, next: () => void) => next(),
+  enforceOrgActive: () => (_req: unknown, _res: unknown, next: () => void) => next(),
 }));
 vi.mock('../../packages/backend/src/infrastructure/redisClient.js', () => ({
   redisConnection: { on: () => {} },
