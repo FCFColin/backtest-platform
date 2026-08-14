@@ -12,7 +12,14 @@ dotenv.config({ path: path.resolve(PROJECT_ROOT, '.env') });
 type NodeEnv = 'development' | 'production' | 'test' | 'staging';
 type CorsOrigins = true | string[];
 
-const int = (v: string | undefined, d: string) => parseInt(v || d, 10);
+const asInt = (raw: string, label: string): number => {
+  const parsed = Number.parseInt(raw, 10);
+  if (!Number.isFinite(parsed)) throw new Error(`Invalid integer for ${label}: "${raw}"`);
+  return parsed;
+};
+const intFromEnv = (name: string, fallback: number): number =>
+  asInt(process.env[name] ?? String(fallback), name);
+const int = (v: string | undefined, d: string): number => asInt(v || d, 'config');
 const bool = (v: string | undefined) => v === 'true';
 const str = (v: string | undefined, d: string) => v || d;
 const NODE_ENV_VALUES: readonly NodeEnv[] = ['development', 'production', 'test', 'staging'];
@@ -48,13 +55,13 @@ const serverConfig = {
   SERVE_STATIC: process.env.SERVE_STATIC !== undefined ? bool(process.env.SERVE_STATIC) : true,
   API_PORT: int(process.env.API_PORT || process.env.PORT, '15001'),
   CORS_ORIGINS: parseCorsOrigins(process.env.CORS_ORIGINS),
-  TRUST_PROXY_HOPS: Number.parseInt(process.env.TRUST_PROXY_HOPS ?? '1', 10),
-  COMPUTE_RATE_LIMIT_MAX: int(process.env.COMPUTE_RATE_LIMIT_MAX, '10'),
+  TRUST_PROXY_HOPS: intFromEnv('TRUST_PROXY_HOPS', 1),
+  COMPUTE_RATE_LIMIT_MAX: intFromEnv('COMPUTE_RATE_LIMIT_MAX', 10),
   DISABLE_RATE_LIMIT: bool(process.env.DISABLE_RATE_LIMIT),
-  SYNC_COMPUTE_TIMEOUT_MS: int(process.env.SYNC_COMPUTE_TIMEOUT_MS, '30000'),
-  WORKER_CONCURRENCY: int(process.env.WORKER_CONCURRENCY, '3'),
-  MAX_RESPONSE_BODY_SIZE: int(process.env.MAX_RESPONSE_BODY_SIZE, String(50 * 1024 * 1024)),
-  OUTBOX_RETENTION_DAYS: int(process.env.OUTBOX_RETENTION_DAYS, '7'),
+  SYNC_COMPUTE_TIMEOUT_MS: intFromEnv('SYNC_COMPUTE_TIMEOUT_MS', 30000),
+  WORKER_CONCURRENCY: intFromEnv('WORKER_CONCURRENCY', 3),
+  MAX_RESPONSE_BODY_SIZE: intFromEnv('MAX_RESPONSE_BODY_SIZE', 50 * 1024 * 1024),
+  OUTBOX_RETENTION_DAYS: intFromEnv('OUTBOX_RETENTION_DAYS', 7),
   APP_BASE_URL: str(process.env.APP_BASE_URL, 'http://localhost:15173'),
   PROJECT_ROOT,
   MIGRATIONS_DIR: path.resolve(PROJECT_ROOT, 'migrations'),
@@ -65,9 +72,9 @@ const serverConfig = {
 
 const engineConfig = {
   GO_ENGINE_URL: str(process.env.GO_ENGINE_URL, 'http://127.0.0.1:15004'),
-  ENGINE_TIMEOUT_MS: int(process.env.ENGINE_TIMEOUT_MS, '120000'),
+  ENGINE_TIMEOUT_MS: intFromEnv('ENGINE_TIMEOUT_MS', 120000),
   GO_DATA_SERVICE_URL: str(process.env.GO_DATA_SERVICE_URL, 'http://127.0.0.1:15003'),
-  GO_DATA_SERVICE_TIMEOUT_MS: int(process.env.GO_DATA_SERVICE_TIMEOUT_MS, '5000'),
+  GO_DATA_SERVICE_TIMEOUT_MS: intFromEnv('GO_DATA_SERVICE_TIMEOUT_MS', 5000),
   ENGINE_AUTH_TOKEN: requireSecret('ENGINE_AUTH_TOKEN'),
   DATA_SERVICE_AUTH_TOKEN: requireSecret('DATA_SERVICE_AUTH_TOKEN'),
 };
@@ -75,8 +82,8 @@ const engineConfig = {
 export const authConfig = {
   DEV_SKIP_AUTH: bool(process.env.DEV_SKIP_AUTH),
   JWT_SECRET: requireSecret('JWT_SECRET'),
-  JWT_ACCESS_TTL: int(process.env.JWT_ACCESS_TTL, '900'),
-  JWT_REFRESH_TTL: int(process.env.JWT_REFRESH_TTL, '604800'),
+  JWT_ACCESS_TTL: intFromEnv('JWT_ACCESS_TTL', 900),
+  JWT_REFRESH_TTL: intFromEnv('JWT_REFRESH_TTL', 604800),
   JWT_ALGORITHM: resolveJwtAlgorithm(),
   JWT_PRIVATE_KEY: str(process.env.JWT_PRIVATE_KEY, ''),
   JWT_PRIVATE_KEY_FILE: str(process.env.JWT_PRIVATE_KEY_FILE, ''),
@@ -85,12 +92,12 @@ export const authConfig = {
   AUDIT_HMAC_KEY: str(process.env.AUDIT_HMAC_KEY, ''),
   DEBUG_AUTH_TOKEN: str(process.env.DEBUG_AUTH_TOKEN, ''),
   METRICS_AUTH_TOKEN: str(process.env.METRICS_AUTH_TOKEN, ''),
-  ANOMALY_LOGIN_WINDOW_SEC: int(process.env.ANOMALY_LOGIN_WINDOW_SEC, '300'),
-  ANOMALY_LOGIN_MAX_FAILURES: int(process.env.ANOMALY_LOGIN_MAX_FAILURES, '10'),
-  ANOMALY_LOGIN_LOCKOUT_SEC: int(process.env.ANOMALY_LOGIN_LOCKOUT_SEC, '3600'),
-  AUDIT_RETENTION_DAYS: int(process.env.AUDIT_RETENTION_DAYS, '180'),
-  SESSION_IDLE_TIMEOUT_READONLY_SEC: int(process.env.SESSION_IDLE_TIMEOUT_READONLY_SEC, '1800'),
-  SESSION_IDLE_TIMEOUT_ANALYST_SEC: int(process.env.SESSION_IDLE_TIMEOUT_ANALYST_SEC, '3600'),
+  ANOMALY_LOGIN_WINDOW_SEC: intFromEnv('ANOMALY_LOGIN_WINDOW_SEC', 300),
+  ANOMALY_LOGIN_MAX_FAILURES: intFromEnv('ANOMALY_LOGIN_MAX_FAILURES', 10),
+  ANOMALY_LOGIN_LOCKOUT_SEC: intFromEnv('ANOMALY_LOGIN_LOCKOUT_SEC', 3600),
+  AUDIT_RETENTION_DAYS: intFromEnv('AUDIT_RETENTION_DAYS', 180),
+  SESSION_IDLE_TIMEOUT_READONLY_SEC: intFromEnv('SESSION_IDLE_TIMEOUT_READONLY_SEC', 1800),
+  SESSION_IDLE_TIMEOUT_ANALYST_SEC: intFromEnv('SESSION_IDLE_TIMEOUT_ANALYST_SEC', 3600),
 };
 
 const databaseConfig = {
@@ -99,21 +106,21 @@ const databaseConfig = {
     'postgresql://backtest_app:backtest_app_dev@localhost:5432/backtest',
   ),
   DATABASE_READ_URL: str(process.env.DATABASE_READ_URL, ''),
-  DB_STATEMENT_TIMEOUT_MS: int(process.env.DB_STATEMENT_TIMEOUT_MS, '10000'),
-  BACKTEST_SYNC_TIMEOUT_MS: int(process.env.BACKTEST_SYNC_TIMEOUT_MS, '120000'),
+  DB_STATEMENT_TIMEOUT_MS: intFromEnv('DB_STATEMENT_TIMEOUT_MS', 10000),
+  BACKTEST_SYNC_TIMEOUT_MS: intFromEnv('BACKTEST_SYNC_TIMEOUT_MS', 120000),
   REDIS_URL: str(process.env.REDIS_URL, 'redis://localhost:6379'),
   REDIS_SENTINELS: str(process.env.REDIS_SENTINELS, ''),
   REDIS_SENTINEL_NAME: str(process.env.REDIS_SENTINEL_NAME, 'mymaster'),
   REDIS_PASSWORD: str(process.env.REDIS_PASSWORD, ''),
-  DB_POOL_MAX: int(process.env.DB_POOL_MAX, '20'),
-  DB_POOL_MIN: int(process.env.DB_POOL_MIN, '2'),
+  DB_POOL_MAX: intFromEnv('DB_POOL_MAX', 20),
+  DB_POOL_MIN: intFromEnv('DB_POOL_MIN', 2),
 };
 
 const integrationsConfig = {
   EMAIL_TRANSPORT: str(process.env.EMAIL_TRANSPORT, 'console') as 'smtp' | 'console',
   EMAIL_FROM: str(process.env.EMAIL_FROM, 'Backtest Platform <no-reply@backtest.local>'),
   EMAIL_SMTP_HOST: str(process.env.EMAIL_SMTP_HOST, ''),
-  EMAIL_SMTP_PORT: int(process.env.EMAIL_SMTP_PORT, '587'),
+  EMAIL_SMTP_PORT: intFromEnv('EMAIL_SMTP_PORT', 587),
   EMAIL_SMTP_SECURE: bool(process.env.EMAIL_SMTP_SECURE),
   EMAIL_SMTP_USER: str(process.env.EMAIL_SMTP_USER, ''),
   EMAIL_SMTP_PASS: str(process.env.EMAIL_SMTP_PASS, ''),
@@ -123,7 +130,7 @@ const integrationsConfig = {
   STRIPE_PRICE_PRO: str(process.env.STRIPE_PRICE_PRO, ''),
   STRIPE_PRICE_ENTERPRISE: str(process.env.STRIPE_PRICE_ENTERPRISE, ''),
   MINIO_ENDPOINT: str(process.env.MINIO_ENDPOINT, ''),
-  MINIO_PORT: int(process.env.MINIO_PORT, '9000'),
+  MINIO_PORT: intFromEnv('MINIO_PORT', 9000),
   MINIO_ACCESS_KEY: str(process.env.MINIO_ACCESS_KEY, ''),
   MINIO_SECRET_KEY: str(process.env.MINIO_SECRET_KEY, ''),
   MINIO_USE_SSL: bool(process.env.MINIO_USE_SSL),

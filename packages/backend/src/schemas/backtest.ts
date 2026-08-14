@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { extendZodWithOpenApi } from '@asteasolutions/zod-to-openapi';
 import { MAX_TICKERS, ALL_REBALANCE_FREQUENCIES } from '@backtest/shared/constants';
-import { TICKER_PATTERN } from '../utils/tickerValidation.js';
+import { isValidTicker } from '../utils/tickerValidation.js';
 import { assetSchema } from './analysisSchemas.js';
 import type { BacktestOptimizerRequest } from '../domain/services/optimizer-domain.js';
 
@@ -94,7 +94,7 @@ const tickerListSchema = z
     path: ['tickers'],
   })
   .superRefine((tickers, ctx) => {
-    const invalid = tickers.filter((t) => !TICKER_PATTERN.test(t));
+    const invalid = tickers.filter((t) => !isValidTicker(t));
     if (invalid.length > 0) {
       ctx.addIssue({
         code: 'custom',

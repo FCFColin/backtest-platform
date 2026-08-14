@@ -69,6 +69,12 @@ describe('Ticker.create', () => {
     ['aapl', 'AAPL', '小写转大写（归一化）'],
     ['  AAPL  ', 'AAPL', '去除首尾空格'],
     ['510300.ss', '510300.SS', '小写带后缀'],
+    ['AAPL.BCD', 'AAPL.BCD', '后缀超 2 字符（与 isValidTicker 同一口径）'],
+    ['AAPL.', 'AAPL.', '后缀为空'],
+    ['.SS', '.SS', '主体为空'],
+    ['AAPL-SZ', 'AAPL-SZ', '连字符'],
+    ['BRK-B', 'BRK-B', '带连字符合法标的'],
+    ['ABCDEFGHIJK', 'ABCDEFGHIJK', '11 字符（上限放宽至 20）'],
   ])('应接受 %s（%s）', (input, expected) => {
     expect(Ticker.create(input).value).toBe(expected);
   });
@@ -76,11 +82,7 @@ describe('Ticker.create', () => {
     ['AAPL!', '感叹号'],
     ['AA PL', '中间空格'],
     ['中证500', '非 ASCII 字符'],
-    ['AAPL.BCD', '后缀超过 2 字符'],
-    ['AAPL.', '后缀为空'],
-    ['.SS', '主体为空'],
-    ['AAPL-SZ', '连字符非法'],
-    ['ABCDEFGHIJK', '超过 10 字符（不含后缀）'],
+    ['ABCDEFGHIJKLMNOPQRSTUV', '超过 20 字符'],
     ['', '空字符串'],
     ['   ', '仅含空格（trim 后为空）'],
   ])('应拒绝 %s（%s）', (input) => {

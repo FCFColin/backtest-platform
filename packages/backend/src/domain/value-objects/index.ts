@@ -1,3 +1,5 @@
+import { isValidTicker } from '../../utils/tickerValidation.js';
+
 export class DomainValidationError extends Error {
   readonly field?: string;
   readonly value?: unknown;
@@ -22,14 +24,13 @@ export class Weight {
   }
 }
 
-const DOMAIN_TICKER_PATTERN = /^[A-Z0-9]{1,10}(\.[A-Z]{2})?$/;
-
+// 与 data-fetcher / utils.isValidTicker 同一口径（允许 - _ . 最长 20 位），避免领域层更严口径误杀合法标的（如 BRK-B）
 export class Ticker {
   private constructor(public readonly value: string) {}
 
   static create(value: string): Ticker {
     const upper = value.toUpperCase().trim();
-    if (!DOMAIN_TICKER_PATTERN.test(upper)) {
+    if (!isValidTicker(upper)) {
       throw new DomainValidationError(`Invalid ticker: ${value}`);
     }
     return new Ticker(upper);
