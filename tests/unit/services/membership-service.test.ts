@@ -74,7 +74,8 @@ function invRow(overrides: Record<string, unknown> = {}) {
 function mockInviteLookup(invite: Record<string, unknown> | null): void {
   dbMocks.client.query
     .mockResolvedValueOnce(undefined)
-    .mockResolvedValueOnce({ rows: invite ? [invite] : [] });
+    .mockResolvedValueOnce({ rows: invite ? [invite] : [] })
+    .mockResolvedValueOnce({ rows: invite ? [{ email: invite.email ?? 'a@b.com' }] : [] });
 }
 
 describe('orgRoleToGlobalRole', () => {
@@ -345,5 +346,22 @@ describe('acceptInvitation', () => {
       String(c[0]).includes('INSERT INTO memberships'),
     );
     expect(insertCall?.[1]).toEqual([ORG, USER, 'analyst']);
+  });
+
+  it('接受者邮箱与邀请目标不一致应拒绝且不建成员', async () => {
+    dbMocks.client.query
+      .mockResolvedValueOnce(undefined)
+      .mockResolvedValueOnce({ rows: [invRow()] })
+      .mockResolvedValueOnce({ rows: [{ email: 'other@example.com' }] })
+      .mockResolvedValue(undefined);
+    const result = await acceptInvitation('sometoken', USER);
+    expect(result).toEqual({ ok: false, reason: 'invalid' });
+    const emailCall = dbMocks.client.query.mock.calls.find((c) =>
+      String(c[0]).includes('SELECT email FROM users'),
+    );
+    expect(emailCall?.[1]).toEqual([USER]);
+    expect(
+      dbMocks.client.query.mock.calls.some((c) => String(c[0]).includes('INSERT INTO memberships')),
+    ).toBe(false);
   });
 });

@@ -22,7 +22,7 @@ export async function acceptInvitation(token: string, userId: string): Promise<A
   try {
     return await withTransaction(async (client) => {
       const { rows } = await client.query(
-        `SELECT id, org_id, role, expires_at, accepted_at FROM invitations WHERE token_hash = $1 FOR UPDATE`,
+        `SELECT id, org_id, role, email, expires_at, accepted_at FROM invitations WHERE token_hash = $1 FOR UPDATE`,
         [tokenHash],
       );
       if (rows.length === 0) return { ok: false, reason: 'invalid' };
@@ -30,6 +30,12 @@ export async function acceptInvitation(token: string, userId: string): Promise<A
       if (inv.accepted_at) return { ok: false, reason: 'already' };
       if (new Date(inv.expires_at).getTime() <= Date.now()) {
         return { ok: false, reason: 'expired' };
+      }
+      // 邀请绑定目标邮箱：仅被邀请人本人可接受，转发 token 无法加入组织
+      const userEmail = (await client.query('SELECT email FROM users WHERE id = $1', [userId]))
+        .rows[0]?.email;
+      if (!userEmail || userEmail.toLowerCase() !== inv.email.toLowerCase()) {
+        return { ok: false, reason: 'invalid' };
       }
       await client.query("SELECT set_config('app.current_tenant_id', $1, true)", [inv.org_id]);
       await client.query(
