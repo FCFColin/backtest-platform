@@ -15,7 +15,7 @@ func TestRunBacktest(t *testing.T) {
 		req := BacktestRequest{
 			Portfolios: []PortfolioInput{{Name: "60/40",
 				Assets:             []AssetInput{{Ticker: "VTI", Weight: 60}, {Ticker: "BND", Weight: 40}},
-				RebalanceFrequency: "monthly", TotalReturn: true,
+				RebalanceFrequency: "monthly",
 			},
 			},
 			PriceData:     priceData,
@@ -87,6 +87,15 @@ func TestComputeStatisticsBenchmarkLeadingGap(t *testing.T) {
 		t.Errorf("前置缺口时 benchmarkCagr 不应静默为 0：ActiveReturn = %v（应远小于 0）", stats.ActiveReturn)
 	}
 }
+func TestComputeStatisticsBenchmarkDateAligned(t *testing.T) {
+	// 组合首日上涨、基准次日起涨：日收益必须按日期对齐，前置缺口日记 0 而非跳过。
+	curve := []DataPoint{{Date: "2024-01-02", Value: 100}, {Date: "2024-01-03", Value: 110}, {Date: "2024-01-04", Value: 110}, {Date: "2024-01-05", Value: 110}}
+	bench := []DataPoint{{Date: "2024-01-02", Value: 0}, {Date: "2024-01-03", Value: 100}, {Date: "2024-01-04", Value: 110}, {Date: "2024-01-05", Value: 121}}
+	stats := computeStatistics(curve, nil, bench, nil)
+	// 对齐后的收益序列：[0.1,0,0] vs [0,0.1,0.1]，完全负相关（协方差为负、方差同量）
+	assertFloatApprox(t, stats.Beta, -1.0, "Beta (date-aligned)")
+	assertFloatApprox(t, stats.BenchmarkCorrelation, -1.0, "BenchmarkCorrelation (date-aligned)")
+}
 func TestParseTradingDates(t *testing.T) {
 	t.Run("正常数据应返回排序日期", func(t *testing.T) {
 		priceData := PriceDataMap{"VTI": {"2023-01-03": 100, "2023-01-04": 101, "2023-01-05": 102}}
@@ -128,7 +137,7 @@ func newBenchBacktestRequest() BacktestRequest {
 	return BacktestRequest{
 		Portfolios: []PortfolioInput{{Name: "60/40",
 			Assets:             []AssetInput{{Ticker: "VTI", Weight: 60}, {Ticker: "BND", Weight: 40}},
-			RebalanceFrequency: "monthly", Drag: 0, TotalReturn: true,
+			RebalanceFrequency: "monthly", Drag: 0,
 		},
 		},
 		PriceData:     enginetest.ThreeTickerData(time.Date(2014, 1, 2, 0, 0, 0, 0, time.UTC), 2520, 0.0003),

@@ -188,6 +188,7 @@ func computeGrowthCurve(pf PortfolioInput, priceData PriceDataMap, cpiData map[s
 			if rebalanceIn == 0 {
 				recalculateShares(holdings, &shares, lastPrices, currentWeights, pv, pf, gp, date)
 				lastRebalanceDi = di
+				rebalanceIn = -1 // 复位，恢复周期再平衡（否则 offset 首次触发后永久停摆）
 			}
 		} else if di > 0 && rebalanceIn < 0 && engineutil.ShouldRebalance(pf.RebalanceFrequency, prev, date, pf.RebalanceThreshold, holdings, currentWeights, pv, pf.RebalanceBands) {
 			if pf.RebalanceOffset > 0 {
@@ -260,7 +261,9 @@ func computeStatistics(curve []DataPoint, episodes []DrawdownEpisode, benchCurve
 	var benchmarkCagr *float64
 	if len(benchCurve) >= 2 {
 		benchValues := extractValues(benchCurve)
-		benchDailyReturns = mathutil.DailyReturns(benchValues)
+		// 用固定长度版本使基准日收益与组合日收益按日期位置对齐（前置缺口日记 0 而非跳过，
+		// 否则 alignPair 按索引截断会把不同日期的收益错配）。
+		benchDailyReturns = mathutil.DailyReturnsWithZeros(benchValues)
 		startIdx := 0
 		for startIdx < len(benchValues)-1 && benchValues[startIdx] <= 0 {
 			startIdx++

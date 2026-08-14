@@ -43,7 +43,8 @@ func CalculateStatisticsFromRequest(req StatisticsRequest) Statistics {
 	freqs := [3][]float64{req.DailyReturns, req.MonthlyReturnValues, req.AnnualReturnValues}
 	finalValue := req.Values[len(req.Values)-1]
 	years := float64(len(req.Dates)) / float64(tradingDaysPerYear)
-	cagr := -1.0
+	// 组合清零（finalValue<=0）时 CAGR 不可计算，置 0 而非 -1 哨兵，避免泄漏进 Sharpe/Calmar 等派生指标
+	cagr := 0.0
 	if finalValue > 0 {
 		cagr = CalcCAGR(req.StartingValue, finalValue, years)
 	}

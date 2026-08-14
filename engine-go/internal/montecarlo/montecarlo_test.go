@@ -13,11 +13,10 @@ func TestRunMonteCarlo(t *testing.T) {
 	t.Run("基本蒙特卡洛模拟应成功", func(t *testing.T) {
 		req := MonteCarloRequest{
 			Portfolio: MCPortfolioInput{Name: "60/40",
-				Assets:             []AssetInput{{Ticker: "VTI", Weight: 60}, {Ticker: "BND", Weight: 40}},
-				RebalanceFrequency: "monthly", TotalReturn: true,
+				Assets: []AssetInput{{Ticker: "VTI", Weight: 60}, {Ticker: "BND", Weight: 40}},
 			},
 			PriceData: enginetest.ThreeTickerData(time.Date(2020, 1, 2, 0, 0, 0, 0, time.UTC), 500, 0.0003),
-			Params:    MCBacktestParams{StartDate: "2020-01-02", EndDate: "2021-12-31", StartingValue: 10000, AdjustForInflation: false, RollingWindowMonths: 12},
+			Params:    MCBacktestParams{StartDate: "2020-01-02", EndDate: "2021-12-31", StartingValue: 10000},
 			MCParams:  MCSimParams{NumSimulations: 10, NumYears: 5, MinBlockYears: 1, MaxBlockYears: 2, SuccessThreshold: 1.0},
 		}
 		result, err := RunMonteCarlo(context.Background(), req)
@@ -44,8 +43,7 @@ func TestRunMonteCarlo(t *testing.T) {
 		seed := int64(42)
 		req := MonteCarloRequest{
 			Portfolio: MCPortfolioInput{Name: "60/40",
-				Assets:             []AssetInput{{Ticker: "VTI", Weight: 60}, {Ticker: "BND", Weight: 40}},
-				RebalanceFrequency: "monthly", TotalReturn: true,
+				Assets: []AssetInput{{Ticker: "VTI", Weight: 60}, {Ticker: "BND", Weight: 40}},
 			},
 			PriceData: enginetest.ThreeTickerData(time.Date(2020, 1, 2, 0, 0, 0, 0, time.UTC), 500, 0.0003),
 			Params:    MCBacktestParams{StartDate: "2020-01-02", EndDate: "2021-12-31", StartingValue: 10000},
@@ -69,7 +67,7 @@ func TestRunMonteCarlo(t *testing.T) {
 }
 func TestComputePortfolioDailyReturns(t *testing.T) {
 	t.Run("正常计算应返回收益率序列", func(t *testing.T) {
-		portfolio := MCPortfolioInput{Name: "test", Assets: []AssetInput{{Ticker: "VTI", Weight: 100}}, RebalanceFrequency: "none", TotalReturn: true}
+		portfolio := MCPortfolioInput{Name: "test", Assets: []AssetInput{{Ticker: "VTI", Weight: 100}}}
 		params := MCBacktestParams{StartDate: "2020-01-02", EndDate: "2021-06-30", StartingValue: 10000}
 		returns, err := computePortfolioDailyReturns(portfolio, enginetest.ThreeTickerData(time.Date(2020, 1, 2, 0, 0, 0, 0, time.UTC), 500, 0.0003), params)
 		if err != nil {
@@ -80,7 +78,7 @@ func TestComputePortfolioDailyReturns(t *testing.T) {
 		}
 	})
 	t.Run("drag 为年化百分比按日复利摊薄（与回测口径一致，非原始百分比直减）", func(t *testing.T) {
-		portfolio := MCPortfolioInput{Name: "test", Assets: []AssetInput{{Ticker: "VTI", Weight: 100}}, RebalanceFrequency: "none", Drag: 100, TotalReturn: true}
+		portfolio := MCPortfolioInput{Name: "test", Assets: []AssetInput{{Ticker: "VTI", Weight: 100}}, Drag: 100}
 		params := MCBacktestParams{StartDate: "2020-01-02", EndDate: "2021-06-30", StartingValue: 10000}
 		returns, err := computePortfolioDailyReturns(portfolio, enginetest.PriceData([]string{"VTI"}, []float64{100}, time.Date(2020, 1, 2, 0, 0, 0, 0, time.UTC), 300, 0), params)
 		if err != nil {
@@ -93,14 +91,48 @@ func TestComputePortfolioDailyReturns(t *testing.T) {
 		}
 	})
 }
+func TestMonteCarloConstantReturns(t *testing.T) {
+	// 恒定日收益下全部路径应收敛到精确复利终值 Starting×(1+r)^N（path[0] 为起始值，
+	// 故复利步数为 totalDays-1）；数值精度验证（区别于 seed 可复现性 smoke）
+	const growth = 0.0003
+	seed := int64(7)
+	req := MonteCarloRequest{
+		Portfolio: MCPortfolioInput{Name: "single", Assets: []AssetInput{{Ticker: "VTI", Weight: 100}}},
+		PriceData: enginetest.PriceData([]string{"VTI"}, []float64{100}, time.Date(2020, 1, 2, 0, 0, 0, 0, time.UTC), 500, growth),
+		Params:    MCBacktestParams{StartDate: "2020-01-02", EndDate: "2021-12-31", StartingValue: 10000},
+		MCParams:  MCSimParams{NumSimulations: 200, NumYears: 20, Seed: &seed},
+	}
+	result, err := RunMonteCarlo(context.Background(), req)
+	if err != nil {
+		t.Fatalf("RunMonteCarlo 返回错误: %v", err)
+	}
+	expected := req.Params.StartingValue * math.Pow(1+growth, float64(20*mcTradingDays-1))
+	for i, m := range result.PerPathMetrics {
+		if rel := math.Abs(m.FinalValue-expected) / expected; rel > 1e-6 {
+			t.Errorf("路径 %d 终值 %v 偏离 %v（相对误差 %v）", i, m.FinalValue, expected, rel)
+		}
+	}
+	for name, got := range map[string]float64{
+		"MeanFinalValue":   result.Statistics.MeanFinalValue,
+		"MedianFinalValue": result.Statistics.MedianFinalValue,
+	} {
+		if rel := math.Abs(got-expected) / expected; rel > 1e-6 {
+			t.Errorf("%s %v 偏离理论值 %v（相对误差 %v）", name, got, expected, rel)
+		}
+	}
+	if len(result.FinalDistribution) == 0 {
+		t.Error("FinalDistribution 不应为空")
+	}
+}
+
 func newBenchMCRequest() MonteCarloRequest {
 	return MonteCarloRequest{
 		Portfolio: MCPortfolioInput{Name: "60/40",
-			Assets:             []AssetInput{{Ticker: "VTI", Weight: 60}, {Ticker: "BND", Weight: 40}},
-			RebalanceFrequency: "monthly", Drag: 0, TotalReturn: true,
+			Assets: []AssetInput{{Ticker: "VTI", Weight: 60}, {Ticker: "BND", Weight: 40}},
+			Drag:   0,
 		},
 		PriceData: enginetest.ThreeTickerData(time.Date(2014, 1, 2, 0, 0, 0, 0, time.UTC), 2520, 0.0003),
-		Params:    MCBacktestParams{StartDate: "2014-01-02", EndDate: "2023-12-29", StartingValue: 10000, AdjustForInflation: false, RollingWindowMonths: 12, BenchmarkTicker: ""},
+		Params:    MCBacktestParams{StartDate: "2014-01-02", EndDate: "2023-12-29", StartingValue: 10000},
 		MCParams:  MCSimParams{NumSimulations: 100, NumYears: 10, MinBlockYears: 1, MaxBlockYears: 5, SuccessThreshold: 1.0},
 	}
 }

@@ -23,9 +23,8 @@ type Asset struct {
 	Weight float64 `json:"weight"`
 }
 type Constraints struct {
-	MaxDrawdown    *float64 `json:"maxDrawdown,omitempty"`
-	MinSuccessRate *float64 `json:"minSuccessRate,omitempty"`
-	MaxVolatility  *float64 `json:"maxVolatility,omitempty"`
+	MaxDrawdown   *float64 `json:"maxDrawdown,omitempty"`
+	MaxVolatility *float64 `json:"maxVolatility,omitempty"`
 }
 type GoalOptimizerRequest struct {
 	TargetAmount   float64                       `json:"targetAmount"`
@@ -142,20 +141,23 @@ func OptimizeGoals(ctx context.Context, req GoalOptimizerRequest) (*GoalOptimize
 		filteredMetrics = metrics
 		filteredPaths = paths
 	}
-	if len(filteredMetrics) == 0 {
-		return &GoalOptimizerResult{
-			SuccessProbability: 0, ProbabilityCurve: nil, OptimalPath: nil, Recommendation: Recommendation{ExpectedReturn: annualMeanReturn, RequiredContribution: 0, SuccessRate: 0},
-		}, nil
-	}
-	finalValues := make([]float64, len(filteredMetrics))
 	successCount := 0
-	for i, m := range filteredMetrics {
-		finalValues[i] = m.finalValue
+	for _, m := range metrics {
 		if m.finalValue >= req.TargetAmount {
 			successCount++
 		}
 	}
-	successProbability := float64(successCount) / float64(len(finalValues))
+	// 成功概率对全部模拟路径计算（与约束过滤无关）；过滤集仅用于最优路径/概率曲线/中位值。
+	successProbability := float64(successCount) / float64(len(metrics))
+	if len(filteredMetrics) == 0 {
+		return &GoalOptimizerResult{
+			SuccessProbability: successProbability, ProbabilityCurve: nil, OptimalPath: nil, Recommendation: Recommendation{ExpectedReturn: annualMeanReturn, RequiredContribution: 0, SuccessRate: successProbability},
+		}, nil
+	}
+	finalValues := make([]float64, len(filteredMetrics))
+	for i, m := range filteredMetrics {
+		finalValues[i] = m.finalValue
+	}
 	probabilityCurve := buildProbabilityCurve(finalValues)
 	optimalPath := buildOptimalPath(filteredPaths, years)
 	medianFinalValue := mathutil.Percentile(finalValues, 0.5)

@@ -2,6 +2,7 @@ package engine
 
 import (
 	"engine-go/internal/engineutil"
+	"math"
 	"time"
 )
 
@@ -24,7 +25,7 @@ func getPriceWithFX(ticker, date string, priceData PriceDataMap, exchangeRates m
 	if td, ok := priceData[ticker]; ok {
 		raw = td[date]
 	}
-	if raw <= 0 {
+	if raw <= 0 || math.IsNaN(raw) || math.IsInf(raw, 0) {
 		return 0
 	}
 	if len(exchangeRates) > 0 {
