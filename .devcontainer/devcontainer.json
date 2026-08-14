@@ -2,7 +2,7 @@
   "$schema": "https://raw.githubusercontent.com/devcontainers/spec/main/schemas/devContainer.schema.json",
   "name": "回测平台 (Backtest Platform)",
   "_comment": "T-26 / 维度7：一键开发环境，固化为代码避免多语言工具链版本漂移（技术栈以 AGENTS.md 为准，Go+TS 双语言，DADR-003/ADR-008 已退役 Rust/Python）。",
-  "image": "mcr.microsoft.com/devcontainers/typescript-node:20",
+  "image": "mcr.microsoft.com/devcontainers/typescript-node:22",
   "features": {
     "ghcr.io/devcontainers/features/go:1": { "version": "1.26" },
     "ghcr.io/devcontainers/features/docker-in-docker:2": {}
@@ -23,7 +23,7 @@
     }
   },
   "remoteEnv": {
-    "DATABASE_URL": "postgresql://backtest:backtest@localhost:5432/backtest",
-    "REDIS_URL": "redis://localhost:6379"
+    "DATABASE_URL": "postgresql://backtest_app:backtest_app_dev@localhost:15442/backtest",
+    "REDIS_URL": "redis://localhost:16381"
   }
 }

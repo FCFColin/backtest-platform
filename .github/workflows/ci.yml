@@ -8,7 +8,7 @@ on:
     branches: [main]
 
 env:
-  NODE_VERSION: '20'
+  NODE_VERSION: '22'
   PNPM_VERSION: '11.5.3'
   DATABASE_URL: postgresql://backtest_app:backtest_app_dev@localhost:15442/backtest_test
   REDIS_URL: redis://localhost:16381
@@ -26,6 +26,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
+      contents: read # job 级覆盖 workflow 级；缺此项 checkout 会 403
       security-events: write # gitleaks-action 上传 SARIF 到 Security tab
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
@@ -40,6 +41,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
+      contents: read # job 级覆盖 workflow 级；缺此项 checkout 会 403
       security-events: write # SARIF 上传到 GitHub Security tab
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
@@ -76,7 +78,7 @@ jobs:
       - run: pnpm exec eslint . --max-warnings 10
       - run: pnpm format:check
       - run: pnpm check
-      # 层间依赖纪律门禁（C-024）：只 gate 分层规则，no-circular 环作为记录输出
+      # 层间依赖纪律门禁（C-024）：只 gate 分层规则，no-circular 配置为 warn 仅记录
       - run: pnpm run depcheck:layer
       # 重复代码门禁（jscpd --threshold 5）：与 DADR-052 依赖/健康门禁配套
       - run: pnpm run simplify
@@ -122,8 +124,8 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           pnpm-version: ${{ env.PNPM_VERSION }}
-      # TS 测试唯一门禁：完整套件（unit/contract/integration/chaos）带覆盖率检查，RUN_TESTCONTAINERS=1 使 testcontainers 集成测试在 CI 实际执行。
-      # 阈值以 scripts/check-coverage.mjs 为权威源（80/80/80/80）。
+      # TS 测试唯一门禁：unit/contract/integration/property 带覆盖率检查，RUN_TESTCONTAINERS=1 使 testcontainers 集成测试在 CI 实际执行。
+      # chaos/e2e 仅 nightly（nightly.yml）；阈值以 scripts/check-coverage.mjs 为权威源（80/80/80/80）。
       - run: pnpm test:coverage:check
 
   critical-verify:
@@ -145,6 +147,8 @@ jobs:
             packages/go-shared/go.sum
       # 静态验证门禁（verify-static 不依赖 DB/前端，--skip 不影响其执行）：
       # C-015 ADR 一致性 / C-016 CHANGELOG / C-017 迁移 / C-019 前端死代码等
+      # 注意：verify:critical 同时内含 C-014 —— engine-go 的 `go test -race` + 覆盖率门禁，
+      # 故 Go 单测在本 job 执行，勿误以为 PR CI 不含 Go 测试
       - name: Run static verification scripts
         run: pnpm verify:critical --skip-db --skip-frontend
       # Go 官方漏洞扫描：基于调用图只报实际受影响漏洞

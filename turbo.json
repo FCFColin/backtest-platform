@@ -1,16 +1,17 @@
 {
   "$schema": "https://turbo.build/schema.json",
-  "globalDependencies": ["tsconfig.json", "eslint.config.js", ".env"],
-  "globalEnv": ["NODE_ENV", "CI"],
+  "globalDependencies": [
+    "tsconfig*.json",
+    "eslint.config.js",
+    "vite.config.ts",
+    "tailwind.config.cjs",
+    ".npmrc"
+  ],
+  "globalEnv": ["NODE_ENV", "CI", "VITE_*"],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
       "outputs": ["dist/**"],
-      "cache": true
-    },
-    "test": {
-      "dependsOn": ["^build"],
-      "outputs": ["coverage/**"],
       "cache": true
     },
     "check": {

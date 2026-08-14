@@ -49,6 +49,7 @@ packages/backend/data/cache/
 # 测试产物
 test-results/
 .playwright-report/
+playwright-report/
 
 # 临时/草稿文件
 temp_*

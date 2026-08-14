@@ -9,6 +9,9 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 defaults:
   run:
     shell: bash
@@ -65,6 +68,7 @@ jobs:
     name: Docker Image Scan + SBOM
     runs-on: ubuntu-latest
     permissions:
+      contents: read # job 级覆盖 workflow 级；缺此项 checkout 会 403
       security-events: write # SARIF 上传到 GitHub Security tab
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
@@ -209,7 +213,7 @@ jobs:
     name: E2E + Chaos
     runs-on: ubuntu-latest
     env:
-      NODE_VERSION: '20'
+      NODE_VERSION: '22'
       PNPM_VERSION: '11.5.3'
     timeout-minutes: 45
     steps:
@@ -245,6 +249,11 @@ jobs:
           sleep 5
           docker compose up -d api worker
 
+      - name: Live contract verification
+        run: pnpm run audit:contract
+        env:
+          API_URL: http://localhost:15001
+
       - name: Run Chaos tests
         run: pnpm test:chaos
         env:
@@ -266,4 +275,4 @@ jobs:
           tar -xzf scc.tar.gz -C /tmp/scc
           echo "/tmp/scc" >> $GITHUB_PATH
       - name: Count lines
-        run: scc --exclude-dir node_modules,dist,dist-ssr,.dev-logs,coverage,.git,data,report,.turbo,.cache,.vite,playwright-report,test-results --no-cocomo --sort lines
+        run: scc --exclude-dir node_modules,dist,dist-ssr,.dev-logs,coverage,.git,data,report,.turbo,.cache,.vite,playwright-report,test-results,docs/audit,.github,.husky,.devcontainer,docker,config,k8s --no-cocomo --sort lines
