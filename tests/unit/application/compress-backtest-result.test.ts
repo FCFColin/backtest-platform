@@ -90,17 +90,6 @@ describe('compressBacktestResult - 边界情况', () => {
     expect(result.portfolios[0].allocationHistory).toBeUndefined();
   });
 
-  it('drag 存在时正确降采样', () => {
-    const p = makePortfolio('P1', 1000);
-    p.drag = {
-      dragSeries: Array.from({ length: 1000 }, (_, i) => ({ date: `2020-01-${i + 1}`, value: i })),
-      totalDrag: 0.05,
-    };
-    const result = compressBacktestResult({ portfolios: [p], correlations: [] });
-    expect(result.portfolios[0].drag!.dragSeries.length).toBeLessThanOrEqual(800);
-    expect(result.portfolios[0].drag!.totalDrag).toBe(0.05);
-  });
-
   it('benchmarkGrowth 超过最大点数时降采样', () => {
     const result = compressBacktestResult({
       portfolios: [makePortfolio('P1', 100)],

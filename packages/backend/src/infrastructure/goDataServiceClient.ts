@@ -1,78 +1,37 @@
+import pLimit from 'p-limit';
 import { config } from '../config/index.js';
 import { registerSemaphoreMetrics } from '../utils/metrics.js';
 
 const MAX_RESPONSE_BODY_SIZE = config.MAX_RESPONSE_BODY_SIZE;
 
-class Semaphore {
-  private permits: number;
-  private readonly maxPermits: number;
-  private waitQueue: Array<() => void> = [];
-  private readonly maxQueueSize: number;
+// 并发限制：每组织独立限流器，避免单组织洪泛拖垮 Go 数据服务；未绑定组织的请求共享默认限流器
+const TENANT_CONCURRENCY_LIMIT = 10;
+const MAX_TENANT_LIMITERS = 1000;
+const MAX_PENDING = 100;
 
-  constructor(maxConcurrency: number, maxQueueSize = 100) {
-    this.permits = maxConcurrency;
-    this.maxPermits = maxConcurrency;
-    this.maxQueueSize = maxQueueSize;
-  }
-
-  async acquire(): Promise<void> {
-    if (this.permits > 0) {
-      this.permits--;
-      return;
-    }
-    if (this.waitQueue.length >= this.maxQueueSize) {
-      throw new Error('Semaphore queue full');
-    }
-    return new Promise<void>((resolve) => {
-      this.waitQueue.push(resolve);
-    });
-  }
-
-  release(): void {
-    const next = this.waitQueue.shift();
-    if (next) {
-      next();
-    } else {
-      this.permits++;
-    }
-  }
-
-  available(): number {
-    return this.permits;
-  }
-
-  total(): number {
-    return this.maxPermits;
-  }
-}
-
-const tenantSemaphores = new Map<string, Semaphore>();
-const TENANT_SEMAPHORE_LIMIT = 10;
-
-const defaultGoServiceSemaphore = new Semaphore(TENANT_SEMAPHORE_LIMIT);
-
-registerSemaphoreMetrics('go_data_service', defaultGoServiceSemaphore.total(), () =>
-  defaultGoServiceSemaphore.available(),
+const defaultGoServiceLimiter = pLimit(TENANT_CONCURRENCY_LIMIT);
+registerSemaphoreMetrics('go_data_service', TENANT_CONCURRENCY_LIMIT, () =>
+  Math.max(TENANT_CONCURRENCY_LIMIT - defaultGoServiceLimiter.activeCount, 0),
 );
 
-const MAX_TENANT_SEMAPHORES = 1000;
-function getTenantSemaphore(orgId?: string): Semaphore {
-  if (!orgId) return defaultGoServiceSemaphore;
-  let sem = tenantSemaphores.get(orgId);
-  if (!sem) {
-    if (tenantSemaphores.size >= MAX_TENANT_SEMAPHORES) return defaultGoServiceSemaphore;
-    sem = new Semaphore(TENANT_SEMAPHORE_LIMIT);
-    tenantSemaphores.set(orgId, sem);
+const tenantLimiters = new Map<string, ReturnType<typeof pLimit>>();
+function getTenantLimiter(orgId?: string): ReturnType<typeof pLimit> {
+  if (!orgId) return defaultGoServiceLimiter;
+  let limiter = tenantLimiters.get(orgId);
+  if (!limiter) {
+    if (tenantLimiters.size >= MAX_TENANT_LIMITERS) return defaultGoServiceLimiter;
+    limiter = pLimit(TENANT_CONCURRENCY_LIMIT);
+    tenantLimiters.set(orgId, limiter);
   }
-  return sem;
+  return limiter;
 }
 
 export async function callGoDataService(path: string, orgId?: string): Promise<string> {
-  const semaphore = getTenantSemaphore(orgId);
-  await semaphore.acquire().catch(() => {
-    throw new Error('Go data service semaphore queue full, try again later');
-  });
-  try {
+  const limiter = getTenantLimiter(orgId);
+  if (limiter.pendingCount >= MAX_PENDING) {
+    throw new Error('Go data service queue full, try again later');
+  }
+  return limiter(async () => {
     const baseUrl = config.GO_DATA_SERVICE_URL || 'http://127.0.0.1:15003';
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), config.GO_DATA_SERVICE_TIMEOUT_MS);
@@ -100,24 +59,22 @@ export async function callGoDataService(path: string, orgId?: string): Promise<s
         throw new Error(`Go data service returned HTTP ${res.status}: ${body.slice(0, 200)}`);
       }
       return body;
+    } catch (error) {
+      if (error instanceof Error && error.message.startsWith('Go data service')) {
+        throw error;
+      }
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        throw new Error(
+          `Go data service request timed out after ${config.GO_DATA_SERVICE_TIMEOUT_MS}ms`,
+        );
+      }
+      throw new Error(
+        `Go data service request failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
     } finally {
       clearTimeout(timer);
     }
-  } catch (error) {
-    if (error instanceof Error && error.message.startsWith('Go data service')) {
-      throw error;
-    }
-    if (error instanceof DOMException && error.name === 'AbortError') {
-      throw new Error(
-        `Go data service request timed out after ${config.GO_DATA_SERVICE_TIMEOUT_MS}ms`,
-      );
-    }
-    throw new Error(
-      `Go data service request failed: ${error instanceof Error ? error.message : String(error)}`,
-    );
-  } finally {
-    semaphore.release();
-  }
+  });
 }
 
 export async function fetchGoJson(

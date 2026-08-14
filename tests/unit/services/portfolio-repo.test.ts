@@ -46,27 +46,10 @@ import {
   updatePortfolio,
   deletePortfolio,
 } from '../../../packages/backend/src/repositories/portfolioRepo.js';
-import {
-  redisConnection,
-  appRedis,
-} from '../../../packages/backend/src/infrastructure/redisClient.js';
+import { bullmqConnectionOptions } from '../../../packages/backend/src/infrastructure/redisClient.js';
 
-describe('redisConnection（BullMQ 专用）', () => {
-  it('应导出实例并使用解析自 REDIS_URL 的 host/port 连接（单实例模式）', () => {
-    expect(redisConnection).toBeDefined();
-    expect(typeof redisConnection.on).toBe('function');
-    expect(ioredisMocks.IORedis).toHaveBeenCalledWith(
-      expect.objectContaining({
-        host: 'localhost',
-        port: 6379,
-        maxRetriesPerRequest: null,
-        enableReadyCheck: false,
-      }),
-    );
-  });
-});
 describe('appRedis（应用层通用）', () => {
-  const instance = () => ioredisMocks.instances[1];
+  const instance = () => ioredisMocks.instances[0];
 
   it.each([
     ['maxRetriesPerRequest 应为 3（有限重试）', 'maxRetriesPerRequest', 3],
@@ -114,11 +97,10 @@ describe('appRedis（应用层通用）', () => {
   });
 });
 
-describe('redisConnection 与 appRedis 配置隔离', () => {
-  it('两个连接应是不同实例且使用不同的 maxRetriesPerRequest 配置', () => {
-    expect(redisConnection).not.toBe(appRedis);
-    expect(ioredisMocks.instances[0].options.maxRetriesPerRequest).toBeNull();
-    expect(ioredisMocks.instances[1].options.maxRetriesPerRequest).toBe(3);
+describe('BullMQ 队列连接与应用连接配置隔离', () => {
+  it('bullmqConnectionOptions 与应用连接使用不同的重试配置', () => {
+    expect(bullmqConnectionOptions.maxRetriesPerRequest).toBeNull();
+    expect(ioredisMocks.instances[0].options.maxRetriesPerRequest).toBe(3);
   });
 });
 
@@ -166,10 +148,9 @@ describe('Redis Sentinel 模式（DADR-045）', () => {
     expect(opts.password).toBe('secret');
     expect(opts.sentinelPassword).toBe('secret');
 
-    expect(sentinelInstances).toHaveLength(2);
+    expect(sentinelInstances).toHaveLength(1);
     expect(sentinelInstances[0].options.sentinels).toEqual(opts.sentinels);
     expect(sentinelInstances[0].options.name).toBe('mymaster');
-    expect(sentinelInstances[1].options.sentinels).toEqual(opts.sentinels);
 
     vi.doUnmock('../../../packages/backend/src/config/env.js');
     vi.doUnmock('ioredis');

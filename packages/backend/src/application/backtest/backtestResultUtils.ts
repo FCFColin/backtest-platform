@@ -52,12 +52,6 @@ function compressPortfolio(portfolio: PortfolioResult, maxPoints: number): Portf
     allocationHistory: portfolio.allocationHistory
       ? downsampleByIndices(portfolio.allocationHistory, indices)
       : portfolio.allocationHistory,
-    drag: portfolio.drag
-      ? {
-          ...portfolio.drag,
-          dragSeries: downsampleByIndices(portfolio.drag.dragSeries ?? [], indices),
-        }
-      : portfolio.drag,
   };
 }
 

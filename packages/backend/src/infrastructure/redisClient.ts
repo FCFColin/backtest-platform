@@ -90,11 +90,6 @@ export const bullmqConnectionOptions: RedisOptions = {
   enableReadyCheck: false,
 };
 
-export const redisConnection = new IORedis({ ...bullmqConnectionOptions, lazyConnect: true });
-redisConnection.on('error', (err) =>
-  logger.debug({ err: String(err) }, '[redis] redisConnection 连接错误'),
-);
-
 export const appRedis = new IORedis({
   ...buildRedisBaseOptions(),
   maxRetriesPerRequest: 3,

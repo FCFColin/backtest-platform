@@ -1,4 +1,4 @@
-// P2-03: HMAC-SHA256 签名防篡改 + prev_hash 链式完整性；未配置 AUDIT_HMAC_KEY 时 fail-closed（D2-010）
+// P2-03: HMAC-SHA256 签名防篡改 + prev_hash 链式完整性；AUDIT_HMAC_KEY 由 config/index.ts 生产强制 ≥32 字节，缺失时降级不签名（仅开发环境可达）
 import crypto from 'crypto';
 import type { PoolClient } from 'pg';
 import { config } from '../config/index.js';
