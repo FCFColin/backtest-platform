@@ -5,7 +5,7 @@ import { engineMocks, engineModuleMock } from '../../helpers/engineFixture.js';
 
 const dataMocks = vi.hoisted(() => ({ fetchHistoryData: vi.fn() }));
 const helpersMocks = vi.hoisted(() => ({
-  fetchPriceDataWithRange: vi.fn(),
+  preparePriceDataAndWarnings: vi.fn(),
   calculateDateRange: vi.fn(),
 }));
 vi.mock('../../../packages/backend/src/utils/engineClient.js', () => engineModuleMock);
@@ -13,15 +13,8 @@ vi.mock('../../../packages/backend/src/infrastructure/dataFacade.js', () => ({
   fetchHistoryData: dataMocks.fetchHistoryData,
 }));
 vi.mock('../../../packages/backend/src/application/backtest-helpers.js', () => ({
-  fetchPriceDataWithRange: helpersMocks.fetchPriceDataWithRange,
+  preparePriceDataAndWarnings: helpersMocks.preparePriceDataAndWarnings,
   calculateDateRange: helpersMocks.calculateDateRange,
-  pushDegradedWarning: (warnings: unknown[], degraded: boolean, degradedWarning?: string) => {
-    if (degraded)
-      warnings.push({
-        code: 'DATA_DEGRADED',
-        message: degradedWarning || '数据服务降级，部分数据可能缺失',
-      });
-  },
 }));
 vi.mock(
   '../../../packages/backend/src/application/backtest/backtestEngineUtils.js',
@@ -247,18 +240,26 @@ describe('analysis-service', () => {
 
   describe('runAnalysis', () => {
     const params = { startDate: '2020-01-01', endDate: '2020-12-31' };
-    beforeEach(() =>
+    const prep = (over: Record<string, unknown> = {}) =>
+      helpersMocks.preparePriceDataAndWarnings.mockResolvedValue({
+        priceData: {},
+        warnings: [],
+        invalidTickers: [],
+        effectiveStartDate: '2020-01-02',
+        effectiveEndDate: '2020-12-30',
+        allTickers: new Set<string>(),
+        ...over,
+      });
+    beforeEach(() => {
+      prep({});
       helpersMocks.calculateDateRange.mockReturnValue({
         requested: { start: '2020-01-01', end: '2020-12-31' },
         actual: { start: '2020-01-02', end: '2020-12-30' },
         clamped: false,
-      }),
-    );
-    it('正常路径：获取数据、调用引擎、返回组装结果', async () => {
-      helpersMocks.fetchPriceDataWithRange.mockResolvedValue({
-        priceData: mockPriceData,
-        degraded: false,
       });
+    });
+    it('正常路径：获取数据、调用引擎、返回组装结果', async () => {
+      prep({ priceData: mockPriceData });
       mockEngine({
         assets: ['AAPL', 'SPY'],
         correlations: [
@@ -267,7 +268,7 @@ describe('analysis-service', () => {
         ],
       });
       const result = await runAnalysis(['AAPL', 'SPY'], params);
-      expect(helpersMocks.fetchPriceDataWithRange).toHaveBeenCalledWith(
+      expect(helpersMocks.preparePriceDataAndWarnings).toHaveBeenCalledWith(
         ['AAPL', 'SPY'],
         '2020-01-01',
         '2020-12-31',
@@ -287,11 +288,10 @@ describe('analysis-service', () => {
       expect(result.dateRange).toBeDefined();
       expect(result.warnings).toEqual([]);
     });
-    it('数据降级时应添加 DATA_DEGRADED 警告', async () => {
-      helpersMocks.fetchPriceDataWithRange.mockResolvedValue({
+    it('数据降级时应透出 DATA_DEGRADED 警告', async () => {
+      prep({
         priceData: { AAPL: mockPriceData.AAPL },
-        degraded: true,
-        degradedWarning: '数据服务降级',
+        warnings: [{ code: 'DATA_DEGRADED', message: '数据服务降级' }],
       });
       mockEngine({});
       expect((await runAnalysis(['AAPL'], params)).warnings).toContainEqual({
@@ -299,10 +299,11 @@ describe('analysis-service', () => {
         message: '数据服务降级',
       });
     });
-    it('部分 ticker 缺失时应添加 TICKER_NOT_FOUND 警告并仅传有效 ticker', async () => {
-      helpersMocks.fetchPriceDataWithRange.mockResolvedValue({
+    it('部分 ticker 缺失时应透出 TICKER_NOT_FOUND 警告并仅传有效 ticker', async () => {
+      prep({
         priceData: { AAPL: mockPriceData.AAPL },
-        degraded: false,
+        invalidTickers: ['MISSING'],
+        warnings: [{ code: 'TICKER_NOT_FOUND', tickers: ['MISSING'] }],
       });
       mockEngine({});
       const result = await runAnalysis(['AAPL', 'MISSING'], params);
@@ -314,17 +315,14 @@ describe('analysis-service', () => {
       );
     });
     it('所有 ticker 数据缺失时应抛出 ValidationError 且不调用引擎', async () => {
-      helpersMocks.fetchPriceDataWithRange.mockResolvedValue({ priceData: {}, degraded: false });
+      prep({ invalidTickers: ['AAPL', 'SPY'] });
       await expect(runAnalysis(['AAPL', 'SPY'], params)).rejects.toThrow(
         'Price data unavailable for all tickers: AAPL, SPY',
       );
       expect(engineMocks.callEngineStrict).not.toHaveBeenCalled();
     });
     it('引擎返回无 data.assets 时应展开原始结果', async () => {
-      helpersMocks.fetchPriceDataWithRange.mockResolvedValue({
-        priceData: mockPriceData,
-        degraded: false,
-      });
+      prep({ priceData: mockPriceData });
       mockEngine({ foo: 'bar', baz: 123 });
       const result = await runAnalysis(['AAPL', 'SPY'], params);
       expect(result.data).toMatchObject({ foo: 'bar', baz: 123 });

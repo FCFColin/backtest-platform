@@ -71,7 +71,10 @@ vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () => ({
     set: vi.fn(),
     del: vi.fn(),
     on: vi.fn(),
+    publish: vi.fn().mockResolvedValue(0),
   },
+  isSentinelMode: false,
+  bullmqConnectionOptions: {},
 }));
 vi.mock('../../../packages/backend/src/infrastructure/mailService.js', () => ({
   sendVerificationEmail: mocks.registration.sendVerificationEmail,
