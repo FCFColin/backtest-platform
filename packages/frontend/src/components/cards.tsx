@@ -86,14 +86,27 @@ export function PrefRow({ icon, label, desc, children }: PrefRowProps) {
 interface StatCardProps {
   label: string;
   value: ReactNode;
+  color?: string;
+  tone?: 'pos' | 'neg';
 }
-export function StatCard({ label, value }: StatCardProps) {
+export function StatCard({ label, value, color, tone }: StatCardProps) {
   return (
     <Card className="p-5">
       <div className="flex items-center gap-1.5 text-caption text-fg-tertiary uppercase tracking-wide">
+        {color && color !== 'transparent' && (
+          <span className="inline-block size-2 rounded-full" style={{ backgroundColor: color }} />
+        )}
         <span>{label}</span>
       </div>
-      <div className="mt-2 text-display text-fg tabular-nums font-mono">{value}</div>
+      <div
+        className={cn(
+          'mt-2 text-display text-fg tabular-nums font-mono',
+          tone === 'pos' && 'text-pos',
+          tone === 'neg' && 'text-neg',
+        )}
+      >
+        {value}
+      </div>
     </Card>
   );
 }

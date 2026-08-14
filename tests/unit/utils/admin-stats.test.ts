@@ -3,13 +3,18 @@ import {
   defaultParsedAdminStats,
   parseMarketBreakdown,
   parseAdminStats,
+  type ServiceHealthView,
 } from '../../../packages/frontend/src/utils/adminStats.js';
 
+const byName = (services: ServiceHealthView[], name: string) =>
+  services.find((s) => s.name === name)!;
+
 describe('defaultParsedAdminStats', () => {
-  it('应提供全 down 的服务与零值占位的默认结构', () => {
-    expect(defaultParsedAdminStats.services.goEngine.status).toBe('down');
-    expect(defaultParsedAdminStats.services.goDataService.status).toBe('down');
-    expect(defaultParsedAdminStats.services.nodeServer.status).toBe('down');
+  it('应提供占位默认结构：Go 服务 down、Node 服务 healthy（管理接口宿主）', () => {
+    const services = defaultParsedAdminStats.services;
+    expect(byName(services, 'Go Engine').status).toBe('down');
+    expect(byName(services, 'Go Data Service').status).toBe('down');
+    expect(byName(services, 'Node Service').status).toBe('healthy');
     expect(defaultParsedAdminStats.dataStats).toEqual({
       totalTickers: 0,
       totalSizeMB: 0,
@@ -47,11 +52,11 @@ describe('parseMarketBreakdown', () => {
 });
 
 describe('parseAdminStats', () => {
-  it('null / undefined 输入应返回与默认形态一致的结构（services 全 down、nodeServer 除外）', () => {
+  it('null / undefined 输入应返回与默认形态一致的结构', () => {
     const r = parseAdminStats(null);
-    expect(r.services.goEngine).toEqual({ status: 'down' });
-    expect(r.services.goDataService).toEqual({ status: 'down' });
-    expect(r.services.nodeServer).toEqual({ status: 'healthy', latency: 5 });
+    expect(byName(r.services, 'Go Engine').status).toBe('down');
+    expect(byName(r.services, 'Go Data Service').status).toBe('down');
+    expect(byName(r.services, 'Node Service').status).toBe('healthy');
     expect(r.dataStats).toEqual({
       totalTickers: 0,
       totalSizeMB: 0,
@@ -69,12 +74,12 @@ describe('parseAdminStats', () => {
         go_data_service: { status: 'unhealthy', error: 'timeout', latency_ms: 999 },
       },
     });
-    expect(r.services.goEngine).toEqual({
+    expect(byName(r.services, 'Go Engine')).toMatchObject({
       status: 'healthy',
       latency: 12,
       version: 'v1.0.0',
     });
-    expect(r.services.goDataService).toEqual({
+    expect(byName(r.services, 'Go Data Service')).toMatchObject({
       status: 'degraded',
       latency: 999,
       message: 'timeout',
@@ -83,7 +88,7 @@ describe('parseAdminStats', () => {
     const r2 = parseAdminStats({
       services: { go_engine: { status: 'unknown' } },
     });
-    expect(r2.services.goEngine.status).toBe('down');
+    expect(byName(r2.services, 'Go Engine').status).toBe('down');
   });
 
   it('data_stats：total_tickers 优先于 universe_total，date_ranges 与 by_market 解析正确', () => {

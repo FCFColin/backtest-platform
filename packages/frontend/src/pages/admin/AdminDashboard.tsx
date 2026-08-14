@@ -5,9 +5,8 @@ import {
   parseAdminStats,
   defaultParsedAdminStats,
   type ParsedAdminStats,
-  type ServiceHealth,
 } from '../../utils/adminStats.js';
-import { KpiCard, ServiceStatusBadge } from '../../components/admin/AdminLayout.js';
+import { KpiCard, ServiceStatusTable } from '../../components/admin/AdminLayout.js';
 import { ToolPageLayout } from '../../components/layout/ToolPageLayout.js';
 function KpiGrid({ data, totalSizeGB }: { data: ParsedAdminStats; totalSizeGB: string }) {
   const { t } = useTranslation();
@@ -69,19 +68,7 @@ function ServiceMarketSection({
             <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
         </div>
-        <div className="space-y-3">
-          <ServiceStatusItem name={t('Go Engine')} port=":15004" status={data.services.goEngine} />
-          <ServiceStatusItem
-            name={t('Go Data Service')}
-            port=":3003"
-            status={data.services.goDataService}
-          />
-          <ServiceStatusItem
-            name={t('Node Service')}
-            port=":3001"
-            status={data.services.nodeServer}
-          />
-        </div>
+        <ServiceStatusTable services={data.services} />
         {lastRefresh && (
           <p className="mt-3 text-xs text-fg-tertiary">
             {t('Last Refresh')}: {lastRefresh}
@@ -178,33 +165,5 @@ export default function AdminDashboard() {
         </div>
       }
     />
-  );
-}
-function ServiceStatusItem({
-  name,
-  port,
-  status,
-}: {
-  name: string;
-  port: string;
-  status: ServiceHealth;
-}) {
-  return (
-    <div className="flex items-center justify-between rounded-lg border border-border-subtle p-2">
-      <div className="flex items-center gap-2">
-        <Server className="h-4 w-4 text-fg-tertiary" />
-        <div>
-          <p className="text-sm font-medium text-fg-secondary">{name}</p>
-          <p className="text-xs text-fg-tertiary">{port}</p>
-        </div>
-      </div>
-      <div className="flex items-center gap-2">
-        {status.latency != null && (
-          <span className="text-xs text-fg-tertiary">{status.latency}ms</span>
-        )}
-        {status.version && <span className="text-xs text-fg-tertiary">v{status.version}</span>}
-        <ServiceStatusBadge status={status.status} variant="dot" size="md" />
-      </div>
-    </div>
   );
 }

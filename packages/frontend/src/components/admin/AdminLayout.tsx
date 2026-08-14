@@ -129,6 +129,9 @@ export function ServiceStatusTable({ services }: { services: ServiceHealthView[]
             <p className="text-xs text-fg-tertiary">{service.url}</p>
           </div>
           <div className="flex items-center gap-3">
+            {service.latency > 0 && (
+              <span className="text-xs text-fg-tertiary">{service.latency}ms</span>
+            )}
             {service.version && (
               <span className="text-xs text-fg-tertiary">v{service.version}</span>
             )}
