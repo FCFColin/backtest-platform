@@ -1,14 +1,4 @@
-import {
-  memo,
-  useState,
-  useEffect,
-  type ChangeEvent,
-  type ReactNode,
-  forwardRef,
-  useId,
-  type InputHTMLAttributes,
-  type Ref,
-} from 'react';
+import { memo, useState, useEffect, type ChangeEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useShallow } from 'zustand/react/shallow';
 import { ChevronDown } from 'lucide-react';
@@ -29,6 +19,7 @@ import {
   SelectItem,
 } from '@/components/ui/uiComponents';
 import { Field, FieldLabel } from '@/components/form/Field';
+import { DateField, SelectField } from '@/components/form/sharedFields';
 import TickerInput from './TickerInput.js';
 import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
 import { CashflowLegsSection, OneTimeCashflowSection } from './BacktestParamsForm.CashflowLegs.js';
@@ -37,137 +28,6 @@ import type { TFunction } from 'i18next';
 
 export interface TFunctionProp {
   t: TFunction;
-}
-
-const FIELD_SHELL =
-  'relative h-14 rounded-md border transition-colors duration-150 bg-input-bg group';
-const LABEL_CLS =
-  'absolute left-3 top-1.5 z-10 pointer-events-none text-label-tiny text-fg-tertiary transition-colors duration-150 group-focus-within:text-brand';
-
-interface FloatingFieldProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'prefix'> {
-  label: string;
-  prefix?: ReactNode;
-  suffix?: ReactNode;
-  containerClassName?: string;
-  type?: 'select' | string;
-  options?: Array<{ value: string; label: string }>;
-  onValueChange?: (value: string) => void;
-  disabled?: boolean;
-}
-export const FloatingField = forwardRef<HTMLInputElement, FloatingFieldProps>(
-  (
-    {
-      label,
-      prefix,
-      suffix,
-      className,
-      containerClassName,
-      id,
-      type = 'text',
-      options,
-      onValueChange,
-      disabled,
-      ...props
-    },
-    ref,
-  ) => {
-    const fallbackId = useId();
-    const inputId = id ?? fallbackId;
-    return (
-      <div className={cn('relative', containerClassName)}>
-        <div
-          className={cn(
-            FIELD_SHELL,
-            'border-border focus-within:border-brand hover:border-border-strong',
-          )}
-        >
-          <label htmlFor={inputId} className={LABEL_CLS}>
-            {label}
-          </label>
-          <FieldControl
-            inputId={inputId}
-            inputRef={ref}
-            label={label}
-            options={options}
-            onValueChange={onValueChange}
-            disabled={disabled}
-            prefix={prefix}
-            suffix={suffix}
-            className={className}
-            type={type}
-            {...props}
-          />
-        </div>
-      </div>
-    );
-  },
-);
-FloatingField.displayName = 'FloatingField';
-type FieldControlProps = Omit<FloatingFieldProps, 'containerClassName' | 'id'> & {
-  inputId: string;
-  inputRef: Ref<HTMLInputElement>;
-};
-
-function FieldControl({
-  inputId,
-  inputRef,
-  label,
-  options,
-  onValueChange,
-  disabled,
-  prefix,
-  suffix,
-  className,
-  type,
-  ...inputProps
-}: FieldControlProps) {
-  if (type === 'select') {
-    return (
-      <Select value={inputProps.value as string} onValueChange={onValueChange} disabled={disabled}>
-        <SelectTrigger
-          id={inputId}
-          aria-label={label}
-          className="w-full h-full pt-6 pb-2 px-3 pr-9 flex items-center justify-between text-body text-fg text-left border-0 bg-transparent focus:outline-none focus:ring-0 [&>svg]:absolute [&>svg]:right-3 [&>svg]:bottom-3.5 [&>svg]:opacity-100"
-        >
-          <SelectValue placeholder={inputProps.placeholder as string} />
-        </SelectTrigger>
-        <SelectContent position="popper" sideOffset={4}>
-          {options?.map((o) => (
-            <SelectItem key={o.value} value={o.value}>
-              {o.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    );
-  }
-  return (
-    <>
-      {prefix && (
-        <span className="absolute left-3 bottom-2 text-body text-fg-tertiary pointer-events-none">
-          {prefix}
-        </span>
-      )}
-      <input
-        ref={inputRef}
-        id={inputId}
-        type={type}
-        disabled={disabled}
-        className={cn(
-          'w-full h-full pt-6 pb-2 bg-transparent text-body text-fg font-mono tabular-nums focus:outline-none placeholder:text-fg-tertiary',
-          prefix ? 'pl-7' : 'pl-3',
-          suffix ? 'pr-16' : 'pr-3',
-          className,
-        )}
-        {...inputProps}
-      />
-      {suffix && (
-        <span className="absolute right-3 bottom-2 text-caption text-fg-tertiary pointer-events-none">
-          {suffix}
-        </span>
-      )}
-    </>
-  );
 }
 
 type BasicParamsField =
@@ -271,8 +131,7 @@ function useParamField() {
     updateParameter('startDate', value === 'all' ? '' : DEFAULT_BACKTEST_START_DATE);
     updateParameter('endDate', value === 'all' ? '' : DEFAULT_END_DATE);
   };
-  const handleDateChange = (field: 'startDate' | 'endDate', e: ChangeEvent<HTMLInputElement>) => {
-    const v = e.target.value;
+  const handleDateChange = (field: 'startDate' | 'endDate', v: string) => {
     if (!v) return void updateParameter(field, v);
     const other = field === 'startDate' ? parameters.endDate : parameters.startDate;
     const today = new Date().toLocaleDateString('en-CA');
@@ -326,56 +185,64 @@ function BasicParamsGrid() {
     handleNum,
     updateParameter,
   } = useParamField();
-  const dateFields = [
-    ['startDate', t('Start Date'), parameters.startDate || DEFAULT_BACKTEST_START_DATE],
-    ['endDate', t('End Date'), parameters.endDate || DEFAULT_END_DATE],
-  ] as const;
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-      {dateFields.map(([field, label, value]) => (
-        <FloatingField
+      {(
+        [
+          ['startDate', t('Start Date'), DEFAULT_BACKTEST_START_DATE],
+          ['endDate', t('End Date'), DEFAULT_END_DATE],
+        ] as const
+      ).map(([field, label, fallback]) => (
+        <DateField
           key={field}
+          id={`bp-${field}`}
           label={label}
-          type="date"
-          value={value}
+          value={parameters[field]}
+          fallback={fallback}
           disabled={dateRangeMode === 'all'}
-          onChange={(e) => handleDateChange(field, e)}
+          onChange={(v) => handleDateChange(field, v)}
         />
       ))}
-      <FloatingField
-        label={t('Starting Value')}
-        type="number"
-        value={parameters.startingValue}
-        min={1}
-        step="any"
-        onChange={(e) => handleNum('startingValue', e)}
-        prefix={parameters.baseCurrency === 'usd' ? '$' : '¥'}
-      />
-      <FloatingField
-        label={t('Rolling Window')}
-        type="number"
-        value={parameters.rollingWindowMonths}
-        min={1}
-        max={120}
-        step={1}
-        onChange={(e) => handleNum('rollingWindowMonths', e)}
-        suffix={t('months')}
-      />
-      <FloatingField
+      <Field>
+        <FieldLabel htmlFor="bp-start-val">{t('Starting Value')}</FieldLabel>
+        <AffixInput
+          id="bp-start-val"
+          type="number"
+          prefix={parameters.baseCurrency === 'usd' ? '$' : '¥'}
+          value={parameters.startingValue}
+          min={1}
+          step="any"
+          onChange={(e) => handleNum('startingValue', e)}
+        />
+      </Field>
+      <Field>
+        <FieldLabel htmlFor="bp-window">{t('Rolling Window')}</FieldLabel>
+        <AffixInput
+          id="bp-window"
+          type="number"
+          suffix={t('months')}
+          value={parameters.rollingWindowMonths}
+          min={1}
+          max={120}
+          step={1}
+          onChange={(e) => handleNum('rollingWindowMonths', e)}
+        />
+      </Field>
+      <SelectField
+        id="bp-range"
         label={t('Date Range')}
-        type="select"
         value={dateRangeMode}
-        onValueChange={handleDateRangeChange}
+        onChange={handleDateRangeChange}
         options={[
           { value: 'all', label: t('All History') },
           { value: 'custom', label: t('Custom Range') },
         ]}
       />
-      <FloatingField
+      <SelectField
+        id="bp-currency"
         label={t('Currency')}
-        type="select"
         value={currency}
-        onValueChange={(v) => {
+        onChange={(v) => {
           const next = v as 'usd' | 'cny';
           updateParameter('baseCurrency', next);
           useSettingsStore.getState().setCurrency(next);
