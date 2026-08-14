@@ -70,7 +70,7 @@ describe('savedConfigRepo', () => {
   ])('listConfigs %s', async (limit, expected) => {
     dbMocks.query.mockResolvedValueOnce({ rows: [] });
     await listConfigs(TENANT, limit);
-    expect(dbMocks.query.mock.calls[0][1][0]).toBe(expected);
+    expect(dbMocks.query.mock.calls[0][1][1]).toBe(expected);
   });
   it('getConfig 成功应返回映射后的记录', async () => {
     dbMocks.query.mockResolvedValueOnce({ rows: [baseRow] });
@@ -159,7 +159,7 @@ describe('backtestRunRepo', () => {
   ])('listRuns %s', async (limit, expected) => {
     dbMocks.query.mockResolvedValueOnce({ rows: [runRow()] });
     await listRuns(TENANT, limit);
-    expect(dbMocks.query.mock.calls[0][1][0]).toBe(expected);
+    expect(dbMocks.query.mock.calls[0][1][1]).toBe(expected);
   });
   it('listRuns 应返回映射后的记录数组', async () => {
     dbMocks.query.mockResolvedValueOnce({
@@ -218,7 +218,7 @@ describe('backtestRunRepo', () => {
     expect(await deleteRun(TENANT, ID)).toBe(expected);
     expect(dbMocks.query).toHaveBeenCalledWith(
       expect.stringContaining('DELETE FROM backtest_runs'),
-      [ID],
+      [ID, TENANT],
     );
   });
 });

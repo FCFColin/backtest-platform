@@ -223,9 +223,10 @@ describe('portfolioRepo CRUD', () => {
       const r = await deletePortfolio(TENANT, PORTFOLIO_ID);
       expect(r).toBe(true);
       expect(dbMocks.withTenant).toHaveBeenCalledWith(TENANT);
-      expect(dbMocks.query).toHaveBeenCalledWith('DELETE FROM portfolios WHERE id = $1', [
-        PORTFOLIO_ID,
-      ]);
+      expect(dbMocks.query).toHaveBeenCalledWith(
+        'DELETE FROM portfolios WHERE id = $1 AND tenant_id = $2',
+        [PORTFOLIO_ID, TENANT],
+      );
     });
 
     it.each([0, undefined] as const)('rowCount=%s 应返回 false', async (rowCount) => {
@@ -242,11 +243,11 @@ describe('portfolioRepo CRUD', () => {
     }
 
     it.each<[string, number | undefined, number | undefined, unknown[]]>([
-      ['默认 limit 50 / offset 0', undefined, undefined, [50, 0]],
-      ['limit 上限钳制 200', 9999, undefined, [200, 0]],
-      ['自定义 limit/offset', 25, 100, [25, 100]],
-      ['负 offset 钳制为 0', 50, -5, [50, 0]],
-      ['limit 为 0 传 0', 0, undefined, [0, 0]],
+      ['默认 limit 50 / offset 0', undefined, undefined, [TENANT, 50, 0]],
+      ['limit 上限钳制 200', 9999, undefined, [TENANT, 200, 0]],
+      ['自定义 limit/offset', 25, 100, [TENANT, 25, 100]],
+      ['负 offset 钳制为 0', 50, -5, [TENANT, 50, 0]],
+      ['limit 为 0 传 0', 0, undefined, [TENANT, 0, 0]],
     ])('%s', async (_n, limit, offset, expected) => {
       expect(await callList(limit, offset)).toEqual(expected);
     });

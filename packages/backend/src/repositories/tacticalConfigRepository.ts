@@ -72,7 +72,10 @@ export const remove = repo.delete;
 
 export async function count(tenantId: string): Promise<number> {
   return withTenantReadOnly(tenantId, async (client) => {
-    const { rows } = await client.query('SELECT COUNT(*)::int AS count FROM tactical_configs');
+    const { rows } = await client.query(
+      'SELECT COUNT(*)::int AS count FROM tactical_configs WHERE tenant_id = $1',
+      [tenantId],
+    );
     return rows[0].count as number;
   });
 }

@@ -62,19 +62,19 @@ describe('findByTenant', () => {
     });
     const [sql, params] = dbMocks.clientQuery.mock.calls[0];
     expect(sql).toContain('ORDER BY updated_at DESC');
-    expect(params).toEqual([10, 5]);
+    expect(params).toEqual([ORG, 10, 5]);
   });
 
   it('limit 应被截断到 200', async () => {
     dbMocks.clientQuery.mockResolvedValue({ rows: [] });
     await findByTenant(ORG, 500);
-    expect(dbMocks.clientQuery.mock.calls[0][1][0]).toBe(200);
+    expect(dbMocks.clientQuery.mock.calls[0][1][1]).toBe(200);
   });
 
   it('offset 负数应被归零', async () => {
     dbMocks.clientQuery.mockResolvedValue({ rows: [] });
     await findByTenant(ORG, 10, -5);
-    expect(dbMocks.clientQuery.mock.calls[0][1][1]).toBe(0);
+    expect(dbMocks.clientQuery.mock.calls[0][1][2]).toBe(0);
   });
 });
 
@@ -122,7 +122,7 @@ describe('update', () => {
     const [sql, params] = dbMocks.clientQuery.mock.calls[0];
     expect(sql).toContain('name = $2');
     expect(sql).toContain('config = $3');
-    expect(params).toEqual([CONFIG_ID, 'Updated', { x: 1 }]);
+    expect(params).toEqual([CONFIG_ID, 'Updated', { x: 1 }, ORG]);
   });
 
   it('仅更新 description 时应正确构建参数', async () => {
@@ -130,7 +130,7 @@ describe('update', () => {
     await update(ORG, CONFIG_ID, { description: 'new' });
     const [sql, params] = dbMocks.clientQuery.mock.calls[0];
     expect(sql).toContain('description = $2');
-    expect(params).toEqual([CONFIG_ID, 'new']);
+    expect(params).toEqual([CONFIG_ID, 'new', ORG]);
   });
 
   it('无更新字段时应回退到 findById', async () => {

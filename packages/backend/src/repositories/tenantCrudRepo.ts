@@ -27,15 +27,20 @@ export function createTenantCrudRepo<TRecord, TInput>(cfg: TenantCrudConfig<TRec
   } = cfg;
   const get = async (tenantId: string, id: string): Promise<TRecord | null> =>
     withTenantReadOnly(tenantId, (client) =>
-      queryRow(client, `SELECT ${selectCols} FROM ${table} WHERE id = $1`, [id], mapRow),
+      queryRow(
+        client,
+        `SELECT ${selectCols} FROM ${table} WHERE tenant_id = $1 AND id = $2`,
+        [tenantId, id],
+        mapRow,
+      ),
     );
   return {
     list: async (tenantId: string, limit = 50, offset = 0): Promise<TRecord[]> =>
       withTenantReadOnly(tenantId, (client) =>
         queryMany(
           client,
-          `SELECT ${selectCols} FROM ${table} ORDER BY ${orderBy} LIMIT $1 OFFSET $2`,
-          [sanitizeLimit(limit), Math.max(0, Math.trunc(offset))],
+          `SELECT ${selectCols} FROM ${table} WHERE tenant_id = $1 ORDER BY ${orderBy} LIMIT $2 OFFSET $3`,
+          [tenantId, sanitizeLimit(limit), Math.max(0, Math.trunc(offset))],
           mapRow,
         ),
       ),
@@ -54,16 +59,20 @@ export function createTenantCrudRepo<TRecord, TInput>(cfg: TenantCrudConfig<TRec
       withTenant(tenantId, (client) => {
         const set = typeof updateSet === 'string' ? updateSet : updateSet(input);
         if (!set) return get(tenantId, id);
+        const values = toUpdate(id, input);
         return queryRow(
           client,
-          `UPDATE ${table} SET ${set} WHERE id = $1 RETURNING ${selectCols}`,
-          [id, ...toUpdate(id, input)],
+          `UPDATE ${table} SET ${set} WHERE id = $1 AND tenant_id = $${values.length + 2} RETURNING ${selectCols}`,
+          [id, ...values, tenantId],
           mapRow,
         );
       }),
     delete: async (tenantId: string, id: string): Promise<boolean> =>
       withTenant(tenantId, async (client) => {
-        const { rowCount } = await client.query(`DELETE FROM ${table} WHERE id = $1`, [id]);
+        const { rowCount } = await client.query(
+          `DELETE FROM ${table} WHERE id = $1 AND tenant_id = $2`,
+          [id, tenantId],
+        );
         return (rowCount ?? 0) > 0;
       }),
   };
