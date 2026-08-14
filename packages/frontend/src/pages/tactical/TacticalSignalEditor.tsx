@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { Plus, X, Info } from 'lucide-react';
+import { Plus, X } from 'lucide-react';
 import {
   AffixInput,
   Button,
@@ -9,9 +9,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
+  InfoTooltip,
 } from '@/components/ui/uiComponents';
 import { cn } from '@/lib/utils';
 import {
@@ -112,17 +110,7 @@ function ConditionRow({
         className="w-[130px]"
         label={t('Metric')}
       />
-      {indicatorDesc && (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Info
-              className="size-3.5 shrink-0 cursor-help text-fg-tertiary"
-              aria-label={t(indicatorDesc)}
-            />
-          </TooltipTrigger>
-          <TooltipContent>{t(indicatorDesc)}</TooltipContent>
-        </Tooltip>
-      )}
+      {indicatorDesc && <InfoTooltip description={t(indicatorDesc)} />}
       <AffixInput
         type="number"
         aria-label={t('Period')}

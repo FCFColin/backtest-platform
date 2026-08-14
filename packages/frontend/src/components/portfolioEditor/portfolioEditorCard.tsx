@@ -89,9 +89,9 @@ export function PortfolioCard({
       style={{ borderTop: `3px solid ${color}` }}
     >
       <div className="absolute top-2 right-2 flex justify-end gap-0.5 md:opacity-0 transition-opacity md:group-hover:opacity-100 md:group-focus-within:opacity-100 z-20">
-        {actionBtns.map((b, i) => (
+        {actionBtns.map((b) => (
           <Button
-            key={i}
+            key={b.title}
             variant={b.variant}
             size="icon"
             title={b.title}
@@ -204,7 +204,7 @@ const sharePortfolioState = (t: TFunc): void => {
     .catch(() =>
       useToastStore
         .getState()
-        .addToast('success', t('Share link generated (please copy from address bar manually)')),
+        .addToast('error', t('Share link generated (please copy from address bar manually)')),
     );
 };
 const confirmMetaSaved = (t: TFunc): void =>

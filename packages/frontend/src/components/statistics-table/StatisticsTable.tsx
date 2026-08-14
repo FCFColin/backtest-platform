@@ -1,6 +1,6 @@
 ﻿import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Settings2, Info } from 'lucide-react';
+import { Settings2 } from 'lucide-react';
 import { Button } from '@/components/ui/uiComponents.js';
 import {
   DropdownMenu,
@@ -11,9 +11,7 @@ import {
   CardHeader,
   CardTitle,
   CardContent,
-  Tooltip,
-  TooltipTrigger,
-  TooltipContent,
+  InfoTooltip,
 } from '@/components/ui/uiComponents.js';
 import { type PortfolioResult, type Statistics } from '@backtest/shared';
 import { getPortfolioColor } from '@/lib/chart-theme.js';
@@ -210,17 +208,7 @@ export function WithdrawalRatesCard({ portfolios }: WithdrawalRatesCardProps) {
       render: (row) => (
         <span className="inline-flex items-center gap-1">
           <span className="text-fg-secondary">{t(row.labelKey)}</span>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Info
-                className="size-3 cursor-help text-fg-tertiary"
-                aria-label={t(row.descKey)}
-                tabIndex={0}
-                role="img"
-              />
-            </TooltipTrigger>
-            <TooltipContent>{t(row.descKey)}</TooltipContent>
-          </Tooltip>
+          <InfoTooltip description={t(row.descKey)} />
         </span>
       ),
     },

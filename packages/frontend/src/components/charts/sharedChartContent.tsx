@@ -149,7 +149,8 @@ export function SimpleChart({
       data: isCategory
         ? data.map((d) => d[s.dataKey] ?? null)
         : data.map((d) => [Number(d[xDataKey]), d[s.dataKey] ?? null]),
-      smooth: true,
+      // 密集序列平滑无视觉失真；稀疏序列用直线如实反映月度跳变
+      smooth: data.length >= 100,
       symbol: s.symbol ?? 'none',
       showSymbol: s.symbol != null,
       symbolSize: s.symbolSize ?? 8,

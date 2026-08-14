@@ -1,9 +1,8 @@
 ﻿import { useTranslation } from 'react-i18next';
-import { Info } from 'lucide-react';
 import type { PortfolioResult } from '@backtest/shared';
 import { getColorClass } from '@/components/charts/chartUtils.js';
 import { getPortfolioColor } from '@/lib/chart-theme.js';
-import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/uiComponents.js';
+import { InfoTooltip } from '@/components/ui/uiComponents.js';
 import type { StatRow, FmtType } from './types.js';
 import { fmtPct, fmtRatio, fmtNum } from '@/utils/format';
 import { STAT_KEY_TO_TESTID } from './types.js';
@@ -52,17 +51,7 @@ function MetricLabel({ row }: { row: StatRow }) {
   return (
     <span className="inline-flex items-center gap-1">
       <span>{t(row.label)}</span>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Info
-            className="size-3 cursor-help text-fg-tertiary"
-            aria-label={t(row.description)}
-            tabIndex={0}
-            role="img"
-          />
-        </TooltipTrigger>
-        <TooltipContent>{t(row.description)}</TooltipContent>
-      </Tooltip>
+      <InfoTooltip description={t(row.description)} />
     </span>
   );
 }
@@ -79,7 +68,7 @@ export function MetricsRows({ rows, portfolios }: MetricsRowsProps) {
             </td>
             {portfolios.map((p) => {
               const val = p.statistics[row.key] as number | undefined;
-              const colorClass = val == null ? '' : getColorClass(val);
+              const colorClass = val == null || !row.colorize ? '' : getColorClass(val);
               return (
                 <td
                   key={p.name}

@@ -5,6 +5,7 @@ export interface StatRow {
   label: string;
   fmt: FmtType;
   description?: string;
+  colorize?: boolean;
 }
 export const STAT_KEY_TO_TESTID: Record<string, string> = {
   cagr: 'stat-cagr',

@@ -14,7 +14,7 @@ import * as SwitchPrimitive from '@radix-ui/react-switch';
 import * as TabsPrimitive from '@radix-ui/react-tabs';
 import * as TooltipPrimitive from '@radix-ui/react-tooltip';
 import { cva, type VariantProps } from 'class-variance-authority';
-import { Check, Circle, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
+import { Check, Circle, ChevronDown, ChevronUp, Info, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 
@@ -419,6 +419,21 @@ export const TooltipContent = React.forwardRef<
   </TooltipPrimitive.Portal>
 ));
 TooltipContent.displayName = 'TooltipContent';
+export function InfoTooltip({ description }: { description: string }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Info
+          className="size-3 shrink-0 cursor-help text-fg-tertiary"
+          aria-label={description}
+          tabIndex={0}
+          role="img"
+        />
+      </TooltipTrigger>
+      <TooltipContent>{description}</TooltipContent>
+    </Tooltip>
+  );
+}
 interface LoadingButtonProps extends ButtonProps {
   isLoading: boolean;
   loadingText?: string;

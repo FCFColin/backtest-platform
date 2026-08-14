@@ -275,7 +275,9 @@ function MultiPortfolioEditor() {
               rebalanceOptions={rebalanceOptions}
               nonGlidepathPortfolios={nonGlidepathPortfolios}
               onUpdate={updatePortfolio}
-              onDelete={() => removePortfolio(portfolio.id)}
+              onDelete={() => {
+                if (window.confirm(t('Delete this portfolio?'))) removePortfolio(portfolio.id);
+              }}
               onDuplicate={() => duplicatePortfolio(portfolio.id)}
               onSave={(p) => handleSavePortfolio(p, parameters, t)}
             />
