@@ -35,7 +35,6 @@ export const redisMocks = internalMocks;
 
 export const redisModuleMock = {
   appRedis: internalMocks,
-  redisConnection: {},
   bullmqConnectionOptions: {
     host: 'localhost',
     port: 6379,

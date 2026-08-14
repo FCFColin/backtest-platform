@@ -72,7 +72,6 @@ vi.mock('../../packages/backend/src/middleware/quota.js', () => ({
   enforceOrgActive: () => (_req: unknown, _res: unknown, next: () => void) => next(),
 }));
 vi.mock('../../packages/backend/src/infrastructure/redisClient.js', () => ({
-  redisConnection: { on: () => {} },
   bullmqConnectionOptions: { host: 'localhost', port: 6379 },
   appRedis: {
     on: () => {},

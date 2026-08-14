@@ -197,7 +197,6 @@ export function createRedisModuleMock(
 ) {
   const appRedis = createRedisMocks(opts, target);
   return {
-    redisConnection: {},
     appRedis,
     getRedisHealth: vi.fn(async () => {
       try {

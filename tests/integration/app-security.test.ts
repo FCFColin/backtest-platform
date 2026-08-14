@@ -35,7 +35,6 @@ vi.mock('../../packages/backend/src/infrastructure/redisClient.js', () => {
       ping: vi.fn().mockResolvedValue('PONG'),
       on: vi.fn(),
     },
-    redisConnection: {},
     isSentinelMode: false,
     bullmqConnectionOptions: { host: 'localhost', port: 6379 },
     buildRedisBaseOptions: () => ({ maxRetriesPerRequest: null, enableReadyCheck: false }),
