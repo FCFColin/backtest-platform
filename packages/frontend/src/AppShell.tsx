@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useLocation } from 'react-router';
+import { useLocation, useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { OfflineBanner } from '@/components/stateDisplay';
 import Navbar from '@/components/layout/Navbar';
@@ -16,6 +16,7 @@ import {
 } from './utils/performanceReporter.js';
 export default function AppShell() {
   const location = useLocation();
+  const navigate = useNavigate();
   const { t } = useTranslation();
   const isAdmin = location.pathname.startsWith('/admin');
   const initAuth = useAuthStore((s) => s.init);
@@ -25,8 +26,18 @@ export default function AppShell() {
     void initAuth();
   }, [initAuth]);
   useEffect(() => {
+    const onSessionExpired = () => {
+      if (!useAuthStore.getState().user) return;
+      void useAuthStore.getState().logout();
+      navigate('/login', { replace: true });
+    };
+    window.addEventListener('session-expired', onSessionExpired);
+    return () => window.removeEventListener('session-expired', onSessionExpired);
+  }, [navigate]);
+  useEffect(() => {
     onNavStart();
     window.scrollTo(0, 0);
+    document.getElementById('main-content')?.focus({ preventScroll: true });
   }, [location.pathname]);
   useEffect(() => {
     initVitalsReporting();

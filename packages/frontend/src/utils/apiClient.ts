@@ -29,6 +29,7 @@ export function refreshTokens(): Promise<boolean> {
       clearTimeout(timeoutId);
       if (!res.ok) {
         clearTokens();
+        window.dispatchEvent(new Event('session-expired'));
         return false;
       }
       const body = await res.json();
