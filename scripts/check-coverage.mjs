@@ -58,31 +58,38 @@ const ALLOWED_PREFIXES = [
 ];
 // 仅豁免"已计入全局覆盖率但每文件行覆盖不达标"的文件。
 // 完全不参与覆盖率的文件以 vite.config.ts coverage.exclude 为单一权威源（不再重复列出）。
+// 豁免分组说明（治理期限：2026-Q4 复核，每组须保留对应集成/契约/混沌测试兜底）：
+//   ① 路由绑定与入口（薄胶水层）：依赖契约/集成测试（api-implementation.contract.test.ts 覆盖全部路由挂载）
+//   ② 真实外部依赖面（PG/Redis/Kafka/BullMQ）：由 testcontainers 集成与 chaos 实验兜底，单测 mock 无意义
+//   ③ 前端状态 hooks/常量：由 e2e（store 全链路）兜底
 const PER_FILE_EXCLUDE_SUFFIXES = [
+  // ① 路由绑定与入口
   'packages/backend/src/routes/authRoutes.ts',
   'packages/backend/src/routes/orgRoutes.ts',
   'packages/backend/src/routes/billingRoutes.ts',
-  'packages/backend/src/db/pool.ts',
-  'packages/backend/src/server.ts',
-  'packages/backend/src/tracing.ts',
-  'packages/frontend/src/hooks/useFactorRegressionState.ts',
-  'packages/frontend/src/hooks/useGoalOptimizerState.ts',
-  'packages/frontend/src/hooks/useLumpSumVsDCAState.ts',
-  'packages/frontend/src/hooks/useTacticalGridState.ts',
-  'packages/backend/src/middleware/jwtAuth.ts',
-  'packages/backend/src/queues/backtestQueue.ts',
-  'packages/backend/src/services/backtestWs.ts',
-  'packages/backend/src/infrastructure/outboxKafkaConsumer.ts',
-  'packages/backend/src/db/marketStatsHelpers.ts',
-  'packages/backend/src/infrastructure/apiKeyVerifier.ts',
-  'packages/backend/src/repositories/apiKeyRepo.ts',
-  'packages/backend/src/repositories/backtestRunRepo.ts',
   'packages/backend/src/routes/apiKeyRoutes.ts',
   'packages/backend/src/routes/platformRoutes.ts',
   'packages/backend/src/routes/dataRoutes.ts',
   'packages/backend/src/schemas/openapi-registry.ts',
+  'packages/backend/src/server.ts',
+  'packages/backend/src/tracing.ts',
+  // ② 真实外部依赖面
+  'packages/backend/src/db/pool.ts',
+  'packages/backend/src/middleware/jwtAuth.ts',
+  'packages/backend/src/queues/backtestQueue.ts',
+  'packages/backend/src/services/backtestWs.ts',
+  'packages/backend/src/infrastructure/outboxKafkaConsumer.ts',
+  'packages/backend/src/infrastructure/apiKeyVerifier.ts',
+  'packages/backend/src/repositories/apiKeyRepo.ts',
+  'packages/backend/src/repositories/backtestRunRepo.ts',
+  'packages/backend/src/db/marketStatsHelpers.ts',
   'packages/backend/src/utils/requestContext.ts',
   'packages/backend/src/application/backtest-helpers.ts',
+  // ③ 前端状态 hooks/常量
+  'packages/frontend/src/hooks/useFactorRegressionState.ts',
+  'packages/frontend/src/hooks/useGoalOptimizerState.ts',
+  'packages/frontend/src/hooks/useLumpSumVsDCAState.ts',
+  'packages/frontend/src/hooks/useTacticalGridState.ts',
   'packages/frontend/src/utils/constants.ts',
 ];
 

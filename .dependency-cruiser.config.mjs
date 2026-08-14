@@ -37,8 +37,9 @@ export default {
     },
     {
       name: 'no-circular',
-      severity: 'error',
-      comment: '禁止循环依赖',
+      // 既有环均为前端组件族父子互引（独立工作线），仅告警不阻塞；门禁对 4 条层间规则生效（verify-depcruise.mjs C-024）
+      severity: 'warn',
+      comment: '禁止循环依赖（既有环仅告警）',
       from: {},
       to: { circular: true },
     },

@@ -1,7 +1,6 @@
 // scripts/verify/verify-depcruise.mjs
 // C-024: 层间纪律门禁 — 只对 4 条层间规则（domain-zero-deps/no-reverse-layer/utils-no-routes/frontend-no-backend）
-// 做 error 门禁；no-circular 作为记录输出（既有环是独立工作线，不阻塞 CI）。
-// 直接跑 pnpm depcheck 会因既有 no-circular 环全量失败，无法作为 CI 门禁，故单独过滤。
+// 做 error 门禁；no-circular 配置为 warn（既有环是前端组件族独立工作线，不阻塞 CI），仅记录数量。
 import { runCmd, runCheck, finishVerify } from './_lib.mjs';
 
 const LAYER_RULES = new Set([

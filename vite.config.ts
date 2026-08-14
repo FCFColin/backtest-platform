@@ -43,12 +43,7 @@ function zustandEsmResolver(): Plugin {
   const esm = feNm('zustand/esm');
   const map: Record<string, string> = {
     zustand: 'index.mjs',
-    'zustand/vanilla': 'vanilla.mjs',
-    'zustand/vanilla/shallow': 'vanilla/shallow.mjs',
-    'zustand/react': 'react.mjs',
     'zustand/react/shallow': 'react/shallow.mjs',
-    'zustand/shallow': 'shallow.mjs',
-    'zustand/middleware': 'middleware.mjs',
   };
   return {
     name: 'zustand-esm-resolver',
@@ -78,10 +73,6 @@ function ssrLocalesCopy(): Plugin {
 }
 
 export default defineConfig(async () => {
-  const { federation } = await import('@originjs/vite-plugin-federation').catch(() => ({
-    federation: null,
-  }));
-
   return {
     root: projectRoot,
     resolve: {
@@ -96,7 +87,7 @@ export default defineConfig(async () => {
             name: 'node',
             globals: true,
             include: [
-              'tests/unit/{application,config,db,domain,federation,infrastructure,middleware,queues,repositories,routes,schemas,services,lib,styles}/**/*.test.ts',
+              'tests/unit/{application,config,db,domain,infrastructure,middleware,queues,repositories,routes,schemas,services,lib,styles}/**/*.test.ts',
               'tests/unit/utils/**/*.test.ts',
               'tests/integration/**/*.test.ts',
               'tests/contract/**/*.test.ts',
@@ -195,13 +186,11 @@ export default defineConfig(async () => {
           'packages/frontend/src/**/*.d.ts',
           'packages/frontend/src/**/*.test.{ts,tsx}',
           'packages/frontend/src/store/{index,types}.ts',
-          'packages/backend/src/{utils/{logger,metrics},db/{import,marketStatsTypes},app,ssrMiddleware,infrastructure/mailService,schemas/{goalOptimizer,letf,pca,tacticalGrid,dataManage},queues/{dataUpdateWorker,workerEntrypoint}}.ts',
+          'packages/backend/src/{utils/{logger,metrics},db/marketStatsTypes,app,ssrMiddleware,infrastructure/mailService,queues/{dataUpdateWorker,workerEntrypoint}}.ts',
         ],
+        // 全局 80/80/80/80 与每文件 60% 以 scripts/check-coverage.mjs 为单一权威源；
+        // 此处仅保留目录级阈值（其余处未重复）。
         thresholds: {
-          lines: 80,
-          functions: 80,
-          branches: 80,
-          statements: 80,
           'packages/backend/src/domain/**': { lines: 95 },
           'packages/backend/src/middleware/**': { lines: 90 },
           'packages/backend/src/application/**': { lines: 85 },
@@ -212,20 +201,6 @@ export default defineConfig(async () => {
     plugins: [
       zustandEsmResolver(),
       ssrLocalesCopy(),
-      ...(federation
-        ? [
-            federation({
-              name: 'backtest_host',
-              remotes: {}, // 暂无远端；host 自身可作为 remote provider
-              exposes: {
-                './OptimizerPage': './packages/frontend/src/pages/optimizer/OptimizerPage.tsx',
-                './SignalAnalyzerPage':
-                  './packages/frontend/src/pages/signal/SignalAnalyzerPage.tsx',
-              },
-              shared: ['react', 'react-dom', 'react-router', 'zustand', 'i18next', 'react-i18next'],
-            }),
-          ]
-        : []),
       react(),
       (await import('vite-tsconfig-paths')).default(),
     ],
