@@ -60,7 +60,7 @@ function extractOperations(doc: OpenAPIV3Document): Operation[] {
 }
 
 describe('OpenAPI 契约测试 — Spec 合法性', () => {
-  it('openapi.yaml 应通过 SwaggerParser.validate（$ref 解析 + 结构合法）', async () => {
+  it('registry 生成文档应通过 SwaggerParser.validate（$ref 解析 + 结构合法）', async () => {
     const doc = await getApiDoc();
     expect(doc.openapi).toMatch(/^3\.0\.\d+$/);
   });
