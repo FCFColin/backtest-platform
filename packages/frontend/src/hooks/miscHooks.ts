@@ -5,6 +5,7 @@ import i18n from '@/i18n/index.js';
 import { apiFetch, apiPostJSON } from '@/utils/apiClient';
 import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
 import { useAuthStore } from '@/store/authStore';
+import { useSettingsStore } from '@/store/settingsStore';
 import { reportError } from '@/utils/errorReporter';
 import { useToastStore } from '@/store/toastStore';
 
@@ -85,19 +86,21 @@ export function useAssetList<T extends { ticker: string; weight: number | string
   };
 }
 
-export function useReducedMotion(): boolean {
-  const [reduced, setReduced] = useState(
-    () =>
-      typeof window !== 'undefined' &&
-      window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+export function useMediaQuery(query: string): boolean {
+  const [matches, setMatches] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia(query).matches,
   );
   useEffect(() => {
-    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
-    const onChange = (e: MediaQueryListEvent) => setReduced(e.matches);
+    const mq = window.matchMedia(query);
+    const onChange = (e: MediaQueryListEvent) => setMatches(e.matches);
     mq.addEventListener('change', onChange);
     return () => mq.removeEventListener('change', onChange);
-  }, []);
-  return reduced;
+  }, [query]);
+  return matches;
+}
+
+export function useReducedMotion(): boolean {
+  return useMediaQuery('(prefers-reduced-motion: reduce)');
 }
 
 export function useChartAnimation(isLargeDataset: boolean) {
@@ -106,41 +109,19 @@ export function useChartAnimation(isLargeDataset: boolean) {
   return { isAnimationActive: animated, animationDuration: animated ? 150 : 0 };
 }
 
-export type ThemePref = 'light' | 'dark' | 'system';
-
 export function useTheme() {
-  const [pref, setPref] = useState<ThemePref>(() => {
-    if (typeof window === 'undefined') return 'system';
-    try {
-      const stored = localStorage.getItem('theme') as ThemePref | null;
-      if (stored === 'light' || stored === 'dark' || stored === 'system') return stored;
-    } catch {}
-    return 'system';
-  });
-  const [systemDark, setSystemDark] = useState(
-    () =>
-      typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches,
-  );
-  useEffect(() => {
-    const mq = window.matchMedia('(prefers-color-scheme: dark)');
-    const onChange = (e: MediaQueryListEvent) => setSystemDark(e.matches);
-    mq.addEventListener('change', onChange);
-    return () => mq.removeEventListener('change', onChange);
-  }, []);
+  const pref = useSettingsStore((s) => s.theme);
+  const systemDark = useMediaQuery('(prefers-color-scheme: dark)');
   const resolvedTheme = pref === 'system' ? (systemDark ? 'dark' : 'light') : pref;
   useEffect(() => {
     document.documentElement.dataset.theme = resolvedTheme;
-    try {
-      if (pref === 'system') localStorage.removeItem('theme');
-      else localStorage.setItem('theme', pref);
-    } catch {}
-  }, [pref, resolvedTheme]);
+  }, [resolvedTheme]);
   return {
     theme: pref,
     resolvedTheme,
     isDark: resolvedTheme === 'dark',
-    setTheme: setPref,
-    toggleTheme: () => setPref((t) => (t === 'light' ? 'dark' : t === 'dark' ? 'system' : 'light')),
+    setTheme: useSettingsStore((s) => s.setTheme),
+    toggleTheme: useSettingsStore((s) => s.toggleTheme),
   };
 }
 

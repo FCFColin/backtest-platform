@@ -1,11 +1,16 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { useTheme } from '../../../packages/frontend/src/hooks/miscHooks.js';
+
+const storage = new Map<string, string>();
+let matchDark = false;
+
+async function renderTheme() {
+  vi.resetModules();
+  const { useTheme } = await import('../../../packages/frontend/src/hooks/miscHooks.js');
+  return renderHook(() => useTheme());
+}
 
 describe('useTheme', () => {
-  const storage = new Map<string, string>();
-  let matchDark = false;
-
   beforeEach(() => {
     storage.clear();
     matchDark = false;
@@ -39,20 +44,20 @@ describe('useTheme', () => {
     vi.unstubAllGlobals();
   });
 
-  it('localStorage 有 theme 时应优先使用', () => {
+  it('localStorage 有 theme 时应优先使用', async () => {
     storage.set('theme', 'dark');
 
-    const { result } = renderHook(() => useTheme());
+    const { result } = await renderTheme();
 
     expect(result.current.theme).toBe('dark');
     expect(result.current.isDark).toBe(true);
     expect(document.documentElement.dataset.theme).toBe('dark');
   });
 
-  it('无 localStorage 时应以 system 跟随 prefers-color-scheme: dark', () => {
+  it('无 localStorage 时应以 system 跟随 prefers-color-scheme: dark', async () => {
     matchDark = true;
 
-    const { result } = renderHook(() => useTheme());
+    const { result } = await renderTheme();
 
     expect(result.current.theme).toBe('system');
     expect(result.current.resolvedTheme).toBe('dark');
@@ -60,10 +65,10 @@ describe('useTheme', () => {
     expect(document.documentElement.dataset.theme).toBe('dark');
   });
 
-  it('无 localStorage 且 prefer-color-scheme light 时 resolvedTheme 为 light', () => {
+  it('无 localStorage 且 prefer-color-scheme light 时 resolvedTheme 为 light', async () => {
     matchDark = false;
 
-    const { result } = renderHook(() => useTheme());
+    const { result } = await renderTheme();
 
     expect(result.current.theme).toBe('system');
     expect(result.current.resolvedTheme).toBe('light');
@@ -71,17 +76,17 @@ describe('useTheme', () => {
     expect(document.documentElement.dataset.theme).toBe('light');
   });
 
-  it('挂载时 light 主题应设置正确的 data-theme', () => {
+  it('挂载时 light 主题应设置正确的 data-theme', async () => {
     storage.set('theme', 'light');
-    renderHook(() => useTheme());
+    await renderTheme();
 
     expect(document.documentElement.dataset.theme).toBe('light');
   });
 
-  it('toggleTheme 按 light → dark → system → light 循环并写入 localStorage', () => {
+  it('toggleTheme 按 light → dark → system → light 循环并写入 localStorage', async () => {
     storage.set('theme', 'light');
 
-    const { result } = renderHook(() => useTheme());
+    const { result } = await renderTheme();
 
     act(() => {
       result.current.toggleTheme();
@@ -99,9 +104,9 @@ describe('useTheme', () => {
     expect(storage.get('theme')).toBe('light');
   });
 
-  it('多次 toggle 正确循环 dark → system → light', () => {
+  it('多次 toggle 正确循环 dark → system → light', async () => {
     storage.set('theme', 'dark');
-    const { result } = renderHook(() => useTheme());
+    const { result } = await renderTheme();
 
     act(() => {
       result.current.toggleTheme();
@@ -114,10 +119,10 @@ describe('useTheme', () => {
     expect(result.current.theme).toBe('light');
   });
 
-  it('toggleTheme 应切换主题并写入 localStorage（system 不落盘）', () => {
+  it('toggleTheme 应切换主题并写入 localStorage（system 不落盘）', async () => {
     storage.set('theme', 'light');
 
-    const { result } = renderHook(() => useTheme());
+    const { result } = await renderTheme();
 
     act(() => {
       result.current.toggleTheme();
@@ -136,11 +141,11 @@ describe('useTheme', () => {
     expect(storage.get('theme')).toBeUndefined();
   });
 
-  it('setTheme(system) 时 resolvedTheme 跟随 OS 偏好', () => {
+  it('setTheme(system) 时 resolvedTheme 跟随 OS 偏好', async () => {
     matchDark = true;
     storage.set('theme', 'light');
 
-    const { result } = renderHook(() => useTheme());
+    const { result } = await renderTheme();
 
     act(() => {
       result.current.setTheme('system');

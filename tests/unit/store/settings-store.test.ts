@@ -40,4 +40,33 @@ describe('SettingsStore', () => {
     const store = await freshStore();
     expect(store.getState().currency).toBe('usd');
   });
+
+  it.each([
+    [undefined, 'system'],
+    ['sepia', 'system'],
+    ['dark', 'dark'],
+  ])('初始 theme：storage=%s → %s', async (stored, expected) => {
+    if (stored) localStorage.setItem('theme', stored);
+    const store = await freshStore();
+    expect(store.getState().theme).toBe(expected);
+  });
+
+  it('setTheme 持久化显式主题，system 清除持久化', async () => {
+    const store = await freshStore();
+    store.getState().setTheme('dark');
+    expect(store.getState().theme).toBe('dark');
+    expect(localStorage.getItem('theme')).toBe('dark');
+    store.getState().setTheme('system');
+    expect(store.getState().theme).toBe('system');
+    expect(localStorage.getItem('theme')).toBeNull();
+  });
+
+  it('toggleTheme 按 light → dark → system → light 循环', async () => {
+    const store = await freshStore();
+    store.getState().setTheme('light');
+    for (const expected of ['dark', 'system', 'light'] as const) {
+      store.getState().toggleTheme();
+      expect(store.getState().theme).toBe(expected);
+    }
+  });
 });
