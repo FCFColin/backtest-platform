@@ -114,6 +114,14 @@ async function processDataUpdateJob(job: Job<DataUpdateJobData>): Promise<DataUp
 
   if (completedTickers > 0) await invalidateAllCache();
 
+  // S16：全部失败时不能伪装成功——抛错触发 BullMQ 重试（attempts=2）并最终进入 DLQ
+  if (completedTickers === 0 && failedTickers.length > 0) {
+    const sample = failedTickers.slice(0, 20).join(', ');
+    throw new Error(
+      `[dataUpdateWorker] 数据更新全部失败：${failedTickers.length}/${totalTickers} 个 ticker 失败（${sample}${failedTickers.length > 20 ? '...' : ''}）`,
+    );
+  }
+
   logger.info(
     { jobId: job.id, mode, totalTickers, completedTickers, failed: failedTickers.length },
     '[dataUpdateWorker] 数据更新完成',
