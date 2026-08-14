@@ -99,16 +99,13 @@ func AnalyzeSlippage(req LETFRequest) (*LETFResult, error) {
 		letfReturns = append(letfReturns, letfRet)
 		benchReturns = append(benchReturns, benchRet)
 		if len(letfReturns) >= effectiveLeverageWindow {
-			beta, ok := calcRollingBeta(letfReturns, benchReturns)
-			if ok {
+			if beta, ok := calcRollingBeta(letfReturns, benchReturns); ok {
 				v := beta
 				effectiveLeverage = append(effectiveLeverage, &v)
-			} else {
-				effectiveLeverage = append(effectiveLeverage, nil)
+				continue
 			}
-		} else {
-			effectiveLeverage = append(effectiveLeverage, nil)
 		}
+		effectiveLeverage = append(effectiveLeverage, nil)
 	}
 	benchmarkReturn := cumBench - 1
 	letfReturn := cumLetf - 1

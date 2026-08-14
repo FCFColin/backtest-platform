@@ -115,6 +115,7 @@ func computeConcurrencyLimit() gin.HandlerFunc {
 			defer func() { <-computeSemaphore }()
 			c.Next()
 		default:
+			c.Header("Retry-After", "30")
 			sharedhttp.NewProblem(c, http.StatusServiceUnavailable, "COMPUTE_OVERLOAD", "Computation Overloaded", "并发计算请求已满，请稍后重试")
 			c.Abort()
 		}
@@ -151,18 +152,6 @@ func handleBacktest(c *gin.Context) {
 			}
 			return "", ""
 		}, engine.RunBacktest)
-}
-func handleStatistics(c *gin.Context) {
-	bindCompute(c, "STATISTICS_BAD_REQUEST", "请求解析失败", "统计计算失败", "",
-		func(req engine.StatisticsRequest) (string, string) {
-			if len(req.Values) < 2 {
-				return "STATISTICS_INSUFFICIENT_DATA", "values 至少需要 2 个数据点"
-			}
-			return "", ""
-		},
-		func(_ context.Context, req engine.StatisticsRequest) (engine.Statistics, error) {
-			return engine.CalculateStatisticsFromRequest(req), nil
-		})
 }
 func handleAnalysis(c *gin.Context) {
 	bindCompute(c, "ANALYSIS_BAD_REQUEST", "请求格式错误", "分析计算失败", "",
@@ -207,6 +196,10 @@ func handleLETFAnalyze(c *gin.Context) {
 	benchData, ok2 := req.PriceData[req.BenchmarkTicker]
 	if !ok1 || !ok2 {
 		sharedhttp.NewProblem(c, http.StatusBadRequest, "LETF_TICKER_NOT_FOUND", "Bad Request", "ticker 在 priceData 中不存在")
+		return
+	}
+	if req.Leverage <= 0 || req.Leverage > 10 {
+		sharedhttp.NewProblem(c, http.StatusBadRequest, "LETF_INVALID_LEVERAGE", "Bad Request", "leverage 必须在 (0, 10] 区间")
 		return
 	}
 	withComputeHandler(c, "LETF 滑点分析失败", func(ctx context.Context) (*analysis.LETFResult, error) {
@@ -356,7 +349,6 @@ func SetupRouter(metricsHandler http.Handler) *gin.Engine {
 		authed.POST("/api/engine/optimize", handleOptimize)
 		authed.POST("/api/engine/efficient-frontier", handleEfficientFrontier)
 		authed.POST("/api/engine/monte-carlo", handleMonteCarlo)
-		authed.POST("/api/engine/statistics", handleStatistics)
 		authed.POST("/api/engine/signal-analyze", handleSignalAnalyze)
 		authed.POST("/api/engine/pca", handlePCA)
 		authed.POST("/api/engine/letf-analyze", handleLETFAnalyze)
