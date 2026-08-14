@@ -132,6 +132,18 @@ describe('validateConfig - 生产环境（严格校验）', () => {
   it('所有配置正确时不应抛错', () => {
     expect(() => validateConfig()).not.toThrow();
   });
+  it('NODE_ENV 未设置（config 回退 development）时按生产校验（M1 fail-closed）', () => {
+    const prev = process.env.NODE_ENV;
+    delete process.env.NODE_ENV;
+    try {
+      config.NODE_ENV = 'development';
+      config.JWT_SECRET = 'dev-only-jwt-secret-change-in-production';
+      expect(() => validateConfig()).toThrow('JWT_SECRET');
+    } finally {
+      if (prev === undefined) delete process.env.NODE_ENV;
+      else process.env.NODE_ENV = prev;
+    }
+  });
   it('多个校验失败时错误信息应包含全部失败项', () => {
     config.JWT_SECRET = 'dev-only-jwt-secret-change-in-production';
     config.ENGINE_AUTH_TOKEN = 'dev-engine-auth-token';
@@ -225,11 +237,11 @@ describe('P0-02: assertNoDefaultSecrets — 默认密钥启动拦截', () => {
     expect(exitSpy).toHaveBeenCalledWith(1);
   });
 
-  it.each<[string, string | undefined, boolean]>([
-    ['开发环境 + 默认密钥 → 不退出（允许开发环境使用默认值）', 'development', false],
-    ['生产环境 + 全部非默认密钥 → 不退出', 'production', true],
-    ['NODE_ENV 未设置 → 不检查（等同非生产环境）', undefined, false],
-  ])('%s', (_n, nodeEnv, strongSecrets) => {
+  it.each<[string, string | undefined, boolean, boolean]>([
+    ['开发环境 + 默认密钥 → 不退出（允许开发环境使用默认值）', 'development', false, false],
+    ['生产环境 + 全部非默认密钥 → 不退出', 'production', true, false],
+    ['NODE_ENV 未设置 + 默认密钥 → 按生产检查并退出（M1 fail-closed）', undefined, false, true],
+  ])('%s', (_n, nodeEnv, strongSecrets, shouldExit) => {
     if (nodeEnv === undefined) delete process.env.NODE_ENV;
     else process.env.NODE_ENV = nodeEnv;
     const config = strongSecrets
@@ -244,7 +256,8 @@ describe('P0-02: assertNoDefaultSecrets — 默认密钥启动拦截', () => {
           DATA_SERVICE_AUTH_TOKEN: 'dev-data-service-auth-token',
         };
     assertNoDefaultSecrets(config);
-    expect(exitSpy).not.toHaveBeenCalled();
+    if (shouldExit) expect(exitSpy).toHaveBeenCalledWith(1);
+    else expect(exitSpy).not.toHaveBeenCalled();
     if (strongSecrets || nodeEnv === 'development') expect(errorSpy).not.toHaveBeenCalled();
   });
 });

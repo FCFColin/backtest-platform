@@ -19,7 +19,8 @@ const SECRET_CHECKS: readonly SecretCheck[] = [
 ] as const;
 
 export function assertNoDefaultSecrets(config: Record<string, unknown>): void {
-  if (process.env.NODE_ENV !== 'production') return;
+  // M1 fail-closed：仅显式 development/test 跳过；未设置 NODE_ENV 按生产检查默认密钥
+  if (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test') return;
 
   const violations: string[] = [];
   for (const check of SECRET_CHECKS) {

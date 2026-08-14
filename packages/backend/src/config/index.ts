@@ -34,8 +34,14 @@ function validateServiceTokens(): string[] {
   return errors;
 }
 
+// M1：NODE_ENV 未设置时按生产对待（fail-closed），仅显式 development/test 放行；
+// config.NODE_ENV 会回退 development，故必须同时读 process.env 才能识别"未设置"
+const isProductionLike = (): boolean =>
+  config.NODE_ENV === 'production' ||
+  (process.env.NODE_ENV !== 'development' && process.env.NODE_ENV !== 'test');
+
 function collectProductionErrors(): string[] {
-  if (config.NODE_ENV !== 'production') return [];
+  if (!isProductionLike()) return [];
   const errors: string[] = [...validateJwtConfig()];
   if (!process.env.DATABASE_URL)
     errors.push('DATABASE_URL 在生产环境必须通过环境变量设置，禁止使用默认值');
