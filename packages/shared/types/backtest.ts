@@ -37,12 +37,6 @@ export interface DrawdownEpisode {
   returnFromTroughToRecovery?: number;
 }
 
-interface DragResult {
-  totalDrag: number;
-  annualDrag: number;
-  dragSeries: number[];
-}
-
 export interface PortfolioResult {
   name: string;
   growthCurve: TimeSeriesPoint[];
@@ -53,7 +47,6 @@ export interface PortfolioResult {
   statistics: Statistics;
   drawdownEpisodes?: DrawdownEpisode[];
   allocationHistory?: Array<{ date: string; weights: number[] }>;
-  drag?: DragResult;
 }
 
 export interface BacktestResult {

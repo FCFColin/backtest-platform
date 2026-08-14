@@ -53,10 +53,7 @@ export type Statistics = {
 
   upsideCapture: number;
   downsideCapture: number;
-  upsideCaptureDaily: number;
-  downsideCaptureDaily: number;
   captureSpread: number;
-  captureSpreadDaily: number;
 
   activeReturn: number;
   trackingError: number;
@@ -154,10 +151,7 @@ const NUM_FIELDS = [
   'alphaAnnualized',
   'upsideCapture',
   'downsideCapture',
-  'upsideCaptureDaily',
-  'downsideCaptureDaily',
   'captureSpread',
-  'captureSpreadDaily',
   'activeReturn',
   'trackingError',
   'informationRatio',
