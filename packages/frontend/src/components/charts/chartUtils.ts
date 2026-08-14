@@ -68,6 +68,7 @@ export function tooltipOption(formatter: unknown, trigger: 'axis' | 'item' = 'ax
     textStyle: { color: 'hsl(var(--fg))', fontSize: 12 },
     extraCssText:
       'backdrop-filter: blur(8px); border-radius: 8px; box-shadow: var(--tooltip-shadow);',
+    confine: true,
     formatter,
   };
 }
@@ -90,7 +91,8 @@ export function axisTooltipFormatter(
     const rows = params
       .map((p) => {
         const raw = Array.isArray(p.value) ? p.value[1] : p.value;
-        const num = Number(raw) || 0;
+        const num = raw == null ? NaN : Number(raw);
+        if (Number.isNaN(num)) return tooltipRow(p.marker, p.seriesName, '—');
         const f = valueFormatter ? valueFormatter(num, p.seriesName) : String(num);
         const [v, n] = Array.isArray(f) ? f : [f, p.seriesName];
         return tooltipRow(p.marker, n, String(v));

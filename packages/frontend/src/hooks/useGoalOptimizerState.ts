@@ -16,8 +16,6 @@ export interface GoalOptimizerState {
   assets: GoalAsset[];
   maxDrawdown: number | '';
   setMaxDrawdown: (v: number | '') => void;
-  minSuccessRate: number | '';
-  setMinSuccessRate: (v: number | '') => void;
   maxVolatility: number | '';
   setMaxVolatility: (v: number | '') => void;
   numSimulations: number;
@@ -33,12 +31,10 @@ export interface GoalOptimizerState {
 }
 function buildOptimizeConstraints(
   maxDrawdown: number | '',
-  minSuccessRate: number | '',
   maxVolatility: number | '',
-): { maxDrawdown?: number; minSuccessRate?: number; maxVolatility?: number } {
-  const constraints: { maxDrawdown?: number; minSuccessRate?: number; maxVolatility?: number } = {};
+): { maxDrawdown?: number; maxVolatility?: number } {
+  const constraints: { maxDrawdown?: number; maxVolatility?: number } = {};
   if (maxDrawdown !== '') constraints.maxDrawdown = maxDrawdown / 100;
-  if (minSuccessRate !== '') constraints.minSuccessRate = minSuccessRate / 100;
   if (maxVolatility !== '') constraints.maxVolatility = maxVolatility / 100;
   return constraints;
 }
@@ -48,7 +44,6 @@ export function useGoalOptimizerState(t: TFunction): GoalOptimizerState {
     initialAmount: 100000,
     years: 20,
     maxDrawdown: '' as number | '',
-    minSuccessRate: '' as number | '',
     maxVolatility: '' as number | '',
     numSimulations: 1000,
   });
@@ -65,11 +60,7 @@ export function useGoalOptimizerState(t: TFunction): GoalOptimizerState {
     runCompute: runOptimize,
   } = useComputeTool<GoalOptimizerResult>(
     async () => {
-      const constraints = buildOptimizeConstraints(
-        s.maxDrawdown,
-        s.minSuccessRate,
-        s.maxVolatility,
-      );
+      const constraints = buildOptimizeConstraints(s.maxDrawdown, s.maxVolatility);
       const res = await apiFetch('/api/v1/goal-optimizer/optimize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

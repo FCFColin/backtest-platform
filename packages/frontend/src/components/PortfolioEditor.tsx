@@ -108,10 +108,7 @@ function SinglePortfolioEditor({
           {t('Add Asset')}
         </Button>
       </div>
-      <div
-        className="flex items-center gap-2 pt-2 mt-1 border-t border-border-subtle"
-        aria-invalid={!complete}
-      >
+      <div className="flex items-center gap-2 pt-2 mt-1 border-t border-border-subtle">
         <span className="shrink-0 text-caption text-fg-tertiary uppercase tracking-wide">
           {t('Total')}
         </span>

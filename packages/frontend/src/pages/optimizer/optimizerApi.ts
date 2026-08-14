@@ -86,7 +86,6 @@ function buildPortfolioBody(
         rebalanceFrequency: 'quarterly',
         rebalanceOffset: 0,
         drag: 0,
-        totalReturn: true,
       },
     ],
     parameters: { ...BASE_PARAMS, startDate, endDate },

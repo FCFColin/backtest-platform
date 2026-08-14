@@ -18,7 +18,7 @@ import {
   type ComputeToolConfig,
 } from '../../components/shells/index.js';
 import { MiniStatCard } from '../../components/cards.js';
-import { fmtAmount } from '@/utils/format';
+import { fmtAmount, fmtPct } from '@/utils/format';
 import { SimpleTable, type SimpleTableColumn } from '@/components/tables.js';
 import { McParamsPanel } from './MonteCarloParams.js';
 import type { DistMetric, McState, PortfolioMode, ResultTab } from './monteCarloUtils.js';
@@ -65,7 +65,7 @@ export function StatsGrid({
       />
       <MiniStatCard
         label={t('Capital Preservation')}
-        value={`${(r.statistics.successRate * 100).toFixed(1)}%`}
+        value={fmtPct(r.statistics.successRate, 1)}
         color="hsl(var(--success))"
       />
       <MiniStatCard
@@ -200,7 +200,7 @@ function MonteCarloResultsPanel({ s }: { s: McState }) {
       hasResults={Boolean(results1 || results2)}
       errorPrefix={`${t('Simulation failed')}: `}
       loadingLabel={t('Running simulations...')}
-      emptyTitle={t('Configure parameters on the left and click "Start Simulation" to see results')}
+      emptyTitle={t('Configure parameters above and click "Start Simulation" to see results')}
       onRetry={s.runSimulation}
     >
       <div className="flex flex-col gap-6">

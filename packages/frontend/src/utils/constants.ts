@@ -20,7 +20,6 @@ interface BuildBacktestParametersOptions {
   baseCurrency?: BaseCurrency;
   rollingWindowMonths?: number;
   benchmarkTicker?: string;
-  extendedWithdrawalStats?: boolean;
   cashflowLegs?: CashflowLeg[];
   oneTimeCashflows?: OneTimeCashflow[];
 }
@@ -38,7 +37,6 @@ export function buildBacktestParameters(
     rollingWindowMonths: 12,
     benchmarkTicker: '',
     baseCurrency: 'usd',
-    extendedWithdrawalStats: false,
     cashflowLegs: [],
     oneTimeCashflows: [],
     ...options,
@@ -65,7 +63,6 @@ export function buildSinglePortfolioBody(
         rebalanceFrequency: options.rebalanceFrequency ?? 'quarterly',
         rebalanceOffset: options.rebalanceOffset ?? 0,
         drag: 0,
-        totalReturn: true,
       },
     ],
     parameters,

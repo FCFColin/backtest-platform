@@ -70,6 +70,7 @@ export function StatisticsTable({
   const { t } = useTranslation();
   const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(new Set());
   const [expanded, setExpanded] = useState(false);
+  const colorByPortfolio = new Map(portfolios.map((p, i) => [p.id, colors[i]]));
   const visibleColumns = DEFAULT_COLUMNS.filter((c) => !hiddenColumns.has(c.key));
   const columns: SimpleTableColumn<PortfolioStatsRow>[] = visibleColumns.map((col) => ({
     key: col.key,
@@ -79,12 +80,12 @@ export function StatisticsTable({
     testId: STAT_KEY_TO_TESTID[col.key],
     style: col.minWidth ? { minWidth: col.minWidth } : undefined,
     sortValue: col.key === 'name' ? (p) => p.name : (p) => p.stats[col.key] as number,
-    render: (p, i) =>
+    render: (p) =>
       col.key === 'name' ? (
         <div className="flex items-center gap-2">
           <span
             className="w-2 h-2 rounded-full flex-shrink-0"
-            style={{ background: colors[i] ?? 'hsl(var(--fg-tertiary))' }}
+            style={{ background: colorByPortfolio.get(p.id) ?? 'hsl(var(--fg-tertiary))' }}
           />
           <span className="truncate">{p.name}</span>
         </div>

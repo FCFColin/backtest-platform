@@ -134,7 +134,6 @@ export async function fetchRegression(
         adjustForInflation: false,
         rollingWindowMonths: 12,
         benchmarkTicker: '',
-        extendedWithdrawalStats: false,
         cashflowLegs: [],
         oneTimeCashflows: [],
       },

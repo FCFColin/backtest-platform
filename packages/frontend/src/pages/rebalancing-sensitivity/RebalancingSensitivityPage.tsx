@@ -5,7 +5,7 @@ import type { RebalancingState } from './rebalancingSensitivityUtils.js';
 import { ResultsPanel } from './ResultsPanel.js';
 import { BasicParamsRow } from '../../components/BacktestParamsForm.js';
 import PortfolioEditor from '../../components/PortfolioEditor.js';
-import { Input } from '@/components/ui/uiComponents';
+import { AffixInput } from '@/components/ui/uiComponents';
 import { Field, FieldLabel } from '@/components/form/Field';
 import { RunButton } from '@/components/form/sharedFields';
 function FreqSelector({ s }: { s: RebalancingState }) {
@@ -61,20 +61,15 @@ function BandField({
   return (
     <Field>
       <FieldLabel>{label}</FieldLabel>
-      <div className="relative">
-        <Input
-          type="number"
-          value={value}
-          onChange={(e) => onChange(e.target.value === '' ? '' : Number(e.target.value))}
-          placeholder={t('Leave empty to disable')}
-          min={0}
-          max={max}
-          className="pr-8"
-        />
-        <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-caption text-fg-tertiary">
-          %
-        </span>
-      </div>
+      <AffixInput
+        type="number"
+        value={value}
+        onChange={(e) => onChange(e.target.value === '' ? '' : Number(e.target.value))}
+        placeholder={t('Leave empty to disable')}
+        min={0}
+        max={max}
+        suffix="%"
+      />
     </Field>
   );
 }
@@ -154,7 +149,6 @@ const config: ComputeToolConfig<RebalancingStateResult> = {
     { titleKey: 'nav.portfolioOptimize', href: '/optimizer' },
     { titleKey: 'nav.lumpsumVsDca', href: '/lumpsum-vs-dca' },
   ],
-  paramsTitleKey: 'Parameters',
   params: ({ state }) => <RebalancingSensitivityParamsForm s={state} />,
   results: ({ state }) => <ResultsPanel s={state} />,
 };

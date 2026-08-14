@@ -30,6 +30,7 @@ export function SWRCalculator() {
     }
     return pts;
   }, [swr, expectedReturn, retirementYears]);
+  const annualWithdrawal = String(Math.round(swr * 1_000_000));
   return (
     <CalcCard
       icon={ShieldAlert}
@@ -70,7 +71,7 @@ export function SWRCalculator() {
       ]}
       rows={[
         { label: t('Estimated SWR'), value: formatPct(swr), tone: 'brand' },
-        { label: t('Annual Withdrawal'), value: (swr * 1000000).toFixed(0), tone: 'success' },
+        { label: t('Annual Withdrawal (per $1M)'), value: annualWithdrawal, tone: 'success' },
       ]}
       chart={<SWRChart data={portfolioSurvival} />}
       info={t(

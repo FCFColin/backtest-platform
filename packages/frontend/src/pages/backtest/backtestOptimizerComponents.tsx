@@ -178,9 +178,7 @@ export function OptimizerResults({ s }: OptimizerSectionProps) {
       isLoading={s.result.isLoading}
       hasResults={!!s.result.results}
       loadingLabel={t('Optimizing...')}
-      emptyTitle={t(
-        'Configure parameters on the left and click "Start Optimization" to see results',
-      )}
+      emptyTitle={t('Configure parameters above and click "Start Optimization" to see results')}
     >
       <div className="flex flex-col gap-4">
         <BestMetricsCard best={s.result.best} totalCombos={s.result.totalCombos} />

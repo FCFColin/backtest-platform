@@ -22,7 +22,7 @@ export interface ComparisonRowEntry {
   featureKey: string;
   free: string;
   pro: string;
-  proPlus: string;
+  enterprise: string;
 }
 
 const RAW = pricingData as {

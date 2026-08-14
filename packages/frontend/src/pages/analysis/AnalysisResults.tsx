@@ -36,7 +36,6 @@ function useAnalysisPageState() {
     startingValue: 10000,
     rollingWindow: 12,
     correlationWindow: 12,
-    adjustForInflation: false,
     activeTab: 'summary',
   });
   const {
@@ -54,7 +53,6 @@ function useAnalysisPageState() {
           startDate: s.startDate,
           endDate: s.endDate,
           startingValue: s.startingValue,
-          adjustForInflation: s.adjustForInflation,
           rollingWindow: s.rollingWindow,
           correlationWindow: s.correlationWindow,
         },

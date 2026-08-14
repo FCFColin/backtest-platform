@@ -34,8 +34,6 @@ export interface ComputeToolConfig<S> {
   afterParams?: ComponentType<{ state: S }>;
   extra?: ComponentType<{ state: S }>;
   hideParamsTitle?: boolean;
-  paramsTitleKey?: string;
-  paramsTitle?: string;
   hidePageTitle?: boolean;
 }
 interface StandardPageConfig {
@@ -117,9 +115,7 @@ export function ComputeToolShell<S>({
   const AfterParams = config.afterParams;
   const Extra = config.extra;
   const presetButtons = config.presets?.(state);
-  const paramsTitle = config.hideParamsTitle
-    ? undefined
-    : (config.paramsTitle ?? t(config.paramsTitleKey ?? 'params.basicParams'));
+  const paramsTitle = config.hideParamsTitle ? undefined : t('params.basicParams');
   return (
     <div className="page-container pt-0 pb-3 sm:pb-4">
       <div className="page-header-slim">

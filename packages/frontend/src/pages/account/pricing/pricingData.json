@@ -64,43 +64,43 @@
       "featureKey": "account.pricing.compare.portfolioCount",
       "free": "account.pricing.compare.3portfolios",
       "pro": "account.pricing.compare.unlimited",
-      "proPlus": "account.pricing.compare.unlimited"
+      "enterprise": "account.pricing.compare.unlimited"
     },
     {
       "featureKey": "account.pricing.compare.historyRange",
       "free": "account.pricing.compare.1yr",
       "pro": "account.pricing.compare.10yr",
-      "proPlus": "account.pricing.compare.all"
+      "enterprise": "account.pricing.compare.all"
     },
     {
       "featureKey": "account.pricing.compare.analysisTabs",
       "free": "account.pricing.compare.basic",
       "pro": "account.pricing.compare.all16",
-      "proPlus": "account.pricing.compare.all16"
+      "enterprise": "account.pricing.compare.all16"
     },
     {
       "featureKey": "account.pricing.features.monteCarlo",
       "free": "-",
       "pro": "✓",
-      "proPlus": "✓"
+      "enterprise": "✓"
     },
     {
       "featureKey": "account.pricing.features.portfolioOpt",
       "free": "-",
       "pro": "✓",
-      "proPlus": "✓"
+      "enterprise": "✓"
     },
     {
       "featureKey": "account.pricing.features.apiAccess",
       "free": "-",
       "pro": "-",
-      "proPlus": "✓"
+      "enterprise": "✓"
     },
     {
       "featureKey": "account.pricing.compare.prioritySupport",
       "free": "-",
       "pro": "-",
-      "proPlus": "account.pricing.compare.24hResponse"
+      "enterprise": "account.pricing.compare.24hResponse"
     }
   ]
 }

@@ -119,7 +119,7 @@ export function RiskReturnScatter({ portfolios }: RiskReturnScatterProps) {
         xName={volLabel}
         yName={retLabel}
         height={400}
-        zRange={[80, 80]}
+        zRange={[24, 80]}
         xTickFormatter={(v) => `${v.toFixed(1)}%`}
         yTickFormatter={(v) => `${v.toFixed(1)}%`}
         labelFormatter={() => ''}
@@ -135,6 +135,7 @@ export function RiskReturnScatter({ portfolios }: RiskReturnScatterProps) {
           color: getPortfolioColor(idx),
           showLabels: true,
           nameKey: 'name',
+          zDataKey: 'sharpe',
         }))}
       />
     </ChartCard>

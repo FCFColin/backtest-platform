@@ -91,7 +91,7 @@ describe('useTheme', () => {
     act(() => {
       result.current.toggleTheme();
     });
-    expect(storage.get('theme')).toBe('system');
+    expect(storage.get('theme')).toBeUndefined();
 
     act(() => {
       result.current.toggleTheme();
@@ -114,7 +114,7 @@ describe('useTheme', () => {
     expect(result.current.theme).toBe('light');
   });
 
-  it('toggleTheme 应切换主题并写入 localStorage', () => {
+  it('toggleTheme 应切换主题并写入 localStorage（system 不落盘）', () => {
     storage.set('theme', 'light');
 
     const { result } = renderHook(() => useTheme());
@@ -133,7 +133,7 @@ describe('useTheme', () => {
     });
 
     expect(result.current.theme).toBe('system');
-    expect(storage.get('theme')).toBe('system');
+    expect(storage.get('theme')).toBeUndefined();
   });
 
   it('setTheme(system) 时 resolvedTheme 跟随 OS 偏好', () => {
@@ -149,7 +149,7 @@ describe('useTheme', () => {
     expect(result.current.theme).toBe('system');
     expect(result.current.resolvedTheme).toBe('dark');
     expect(result.current.isDark).toBe(true);
-    expect(storage.get('theme')).toBe('system');
+    expect(storage.get('theme')).toBeUndefined();
     expect(document.documentElement.dataset.theme).toBe('dark');
   });
 });

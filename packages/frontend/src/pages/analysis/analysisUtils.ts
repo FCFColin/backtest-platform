@@ -31,7 +31,6 @@ export async function fetchAnalysisResult(
     startDate: string;
     endDate: string;
     startingValue: number;
-    adjustForInflation: boolean;
     rollingWindow: number;
     correlationWindow: number;
   },
@@ -50,12 +49,9 @@ export async function fetchAnalysisResult(
           startDate: ctx.startDate,
           endDate: ctx.endDate,
           startingValue: ctx.startingValue,
-          adjustForInflation: ctx.adjustForInflation,
           rollingWindowMonths: ctx.rollingWindow,
           correlationWindowMonths: ctx.correlationWindow,
-          benchmarkTicker: '',
           baseCurrency: 'usd',
-          extendedWithdrawalStats: false,
           cashflowLegs: [],
           oneTimeCashflows: [],
         },

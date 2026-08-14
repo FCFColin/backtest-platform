@@ -114,9 +114,7 @@ export function useTheme() {
     try {
       const stored = localStorage.getItem('theme') as ThemePref | null;
       if (stored === 'light' || stored === 'dark' || stored === 'system') return stored;
-    } catch {
-      /* storage unavailable: fall through to system */
-    }
+    } catch {}
     return 'system';
   });
   const [systemDark, setSystemDark] = useState(
@@ -133,10 +131,9 @@ export function useTheme() {
   useEffect(() => {
     document.documentElement.dataset.theme = resolvedTheme;
     try {
-      localStorage.setItem('theme', pref);
-    } catch {
-      /* storage unavailable */
-    }
+      if (pref === 'system') localStorage.removeItem('theme');
+      else localStorage.setItem('theme', pref);
+    } catch {}
   }, [pref, resolvedTheme]);
   return {
     theme: pref,

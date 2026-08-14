@@ -83,9 +83,9 @@ function FooterBrand() {
 function FooterDataColumn() {
   const { t } = useTranslation();
   const meta = useDataMeta();
-  const displayDate = meta?.lastUpdated ?? new Date().toISOString().split('T')[0];
+  const displayDate = meta?.lastUpdated ?? '—';
   const tickerCount = meta?.tickerCount ?? '—';
-  const earliestDate = meta?.earliestDate ?? '1962';
+  const earliestDate = meta?.earliestDate || '—';
   return (
     <div>
       <h2 className="text-label-tiny text-fg-tertiary mb-3">{t('Data')}</h2>

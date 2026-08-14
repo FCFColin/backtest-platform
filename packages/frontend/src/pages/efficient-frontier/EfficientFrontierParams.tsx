@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { Checkbox, Input } from '@/components/ui/uiComponents';
+import { Checkbox, Input, AffixInput } from '@/components/ui/uiComponents';
 import { Field, FieldLabel } from '@/components/form/Field';
 import { SectionHeader, SelectField, RunButton, DateField } from '@/components/form/sharedFields';
 import { TickerTagInput } from '../../components/form/TickerTagInput.js';
@@ -87,19 +87,14 @@ function AdvancedParamsGrid({ s }: { s: FrontierState }) {
       />
       <Field>
         <FieldLabel>{t('Min Inclusion Weight')}</FieldLabel>
-        <div className="relative">
-          <Input
-            type="number"
-            min={0}
-            max={100}
-            className="pr-9"
-            value={s.minInclusionWeight}
-            onChange={(e) => s.setMinInclusionWeight(Number(e.target.value))}
-          />
-          <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-caption text-fg-tertiary">
-            %
-          </span>
-        </div>
+        <AffixInput
+          type="number"
+          min={0}
+          max={100}
+          suffix="%"
+          value={s.minInclusionWeight}
+          onChange={(e) => s.setMinInclusionWeight(Number(e.target.value))}
+        />
       </Field>
       <SelectField
         label={t('Rebalancing Frequency')}

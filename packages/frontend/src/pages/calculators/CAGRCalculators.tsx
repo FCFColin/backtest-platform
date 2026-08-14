@@ -49,9 +49,7 @@ export function CAGRCalculator() {
         { label: t('Years'), value: years, onChange: setYears, suffix: t('y'), step: 1, min: 1 },
       ]}
       rows={[{ label: 'CAGR', value: formatPct(cagr), tone: 'brand' }]}
-      info={t(
-        'Formula: Final Value = Initial Value × (1 + Monthly Return)^Months + Monthly Contribution × [((1 + Monthly Return)^Months - 1) / Monthly Return]',
-      )}
+      info={t('Formula: CAGR = (Final Value / Initial Value)^(1 / Years) - 1')}
     />
   );
 }

@@ -16,18 +16,6 @@ import { Button, Card } from '@/components/ui/uiComponents';
 import { cn } from '@/lib/utils';
 
 const PLAN_ICONS: Record<string, ComponentType<{ className?: string }>> = { Star, Zap, Crown };
-const HEAD_CLS = [
-  'text-left font-semibold text-fg-tertiary',
-  'text-center font-semibold text-fg-tertiary',
-  'text-center font-bold text-brand',
-  'text-center font-semibold text-fg-tertiary',
-];
-const CELL_CLS = [
-  'text-left font-medium text-fg-secondary',
-  'text-center text-fg-tertiary',
-  'text-center font-semibold text-brand',
-  'text-center text-fg-tertiary',
-];
 interface Plan {
   id: string;
   name: string;
@@ -62,9 +50,7 @@ export default function PricingPage() {
   return (
     <div className="page-container pt-0 pb-3 sm:pb-4">
       <div className="flex justify-between items-start px-1 mb-3">
-        <h1 className="text-[clamp(28px,3.5vw,40px)] font-bold tracking-[-0.02em] text-fg leading-[1.15] m-0">
-          {t('Pricing Plans')}
-        </h1>
+        <h1 className="text-display text-fg m-0">{t('Pricing Plans')}</h1>
       </div>
       <Card className="p-6">
         <p className="mb-6 text-center text-body leading-[1.8] text-fg-secondary">
@@ -84,7 +70,10 @@ export default function PricingPage() {
 function ComparisonTable() {
   const { t } = useTranslation();
   const rows = COMPARISON_ROWS as ComparisonRowEntry[];
-  const ths = [t('Feature'), ...PLANS.map((p) => p.name)];
+  const th = (recommended?: boolean) =>
+    cn('px-3 py-2.5 text-center font-semibold', recommended ? 'text-brand' : 'text-fg-tertiary');
+  const td = (recommended?: boolean) =>
+    cn('px-3 py-2.5 text-center', recommended ? 'font-semibold text-brand' : 'text-fg-tertiary');
   return (
     <div className="mt-4">
       <div className="mb-3 text-h2">{t('Plan Comparison')}</div>
@@ -92,31 +81,29 @@ function ComparisonTable() {
         <table className="w-full border-collapse text-label">
           <thead>
             <tr className="border-b-2 border-border-subtle">
-              {ths.map((text, i) => (
-                <th key={i} className={cn('px-3 py-2.5', HEAD_CLS[i])}>
-                  {text}
+              <th className="px-3 py-2.5 text-left font-semibold text-fg-tertiary">
+                {t('Feature')}
+              </th>
+              {PLANS.map((p) => (
+                <th key={p.id} className={th(p.recommended)}>
+                  {p.name}
                 </th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {rows.map((r) => {
-              const cells = [
-                t(r.featureKey),
-                resolveCellValue(r.free, t),
-                resolveCellValue(r.pro, t),
-                resolveCellValue(r.proPlus, t),
-              ];
-              return (
-                <tr key={r.featureKey} className="border-b border-border-subtle">
-                  {cells.map((v, i) => (
-                    <td key={i} className={cn('px-3 py-2.5', CELL_CLS[i])}>
-                      {v}
-                    </td>
-                  ))}
-                </tr>
-              );
-            })}
+            {rows.map((r) => (
+              <tr key={r.featureKey} className="border-b border-border-subtle">
+                <td className="px-3 py-2.5 text-left font-medium text-fg-secondary">
+                  {t(r.featureKey)}
+                </td>
+                {PLANS.map((p) => (
+                  <td key={p.id} className={td(p.recommended)}>
+                    {resolveCellValue(r[p.id], t)}
+                  </td>
+                ))}
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>

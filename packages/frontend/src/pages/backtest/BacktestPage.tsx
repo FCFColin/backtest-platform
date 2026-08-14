@@ -29,20 +29,6 @@ export interface BacktestPageState {
   handleLoadConfig: (config: SavedPortfolio) => void;
   handleDeleteConfig: (id: string) => Promise<void>;
 }
-type BacktestToolbarProps = Pick<
-  BacktestPageState,
-  | 'runBacktest'
-  | 'showSaveInput'
-  | 'setShowSaveInput'
-  | 'configName'
-  | 'setConfigName'
-  | 'handleSaveConfig'
-  | 'showLoadList'
-  | 'handleOpenLoadList'
-  | 'savedConfigs'
-  | 'handleLoadConfig'
-  | 'handleDeleteConfig'
->;
 type BacktestState = ReturnType<typeof useBacktestPageState>;
 type TFunc = (k: string) => string;
 function SaveInputRow({
@@ -138,8 +124,21 @@ function LoadListPanel({
     </div>
   );
 }
-function BacktestToolbar(props: BacktestToolbarProps) {
+function BacktestToolbar({ state }: { state: BacktestState }) {
   const { t, i18n } = useTranslation();
+  const {
+    runBacktest,
+    showSaveInput,
+    setShowSaveInput,
+    configName,
+    setConfigName,
+    handleSaveConfig,
+    showLoadList,
+    handleOpenLoadList,
+    savedConfigs,
+    handleLoadConfig,
+    handleDeleteConfig,
+  } = state;
   const isLoading = useBacktestStore((s) => s.isLoading);
   const portfolioCount = useBacktestStore((s) => s.portfolios.length);
   return (
@@ -147,13 +146,13 @@ function BacktestToolbar(props: BacktestToolbarProps) {
       <div className="flex items-center gap-2">
         <RunButton
           isLoading={isLoading}
-          onClick={props.runBacktest}
+          onClick={runBacktest}
           label={t('Run Backtest')}
           loadingLabel={t('Backtesting...')}
           disabled={portfolioCount === 0}
           data-testid="backtest-run"
         />
-        <Button variant="secondary" onClick={() => void props.handleOpenLoadList()}>
+        <Button variant="secondary" onClick={() => void handleOpenLoadList()}>
           <FolderOpen />
           {t('Load Saved Backtest')}
           <ChevronDown className="size-3.5" />
@@ -162,20 +161,20 @@ function BacktestToolbar(props: BacktestToolbarProps) {
       {portfolioCount === 0 && (
         <p className="text-caption text-fg-tertiary">{t('Please add at least one portfolio')}</p>
       )}
-      {props.showSaveInput && (
+      {showSaveInput && (
         <SaveInputRow
-          configName={props.configName}
-          setConfigName={props.setConfigName}
-          handleSaveConfig={props.handleSaveConfig}
-          setShowSaveInput={props.setShowSaveInput}
+          configName={configName}
+          setConfigName={setConfigName}
+          handleSaveConfig={handleSaveConfig}
+          setShowSaveInput={setShowSaveInput}
           t={t}
         />
       )}
-      {props.showLoadList && (
+      {showLoadList && (
         <LoadListPanel
-          savedConfigs={props.savedConfigs}
-          handleLoadConfig={props.handleLoadConfig}
-          handleDeleteConfig={props.handleDeleteConfig}
+          savedConfigs={savedConfigs}
+          handleLoadConfig={handleLoadConfig}
+          handleDeleteConfig={handleDeleteConfig}
           t={t}
           locale={i18n.language}
         />
@@ -183,40 +182,17 @@ function BacktestToolbar(props: BacktestToolbarProps) {
     </div>
   );
 }
-function BacktestParamsWrapper({ state }: { state: BacktestState }) {
-  return (
-    <>
-      <BacktestParamsForm />
-      <BacktestToolbar
-        runBacktest={state.runBacktest}
-        showSaveInput={state.showSaveInput}
-        setShowSaveInput={state.setShowSaveInput}
-        configName={state.configName}
-        setConfigName={state.setConfigName}
-        handleSaveConfig={state.handleSaveConfig}
-        showLoadList={state.showLoadList}
-        handleOpenLoadList={state.handleOpenLoadList}
-        savedConfigs={state.savedConfigs}
-        handleLoadConfig={state.handleLoadConfig}
-        handleDeleteConfig={state.handleDeleteConfig}
-      />
-    </>
-  );
-}
-function PortfolioWrapper(_: { state: BacktestState }) {
+function PortfolioWrapper({ state }: { state: BacktestState }) {
   return (
     <Card className="p-5">
       <PortfolioEditor />
+      <BacktestToolbar state={state} />
     </Card>
   );
-}
-function BacktestResultsWrapper(_: { state: BacktestState }) {
-  return <ResultsContent />;
 }
 const config: ComputeToolConfig<BacktestState> = {
   titleKey: 'nav.portfolioBacktest',
   hidePageTitle: true,
-  paramsTitleKey: 'params.basicParams',
   seoDescKey: 'backtest.seoDesc',
   seoFeatures: [
     { titleKey: 'backtest.seoModelable', descKey: 'backtest.seoModelableDesc' },
@@ -228,9 +204,9 @@ const config: ComputeToolConfig<BacktestState> = {
     { titleKey: 'nav.efficientFrontier', href: '/efficient-frontier' },
     { titleKey: 'nav.assetAnalysis', href: '/analysis' },
   ],
-  params: BacktestParamsWrapper,
+  params: BacktestParamsForm,
   afterParams: PortfolioWrapper,
-  results: BacktestResultsWrapper,
+  results: ResultsContent,
 };
 export default function BacktestPage() {
   const state = useBacktestPageState();

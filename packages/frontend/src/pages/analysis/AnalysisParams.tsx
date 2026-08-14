@@ -2,13 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { AffixInput } from '@/components/ui/uiComponents.js';
 import { Field } from '@/components/form/Field';
 import { buttonVariants } from '@/components/ui/uiComponents';
-import {
-  LabeledField,
-  SwitchField,
-  DollarInput,
-  RunButton,
-  DateField,
-} from '@/components/form/sharedFields';
+import { LabeledField, DollarInput, RunButton, DateField } from '@/components/form/sharedFields';
 import { TickerTagInput } from '@/components/form/TickerTagInput.js';
 import { AllHistoryCheckbox, useEmptyRowTagChange } from '@/components/params/toolFields.js';
 import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
@@ -28,8 +22,6 @@ interface AnalysisParamsPanelProps {
   setRollingWindow: (v: number) => void;
   correlationWindow: number;
   setCorrelationWindow: (v: number) => void;
-  adjustForInflation: boolean;
-  setAdjustForInflation: (v: boolean) => void;
   isLoading: boolean;
   runAnalysis: () => void;
 }
@@ -119,12 +111,6 @@ export function AnalysisParamsPanel(props: AnalysisParamsPanelProps) {
         value={props.correlationWindow}
         onChange={props.setCorrelationWindow}
         t={t}
-      />
-      <SwitchField
-        id="analysis-adjust-inflation"
-        label={t('Adjust for Inflation (CPI)')}
-        checked={props.adjustForInflation}
-        onCheckedChange={props.setAdjustForInflation}
       />
       <div className="flex justify-end sm:col-span-1 lg:col-span-2">
         <RunButton

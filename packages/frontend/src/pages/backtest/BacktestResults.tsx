@@ -267,6 +267,7 @@ function computeTimeRange(results: BacktestResult) {
 export function ResultsContent() {
   const { t } = useTranslation();
   const results = useBacktestStore((s) => s.results);
+  const resultsStale = useBacktestStore((s) => s.resultsStale);
   const error = useBacktestStore((s) => s.error);
   const isLoading = useBacktestStore((s) => s.isLoading);
   const runBacktest = useBacktestStore((s) => s.runBacktest);
@@ -308,6 +309,19 @@ export function ResultsContent() {
   return (
     <div className="space-y-4">
       {error && <ErrorBanner message={error} className="mb-2" />}
+      {resultsStale && (
+        <ErrorBanner
+          variant="warning"
+          message={
+            <span className="flex flex-wrap items-center gap-2">
+              {t('Parameters changed. Results are out of date.')}
+              <Button size="sm" variant="secondary" onClick={() => void runBacktest()}>
+                {t('Run Backtest')}
+              </Button>
+            </span>
+          }
+        />
+      )}
       <ResultsActionBar
         timeRange={computeTimeRange(results)}
         onExport={(format) => {

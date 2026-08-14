@@ -50,6 +50,7 @@ const NAV_GROUP_KEYS = [
       { to: '/efficient-frontier', key: 'efficientFrontier' },
       { to: '/monte-carlo', key: 'monteCarlo' },
       { to: '/goal-optimizer', key: 'goalOptimizer' },
+      { to: '/calculators', key: 'calculators' },
     ],
   },
   {
@@ -61,7 +62,6 @@ const NAV_GROUP_KEYS = [
       { to: '/dual-signal', key: 'dualSignal' },
       { to: '/multi-signal', key: 'multiSignal' },
       { to: '/letf-slippage', key: 'letfAnalysis' },
-      { to: '/calculators', key: 'calculators' },
     ],
   },
 ] as const;

@@ -3,8 +3,8 @@ import type { TFunction } from 'i18next';
 import { fmtPct, fmtRatio, fmtAmount, downsample } from '@/utils/format';
 import type { SignalAnalysisResult } from '@backtest/shared/types/signal';
 import type { MultiSignalResponse } from './signalState.js';
-import { Card, Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/uiComponents';
-import { CollapsibleSection } from '@/components/cards';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/uiComponents';
+import { CollapsibleSection, StatCard } from '@/components/cards';
 import { SortableTable, type TableColumn } from '../../components/tables.js';
 import { TimeSeriesLineChart } from '@/components/charts/TimeSeriesLineChart.js';
 import { ResultsShell } from '@/components/resultsShell.js';
@@ -13,18 +13,6 @@ interface SignalRow {
   date: string;
   type: 'buy' | 'sell';
   price: number;
-}
-interface StatCardProps {
-  label: string;
-  value: string;
-}
-function StatCard({ label, value }: StatCardProps) {
-  return (
-    <Card className="p-3">
-      <div className="text-caption text-fg-tertiary">{label}</div>
-      <div className="mt-1 font-mono text-h1 font-semibold tabular-nums text-fg">{value}</div>
-    </Card>
-  );
 }
 function StatGrid({ rows }: { rows: { label: string; value: string }[] }) {
   return (

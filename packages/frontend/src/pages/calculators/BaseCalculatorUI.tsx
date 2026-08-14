@@ -8,7 +8,7 @@ import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-  Input,
+  AffixInput,
 } from '@/components/ui/uiComponents';
 import { Field as FieldShell, FieldLabel } from '@/components/form/Field';
 import { cn } from '@/lib/utils';
@@ -40,22 +40,15 @@ export function Field({ label, value, onChange, suffix, min, max, step = 0.1 }: 
   return (
     <FieldShell>
       <FieldLabel>{label}</FieldLabel>
-      <div className="relative">
-        <Input
-          type="number"
-          value={value}
-          onChange={(e) => onChange(Number(e.target.value))}
-          min={min}
-          max={max}
-          step={step}
-          className={suffix ? 'pr-10' : undefined}
-        />
-        {suffix && (
-          <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-caption text-fg-tertiary">
-            {suffix}
-          </span>
-        )}
-      </div>
+      <AffixInput
+        type="number"
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        min={min}
+        max={max}
+        step={step}
+        suffix={suffix}
+      />
     </FieldShell>
   );
 }

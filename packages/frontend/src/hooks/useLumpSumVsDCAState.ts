@@ -94,7 +94,6 @@ async function executeComparison(s: LumpSumVsDCAStateInner, validAssets: LumpSum
     adjustForInflation: s.adjustForInflation,
     rollingWindowMonths: 12,
     benchmarkTicker: '',
-    extendedWithdrawalStats: false,
     cashflowLegs: [],
     oneTimeCashflows: [],
   };
@@ -104,7 +103,6 @@ async function executeComparison(s: LumpSumVsDCAStateInner, validAssets: LumpSum
     rebalanceFrequency: 'quarterly' as const,
     rebalanceOffset: 0,
     drag: 0,
-    totalReturn: true,
   };
   const lumpSumBody = {
     portfolios: [{ ...portfolioDef, name: 'lumpSum' }],
@@ -122,7 +120,6 @@ async function executeComparison(s: LumpSumVsDCAStateInner, validAssets: LumpSum
           amount: contributionAmount,
           type: 'contribution' as const,
           frequency: s.dcaFrequency === 'monthly' ? ('monthly' as const) : ('quarterly' as const),
-          offset: 0,
         },
       ],
     },

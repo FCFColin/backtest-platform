@@ -207,7 +207,7 @@ export function OptimizerResults({ s }: { s: EfficientFrontierState }) {
       errorPrefix={`${t('Optimization Failed')}: `}
       loadingLabel={t('Optimizing...')}
       emptyTitle={t(
-        'Configure parameters on the left and click "Start Calculation" to see optimal weights',
+        'Configure parameters above and click "Start Calculation" to see optimal weights',
       )}
       onRetry={s.runOptimize}
     >

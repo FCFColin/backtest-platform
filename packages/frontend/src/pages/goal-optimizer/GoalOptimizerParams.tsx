@@ -95,21 +95,17 @@ function AssetConfigSection({ state }: { state: GoalOptimizerState }) {
 type ConstraintProps = Pick<
   GoalOptimizerState,
   | 'maxDrawdown'
-  | 'minSuccessRate'
   | 'maxVolatility'
   | 'numSimulations'
   | 'setMaxDrawdown'
-  | 'setMinSuccessRate'
   | 'setMaxVolatility'
   | 'setNumSimulations'
 >;
 function ConstraintsAndSimulation({
   maxDrawdown,
-  minSuccessRate,
   maxVolatility,
   numSimulations,
   setMaxDrawdown,
-  setMinSuccessRate,
   setMaxVolatility,
   setNumSimulations,
 }: ConstraintProps) {
@@ -123,12 +119,6 @@ function ConstraintsAndSimulation({
       onChange: setMaxDrawdown,
     },
     {
-      id: 'go-minsr',
-      label: t('Min Success Rate'),
-      value: minSuccessRate,
-      onChange: setMinSuccessRate,
-    },
-    {
       id: 'go-maxvol',
       label: t('Max Vol'),
       value: maxVolatility,
@@ -140,7 +130,7 @@ function ConstraintsAndSimulation({
       <CollapsibleSection
         title={t('Constraints')}
         description={t(
-          'Optional: set max drawdown, min success rate, and max volatility constraints; simulation will filter paths that violate max drawdown and max volatility',
+          'Optional: set max drawdown and max volatility constraints; simulation will filter paths that violate them',
         )}
       >
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">

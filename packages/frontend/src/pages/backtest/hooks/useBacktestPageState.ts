@@ -43,25 +43,7 @@ function useUrlShareLoader() {
           .addToast('warning', t('Optimizer data format error, unable to load'));
       }
     }
-    const hash = window.location.hash;
-    if (hash.startsWith('#share=')) {
-      try {
-        const json = decodeURIComponent(atob(hash.slice(7)));
-        const data = JSON.parse(json);
-        const sharePortfolios: Portfolio[] = (data.p || []).map((p: Portfolio) => ({
-          ...p,
-          id: p.id || `portfolio-${Date.now()}`,
-        }));
-        const shareParameters: BacktestParameters = data.params;
-        if (sharePortfolios.length > 0 && shareParameters) {
-          loadFromShare({ portfolios: sharePortfolios, parameters: shareParameters });
-          window.history.replaceState(null, '', window.location.pathname);
-        }
-      } catch {
-        useToastStore.getState().addToast('warning', t('Share link data format error'));
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- 仅在挂载时从 URL hash 加载分享数据
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 仅在挂载时从 URL/optimizer 加载配置
   }, [loadFromShare, hasLoadedFromShare, setHasLoadedFromShare]);
 }
 export function useBacktestPageState(): BacktestPageState {

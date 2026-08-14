@@ -254,7 +254,7 @@ export function GridResultsPanel({ state }: { state: TacticalGridState }) {
       errorPrefix={`${t('Search failed')}：`}
       isLoading={isLoading}
       hasResults={!!results}
-      emptyTitle={t('Set parameters on the left and click "Start Grid Search" to see results')}
+      emptyTitle={t('Set parameters above and click "Start Grid Search" to see results')}
       emptyIcon={Grid3x3}
       onRetry={state.runSearch}
     >

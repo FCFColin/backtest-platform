@@ -3,8 +3,8 @@ import { Play } from 'lucide-react';
 import { ComputeToolShell, type ComputeToolConfig } from '@/components/shells/index.js';
 import {
   Card,
-  Input,
   Switch,
+  AffixInput,
   Select,
   SelectTrigger,
   SelectValue,
@@ -60,33 +60,24 @@ function DcaParamsSection({
         </Field>
         <Field>
           <FieldLabel>{t('DCA Periods')}</FieldLabel>
-          <div className="relative">
-            <Input
-              type="number"
-              className="pr-10"
-              value={dcaPeriods}
-              onChange={(e) => setDcaPeriods(Number(e.target.value) || 1)}
-              min={1}
-              max={360}
-            />
-            <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-caption text-fg-tertiary">
-              {t('periods')}
-            </span>
-          </div>
+          <AffixInput
+            type="number"
+            value={dcaPeriods}
+            onChange={(e) => setDcaPeriods(Number(e.target.value) || 1)}
+            min={1}
+            max={360}
+            suffix={t('periods')}
+          />
         </Field>
         <Field>
           <FieldLabel>{t('Per-Period Amount')}</FieldLabel>
-          <div className="relative">
-            <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-body text-fg-tertiary">
-              {prefix}
-            </span>
-            <Input
-              type="text"
-              className="pl-7 opacity-70"
-              value={Math.round(startingValue / dcaPeriods).toLocaleString()}
-              readOnly
-            />
-          </div>
+          <AffixInput
+            type="text"
+            prefix={prefix}
+            className="opacity-70"
+            value={Math.round(startingValue / dcaPeriods).toLocaleString()}
+            readOnly
+          />
         </Field>
         <div className="flex h-10 items-center gap-2">
           <Switch checked={investTbill} onCheckedChange={setInvestTbill} />
@@ -175,7 +166,6 @@ const config: ComputeToolConfig<LumpSumVsDCAState> = {
     { titleKey: 'nav.rebalancingSensitivity', href: '/rebalancing-sensitivity' },
     { titleKey: 'nav.monteCarlo', href: '/monte-carlo' },
   ],
-  paramsTitleKey: 'Parameters',
   params: ({ state }) => <LumpSumVsDCAParamsForm state={state} />,
   results: ({ state }) => <LumpSumVsDCAResults state={state} />,
 };

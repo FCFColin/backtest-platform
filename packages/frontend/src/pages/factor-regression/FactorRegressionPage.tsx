@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { fmtPct, fmtNum } from '@/utils/format';
 import { cn } from '@/lib/utils';
 import { Card } from '@/components/ui/uiComponents';
-import { CollapsibleSection } from '@/components/cards.js';
+import { CollapsibleSection, StatCard } from '@/components/cards.js';
 import { ResultsShell } from '@/components/resultsShell.js';
 import { FACTOR_COLORS } from './factorRegressionUtils.js';
 import type { FactorRegressionResult } from './factorRegressionUtils.js';
@@ -12,38 +12,6 @@ import {
   type FactorRegressionState,
 } from '@/hooks/useFactorRegressionState.js';
 import { FactorRegressionParamsPanel } from './FactorRegressionParams.js';
-function StatCard({
-  label,
-  value,
-  tone,
-  color,
-}: {
-  label: string;
-  value: string;
-  tone?: 'pos' | 'neg';
-  color?: string;
-}) {
-  return (
-    <Card className="p-4">
-      <div className="flex items-center gap-1.5 text-caption text-fg-tertiary">
-        {color && color !== 'transparent' && (
-          <span className="inline-block size-2 rounded-full" style={{ backgroundColor: color }} />
-        )}
-        {label}
-      </div>
-      <div
-        className={cn(
-          'mt-1 font-mono tabular-nums text-h2',
-          tone === 'pos' && 'text-pos',
-          tone === 'neg' && 'text-neg',
-          !tone && 'text-fg',
-        )}
-      >
-        {value}
-      </div>
-    </Card>
-  );
-}
 function RegressionRow({
   label,
   color,

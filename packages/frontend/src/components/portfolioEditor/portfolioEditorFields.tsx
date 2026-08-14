@@ -5,6 +5,7 @@ import { X } from 'lucide-react';
 import {
   Button,
   Input,
+  AffixInput,
   Select,
   SelectTrigger,
   SelectValue,
@@ -224,12 +225,15 @@ export function AssetWeightRow({
   const meta = useTickerMeta(asset.ticker);
   return (
     <div className="group">
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <Input
           value={asset.ticker}
           onChange={(e) => onUpdate({ ...asset, ticker: e.target.value.toUpperCase() })}
           placeholder="VTI"
-          className={cn('w-[220px]', 'font-mono uppercase h-9')}
+          className={cn(
+            'w-full min-w-[200px] flex-1 sm:w-[220px] sm:flex-none',
+            'font-mono uppercase h-9',
+          )}
         />
         <Input
           type="number"
@@ -282,22 +286,20 @@ export function NumField({
   return (
     <div className="flex flex-col gap-0.5 shrink-0">
       {label && <label className="text-caption text-fg-tertiary">{label}</label>}
-      <div className="flex items-center gap-1">
-        <Input
-          type="number"
-          value={value}
-          min={min}
-          max={max}
-          step={step}
-          className={width}
-          title={title}
-          onChange={(e) => {
-            const v = Number(e.target.value);
-            onChange(e.target.value === '' || Number.isNaN(v) ? min : v);
-          }}
-        />
-        <span className="text-caption text-fg-tertiary shrink-0">{suffix}</span>
-      </div>
+      <AffixInput
+        type="number"
+        value={value}
+        min={min}
+        max={max}
+        step={step}
+        suffix={suffix}
+        className={width}
+        title={title}
+        onChange={(e) => {
+          const v = Number(e.target.value);
+          onChange(e.target.value === '' || Number.isNaN(v) ? min : v);
+        }}
+      />
     </div>
   );
 }
