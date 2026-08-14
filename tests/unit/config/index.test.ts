@@ -119,6 +119,8 @@ describe('validateConfig - 生产环境（严格校验）', () => {
       { EMAIL_TRANSPORT: 'smtp', EMAIL_SMTP_HOST: '' },
       'EMAIL_SMTP_HOST',
     ],
+    ['AUDIT_HMAC_KEY 为空', { AUDIT_HMAC_KEY: '' }, 'AUDIT_HMAC_KEY'],
+    ['AUDIT_HMAC_KEY 过短', { AUDIT_HMAC_KEY: 'short' }, 'AUDIT_HMAC_KEY'],
   ])('%s 应抛错', (_n, patch, code) => {
     Object.assign(config, patch);
     expect(() => validateConfig()).toThrow(code);

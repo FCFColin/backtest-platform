@@ -15,6 +15,14 @@ type CorsOrigins = true | string[];
 const int = (v: string | undefined, d: string) => parseInt(v || d, 10);
 const bool = (v: string | undefined) => v === 'true';
 const str = (v: string | undefined, d: string) => v || d;
+const NODE_ENV_VALUES: readonly NodeEnv[] = ['development', 'production', 'test', 'staging'];
+const nodeEnv = (v: string | undefined, d: NodeEnv): NodeEnv => {
+  const value = v || d;
+  if (!NODE_ENV_VALUES.includes(value as NodeEnv)) {
+    throw new Error(`NODE_ENV must be one of ${NODE_ENV_VALUES.join(', ')}`);
+  }
+  return value as NodeEnv;
+};
 
 export function resolveJwtAlgorithm(): 'RS256' | 'HS256' {
   return (process.env.JWT_ALGORITHM ||
@@ -36,7 +44,7 @@ export function requireSecret(name: string): string {
 }
 
 const serverConfig = {
-  NODE_ENV: str(process.env.NODE_ENV, 'development') as NodeEnv,
+  NODE_ENV: nodeEnv(process.env.NODE_ENV, 'development'),
   SERVE_STATIC: process.env.SERVE_STATIC !== undefined ? bool(process.env.SERVE_STATIC) : true,
   API_PORT: int(process.env.API_PORT || process.env.PORT, '15001'),
   CORS_ORIGINS: parseCorsOrigins(process.env.CORS_ORIGINS),
