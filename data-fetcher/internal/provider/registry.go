@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/sony/gobreaker"
 	"log/slog"
-	"regexp"
 	"strings"
 	"time"
 )
@@ -86,21 +85,6 @@ func FetchWithFallback(providers []Provider, ticker, startDate, endDate string) 
 		return nil, "", ErrAllProvidersEmpty
 	}
 	return nil, "", fmt.Errorf("所有数据源均失败: %w", lastErr)
-}
-
-var (
-	reSZExchange  = regexp.MustCompile(`(?i)[._]SZ$`)
-	reSSEExchange = regexp.MustCompile(`(?i)[._](SS|SH)$`)
-)
-
-func DeriveExchange(ticker string) string {
-	if reSZExchange.MatchString(ticker) {
-		return "SZSE"
-	}
-	if reSSEExchange.MatchString(ticker) {
-		return "SSE"
-	}
-	return "US"
 }
 
 type BaseProvider struct {
