@@ -120,6 +120,12 @@ describe('rateLimiter — keyGenerator（Redis 可用路径）', () => {
       'user:alice',
     ],
     [
+      'authRateLimitKey: username 归一化（大小写+空白变体共享同一桶）',
+      loginOpts,
+      { body: { username: '  Alice ' } },
+      'user:alice',
+    ],
+    [
       'authRateLimitKey: apiKey 哈希后作为 key',
       loginOpts,
       { body: { apiKey: 'bpk_live_key' } },

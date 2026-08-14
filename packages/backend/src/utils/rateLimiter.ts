@@ -4,7 +4,7 @@ import crypto from 'crypto';
 import client from 'prom-client';
 import type { Request, Response, NextFunction, RequestHandler } from 'express';
 import { config } from '../config/index.js';
-import { appRedis } from '../infrastructure/redisClient.js';
+import { appRedis, getRedisHealth } from '../infrastructure/redisClient.js';
 import { logger } from '../utils/logger.js';
 import { getPrometheusRegister } from './metrics.js';
 
@@ -37,11 +37,10 @@ function sendRedisCommand(...args: string[]): Promise<RedisReply> {
   ]);
 }
 
-let redisAvailable = false;
-try {
-  new RedisStore({ sendCommand: sendRedisCommand, prefix: 'rl:health:' });
-  redisAvailable = true;
-} catch {
+// 真实连接探测：RedisStore 构造不触网（sendCommand 惰性），必须 ping 才能反映连通性，
+// 启动时即 fail-closed，避免故障期间每条请求空等 2s 超时
+const redisAvailable = (await getRedisHealth()) === true;
+if (!redisAvailable) {
   logger.error('[rate-limit] Redis 不可用，所有限流器将 fail-closed (503)');
   rateLimiterRedisUnavailableCounter.inc();
 }
@@ -74,7 +73,8 @@ function computeRateLimitKey(req: Request): string {
 function authRateLimitKey(req: Request): string {
   const body = req.body as
     { username?: string; apiKey?: string; refreshToken?: string } | undefined;
-  if (body?.username) return `user:${body.username}`;
+  // 与 loginLockout 归一化一致（trim+lowercase），否则大小写/空白变体可拆分同一账户的限流预算
+  if (body?.username) return `user:${body.username.trim().toLowerCase()}`;
   if (body?.apiKey)
     return `apikey:${crypto.createHash('sha256').update(body.apiKey).digest('hex').slice(0, 16)}`;
   if (body?.refreshToken)
