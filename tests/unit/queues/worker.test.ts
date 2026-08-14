@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach, afterAll } from 'vitest';
 import '../../helpers/loggerMock.js';
 import { redisModuleMock } from '../../helpers/redisFixture.js';
-import { engineModuleMock } from '../../helpers/engineFixture.js';
+import { engineMocks } from '../../helpers/engineFixture.js';
 vi.mock('../../../packages/backend/src/queues/backtestQueue.js', () => ({
   createBacktestWorker: vi.fn(() => ({ close: vi.fn().mockResolvedValue(undefined) })),
 }));
@@ -14,7 +14,7 @@ vi.mock('../../../packages/backend/src/application/grid-application-service.js',
 vi.mock('../../../packages/backend/src/application/backtest-service.js', () => ({
   runPortfolioBacktest: vi.fn(),
 }));
-vi.mock('../../../packages/backend/src/utils/engineClient.js', () => engineModuleMock);
+vi.mock('../../../packages/backend/src/utils/engineClient.js', () => engineMocks);
 vi.mock('../../../packages/backend/src/queues/queueUtils.js', () => ({
   tryClaimJobProcessing: vi.fn().mockResolvedValue('claimed'),
   getProcessedJobResult: vi.fn().mockResolvedValue(null),
@@ -190,7 +190,7 @@ describe('processBacktestJob - 任务分发', () => {
   it.each([
     [
       'EngineUnavailableError 时应释放 claim 并重抛以触发 BullMQ 重试',
-      new engineModuleMock.EngineUnavailableError('/api/engine/backtest'),
+      new engineMocks.EngineUnavailableError('/api/engine/backtest'),
       true,
     ],
     ['handler 抛 DelayedError 时应直接重抛（不释放 claim）', new DelayedError('内部延迟'), false],

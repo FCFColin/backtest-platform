@@ -2,7 +2,7 @@ import '../../helpers/loggerMock.js';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { BacktestParameters } from '@backtest/shared';
 import type { Warning } from '../../../packages/backend/src/application/backtest-helpers.js';
-import { engineMocks, engineModuleMock } from '../../helpers/engineFixture.js';
+import { engineMocks } from '../../helpers/engineFixture.js';
 import {
   mockParameters,
   mockPortfolio as portfolioFixture,
@@ -17,7 +17,7 @@ const helpersMocks = vi.hoisted(() => ({
   collectInvalidTickerWarnings: vi.fn(),
   calculateDateRange: vi.fn(),
 }));
-vi.mock('../../../packages/backend/src/utils/engineClient.js', () => engineModuleMock);
+vi.mock('../../../packages/backend/src/utils/engineClient.js', () => engineMocks);
 
 vi.mock('../../../packages/backend/src/application/backtest-helpers.js', async () => {
   const { Portfolio } =

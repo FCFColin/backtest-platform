@@ -1,6 +1,6 @@
 import '../../helpers/loggerMock.js';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { engineMocks, engineModuleMock } from '../../helpers/engineFixture.js';
+import { engineMocks } from '../../helpers/engineFixture.js';
 import { loggerMocks } from '../../helpers/loggerFixture.js';
 import type {
   SignalAnalysisRequest,
@@ -11,7 +11,7 @@ import type { TacticalStrategy } from '@backtest/shared/types/tactical.js';
 
 const dataMocks = vi.hoisted(() => ({ fetchHistoryData: vi.fn() }));
 
-vi.mock('../../../packages/backend/src/utils/engineClient.js', () => engineModuleMock);
+vi.mock('../../../packages/backend/src/utils/engineClient.js', () => engineMocks);
 
 vi.mock('../../../packages/backend/src/infrastructure/dataFacade.js', () => ({
   fetchHistoryData: dataMocks.fetchHistoryData,

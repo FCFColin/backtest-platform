@@ -1,7 +1,7 @@
 import '../../helpers/loggerMock.js';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { BacktestParameters } from '@backtest/shared';
-import { engineMocks, engineModuleMock } from '../../helpers/engineFixture.js';
+import { engineMocks } from '../../helpers/engineFixture.js';
 import {
   mockParameters as parametersFixture,
   mockPortfolio as portfolioFixture,
@@ -61,7 +61,7 @@ vi.mock('../../../packages/backend/src/application/backtest-helpers.js', () => (
       : parameters,
 }));
 
-vi.mock('../../../packages/backend/src/utils/engineClient.js', () => engineModuleMock);
+vi.mock('../../../packages/backend/src/utils/engineClient.js', () => engineMocks);
 
 vi.mock('../../../packages/backend/src/domain/events/events.js', () => ({
   eventDispatcher: { dispatch: eventMocks.dispatch },

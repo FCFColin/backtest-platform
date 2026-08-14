@@ -14,5 +14,4 @@ const engineModuleMocks = vi.hoisted(() => ({
 }));
 
 export const engineMocks = engineModuleMocks;
-export const engineModuleMock = engineModuleMocks;
 export const EngineUnavailableErrorStub = engineModuleMocks.EngineUnavailableError;

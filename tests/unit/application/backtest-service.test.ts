@@ -1,7 +1,7 @@
 import '../../helpers/loggerMock.js';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { Portfolio, BacktestParameters } from '@backtest/shared';
-import { engineMocks, engineModuleMock } from '../../helpers/engineFixture.js';
+import { engineMocks } from '../../helpers/engineFixture.js';
 import {
   mockParameters,
   mockPortfolio as portfolioFixture,
@@ -18,7 +18,7 @@ import {
 import type { Warning } from '../../../packages/backend/src/application/backtest-helpers.js';
 import { MAX_TICKERS } from '../../../packages/shared/constants.js';
 
-vi.mock('../../../packages/backend/src/utils/engineClient.js', () => engineModuleMock);
+vi.mock('../../../packages/backend/src/utils/engineClient.js', () => engineMocks);
 import { runBacktest } from '../../../packages/backend/src/application/backtest-service.js';
 
 const mockPortfolio = portfolioFixture();

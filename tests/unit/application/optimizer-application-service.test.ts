@@ -1,6 +1,6 @@
 import '../../helpers/loggerMock.js';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { engineModuleMock } from '../../helpers/engineFixture.js';
+import { engineMocks } from '../../helpers/engineFixture.js';
 import {
   optimizeResultSchema,
   frontierResultSchema,
@@ -12,7 +12,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('../../../packages/backend/src/utils/engineClient.js', () => ({
-  ...engineModuleMock,
+  ...engineMocks,
   callEngineStrict: mocks.callEngineStrict,
 }));
 
@@ -138,11 +138,11 @@ describe('executeOptimization', () => {
   it('引擎不可用时抛出 EngineUnavailableError（fail-closed）', async () => {
     mocks.fetchHistoryData.mockResolvedValueOnce(mockPriceDataResponse());
     mocks.callEngineStrict.mockRejectedValueOnce(
-      new engineModuleMock.EngineUnavailableError('/api/engine/backtest'),
+      new engineMocks.EngineUnavailableError('/api/engine/backtest'),
     );
 
     await expect(executeOptimization(validBody())).rejects.toBeInstanceOf(
-      engineModuleMock.EngineUnavailableError,
+      engineMocks.EngineUnavailableError,
     );
     expect(mocks.callEngineStrict).toHaveBeenCalledTimes(1);
   });

@@ -8,7 +8,7 @@ import {
 } from '../../helpers/expressApp.js';
 import { withServer } from '../../helpers/serverLifecycle.js';
 import { mockBacktestQueue, mockConfigModule } from '../../helpers/mockFactories.js';
-import { engineModuleMock, engineMocks } from '../../helpers/engineFixture.js';
+import { engineMocks } from '../../helpers/engineFixture.js';
 import { createMockPriceData, mockPortfolioResult } from '../../helpers/storeFixtures.js';
 
 const dataServiceMocks = vi.hoisted(() => ({ fetchHistoryData: vi.fn() }));
@@ -23,7 +23,7 @@ vi.mock('../../../packages/backend/src/infrastructure/dataFacade.js', () => ({
 vi.mock('../../../packages/backend/src/queues/backtestQueue.js', () =>
   mockBacktestQueue(queueMocks.add),
 );
-vi.mock('../../../packages/backend/src/utils/engineClient.js', () => engineModuleMock);
+vi.mock('../../../packages/backend/src/utils/engineClient.js', () => engineMocks);
 vi.mock('../../../packages/backend/src/config/index.js', () =>
   mockConfigModule({ NODE_ENV: 'test', SYNC_COMPUTE_TIMEOUT_MS: 500 }),
 );
@@ -369,7 +369,7 @@ describe('analysisRoutes - Calculator: POST /api/v1/calculators/:type', () => {
   });
   it('引擎抛 EngineUnavailableError 应返回 503 + Retry-After（ADR-008 fail-closed）', async () => {
     engineMocks.callEngineStrict.mockRejectedValueOnce(
-      new engineModuleMock.EngineUnavailableError('/api/engine/calculators'),
+      new engineMocks.EngineUnavailableError('/api/engine/calculators'),
     );
     const { res, body } = await post(getServer(), '/api/v1/calculators/cagr', {});
     expect(res.status).toBe(503);

@@ -8,7 +8,7 @@ import '../helpers/loggerMock.js';
  */
 import { describe, it, expect, vi } from 'vitest';
 import { useTestServer } from '../helpers/expressApp.js';
-import { engineModuleMock } from '../helpers/engineFixture.js';
+import { engineMocks } from '../helpers/engineFixture.js';
 
 const { callEngineStrictMock, fetchHistoryDataMock, searchTickersMock } = vi.hoisted(() => ({
   callEngineStrictMock: vi.fn(),
@@ -17,7 +17,7 @@ const { callEngineStrictMock, fetchHistoryDataMock, searchTickersMock } = vi.hoi
 }));
 
 vi.mock('../../packages/backend/src/utils/engineClient.js', () => ({
-  ...engineModuleMock,
+  ...engineMocks,
   callEngineStrict: callEngineStrictMock,
 }));
 
@@ -107,7 +107,7 @@ describe('回测端到端集成测试', () => {
       degraded: false,
     });
     callEngineStrictMock.mockRejectedValueOnce(
-      new engineModuleMock.EngineUnavailableError('/api/engine/optimize'),
+      new engineMocks.EngineUnavailableError('/api/engine/optimize'),
     );
 
     const { res, body } = await server.post('/optimize', validOptimizeBody);
