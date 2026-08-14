@@ -216,7 +216,7 @@ const DEFAULT_PRICE_DATA = {
   BND: { '2024-01-02': 72.3, '2024-01-03': 72.5 },
 };
 
-export interface BacktestServerOptions {
+interface BacktestServerOptions {
   auth?: { user?: Partial<NonNullable<TestRequest['user']>>; tenantId?: string };
 }
 

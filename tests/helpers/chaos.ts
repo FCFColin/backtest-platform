@@ -128,22 +128,6 @@ export const waitForHealthy = (url: string, timeoutMs: number = 30000, intervalM
     intervalMs,
   );
 
-export async function checkServerAvailable(
-  url: string,
-  timeoutMs: number = 2000,
-): Promise<boolean> {
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), timeoutMs);
-    const response = await fetch(url, { signal: controller.signal });
-    clearTimeout(timeout);
-    // 4xx（如 404）视为可用：服务在运行仅路径不存在
-    return response.ok || response.status < 500;
-  } catch {
-    return false;
-  }
-}
-
 export async function withContainerStopped<T>(
   container: string,
   fn: () => Promise<T>,

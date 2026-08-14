@@ -4,6 +4,7 @@ import {
   disconnectContainer,
   reconnectContainer,
   waitForHealthy,
+  waitForCondition,
   setupChaosLifecycle,
 } from '../helpers/chaos.js';
 
@@ -23,7 +24,7 @@ describe('Chaos Experiment 1: Database Disconnect', () => {
       await disconnectContainer(CONTAINERS.postgres);
 
       try {
-        await new Promise((resolve) => setTimeout(resolve, 3000));
+        await waitForCondition(async () => (await fetch(READY_URL)).status === 503, 10000, 500);
         for (let i = 0; i < 3; i++) {
           const res = await fetch(META_URL);
           expect(res.status, 'PG 分区期间 /meta 不得 500').toBe(200);
@@ -37,8 +38,7 @@ describe('Chaos Experiment 1: Database Disconnect', () => {
         await reconnectContainer(CONTAINERS.postgres);
       }
 
-      await new Promise((resolve) => setTimeout(resolve, 15000));
-      expect(await waitForHealthy(READY_URL, 15000)).toBe(true);
+      expect(await waitForHealthy(READY_URL, 30000)).toBe(true);
       expect((await (await fetch(META_URL)).json()).success).toBe(true);
     },
     90000,
