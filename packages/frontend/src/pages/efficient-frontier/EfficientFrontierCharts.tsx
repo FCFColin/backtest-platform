@@ -57,8 +57,10 @@ function FrontierScatterChartInner({
         name === 'sharpeRatio' ? v.toFixed(2) : `${v.toFixed(2)}%`
       }
       series={scatterSeries}
-      onClick={({ dataIndex }) => {
-        if (dataIndex !== undefined && frontier[dataIndex]) onSelectPoint(frontier[dataIndex]);
+      onClick={({ seriesIndex }) => {
+        // 每点独立 series（data 恒单元素），dataIndex 恒 0，须按 seriesIndex 定位 frontier
+        if (seriesIndex !== undefined && frontier[seriesIndex])
+          onSelectPoint(frontier[seriesIndex]);
       }}
     />
   );

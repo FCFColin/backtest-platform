@@ -30,13 +30,13 @@ function ResultsSummary({
   paramLabels: { p1: string; p2: string };
 }) {
   const { t } = useTranslation();
-  const { bestCombination: best } = results;
+  const best = results.bestCombination;
   const stats: Array<{ label: string; value: string | number; tone?: StatTone }> = [
     { label: t('Combinations'), value: results.totalCombinations },
-    { label: t('Best {{label}}', { label: paramLabels.p1 }), value: best.param1, tone: 'brand' },
-    { label: t('Best {{label}}', { label: paramLabels.p2 }), value: best.param2, tone: 'brand' },
-    { label: t('Best CAGR'), value: fmtPct(best.cagr), tone: 'success' },
-    { label: t('Best Sharpe'), value: fmtNum(best.sharpe, 3), tone: 'success' },
+    { label: t('Best {{label}}', { label: paramLabels.p1 }), value: best?.param1 ?? '—' },
+    { label: t('Best {{label}}', { label: paramLabels.p2 }), value: best?.param2 ?? '—' },
+    { label: t('Best CAGR'), value: best ? fmtPct(best.cagr) : '—', tone: 'success' },
+    { label: t('Best Sharpe'), value: best ? fmtNum(best.sharpe, 3) : '—', tone: 'success' },
   ];
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
@@ -115,8 +115,8 @@ function BestGrowthChart({
   paramLabels: { p1: string; p2: string };
 }) {
   const { t } = useTranslation();
-  const { bestCombination: best } = results;
-  if (best.growthCurve.length === 0) return null;
+  const best = results.bestCombination;
+  if (!best || best.growthCurve.length === 0) return null;
   return (
     <Card className="p-4">
       <h3 className="mb-3 text-h3 text-fg">

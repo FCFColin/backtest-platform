@@ -53,7 +53,8 @@ function computeUnderwaterStats(curve: Array<{ date: string; drawdown: number }>
   for (const pt of curve) {
     const dd = Math.abs(pt.drawdown);
     if (dd > maxDrawdown) maxDrawdown = dd;
-    if (pt.drawdown < 0) {
+    // 引擎回撤为 (peak-value)/peak 恒非负，> 0 即处于水下
+    if (pt.drawdown > 0) {
       underwaterCount++;
       currentStreak++;
       if (currentStreak > longestStreak) longestStreak = currentStreak;

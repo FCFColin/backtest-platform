@@ -30,7 +30,7 @@ export interface TacticalGridResponse {
   allMetrics: GridCombinationMetrics[];
   topResults: TopCombinationResult[];
   heatmap: HeatmapData;
-  bestCombination: TopCombinationResult;
+  bestCombination: TopCombinationResult | null;
 }
 export const OBJECTIVE_OPTIONS: Array<{ value: ObjectiveType; label: string }> = [
   { value: 'maxCAGR', label: 'backtest.optimizer.maxCagr' },
