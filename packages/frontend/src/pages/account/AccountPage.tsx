@@ -148,7 +148,7 @@ function SubscriptionSection({ plan }: { plan: string | undefined }) {
           </div>
           <div className="flex items-center gap-1.5 text-caption text-fg-tertiary">
             <Calendar className="w-3 h-3" />
-            {t('Self-hosted Version')}
+            {t('Managed Cloud')}
           </div>
         </div>
         <Button asChild variant="primary" className="min-h-[38px] px-[18px] text-label">

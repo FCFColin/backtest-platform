@@ -163,7 +163,7 @@ function DataSection() {
       icon={<Database className="size-6 text-brand" />}
       title={t('Data Source')}
       description={t(
-        'The platform supports multiple data sources; all data is cached locally in a SQLite database. After the first query, the cache is preferred to reduce API calls.',
+        'The platform supports multiple data sources. Historical market data is cached in PostgreSQL to reduce upstream API calls on repeat queries.',
       )}
     >
       <HelpGrid>

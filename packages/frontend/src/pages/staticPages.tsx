@@ -69,14 +69,12 @@ function AboutContent() {
         <BarChart3 className="size-8 text-brand" />
         <div>
           <div className="text-h2 font-bold text-fg">{t('Backtest Platform')}</div>
-          <div className="text-label text-fg-tertiary">
-            {t('v1.0.0 · Self-hosted · Full data sovereignty')}
-          </div>
+          <div className="text-label text-fg-tertiary">{t('v1.0.0 · Multi-tenant SaaS')}</div>
         </div>
       </div>
       <div className="mb-6 text-body leading-loose text-fg-secondary">
         {t(
-          'The Backtest Platform is an open-source portfolio backtesting tool supporting multiple markets (US/China/HK/Japan/Europe etc.), multiple currencies (USD/CNY), inflation adjustment, FX conversion, Monte Carlo simulation, portfolio optimization, and efficient frontier analysis. All data is stored locally — no registration required, no privacy leakage risk.',
+          'The Backtest Platform is a portfolio backtesting service supporting multiple markets (US/China/HK/Japan/Europe etc.), multiple currencies (USD/CNY), inflation adjustment, FX conversion, Monte Carlo simulation, portfolio optimization, and efficient frontier analysis. Usage requires registration; plan-based limits apply.',
         )}
       </div>
       <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(220px,1fr))]">
@@ -109,9 +107,7 @@ function LimitsContent() {
   return (
     <div>
       <div className="mb-6 text-body leading-loose text-fg-secondary">
-        {t(
-          'This is a self-hosted edition with no cloud restrictions. The following limits apply only to data fetching and compute resources:',
-        )}
+        {t('The following limits apply to data fetching and compute resources across plans:')}
       </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {limits.map((l) => (

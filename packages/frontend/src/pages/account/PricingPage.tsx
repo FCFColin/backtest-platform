@@ -115,7 +115,7 @@ function PricingNotice() {
   return (
     <div className="mt-6 rounded-lg bg-hover p-4 text-caption leading-[1.7] text-fg-tertiary">
       <strong className="text-fg-secondary">{t('Notice:')}</strong>
-      {t('Prices are for display only; the self-hosted version requires no payment.')}
+      {t('Plans, pricing, and usage limits are managed on the billing page.')}
     </div>
   );
 }
@@ -163,7 +163,8 @@ function PlanCard({ plan }: { plan: Plan }) {
   );
 }
 function PlanCta({ plan }: { plan: Plan }) {
-  const isCurrent = plan.id === 'free';
+  // 与 BillingPage 同源：org.plan 为当前生效套餐（未登录视为 free）
+  const isCurrent = useAuthStore((s) => s.org?.plan ?? 'free') === plan.id;
   const isAuth = useAuthStore((s) => s.user !== null);
   const cls = cn(
     'mt-6 h-10 text-label font-semibold',
