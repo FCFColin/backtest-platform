@@ -32,18 +32,18 @@
 | adminRoutes               | /api/v1/admin                                         | adminMiddleware + adminLimiter(30/min)                   |
 | orgRoutes / billingRoutes | /api/v1/orgs, /billing                                | jwtAuth + resolveTenant (+requireTenant)                 |
 
-> computeMiddleware(p) = jwtAuth → resolveTenant → requirePermission(p) → enforceQuota → auditLog
+> computeMiddleware(p) = jwtAuth → resolveTenant → requireTenant → requirePermission(p) → enforceQuota → auditLog
 > crudMiddleware(p) = jwtAuth → resolveTenant → requireTenant → requirePermission(p)
 > adminMiddleware() = jwtAuth → resolveTenant → requirePermission(ADMIN_ACCESS) → auditLog → 幂等
 
 ## 4. 中间件链
 
-| 中间件                                         | 职责                                           |
-| ---------------------------------------------- | ---------------------------------------------- |
-| helmet / cors                                  | 安全头 / CORS_ORIGINS 白名单（生产 hard-fail） |
-| express.json / apiLimiter                      | JSON(10mb) / 全局限流(100 req/15min)           |
-| jwtAuth / resolveTenant / requirePermission(X) | JWT(jose RS256) / tenant_id 解析 / RBAC 校验   |
-| enforceQuota / auditLog / idempotencyKey       | 计划配额(ADR-010) / 审计(HMAC) / 幂等(Redis)   |
+| 中间件                                         | 职责                                                           |
+| ---------------------------------------------- | -------------------------------------------------------------- |
+| helmet / cors                                  | 安全头 / CORS_ORIGINS 白名单（生产 hard-fail）                 |
+| express.json / apiLimiter                      | JSON(10mb) / 全局限流(100 req/15min)                           |
+| jwtAuth / resolveTenant / requirePermission(X) | JWT(jose, prod RS256 / dev HS256) / tenant_id 解析 / RBAC 校验 |
+| enforceQuota / auditLog / idempotencyKey       | 计划配额(ADR-010) / 审计(HMAC) / 幂等(Redis)                   |
 
 ## 5. 应用服务层 (application/)
 

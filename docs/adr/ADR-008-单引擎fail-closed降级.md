@@ -14,7 +14,7 @@ SaaS 付费用户期望"同输入恒得同输出"。旧 callRustWithFallback 在
 - 同步请求：503 + Retry-After: 30 + RFC 7807 problem（code: ENGINE_UNAVAILABLE）
 - 异步任务：BullMQ 重试 + 指数退避，等待引擎恢复
 - 所有计算端点统一走 callEngineStrict
-- 代码：engineClient.ts、backtestRoutes.ts（handleEngineUnavailable）
+- 代码：engineClient.ts（callEngineStrict / EngineUnavailableError）、routeUtils.ts（503 + Retry-After）
 
 ## Consequences
 

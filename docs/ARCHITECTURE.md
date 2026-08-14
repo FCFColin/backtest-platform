@@ -29,7 +29,7 @@
 | ----------------- | ---------------------------------------- | ----------------------------------- |
 | 引擎不可用        | fail-closed(ADR-008)                     | 503 + Retry-After, 无 degraded 字段 |
 | PostgreSQL 不可用 | 降级到 Go 数据服务(缺失 ticker 实时抓取) | degraded: true + degradedWarning    |
-| Redis 不可用      | fail-closed(DADR-018)                    | 503(认证/限流), 跳过缓存(数据)      |
+| Redis 不可用      | fail-closed                              | 503(认证/限流), 跳过缓存(数据)      |
 
 ## 4. 服务与端口
 
@@ -63,7 +63,7 @@
 
 ## 7. 认证授权 (ADR-007)
 
-JWT(jose, RS256) Access 15min；Refresh 7d + 轮换（Redis, httpOnly Cookie, BFF）；
+JWT(jose) Access 15min（prod RS256，dev 默认 HS256）；Refresh 7d + 轮换（Redis, httpOnly Cookie, BFF）；
 x-api-key → analyst 角色；RBAC 三角色 × 七权限；Idempotency-Key 中间件；tenant_id + RLS(ADR-009)。
 
 ## 8. 可观测性 (ADR-006)

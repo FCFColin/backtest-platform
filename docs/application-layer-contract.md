@@ -9,7 +9,7 @@
 
 涉及业务不变量（权重和、ticker 净化、再平衡判断）时，**必须**经聚合根（`Portfolio.fromDTO()` / `Portfolio.create()`）或 domain 纯函数（`domain/services/` 的 `grid-search` / `optimizer-domain`）执行，不得在 application 层重新实现领域校验。
 
-- ✅ `backtest-service.ts`：`portfolios.map((p) => translateDomainError(() => DomainPortfolio.fromDTO(p)))`
+- ✅ `backtest-service.ts`：`portfolios.map(portfolioToDomain)`（`backtest-helpers.ts` 内 `translateDomainError(() => DomainPortfolio.fromDTO(p))`）
 - ✅ `optimize-service.ts`：调用 `optimizer-domain.ts` 的 `buildCombinations` / `filterByConstraints`
 - ❌ 手写 `if (sum(weights) !== 100) throw ...`
 
@@ -28,7 +28,7 @@
 
 ### 4. domain 异常翻译
 
-domain 抛 `DomainValidationError`（`domain/errors.ts`，无 HTTP 语义）；application 经 `translateDomainError()`（`backtest-helpers.ts`）翻译为 `ValidationError`（HTTP 422），路由层 `asyncRouteHandler` 统一处理。
+domain 抛 `DomainValidationError`（`domain/value-objects/index.ts`，无 HTTP 语义）；application 经 `translateDomainError()`（`backtest-helpers.ts`）翻译为 `ValidationError`（HTTP 422），路由层 `asyncRouteHandler` 统一处理。
 domain 层**不得** import `utils/errors.js`（反向依赖）。
 
 ## 目录结构
@@ -36,5 +36,5 @@ domain 层**不得** import `utils/errors.js`（反向依赖）。
 ```
 application/   backtest/montecarlo/optimize/tactical/grid service + backtest-helpers + backtest/ 工具
 services/      analysis/signal orchestrator + loginLockout/usageService/billingService 等
-domain/        aggregates/ value-objects/ services/ events/ errors.ts
+domain/        aggregates/ value-objects/ services/ events/
 ```
