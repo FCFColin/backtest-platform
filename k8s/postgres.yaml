@@ -1,28 +1,38 @@
 apiVersion: v1
-kind: Secret
-metadata:
-  name: postgres-secret
-  labels:
-    app: postgres
-type: Opaque
-stringData:
-  DATABASE_URL: 'postgresql://backtest:<REPLACE_ME>@postgres:5432/backtest'
-  POSTGRES_USER: 'backtest'
-  POSTGRES_PASSWORD: '<REPLACE_ME>'
-  POSTGRES_DB: 'backtest'
----
-apiVersion: v1
 kind: ConfigMap
 metadata:
   name: postgres-init-scripts
   labels:
     app: postgres
 data:
-  01-init.sql: |
-    GRANT ALL PRIVILEGES ON DATABASE backtest TO backtest;
+  # 用 sh 而非 sql，从挂载 env 注入 backtest_app 密码（真实值见 gitignore 的 postgres-secret.yaml）
+  01-init.sh: |
+    #!/bin/sh
+    set -eu
+    psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<SQL
+    GRANT ALL PRIVILEGES ON DATABASE "$POSTGRES_DB" TO "$POSTGRES_USER";
+    -- 运行期最小权限角色（ADR-009：backtest_app 无 BYPASSRLS，多租户 RLS 生效）
+    DO \$\$
+    BEGIN
+      IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'backtest_app') THEN
+        CREATE ROLE backtest_app LOGIN PASSWORD '${BACKTEST_APP_PASSWORD:?}';
+      END IF;
+    END
+    \$\$;
+    ALTER ROLE backtest_app NOBYPASSRLS;
+    GRANT CONNECT ON DATABASE "$POSTGRES_DB" TO backtest_app;
+    GRANT USAGE ON SCHEMA public TO backtest_app;
+    GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO backtest_app;
+    GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO backtest_app;
+    ALTER DEFAULT PRIVILEGES IN SCHEMA public
+      GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO backtest_app;
+    ALTER DEFAULT PRIVILEGES IN SCHEMA public
+      GRANT USAGE, SELECT ON SEQUENCES TO backtest_app;
+    REVOKE CREATE ON SCHEMA public FROM PUBLIC;
     CREATE EXTENSION IF NOT EXISTS timescaledb;
     CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
     CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+    SQL
 ---
 apiVersion: apps/v1
 kind: StatefulSet
@@ -65,6 +75,8 @@ spec:
               valueFrom: { secretKeyRef: { name: postgres-secret, key: POSTGRES_PASSWORD } }
             - name: POSTGRES_DB
               valueFrom: { secretKeyRef: { name: postgres-secret, key: POSTGRES_DB } }
+            - name: BACKTEST_APP_PASSWORD
+              valueFrom: { secretKeyRef: { name: postgres-secret, key: APP_PASSWORD } }
             - name: POSTGRES_INITDB_ARGS
               value: '--encoding=UTF-8 --lc-collate=C --lc-ctype=C'
           livenessProbe:

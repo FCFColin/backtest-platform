@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "nodemon",
     "server:dev": "tsx src/server.ts",
+    "migrate": "tsx src/db/migrate-cli.ts",
     "worker": "node --import tsx src/queues/workerEntrypoint.ts",
     "worker:dev": "node --watch --import tsx src/queues/workerEntrypoint.ts",
     "build": "node esbuild.config.mjs src/server.ts",

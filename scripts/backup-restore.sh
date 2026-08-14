@@ -22,8 +22,10 @@ BACKUP_NAME="${1:-LATEST}"
 CONTAINER_NAME="${POSTGRES_CONTAINER:-backtest-postgres}"
 PGDATA="${PGDATA:-/var/lib/postgresql/data}"
 # Docker Compose 项目名（影响卷名：{project}_{volume}；须与 docker-compose.yml 顶层 name: 一致）
-COMPOSE_PROJECT="${COMPOSE_PROJECT_NAME:-backtest-platform}"
+COMPOSE_PROJECT="${COMPOSE_PROJECT_NAME:-backtest}"
 PGDATA_VOLUME="${COMPOSE_PROJECT}_pgdata"
+# 与 docker-compose.yml 的 postgres 镜像保持同一钉版 tag（migrations/check-migrations 亦依赖该镜像）
+PG_IMAGE="timescale/timescaledb:2.17.2-pg16"
 
 echo "[backup-restore] !!! WARNING: This will DESTROY and RESTORE the PostgreSQL data directory !!!"
 echo "[backup-restore] Target backup: $BACKUP_NAME"
@@ -40,7 +42,7 @@ docker run --rm \
   -v "${PGDATA_VOLUME}:$PGDATA" \
   -v "$(pwd)/docker/wal-g/env:/etc/wal-g.d/env:ro" \
   --entrypoint bash \
-  timescale/timescaledb:latest-pg16 \
+  "$PG_IMAGE" \
   -c "rm -rf ${PGDATA:?}/* && echo 'PGDATA cleared'"
 
 # Step 3: 从备份恢复数据
@@ -50,7 +52,7 @@ docker run --rm \
   -v "$(pwd)/docker/wal-g/env:/etc/wal-g.d/env:ro" \
   --entrypoint bash \
   -e PGDATA="$PGDATA" \
-  timescale/timescaledb:latest-pg16 \
+  "$PG_IMAGE" \
   -c "
     # 确保 WAL-G 可用（可能需要重新安装）
     if ! command -v wal-g >/dev/null 2>&1; then

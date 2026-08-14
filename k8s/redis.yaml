@@ -18,13 +18,17 @@ data:
     set -e
     ORDINAL="${HOSTNAME##*-}"
     AUTH_ARGS=""
+    cp /sentinel-config/sentinel.conf /data/sentinel.conf
     if [ -n "$REDIS_PASSWORD" ]; then
       AUTH_ARGS="--requirepass $REDIS_PASSWORD --masterauth $REDIS_PASSWORD"
+      echo "sentinel auth-pass mymaster $REDIS_PASSWORD" >> /data/sentinel.conf
     fi
+    # 每 Pod 同时运行 Sentinel（监控 redis-0.redis），3 节点满足 quorum=2
+    redis-server --port 26379 --sentinel /data/sentinel.conf &
     if [ "$ORDINAL" = "0" ]; then
-      exec redis-server --appendonly yes --min-slaves-to-write 1 --min-slaves-max-lag 10 --save 60 1000 $AUTH_ARGS
+      exec redis-server --port 6379 --appendonly yes --min-slaves-to-write 1 --min-slaves-max-lag 10 --save 60 1000 $AUTH_ARGS
     else
-      exec redis-server --appendonly yes --replicaof redis-0.redis 6379 --replica-read-only yes $AUTH_ARGS
+      exec redis-server --port 6379 --appendonly yes --replicaof redis-0.redis 6379 --replica-read-only yes $AUTH_ARGS
     fi
   sentinel.conf: |
     port 26379

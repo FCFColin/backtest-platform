@@ -13,6 +13,7 @@ resources:
   - ../configmap.yaml
   - ../auth-secret.yaml
   - ../alertmanager-webhooks-secret.yaml
+  - ../postgres-secret.yaml
   - ../deployments.yaml
   - ../services.yaml
   - ../hpas.yaml

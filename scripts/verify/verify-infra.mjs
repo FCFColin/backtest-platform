@@ -40,12 +40,21 @@ await runCheck(results, 'C-007', () => {
       timeout: 60000,
     });
     const buildOk = flaggedRes.code === 0 && flaggedRes.out.split('\n').length > 0;
-    details.overlays[env] = { kustomizationExists: true, buildOk, pass: pathOk && buildOk };
-    if (!pathOk || !buildOk) allPass = false;
+    // 防占位符 secret 被直接 apply（k8s/*-secret.yaml 为 gitignore 的真实密钥，.example 仅模板）
+    const hasPlaceholders = buildOk && /(REPLACE_ME|CHANGE_ME|<[^>\s]+>)/i.test(flaggedRes.out);
+    details.overlays[env] = {
+      kustomizationExists: true,
+      buildOk,
+      hasPlaceholders,
+      pass: pathOk && buildOk && !hasPlaceholders,
+    };
+    if (!pathOk || !buildOk || hasPlaceholders) allPass = false;
   }
   return {
     status: allPass ? 'PASS' : 'FAIL',
-    summary: allPass ? 'All 3 overlays kustomize build OK' : 'Some overlays failed',
+    summary: allPass
+      ? 'All 3 overlays kustomize build OK, no placeholder secrets'
+      : 'Some overlays failed or contain placeholder secrets',
     details,
   };
 });

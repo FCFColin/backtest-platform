@@ -239,6 +239,15 @@ jobs:
       - name: Install Playwright browsers
         run: pnpm exec playwright install --with-deps chromium firefox webkit
 
+      # least-privilege 流程：超管先迁移（backtest_test 供 e2e，backtest 供后续 compose api/worker 契约检查），
+      # 应用角色 backtest_app 仅 DML（ADR-009）；迁移需 timescaledb 扩展（CREATE EXTENSION 需超管）。
+      - name: Migrate test/app DBs (superuser)
+        run: |
+          for i in $(seq 1 30); do docker compose exec -T postgres pg_isready -U backtest && break; sleep 2; done
+          for db in backtest_test backtest; do
+            DATABASE_URL="postgresql://backtest:backtest@localhost:15442/$db" pnpm --filter @backtest/backend run migrate
+          done
+
       # webServer (scripts/e2e-servers.mjs) 以 tsx 起后端并绑定 API_PORT 15001；
       # E2E 结束后 playwright 会终止该进程，sleep 让端口释放后再由 compose api 接管
       - name: Run E2E

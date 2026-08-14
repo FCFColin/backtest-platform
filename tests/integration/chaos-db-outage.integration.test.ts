@@ -36,7 +36,7 @@ const dockerAvailable = isDockerAvailable();
 let container: StartedPostgreSqlContainer;
 
 async function createAndSetupContainer(): Promise<StartedPostgreSqlContainer> {
-  const c = await new PostgreSqlContainer('timescale/timescaledb:latest-pg16')
+  const c = await new PostgreSqlContainer('timescale/timescaledb:2.17.2-pg16')
     .withDatabase('backtest_test')
     .withUsername('backtest')
     .withPassword('backtest')

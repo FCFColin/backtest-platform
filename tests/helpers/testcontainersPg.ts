@@ -26,12 +26,13 @@ export function isDockerAvailable(): boolean {
     execSync('docker info', { stdio: 'ignore', timeout: 15000 });
     return true;
   } catch {
-    return false;
+    // CI 显式开启容器测试时 docker 不可用 = 测试环境损坏，失败而非静默假绿
+    throw new Error('RUN_TESTCONTAINERS=1 但 docker 不可用：集成测试无法执行');
   }
 }
 
 export async function setupTestContainer(): Promise<TestContainerContext> {
-  const container = await new PostgreSqlContainer('timescale/timescaledb:latest-pg16')
+  const container = await new PostgreSqlContainer('timescale/timescaledb:2.17.2-pg16')
     .withDatabase('backtest_test')
     .withUsername('backtest')
     .withPassword('backtest')

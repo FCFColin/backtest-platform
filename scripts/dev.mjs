@@ -92,7 +92,7 @@ function spawnLocalService(cwd, args, label) {
   const child = spawn('go', ['run', ...args], {
     cwd,
     stdio: HEADLESS ? 'ignore' : 'inherit',
-    env: { ...env, HEADLESS: undefined },
+    env,
     shell: isWin,
     detached: true,
   });
