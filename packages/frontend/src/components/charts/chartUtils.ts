@@ -86,6 +86,7 @@ export function categoryAxis(
     name?: string;
     nameGap?: number;
     fontSize?: number;
+    preserveStartEnd?: boolean;
   } = {},
 ) {
   return {
@@ -97,6 +98,7 @@ export function categoryAxis(
       ...(opts.fontSize !== undefined ? { fontSize: opts.fontSize } : {}),
       ...(opts.interval !== undefined ? { interval: opts.interval } : {}),
       ...(opts.formatter ? { formatter: opts.formatter } : {}),
+      ...(opts.preserveStartEnd ? { showMinLabel: true, showMaxLabel: true } : {}),
     },
     axisLine: { lineStyle: { color: BORDER_SOFT } },
     axisTick: { show: false },
@@ -145,7 +147,7 @@ export function scatterLabel() {
     fontSize: 11,
   };
 }
-function escapeHtml(value: string): string {
+export function escapeHtml(value: string): string {
   return value.replace(/[&<>"']/g, (ch) => `&#${ch.charCodeAt(0)};`);
 }
 export const tooltipRow = (marker: string, name: string, value: string) =>

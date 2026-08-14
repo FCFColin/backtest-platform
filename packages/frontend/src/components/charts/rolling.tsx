@@ -27,7 +27,7 @@ export const RollingCorrelationChart = memo(function RollingCorrelationChart({
   const seriesName = `${tickers[rollingPair[0]]} vs ${tickers[rollingPair[1]]}`;
   const data = rollingCorrData.map((d) => ({
     date: d.date,
-    [seriesName]: +d.value.toFixed(3),
+    [seriesName]: +d.value.toFixed(4),
   }));
   return (
     <ChartCard
@@ -55,7 +55,7 @@ export const RollingCorrelationChart = memo(function RollingCorrelationChart({
         series={[seriesName]}
         height={300}
         defaultStrokeWidth={1.5}
-        tooltipValueFormatter={(v) => [v.toFixed(3), t('Correlation')]}
+        tooltipValueFormatter={(v) => [v.toFixed(4), t('Correlation')]}
         tooltipLabelFormatter={(label) => `${t('Date')}: ${label}`}
         yTickFormatter={(v) => v.toFixed(1)}
         yDomain={[-1, 1]}

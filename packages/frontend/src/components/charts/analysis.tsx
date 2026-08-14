@@ -1,6 +1,7 @@
 import { memo, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { type AssetAnalysisResult, type PortfolioResult } from '@backtest/shared';
+import { MiniSelect } from '@/components/ui/uiComponents';
 import { getHeatColor } from '@/lib/chart-theme.js';
 import { BarChartContent } from './sharedChartContent.js';
 import { ChartEmptyState } from '@/components/stateDisplay.js';
@@ -241,17 +242,13 @@ function MonthlyHeatmapImpl({ results, portfolio }: MonthlyHeatmapProps) {
       csvFilename={`monthly-return-${current?.name ?? 'data'}`}
       headerExtra={
         multiTicker ? (
-          <select
-            className="bg-input-bg text-fg border border-border-subtle rounded font-medium cursor-pointer w-[100px] text-xs py-1 px-2"
+          <MiniSelect
+            aria-label={t('Portfolio')}
             value={currentIdx}
-            onChange={(e) => setSelected(Number(e.target.value))}
-          >
-            {series.map((s, i) => (
-              <option key={s.name} value={i}>
-                {s.name}
-              </option>
-            ))}
-          </select>
+            onChange={setSelected}
+            options={series.map((s, i) => ({ value: i, label: s.name }))}
+            width={100}
+          />
         ) : undefined
       }
     >

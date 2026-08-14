@@ -43,6 +43,7 @@ export function MatrixHeatmap({
             {columnLabels.map((col) => (
               <th
                 key={col}
+                scope="col"
                 className="px-3 py-2 text-label-tiny font-medium text-center"
                 style={{ color: 'var(--text-muted)' }}
               >

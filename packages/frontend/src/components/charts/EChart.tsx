@@ -32,18 +32,28 @@ echarts.use([
 const COLOR_FN = /^(?:hsl|rgb|rgba|hwb|lab|lch|oklch|color)\b/i;
 // HSL 通道三元组（如 "213 33% 96%"）需包一层 hsl()；shadow/px 等非颜色值原样透传
 const CHANNEL_RE = /^\d+\s+[\d.]+%?\s+[\d.]+%?$/;
+// 主题切换只发生在 data-theme 变更瞬间，同一批次图表解析可共享缓存
+const tokenCache = new Map<string, string>();
 function resolveToken(name: string): string {
+  const cached = tokenCache.get(name);
+  if (cached !== undefined) return cached;
   const raw = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-  if (!raw) return '';
-  if (raw.includes('var(')) return resolveVarColorToken(raw, resolveToken);
-  return COLOR_FN.test(raw) || !CHANNEL_RE.test(raw) ? raw : `hsl(${raw})`;
+  const value = raw
+    ? raw.includes('var(')
+      ? resolveVarColorToken(raw, resolveToken)
+      : COLOR_FN.test(raw) || !CHANNEL_RE.test(raw)
+        ? raw
+        : `hsl(${raw})`
+    : '';
+  tokenCache.set(name, value);
+  return value;
 }
 function resolveVarColor(input: string): string {
   return resolveVarColorToken(input, resolveToken);
 }
 function resolveTheme(option: EChartsOption): EChartsOption {
   const walk = (node: unknown): unknown => {
-    if (typeof node === 'string') return resolveVarColor(node);
+    if (typeof node === 'string') return node.includes('var(') ? resolveVarColor(node) : node;
     if (Array.isArray(node)) return node.map(walk);
     if (node && typeof node === 'object') {
       const out: Record<string, unknown> = {};
@@ -69,7 +79,10 @@ export default function EChart({ option, height, className, ariaLabel, onClick }
   onClickRef.current = onClick;
   const [themeTick, setThemeTick] = useState(0);
   useEffect(() => {
-    const mo = new MutationObserver(() => setThemeTick((t) => t + 1));
+    const mo = new MutationObserver(() => {
+      tokenCache.clear();
+      setThemeTick((t) => t + 1);
+    });
     mo.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
     return () => mo.disconnect();
   }, []);

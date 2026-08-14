@@ -54,7 +54,7 @@ export function getCorrelationColor(val: number): string {
 }
 export type TooltipValueFormatter = (value: number, name: string) => [string, string] | string;
 export function getHeatColor(val: number | null): string {
-  if (val === null) return CORR_COLORS.neutral;
+  if (val === null || val === 0) return CORR_COLORS.neutral;
   if (val > 5) return CORR_COLORS.strongPositive;
   if (val > 2) return CORR_COLORS.moderatePositive;
   if (val > 0) return CORR_COLORS.weakPositive;

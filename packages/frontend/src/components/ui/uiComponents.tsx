@@ -480,7 +480,7 @@ export function MiniSelect<T extends string | number>({
   value: T;
   onChange: (v: T) => void;
   options: ReadonlyArray<{ value: T; label: string }>;
-  width: number;
+  width?: number;
   className?: string;
   'aria-label'?: string;
 }) {
@@ -493,7 +493,7 @@ export function MiniSelect<T extends string | number>({
         'bg-input-bg text-fg border border-border-subtle rounded font-medium cursor-pointer',
         className,
       )}
-      style={{ width, fontSize: 12, padding: '4px 8px' }}
+      style={{ ...(width !== undefined ? { width } : {}), fontSize: 12, padding: '4px 8px' }}
     >
       {options.map((o) => (
         <option key={String(o.value)} value={o.value}>

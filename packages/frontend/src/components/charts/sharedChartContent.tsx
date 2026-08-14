@@ -12,6 +12,7 @@ import {
   tooltipRow,
   tooltipOption,
   axisTooltipFormatter,
+  escapeHtml,
   valueXAxis,
   valueYAxis,
   type ReferenceLine,
@@ -34,7 +35,9 @@ function scatterTooltip(
       const [v, n] = Array.isArray(r) ? r : [r, name];
       return tooltipRow(p.color, n, String(v));
     };
-    return (header ? `${HEADER_DIV}${header}</div>` : '') + row(x, xName) + row(y, yName);
+    return (
+      (header ? `${HEADER_DIV}${escapeHtml(header)}</div>` : '') + row(x, xName) + row(y, yName)
+    );
   }, 'item');
 }
 
@@ -157,6 +160,7 @@ export function SimpleChart({
             nameGap: 28,
             formatter: xTickFormatter,
             interval: xTickInterval === 'preserveStartEnd' ? 'auto' : xTickInterval,
+            preserveStartEnd: xTickInterval === 'preserveStartEnd',
             fontSize: xTickFontSize ?? 11,
           },
         )
@@ -182,7 +186,16 @@ export function SimpleChart({
       : undefined,
     series: seriesArr as EChartsOption['series'],
     dataZoom: showDataZoom
-      ? [{ type: 'slider', height: 18, bottom: 0, borderColor: 'transparent' }]
+      ? [
+          {
+            type: 'slider',
+            height: 18,
+            bottom: 0,
+            borderColor: 'transparent',
+            backgroundColor: 'hsl(var(--input-bg))',
+            textStyle: { color: 'hsl(var(--fg-tertiary))' },
+          },
+        ]
       : undefined,
     animation: animated,
   };
@@ -259,7 +272,7 @@ export function BarChartContent({
                 : 'hsl(var(--danger))'
               : getPortfolioColor(i),
             opacity: fillOpacity,
-            borderRadius: [barRadius, barRadius, 0, 0],
+            borderRadius: v >= 0 ? [barRadius, barRadius, 0, 0] : [0, 0, barRadius, barRadius],
           },
         };
       }),

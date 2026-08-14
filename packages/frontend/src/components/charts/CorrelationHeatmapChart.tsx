@@ -1,6 +1,6 @@
 ﻿import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Spinner } from '@/components/ui/uiComponents';
+import { Spinner, MiniSelect } from '@/components/ui/uiComponents';
 import { TableEmpty } from '@/components/stateDisplay.js';
 import { TimeSeriesLineChart } from './TimeSeriesLineChart.js';
 import { CorrelationMatrixTable } from './tables.js';
@@ -16,15 +16,6 @@ interface CorrelationWithBetaProps {
   assetCorrelations?: number[][];
   portfolioCorrelations?: number[][];
 }
-const selectStyle: React.CSSProperties = {
-  height: 28,
-  padding: '2px 8px',
-  fontSize: 12,
-  border: '1px solid var(--border-soft)',
-  borderRadius: 4,
-  color: 'var(--text-body)',
-  background: 'var(--bg-surface)',
-};
 const ROLLING_WINDOWS = [20, 60, 120, 252];
 
 function BetaTable({ betaData, baseName }: { betaData: BetaRow[]; baseName: string }) {
@@ -52,32 +43,6 @@ function BetaTable({ betaData, baseName }: { betaData: BetaRow[]; baseName: stri
     </ChartCard>
   );
 }
-function PairSelect({
-  ariaLabel,
-  value,
-  onChange,
-  portfolios,
-}: {
-  ariaLabel: string;
-  value: number;
-  onChange: (v: number) => void;
-  portfolios: PortfolioResult[];
-}) {
-  return (
-    <select
-      aria-label={ariaLabel}
-      value={value}
-      onChange={(e) => onChange(parseInt(e.target.value))}
-      style={selectStyle}
-    >
-      {portfolios.map((p, idx) => (
-        <option key={p.name} value={idx}>
-          {p.name}
-        </option>
-      ))}
-    </select>
-  );
-}
 type RollingCorrelationProps = {
   portfolios: PortfolioResult[];
   selectedPair: [number, number] | null;
@@ -96,40 +61,39 @@ function RollingCorrelationControls({
   const setA = (i: number) =>
     onSelectPair(selectedPair ? [i, selectedPair[1]] : [i, i === 0 ? 1 : 0]);
   const setB = (j: number) => onSelectPair(selectedPair ? [selectedPair[0], j] : [0, j]);
-  const labels = [
-    { key: 'charts.correlation.portfolioA', value: selectedPair?.[0] ?? 0, onChange: setA },
-    { key: 'charts.correlation.portfolioB', value: selectedPair?.[1] ?? 1, onChange: setB },
-  ];
+  const pairOptions = portfolios.map((p, idx) => ({ value: idx, label: p.name }));
   return (
     <div className="flex flex-wrap items-center gap-3 mb-3">
-      {labels.map((l) => (
-        <span key={l.key} style={{ display: 'contents' }}>
-          <span className="text-caption" style={{ color: 'var(--text-muted)' }}>
-            {t(l.key)}
-          </span>
-          <PairSelect
-            ariaLabel={t(l.key)}
-            value={l.value}
-            onChange={l.onChange}
-            portfolios={portfolios}
-          />
-        </span>
-      ))}
-      <span className="text-caption" style={{ color: 'var(--text-muted)' }}>
-        {t('Window (days)')}
+      <span className="flex items-center gap-1.5">
+        <span className="text-caption text-fg-tertiary">{t('charts.correlation.portfolioA')}</span>
+        <MiniSelect
+          aria-label={t('charts.correlation.portfolioA')}
+          value={selectedPair?.[0] ?? 0}
+          onChange={setA}
+          options={pairOptions}
+          width={110}
+        />
       </span>
-      <select
-        aria-label={t('Window (days)')}
-        value={rollingWindow}
-        onChange={(e) => onSetWindow(parseInt(e.target.value))}
-        style={selectStyle}
-      >
-        {ROLLING_WINDOWS.map((w) => (
-          <option key={w} value={w}>
-            {w}
-          </option>
-        ))}
-      </select>
+      <span className="flex items-center gap-1.5">
+        <span className="text-caption text-fg-tertiary">{t('charts.correlation.portfolioB')}</span>
+        <MiniSelect
+          aria-label={t('charts.correlation.portfolioB')}
+          value={selectedPair?.[1] ?? 1}
+          onChange={setB}
+          options={pairOptions}
+          width={110}
+        />
+      </span>
+      <span className="flex items-center gap-1.5">
+        <span className="text-caption text-fg-tertiary">{t('Window (days)')}</span>
+        <MiniSelect
+          aria-label={t('Window (days)')}
+          value={rollingWindow}
+          onChange={onSetWindow}
+          options={ROLLING_WINDOWS.map((w) => ({ value: w, label: String(w) }))}
+          width={70}
+        />
+      </span>
     </div>
   );
 }
@@ -198,6 +162,11 @@ function RollingCorrelationSection({
         </div>
       ) : !selectedPair ? (
         <TableEmpty message={t('Please select two portfolios')} className="text-caption py-5" />
+      ) : selectedPair[0] === selectedPair[1] ? (
+        <TableEmpty
+          message={t('Please select two different portfolios')}
+          className="text-caption py-5"
+        />
       ) : !rollingCorrelationData?.length ? (
         <TableEmpty
           message={t('Insufficient data (window: {{window}})', { window: rollingWindow })}

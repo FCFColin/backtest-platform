@@ -150,7 +150,7 @@ function GrowthLines({
       type="line"
       data={filteredData}
       height={440}
-      margin={{ top: 20, right: 32, bottom: 20, left: 32 }}
+      margin={{ top: 20, right: 32, bottom: 20, left: 80 }}
       xDataKey="date"
       xTickFormatter={dateAxisTickFormatter(totalMonthsValue)}
       xTickInterval={SMART_DATE_INTERVAL(totalMonthsValue)}

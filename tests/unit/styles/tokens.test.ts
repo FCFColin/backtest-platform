@@ -42,9 +42,9 @@ describe('tokens.css P0-2 CSS 变量', () => {
       expect(darkBlock()!).toMatch(/--surface-sunken:/);
     });
 
-    it('暗色主题品牌色微调为 214 100% 60%', () => {
+    it('暗色主题品牌色微调为 214 100% 52%', () => {
       expect(darkBlock()).toBeTruthy();
-      expect(darkBlock()!).toMatch(/--brand:\s*214\s+100%\s+60%/);
+      expect(darkBlock()!).toMatch(/--brand:\s*214\s+100%\s+52%/);
     });
 
     it('暗色主题包含 chart-1 到 chart-8', () => {
