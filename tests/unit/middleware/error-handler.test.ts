@@ -20,6 +20,7 @@ import {
   errorHandler,
   notFoundHandler,
 } from '../../../packages/backend/src/middleware/errorHandler.js';
+import { DataNotFoundError } from '../../../packages/backend/src/utils/errors.js';
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -109,6 +110,22 @@ describe('errorHandler', () => {
         ip: '192.168.1.1',
       }),
       '[Server Error]',
+    );
+  });
+
+  it('ApplicationError 应按其状态码与错误码返回', () => {
+    const req = createMockRequest({ path: '/api/test' });
+    const res = createMockResponse();
+    const next = createMockNext();
+    const error = new DataNotFoundError('missing');
+
+    errorHandler(error, req, res, next);
+
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        error: expect.objectContaining({ status: 404, code: 'DATA_NOT_FOUND' }),
+      }),
     );
   });
 

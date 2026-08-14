@@ -19,7 +19,7 @@ vi.mock('../../../packages/backend/src/utils/errors.js', () => ({
 import {
   handleApiKeyAuth,
   handleOptionalApiKey,
-} from '../../../packages/backend/src/middleware/jwtAuth.js';
+} from '../../../packages/backend/src/middleware/apiKeyAuth.js';
 
 const ORG_ID = '11111111-1111-1111-1111-111111111111';
 const KEY_ID = '22222222-2222-2222-2222-222222222222';

@@ -36,6 +36,7 @@ const apiKeyServiceMocks = vi.hoisted(() => ({
   rotatePlatformAdminKey: vi.fn(),
   revokePlatformAdminKey: vi.fn(),
   listPlatformAdminKeys: vi.fn(),
+  markApiKeyRevoked: vi.fn(),
 }));
 
 vi.mock('../../../packages/backend/src/repositories/apiKeyRepo.js', () => ({
@@ -44,7 +45,7 @@ vi.mock('../../../packages/backend/src/repositories/apiKeyRepo.js', () => ({
 }));
 
 vi.mock('../../../packages/backend/src/infrastructure/apiKeyVerifier.js', () => ({
-  markApiKeyRevoked: vi.fn(),
+  markApiKeyRevoked: apiKeyServiceMocks.markApiKeyRevoked,
 }));
 
 vi.mock('../../../packages/backend/src/utils/metrics.js', async (importOriginal) => {
@@ -250,6 +251,7 @@ describe('apiKeyRoutes', () => {
     expect(res.status).toBe(200);
     expect(body.data.revoked).toBe(true);
     expect(apiKeyServiceMocks.revokeApiKey).toHaveBeenCalledWith(ORG, KEY_ID);
+    expect(apiKeyServiceMocks.markApiKeyRevoked).toHaveBeenCalledWith(KEY_ID);
   });
 
   it.each<[string, string, Parameters<typeof fetch>[1], () => void, string]>([

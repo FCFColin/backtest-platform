@@ -75,6 +75,7 @@ router.delete(
         sendProblem(res, 404, 'API_KEY_NOT_FOUND');
         return;
       }
+      await markApiKeyRevoked(keyId);
       res.json({ success: true, data: { id: keyId, revoked: true } });
     },
   ),

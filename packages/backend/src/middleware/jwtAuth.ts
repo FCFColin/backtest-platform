@@ -220,4 +220,3 @@ export {
 } from './tokenStore.js';
 export { auditLog } from './auditMiddleware.js';
 export { idempotencyKey } from './idempotency.js';
-export { handleApiKeyAuth, handleOptionalApiKey } from './apiKeyAuth.js';
