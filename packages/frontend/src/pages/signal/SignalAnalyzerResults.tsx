@@ -2,7 +2,7 @@
 import type { TFunction } from 'i18next';
 import { fmtPct, fmtRatio, fmtAmount, downsample } from '@/utils/format';
 import type { SignalAnalysisResult } from '@backtest/shared/types/signal';
-import type { MultiSignalResponse } from './signalState.js';
+import type { MultiSignalResponse, ResultsPanelProps } from './signalState.js';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/uiComponents';
 import { CollapsibleSection, StatCard } from '@/components/cards';
 import { SortableTable, type TableColumn } from '../../components/tables.js';
@@ -112,10 +112,7 @@ function SignalResultsContent({ results, signalColumns }: SignalResultsContentPr
     </>
   );
 }
-interface SignalAnalyzerResultsProps {
-  error: string | null;
-  results: SignalAnalysisResult | null;
-  isLoading: boolean;
+interface SignalAnalyzerResultsProps extends ResultsPanelProps<SignalAnalysisResult> {
   onRetry?: () => void;
 }
 export function SignalAnalyzerResultsPanel({
@@ -185,11 +182,7 @@ export function MultiSignalResultsPanel({
   results,
   error,
   isLoading,
-}: {
-  results: MultiSignalResponse | null;
-  error: string | null;
-  isLoading: boolean;
-}) {
+}: ResultsPanelProps<MultiSignalResponse>) {
   const { t } = useTranslation();
   const aggStatRows = results ? buildAggStatRows(results) : [];
   const contributionColumns = buildContributionColumns(t);

@@ -38,6 +38,11 @@ export interface MultiSignalResponse {
     statistics: SignalAnalysisResult['statistics'];
   }>;
 }
+export interface ResultsPanelProps<T> {
+  results: T | null;
+  error: string | null;
+  isLoading: boolean;
+}
 export interface SignalItem {
   id: number;
   indicator: string;

@@ -16,12 +16,7 @@ import {
 import { TimeSeriesLineChart } from '@/components/charts/TimeSeriesLineChart.js';
 import { ResultsShell } from '@/components/resultsShell.js';
 import { TableEmpty } from '@/components/stateDisplay.js';
-import type { DualSignalResponse, SignalDir } from './signalState.js';
-interface DualSignalResultsProps {
-  results: DualSignalResponse | null;
-  error: string | null;
-  isLoading: boolean;
-}
+import type { DualSignalResponse, SignalDir, ResultsPanelProps } from './signalState.js';
 function renderDir(d: SignalDir, t: TFunction): ReactNode {
   if (d === 'buy') return <span className="font-semibold text-pos">{t('Buy')}</span>;
   if (d === 'sell') return <span className="font-semibold text-neg">{t('Sell')}</span>;
@@ -200,7 +195,11 @@ function DualSignalResultsBody({
     </div>
   );
 }
-export function DualSignalResultsPanel({ results, error, isLoading }: DualSignalResultsProps) {
+export function DualSignalResultsPanel({
+  results,
+  error,
+  isLoading,
+}: ResultsPanelProps<DualSignalResponse>) {
   const { t } = useTranslation();
   const comparisonColumns = buildComparisonColumns(t);
   const [comparisonPage, setComparisonPage] = useState(0);

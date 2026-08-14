@@ -103,25 +103,17 @@ export default function AnnualReturnChart({ portfolios, results }: AnnualReturnC
     return [];
   }, [portfolios, results]);
   const mergedData = useMemo(() => {
-    if (portfolios) {
-      return mergePortfolioSeries(
-        portfolios,
-        (p) => p.annualReturns,
-        (pt) => pt.year,
-        (pt) => +(pt.return * 100).toFixed(2),
-        'year',
-      );
-    }
-    if (results) {
-      return mergePortfolioSeries(
-        results.tickers.map((tk) => ({ name: tk.ticker, annualReturns: tk.annualReturns })),
-        (p) => p.annualReturns,
-        (pt) => pt.year,
-        (pt) => +(pt.return * 100).toFixed(2),
-        'year',
-      );
-    }
-    return [];
+    const series =
+      portfolios ??
+      results?.tickers.map((tk) => ({ name: tk.ticker, annualReturns: tk.annualReturns }));
+    if (!series) return [];
+    return mergePortfolioSeries(
+      series,
+      (p) => p.annualReturns,
+      (pt) => pt.year,
+      (pt) => +(pt.return * 100).toFixed(2),
+      'year',
+    );
   }, [portfolios, results]);
   return (
     <ChartCard title={t('Annual Returns')} data={mergedData} csvFilename="annual-return">
