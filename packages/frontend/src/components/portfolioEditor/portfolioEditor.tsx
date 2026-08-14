@@ -1,11 +1,16 @@
 import { useBacktestStore } from '@/store/backtestStore';
 import { getPortfolioColor } from '@/lib/chart-theme.js';
 import { cn } from '@/lib/utils';
+import type { Portfolio } from '@backtest/shared';
 export { GlidepathForm } from './portfolioEditorFields.js';
 export { PortfolioCard } from './portfolioEditorCard.js';
 
 export type StorePortfolio = ReturnType<typeof useBacktestStore.getState>['portfolios'][number];
 export type TFunc = (key: string) => string;
+export interface PortfolioFieldProps {
+  portfolio: StorePortfolio;
+  onUpdate: (id: string, patch: Partial<Portfolio>) => void;
+}
 export function AllocationBar({
   assets,
   tw,

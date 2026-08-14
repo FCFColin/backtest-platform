@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Portfolio, RebalanceFrequency, RebalanceBands } from '@backtest/shared';
+import type { RebalanceFrequency, RebalanceBands } from '@backtest/shared';
 import { X } from 'lucide-react';
 import {
   Button,
@@ -15,7 +15,7 @@ import {
 import { useTickerMeta } from '@/hooks/miscHooks.js';
 import { cn } from '@/lib/utils';
 import { ParamCard } from '@/components/params/paramsLayout.js';
-import type { StorePortfolio } from './portfolioEditor.js';
+import type { StorePortfolio, PortfolioFieldProps } from './portfolioEditor.js';
 
 const numCls = 'h-8 w-[70px] font-mono tabular-nums';
 const FIELDS_ROW = 'flex flex-wrap gap-2 items-end';
@@ -46,13 +46,7 @@ function PortfolioSelect({
   );
 }
 
-function GlidepathTargetWeights({
-  portfolio,
-  onUpdate,
-}: {
-  portfolio: StorePortfolio;
-  onUpdate: (id: string, patch: Partial<Portfolio>) => void;
-}) {
+function GlidepathTargetWeights({ portfolio, onUpdate }: PortfolioFieldProps) {
   const { t } = useTranslation();
   return (
     <>
@@ -185,11 +179,7 @@ export function GlidepathConfig({
   portfolio,
   nonGlidepathPortfolios,
   onUpdate,
-}: {
-  portfolio: StorePortfolio;
-  nonGlidepathPortfolios: StorePortfolio[];
-  onUpdate: (id: string, patch: Partial<Portfolio>) => void;
-}) {
+}: PortfolioFieldProps & { nonGlidepathPortfolios: StorePortfolio[] }) {
   const { t } = useTranslation();
   return (
     <div className="p-2 mb-1.5 bg-elevated rounded-md border border-border-subtle">
@@ -308,10 +298,8 @@ export function RebalanceControls({
   portfolio,
   rebalanceOptions,
   onUpdate,
-}: {
-  portfolio: StorePortfolio;
+}: PortfolioFieldProps & {
   rebalanceOptions: { value: RebalanceFrequency; label: string }[];
-  onUpdate: (id: string, patch: Partial<Portfolio>) => void;
 }) {
   const { t } = useTranslation();
   return (
@@ -353,13 +341,7 @@ export function RebalanceControls({
   );
 }
 
-export function RebalanceBandsRow({
-  portfolio,
-  onUpdate,
-}: {
-  portfolio: StorePortfolio;
-  onUpdate: (id: string, patch: Partial<Portfolio>) => void;
-}) {
+export function RebalanceBandsRow({ portfolio, onUpdate }: PortfolioFieldProps) {
   const { t } = useTranslation();
   const bands = portfolio.rebalanceBands;
   if (!bands?.enabled) return null;

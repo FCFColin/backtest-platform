@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Portfolio, Asset, RebalanceFrequency, RebalanceBands } from '@backtest/shared';
-import { BookOpen, ChevronDown, X, Share2, Save, Tag, Copy, Download, Trash2 } from 'lucide-react';
+import type { Asset, RebalanceFrequency, RebalanceBands } from '@backtest/shared';
+import { BookOpen, ChevronDown, X, Share2, Tag, Copy, Download, Trash2 } from 'lucide-react';
 import {
   Card,
   Button,
@@ -26,14 +26,12 @@ import {
   RebalanceControls,
   RebalanceBandsRow,
 } from './portfolioEditorFields.js';
-import type { StorePortfolio, TFunc } from './portfolioEditor.js';
+import type { StorePortfolio, TFunc, PortfolioFieldProps } from './portfolioEditor.js';
 
-interface PortfolioCardProps {
-  portfolio: StorePortfolio;
+interface PortfolioCardProps extends PortfolioFieldProps {
   color: string;
   rebalanceOptions: { value: RebalanceFrequency; label: string }[];
   nonGlidepathPortfolios: StorePortfolio[];
-  onUpdate: (id: string, patch: Partial<Portfolio>) => void;
   onDelete: () => void;
   onDuplicate: () => void;
   onSave: (p: StorePortfolio) => void;
@@ -56,7 +54,13 @@ export function PortfolioCard({
   const equalize = () => {
     const n = portfolio.assets.length;
     if (n === 0) return;
-    setAssets(portfolio.assets.map((a) => ({ ...a, weight: Math.round((100 / n) * 10) / 10 })));
+    const base = Math.round((100 / n) * 10) / 10;
+    setAssets(
+      portfolio.assets.map((a, i) => ({
+        ...a,
+        weight: i === n - 1 ? Math.round((100 - base * (n - 1)) * 10) / 10 : base,
+      })),
+    );
   };
   const normalize = () => {
     if (tw === 0) return;
@@ -133,6 +137,7 @@ export function PortfolioCard({
                 rebalanceBands: { ...portfolio.rebalanceBands, enabled: v } as RebalanceBands,
               })
             }
+            aria-label={t('Deviation Bands')}
           />
           <span className="text-caption text-fg-secondary">{t('Deviation Bands')}</span>
         </div>
@@ -192,10 +197,6 @@ export function PortfolioCard({
     </Card>
   );
 }
-interface PortfolioMetaEditorProps {
-  portfolio: StorePortfolio;
-  onUpdate: (id: string, patch: Partial<Portfolio>) => void;
-}
 const sharePortfolioState = (t: TFunc): void => {
   const url = writeStateToURL(useBacktestStore.getState().getShareableState());
   navigator.clipboard
@@ -207,8 +208,6 @@ const sharePortfolioState = (t: TFunc): void => {
         .addToast('error', t('Share link generated (please copy from address bar manually)')),
     );
 };
-const confirmMetaSaved = (t: TFunc): void =>
-  useToastStore.getState().addToast('success', t('Meta saved'));
 function TagsRow({
   tags,
   onAddTag,
@@ -284,7 +283,7 @@ function PresetMenu({ onLoadPreset, t }: { onLoadPreset: (presetId: string) => v
     </DropdownMenu>
   );
 }
-function PortfolioMetaEditor({ portfolio, onUpdate }: PortfolioMetaEditorProps) {
+function PortfolioMetaEditor({ portfolio, onUpdate }: PortfolioFieldProps) {
   const { t } = useTranslation();
   const tags = useMemo(() => portfolio.tags ?? [], [portfolio.tags]);
   const handleAddTag = useCallback(
@@ -330,15 +329,6 @@ function PortfolioMetaEditor({ portfolio, onUpdate }: PortfolioMetaEditorProps) 
           title={t('Share Portfolio')}
         >
           <Share2 className="w-3.5 h-3.5" /> {t('Share')}
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-7 text-caption"
-          onClick={() => confirmMetaSaved(t)}
-          title={t('Save Portfolio')}
-        >
-          <Save className="w-3.5 h-3.5" /> {t('Save')}
         </Button>
       </div>
       <TagsRow tags={tags} onAddTag={handleAddTag} onRemoveTag={handleRemoveTag} t={t} />
