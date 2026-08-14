@@ -3,16 +3,13 @@ import { useAsyncAction } from '../../hooks/miscHooks.js';
 import { apiPostJSON } from '@/utils/apiClient';
 import i18n from '../../i18n/index.js';
 import { DEFAULT_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
-import {
-  type PortfolioResult,
-  type RebalanceFrequency,
-  REBALANCE_FREQUENCIES,
-} from '@backtest/shared';
+import { type RebalanceFrequency, REBALANCE_FREQUENCIES } from '@backtest/shared';
 import type {
   TacticalStrategy,
   TradingSignal,
   SignalCondition,
   TechnicalIndicator,
+  TacticalBacktestResult,
 } from '@backtest/shared/types/tactical';
 
 export const INDICATOR_OPTIONS: Array<{
@@ -49,15 +46,6 @@ export const AGGREGATION_OPTIONS: Array<{
   { value: 'weighted_average', label: 'signal.multi.aggregationWeighted' },
   { value: 'rank', label: 'signal.multi.aggregationRank' },
 ];
-interface BacktestResponse {
-  portfolio: PortfolioResult;
-  benchmark: PortfolioResult;
-  signalHistory: Array<{
-    date: string;
-    activeSignals: string[];
-    weights: Array<{ ticker: string; weight: number }>;
-  }>;
-}
 const RANKING_METHOD_OPTIONS: Array<{ value: 'fixed_share' | 'risk_parity'; label: string }> = [
   { value: 'fixed_share', label: 'tactical.rankingMethod.fixed_share' },
   { value: 'risk_parity', label: 'tactical.rankingMethod.risk_parity' },
@@ -109,7 +97,7 @@ function useTacticalPageState() {
   const [startingValue, setStartingValue] = useState(10000);
   const [rebalanceFrequency, setRebalanceFrequency] = useState<RebalanceFrequency>('monthly');
   const [activeTab, setActiveTab] = useState('backtest');
-  const [results, setResults] = useState<BacktestResponse | null>(null);
+  const [results, setResults] = useState<TacticalBacktestResult | null>(null);
   const { isLoading, error, run, setError } = useAsyncAction();
   const updateSignal = (idx: number, signal: TradingSignal) => {
     const next = [...strategy.signals];
@@ -132,7 +120,7 @@ function useTacticalPageState() {
       return;
     }
     run(async () => {
-      const data = await apiPostJSON<BacktestResponse>(
+      const data = await apiPostJSON<TacticalBacktestResult>(
         '/api/v1/tactical/backtest',
         { strategy, startDate, endDate, startingValue, rebalanceFrequency },
         i18n.t('errors.backtestFailed'),
@@ -164,4 +152,3 @@ function useTacticalPageState() {
   };
 }
 export { RANKING_METHOD_OPTIONS, TABS, createDefaultCondition, useTacticalPageState };
-export type { BacktestResponse };

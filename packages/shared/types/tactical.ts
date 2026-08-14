@@ -1,5 +1,7 @@
 export type TechnicalIndicator = 'sma' | 'ema' | 'rsi' | 'macd' | 'bollinger' | 'momentum';
 
+import type { PortfolioResult } from './backtest.js';
+
 export interface GridParamRange {
   min: number;
   max: number;
@@ -36,4 +38,16 @@ export interface WhatIfResult {
   currentPrice: number;
   signalDate: string;
   signalType: 'buy' | 'sell' | 'hold';
+}
+
+export interface TacticalSignalHistoryEntry {
+  date: string;
+  activeSignals: string[];
+  weights: Array<{ ticker: string; weight: number }>;
+}
+
+export interface TacticalBacktestResult {
+  portfolio: PortfolioResult;
+  benchmark: PortfolioResult;
+  signalHistory: TacticalSignalHistoryEntry[];
 }

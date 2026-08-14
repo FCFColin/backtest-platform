@@ -8,7 +8,7 @@ import { TimeSeriesLineChart } from '@/components/charts/TimeSeriesLineChart';
 import { buildGrowthData, buildStatRows, type StatRow } from './tacticalResultUtils';
 import { SignalHistoryTable, WhatIfTab } from './TacticalTables';
 import { TABS, useTacticalPageState } from './TacticalUtils';
-import type { BacktestResponse } from './TacticalUtils';
+import type { TacticalBacktestResult } from '@backtest/shared/types/tactical';
 import { TacticalParamsPanel } from './TacticalParams.js';
 import { GridParamsPanel } from './TacticalGridParams.js';
 import { GridResultsPanel } from './TacticalGridResults.js';
@@ -40,7 +40,7 @@ function GrowthChart({ growthData }: { growthData: Array<Record<string, number |
     </Card>
   );
 }
-function BacktestResultTab({ results }: { results: BacktestResponse }) {
+function BacktestResultTab({ results }: { results: TacticalBacktestResult }) {
   const { t } = useTranslation();
   const { portfolio, benchmark, signalHistory } = results;
   const growthData = useMemo(() => buildGrowthData(portfolio, benchmark), [portfolio, benchmark]);

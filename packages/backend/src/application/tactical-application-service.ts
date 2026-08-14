@@ -1,5 +1,10 @@
 ﻿// ADR-008: 计算逻辑在 Go 引擎 /api/engine/tactical-backtest
-import type { TacticalStrategy, WhatIfResult } from '@backtest/shared/types/tactical';
+import type {
+  TacticalStrategy,
+  WhatIfResult,
+  TacticalBacktestResult,
+  TacticalSignalHistoryEntry,
+} from '@backtest/shared/types/tactical';
 import type { PortfolioResult, RebalanceFrequency } from '@backtest/shared/types/index';
 import type { TacticalBacktestRequest } from '../schemas/tactical.js';
 import { fetchHistoryData } from '../infrastructure/dataFacade.js';
@@ -14,18 +19,6 @@ import {
 } from './backtest/backtestEngineUtils.js';
 import { translateDomainError, type DegradedResult } from './backtest-helpers.js';
 import { toDateStr, todayStr } from '../utils/misc.js';
-
-interface SignalHistoryEntry {
-  date: string;
-  activeSignals: string[];
-  weights: Array<{ ticker: string; weight: number }>;
-}
-
-interface TacticalBacktestResult {
-  portfolio: PortfolioResult;
-  benchmark: PortfolioResult;
-  signalHistory: SignalHistoryEntry[];
-}
 
 export function collectTickers(strategy: TacticalStrategy): string[] {
   return Array.from(new Set(strategy.signals.flatMap((s) => s.targetWeights.map((w) => w.ticker))));
@@ -166,7 +159,7 @@ export async function executeTacticalWhatIf(
   } = await fetchHistoryData(tickers, startDate, end);
   ensurePriceDataExists(tickers, priceData, 'tactical-whatif');
 
-  const result = await callEngineStrict<{ signalHistory: SignalHistoryEntry[] }>(
+  const result = await callEngineStrict<{ signalHistory: TacticalSignalHistoryEntry[] }>(
     '/api/engine/tactical-backtest',
     {
       strategy,

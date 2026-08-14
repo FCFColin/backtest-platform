@@ -1,7 +1,11 @@
 ﻿import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Search } from 'lucide-react';
-import type { WhatIfResult, TacticalStrategy } from '@backtest/shared/types/tactical';
+import type {
+  WhatIfResult,
+  TacticalStrategy,
+  TacticalBacktestResult,
+} from '@backtest/shared/types/tactical';
 import type { TFunction } from 'i18next';
 import { Button, Card, Input } from '@/components/ui/uiComponents';
 import { EmptyState } from '@/components/stateDisplay';
@@ -11,7 +15,6 @@ import { apiPostJSON } from '@/utils/apiClient';
 import { fmtPct } from '@/utils/format';
 import { normalizeTicker } from '@/utils/ticker';
 import { fmtPrice, whatIfSignalColor, whatIfSignalLabel } from './tacticalResultUtils';
-import type { BacktestResponse } from './TacticalUtils';
 function buildWhatIfColumns(t: TFunction): TableColumn<WhatIfResult>[] {
   return [
     { key: 'ticker', label: t('Ticker'), sortValue: (r) => r.ticker },
@@ -37,7 +40,7 @@ function buildWhatIfColumns(t: TFunction): TableColumn<WhatIfResult>[] {
 function SignalHistoryTable({
   signalHistory,
 }: {
-  signalHistory: BacktestResponse['signalHistory'];
+  signalHistory: TacticalBacktestResult['signalHistory'];
 }) {
   const { t } = useTranslation();
   return (
