@@ -31,12 +31,17 @@ func CalcSMA(prices []float64, period int) []float64 {
 }
 func CalcEMA(prices []float64, period int) []float64 {
 	result := NanSeries(len(prices))
-	if len(prices) == 0 || period <= 0 {
+	if len(prices) < period || period <= 0 {
 		return result
 	}
+	// 以首个 period 的 SMA 为种子预热，避免冷启动偏差（TA-Lib/TradingView 标准做法）。
+	seed := 0.0
+	for i := 0; i < period; i++ {
+		seed += prices[i]
+	}
+	result[period-1] = seed / float64(period)
 	mult := 2.0 / float64(period+1)
-	result[0] = prices[0]
-	for i := 1; i < len(prices); i++ {
+	for i := period; i < len(prices); i++ {
 		result[i] = prices[i]*mult + result[i-1]*(1-mult)
 	}
 	return result

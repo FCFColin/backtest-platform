@@ -69,6 +69,21 @@ func TestRunAnalysisInsufficientData(t *testing.T) {
 		t.Errorf("expected zero CAGR for insufficient data, got %v", result.Assets[0].Statistics.CAGR)
 	}
 }
+func TestRunAnalysisZeroFirstPrice(t *testing.T) {
+	dates := []string{"2024-01-02", "2024-01-03", "2024-01-04"}
+	prices := []float64{0, 110, 120}
+	req := AnalysisRequest{Tickers: []string{"ZERO"}, PriceData: enginetest.SeriesPriceData("ZERO", dates, prices), Params: AnalysisParams{StartingValue: 10000}}
+	result, err := RunAnalysis(context.Background(), req)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(result.Assets) != 1 {
+		t.Fatalf("expected 1 asset, got %d", len(result.Assets))
+	}
+	if len(result.Assets[0].GrowthCurve) != 0 {
+		t.Errorf("expected empty growth curve for zero first price, got %d points", len(result.Assets[0].GrowthCurve))
+	}
+}
 func TestRunAnalysisContextCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()

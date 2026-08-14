@@ -67,7 +67,7 @@ func RunAnalysis(ctx context.Context, req AnalysisRequest) (AnalysisResult, erro
 		default:
 		}
 		td := tickerMap[ticker]
-		if td == nil || len(td.prices) < 2 {
+		if td == nil || len(td.prices) < 2 || td.prices[0] <= 0 {
 			assets = append(assets, AssetAnalysisItem{Ticker: ticker, Statistics: engine.Statistics{}})
 			continue
 		}

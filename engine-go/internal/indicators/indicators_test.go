@@ -42,17 +42,26 @@ func TestCalcEMA(t *testing.T) {
 	if len(got) != 3 {
 		t.Fatalf("CalcEMA: length mismatch")
 	}
-	if math.Abs(got[0]-10) > floatTol {
-		t.Fatalf("CalcEMA[0]: got %v want 10", got[0])
+	if !math.IsNaN(got[0]) {
+		t.Fatalf("CalcEMA[0]: expected NaN (warm-up), got %v", got[0])
 	}
 	mult := 2.0 / 3.0
-	want1 := 20*mult + 10*(1-mult)
-	if math.Abs(got[1]-want1) > floatTol {
-		t.Fatalf("CalcEMA[1]: got %v want %v", got[1], want1)
+	if math.Abs(got[1]-15) > floatTol {
+		t.Fatalf("CalcEMA[1]: got %v want 15 (SMA seed)", got[1])
+	}
+	want2 := 30*mult + 15*(1-mult)
+	if math.Abs(got[2]-want2) > floatTol {
+		t.Fatalf("CalcEMA[2]: got %v want %v", got[2], want2)
 	}
 	got = CalcEMA([]float64{}, 5)
 	if len(got) != 0 {
 		t.Fatalf("CalcEMA empty: expected empty, got %d", len(got))
+	}
+	got = CalcEMA([]float64{1, 2, 3}, 5)
+	for i, v := range got {
+		if !math.IsNaN(v) {
+			t.Fatalf("CalcEMA short[%d]: expected NaN (warm-up), got %v", i, v)
+		}
 	}
 }
 func TestCalcRSI_AllUp(t *testing.T) {
