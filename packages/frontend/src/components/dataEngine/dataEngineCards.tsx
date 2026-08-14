@@ -5,6 +5,7 @@ import { Card, Button, Progress, Skeleton } from '@/components/ui/uiComponents';
 import { TableEmpty } from '@/components/stateDisplay.js';
 import { apiFetch } from '../../utils/apiClient.js';
 import { useAuthStore } from '@/store/authStore';
+import i18n from '@/i18n/index.js';
 import { fmt, Panel } from './dataEngineDistribution.js';
 import type { Stats, UniverseStats, ActionMethod } from './dataEngine.js';
 
@@ -63,7 +64,7 @@ export function UniverseInfo({ universe }: { universe: UniverseStats }) {
   return (
     <Card className="p-4 text-caption text-fg-tertiary">
       {t('Universe Last Refresh')}:{' '}
-      {u.updated_at ? new Date(u.updated_at).toLocaleString('zh-CN') : t('Not Refreshed')}
+      {u.updated_at ? new Date(u.updated_at).toLocaleString(i18n.language) : t('Not Refreshed')}
       {' | '}
       <span className="font-mono tabular-nums">{fmt(u.total)}</span> {t('tickers')} |{' '}
       <span>

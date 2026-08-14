@@ -13,6 +13,7 @@ import {
   type InputProps,
 } from '@/components/ui/uiComponents';
 import { Field, FieldLabel } from './Field.js';
+import { useSettingsStore } from '@/store/settingsStore';
 
 export function SectionHeader({
   title,
@@ -123,7 +124,8 @@ export function PercentInput({
 }
 
 export function DollarInput(props: InputProps) {
-  return <AffixInput type="number" prefix="$" {...props} />;
+  const currency = useSettingsStore((s) => s.currency);
+  return <AffixInput type="number" prefix={currency === 'cny' ? '¥' : '$'} {...props} />;
 }
 
 export function SwitchField({

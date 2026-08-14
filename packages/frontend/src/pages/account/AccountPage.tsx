@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { Link } from 'react-router';
-import { User, Mail, Palette, DollarSign, CreditCard, Crown, Calendar, LogIn } from 'lucide-react';
+import { Mail, Palette, DollarSign, CreditCard, Crown, Calendar, LogIn } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../hooks/miscHooks.js';
 import { useAuthStore } from '@/store/authStore';
@@ -191,10 +191,6 @@ export default function AccountPage() {
           onCurrencyChange={(v) => setCurrency(v.toLowerCase() as 'usd' | 'cny')}
         />
         <SubscriptionSection plan={org?.plan} />
-        <div className="mt-5 p-3.5 bg-hover rounded-lg text-caption text-fg-tertiary leading-[1.7]">
-          <User className="w-3.5 h-3.5 inline mr-1.5 align-[-2px]" />
-          {t('You are using the self-hosted version; all features are available.')}
-        </div>
       </Card>
     </StandardPageShell>
   );
