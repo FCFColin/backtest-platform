@@ -67,13 +67,14 @@ function DataManagementSection({ onClearCache }: DataManagementProps) {
         <h2 className="text-sm font-semibold text-fg">{t('Data Management')}</h2>
       </div>
       <div className="flex flex-wrap gap-3">
-        <button
+        <Button
+          variant="secondary"
           onClick={onClearCache}
-          className="flex items-center gap-2 rounded-lg border border-warning/20 bg-warning/10 px-3 py-2 text-sm font-medium text-warning hover:bg-warning/20"
+          className="text-warning border-warning/20 bg-warning/10 hover:bg-warning/20 hover:text-warning"
         >
           <RotateCcw className="h-4 w-4" />
           {t('Refetch Data')}
-        </button>
+        </Button>
       </div>
       <p className="mt-3 text-xs text-fg-tertiary">{t('Refresh data cache or refetch data')}</p>
     </Card>
@@ -144,7 +145,7 @@ export default function SystemSettings() {
         json.success ? t('Cache cleared') : t('Action failed: {{error}}', { error: json.error }),
       );
     } catch {
-      setSaveMsg(t('{{label}} request failed', { label: '' }));
+      setSaveMsg(t('Request failed'));
     }
     clearMsgTimerRef.current = setTimeout(() => setSaveMsg(''), 5000);
   };

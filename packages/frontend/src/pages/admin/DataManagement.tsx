@@ -108,14 +108,14 @@ function ActionBar({
       method: 'PATCH',
       label: t('Incremental Update'),
       icon: Play,
-      cls: 'bg-success hover:bg-success/90',
+      variant: 'success' as const,
     },
     {
       url: '/api/v1/data/manage/update/full',
       method: 'PUT',
       label: t('Full Update'),
       icon: Zap,
-      cls: 'bg-brand text-brand-fg hover:bg-brand-hover',
+      variant: 'primary' as const,
     },
   ];
   return (
@@ -125,8 +125,14 @@ function ActionBar({
         {t('Refresh Stats')}
       </Button>
       {actions.map((a) => (
-        <button
+        <Button
           key={a.url}
+          variant={a.variant === 'success' ? 'secondary' : 'primary'}
+          className={
+            a.variant === 'success'
+              ? 'text-success border-success/25 bg-success/15 hover:bg-success/25 hover:text-success'
+              : undefined
+          }
           onClick={() => {
             const confirmed =
               a.method === 'PUT'
@@ -134,10 +140,9 @@ function ActionBar({
                 : true;
             if (confirmed) onAction(a.url, a.method, a.label);
           }}
-          className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium ${a.cls}`}
         >
           <a.icon className="h-4 w-4" /> {a.label}
-        </button>
+        </Button>
       ))}
       {actionMsg && <span className="text-sm font-medium text-brand">{actionMsg}</span>}
     </div>
@@ -154,7 +159,7 @@ function DataSourceTable({ sources }: { sources: DataSource[] }) {
           <thead>
             <tr className="border-b border-border text-left text-xs text-fg-tertiary">
               {TABLE_COLS.map((c) => (
-                <th key={c} className="pb-2 font-medium">
+                <th key={c} scope="col" className="pb-2 font-medium">
                   {t(c)}
                 </th>
               ))}
@@ -262,7 +267,7 @@ function StatsGrid({ stats }: { stats: DataStats }) {
       label: t('Data Coverage'),
       value:
         stats.dateRange.earliest !== '-'
-          ? `${stats.dateRange.earliest} ~ ${stats.dateRange.latest}`
+          ? `${stats.dateRange.earliest.slice(0, 4)} ~ ${stats.dateRange.latest.slice(0, 4)}`
           : '-',
       icon: <Calendar className="h-5 w-5" />,
       color: 'purple' as const,

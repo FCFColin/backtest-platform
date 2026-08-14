@@ -28,7 +28,7 @@ function KpiGrid({ data, totalSizeGB }: { data: ParsedAdminStats; totalSizeGB: s
         label={t('Data Coverage')}
         value={
           data.dataStats.earliestDate !== '-'
-            ? `${data.dataStats.earliestDate} ~ ${data.dataStats.latestDate}`
+            ? `${data.dataStats.earliestDate.slice(0, 4)} ~ ${data.dataStats.latestDate.slice(0, 4)}`
             : '-'
         }
         icon={<Activity className="h-5 w-5" />}
@@ -63,6 +63,7 @@ function ServiceMarketSection({
           <button
             onClick={onRefresh}
             disabled={loading}
+            aria-label={t('Refresh')}
             className="rounded p-1 text-fg-tertiary hover:bg-hover hover:text-fg disabled:opacity-50"
           >
             <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />

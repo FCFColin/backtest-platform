@@ -111,6 +111,7 @@ export function BasicParamsRow({
         <Switch
           checked={adjustForInflation}
           onCheckedChange={(v) => onChange('adjustForInflation', v)}
+          aria-label={t('params.adjustForInflation')}
         />
         <span className="text-caption text-fg-secondary">{t('params.adjustForInflation')}</span>
       </div>
@@ -283,6 +284,7 @@ function AdvancedParamsSection({
                 checked={parameters[paramKey]}
                 onCheckedChange={(v) => updateParameter(paramKey, v)}
                 className="mt-0.5"
+                aria-label={t(labelKey)}
               />
               <div className="flex-1">
                 <div className="text-body text-fg">{t(labelKey)}</div>
@@ -294,6 +296,7 @@ function AdvancedParamsSection({
               checked={benchmarkEnabled}
               onCheckedChange={(v) => updateParameter('benchmarkTicker', v ? 'SPY' : '')}
               className="mt-0.5"
+              aria-label={t('Pick benchmark ticker')}
             />
             <div className="flex-1">
               <div className="text-body text-fg">{t('Pick benchmark ticker')}</div>

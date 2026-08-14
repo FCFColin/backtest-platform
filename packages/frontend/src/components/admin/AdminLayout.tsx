@@ -233,6 +233,7 @@ function AdminSidebar({
         )}
         <button
           className="ml-auto hidden rounded p-1 hover:bg-hover lg:block"
+          aria-label={collapsed ? t('adminLayout.expandSidebar') : t('adminLayout.collapseSidebar')}
           onClick={() => setCollapsed(!collapsed)}
         >
           {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
