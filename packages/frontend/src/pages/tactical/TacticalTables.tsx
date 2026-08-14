@@ -8,6 +8,7 @@ import { EmptyState } from '@/components/stateDisplay';
 import { SortableTable, type TableColumn } from '@/components/tables';
 import { useAsyncAction } from '@/hooks/miscHooks';
 import { apiPostJSON } from '@/utils/apiClient';
+import { fmtPct } from '@/utils/format';
 import { normalizeTicker } from '@/utils/ticker';
 import { fmtPrice, whatIfSignalColor, whatIfSignalLabel } from './tacticalResultUtils';
 import type { BacktestResponse } from './TacticalUtils';
@@ -71,7 +72,7 @@ function SignalHistoryTable({
                   )}
                 </td>
                 <td className="border-b border-border-subtle px-3 py-2 text-right text-label font-mono tabular-nums text-fg">
-                  {h.weights.map((w) => `${w.ticker}: ${(w.weight * 100).toFixed(1)}%`).join('  ')}
+                  {h.weights.map((w) => `${w.ticker}: ${fmtPct(w.weight, 1)}`).join('  ')}
                 </td>
               </tr>
             ))}

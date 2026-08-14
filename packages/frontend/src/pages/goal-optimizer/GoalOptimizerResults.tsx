@@ -31,11 +31,11 @@ function ProbabilityDistributionChart({
   const option: EChartsOption = {
     grid: GRID,
     xAxis: valueXAxis((v: number) => `$${(v / 1000).toFixed(0)}k`),
-    yAxis: valueYAxis({ formatter: (v: number) => `${(v * 100).toFixed(1)}%` }),
+    yAxis: valueYAxis({ formatter: (v: number) => fmtPct(v, 1) }),
     tooltip: tooltipOption(
       axisTooltipFormatter(
         (label) => fmtAmount(Number(label)),
-        (v) => [`${(v * 100).toFixed(2)}%`, t('Probability')],
+        (v) => [fmtPct(v), t('Probability')],
       ),
     ),
     series: [
@@ -160,7 +160,7 @@ function GoalOptimizerResultsPanel({ state }: { state: GoalOptimizerState }) {
   const probColor = r ? getProbColor(r.successProbability) : '';
   return (
     <ResultsShell
-      error={state.error ? `${t('Optimization Failed')}: ${state.error}` : null}
+      error={state.error ? `${t('Optimization failed')}: ${state.error}` : null}
       isLoading={state.isLoading}
       hasResults={!!state.results}
       loadingLabel={t('Optimizing...')}

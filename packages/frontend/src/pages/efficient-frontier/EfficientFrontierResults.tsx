@@ -15,6 +15,7 @@ import type { ReturnObjective, FrontierSolver } from './EfficientFrontierParams.
 import { useEfficientFrontierState, type FrontierState } from './EfficientFrontierUtils.js';
 import { ComputeToolShell, type ComputeToolConfig } from '../../components/shells/index.js';
 import { MiniStatCard } from '../../components/cards.js';
+import { fmtPct } from '@/utils/format';
 export interface FrontierResultsProps {
   results: EfficientFrontierResult;
   scatterData: Array<{
@@ -47,7 +48,7 @@ function WeightBar({ ticker, weight, color }: { ticker: string; weight: number; 
         />
       </div>
       <span className="font-mono text-caption tabular-nums text-fg-tertiary">
-        {(weight * 100).toFixed(1)}%
+        {fmtPct(weight, 1)}
       </span>
     </div>
   );
@@ -88,10 +89,10 @@ const COLOR_FG_TERTIARY = 'hsl(var(--fg-tertiary))';
 function PointStats({ p }: { p: EfficientFrontierPoint }) {
   const { t } = useTranslation();
   const stats = [
-    { key: 'Expected Return', value: `${p.expectedReturn.toFixed(2)}%`, color: COLOR_SUCCESS },
+    { key: 'Expected Return', value: fmtPct(p.expectedReturn), color: COLOR_SUCCESS },
     {
       key: 'Expected Volatility',
-      value: `${p.expectedVolatility.toFixed(2)}%`,
+      value: fmtPct(p.expectedVolatility),
       color: COLOR_WARNING,
     },
     { key: 'Sharpe Ratio', value: p.sharpeRatio.toFixed(2), color: COLOR_BRAND },

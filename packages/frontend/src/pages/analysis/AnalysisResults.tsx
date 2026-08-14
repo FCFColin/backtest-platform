@@ -15,7 +15,7 @@ import {
   type ComputeToolConfig,
 } from '../../components/shells/index.js';
 import { useComputeTool, useListState, useSetterState } from '../../hooks/miscHooks.js';
-import { fmtPct } from '@/utils/format';
+import { fmtPct, fmtRatio } from '@/utils/format';
 import { SimpleTable, type SimpleTableColumn } from '@/components/tables.js';
 import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
 import { normalizeTicker } from '@/utils/ticker';
@@ -167,7 +167,7 @@ const AnalysisResultsPanel = memo(function AnalysisResultsPanel({
       error={error}
       isLoading={isLoading}
       hasResults={!!results}
-      errorPrefix={`${t('Analysis failed')}：`}
+      errorPrefix={`${t('Analysis failed')}: `}
       loadingLabel={t('Analyzing...')}
       emptyTitle={t('Set parameters and click "Run Analysis" to view results')}
       emptyIcon={LineChart}
@@ -237,8 +237,10 @@ export const StatsTable = memo(function StatsTable({
   tickers: AssetAnalysisResult['tickers'];
 }) {
   const { t } = useTranslation();
-  const fmt = (v: number | undefined, f: 'pct' | 'ratio' | 'duration') =>
-    v == null ? '-' : f === 'pct' ? fmtPct(v) : f === 'ratio' ? v.toFixed(2) : `${v} ${t('days')}`;
+  const fmt = (v: number | undefined, f: 'pct' | 'ratio' | 'duration') => {
+    if (f === 'duration') return v == null ? '—' : `${v} ${t('days')}`;
+    return f === 'pct' ? fmtPct(v) : fmtRatio(v);
+  };
   const rows = STATS_COLUMNS.filter((c) => tickers.some((tk) => tk.statistics[c.key] != null));
   const columns: SimpleTableColumn<StatCol>[] = [
     {

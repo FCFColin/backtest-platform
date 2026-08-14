@@ -64,7 +64,7 @@ export async function runOptimizeApi(
   return apiPostJSON<OptimizerResultExt>(
     '/api/v1/backtest/optimize',
     body,
-    t('Optimization Failed'),
+    t('Optimization failed'),
   );
 }
 function buildPortfolioBody(

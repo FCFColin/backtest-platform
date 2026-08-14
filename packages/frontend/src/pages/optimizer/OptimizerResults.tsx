@@ -204,7 +204,7 @@ export function OptimizerResults({ s }: { s: EfficientFrontierState }) {
       error={s.error}
       isLoading={s.isLoading}
       hasResults={!!s.results}
-      errorPrefix={`${t('Optimization Failed')}: `}
+      errorPrefix={`${t('Optimization failed')}: `}
       loadingLabel={t('Optimizing...')}
       emptyTitle={t(
         'Configure parameters above and click "Start Calculation" to see optimal weights',

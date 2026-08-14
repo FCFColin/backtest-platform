@@ -1,6 +1,6 @@
 ﻿import { useTranslation } from 'react-i18next';
 import { Grid3x3 } from 'lucide-react';
-import { fmtPct, fmtNum } from '@/utils/format';
+import { fmtPct, fmtNum, fmtAmount } from '@/utils/format';
 import { Card } from '@/components/ui/uiComponents';
 import { ResultsShell } from '@/components/resultsShell';
 import { SortableTable, type TableColumn } from '@/components/tables';
@@ -131,7 +131,7 @@ function BestGrowthChart({
         data={best.growthCurve}
         height={350}
         tooltipLabelFormatter={(label) => t('Date: {{label}}', { label })}
-        tooltipValueFormatter={(value) => [`$${value.toLocaleString()}`, t('Net Value')]}
+        tooltipValueFormatter={(value) => [fmtAmount(value), t('Net Value')]}
         series={[{ dataKey: 'value', legendName: t('Portfolio Net Value') }]}
       />
     </Card>
@@ -251,7 +251,7 @@ export function GridResultsPanel({ state }: { state: TacticalGridState }) {
   return (
     <ResultsShell
       error={error}
-      errorPrefix={`${t('Search failed')}：`}
+      errorPrefix={`${t('Search failed')}: `}
       isLoading={isLoading}
       hasResults={!!results}
       emptyTitle={t('Set parameters above and click "Start Grid Search" to see results')}

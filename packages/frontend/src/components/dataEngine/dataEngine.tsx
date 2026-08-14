@@ -48,7 +48,7 @@ function classifyError(t: TFunc, res: Response, json: Record<string, unknown> | 
       'Authentication failed: API Key invalid or missing, please check admin backend key configuration',
     );
   if (json?.errorType === 'scan_failed')
-    return `${t('Data scan failed')}：${json.error || t('Unknown')}`;
+    return `${t('Data scan failed')}: ${json.error || t('Unknown')}`;
   if (res.status >= 500)
     return t('Server error, please confirm backend service is running and retry');
   return t('Data load failed, please retry');

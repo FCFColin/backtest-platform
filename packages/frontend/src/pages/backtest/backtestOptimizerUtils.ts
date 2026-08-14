@@ -277,7 +277,7 @@ export function useOptimizerState(): BacktestOptimizerState {
         totalCombos: data.totalCombinations ?? 0,
       });
     } catch (e) {
-      patchResult({ error: e instanceof Error ? e.message : i18n.t('Optimization Failed') });
+      patchResult({ error: e instanceof Error ? e.message : i18n.t('Optimization failed') });
     } finally {
       patchResult({ isLoading: false });
     }

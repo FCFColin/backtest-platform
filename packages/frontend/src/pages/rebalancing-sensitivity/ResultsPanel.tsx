@@ -252,7 +252,7 @@ export function ResultsPanel({ s }: { s: RebalancingState }) {
   return (
     <ResultsShell
       error={s.error}
-      errorPrefix={`${t('Analysis failed')}：`}
+      errorPrefix={`${t('Analysis failed')}: `}
       isLoading={s.isLoading}
       hasResults={s.results.length > 0}
       loadingLabel={t('Analyzing...')}

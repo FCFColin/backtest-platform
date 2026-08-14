@@ -146,7 +146,7 @@ async function runOptimizeAction(
       s.setIsCalculatingStats(false);
     }
   } catch (e) {
-    s.setError(e instanceof Error ? e.message : t('Optimization Failed'));
+    s.setError(e instanceof Error ? e.message : t('Optimization failed'));
   } finally {
     s.setIsLoading(false);
   }
