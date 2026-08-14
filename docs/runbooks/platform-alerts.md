@@ -4,13 +4,13 @@
 
 ## P0 告警
 
-| 告警               | 响应                                |
-| ------------------ | ----------------------------------- |
-| GoEngineDown       | 查 Pod/日志, 重启, fail-closed 503  |
-| CircuitBreakerOpen | 查下游, 等 HalfOpen                 |
-| PostgresDown       | pg_isready, 连接池, 备份恢复        |
-| BacktestQueueDepth | 查 worker, 扩容                     |
-| RedisDown          | ping, 等 Sentinel 切换, fail-closed |
+| 告警               | 响应                                                                                     |
+| ------------------ | ---------------------------------------------------------------------------------------- |
+| GoEngineDown       | 查 Pod/日志, 重启, fail-closed 503                                                       |
+| CircuitBreakerOpen | 查下游, 等 HalfOpen                                                                      |
+| PostgresDown       | pg_isready, 连接池, 备份恢复                                                             |
+| BacktestQueueDepth | 查 worker, 扩容                                                                          |
+| RedisDown          | ping, 等 Sentinel 切换, fail-closed（仅 k8s rules 告警；docker rules 未抓取 redis 指标） |
 
 ## P1 告警
 

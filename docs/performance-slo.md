@@ -41,8 +41,10 @@
 
 ## Pod Anti-Affinity
 
-- api, engine-go, data-fetcher: `preferredDuringSchedulingIgnoredDuringExecution` 跨 zone 拓扑分布
-- postgres, redis: StatefulSet `requiredDuringSchedulingIgnoredDuringExecution`
+- api, engine-go, data-fetcher: `preferredDuringSchedulingIgnoredDuringExecution` 跨 zone 拓扑分布（production overlay）
+- postgres（单副本）、redis（StatefulSet 头节点）：未配置反亲和，单点依赖由存储层备份/故障转移兜底
+
+> worker 资源以 production overlay 为准：requests 1 CPU / 1Gi、limits 2 CPU / 2Gi（`k8s/overlays/production` patch 覆盖上表 base 值）
 
 ## Escalation
 

@@ -28,7 +28,7 @@
 
 ## 快速启动
 
-**前置要求**：Node.js 20+、pnpm、Go 1.26+、PostgreSQL 14+、Redis 6+
+**前置要求**：Node.js 20+、pnpm、Go 1.26+、PostgreSQL 16+、Redis 6+
 
 ```powershell
 pnpm install          # 安装依赖

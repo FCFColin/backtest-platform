@@ -4,7 +4,7 @@
 
 ## 本地启动
 
-1. `docker compose up -d postgres-cdc zookeeper kafka`（默认关闭，见 docker-compose.yml）→ 等 Kafka Connect 健康（curl :8083/health）
+1. `docker compose up -d postgres-cdc zookeeper kafka connect`（默认关闭，见 docker-compose.yml）→ 等 Kafka Connect 健康（curl :8083/connectors）
 2. 对 postgres-cdc 执行迁移（创建 outbox 表）
 3. 注册 Debezium outbox connector（幂等）；启用 `CDC_KAFKA_ENABLED=true`
 
@@ -15,7 +15,7 @@
 | 指标       | 查询                                                                                             |
 | ---------- | ------------------------------------------------------------------------------------------------ |
 | 复制槽堆积 | `SELECT slot_name, pg_wal_lsn_diff(pg_current_wal_lsn(), restart_lsn) FROM pg_replication_slots` |
-| 消费组 lag | `kafka-consumer-groups --describe --group backtest-api`                                          |
+| 消费组 lag | `kafka-consumer-groups --describe --group backtest-outbox-consumer`                              |
 
 ## 故障模式与恢复
 

@@ -26,6 +26,7 @@
 
 - **目标选择启发式（不要优先大文件）**：目标排序按"家族重复密度 × 样板密度"的杠杆，而非文件大小。小文件相似家族可先合并再砍；跨文件机会权重高于单文件内砍；大文件仅当确有结构冗余且未被反复砍过，连续命中同一文件即换目标。
 - **行数统计与目标**：全仓库以 `scc` 口径统计（`pnpm loc`，基线 179,541 行）；目标 ≤100,000 行，当前值以 `pnpm loc` 为准。
+- **净行数硬指标（MUST）**：每轮会话结束时的净行数变化必须 ≤ 0。若安全/正确性修复导致净增行（如 +21），**必须自动触发**等价削减扫描（死代码/样板收敛/参数化）回落至 ≤ 0 再收尾，不待用户提示。
 - **删除门禁**：删除配置面/子系统/导出/测试前确认零生产消费者且无悬挂配置面；配套测试**迁移而非删除**；涉及安全/授权/可观测/已暴露配置面的删除需 ADR 记录并独立提交。
 - **注释**：删 what、留 why（ADR 引用、安全原因、权衡、TODO 链接）；能用自解释命名/结构表达的，先改代码，不留注释。
 - **格式化**：不对抗 prettier/gofmt/eslint，按标准格式收尾；代码紧凑度以格式化后的标准形态为准，不以手动压缩为荣。
@@ -41,7 +42,7 @@
 
 ## Quick Start
 
-**Prerequisites**: Node.js 20+, Go 1.26+, pnpm, PostgreSQL 14+, Redis 6+。`pnpm install` / `pnpm dev`（frontend 15173 + API 15001）/ `pnpm check`（tsc）/ `pnpm lint` / `pnpm test`（全部 vitest）。
+**Prerequisites**: Node.js 20+, Go 1.26+, pnpm, PostgreSQL 16+, Redis 6+。`pnpm install` / `pnpm dev`（frontend 15173 + API 15001）/ `pnpm check`（tsc）/ `pnpm lint` / `pnpm test`（全部 vitest）。
 
 ## Tech Stack
 
@@ -124,6 +125,8 @@
 | ADR-011 | Backend code organization (package merge + modularization)      |
 | ADR-012 | Retire zero-consumer subsystems and dead config toggles         |
 | ADR-013 | Retire dead schemas                                             |
+| ADR-014 | Retire unimplemented engine fields                              |
+| ADR-015 | Retire data-fetcher standalone worker CLI                       |
 
 ## API Patterns
 

@@ -41,23 +41,23 @@
 | 中间件                                         | 职责                                           |
 | ---------------------------------------------- | ---------------------------------------------- |
 | helmet / cors                                  | 安全头 / CORS_ORIGINS 白名单（生产 hard-fail） |
-| express.json / apiLimiter                      | JSON(10mb) / 全局限流(100 req/min)             |
+| express.json / apiLimiter                      | JSON(10mb) / 全局限流(100 req/15min)           |
 | jwtAuth / resolveTenant / requirePermission(X) | JWT(jose RS256) / tenant_id 解析 / RBAC 校验   |
 | enforceQuota / auditLog / idempotencyKey       | 计划配额(ADR-010) / 审计(HMAC) / 幂等(Redis)   |
 
 ## 5. 应用服务层 (application/)
 
-| 模块       | 关键文件                                                         | 职责                          |
-| ---------- | ---------------------------------------------------------------- | ----------------------------- |
-| auth / org | userService, loginLockout / membershipService, invitationService | 用户CRUD、登录锁定 / 成员邀请 |
-| billing    | billingService, usageService, planLimitsService                  | Stripe 计费                   |
-| backtest   | backtest-service, backtestCompletedHandler                       | Run 聚合根驱动回测            |
-| —          | analysis-orchestrator, signal-orchestrator                       | 跨层编排                      |
+| 模块       | 关键文件                                                         | 职责                                          |
+| ---------- | ---------------------------------------------------------------- | --------------------------------------------- |
+| auth / org | userService, loginLockout / membershipService, invitationService | 用户CRUD、登录锁定 / 成员邀请                 |
+| billing    | billingService, usageService, planLimitsService                  | Stripe 计费                                   |
+| backtest   | backtest-service                                                 | 编排 + worker 落库（Run 聚合已退役, ADR-012） |
+| —          | analysis-orchestrator, signal-orchestrator                       | 跨层编排                                      |
 
 ## 6. 领域层 (domain/)
 
-- aggregates/run.ts: Run 聚合根（queued→running→completed/failed）；portfolio.ts: validateWeightSum
-- events/ RunStarted/Completed/Failed/Cancelled；services/ grid-search, optimizer-domain；value-objects/ ticker, weight
+- aggregates/portfolio.ts: fromDTO + validateWeightSum 不变量（Run 聚合根已退役, ADR-012）；events/events.ts: 通用 DomainEvent + 调度器（仅 AuditEvent, ADR-005 现状确认）
+- services/ grid-search, optimizer-domain；value-objects/ ticker, weight
 
 ## 7. Outbox 模式 (ADR-005)
 
@@ -75,8 +75,8 @@ CDC 扩展: Debezium → Kafka（多 Pod 扩展, 见 runbooks/cdc-debezium.md）
 
 ## 9. 熔断与限流（DADR-016 已删除，行为保留）
 
-Go 引擎/PostgreSQL: opossum（fail-closed 503 / 降级）；数据服务上游: gobreaker。50% 失败率 Open, 10s HalfOpen。
-限流分层: apiLimiter(100/min) > computeLimiter(10/min) > adminLimiter(30/min)。Redis 不可用 fail-closed。
+Go 引擎/PostgreSQL: opossum（fail-closed 503 / 降级）；数据服务上游: gobreaker。50% 失败率 Open；HalfOpen: 引擎 30s / PG 10s。
+限流分层: apiLimiter(100/15min) > computeLimiter(10/min) > adminLimiter(30/min)。Redis 不可用 fail-closed。
 
 ## 10. Go 引擎 (engine-go/)
 
@@ -96,7 +96,7 @@ Go 引擎/PostgreSQL: opossum（fail-closed 503 / 降级）；数据服务上游
 
 ## 12. 多架构与配置
 
-multi-stage（scratch/alpine）+ amd64/arm64（buildx）；SBOM(CycloneDX, nightly)。config/: env.ts（Zod）、limits.ts（ADR-010）。
+multi-stage（alpine 单架构）；SBOM(CycloneDX, nightly)。config/: env.ts（手写 helper）、limits.ts（ADR-010）。
 
 ## 13. 关键约束
 

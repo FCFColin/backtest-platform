@@ -25,7 +25,7 @@
 ### 2. 按计划配额定义
 
 - 每计划：backtestsPerMonth、maxTickers、asyncConcurrency、maxTacticalConfigs。free/pro/enterprise 三档，未知计划回落 free（最严格，fail-safe）。限流按全局/计算端点速率限制（rateLimiter.ts），不按计划区分。
-- 配额表在 config/planLimits.ts；查表函数 getPlanLimits 与计费周期工具 currentPeriod 见 planLimitsService.ts
+- 配额表在 packages/backend/src/config/limits.ts；查表函数 getPlanLimits 与计费周期工具 currentPeriod 见 packages/backend/src/application/billing/planLimitsService.ts
 
 ### 3. 用量计量
 

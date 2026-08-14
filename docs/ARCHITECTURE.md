@@ -33,12 +33,12 @@
 
 ## 4. 服务与端口
 
-| 端口  | 服务           | 暴露               | 端口  | 服务        | 暴露      |
-| ----- | -------------- | ------------------ | ----- | ----------- | --------- |
-| 15173 | 前端 Vite      | 公网(APISIX)       | 15003 | Go 数据服务 | 内网      |
-| 15001 | 后端 API       | 内网(APISIX 代理)  | 5432  | PostgreSQL  | 内网(TLS) |
-| 15004 | Go 引擎        | 内网               | 6379  | Redis       | 内网(TLS) |
-| —     | worker(BullMQ) | 内网(无 HTTP 端口) |       |             |           |
+| 端口  | 服务                  | 暴露                  | 端口  | 服务        | 暴露      |
+| ----- | --------------------- | --------------------- | ----- | ----------- | --------- |
+| 15173 | 前端 Vite(仅本地 dev) | 不暴露(生产 nginx:80) | 15003 | Go 数据服务 | 内网      |
+| 15001 | 后端 API              | 内网(APISIX 代理)     | 5432  | PostgreSQL  | 内网(TLS) |
+| 15004 | Go 引擎               | 内网                  | 6379  | Redis       | 内网(TLS) |
+| —     | worker(BullMQ)        | 内网(无 HTTP 端口)    |       |             |           |
 
 ## 5. 顶层目录结构
 
@@ -56,7 +56,7 @@
 | --------------- | ------------------------------- | --------------------------------------------------- |
 | 路由            | routes/                         | HTTP 端点 + 中间件链                                |
 | 应用            | application/                    | 用例编排(billing/org/auth/backtest)                 |
-| 领域            | domain/                         | 聚合根(Run/Portfolio) + 事件 + 值对象               |
+| 领域            | domain/                         | 聚合根(Portfolio) + 事件 + 值对象                   |
 | 基础设施 / 仓储 | infrastructure/ / repositories/ | dataFacade/dataQuery/outbox；withTenant(RLS) 持久化 |
 
 > 详见 [wiki/deep-dive.md](./wiki/deep-dive.md)
@@ -93,7 +93,7 @@ JSON(DADR-002) → SQLite(DADR-006) → PostgreSQL(ADR-002)。行情持久化于
 
 > 完整索引（含已删除/合并记录）见 [adr/README.md](./adr/README.md)。
 
-核心 ADR: 001 Express / 002 PostgreSQL / 003 Go+TS / 004 DDD+Outbox / 005 Outbox+CDC / 006 可观测性 / 007 认证授权 / 008 单引擎 fail-closed / 009 多租户 RLS / 010 Stripe / 011 模块化 / 012 退役零消费者子系统 / 013 死 schema 退役。
+核心 ADR: 001 Express / 002 PostgreSQL / 003 Go+TS / 004 DDD+Outbox / 005 Outbox+CDC / 006 可观测性 / 007 认证授权 / 008 单引擎 fail-closed / 009 多租户 RLS / 010 Stripe / 011 模块化 / 012 退役零消费者子系统 / 013 死 schema 退役 / 014 未实现引擎字段退役 / 015 data-fetcher worker CLI 退役。
 
 ## 12. 容量扩展瓶颈
 
