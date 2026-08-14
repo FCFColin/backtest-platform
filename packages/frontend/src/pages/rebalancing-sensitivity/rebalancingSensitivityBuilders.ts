@@ -50,6 +50,13 @@ function buildBacktestBody(
     }),
   );
 }
+async function postPortfolioBacktest(body: unknown): Promise<Response> {
+  return apiFetch('/api/v1/backtest/portfolio', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}
 function applyRebalanceBands(
   portfolios: Array<Record<string, unknown>>,
   absoluteBand: number | '',
@@ -111,11 +118,7 @@ export async function fetchFreqResult(
     absoluteBand,
     relativeBand,
   );
-  const res = await apiFetch('/api/v1/backtest/portfolio', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
+  const res = await postPortfolioBacktest(body);
   if (!res.ok) throw new Error(`HTTP ${res.status} (${opt.label})`);
   const json = await res.json();
   if (json.success === false)
@@ -135,11 +138,7 @@ export async function fetchOffsetResult(
   },
 ): Promise<{ offset: number; cagr: number }> {
   const body = buildBacktestBody(`offset-${offset}`, assets, freq, offset, params);
-  const res = await apiFetch('/api/v1/backtest/portfolio', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
+  const res = await postPortfolioBacktest(body);
   if (!res.ok) return { offset, cagr: 0 };
   const json = await res.json();
   return { offset, cagr: (json.data ?? json).portfolios?.[0]?.statistics?.cagr ?? 0 };

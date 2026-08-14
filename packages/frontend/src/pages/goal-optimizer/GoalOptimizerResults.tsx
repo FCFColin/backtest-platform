@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import type { GoalOptimizerResult } from '@backtest/shared';
 import { fmtPct, fmtAmount } from '@/utils/format';
 import { useGoalOptimizerState, type GoalOptimizerState } from '@/hooks/useGoalOptimizerState.js';
@@ -6,12 +7,32 @@ import { GoalOptimizerParamsPanel } from './GoalOptimizerParams.js';
 import { ComputeToolShell, type ComputeToolConfig } from '../../components/shells/index.js';
 import { getPortfolioColor } from '@/lib/chart-theme.js';
 import { SimpleChart } from '@/components/charts/sharedChartContent.js';
+import type { ReferenceLine } from '@/components/charts/chartUtils.js';
 import ChartCard from '@/components/ChartCard.js';
 import { Card, Progress } from '@/components/ui/uiComponents';
 import { ResultsShell } from '@/components/resultsShell.js';
 import { MiniStatCard } from '@/components/cards.js';
 import { getProbColor } from './goalOptimizerUtils.js';
 const GRID = { top: 10, right: 20, bottom: 5, left: 60 };
+function targetReferenceLine(
+  axis: 'x' | 'y',
+  targetAmount: number,
+  targetColor: string,
+  t: TFunction,
+): ReferenceLine[] {
+  return [
+    {
+      axis,
+      value: targetAmount,
+      label: t('Target'),
+      color: targetColor,
+      dash: 'dashed',
+      width: 1.5,
+      labelColor: targetColor,
+      labelFontSize: 11,
+    },
+  ];
+}
 function ProbabilityDistributionChart({
   data,
   targetAmount,
@@ -45,18 +66,7 @@ function ProbabilityDistributionChart({
             areaOpacity: 0.3,
           },
         ]}
-        referenceLines={[
-          {
-            axis: 'x',
-            value: targetAmount,
-            label: t('Target'),
-            color: targetColor,
-            dash: 'dashed',
-            width: 1.5,
-            labelColor: targetColor,
-            labelFontSize: 11,
-          },
-        ]}
+        referenceLines={targetReferenceLine('x', targetAmount, targetColor, t)}
       />
     </ChartCard>
   );
@@ -94,18 +104,7 @@ function OptimalPathChart({
           },
           { dataKey: 'p10', name: 'P10', color: getPortfolioColor(3), width: 1.5, smooth: true },
         ]}
-        referenceLines={[
-          {
-            axis: 'y',
-            value: targetAmount,
-            label: t('Target'),
-            color: targetColor,
-            dash: 'dashed',
-            width: 1.5,
-            labelColor: targetColor,
-            labelFontSize: 11,
-          },
-        ]}
+        referenceLines={targetReferenceLine('y', targetAmount, targetColor, t)}
       />
     </ChartCard>
   );

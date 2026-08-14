@@ -1,4 +1,5 @@
 ﻿import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import type { EChartsOption } from 'echarts';
 import { type Portfolio } from '@backtest/shared';
 import { downsample, DOWNSAMPLE_THRESHOLD, DOWNSAMPLE_TARGET } from '../../utils/format.js';
@@ -12,15 +13,16 @@ import ChartCard from '../ChartCard.js';
 interface PortfolioPiesChartProps {
   portfolios: Array<Pick<Portfolio, 'name' | 'assets'>>;
 }
+function emptyDataCard(t: TFunction) {
+  return (
+    <ChartCard>
+      <ChartEmptyState message={t('No data')} />
+    </ChartCard>
+  );
+}
 export default function PortfolioPiesChart({ portfolios }: PortfolioPiesChartProps) {
   const { t } = useTranslation();
-  if (portfolios.length === 0) {
-    return (
-      <ChartCard>
-        <ChartEmptyState message={t('No data')} />
-      </ChartCard>
-    );
-  }
+  if (portfolios.length === 0) return emptyDataCard(t);
   const portfoliosWithAssets = portfolios.filter((p) => p.assets && p.assets.length > 0);
   if (portfoliosWithAssets.length === 0) {
     return (
@@ -197,13 +199,7 @@ function InitialWeightChart({
 }
 export function PortfolioAllocationChart({ portfolios }: PortfolioAllocationChartProps) {
   const { t } = useTranslation();
-  if (portfolios.length === 0) {
-    return (
-      <ChartCard>
-        <ChartEmptyState message={t('No data')} />
-      </ChartCard>
-    );
-  }
+  if (portfolios.length === 0) return emptyDataCard(t);
   const firstPortfolio = portfolios[0];
   const assets = firstPortfolio.assets;
   if (assets.length === 0) {
