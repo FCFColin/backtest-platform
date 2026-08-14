@@ -76,8 +76,6 @@ server.listen(PORT, async () => {
   } catch (err) {
     logger.warn({ err }, '[startup] Outbox 消费器启动失败');
   }
-  // P0-1：Webhook 投递重试 Worker 已移至独立 Worker 进程（workerEntrypoint.ts），
-  // API 服务器不再管理 Worker 生命周期。Worker 崩溃/重启不影响 API 服务。
 });
 
 server.on('error', (error: NodeJS.ErrnoException) => {

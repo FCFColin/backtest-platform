@@ -26,7 +26,6 @@ plugins:
   - limit-req # 请求速率限流（令牌桶）
   - limit-count # 请求计数限流（滑动窗口）
   - prometheus # Prometheus 指标导出
-  - opentelemetry # OpenTelemetry 分布式追踪
   - request-id # 请求 ID 注入（关联日志/追踪）
   - cors # CORS 跨域控制
   - response-rewrite # 响应头重写（安全头注入）
@@ -40,9 +39,3 @@ plugin_attr:
       ip: '0.0.0.0'
       port: 9091
     export_uri: /apisix/prometheus/metrics
-  opentelemetry:
-    resource:
-      service.name: apisix-gateway
-    collector:
-      address: otel-collector:4317
-      request_timeout: 3

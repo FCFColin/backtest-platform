@@ -33,8 +33,9 @@ COPY --from=builder /app/packages/backend/dist/workerEntrypoint.js ./packages/ba
 COPY migrations/ /migrations/
 
 # 健康检查：Redis heartbeat（Worker 无 HTTP 端口）
+# WORKDIR 为 /app，ioredis 仅存在于 packages/backend/node_modules，须 cd 后 require
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-  CMD node -e "const r=new(require('ioredis')('redis://redis:6379'));r.get('worker:heartbeat').then(v=>{r.quit();process.exit(v?0:1)}).catch(()=>process.exit(1))"
+  CMD cd /app/packages/backend && node -e "const r=new(require('ioredis')('redis://redis:6379'));r.get('worker:heartbeat').then(v=>{r.quit();process.exit(v?0:1)}).catch(()=>process.exit(1))"
 
 USER node
 CMD ["node", "packages/backend/dist/workerEntrypoint.js"]

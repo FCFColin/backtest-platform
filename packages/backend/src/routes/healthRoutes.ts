@@ -53,7 +53,7 @@ const PROBE_TIMEOUT_MS = 3_000;
 
 // 就绪探测必须整体有界：网络分区/依赖故障时在途查询或 ioredis 离线队列命令会无限挂起
 //（pool 的 connectionTimeoutMillis 仅对新建连接生效），无超时会让探针被全局
-// requestTimeout 30s 打成 408 而非快速 fail-closed（503/200+degraded）
+// requestTimeout 30s 打成 408 而非快速 fail-closed（503；200+降级标记仅限数据端点，见 ADR-008）
 function withProbeTimeout<T>(promise: Promise<T>): Promise<T> {
   return Promise.race([
     promise,
