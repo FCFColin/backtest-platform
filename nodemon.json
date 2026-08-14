@@ -1,8 +1,0 @@
-{
-  "watch": ["packages/backend/src"],
-  "ext": "ts,mts,js,json",
-  "ignore": ["packages/backend/dist/*"],
-  "exec": "tsx packages/backend/src/server.ts",
-  "env": { "NODE_ENV": "development" },
-  "delay": 1000
-}

@@ -57,7 +57,7 @@ await runCheck(results, 'C-014', () => {
   const pass = totalCov >= 70 && allHaveCov;
   return {
     status: pass ? 'PASS' : 'FAIL',
-    summary: `Go 覆盖率: ${totalCov}% (>= 70%), 8 包 ${allHaveCov ? '全覆盖' : '部分缺失'}`,
+    summary: `Go 覆盖率: ${totalCov}% (>= 70%), 6 包 ${allHaveCov ? '全覆盖' : '部分缺失'}`,
     details: { totalCov, pkgResults },
   };
 });
