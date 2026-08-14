@@ -74,14 +74,14 @@
 
 ### Naming
 
-| Artifact   | Convention  | Example                     |
-| ---------- | ----------- | --------------------------- |
-| Files      | camelCase   | `backtestRoutes.ts`         |
-| Interfaces | PascalCase  | `PortfolioResult`           |
-| Types      | PascalCase  | `RebalanceFrequency`        |
-| Functions  | camelCase   | `fetchHistoryData()`        |
-| Constants  | UPPER_SNAKE | `MAX_TICKERS`               |
-| Routes     | kebab-case  | `/api/backtest/monte-carlo` |
+| Artifact   | Convention  | Example                        |
+| ---------- | ----------- | ------------------------------ |
+| Files      | camelCase   | `backtestRoutes.ts`            |
+| Interfaces | PascalCase  | `PortfolioResult`              |
+| Types      | PascalCase  | `RebalanceFrequency`           |
+| Functions  | camelCase   | `fetchHistoryData()`           |
+| Constants  | UPPER_SNAKE | `MAX_TICKERS`                  |
+| Routes     | kebab-case  | `/api/v1/backtest/monte-carlo` |
 
 ### Shared Types
 
@@ -98,7 +98,7 @@
 
 - Vitest（unit/integration/contract/chaos/property）+ Playwright E2E；测试文件在顶层 `tests/` 按目录分型（见 scripts）
 - 命令：`pnpm test:unit` / `test:integration` / `test:contract` / `test:chaos` / `test:property` / `test:e2e:ui` / `test:docker`
-- 覆盖率：行/函数/语句/分支 ≥80%（以 `scripts/check-coverage.mjs` 为权威源）
+- 覆盖率：行/函数/语句/分支 ≥80%（门禁范围 = backend 全部 + frontend store/hooks/utils；components/pages 由 E2E 兜底；以 `scripts/check-coverage.mjs` 为权威源）
 
 ### Git
 
@@ -131,5 +131,5 @@
 ## API Patterns
 
 - Response: `{ success, data?, error? }`（RFC 7807 ProblemDetails）。Data 端点降级时含 `degraded` 标记；Engine 端点 fail-closed 503 + Retry-After、无 degraded（ADR-008）。
-- Auth: JWT Bearer，或 `x-api-key`（按组织哈希密钥、可吊销）。仅 `ADMIN_API_KEY` 是不可吊销的 break-glass 凭证，须严格保管并尽量少用。
-- 路由挂 `/api/v1/`；compute 端点（`/api/backtest/*`）限流 10 req/min；错误 type URI: `https://backtest.platform/errors/{code}`
+- Auth: JWT Bearer，或 `x-api-key`（按组织哈希密钥、可吊销）。`ADMIN_API_KEY` 为平台 break-glass 密钥（DB 化、90 天 TTL、可轮换/吊销，见 ADR-007），须严格保管并尽量少用。
+- 路由挂 `/api/v1/`；compute 端点（`/api/v1/backtest/*`）限流 10 req/min；错误 type URI: `https://backtest.platform/errors/{code}`
