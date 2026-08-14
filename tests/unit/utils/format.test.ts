@@ -20,6 +20,7 @@ import {
   formatCurrency,
   formatPercentSigned,
   formatDuration,
+  toCSV,
 } from '../../../packages/frontend/src/utils/format.js';
 
 describe.each([
@@ -128,5 +129,27 @@ describe('formatDuration', () => {
     [365, '1.0y'],
   ])('formatDuration(%p) 应为 %p', (days, expected) => {
     expect(formatDuration(days)).toBe(expected);
+  });
+});
+
+describe('toCSV', () => {
+  it('空数据返回空串', () => {
+    expect(toCSV([])).toBe('');
+  });
+
+  it('输出带 BOM 且正确转义引号/逗号/换行', () => {
+    const csv = toCSV([{ name: 'a,b', note: 'x"y' }]);
+    expect(csv.startsWith('\uFEFF')).toBe(true);
+    expect(csv).toContain('"a,b"');
+    expect(csv).toContain('"x""y"');
+  });
+
+  it('以 = + - @ 开头的单元格前置制表符防公式注入', () => {
+    const csv = toCSV([{ value: '=SUM(A1:A2)', minus: '-5', plus: '+44', at: '@cmd', safe: 'ok' }]);
+    expect(csv).toContain('\t=SUM(A1:A2)');
+    expect(csv).toContain('\t-5');
+    expect(csv).toContain('\t+44');
+    expect(csv).toContain('\t@cmd');
+    expect(csv).not.toContain('\tok');
   });
 });

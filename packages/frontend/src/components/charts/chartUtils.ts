@@ -55,8 +55,11 @@ export function categoryAxis(
     splitLine: { show: false },
   };
 }
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, (ch) => `&#${ch.charCodeAt(0)};`);
+}
 export const tooltipRow = (marker: string, name: string, value: string) =>
-  `<div style="display:flex;align-items:center;gap:8px;padding:2px 0">${marker}<span style="color:hsl(var(--fg-tertiary))">${name}</span><span style="margin-left:auto;font-weight:600;font-family:monospace;color:hsl(var(--fg))">${value}</span></div>`;
+  `<div style="display:flex;align-items:center;gap:8px;padding:2px 0">${marker}<span style="color:hsl(var(--fg-tertiary))">${escapeHtml(name)}</span><span style="margin-left:auto;font-weight:600;font-family:monospace;color:hsl(var(--fg))">${escapeHtml(value)}</span></div>`;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- ECharts tooltip formatter 类型过于复杂，手动构造 option
 export function tooltipOption(formatter: unknown, trigger: 'axis' | 'item' = 'axis'): any {
   return {
@@ -100,7 +103,7 @@ export function axisTooltipFormatter(
       .join('');
     return (
       (header
-        ? `<div style="font-weight:600;margin-bottom:6px;color:hsl(var(--fg))">${header}</div>`
+        ? `<div style="font-weight:600;margin-bottom:6px;color:hsl(var(--fg))">${escapeHtml(header)}</div>`
         : '') + rows
     );
   };
@@ -258,7 +261,7 @@ export function computeRollingCorrelation(
       ssXX += dx * dx;
       ssYY += dy * dy;
     }
-    const corr = ssXX > 0 && ssYY > 0 ? ssXY / Math.sqrt(ssXX * ssYY) : 0;
+    const corr = ssXX > 1e-12 && ssYY > 1e-12 ? ssXY / Math.sqrt(ssXX * ssYY) : 0;
     result.push({ date: dates[start + windowSize - 1] || '', value: +corr.toFixed(4) });
   }
   return result;

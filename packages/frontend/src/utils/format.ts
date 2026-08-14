@@ -118,19 +118,24 @@ export function mergeRowsByDate<R extends { date: string }>(
   return Object.values(merged).sort((a, b) => String(a.date).localeCompare(String(b.date)));
 }
 
-function toCSV(data: Array<Record<string, string | number | undefined | null>>): string {
+/** 行数据转 CSV 文本（带 BOM，供 Excel 识别 UTF-8）；以 = + - @ 开头的单元格前置制表符防公式注入 */
+export function toCSV(data: Array<Record<string, string | number | undefined | null>>): string {
   if (data.length === 0) return '';
   const headers = Object.keys(data[0]);
+  // 以 = + - @ 开头的单元格会被 Excel 当公式执行（CSV 注入），加引号并前置制表符禁用
   const escapeCell = (val: string | number | undefined | null): string => {
     const str = String(val ?? '');
-    return str.includes(',') || str.includes('"') || str.includes('\n')
-      ? `"${str.replace(/"/g, '""')}"`
-      : str;
+    const guarded = /^[=+\-@]/.test(str) ? `\t${str}` : str;
+    return guarded.includes(',') || guarded.includes('"') || guarded.includes('\n')
+      ? `"${guarded.replace(/"/g, '""')}"`
+      : guarded;
   };
-  return [
+  const csv = [
     headers.join(','),
     ...data.map((row) => headers.map((h) => escapeCell(row[h])).join(',')),
   ].join('\n');
+  // BOM 让 Excel 正确识别 UTF-8
+  return `\uFEFF${csv}`;
 }
 
 function downloadFile(content: string, filename: string, type: string): void {

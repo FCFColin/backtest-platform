@@ -11,6 +11,7 @@ import {
 import {
   AXIS_TEXT,
   tooltipOption,
+  tooltipRow,
 } from '../../../packages/frontend/src/components/charts/chartUtils.js';
 
 describe('CHART_COLORS', () => {
@@ -114,7 +115,16 @@ describe('getCorrelationColor', () => {
     ['强正相关', 0.9, 'hsl(var(--corr-pos-1))'],
     ['强负相关', -0.9, 'hsl(var(--corr-neg-1))'],
     ['0（中性）', 0, 'hsl(var(--surface))'],
-  ] as const)('%s 应返回 %s', (_label, value, expected) => {
+  ])('%s 应返回 %s', (_label, value, expected) => {
     expect(getCorrelationColor(value)).toBe(expected);
+  });
+});
+
+describe('tooltipRow', () => {
+  it('转义名称与数值中的 HTML 字符，防止注入', () => {
+    const html = tooltipRow('<span>●</span>', '<img src=x onerror=alert(1)>', '"&<>');
+    expect(html).not.toContain('<img');
+    expect(html).toContain('&#60;img src=x onerror=alert(1)&#62;');
+    expect(html).toContain('&#34;&#38;&#60;&#62;');
   });
 });
