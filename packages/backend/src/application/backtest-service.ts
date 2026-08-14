@@ -4,7 +4,6 @@ import { backtestResultSchema } from '../schemas/engineSchemas.js';
 import { buildEngineParams } from './backtest/backtestEngineUtils.js';
 import { logger } from '../utils/logger.js';
 import { recordBacktestRequest } from '../utils/metrics.js';
-import { Portfolio as DomainPortfolio } from '../domain/aggregates/portfolio.js';
 import { withTimeout } from '../utils/misc.js';
 import { config } from '../config/index.js';
 import {
@@ -21,14 +20,12 @@ import type {
 import type { Portfolio, BacktestParameters, BacktestResult } from '@backtest/shared';
 import {
   preparePortfolioBacktest,
-  collectInvalidTickerWarnings,
-  fetchPriceDataWithRange,
+  preparePriceDataAndWarnings,
   loadMacroData,
-  translateDomainError,
+  portfolioToDomain,
   collectDomainTickers,
   filterPriceData,
   calculateDateRange,
-  pushDegradedWarning,
   clampParametersToDataRange,
 } from './backtest-helpers.js';
 
@@ -43,19 +40,16 @@ export async function runPortfolioBacktest(opts: {
 }): Promise<{ result: unknown; warnings: Warning[]; dateRange: DateRangeInfo }> {
   const { portfolios, parameters, tenantId, onProgress } = opts;
   onProgress?.(5);
-  const { allTickers, warnings } = preparePortfolioBacktest(portfolios, parameters);
+  const { allTickers } = preparePortfolioBacktest(portfolios, parameters);
   onProgress?.(10);
   const [
-    { priceData, effectiveStartDate, effectiveEndDate, degraded, degradedWarning },
+    { priceData, effectiveStartDate, effectiveEndDate, warnings, invalidTickers },
     { cpiData, exchangeRates },
   ] = await Promise.all([
-    fetchPriceDataWithRange(Array.from(allTickers), parameters.startDate, parameters.endDate),
+    preparePriceDataAndWarnings(Array.from(allTickers), parameters.startDate, parameters.endDate),
     loadMacroData(parameters),
   ]);
   onProgress?.(30);
-  const invalidTickers = collectInvalidTickerWarnings(allTickers, priceData, warnings);
-  pushDegradedWarning(warnings, degraded, degradedWarning);
-  onProgress?.(35);
   const effectiveParameters = clampParametersToDataRange(
     parameters,
     effectiveStartDate,
@@ -92,9 +86,7 @@ export async function runBacktest(
   params: BacktestExecutionParams,
 ): Promise<BacktestExecutionResult> {
   const { portfolios, parameters, priceData, cpiData, exchangeRates } = params;
-  const domainPortfolios = portfolios.map((p) =>
-    translateDomainError(() => DomainPortfolio.fromDTO(p)),
-  );
+  const domainPortfolios = portfolios.map(portfolioToDomain);
   return tracer.startActiveSpan('BacktestApplicationService.runBacktest', async (span) => {
     try {
       const allTickers = collectDomainTickers(domainPortfolios, parameters.benchmarkTicker);

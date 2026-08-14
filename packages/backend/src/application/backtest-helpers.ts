@@ -48,8 +48,12 @@ interface PortfolioBacktestPrep {
   warnings: Warning[];
 }
 
-function portfolioToDomain(raw: Portfolio): DomainPortfolio {
+export function portfolioToDomain(raw: Portfolio): DomainPortfolio {
   return translateDomainError(() => DomainPortfolio.fromDTO(raw));
+}
+
+export function portfolioToEngineBody(raw: Portfolio): Record<string, unknown> {
+  return portfolioToDomain(raw).toEngineBody();
 }
 
 /** 校验日期格式与 ticker 数量，收集回测所需标的集合。 */

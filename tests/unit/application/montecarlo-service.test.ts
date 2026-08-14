@@ -14,13 +14,14 @@ const helpersMocks = vi.hoisted(() => ({
   filterPriceData: vi.fn(),
   loadMacroData: vi.fn(),
   sanitizeMcParams: vi.fn(),
-  translateDomainError: vi.fn(),
   collectInvalidTickerWarnings: vi.fn(),
   calculateDateRange: vi.fn(),
 }));
 vi.mock('../../../packages/backend/src/utils/engineClient.js', () => engineModuleMock);
 
 vi.mock('../../../packages/backend/src/application/backtest-helpers.js', async () => {
+  const { Portfolio } =
+    await import('../../../packages/backend/src/domain/aggregates/portfolio.js');
   const mockPushDegradedWarning = (
     warnings: Warning[],
     degraded: boolean,
@@ -35,6 +36,7 @@ vi.mock('../../../packages/backend/src/application/backtest-helpers.js', async (
   return {
     collectDomainTickers: helpersMocks.collectDomainTickers,
     fetchPriceDataWithRange: helpersMocks.fetchPriceDataWithRange,
+    portfolioToDomain: (raw: unknown) => Portfolio.fromDTO(raw as never),
     preparePriceDataAndWarnings: async (tickers: string[], startDate: string, endDate: string) => {
       const warnings: Warning[] = [];
       const { priceData, effectiveStartDate, effectiveEndDate, degraded, degradedWarning } =
@@ -57,7 +59,6 @@ vi.mock('../../../packages/backend/src/application/backtest-helpers.js', async (
     filterPriceData: helpersMocks.filterPriceData,
     loadMacroData: helpersMocks.loadMacroData,
     sanitizeMcParams: helpersMocks.sanitizeMcParams,
-    translateDomainError: helpersMocks.translateDomainError,
     collectInvalidTickerWarnings: helpersMocks.collectInvalidTickerWarnings,
     calculateDateRange: helpersMocks.calculateDateRange,
     pushDegradedWarning: mockPushDegradedWarning,
@@ -75,10 +76,6 @@ vi.mock('../../../packages/backend/src/application/backtest-helpers.js', async (
 import { runMonteCarlo } from '../../../packages/backend/src/application/montecarlo-service.js';
 
 const mockPortfolio = portfolioFixture({ name: 'Test' });
-
-function makeTranslateDomainError() {
-  return vi.fn(<T>(fn: () => T): T => fn());
-}
 
 describe('runMonteCarlo', () => {
   beforeEach(() => {
@@ -109,7 +106,6 @@ describe('runMonteCarlo', () => {
       exchangeRates: {},
     });
     helpersMocks.sanitizeMcParams.mockReturnValue({ numSimulations: 100 });
-    helpersMocks.translateDomainError.mockImplementation(makeTranslateDomainError());
     engineMocks.callEngineStrict.mockResolvedValue({ simulated: true });
   });
 
@@ -177,7 +173,6 @@ describe('runMonteCarlo', () => {
       mcParams: { numSimulations: 100 },
     });
     expect(body.portfolio).toBeDefined();
-    expect(helpersMocks.translateDomainError).toHaveBeenCalled();
   });
 
   it('引擎抛错应向上传播（fail-closed，不静默吞错）', async () => {

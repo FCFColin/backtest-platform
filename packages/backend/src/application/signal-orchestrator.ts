@@ -7,7 +7,7 @@ import type {
 import { fetchHistoryData } from '../infrastructure/dataFacade.js';
 import { callEngineStrict } from '../utils/engineClient.js';
 import { signalResultSchema } from '../schemas/engineSchemas.js';
-import { ensurePriceDataExists, ensureTickerHasData } from './backtest/backtestEngineUtils.js';
+import { ensurePriceDataExists } from './backtest/backtestEngineUtils.js';
 import type { DegradedResult } from './backtest-helpers.js';
 
 async function runSignalMode(
@@ -25,7 +25,7 @@ async function runSignalMode(
     tickers = [b.ticker];
     startDate = b.startDate;
     endDate = b.endDate;
-    validation = (history) => ensureTickerHasData(b.ticker, history);
+    validation = (history) => ensurePriceDataExists([b.ticker], history);
     engineBody = { mode: 'single', single: b };
   } else if (mode === 'dual') {
     const b = body as DualSignalConfig;

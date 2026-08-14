@@ -1,37 +1,7 @@
-import '../helpers/loggerMock.js';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { createConfigMocks } from '../helpers/mockFactories.js';
-import { engineModuleMock } from '../helpers/engineFixture.js';
-import {
-  configurePortfolioBacktestMocks,
-  configureTickerHelpersMocks,
-  createValidRequestBody,
-  setupPortfolioServer,
-  type BacktestMockHandles,
-} from '../helpers/backtestRoutesFixtures.js';
+import { m, queueMocks } from '../unit/routes/backtestRoutes.shared.js';
+import { createValidRequestBody, setupPortfolioServer } from '../helpers/backtestRoutesFixtures.js';
 import backtestRoutes from '../../packages/backend/src/routes/backtestRoutes.js';
-
-const m = vi.hoisted<BacktestMockHandles>(() => ({
-  runBacktest: vi.fn(),
-  runPortfolioBacktest: vi.fn(),
-  runAnalysis: vi.fn(),
-  runMonteCarlo: vi.fn(),
-  runOptimization: vi.fn(),
-  runEfficientFrontier: vi.fn(),
-  fetchHistoryData: vi.fn(),
-  searchTickers: vi.fn(),
-  callEngineStrict: vi.fn(),
-  buildEngineParams: vi.fn(),
-  preparePortfolioBacktest: vi.fn(),
-  collectInvalidTickerWarnings: vi.fn(),
-  collectDomainTickers: vi.fn(),
-  filterPriceData: vi.fn(),
-  fetchPriceDataWithRange: vi.fn(),
-  loadMacroData: vi.fn(),
-  validateTickers: vi.fn(),
-  portfolioToDomain: vi.fn(),
-  sanitizeMcParams: vi.fn(),
-}));
 
 const jobStore = vi.hoisted(
   () =>
@@ -47,81 +17,6 @@ const jobStore = vi.hoisted(
       }
     >(),
 );
-
-const queueMocks = vi.hoisted(() => ({
-  add: vi.fn(),
-  getJob: vi.fn(),
-}));
-
-vi.mock('../../packages/backend/src/application/backtest-service.js', () => ({
-  runPortfolioBacktest: m.runPortfolioBacktest,
-  runBacktest: m.runBacktest,
-}));
-vi.mock('../../packages/backend/src/application/analysis-orchestrator.js', () => ({
-  runAnalysis: m.runAnalysis,
-}));
-vi.mock('../../packages/backend/src/application/montecarlo-service.js', () => ({
-  runMonteCarlo: m.runMonteCarlo,
-}));
-vi.mock('../../packages/backend/src/application/optimize-service.js', () => ({
-  runOptimization: m.runOptimization,
-  runEfficientFrontier: m.runEfficientFrontier,
-}));
-vi.mock('../../packages/backend/src/infrastructure/dataFacade.js', () => ({
-  searchTickers: m.searchTickers,
-  fetchHistoryData: m.fetchHistoryData,
-  validateTickers: m.validateTickers,
-  initDb: vi.fn(),
-}));
-vi.mock('../../packages/backend/src/application/backtest-helpers.js', () => ({
-  preparePortfolioBacktest: m.preparePortfolioBacktest,
-  collectInvalidTickerWarnings: m.collectInvalidTickerWarnings,
-  collectDomainTickers: m.collectDomainTickers,
-  filterPriceData: m.filterPriceData,
-  fetchPriceDataWithRange: m.fetchPriceDataWithRange,
-  loadMacroData: m.loadMacroData,
-  sanitizeMcParams: m.sanitizeMcParams,
-  validateTickers: m.validateTickers,
-  translateDomainError: vi.fn(<T>(fn: () => T): T => fn()),
-}));
-vi.mock('../../packages/backend/src/utils/engineClient.js', () => ({
-  ...engineModuleMock,
-  callEngineStrict: m.callEngineStrict,
-}));
-vi.mock('../../packages/backend/src/application/backtest/backtestEngineUtils.js', () => ({
-  buildEngineParams: m.buildEngineParams,
-}));
-vi.mock('../../packages/backend/src/queues/backtestQueue.js', () => ({
-  backtestQueue: {
-    add: queueMocks.add,
-    getJob: queueMocks.getJob,
-  },
-}));
-vi.mock('../../packages/backend/src/config/index.js', () => ({
-  config: createConfigMocks(),
-  validateConfig: vi.fn(),
-}));
-vi.mock('../../packages/backend/src/infrastructure/redisClient.js', () => {
-  const noop = () => {};
-  return {
-    isSentinelMode: false,
-    bullmqConnectionOptions: { host: 'localhost', port: 6379 },
-    redisConnection: { on: noop },
-    appRedis: {
-      on: noop,
-      ping: async () => 'PONG',
-      set: async () => 'OK',
-      get: async () => null,
-      scan: async () => ['0', []] as [string, string[]],
-      del: async () => 0,
-    },
-    getRedisHealth: vi.fn().mockResolvedValue(true),
-    markRedisUnhealthy: vi.fn(),
-  };
-});
-
-configurePortfolioBacktestMocks(m);
-configureTickerHelpersMocks(m);
 
 describe('P0-01 T3 · 异步回测全链路集成测试', () => {
   let server: { url: string; close: () => Promise<void> };

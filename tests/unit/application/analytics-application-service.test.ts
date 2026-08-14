@@ -177,8 +177,8 @@ describe('analysis-service', () => {
   });
 
   it.each([
-    ['缺失 LETF 数据', { SPY: {} }, '杠杆 ETF SSO'],
-    ['缺失基准数据', { SSO: { '2020-01-02': 50 } }, '基准指数 SPY'],
+    ['缺失 LETF 数据', { SPY: {} }, 'Price data not found for: SSO'],
+    ['缺失基准数据', { SSO: { '2020-01-02': 50 } }, 'Price data not found for: SPY'],
   ])('executeLetfAnalyze %s 应抛出错误', (_n, data, expected) => {
     expect(() => executeLetfAnalyze(LETF_REQ, data as never)).toThrow(expected);
   });

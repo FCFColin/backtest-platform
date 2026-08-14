@@ -2,14 +2,13 @@
 import { callEngineStrict } from '../utils/engineClient.js';
 import { monteCarloResultSchema } from '../schemas/engineSchemas.js';
 import { buildEngineParams } from './backtest/backtestEngineUtils.js';
-import { Portfolio as DomainPortfolio } from '../domain/aggregates/portfolio.js';
 import {
   collectDomainTickers,
+  portfolioToDomain,
   preparePriceDataAndWarnings,
   filterPriceData,
   loadMacroData,
   sanitizeMcParams,
-  translateDomainError,
   calculateDateRange,
   clampParametersToDataRange,
 } from './backtest-helpers.js';
@@ -24,9 +23,7 @@ export async function runMonteCarlo(
   parameters: BacktestParameters,
   mcParams?: Record<string, unknown>,
 ): Promise<{ data: unknown; warnings: Warning[]; dateRange: DateRangeInfo }> {
-  const domainPortfolios = portfolioList.map((p) =>
-    translateDomainError(() => DomainPortfolio.fromDTO(p)),
-  );
+  const domainPortfolios = portfolioList.map(portfolioToDomain);
   const allTickers = collectDomainTickers(domainPortfolios, '');
   const tickers = Array.from(allTickers);
   const { priceData, warnings, invalidTickers, effectiveStartDate, effectiveEndDate } =

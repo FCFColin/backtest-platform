@@ -116,7 +116,7 @@ const signalCases = [
     run: () => executeSignalAnalyze(signalReq),
     payload: { single: signalReq },
     history: { AAPL: { '2020-01-02': 100 } },
-    errorMsg: '未找到 AAPL 的价格数据',
+    errorMsg: 'Price data not found for: AAPL',
   },
   {
     mode: 'dual',

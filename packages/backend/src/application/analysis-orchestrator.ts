@@ -17,11 +17,7 @@ import { logger } from '../utils/logger.js';
 import { buildEngineParams } from './backtest/backtestEngineUtils.js';
 import { ValidationError } from '../utils/errors.js';
 import { toDateStr, todayStr } from '../utils/misc.js';
-import {
-  ensurePriceDataExists,
-  ensureTickerHasData,
-  normalizeTickers,
-} from './backtest/backtestEngineUtils.js';
+import { ensurePriceDataExists, normalizeTickers } from './backtest/backtestEngineUtils.js';
 import {
   fetchPriceDataWithRange,
   calculateDateRange,
@@ -137,8 +133,8 @@ export function executeLetfAnalyze(
   const cleanBench = String(req.benchmarkTicker).trim().toUpperCase();
   const lev = Number(req.leverage);
 
-  ensureTickerHasData(cleanLetf, priceData, '杠杆 ETF');
-  ensureTickerHasData(cleanBench, priceData, '基准指数');
+  ensurePriceDataExists([cleanLetf], priceData, '杠杆 ETF');
+  ensurePriceDataExists([cleanBench], priceData, '基准指数');
 
   return callEngineStrict(
     '/api/engine/letf-analyze',

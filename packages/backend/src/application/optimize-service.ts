@@ -7,11 +7,10 @@ import {
   backtestResultSchema,
 } from '../schemas/engineSchemas.js';
 import { buildEngineParams } from './backtest/backtestEngineUtils.js';
-import { Portfolio as DomainPortfolio } from '../domain/aggregates/portfolio.js';
 import {
   preparePriceDataAndWarnings,
   filterPriceData,
-  translateDomainError,
+  portfolioToEngineBody,
   calculateDateRange,
   loadMacroData,
   type MacroData,
@@ -30,9 +29,6 @@ import {
   type BacktestOptimizerRequest as OptimizeRequest,
   type OptimizeResultItem,
 } from '../domain/services/optimizer-domain.js';
-
-const toEngineBody = (p: Portfolio): Record<string, unknown> =>
-  translateDomainError(() => DomainPortfolio.fromDTO(p)).toEngineBody();
 
 async function runCompute(
   path: string,
@@ -127,12 +123,11 @@ async function runBacktestGroups(
       rebalanceThreshold: c.threshold,
       rebalanceOffset: 0,
       drag: 0,
-      totalReturn: true,
     }));
     const btResult = await callEngineStrict<BacktestResult>(
       '/api/engine/backtest',
       {
-        portfolios: portfolios.map(toEngineBody),
+        portfolios: portfolios.map(portfolioToEngineBody),
         priceData,
         ...macro,
         params: buildEngineParams(buildBacktestParameters(parameters, capital)),

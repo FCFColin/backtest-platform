@@ -1,7 +1,6 @@
 import '../../helpers/loggerMock.js';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { BacktestParameters } from '@backtest/shared';
-import type { Warning } from '../../../packages/backend/src/application/backtest-helpers.js';
 import { engineMocks, engineModuleMock } from '../../helpers/engineFixture.js';
 import {
   mockParameters as parametersFixture,
@@ -15,12 +14,11 @@ import {
 
 const helpersMocks = vi.hoisted(() => ({
   preparePortfolioBacktest: vi.fn(),
-  fetchPriceDataWithRange: vi.fn(),
-  collectInvalidTickerWarnings: vi.fn(),
+  preparePriceDataAndWarnings: vi.fn(),
   loadMacroData: vi.fn(),
   calculateDateRange: vi.fn(),
   filterPriceData: vi.fn(),
-  translateDomainError: vi.fn(),
+  portfolioToDomain: vi.fn(),
   collectDomainTickers: vi.fn(),
 }));
 
@@ -50,20 +48,12 @@ const configMocks = vi.hoisted(() => ({
 
 vi.mock('../../../packages/backend/src/application/backtest-helpers.js', () => ({
   preparePortfolioBacktest: helpersMocks.preparePortfolioBacktest,
-  fetchPriceDataWithRange: helpersMocks.fetchPriceDataWithRange,
-  collectInvalidTickerWarnings: helpersMocks.collectInvalidTickerWarnings,
+  preparePriceDataAndWarnings: helpersMocks.preparePriceDataAndWarnings,
   loadMacroData: helpersMocks.loadMacroData,
   calculateDateRange: helpersMocks.calculateDateRange,
   filterPriceData: helpersMocks.filterPriceData,
-  translateDomainError: helpersMocks.translateDomainError,
+  portfolioToDomain: helpersMocks.portfolioToDomain,
   collectDomainTickers: helpersMocks.collectDomainTickers,
-  pushDegradedWarning: (warnings: Warning[], degraded: boolean, degradedWarning?: string) => {
-    if (degraded)
-      warnings.push({
-        code: 'DATA_DEGRADED',
-        message: degradedWarning || '数据服务降级，部分数据可能缺失',
-      });
-  },
   clampParametersToDataRange: (
     parameters: Pick<BacktestParameters, 'startDate' | 'endDate'>,
     effectiveStartDate: string,
@@ -124,9 +114,11 @@ const mockBacktestResult = mockBacktestResultFixture({
 
 const priceDataResult = (overrides: Record<string, unknown> = {}) => ({
   priceData: { AAPL: { '2020-01-02': 100 }, SPY: { '2020-01-02': 300 } },
+  warnings: [],
+  invalidTickers: [],
+  allTickers: new Set(['AAPL', 'SPY']),
   effectiveStartDate: '2020-01-02',
   effectiveEndDate: '2020-12-31',
-  degraded: false,
   ...overrides,
 });
 describe('runPortfolioBacktest', () => {
@@ -136,8 +128,7 @@ describe('runPortfolioBacktest', () => {
       allTickers: new Set(['AAPL', 'SPY']),
       warnings: [],
     });
-    helpersMocks.fetchPriceDataWithRange.mockResolvedValue(priceDataResult());
-    helpersMocks.collectInvalidTickerWarnings.mockReturnValue([]);
+    helpersMocks.preparePriceDataAndWarnings.mockResolvedValue(priceDataResult());
     helpersMocks.loadMacroData.mockResolvedValue({ cpiData: {}, exchangeRates: {} });
     helpersMocks.calculateDateRange.mockReturnValue({
       startDate: '2020-01-02',
@@ -148,10 +139,7 @@ describe('runPortfolioBacktest', () => {
       AAPL: { '2020-01-02': 100 },
       SPY: { '2020-01-02': 300 },
     });
-    helpersMocks.translateDomainError.mockImplementation((fn: () => unknown) => {
-      fn();
-      return { toEngineBody: () => ({}) };
-    });
+    helpersMocks.portfolioToDomain.mockReturnValue({ toEngineBody: () => ({}) });
     helpersMocks.collectDomainTickers.mockReturnValue(new Set(['AAPL', 'SPY']));
 
     engineMocks.callEngineStrict.mockResolvedValue(mockBacktestResult);
@@ -167,7 +155,7 @@ describe('runPortfolioBacktest', () => {
       [mockPortfolio],
       mockParameters,
     );
-    expect(helpersMocks.fetchPriceDataWithRange).toHaveBeenCalled();
+    expect(helpersMocks.preparePriceDataAndWarnings).toHaveBeenCalled();
     expect(helpersMocks.loadMacroData).toHaveBeenCalledWith(mockParameters);
     expect(engineMocks.callEngineStrict).toHaveBeenCalledTimes(1);
     expect(compressMocks.compressBacktestResultForSync).toHaveBeenCalledWith(mockBacktestResult);
@@ -191,19 +179,17 @@ describe('runPortfolioBacktest', () => {
       mockBacktestResult,
     );
   });
-  it('数据降级时应添加 DATA_DEGRADED 警告', async () => {
-    helpersMocks.fetchPriceDataWithRange.mockResolvedValue(
+  it('数据降级时应返回 DATA_DEGRADED 警告', async () => {
+    helpersMocks.preparePriceDataAndWarnings.mockResolvedValue(
       priceDataResult({
-        priceData: { AAPL: { '2020-01-02': 100 } },
-        degraded: true,
-        degradedWarning: 'Go 数据服务降级',
+        warnings: [{ code: 'DATA_DEGRADED', message: 'Go 数据服务降级' }],
       }),
     );
     const result = await run();
     expect(result.warnings).toContainEqual({ code: 'DATA_DEGRADED', message: 'Go 数据服务降级' });
   });
   it('日期范围调整时应使用 effective 日期调用引擎', async () => {
-    helpersMocks.fetchPriceDataWithRange.mockResolvedValue(
+    helpersMocks.preparePriceDataAndWarnings.mockResolvedValue(
       priceDataResult({
         priceData: { AAPL: { '2020-01-03': 101 } },
         effectiveStartDate: '2020-01-03',
