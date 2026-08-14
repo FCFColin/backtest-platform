@@ -6,28 +6,28 @@ useDefault = true
 [[rules]]
 id = "engine-auth-token"
 description = "Engine Auth Token"
-regex = '''ENGINE_AUTH_TOKEN\s*=\s*["']([^"']+)["']'''
+regex = '''ENGINE_AUTH_TOKEN\s*=\s*"?([^"'\r\n]+)"?'''
 secretGroup = 1
 keywords = ["ENGINE_AUTH_TOKEN"]
 
 [[rules]]
 id = "data-service-auth-token"
 description = "Data Service Auth Token"
-regex = '''DATA_SERVICE_AUTH_TOKEN\s*=\s*["']([^"']+)["']'''
+regex = '''DATA_SERVICE_AUTH_TOKEN\s*=\s*"?([^"'\r\n]+)"?'''
 secretGroup = 1
 keywords = ["DATA_SERVICE_AUTH_TOKEN"]
 
 [[rules]]
 id = "audit-hmac-key"
 description = "Audit HMAC Key"
-regex = '''AUDIT_HMAC_KEY\s*=\s*["']([^"']+)["']'''
+regex = '''AUDIT_HMAC_KEY\s*=\s*"?([^"'\r\n]+)"?'''
 secretGroup = 1
 keywords = ["AUDIT_HMAC_KEY"]
 
 [[rules]]
 id = "admin-api-key"
 description = "Platform break-glass ADMIN_API_KEY (P0-04)"
-regex = '''ADMIN_API_KEY\s*=\s*["']([^"']{8,})["']'''
+regex = '''ADMIN_API_KEY\s*=\s*"?([^"'\r\n]{8,})"?'''
 secretGroup = 1
 keywords = ["ADMIN_API_KEY"]
 

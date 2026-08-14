@@ -58,35 +58,11 @@ tmp_*
 .tmp/
 *.zip
 
-# Lint/检查输出产物
-eslint*.txt
-eslint*.json
-lint*.txt
-lint*.json
-all-*.txt
-*check.txt
-*result.txt
-*-current.txt
-*-remaining.txt
-*-warnings.txt
-*-unix.txt
-simple-check.txt
-medium-check.txt
-remaining-warnings.txt
-api-lint.txt
-server.err
-coverage-output.txt
-
 # 静态分析输出
 knip*.json
 knip*.txt
 jscpd_out/
 scc_*.json
-
-# 测试运行产物
-test-output.txt
-test-result*.json
-exports-types.txt
 
 # Editor directories and files
 .vscode/*
