@@ -126,7 +126,6 @@ func CalculateStatisticsFromRequest(req StatisticsRequest) Statistics {
 		DownsideDeviationAnnual: mathutil.DownsideDeviation(req.AnnualReturnValues, riskFreeRate), DrawdownRecoveryFactor: CalcDrawdownRecoveryFactor(totalReturn, dd.MaxDrawdown),
 		M2: m2, Treynor: treynor, BenchmarkCorrelation: benchmarkCorrelation, UpsideCorrelation: upsideCorr, DownsideCorrelation: downsideCorr,
 		UpsideBeta: upsideBetaVal, DownsideBeta: downsideBetaVal, AlphaDaily: alphaDaily, AlphaAnnualized: alpha,
-		UpsideCaptureDaily: upsideDaily, DownsideCaptureDaily: downsideDaily, CaptureSpreadDaily: captureSpread,
 		CaptureSpread: captureSpread,
 		ActiveReturn:  activeReturn, PctPositiveMonths: pctPosMonths, PctPositiveYears: pctPosYears, MaxAnnualReturn: maxAnnualRet, MinAnnualReturn: minAnnualRet,
 		AvgDailyGain: avgDailyGain, AvgDailyLoss: avgDailyLoss, GainLossRatioDaily: gainLossRatioDaily,

@@ -96,9 +96,6 @@ type Statistics struct {
 	DownsideBeta                float64             `json:"downsideBeta"`
 	AlphaDaily                  float64             `json:"alphaDaily"`
 	AlphaAnnualized             float64             `json:"alphaAnnualized"`
-	UpsideCaptureDaily          float64             `json:"upsideCaptureDaily"`
-	DownsideCaptureDaily        float64             `json:"downsideCaptureDaily"`
-	CaptureSpreadDaily          float64             `json:"captureSpreadDaily"`
 	CaptureSpread               float64             `json:"captureSpread"`
 	ActiveReturn                float64             `json:"activeReturn"`
 	PctPositiveMonths           float64             `json:"pctPositiveMonths"`
@@ -133,8 +130,8 @@ type BacktestRequest struct {
 	Params        BacktestParams     `json:"params"`
 }
 type BacktestParams struct {
-	StartDate               string            `json:"startDate"`
-	EndDate                 string            `json:"endDate"`
+	StartDate           string            `json:"startDate"`
+	EndDate             string            `json:"endDate"`
 	StartingValue       float64           `json:"startingValue"`
 	AdjustForInflation  bool              `json:"adjustForInflation"`
 	RollingWindowMonths int               `json:"rollingWindowMonths"`
