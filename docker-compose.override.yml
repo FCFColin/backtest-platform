@@ -7,29 +7,14 @@
 # 仅用于本地开发，可逆：删除本文件并停用本地服务后即可回到标准端口。
 #
 # 使用 !override 完全替换基础文件的 ports 列表（compose 默认会追加合并）。
+# 注意：postgres 的镜像/command/volumes 必须保持基础文件（钉版 2.17.2-pg16 + wal-g 配置），
+# 覆盖它们会引入未钉版 latest-pg16 并破坏 ofelia 每日 wal-g 备份。
 # =============================================================================
 
 services:
   postgres:
-    image: timescale/timescaledb:latest-pg16
-    pull_policy: if_not_present
-    command:
-      - postgres
-      - -c
-      - shared_preload_libraries=timescaledb
-      - -c
-      - wal_level=replica
-      - -c
-      - max_wal_senders=3
-      - -c
-      - wal_keep_size=64
-      - -c
-      - listen_addresses=*
     ports: !override
       - '127.0.0.1:15442:5432'
-    volumes: !override
-      - pgdata:/var/lib/postgresql/data
-      - ./docker/postgres-init:/docker-entrypoint-initdb.d
 
   redis:
     ports: !override

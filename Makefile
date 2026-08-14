@@ -19,7 +19,7 @@ install: ## 安装 Node 依赖（pnpm lockfile）
 dev: ## SaaS 本地开发（预构建前端+API:15001，自动拉起 engine-go）
 	pnpm run dev
 
-up: ## 启动依赖容器（postgres/redis/engine/data）
+up: ## 启动核心依赖（postgres/redis/engine/data；可选：--profile cdc|redis-ha|edge）
 	docker compose up -d
 
 down: ## 停止依赖容器

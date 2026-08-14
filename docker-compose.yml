@@ -1,12 +1,12 @@
 # 固定项目名：仓库目录非 ASCII（中文）时 compose 默认 project name 会为空报错。
 name: backtest
 x-base:
-  # 本地 dev 编排：镜像用浮动 tag + pull_policy 保可用，生产版本以 k8s/*.yaml 钉版为准
+  # 本地 dev 编排：镜像版本与 k8s/*.yaml 钉版对齐
   timescale: &timescale
-    image: timescale/timescaledb:latest-pg16
+    image: timescale/timescaledb:2.17.2-pg16
     pull_policy: if_not_present
   redis-img: &redis-img
-    image: redis:7-alpine
+    image: redis:7.4-alpine
     pull_policy: if_not_present
   hc-5x5: &hc-5x5
     interval: 5s
@@ -49,6 +49,7 @@ x-base:
     DEV_SKIP_AUTH: 'true' # chaos 测试以无认证请求探活，dev 编排放行认证中间件
   redis-replica: &redis-replica
     <<: *redis-img
+    profiles: ['redis-ha'] # 默认不拉起；chaos 核心依赖仅用单节点 redis
     command:
       [
         'redis-server',
@@ -64,6 +65,7 @@ x-base:
     healthcheck: *hc-redis
   redis-sentinel: &redis-sentinel
     <<: *redis-img
+    profiles: ['redis-ha']
     command: ['redis-sentinel', '/etc/redis/sentinel.conf']
     depends_on: { redis-master: { condition: service_healthy } }
     healthcheck: *hc-redis-sentinel
@@ -123,6 +125,7 @@ services:
 
   redis-master:
     <<: *redis-img
+    profiles: ['redis-ha']
     container_name: backtest-redis-master
     command:
       [
@@ -314,6 +317,7 @@ services:
 
   uptime-kuma:
     image: louislam/uptime-kuma:1
+    profiles: ['edge'] # 边缘网关/站点监控，默认不拉起
     container_name: backtest-uptime-kuma
     ports: ['127.0.0.1:3001:3001']
     volumes:
@@ -331,6 +335,7 @@ services:
 
   redis-exporter:
     image: oliver006/redis_exporter:v1.66.0
+    profiles: ['redis-ha']
     container_name: backtest-redis-exporter
     ports: ['127.0.0.1:9121:9121']
     environment: { REDIS_ADDR: 'redis://redis-master:6379' }
@@ -370,6 +375,7 @@ services:
 
   postgres-cdc:
     <<: *timescale
+    profiles: ['cdc'] # CDC 实验栈（Debezium→Kafka），默认不拉起
     container_name: backtest-postgres-cdc
     ports: ['127.0.0.1:5433:5432']
     environment: { <<: *env-pg }
@@ -390,6 +396,7 @@ services:
 
   zookeeper:
     image: confluentinc/cp-zookeeper:7.7.0
+    profiles: ['cdc']
     container_name: backtest-zookeeper
     ports: ['127.0.0.1:2181:2181']
     environment: { ZOOKEEPER_CLIENT_PORT: 2181, ZOOKEEPER_TICK_TIME: 2000 }
@@ -403,6 +410,7 @@ services:
 
   kafka:
     image: confluentinc/cp-kafka:7.7.0
+    profiles: ['cdc']
     container_name: backtest-kafka
     ports: ['127.0.0.1:9092:9092']
     environment:
@@ -426,6 +434,7 @@ services:
 
   connect:
     image: debezium/connect:2.7
+    profiles: ['cdc']
     container_name: backtest-debezium-connect
     ports: ['127.0.0.1:8083:8083']
     environment:
@@ -451,13 +460,14 @@ services:
 
   apisix:
     image: apache/apisix:3.11.0-debian
+    profiles: ['edge']
     container_name: backtest-apisix
     <<: *restart-unless
     environment: [APISIX_STAND_ALONE=true]
     volumes:
       - ./config/apisix/apisix.yaml:/usr/local/apisix/conf/apisix.yaml:ro
       - ./config/apisix/config.yaml:/usr/local/apisix/conf/config.yaml:ro
-    ports: ['9080:9080', '9443:9443', '9091:9091']
+    ports: ['127.0.0.1:9080:9080', '127.0.0.1:9443:9443', '127.0.0.1:9091:9091']
     depends_on: { api: { condition: service_healthy } }
     healthcheck:
       <<: *hc-10x5
