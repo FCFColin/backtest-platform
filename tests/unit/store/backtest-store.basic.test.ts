@@ -65,14 +65,13 @@ describe('removePortfolio', () => {
     if (len === 1) expect(S().portfolios[0].id).toBe('p1');
   });
 });
-describe('removePortfolio', () => {
+describe('updatePortfolio', () => {
   it.each([
     ['名称', { name: '我的组合' }, 'name', '我的组合'],
     ['调仓频率', { rebalanceFrequency: 'monthly' }, 'rebalanceFrequency', 'monthly'],
   ])('更新%s', (_n, update, key, expected) => {
     S().updatePortfolio('p1', update);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    expect((S().portfolios[0] as any)[key]).toBe(expected);
+    expect((S().portfolios[0] as Record<string, unknown>)[key]).toBe(expected);
   });
   it('更新偏离调仓阈值', () => {
     S().updatePortfolio('p1', { rebalanceFrequency: 'threshold', rebalanceThreshold: 10 });
@@ -86,8 +85,7 @@ describe('removePortfolio', () => {
   });
 });
 describe('updateParameter', () => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  it.each<[string, any]>([
+  it.each<[string, unknown]>([
     ['startingValue', 50000],
     ['startDate', '2015-01-01'],
     ['endDate', '2023-12-31'],
@@ -96,8 +94,7 @@ describe('updateParameter', () => {
     ['rollingWindowMonths', 6],
   ])('更新%s', (key, value) => {
     S().updateParameter(key, value);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    expect((S().parameters as any)[key]).toBe(value);
+    expect((S().parameters as Record<string, unknown>)[key]).toBe(value);
   });
 });
 describe('addGlidepath', () => {
@@ -248,8 +245,7 @@ describe.each(cashflowOps)(
       if (key === null) {
         expect(list()[0]).toMatchObject(patch);
       } else {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        expect((list()[0] as any)[key]).toBe(expected);
+        expect((list()[0] as Record<string, unknown>)[key]).toBe(expected);
       }
     });
     it('update with non-existent id does nothing', () => {
