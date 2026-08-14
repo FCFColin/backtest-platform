@@ -19,7 +19,10 @@ export const SYNTHETIC_TICKERS = (
   methodology: 'splice_by_return' as const,
 }));
 
-const cpiCache: Record<string, { map?: Record<string, number>; routeData?: unknown }> = {};
+// CPI 数据低频更新（月频），TTL 防止陈旧值长期驻留
+const CPI_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
+const cpiCache: Record<string, { map?: Record<string, number>; routeData?: unknown; ts: number }> =
+  {};
 
 async function fetchCpiFromGo(
   country: string,
@@ -42,12 +45,15 @@ async function fetchCpiFromGo(
 
 export async function loadCpiMap(country: string): Promise<Record<string, number>> {
   const key = country.toLowerCase();
-  if (cpiCache[key]?.map) return cpiCache[key]!.map!;
+  if (cpiCache[key]?.map && Date.now() - cpiCache[key]!.ts < CPI_CACHE_TTL_MS) {
+    return cpiCache[key]!.map!;
+  }
   const series = await loadCpiSeriesFromDb(key);
   let cpiMap: Record<string, number> = {};
   for (const item of series) cpiMap[item.date] = item.value;
   if (Object.keys(cpiMap).length === 0) cpiMap = (await fetchCpiFromGo(key)).map;
-  if (Object.keys(cpiMap).length > 0) cpiCache[key] = { ...cpiCache[key], map: cpiMap };
+  if (Object.keys(cpiMap).length > 0)
+    cpiCache[key] = { ...cpiCache[key], map: cpiMap, ts: Date.now() };
   return cpiMap;
 }
 
@@ -65,7 +71,7 @@ export async function fetchCpiForRoute(country: string): Promise<CpiRouteResult>
   const key = country.toLowerCase();
   const { raw, map } = await fetchCpiFromGo(country);
   if (raw) return { data: raw, degraded: false, notFound: false };
-  if (cpiCache[key]?.routeData) {
+  if (cpiCache[key]?.routeData && Date.now() - cpiCache[key]!.ts < CPI_CACHE_TTL_MS) {
     return {
       data: cpiCache[key]!.routeData,
       degraded: true,
@@ -75,7 +81,7 @@ export async function fetchCpiForRoute(country: string): Promise<CpiRouteResult>
   }
   const cpiData = await loadCpiSeriesFromDb(country);
   if (cpiData.length > 0) {
-    cpiCache[key] = { ...cpiCache[key], routeData: cpiData };
+    cpiCache[key] = { ...cpiCache[key], routeData: cpiData, ts: Date.now() };
     return {
       data: cpiData,
       degraded: true,
@@ -84,7 +90,7 @@ export async function fetchCpiForRoute(country: string): Promise<CpiRouteResult>
     };
   }
   if (Object.keys(map).length > 0) {
-    cpiCache[key] = { ...cpiCache[key], routeData: map };
+    cpiCache[key] = { ...cpiCache[key], routeData: map, ts: Date.now() };
     return { data: map, degraded: false, notFound: false };
   }
   return { data: null, degraded: false, notFound: true };

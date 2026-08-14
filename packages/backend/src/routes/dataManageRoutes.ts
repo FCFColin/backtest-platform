@@ -54,10 +54,11 @@ router.get(
 router.get(
   '/stats',
   crudRouteHandler(
-    async (req: Request, res: Response): Promise<void> => {
+    async (req, res): Promise<void> => {
       res.setHeader('Cache-Control', 'no-cache');
       const t0 = Date.now();
-      const stats = await scanMarketStatsFromDb(isForceRefresh(req));
+      // 匿名（guest）不可触发强制重扫，防未认证流量打满 DB 扫描
+      const stats = await scanMarketStatsFromDb(isForceRefresh(req) && req.user?.sub !== 'guest');
       const body = stats
         ? { success: true, data: { stats, universe: resolveUniverseFromCacheStats(stats) } }
         : {

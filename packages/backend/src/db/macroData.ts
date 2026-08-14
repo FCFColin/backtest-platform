@@ -3,9 +3,10 @@ import { getReadPool } from './pool.js';
 import { logger } from '../utils/logger.js';
 import { toDateStr } from '../utils/misc.js';
 
-// Map 保持插入序便于 FIFO 淘汰，防止任意 base/target 组合撑爆内存
+// Map 保持插入序便于 FIFO 淘汰，防止任意 base/target 组合撑爆内存；TTL 防止宏观数据长期陈旧
 const CACHE_MAX_ENTRIES = 100;
-const exchangeRateCache = new Map<string, Record<string, number>>();
+const CACHE_TTL_MS = 60 * 60 * 1000;
+const exchangeRateCache = new Map<string, { data: Record<string, number>; ts: number }>();
 
 export async function loadCpiSeriesFromDb(
   country: string,
@@ -30,7 +31,7 @@ export async function loadExchangeRatesFromDb(
 ): Promise<Record<string, number>> {
   const cacheKey = `${base}_${target}`;
   const cached = exchangeRateCache.get(cacheKey);
-  if (cached) return cached;
+  if (cached && Date.now() - cached.ts < CACHE_TTL_MS) return cached.data;
 
   try {
     const pool = getReadPool();
@@ -42,7 +43,7 @@ export async function loadExchangeRatesFromDb(
     );
     const map: Record<string, number> = {};
     for (const row of rows) map[toDateStr(row.date)] = row.rate;
-    exchangeRateCache.set(cacheKey, map);
+    exchangeRateCache.set(cacheKey, { data: map, ts: Date.now() });
     if (exchangeRateCache.size > CACHE_MAX_ENTRIES) {
       const oldest = exchangeRateCache.keys().next().value;
       if (oldest) exchangeRateCache.delete(oldest);
