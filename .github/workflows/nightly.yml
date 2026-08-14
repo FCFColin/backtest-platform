@@ -215,6 +215,10 @@ jobs:
     env:
       NODE_VERSION: '22'
       PNPM_VERSION: '11.5.3'
+      # compose override 将 PG/Redis 映射到 15442/16381；e2e-servers.mjs 会透传，
+      # 否则后端回落到默认 5432/6379 连不上
+      DATABASE_URL: postgresql://backtest_app:backtest_app_dev@localhost:15442/backtest_test
+      REDIS_URL: redis://localhost:16381
     timeout-minutes: 45
     steps:
       - name: Checkout
