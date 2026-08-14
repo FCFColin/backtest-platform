@@ -1,6 +1,6 @@
 # 回测平台 (Backtest Platform)
 
-模仿 [testfol.io](https://testfol.io/) 的专业投资组合回测平台，支持 ETF/股票/基金的历史回测、蒙特卡洛模拟、组合优化和有效前沿分析。本地部署、免费、Go+TS 双语言架构。
+模仿 [testfol.io](https://testfol.io/) 的专业投资组合回测平台，支持 ETF/股票/基金的历史回测、蒙特卡洛模拟、组合优化和有效前沿分析。多租户 SaaS 架构（ADR-009/ADR-010），Go+TS 双语言，并支持本地私有化部署。
 
 ## 架构概览
 
