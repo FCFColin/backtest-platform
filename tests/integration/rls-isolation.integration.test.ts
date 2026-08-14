@@ -153,4 +153,36 @@ describe.skipIf(!dockerAvailable)('RLS 跨租户隔离集成测试（P0-03）', 
       }),
     ).rejects.toThrow();
   });
+
+  it('事务结束后租户 GUC 失效（SET LOCAL 语义，PgBouncer 连接复用安全）', async () => {
+    await withTenant(orgA, async (client) => {
+      await client.query('SELECT 1');
+    });
+
+    const pool = getPool();
+    const client = await pool.connect();
+    try {
+      const { rows } = await client.query(
+        "SELECT current_setting('app.current_tenant_id', true) AS val",
+      );
+      expect(rows[0].val === '' || rows[0].val === null).toBe(true);
+    } finally {
+      client.release();
+    }
+  });
+
+  it('非匹配租户 UUID 查询返回零行（fail-safe，拒绝优于泄露）', async () => {
+    const rows = await withTenantReadOnly(
+      '00000000-0000-0000-0000-000000000000',
+      async (client) => {
+        const { rows } = await client.query('SELECT id FROM portfolios');
+        return rows;
+      },
+    );
+    expect(rows).toHaveLength(0);
+  });
+
+  it('非法 tenantId 应在连接前拒绝（UUID 校验）', async () => {
+    await expect(withTenant('not-a-uuid', async () => 'ok')).rejects.toThrow(/非法 tenantId/);
+  });
 });
