@@ -107,16 +107,32 @@ export type ReferenceLine = {
   axis: 'x' | 'y';
   value: number | string;
   label?: string;
+  labelColor?: string;
+  labelFontSize?: number;
   color?: string;
   dash?: string;
+  width?: number;
 };
 export function markLineData(referenceLines: ReferenceLine[], defaultColor: string) {
   return {
     silent: true,
     data: referenceLines.map((rl) => ({
       [rl.axis === 'x' ? 'xAxis' : 'yAxis']: rl.value,
-      lineStyle: { color: rl.color ?? defaultColor, type: rl.dash ?? 'dashed' },
-      ...(rl.label ? { label: { formatter: rl.label, position: 'insideEndTop' as const } } : {}),
+      lineStyle: {
+        color: rl.color ?? defaultColor,
+        type: rl.dash ?? 'dashed',
+        ...(rl.width ? { width: rl.width } : {}),
+      },
+      ...(rl.label
+        ? {
+            label: {
+              formatter: rl.label,
+              position: 'insideEndTop' as const,
+              color: rl.labelColor ?? defaultColor,
+              fontSize: rl.labelFontSize ?? 11,
+            },
+          }
+        : {}),
     })),
   };
 }

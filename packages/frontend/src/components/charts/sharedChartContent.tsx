@@ -14,6 +14,7 @@ import {
   axisTooltipFormatter,
   valueXAxis,
   valueYAxis,
+  type ReferenceLine,
 } from './chartUtils.js';
 
 type ChartDataPoint = Record<string, number | string | null>;
@@ -77,13 +78,7 @@ export interface SimpleChartProps {
   dataZoom?: boolean;
   ariaLabel?: string;
   series: SimpleSeriesSpec[];
-  referenceLines?: Array<{
-    axis: 'x' | 'y';
-    value: number | string;
-    label?: string;
-    color?: string;
-    dash?: string;
-  }>;
+  referenceLines?: ReferenceLine[];
 }
 export function SimpleChart({
   type = 'line',
@@ -200,7 +195,7 @@ export function SimpleChart({
   );
 }
 export const SimpleAreaChart = (p: Omit<SimpleChartProps, 'type'>) => (
-  <SimpleChart type="area" height={440} showLegend={false} {...p} />
+  <SimpleChart type="area" height={440} {...p} />
 );
 export const SimpleLineChart = (p: Omit<SimpleChartProps, 'type'>) => (
   <SimpleChart type="line" {...p} />

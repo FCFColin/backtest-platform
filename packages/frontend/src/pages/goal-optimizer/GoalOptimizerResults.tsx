@@ -1,19 +1,11 @@
 import { useTranslation } from 'react-i18next';
-import type { EChartsOption } from 'echarts';
 import type { GoalOptimizerResult } from '@backtest/shared';
 import { fmtPct, fmtAmount } from '@/utils/format';
 import { useGoalOptimizerState, type GoalOptimizerState } from '@/hooks/useGoalOptimizerState.js';
 import { GoalOptimizerParamsPanel } from './GoalOptimizerParams.js';
 import { ComputeToolShell, type ComputeToolConfig } from '../../components/shells/index.js';
 import { getPortfolioColor } from '@/lib/chart-theme.js';
-import {
-  axisTooltipFormatter,
-  categoryAxis,
-  tooltipOption,
-  valueXAxis,
-  valueYAxis,
-} from '@/components/charts/chartUtils.js';
-import EChart from '@/components/charts/EChart.js';
+import { SimpleChart } from '@/components/charts/sharedChartContent.js';
 import ChartCard from '@/components/ChartCard.js';
 import { Card, Progress } from '@/components/ui/uiComponents';
 import { ResultsShell } from '@/components/resultsShell.js';
@@ -28,42 +20,44 @@ function ProbabilityDistributionChart({
   targetAmount: number;
 }) {
   const { t } = useTranslation();
-  const option: EChartsOption = {
-    grid: GRID,
-    xAxis: valueXAxis({ formatter: (v: number) => `$${(v / 1000).toFixed(0)}k` }),
-    yAxis: valueYAxis({ formatter: (v: number) => fmtPct(v, 1) }),
-    tooltip: tooltipOption(
-      axisTooltipFormatter(
-        (label) => fmtAmount(Number(label)),
-        (v) => [fmtPct(v), t('Probability')],
-      ),
-    ),
-    series: [
-      {
-        name: t('Probability'),
-        type: 'area',
-        smooth: true,
-        data: data.map((d) => [d.amount, d.probability]),
-        lineStyle: { width: 2, color: getPortfolioColor(0) },
-        itemStyle: { color: getPortfolioColor(0) },
-        areaStyle: { opacity: 0.3 },
-        symbol: 'none',
-        markLine: {
-          silent: true,
-          data: [
-            {
-              xAxis: targetAmount,
-              lineStyle: { color: getPortfolioColor(3), type: 'dashed', width: 1.5 },
-              label: { formatter: t('Target'), color: getPortfolioColor(3), fontSize: 11 },
-            },
-          ],
-        },
-      },
-    ] as EChartsOption['series'],
-  };
+  const targetColor = getPortfolioColor(3);
   return (
     <ChartCard title={t('Final Value Probability Distribution')}>
-      <EChart option={option} height={300} ariaLabel={t('Final Value Probability Distribution')} />
+      <SimpleChart
+        type="area"
+        data={data}
+        height={300}
+        margin={GRID}
+        xDataKey="amount"
+        xType="number"
+        xTickFormatter={(v) => `$${(Number(v) / 1000).toFixed(0)}k`}
+        yTickFormatter={(v: number) => fmtPct(v, 1)}
+        tooltipFormatter={(v: number) => [fmtPct(v), t('Probability')]}
+        tooltipLabelFormatter={(label) => fmtAmount(Number(label))}
+        ariaLabel={t('Final Value Probability Distribution')}
+        series={[
+          {
+            dataKey: 'probability',
+            name: t('Probability'),
+            color: getPortfolioColor(0),
+            width: 2,
+            smooth: true,
+            areaOpacity: 0.3,
+          },
+        ]}
+        referenceLines={[
+          {
+            axis: 'x',
+            value: targetAmount,
+            label: t('Target'),
+            color: targetColor,
+            dash: 'dashed',
+            width: 1.5,
+            labelColor: targetColor,
+            labelFontSize: 11,
+          },
+        ]}
+      />
     </ChartCard>
   );
 }
@@ -75,56 +69,44 @@ function OptimalPathChart({
   targetAmount: number;
 }) {
   const { t } = useTranslation();
-  const years = data.map((d) => String(d.year));
-  const series = (
-    [
-      { dataKey: 'p90', name: 'P90', color: getPortfolioColor(2), width: 1.5 },
-      { dataKey: 'median', name: t('Median'), color: getPortfolioColor(0), width: 2.5 },
-      { dataKey: 'p10', name: 'P10', color: getPortfolioColor(3), width: 1.5 },
-    ] as const
-  ).map((s) => ({
-    name: s.name,
-    type: 'line',
-    smooth: true,
-    data: data.map((d) => d[s.dataKey]),
-    lineStyle: { width: s.width, color: s.color },
-    itemStyle: { color: s.color },
-    symbol: 'none',
-    emphasis: { focus: 'series' },
-  }));
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 需要动态添加 markLine 属性
-  const seriesArr: any[] = series;
-  seriesArr[0].markLine = {
-    silent: true,
-    data: [
-      {
-        yAxis: targetAmount,
-        lineStyle: { color: getPortfolioColor(3), type: 'dashed', width: 1.5 },
-        label: {
-          formatter: t('Target'),
-          color: getPortfolioColor(3),
-          fontSize: 11,
-          position: 'insideEndTop',
-        },
-      },
-    ],
-  };
-  const option: EChartsOption = {
-    grid: GRID,
-    xAxis: categoryAxis(years, { formatter: (v: string) => `${v}y` }),
-    yAxis: valueYAxis({ formatter: (v: number) => `$${(v / 1000).toFixed(0)}k` }),
-    tooltip: tooltipOption(
-      axisTooltipFormatter(
-        (label) => t('Year {{year}}', { year: label }),
-        (v) => [fmtAmount(v), ''],
-      ),
-    ),
-    legend: { top: 0, textStyle: { color: 'hsl(var(--fg-tertiary))', fontSize: 12 } },
-    series: seriesArr as EChartsOption['series'],
-  };
+  const targetColor = getPortfolioColor(3);
   return (
     <ChartCard title={t('Optimal Path (Median / P10 / P90)')}>
-      <EChart option={option} height={350} ariaLabel={t('Optimal Path (Median / P10 / P90)')} />
+      <SimpleChart
+        data={data}
+        height={350}
+        margin={GRID}
+        xDataKey="year"
+        xTickFormatter={(v) => `${v}y`}
+        yTickFormatter={(v: number) => `$${(v / 1000).toFixed(0)}k`}
+        tooltipFormatter={(v: number) => [fmtAmount(v), '']}
+        tooltipLabelFormatter={(label) => t('Year {{year}}', { year: label })}
+        legendPosition="top"
+        ariaLabel={t('Optimal Path (Median / P10 / P90)')}
+        series={[
+          { dataKey: 'p90', name: 'P90', color: getPortfolioColor(2), width: 1.5, smooth: true },
+          {
+            dataKey: 'median',
+            name: t('Median'),
+            color: getPortfolioColor(0),
+            width: 2.5,
+            smooth: true,
+          },
+          { dataKey: 'p10', name: 'P10', color: getPortfolioColor(3), width: 1.5, smooth: true },
+        ]}
+        referenceLines={[
+          {
+            axis: 'y',
+            value: targetAmount,
+            label: t('Target'),
+            color: targetColor,
+            dash: 'dashed',
+            width: 1.5,
+            labelColor: targetColor,
+            labelFontSize: 11,
+          },
+        ]}
+      />
     </ChartCard>
   );
 }
