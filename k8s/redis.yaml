@@ -58,7 +58,7 @@ spec:
         fsGroup: 999
       initContainers:
         - name: init-script
-          image: redis:7-alpine
+          image: redis:7.4-alpine
           command:
             [
               'sh',
@@ -72,7 +72,7 @@ spec:
               mountPath: /scripts
       containers:
         - name: redis
-          image: redis:7-alpine
+          image: redis:7.4-alpine
           ports:
             - containerPort: 6379
               name: redis

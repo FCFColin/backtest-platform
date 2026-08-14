@@ -59,6 +59,23 @@ patchesStrategicMerge:
               whenUnsatisfiable: ScheduleAnyway
               labelSelector: { matchLabels: { app: api } }
   - |-
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata: { name: data-fetcher }
+    spec:
+      template:
+        spec:
+          affinity:
+            podAntiAffinity:
+              preferredDuringSchedulingIgnoredDuringExecution:
+                - weight: 100
+                  podAffinityTerm: { topologyKey: kubernetes.io/hostname, labelSelector: { matchLabels: { app: data-fetcher } } }
+          topologySpreadConstraints:
+            - maxSkew: 1
+              topologyKey: topology.kubernetes.io/zone
+              whenUnsatisfiable: ScheduleAnyway
+              labelSelector: { matchLabels: { app: data-fetcher } }
+  - |-
     apiVersion: autoscaling/v2
     kind: HorizontalPodAutoscaler
     metadata: { name: engine-go-hpa }
