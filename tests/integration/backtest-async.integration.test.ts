@@ -118,7 +118,8 @@ describe('P0-01 T3 · 异步回测全链路集成测试', () => {
     const { res: pollRes, json: pollJson } = await pollStatus(submitJson.data.statusUrl);
     expect(pollRes.status).toBe(200);
     expect(pollJson.data.status).toBe('failed');
-    expect(pollJson.data.error).toBe('Engine timeout after 90s');
+    // 安全口径：BullMQ 内部 failedReason 不对外泄漏（与 jobRoutes 一致）
+    expect(pollJson.data.error).toBe('Job execution failed');
   });
 
   it('场景3: 幂等性 — 相同 Idempotency-Key 返回已有 jobId', async () => {

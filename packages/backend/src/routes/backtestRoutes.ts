@@ -16,10 +16,10 @@ import {
   crudRouteHandler,
   computeRoute,
   resolveAuthorizedJob,
+  buildJobStatus,
 } from './routeUtils.js';
 import { submitQueueJob } from './jobSubmission.js';
 import type { AuthenticatedRequest } from '../middleware/jwtAuth.js';
-import type { BacktestJobResult } from '../queues/backtestQueue.js';
 import { validate } from '../middleware/miscMiddleware.js';
 import {
   portfolioBacktestSchema,
@@ -71,29 +71,13 @@ router.post(
   }),
 );
 
-function mapJobState(bullmqState: string): 'queued' | 'running' | 'completed' | 'failed' {
-  if (bullmqState === 'completed') return 'completed';
-  if (bullmqState === 'failed') return 'failed';
-  if (bullmqState === 'delayed') return 'queued';
-  return 'running';
-}
-
 router.get(
   '/runs/:jobId',
   crudRouteHandler(
     async (req, res): Promise<void> => {
       const job = await resolveAuthorizedJob(req, res, req.params.jobId!);
       if (!job) return;
-      const status = mapJobState(await job.getState());
-      const progress = typeof job.progress === 'number' ? job.progress : 0;
-      const data: Record<string, unknown> = { jobId: job.id, status, progress };
-      if (status === 'completed' && job.returnvalue) {
-        const returnValue = job.returnvalue as BacktestJobResult;
-        if (returnValue.status === 'completed' && returnValue.result)
-          data.result = returnValue.result;
-        else if (returnValue.status === 'failed') data.error = returnValue.error;
-      } else if (status === 'failed') data.error = job.failedReason || 'Job execution failed';
-      res.json({ success: true, data });
+      res.json({ success: true, data: buildJobStatus(job, await job.getState()) });
     },
     { logMsg: '[backtestRoutes] 查询异步任务状态失败', code: 'JOB_STATUS_ERROR' },
   ),

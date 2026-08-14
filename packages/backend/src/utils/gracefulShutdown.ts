@@ -26,7 +26,10 @@ export function createShutdownOnce(opts: {
     }, timeoutMs);
     onShutdown(signal)
       .then(() => logger.info(`${tag}Graceful shutdown complete`))
-      .catch((err) => logger.error({ err }, `${tag}Error during shutdown`))
+      .catch((err) => {
+        logger.error({ err }, `${tag}Error during shutdown`);
+        exitCode = 1;
+      })
       .finally(() => {
         clearTimeout(forceExitTimeout);
         process.exit(exitCode);

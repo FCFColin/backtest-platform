@@ -39,7 +39,6 @@ export interface BacktestMockHandles {
   loadMacroData: MockFn;
   validateTickers: MockFn;
   portfolioToDomain: MockFn;
-  sanitizeMcParams: MockFn;
 }
 
 export function configurePortfolioBacktestMocks(m: BacktestMockHandles): void {
@@ -122,22 +121,6 @@ export function configureMonteCarloMocks(m: BacktestMockHandles): void {
       };
     },
   );
-
-  // 与 backtest-helpers.ts MC_PARAMS_ALLOWED_KEYS（Go MCSimParams）保持一致
-  const MC_ALLOWED = new Set([
-    'numSimulations',
-    'numYears',
-    'minBlockYears',
-    'maxBlockYears',
-    'successThreshold',
-  ]);
-  m.sanitizeMcParams.mockImplementation((mcParams: object | undefined) => {
-    if (!mcParams || typeof mcParams !== 'object' || Array.isArray(mcParams)) return {};
-    const raw = mcParams as Record<string, unknown>;
-    const sanitized: Record<string, unknown> = {};
-    for (const key of Object.keys(raw)) if (MC_ALLOWED.has(key)) sanitized[key] = raw[key];
-    return sanitized;
-  });
 }
 
 export function configureOptimizationMocks(m: BacktestMockHandles): void {

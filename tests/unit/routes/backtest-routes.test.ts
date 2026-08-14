@@ -559,7 +559,7 @@ describe('backtestRoutes - GET /api/v1/backtest/runs/:jobId — 状态查询', (
     [
       'failed 状态返回 200 + 错误信息',
       { id: 'job-failed', state: 'failed', progress: 30, failedReason: 'Engine timeout after 90s' },
-      { status: 'failed', error: 'Engine timeout after 90s', noResult: true },
+      { status: 'failed', error: 'Job execution failed', noResult: true },
     ],
     [
       'running 状态返回 200 + 进度',
@@ -586,7 +586,7 @@ describe('backtestRoutes - GET /api/v1/backtest/runs/:jobId — 状态查询', (
     const { res, json } = await get(`${getServer().url}/api/v1/backtest/runs/${job.id}`);
     expect(res.status).toBe(200);
     expect(json.success).toBe(true);
-    expect(json.data.jobId).toBe(job.id);
+    expect(json.data.id).toBe(job.id);
     expect(json.data.status).toBe(expected.status);
     if (expected.progress !== undefined) expect(json.data.progress).toBe(expected.progress);
     if (expected.result !== undefined) expect(json.data.result).toEqual(expected.result);
@@ -631,8 +631,7 @@ describe('jobRoutes - GET /api/v1/jobs/:id', () => {
     const { res, json } = await get(`${getServer().url}/api/v1/jobs/job-123`);
     expect(res.status).toBe(200);
     expect(json.data.id).toBe('job-123');
-    expect(json.data.type).toBe('optimizer');
-    expect(json.data.state).toBe('completed');
+    expect(json.data.status).toBe('completed');
     expect(json.data.createdAt).toBe(1700000000000);
     expect(json.data.processedAt).toBe(1700000001000);
     expect(json.data.finishedAt).toBe(1700000005000);
@@ -651,7 +650,7 @@ describe('jobRoutes - GET /api/v1/jobs/:id', () => {
     );
     const { res, json } = await get(`${getServer().url}/api/v1/jobs/job-456`);
     expect(res.status).toBe(200);
-    expect(json.data.state).toBe('failed');
+    expect(json.data.status).toBe('failed');
     expect(json.data.error).toBe('Job execution failed');
     expect(json.data.error).not.toContain('Engine timeout');
     expect(json.data.result).toBeUndefined();
@@ -736,7 +735,7 @@ describe('jobRoutes - GET /api/v1/jobs/:id', () => {
     expect(json.error.title).toBe('JOB_STATUS_ERROR');
   });
 
-  it('任务处于 active 状态时不应包含 result 或 error', async () => {
+  it('active 状态归一化为 running 且不应包含 result 或 error', async () => {
     queueMocks.getJob.mockResolvedValue(
       createMockJob({
         id: 'job-active',
@@ -746,7 +745,7 @@ describe('jobRoutes - GET /api/v1/jobs/:id', () => {
     );
     const { res, json } = await get(`${getServer().url}/api/v1/jobs/job-active`);
     expect(res.status).toBe(200);
-    expect(json.data.state).toBe('active');
+    expect(json.data.status).toBe('running');
     expect(json.data.result).toBeUndefined();
     expect(json.data.error).toBeUndefined();
   });

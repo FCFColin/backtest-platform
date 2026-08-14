@@ -1,9 +1,10 @@
 import { Router } from 'express';
 import type { Response, Request, RequestHandler } from 'express';
 import type { ZodSchema } from 'zod';
-import { sendProblem, UpstreamProblemError, ApplicationError } from '../utils/errors.js';
+import { sendProblem } from '../utils/errors.js';
 import { EngineUnavailableError } from '../utils/engineClient.js';
-import { TimeoutError, isUuid } from '../utils/misc.js';
+import { isUuid } from '../utils/misc.js';
+import { translateToProblem } from '../utils/errorMapper.js';
 import { logger } from '../utils/logger.js';
 import { recordBacktestRequest, recordDegradedResponse } from '../utils/metrics.js';
 import type { AuthenticatedRequest } from '../middleware/jwtAuth.js';
@@ -18,28 +19,6 @@ type BacktestResult = {
   warnings?: (Warning | string)[];
   dateRange?: unknown;
 } & { degraded?: boolean; degradedWarning?: string };
-
-function translateError(res: Response, error: unknown): 'engine' | 'app' | null {
-  if (error instanceof EngineUnavailableError) {
-    sendProblem(res, 503, 'ENGINE_UNAVAILABLE', undefined, {
-      headers: { 'Retry-After': String(error.retryAfterSeconds) },
-    });
-    return 'engine';
-  }
-  if (error instanceof UpstreamProblemError) {
-    sendProblem(res, error.status, error.code);
-    return 'engine';
-  }
-  if (error instanceof ApplicationError) {
-    sendProblem(res, error.statusCode, error.errorCode, error.errorTitle);
-    return 'app';
-  }
-  if (error instanceof TimeoutError) {
-    sendProblem(res, 503, 'COMPUTE_TIMEOUT');
-    return 'app';
-  }
-  return null;
-}
 
 export function ownerOf(req: AuthenticatedRequest): string | null {
   const sub = req.user?.sub;
@@ -63,6 +42,36 @@ export function requireUuidParam(res: Response, id: string | undefined): boolean
 }
 
 export type Job = NonNullable<Awaited<ReturnType<typeof backtestQueue.getJob>>>;
+
+// BullMQ 状态归一化：backtest/runs 与 jobs/:id 两个状态端点共用同一状态词表
+function mapJobState(bullmqState: string): 'queued' | 'running' | 'completed' | 'failed' {
+  if (bullmqState === 'completed') return 'completed';
+  if (bullmqState === 'failed') return 'failed';
+  if (bullmqState === 'delayed') return 'queued';
+  return 'running';
+}
+
+// 两个状态端点唯一契约：字段/状态词表/worker 返回解包一次收敛（前端 pollJobStatus 消费 status/result/error）
+export function buildJobStatus(job: Job, state: string): Record<string, unknown> {
+  const data: Record<string, unknown> = {
+    id: job.id,
+    status: mapJobState(state),
+    progress: typeof job.progress === 'number' ? job.progress : 0,
+    createdAt: job.timestamp,
+    processedAt: job.processedOn,
+    finishedAt: job.finishedOn,
+  };
+  if (state === 'completed' && job.returnvalue) {
+    const rv = job.returnvalue as { status?: string; result?: unknown; error?: string };
+    if (rv.status === 'completed' && rv.result) data.result = rv.result;
+    else if (rv.status === 'failed') data.error = rv.error;
+    else data.result = rv;
+  } else if (state === 'failed') {
+    // 不泄漏 BullMQ 内部 failedReason（与 jobRoutes 安全口径一致）；worker 显式返回的 sanitized error 走上方 returnvalue 分支
+    data.error = 'Job execution failed';
+  }
+  return data;
+}
 
 // 查找 + IDOR 鉴权 + 404/400 响应一次性收敛（ADR-007），backtest/jobs 两条状态路由共用
 export async function resolveAuthorizedJob(
@@ -98,29 +107,18 @@ const recordDegraded = (endpoint?: string) => {
 
 type RouteHandlerFn = (req: AuthenticatedRequest, res: Response) => Promise<void>;
 
-function baseHandler(
-  fn: RouteHandlerFn,
-  errorConfig: RouteErrorConfig,
-  mode: 'translate' | 'plain',
-): RequestHandler {
+function baseHandler(fn: RouteHandlerFn, errorConfig: RouteErrorConfig): RequestHandler {
   return async (req, res): Promise<void> => {
     try {
       await fn(req as AuthenticatedRequest, res);
     } catch (error) {
-      const translated = mode === 'translate' ? translateError(res, error) : null;
-      if (translated) {
-        if (translated === 'engine') recordDegraded(errorConfig.endpoint);
+      if (translateToProblem(res, error)) {
+        if (error instanceof EngineUnavailableError) recordDegraded(errorConfig.endpoint);
         else recordEndpointError(errorConfig.endpoint);
         return;
       }
       recordEndpointError(errorConfig.endpoint);
-      logger.error(
-        {
-          err: error as Error,
-          ...(mode === 'plain' ? { path: req.path, method: req.method } : {}),
-        },
-        errorConfig.logMsg,
-      );
+      logger.error({ err: error as Error, path: req.path, method: req.method }, errorConfig.logMsg);
       sendProblem(res, 500, errorConfig.code);
     }
   };
@@ -200,14 +198,12 @@ export function computeRoute(
   });
 }
 
+// 计算/异步端点与 CRUD 端点共用同一 baseHandler：错误映射已收敛到 translateToProblem，两导出名保留仅为调用点语义可读
 export const asyncRouteHandler = (
   fn: RouteHandlerFn,
   errorConfig: RouteErrorConfig,
-): RequestHandler => baseHandler(fn, errorConfig, 'translate');
-export const crudRouteHandler = (
-  fn: RouteHandlerFn,
-  errorConfig: RouteErrorConfig,
-): RequestHandler => baseHandler(fn, errorConfig, 'plain');
+): RequestHandler => baseHandler(fn, errorConfig);
+export const crudRouteHandler = asyncRouteHandler;
 
 export function tenantHandler(
   logMsg: string,

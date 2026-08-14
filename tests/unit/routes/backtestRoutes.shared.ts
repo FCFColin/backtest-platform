@@ -30,7 +30,6 @@ const internalMocks = vi.hoisted(() => ({
     loadMacroData: vi.fn(),
     validateTickers: vi.fn(),
     portfolioToDomain: vi.fn(),
-    sanitizeMcParams: vi.fn(),
   } as BacktestMockHandles,
   fs: {
     existsSync: vi.fn().mockReturnValue(false),
@@ -80,7 +79,6 @@ vi.mock('../../../packages/backend/src/application/backtest-helpers.js', () => (
   filterPriceData: internalMocks.m.filterPriceData,
   fetchPriceDataWithRange: internalMocks.m.fetchPriceDataWithRange,
   loadMacroData: internalMocks.m.loadMacroData,
-  sanitizeMcParams: internalMocks.m.sanitizeMcParams,
   validateTickers: internalMocks.m.validateTickers,
   translateDomainError: vi.fn(<T>(fn: () => T): T => fn()),
 }));

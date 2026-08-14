@@ -9,7 +9,10 @@ function createValidator(source: 'body' | 'query', statusCode: number) {
   return (schema: ZodSchema) => (req: Request, res: Response, next: NextFunction) => {
     const result = schema.safeParse(source === 'body' ? req.body : req.query);
     if (!result.success) {
-      sendProblem(res, statusCode, 'VALIDATION_ERROR');
+      const detail = result.error.issues
+        .map((i) => `${i.path.join('.') || '<root>'}: ${i.message}`)
+        .join('; ');
+      sendProblem(res, statusCode, 'VALIDATION_ERROR', undefined, { detail });
       return;
     }
     if (source === 'body') req.body = result.data;

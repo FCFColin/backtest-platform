@@ -3,7 +3,6 @@ import { jwtAuth } from '../middleware/jwtAuth.js';
 import { resolveTenant } from '../middleware/tenantContext.js';
 import { computeMiddleware } from '../middleware/middlewareChains.js';
 import { Permission } from '../middleware/rbac.js';
-import { logger } from '../utils/logger.js';
 import { sendProblem } from '../utils/errors.js';
 import { validate } from '../middleware/miscMiddleware.js';
 import { backtestOptimizerSchema } from '../schemas/backtest.js';
@@ -14,36 +13,13 @@ import {
   MAX_GRID_COMBINATIONS,
   type TacticalGridRequest,
 } from '../application/grid-application-service.js';
-import { crudRouteHandler, resolveAuthorizedJob, type Job } from './routeUtils.js';
+import { crudRouteHandler, resolveAuthorizedJob, buildJobStatus } from './routeUtils.js';
 import { submitQueueJob } from './jobSubmission.js';
 
 const router = Router();
 export const jobRoutes = router;
 
-function buildJobResult(job: Job, state: string): Record<string, unknown> {
-  const result: Record<string, unknown> = {
-    id: job.id,
-    type: job.data.type,
-    state,
-    createdAt: job.timestamp,
-    processedAt: job.processedOn,
-    finishedAt: job.finishedOn,
-  };
-  if (state === 'completed' && job.returnvalue) {
-    const rv = job.returnvalue as { status?: string; result?: unknown };
-    // worker 返回 {status, result}，解包使 result.data 可直接消费
-    result.result = rv.status ? rv.result : rv;
-  } else if (state === 'failed') {
-    logger.error(
-      { middleware: 'jobRoutes', jobId: job.id, failedReason: job.failedReason },
-      '[jobRoutes] 任务执行失败',
-    );
-    result.error = 'Job execution failed';
-  }
-  return result;
-}
-
-// GET /api/v1/jobs/:id — 仅任务提交者或 admin 可读取（ADR-007 IDOR 防护）
+// GET /api/v1/jobs/:id — 仅任务提交者或 admin 可读取（ADR-007 IDOR 防护），契约与 /backtest/runs/:jobId 一致
 router.get(
   '/jobs/:id',
   jwtAuth,
@@ -59,8 +35,7 @@ router.get(
       const job = await resolveAuthorizedJob(req, res, req.params.id!);
       if (!job) return;
 
-      const state = await job.getState();
-      res.json({ success: true, data: buildJobResult(job, state) });
+      res.json({ success: true, data: buildJobStatus(job, await job.getState()) });
     },
     {
       logMsg: '[jobRoutes] 查询任务状态失败',

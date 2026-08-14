@@ -38,33 +38,36 @@ export async function callService(
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
-    const requestId = getRequestId();
-    const headers: Record<string, string> = {
-      ...(options?.headers as Record<string, string> | undefined),
-      ...getTracePropagationHeaders(),
-    };
-    if (requestId) {
-      headers['x-request-id'] = requestId;
-    }
-    const resp = await fetch(`${baseUrl}${endpoint}`, {
-      ...options,
-      headers,
-      signal: controller.signal,
-    });
-    clearTimeout(timeout);
-    if (!resp.ok) {
-      const body = await resp.text().catch(() => '');
-      // 4xx: 参数错误，透传原始状态码
-      if (resp.status >= 400 && resp.status < 500) {
-        throw parseUpstreamProblem(resp.status, body);
+    try {
+      const requestId = getRequestId();
+      const headers: Record<string, string> = {
+        ...(options?.headers as Record<string, string> | undefined),
+        ...getTracePropagationHeaders(),
+      };
+      if (requestId) {
+        headers['x-request-id'] = requestId;
       }
-      // 5xx: 返回 null，由调用方走降级路径
-      logger.warn(
-        `[服务调用] ${baseUrl}${endpoint} HTTP ${resp.status}，响应体: ${body.slice(0, 500)}，返回 null`,
-      );
-      return null;
+      const resp = await fetch(`${baseUrl}${endpoint}`, {
+        ...options,
+        headers,
+        signal: controller.signal,
+      });
+      if (!resp.ok) {
+        const body = await resp.text().catch(() => '');
+        // 4xx: 参数错误，透传原始状态码
+        if (resp.status >= 400 && resp.status < 500) {
+          throw parseUpstreamProblem(resp.status, body);
+        }
+        // 5xx: 返回 null，由调用方走降级路径
+        logger.warn(
+          `[服务调用] ${baseUrl}${endpoint} HTTP ${resp.status}，响应体: ${body.slice(0, 500)}，返回 null`,
+        );
+        return null;
+      }
+      return await resp.json();
+    } finally {
+      clearTimeout(timeout);
     }
-    return await resp.json();
   } catch (err: unknown) {
     if (err instanceof UpstreamProblemError) {
       throw err;

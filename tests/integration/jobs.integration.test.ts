@@ -134,7 +134,7 @@ describe('异步任务 IDOR 防护集成测试', () => {
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.success).toBe(true);
-    expect(json.data.state).toBe('completed');
+    expect(json.data.status).toBe('completed');
     expect(json.data.result).toEqual({ metrics: { sharpe: 1.5 } });
   });
 
@@ -146,7 +146,7 @@ describe('异步任务 IDOR 防护集成测试', () => {
     const res = await fetch(`${baseUrl}/api/v1/jobs/${job.id}`);
     expect(res.status).toBe(200);
     const json = await res.json();
-    expect(json.data.state).toBe('completed');
+    expect(json.data.status).toBe('completed');
   });
 
   it('不存在的任务返回 404', async () => {

@@ -45,7 +45,9 @@ async function validateJwtPayload(
     p.sub.length > 0 &&
     VALID_JWT_ROLES.has(p.role) &&
     typeof p.exp === 'number' &&
-    Number.isFinite(p.exp)
+    Number.isFinite(p.exp) &&
+    typeof p.iat === 'number' &&
+    Number.isFinite(p.iat)
   )) {
     span.setAttribute('verify.result', 'failed_missing_claims');
     return null;

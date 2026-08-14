@@ -29,8 +29,13 @@ const histogram = (
   help: string,
   labelNames: string[],
   buckets: number[],
-): client.Histogram =>
-  new client.Histogram({ name, help, labelNames, buckets, registers: [register] });
+): client.Histogram => {
+  const existing = register.getSingleMetric(name);
+  return (
+    (existing as client.Histogram | undefined) ??
+    new client.Histogram({ name, help, labelNames, buckets, registers: [register] })
+  );
+};
 
 function startSampler(fn: () => void | Promise<void>, intervalMs: number): void {
   void fn();

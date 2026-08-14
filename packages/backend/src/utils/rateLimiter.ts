@@ -7,6 +7,7 @@ import { config } from '../config/index.js';
 import { appRedis, getRedisHealth } from '../infrastructure/redisClient.js';
 import { logger } from '../utils/logger.js';
 import { getPrometheusRegister } from './metrics.js';
+import { RedisUnavailableError } from './errors.js';
 
 const rateLimiterRedisUnavailableCounter = new client.Counter({
   name: 'rate_limiter_redis_unavailable_total',
@@ -16,7 +17,7 @@ const rateLimiterRedisUnavailableCounter = new client.Counter({
 
 // 限流命令必须有界：ioredis 断线时命令进入离线队列，重连成功前不会 resolve，
 // 无超时会让被限流端点（含登录等安全路径）在 Redis 故障时挂 0-30s 才报错。
-// 超时后 fail-closed（passOnStoreError=false → next(err) → 500），符合拒绝放行的降级契约。
+// 超时后抛 RedisUnavailableError → translateToProblem 统一映射 503 REDIS_UNAVAILABLE（fail-closed）。
 const RATE_LIMITER_REDIS_TIMEOUT_MS = 2_000;
 function sendRedisCommand(...args: string[]): Promise<RedisReply> {
   const command = (appRedis.call as (...a: string[]) => Promise<unknown>)(
@@ -28,7 +29,9 @@ function sendRedisCommand(...args: string[]): Promise<RedisReply> {
       const timer = setTimeout(
         () =>
           reject(
-            new Error(`rate limiter redis command exceeded ${RATE_LIMITER_REDIS_TIMEOUT_MS}ms`),
+            new RedisUnavailableError(
+              `rate limiter redis command exceeded ${RATE_LIMITER_REDIS_TIMEOUT_MS}ms`,
+            ),
           ),
         RATE_LIMITER_REDIS_TIMEOUT_MS,
       );
@@ -37,16 +40,22 @@ function sendRedisCommand(...args: string[]): Promise<RedisReply> {
   ]);
 }
 
-// 真实连接探测：RedisStore 构造不触网（sendCommand 惰性），必须 ping 才能反映连通性，
-// 启动时即 fail-closed，避免故障期间每条请求空等 2s 超时
-const redisAvailable = (await getRedisHealth()) === true;
-if (!redisAvailable) {
-  logger.error('[rate-limit] Redis 不可用，所有限流器将 fail-closed (503)');
-  rateLimiterRedisUnavailableCounter.inc();
+// Redis 故障期间 fail-closed 503，此后每 30s 复测，恢复即自动重建真实限流器（自愈）
+const RATE_LIMITER_PROBE_INTERVAL_MS = 30_000;
+let redisHealthy = (await getRedisHealth()) === true;
+let lastProbeAt = Date.now();
+async function isRedisHealthyNow(): Promise<boolean> {
+  if (redisHealthy) return true;
+  if (Date.now() - lastProbeAt < RATE_LIMITER_PROBE_INTERVAL_MS) return false;
+  lastProbeAt = Date.now();
+  redisHealthy = (await getRedisHealth()) === true;
+  if (redisHealthy) logger.info('[rate-limit] Redis 恢复，限流器自动重建');
+  return redisHealthy;
 }
 
+// RedisStore 构造不触网（sendCommand 惰性），连通性由 isRedisHealthyNow 快照决定
 function createRateLimiterStore(prefix: string): RedisStore | undefined {
-  if (!redisAvailable) return undefined;
+  if (!redisHealthy) return undefined;
   try {
     return new RedisStore({ sendCommand: sendRedisCommand, prefix });
   } catch {
@@ -124,15 +133,7 @@ function createDenyAllLimiter(code: string, detail: string): RequestHandler {
   };
 }
 
-function createLimiter(opts: LimiterOptions): RequestHandler {
-  if (config.NODE_ENV === 'development' && config.DISABLE_RATE_LIMIT) {
-    return (_req: Request, _res: Response, next: NextFunction) => next();
-  }
-  const store = createRateLimiterStore(opts.storePrefix);
-  if (!store && !(opts.passOnStoreError ?? false)) {
-    logger.warn(`[rate-limit] Redis 不可用，${opts.storePrefix} 限流器 fail-closed (503)`);
-    return createDenyAllLimiter(opts.code, opts.detail ?? 'Rate limiter unavailable');
-  }
+function buildRateLimit(opts: LimiterOptions, store: RedisStore | undefined): RequestHandler {
   return rateLimit({
     windowMs: opts.windowMs,
     max: opts.max,
@@ -143,6 +144,28 @@ function createLimiter(opts: LimiterOptions): RequestHandler {
     store,
     message: buildRateLimitMessage(opts.code, opts.detail),
   });
+}
+
+function createLimiter(opts: LimiterOptions): RequestHandler {
+  if (config.NODE_ENV === 'development' && config.DISABLE_RATE_LIMIT) {
+    return (_req: Request, _res: Response, next: NextFunction) => next();
+  }
+  const store = createRateLimiterStore(opts.storePrefix);
+  if (store || (opts.passOnStoreError ?? false)) return buildRateLimit(opts, store);
+  logger.warn(`[rate-limit] Redis 不可用，${opts.storePrefix} 限流器 fail-closed (503)`);
+  const deny = createDenyAllLimiter(opts.code, opts.detail ?? 'Rate limiter unavailable');
+  // 先同步 fail-closed 拒绝（不阻塞请求），后台探测 Redis 恢复后重建真实限流器并接管
+  let limiter: RequestHandler | undefined;
+  return (req, res, next) => {
+    if (limiter) return limiter(req, res, next);
+    deny(req, res, next);
+    void (async () => {
+      if (!limiter && (await isRedisHealthyNow())) {
+        const recoveredStore = createRateLimiterStore(opts.storePrefix);
+        if (recoveredStore) limiter = buildRateLimit(opts, recoveredStore);
+      }
+    })();
+  };
 }
 
 export const apiLimiter = createLimiter({
