@@ -40,11 +40,11 @@ func (p *akshareProvider) FetchStockDaily(ticker, startDate, endDate string) ([]
 	return prices, nil
 }
 func doWithRetry(url string) ([]provider.DailyPrice, error) {
-	return httpclient.DoGetWithBreaker(base.Breaker, base.HTTPClient, url, parseDailyPrices)
+	return httpclient.DoGetWithBreaker(base.Breaker, base.HTTPClient, url, nil, parseDailyPrices)
 }
 func parseCodeAndMarket(ticker string) (code, market string) {
 	upper := strings.ToUpper(ticker)
-	isSH := strings.HasSuffix(upper, "_SH") || strings.HasSuffix(upper, ".SH")
+	isSH := strings.HasSuffix(upper, "_SH") || strings.HasSuffix(upper, ".SH") || strings.HasSuffix(upper, ".SS")
 	code = ticker
 	if idx := strings.LastIndex(code, "_"); idx > 0 {
 		code = code[:idx]
@@ -72,7 +72,8 @@ func parseDailyPrices(body []byte) ([]provider.DailyPrice, error) {
 		return nil, fmt.Errorf("JSON 解析失败: %w", err)
 	}
 	if raw.Data == nil {
-		return nil, fmt.Errorf("API 返回空数据")
+		// 无数据（代码不存在/停牌无记录）走空切片契约，与 finnhub/yfinance 一致 → 上游归 404
+		return []provider.DailyPrice{}, nil
 	}
 	var prices []provider.DailyPrice
 	for _, kline := range raw.Data.Klines {
@@ -80,13 +81,18 @@ func parseDailyPrices(body []byte) ([]provider.DailyPrice, error) {
 		if len(parts) < 11 {
 			continue
 		}
+		// 停牌/异常行字段为 "-"，解析为 0，按兄弟 provider 一致策略丢弃
+		close := providerutil.ParseStringFloat(parts[2])
+		if close == 0 {
+			continue
+		}
 		prices = append(prices, provider.DailyPrice{
 			Date: parts[0], Open: providerutil.ParseStringFloat(parts[1]),
-			Close:         providerutil.ParseStringFloat(parts[2]),
+			Close:         close,
 			High:          providerutil.ParseStringFloat(parts[3]),
 			Low:           providerutil.ParseStringFloat(parts[4]),
 			Volume:        providerutil.ParseStringInt(parts[5]),
-			AdjustedClose: providerutil.ParseStringFloat(parts[2])})
+			AdjustedClose: close})
 	}
 	return prices, nil
 }

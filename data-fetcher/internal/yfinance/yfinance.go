@@ -36,7 +36,7 @@ func (p *yahooProvider) FetchStockDaily(ticker, startDate, endDate string) ([]pr
 	}
 	url := fmt.Sprintf("https://query1.finance.yahoo.com/v8/finance/chart/%s?period1=%d&period2=%d&interval=1d",
 		ticker, startUnix, endUnix)
-	prices, err := httpclient.DoGetWithBreaker(base.Breaker, base.HTTPClient, url, parseChartResponse)
+	prices, err := httpclient.DoGetWithBreaker(base.Breaker, base.HTTPClient, url, nil, parseChartResponse)
 	if err != nil {
 		return nil, fmt.Errorf("yfinance FetchStockDaily 失败: %w", err)
 	}

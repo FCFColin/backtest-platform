@@ -179,18 +179,19 @@ func DoGetWithBreaker[T any](
 	breaker *gobreaker.CircuitBreaker,
 	client *Client,
 	url string,
+	headers map[string]string,
 	parse func([]byte) (T, error),
 ) (T, error) {
 	var zero T
 	if breaker == nil {
-		body, err := client.Get(url)
+		body, err := client.Get(url, headers)
 		if err != nil {
 			return zero, err
 		}
 		return parse(body)
 	}
 	result, err := breaker.Execute(func() (interface{}, error) {
-		body, err := client.Get(url)
+		body, err := client.Get(url, headers)
 		if err != nil {
 			return nil, err
 		}

@@ -37,9 +37,10 @@ func (p *finnhubProvider) FetchStockDaily(ticker, startDate, endDate string) ([]
 	if err != nil {
 		return nil, fmt.Errorf("解析结束日期 %q 失败: %w", endDate, err)
 	}
-	url := fmt.Sprintf("%s/stock/candle?symbol=%s&resolution=D&from=%d&to=%d&token=%s",
-		baseURL, ticker, startUnix, endUnix, p.apiKey)
-	return httpclient.DoGetWithBreaker(base.Breaker, base.HTTPClient, url, parseCandleResponse)
+	url := fmt.Sprintf("%s/stock/candle?symbol=%s&resolution=D&from=%d&to=%d",
+		baseURL, ticker, startUnix, endUnix)
+	return httpclient.DoGetWithBreaker(base.Breaker, base.HTTPClient, url,
+		map[string]string{"X-Finnhub-Token": p.apiKey}, parseCandleResponse)
 }
 
 type candleResponse struct {

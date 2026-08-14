@@ -29,11 +29,14 @@ func NewProvider() provider.Provider {
 	return &twelveDataProvider{BaseProvider: &base, apiKey: key}
 }
 func (p *twelveDataProvider) FetchStockDaily(ticker, startDate, endDate string) ([]provider.DailyPrice, error) {
-	url := fmt.Sprintf("%s/time_series?symbol=%s&interval=1day&outputsize=5000&apikey=%s",
-		baseURL, ticker, p.apiKey)
-	return httpclient.DoGetWithBreaker(base.Breaker, base.HTTPClient, url, func(body []byte) ([]provider.DailyPrice, error) {
-		return parseTimeSeries(body, startDate, endDate)
-	})
+	// adjust=split：API 返回拆股调整后的 OHLC，与 AdjustedClose=Close 标注一致（此前未复权数据被误标为复权）
+	url := fmt.Sprintf("%s/time_series?symbol=%s&interval=1day&outputsize=5000&adjust=split",
+		baseURL, ticker)
+	return httpclient.DoGetWithBreaker(base.Breaker, base.HTTPClient, url,
+		map[string]string{"X-TwelveData-API-Key": p.apiKey},
+		func(body []byte) ([]provider.DailyPrice, error) {
+			return parseTimeSeries(body, startDate, endDate)
+		})
 }
 
 type timeSeriesResponse struct {

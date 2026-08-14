@@ -50,15 +50,13 @@ func TestParseDailyPrices(t *testing.T) {
 			validKline("2024-01-02", "10.5", "10.8", "11.0", "10.3", "1000000"),
 			validKline("2024-01-03", "10.8", "11.2", "11.5", "10.7", "1200000"),
 		}}, Want: wantSuccess},
-		{Name: "nil data", In: parseDailyInput{dataNil: true}, Want: nil, WantErr: true},
+		{Name: "nil data 返回空切片不报错（与兄弟 provider 契约一致）", In: parseDailyInput{dataNil: true}, Want: []provider.DailyPrice{}},
 		{Name: "empty klines", In: parseDailyInput{}, Want: nil},
 		{Name: "short kline skipped", In: parseDailyInput{klines: []string{
 			validKline("2024-01-02", "10.5", "10.8", "11.0", "10.3", "1000000"),
 			"2024-01-03,10.8,11.2", // 不足 11 段，应跳过
 		}}, Want: wantSuccess[:1]},
-		{Name: "empty fields", In: parseDailyInput{klines: []string{"2024-01-02,,,,,1000000,100000,1.5,2.5,0.2,3.0"}}, Want: []provider.DailyPrice{
-			{Date: "2024-01-02", Open: 0, High: 0, Low: 0, Close: 0, Volume: 1000000, AdjustedClose: 0},
-		}},
+		{Name: "empty fields（停牌 close=0 行丢弃）", In: parseDailyInput{klines: []string{"2024-01-02,,,,,1000000,100000,1.5,2.5,0.2,3.0"}}, Want: []provider.DailyPrice{}},
 	}
 	testutil.RunParse(t, cases, func(in parseDailyInput) ([]provider.DailyPrice, error) {
 		return parseDailyPrices(buildEastMoneyJSON(in.klines, in.dataNil))
@@ -113,19 +111,20 @@ func TestDoWithRetry(t *testing.T) {
 		name    string
 		handler http.HandlerFunc
 		wantErr bool
+		wantLen int
 	}{
 		{"http 500", func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusInternalServerError)
 			_, _ = w.Write([]byte(`internal server error`))
-		}, true},
-		{"parse error", func(w http.ResponseWriter, r *http.Request) {
+		}, true, 0},
+		{"nil data 返回空切片不报错", func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			_, _ = w.Write([]byte(`{"data":null}`))
-		}, true},
+		}, false, 0},
 		{"success", func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			_, _ = w.Write(buildEastMoneyJSON([]string{validKline("2024-01-02", "10.5", "10.8", "11.0", "10.3", "1000000")}, false))
-		}, false},
+		}, false, 1},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -141,8 +140,8 @@ func TestDoWithRetry(t *testing.T) {
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
-			if len(prices) != 1 {
-				t.Fatalf("expected 1 price, got %d", len(prices))
+			if len(prices) != c.wantLen {
+				t.Fatalf("expected %d prices, got %d", c.wantLen, len(prices))
 			}
 		})
 	}
