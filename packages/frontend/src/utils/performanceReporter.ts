@@ -48,6 +48,14 @@ export function reportPageLoadTiming(): void {
   }
 }
 
+/**
+ * 上报单个 Web Vitals 指标；round 决定是否取整（CLS 需保留精度）。
+ * 独立成函数以便在无浏览器环境的单测中直接断言上报内容。
+ */
+export function reportVital(metric: string, value: number, round: boolean): void {
+  reportPerformance('vital', { metric, value: round ? Math.round(value) : value });
+}
+
 export function initVitalsReporting(): void {
   for (const [metric, fn, round] of [
     ['lcp', onLCP, true],
@@ -56,9 +64,6 @@ export function initVitalsReporting(): void {
     ['fcp', onFCP, true],
     ['ttfb', onTTFB, true],
   ] as const) {
-    fn((m) => {
-      const value = round ? Math.round(m.value) : m.value;
-      reportPerformance('vital', { metric, value });
-    });
+    fn((m) => reportVital(metric, m.value, round));
   }
 }

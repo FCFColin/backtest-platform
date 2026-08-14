@@ -1,16 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-const vitalsMocks = vi.hoisted(() => ({
-  onLCP: vi.fn(),
-  onCLS: vi.fn(),
-  onINP: vi.fn(),
-  onFCP: vi.fn(),
-  onTTFB: vi.fn(),
-}));
-
 const reportPerfMock = vi.hoisted(() => vi.fn());
 
-vi.mock('web-vitals', () => vitalsMocks);
 vi.mock('../../../packages/frontend/src/utils/errorReporter.js', () => ({
   reportPerformance: reportPerfMock,
 }));
@@ -20,7 +11,7 @@ import {
   onNavStart,
   onNavEnd,
   reportPageLoadTiming,
-  initVitalsReporting,
+  reportVital,
 } from '../../../packages/frontend/src/utils/performanceReporter';
 
 describe('trackApiCall', () => {
@@ -119,12 +110,11 @@ describe('reportPageLoadTiming', () => {
   });
 });
 
-describe('initVitalsReporting', () => {
-  it('调用时进入函数体', () => {
-    try {
-      initVitalsReporting();
-    } catch {
-      /* web-vitals mock 不适用于模块内部 ESM 导入 */
-    }
+describe('reportVital', () => {
+  it('lcp 上报取整、cls 保留原值', () => {
+    reportVital('lcp', 2500.4, true);
+    reportVital('cls', 0.05, false);
+    expect(reportPerfMock).toHaveBeenCalledWith('vital', { metric: 'lcp', value: 2500 });
+    expect(reportPerfMock).toHaveBeenCalledWith('vital', { metric: 'cls', value: 0.05 });
   });
 });
