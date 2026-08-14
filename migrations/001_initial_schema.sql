@@ -191,17 +191,6 @@ CREATE MATERIALIZED VIEW IF NOT EXISTS prices_monthly WITH (timescaledb.continuo
 SELECT ticker, time_bucket('1 month', date) AS month, first(open, date) AS open, max(high) AS high, min(low) AS low, last(close, date) AS close, sum(volume) AS volume
 FROM prices GROUP BY ticker, time_bucket('1 month', date) WITH NO DATA;
 SELECT add_continuous_aggregate_policy('prices_monthly', start_offset => INTERVAL '3 months', end_offset => INTERVAL '2 days', schedule_interval => INTERVAL '1 day', if_not_exists => TRUE);
-CREATE MATERIALIZED VIEW IF NOT EXISTS daily_aggregate WITH (timescaledb.continuous) AS
-SELECT ticker, time_bucket('1 day', date) AS day, first(open, date) AS open, max(high) AS high, min(low) AS low, last(close, date) AS close, sum(volume) AS volume
-FROM prices GROUP BY ticker, time_bucket('1 day', date) WITH NO DATA;
-CREATE MATERIALIZED VIEW IF NOT EXISTS weekly_aggregate WITH (timescaledb.continuous) AS
-SELECT ticker, time_bucket('7 days', date) AS week, first(open, date) AS open, max(high) AS high, min(low) AS low, last(close, date) AS close, sum(volume) AS volume
-FROM prices GROUP BY ticker, time_bucket('7 days', date) WITH NO DATA;
-ALTER MATERIALIZED VIEW daily_aggregate SET (timescaledb.compress, timescaledb.compress_segmentby = 'ticker', timescaledb.compress_orderby = 'day DESC');
-ALTER MATERIALIZED VIEW weekly_aggregate SET (timescaledb.compress, timescaledb.compress_segmentby = 'ticker', timescaledb.compress_orderby = 'week DESC');
-SELECT add_compression_policy('daily_aggregate', INTERVAL '30 days', if_not_exists => TRUE);
-SELECT add_compression_policy('weekly_aggregate', INTERVAL '30 days', if_not_exists => TRUE);
-DO $$ BEGIN IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'backtest_app') THEN GRANT SELECT ON daily_aggregate TO backtest_app; GRANT SELECT ON weekly_aggregate TO backtest_app; END IF; END $$;
 
 -- 等保三级合规 (P1-09): MFA + 密码历史 + 登录审计
 CREATE TABLE IF NOT EXISTS password_history ( id UUID PRIMARY KEY DEFAULT gen_random_uuid(), user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE, password_hash TEXT NOT NULL, changed_at TIMESTAMPTZ NOT NULL DEFAULT NOW() );

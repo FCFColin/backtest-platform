@@ -2,17 +2,17 @@
 
 CREATE MATERIALIZED VIEW IF NOT EXISTS daily_aggregate
   WITH (timescaledb.continuous) AS
-  SELECT date_trunc('day', date) AS bucket, ticker,
+  SELECT time_bucket('1 day', date) AS bucket, ticker,
     first(close, date) AS first_close, last(close, date) AS last_close,
     max(high) AS max_high, min(low) AS min_low, sum(volume) AS total_volume
-  FROM prices GROUP BY bucket, ticker;
+  FROM prices GROUP BY bucket, ticker WITH NO DATA;
 
 CREATE MATERIALIZED VIEW IF NOT EXISTS weekly_aggregate
   WITH (timescaledb.continuous) AS
-  SELECT date_trunc('week', date) AS bucket, ticker,
+  SELECT time_bucket('7 days', date) AS bucket, ticker,
     first(close, date) AS first_close, last(close, date) AS last_close,
     max(high) AS max_high, min(low) AS min_low, sum(volume) AS total_volume
-  FROM prices GROUP BY bucket, ticker;
+  FROM prices GROUP BY bucket, ticker WITH NO DATA;
 
 ALTER TABLE portfolios ADD COLUMN IF NOT EXISTS visible_to_roles UUID[];
 
