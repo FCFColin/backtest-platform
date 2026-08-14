@@ -116,6 +116,10 @@ func OptimizeGoals(ctx context.Context, req GoalOptimizerRequest) (*GoalOptimize
 		var dailyRets []float64
 		for d := 0; d < totalDays; d++ {
 			r := mathutil.GaussianRandom(rnd, dailyMean, dailyStd)
+			// 与 montecarlo 一致：路径不允许跌破 0（r<-1 时 1+r<0 产生负净值）
+			if r < -1 {
+				r = -1
+			}
 			dailyRets = append(dailyRets, r)
 			nextValue := path[len(path)-1] * (1 + r)
 			path = append(path, nextValue)
