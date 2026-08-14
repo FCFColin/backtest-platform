@@ -236,13 +236,13 @@ describe('strategy-application-services', () => {
       expect(result.data.benchmark).toBeDefined();
     });
 
-    it('executeTacticalWhatIf 应返回最近信号权重', async () => {
+    it('executeTacticalWhatIf 应返回信号状态与当前价格', async () => {
       mockPriceData({ SPY: { '2020-01-01': 100, '2020-01-02': 101 } });
       engineMocks.callEngineStrict.mockResolvedValueOnce({
         signalHistory: [
           {
             date: '2020-01-02',
-            activeSignals: ['sig1'],
+            activeSignals: ['sig'],
             weights: [{ ticker: 'SPY', weight: 100 }],
           },
         ],
@@ -251,7 +251,9 @@ describe('strategy-application-services', () => {
       const result = await executeTacticalWhatIf(['SPY'], strategy);
       expect(result.data).toHaveLength(1);
       expect(result.data[0].ticker).toBe('SPY');
-      expect(result.data[0].weight).toBe(100);
+      expect(result.data[0].signalType).toBe('buy');
+      expect(result.data[0].signalDate).toBe('2020-01-02');
+      expect(result.data[0].currentPrice).toBe(101);
     });
 
     it('benchmark 回测失败时应 fail-closed（ADR-008，不再降级为空结果）', async () => {

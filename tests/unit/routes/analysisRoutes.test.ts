@@ -487,7 +487,11 @@ describe('tacticalRoutes - POST /api/tactical/what-if', () => {
     });
     engineMocks.callEngineStrict.mockResolvedValue({
       signalHistory: [
-        { date: '2020-01-03', activeSignals: ['sig-1'], weights: [{ ticker: 'SPY', weight: 100 }] },
+        {
+          date: '2020-01-03',
+          activeSignals: ['SMA Signal'],
+          weights: [{ ticker: 'SPY', weight: 100 }],
+        },
       ],
     });
     return startExpressApp((app) => app.use('/api/v1', analysisRoutes));
@@ -500,7 +504,9 @@ describe('tacticalRoutes - POST /api/tactical/what-if', () => {
     expect(res.status).toBe(200);
     expect(body.success).toBe(true);
     expect(body.data[0].ticker).toBe('SPY');
-    expect(body.data[0].weight).toBe(100);
+    expect(body.data[0].signalType).toBe('buy');
+    expect(body.data[0].signalDate).toBe('2020-01-03');
+    expect(body.data[0].currentPrice).toBe(302);
   });
   it('空 tickers 数组应返回 400（zod 校验失败）', async () => {
     const { res } = await post(getServer(), '/api/v1/tactical/what-if', { tickers: [] });

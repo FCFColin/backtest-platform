@@ -1,5 +1,5 @@
 ﻿// ADR-008: 计算逻辑在 Go 引擎 /api/engine/tactical-backtest
-import type { TacticalStrategy } from '@backtest/shared/types/tactical';
+import type { TacticalStrategy, WhatIfResult } from '@backtest/shared/types/tactical';
 import type { PortfolioResult, RebalanceFrequency } from '@backtest/shared/types/index';
 import type { TacticalBacktestRequest } from '../schemas/tactical.js';
 import { fetchHistoryData } from '../infrastructure/dataFacade.js';
@@ -155,7 +155,7 @@ export async function executeTacticalBacktest(
 export async function executeTacticalWhatIf(
   tickers: string[],
   strategy: TacticalStrategy,
-): Promise<DegradedResult<Array<{ ticker: string; weight: number; signals: string[] }>>> {
+): Promise<DegradedResult<WhatIfResult[]>> {
   const end = todayStr();
   const startDate = toDateStr(new Date(Date.now() - 365 * 24 * 60 * 60 * 1000));
 
@@ -182,10 +182,26 @@ export async function executeTacticalWhatIf(
 
   const lastEntry = result.signalHistory[result.signalHistory.length - 1];
   const data = lastEntry
-    ? tickers.map((ticker) => {
-        const w = lastEntry.weights.find((wt) => wt.ticker === ticker);
-        return { ticker, weight: w?.weight ?? 0, signals: lastEntry.activeSignals };
-      })
+    ? (() => {
+        // 信号激活时施加目标权重：被纳入的标的判 buy，掉出组合（权重 0）判 sell，无信号等权持仓判 hold
+        const activeTargets = new Set(
+          lastEntry.activeSignals.flatMap((name) => {
+            const sig = strategy.signals.find((s) => s.name === name);
+            return sig?.targetWeights.map((w) => w.ticker) ?? [];
+          }),
+        );
+        const weights = new Map(lastEntry.weights.map((w) => [w.ticker, w.weight]));
+        return tickers.map((ticker) => {
+          const weight = weights.get(ticker) ?? 0;
+          const dates = Object.keys(priceData[ticker] ?? {}).sort();
+          return {
+            ticker,
+            currentPrice: dates.length > 0 ? (priceData[ticker][dates[dates.length - 1]] ?? 0) : 0,
+            signalDate: lastEntry.date,
+            signalType: weight > 0 ? (activeTargets.has(ticker) ? 'buy' : 'hold') : 'sell',
+          } satisfies WhatIfResult;
+        });
+      })()
     : [];
   return { data, degraded, degradedWarning };
 }
