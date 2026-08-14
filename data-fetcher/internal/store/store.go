@@ -110,15 +110,28 @@ func (ds *DataStore) GetPriceData(ctx context.Context, ticker, startDate, endDat
 	if len(prices) > 0 {
 		return prices, false, nil
 	}
-	startDate, endDate = defaultDateRange(startDate, endDate)
-	fetchedPrices, err := ds.fetchAndStoreFromProvider(ctx, ticker, startDate, endDate)
+	fetchedPrices, err := ds.RefreshPriceData(ctx, ticker, startDate, endDate)
 	if err != nil {
 		if errors.Is(err, ErrProviderUnavailable) {
 			return nil, false, err
 		}
 		return nil, false, fmt.Errorf("标的数据不存在: %s", ticker)
 	}
-	return filterPricePointsByDate(fetchedPrices, startDate, endDate), true, nil
+	return fetchedPrices, true, nil
+}
+
+// RefreshPriceData 总是从 provider 实时抓取并回写 DB，供数据更新任务（batch 刷新）使用；
+// 区别于 GetPriceData 的"DB 优先、缺数据才实时抓取"降级语义。
+func (ds *DataStore) RefreshPriceData(ctx context.Context, ticker, startDate, endDate string) ([]PricePoint, error) {
+	startDate, endDate = defaultDateRange(startDate, endDate)
+	fetchedPrices, err := ds.fetchAndStoreFromProvider(ctx, ticker, startDate, endDate)
+	if err != nil {
+		if errors.Is(err, ErrProviderUnavailable) {
+			return nil, err
+		}
+		return nil, fmt.Errorf("标的数据不存在: %s", ticker)
+	}
+	return filterPricePointsByDate(fetchedPrices, startDate, endDate), nil
 }
 func defaultDateRange(startDate, endDate string) (string, string) {
 	if startDate == "" {

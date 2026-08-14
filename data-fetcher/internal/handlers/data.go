@@ -4,6 +4,7 @@ import (
 	"context"
 	"data-fetcher/internal/store"
 	"errors"
+	"fmt"
 	sharedhttp "github.com/backtest/go-shared/http"
 	"github.com/gin-gonic/gin"
 	"log/slog"
@@ -75,6 +76,11 @@ func HandlePriceData(ds *store.DataStore) gin.HandlerFunc {
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": prices, "degraded": degraded})
 	}
 }
+// 批量刷新为数据更新任务的唯一调用方（全量/增量），语义是强制从 provider 实时抓取。
+// M4 安全限制：限制请求体大小与 ticker 数量，防止持有服务令牌的内部调用方打爆内存。
+const MaxBatchTickers = 100
+const MaxBatchBodyBytes = 1 << 20
+
 func HandleBatchPriceData(ds *store.DataStore) gin.HandlerFunc {
 	type BatchRequest struct {
 		Tickers   []string `json:"tickers"`
@@ -82,9 +88,14 @@ func HandleBatchPriceData(ds *store.DataStore) gin.HandlerFunc {
 		EndDate   string   `json:"endDate"`
 	}
 	return func(c *gin.Context) {
+		c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, MaxBatchBodyBytes)
 		var req BatchRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
 			sharedhttp.NewProblem(c, http.StatusBadRequest, "VALIDATION_ERROR", "Validation Error", "请求格式错误")
+			return
+		}
+		if len(req.Tickers) > MaxBatchTickers {
+			sharedhttp.NewProblem(c, http.StatusBadRequest, "VALIDATION_ERROR", "Validation Error", fmt.Sprintf("tickers 数量不能超过 %d", MaxBatchTickers))
 			return
 		}
 		if !validateTickers(c, req.Tickers) {
@@ -106,11 +117,11 @@ func HandleBatchPriceData(ds *store.DataStore) gin.HandlerFunc {
 				defer wg.Done()
 				sem <- struct{}{}
 				defer func() { <-sem }()
-				prices, degraded, err := ds.GetPriceData(c.Request.Context(), t, req.StartDate, req.EndDate)
+				prices, err := ds.RefreshPriceData(c.Request.Context(), t, req.StartDate, req.EndDate)
 				mu.Lock()
 				if err != nil {
 					if errors.Is(err, store.ErrProviderUnavailable) {
-						slog.Warn("批量抓取失败，上游暂不可用", "ticker", t, "error", err)
+						slog.Warn("批量刷新失败，上游暂不可用", "ticker", t, "error", err)
 						result[t] = map[string]interface{}{"error": "实时数据源暂不可用", "degraded": true}
 						degradedCount++
 					} else {
@@ -118,9 +129,6 @@ func HandleBatchPriceData(ds *store.DataStore) gin.HandlerFunc {
 					}
 				} else {
 					result[t] = prices
-					if degraded {
-						degradedCount++
-					}
 				}
 				mu.Unlock()
 			}(ticker)
