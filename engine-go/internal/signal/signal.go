@@ -27,6 +27,30 @@ func priceMapFrom(data []PricePoint) map[string]float64 {
 	}
 	return m
 }
+
+// pointInTimeWinRates 记录每个信号日期"当日收盘前"的滚动胜率（无交易历史时用 0.5 先验），rank 聚合据此选优避免前视偏差。
+func pointInTimeWinRates(signals []SignalPoint) map[string]float64 {
+	rates := make(map[string]float64, len(signals))
+	wins, trades := 0, 0
+	var pendingBuy *float64
+	for _, s := range signals {
+		rates[s.Date] = 0.5
+		if trades > 0 {
+			rates[s.Date] = float64(wins) / float64(trades)
+		}
+		if s.Type == SignalBuy {
+			price := s.Price
+			pendingBuy = &price
+		} else if s.Type == SignalSell && pendingBuy != nil {
+			if s.Price > *pendingBuy {
+				wins++
+			}
+			trades++
+			pendingBuy = nil
+		}
+	}
+	return rates
+}
 func AnalyzeSignal(req SignalAnalysisRequest, data []PricePoint) SignalAnalysisResult {
 	signals := filterByType(generateRawSignals(req.Indicator, req.Period, req.Threshold, data), req.SignalType)
 	return finalizeResult(signals, data)
@@ -110,8 +134,10 @@ func AnalyzeMultiSignal(ctx context.Context, configs []SignalAnalysisRequest, da
 		contributions[i] = Contribution{Index: i, Indicator: c.Indicator, Contribution: r.Statistics.AvgReturn, Statistics: r.Statistics}
 	}
 	dirMaps := make([]map[string]SignalDir, len(perSignal))
+	ptWinRates := make([]map[string]float64, len(perSignal))
 	for i, r := range perSignal {
 		dirMaps[i] = buildSignalDirMap(r.Signals)
+		ptWinRates[i] = pointInTimeWinRates(r.Signals)
 	}
 	allDates := mergedSignalDates(dirMaps...)
 	priceMap := priceMapFrom(data)
@@ -140,7 +166,7 @@ func AnalyzeMultiSignal(ctx context.Context, configs []SignalAnalysisRequest, da
 			if !ok {
 				continue
 			}
-			winRate := perSignal[i].Statistics.WinRate
+			winRate := ptWinRates[i][date]
 			if dir == SignalBuy || dir == SignalSell {
 				sign := 1.0
 				if dir == SignalSell {

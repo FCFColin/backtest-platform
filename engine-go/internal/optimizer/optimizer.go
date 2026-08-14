@@ -39,6 +39,12 @@ func Optimize(ctx context.Context, req OptimizeRequest) (*OptimizeResponse, erro
 	if req.Constraints.MaxWeight <= 0 {
 		req.Constraints.MaxWeight = 1
 	}
+	if req.Constraints.MinWeight > req.Constraints.MaxWeight {
+		return nil, engineutil.NewInputError("MinWeight 不能大于 MaxWeight")
+	}
+	if req.Constraints.MinWeight > 0 && req.Constraints.MinWeight*float64(len(req.Tickers)) > 1 {
+		return nil, engineutil.NewInputError("最小权重×标的数总和超过 1，约束不可行")
+	}
 	mu, sigma, err := prepareInputs(req.Tickers, req.PriceData)
 	if err != nil {
 		return nil, err
