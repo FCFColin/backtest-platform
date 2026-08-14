@@ -2,10 +2,18 @@
 
 import { trace, type Span } from '@opentelemetry/api';
 import { logger } from '../utils/logger.js';
-import { toDateStr } from '../utils/misc.js';
+import { toDateStr, DEFAULT_START_DATE } from '../utils/misc.js';
 import { initSchema } from '../db/migrations.js';
-import { getCacheKey, readCache } from './dataCache.js';
-import { queryPricesFromDb, fetchMissingFromGoService, validateTickers } from './dataQuery.js';
+import { getCacheKey, readCache, writeCache, SEARCH_CACHE_TTL_SEC } from './dataCache.js';
+import {
+  queryPricesFromDb,
+  fetchMissingFromGoService,
+  validateTickers,
+  searchTickersFromDb,
+  validateSearchQuery,
+  type TickerSearchResult,
+} from './dataQuery.js';
+import { fetchGoJson } from './goDataServiceClient.js';
 
 const tracer = trace.getTracer('backtest-platform', '1.0.0');
 
@@ -56,7 +64,7 @@ async function fetchFromGoWithDegradation(
   let effectiveStart = startDate;
   let effectiveEnd = endDate;
   if (startDate === '' && endDate === '') {
-    effectiveStart = '2000-01-01';
+    effectiveStart = DEFAULT_START_DATE;
     effectiveEnd = toDateStr(new Date());
   }
 
@@ -189,7 +197,7 @@ async function fetchHistoryDataImpl(
   );
   if (goDegradation.degraded) {
     degraded = true;
-    degradedWarning = goDegradation.degradedWarning;
+    degradedWarning = [degradedWarning, goDegradation.degradedWarning].filter(Boolean).join('；');
   }
 
   logger.info(
@@ -198,5 +206,39 @@ async function fetchHistoryDataImpl(
   return { data: result, degraded, degradedWarning };
 }
 
-export { validateTickers, searchTickers } from './dataQuery.js';
+export async function searchTickers(
+  query: string,
+  market?: string,
+  orgId?: string,
+): Promise<TickerSearchResult[]> {
+  if (!validateSearchQuery(query, market)) return [];
+  const dbResult = await searchTickersFromDb(query, market);
+  if (dbResult !== null) return dbResult;
+  const cacheKey = getCacheKey('search', { query, market: market || 'all' });
+  const cached = await readCache(cacheKey);
+  if (cached) return cached as TickerSearchResult[];
+  try {
+    const { success, data } = await fetchGoJson(
+      `/api/data/search?q=${encodeURIComponent(query)}`,
+      orgId,
+    );
+    if (success && Array.isArray(data)) {
+      const mapped = data.map((r: { ticker: string; name: string; market: string }) => ({
+        ticker: r.ticker,
+        name: r.name,
+        market: r.market,
+      }));
+      await writeCache(cacheKey, mapped, SEARCH_CACHE_TTL_SEC);
+      return mapped;
+    }
+    return [];
+  } catch (err) {
+    logger.warn(
+      `Go data service search failed, returning empty results: ${(err as Error).message}`,
+    );
+    return [];
+  }
+}
+
+export { validateTickers } from './dataQuery.js';
 export { invalidateAllCache } from './dataCache.js';

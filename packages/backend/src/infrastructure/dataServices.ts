@@ -61,11 +61,13 @@ interface CpiRouteResult {
 }
 
 export async function fetchCpiForRoute(country: string): Promise<CpiRouteResult> {
+  // key 归一为小写，与 loadCpiMap 共用同一缓存分区
+  const key = country.toLowerCase();
   const { raw, map } = await fetchCpiFromGo(country);
   if (raw) return { data: raw, degraded: false, notFound: false };
-  if (cpiCache[country]?.routeData) {
+  if (cpiCache[key]?.routeData) {
     return {
-      data: cpiCache[country]!.routeData,
+      data: cpiCache[key]!.routeData,
       degraded: true,
       degradedWarning: CPI_DEGRADED_WARNING,
       notFound: false,
@@ -73,7 +75,7 @@ export async function fetchCpiForRoute(country: string): Promise<CpiRouteResult>
   }
   const cpiData = await loadCpiSeriesFromDb(country);
   if (cpiData.length > 0) {
-    cpiCache[country] = { ...cpiCache[country], routeData: cpiData };
+    cpiCache[key] = { ...cpiCache[key], routeData: cpiData };
     return {
       data: cpiData,
       degraded: true,
@@ -82,7 +84,7 @@ export async function fetchCpiForRoute(country: string): Promise<CpiRouteResult>
     };
   }
   if (Object.keys(map).length > 0) {
-    cpiCache[country] = { ...cpiCache[country], routeData: map };
+    cpiCache[key] = { ...cpiCache[key], routeData: map };
     return { data: map, degraded: false, notFound: false };
   }
   return { data: null, degraded: false, notFound: true };

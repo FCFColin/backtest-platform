@@ -1,30 +1,20 @@
 import CircuitBreaker from 'opossum';
 import type { QueryResultRow } from 'pg';
 import { logger } from '../utils/logger.js';
-import { toDateStr } from '../utils/misc.js';
+import { toDateStr, DEFAULT_START_DATE } from '../utils/misc.js';
 import { getReadPool } from '../db/pool.js';
 import { registerCircuitBreakerMetrics } from '../utils/metrics.js';
 import { isValidTicker } from '../utils/tickerValidation.js';
-import {
-  writeCache,
-  getCacheKey,
-  readCache,
-  HISTORY_CACHE_TTL_SEC,
-  SEARCH_CACHE_TTL_SEC,
-} from './dataCache.js';
+import { writeCache, HISTORY_CACHE_TTL_SEC } from './dataCache.js';
 import { fetchGoJson } from './goDataServiceClient.js';
 import { scanMarketStatsFromDb, getDbEngineStatus, type DbMarketStats } from '../db/marketStats.js';
-
-const DEFAULT_START_DATE = '2000-01-01';
-function defaultDateRange(): [string, string] {
-  return [DEFAULT_START_DATE, toDateStr(new Date())];
-}
 
 interface TickerSearchResult {
   ticker: string;
   name: string;
   market: string;
 }
+export type { TickerSearchResult };
 
 export const pgCircuitBreaker = new CircuitBreaker(
   async (queryText: string, params?: unknown[]) => getReadPool().query(queryText, params),
@@ -135,8 +125,6 @@ export async function fetchMissingFromGoService(
   cacheKey: string,
   orgId?: string,
 ): Promise<{ result: Record<string, Record<string, number>>; degraded: boolean }> {
-  let [s, e] = [startDate, endDate];
-  if (s === '' && e === '') [s, e] = defaultDateRange();
   const goResult: Record<string, Record<string, number>> = {};
   let degraded = false;
   await Promise.all(
@@ -146,7 +134,7 @@ export async function fetchMissingFromGoService(
           success,
           data,
           degraded: tickerDegraded,
-        } = await fetchGoJson(`/api/data/price/${ticker}?start=${s}&end=${e}`, orgId);
+        } = await fetchGoJson(`/api/data/price/${ticker}?start=${startDate}&end=${endDate}`, orgId);
         if (success && Array.isArray(data)) {
           const priceMap = Object.fromEntries(
             (data as Array<{ date: string; close: number }>).map((p) => [p.date, p.close]),
@@ -225,40 +213,6 @@ export async function validateTickers(
     invalid,
     unknown: formatValid.filter((t) => !dbSet.has(t)),
   };
-}
-
-export async function searchTickers(
-  query: string,
-  market?: string,
-  orgId?: string,
-): Promise<TickerSearchResult[]> {
-  if (!validateSearchQuery(query, market)) return [];
-  const dbResult = await searchTickersFromDb(query, market);
-  if (dbResult !== null) return dbResult;
-  const cacheKey = getCacheKey('search', { query, market: market || 'all' });
-  const cached = await readCache(cacheKey);
-  if (cached) return cached as TickerSearchResult[];
-  try {
-    const { success, data } = await fetchGoJson(
-      `/api/data/search?q=${encodeURIComponent(query)}`,
-      orgId,
-    );
-    if (success && Array.isArray(data)) {
-      const mapped = data.map((r: { ticker: string; name: string; market: string }) => ({
-        ticker: r.ticker,
-        name: r.name,
-        market: r.market,
-      }));
-      await writeCache(cacheKey, mapped, SEARCH_CACHE_TTL_SEC);
-      return mapped;
-    }
-    return [];
-  } catch (err) {
-    logger.warn(
-      `Go data service search failed, returning empty results: ${(err as Error).message}`,
-    );
-    return [];
-  }
 }
 
 export async function getEngineStatus() {

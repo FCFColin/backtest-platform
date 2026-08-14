@@ -46,6 +46,8 @@ export function toDateStr(d: Date | string): string {
   return d.slice(0, 10);
 }
 
+export const DEFAULT_START_DATE = '2000-01-01';
+
 export function todayStr(): string {
   return new Date().toISOString().slice(0, 10);
 }

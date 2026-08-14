@@ -99,14 +99,6 @@ describe('getCacheKey', () => {
     const singleKey = getCacheKey('history', { tickers: 'SPY_AAPL' });
     expect(listKey).not.toBe(singleKey);
   });
-
-  it('应支持自定义 orgId 隔离不同租户', () => {
-    const k1 = getCacheKey('price', { ticker: 'SPY' }, 'org-a');
-    const k2 = getCacheKey('price', { ticker: 'SPY' }, 'org-b');
-    expect(k1).not.toBe(k2);
-    expect(k1.startsWith('cache:org:org-a:price:')).toBe(true);
-    expect(k2.startsWith('cache:org:org-b:price:')).toBe(true);
-  });
 });
 
 describe('readCache', () => {

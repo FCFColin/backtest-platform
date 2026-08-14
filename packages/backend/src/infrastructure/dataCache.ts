@@ -13,7 +13,6 @@ const L1_TTL_MS = 5 * 60 * 1000;
 const COMPRESS_THRESHOLD_BYTES = 1024;
 const GZIP_PREFIX = 'gzip:';
 const CACHE_KEY_PREFIX = 'cache:org:';
-const DEFAULT_ORG_ID = 'shared';
 
 interface L1Entry {
   data: unknown;
@@ -56,16 +55,12 @@ function sanitize(s: string): string {
   if (cleaned.length <= 50) return cleaned;
   return `${cleaned.slice(0, 41)}~${createHash('sha1').update(s).digest('hex').slice(0, 8)}`;
 }
-function getCacheKey(
-  type: string,
-  params: Record<string, string>,
-  orgId: string = DEFAULT_ORG_ID,
-): string {
+function getCacheKey(type: string, params: Record<string, string>): string {
   const paramStr = Object.entries(params)
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([k, v]) => `${sanitize(k)}=${sanitize(v)}`)
     .join('&');
-  return `${CACHE_KEY_PREFIX}${sanitize(orgId)}:${sanitize(type)}:${paramStr}`;
+  return `${CACHE_KEY_PREFIX}shared:${sanitize(type)}:${paramStr}`;
 }
 
 function serialize(data: unknown): string {

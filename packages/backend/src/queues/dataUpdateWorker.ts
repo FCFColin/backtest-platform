@@ -4,6 +4,7 @@ import { isSentinelMode } from '../infrastructure/redisClient.js';
 import { config } from '../config/index.js';
 import { logger } from '../utils/logger.js';
 import { getPool } from '../db/pool.js';
+import { DEFAULT_START_DATE } from '../utils/misc.js';
 import {
   DATA_UPDATE_QUEUE,
   dataUpdateDlq,
@@ -88,7 +89,7 @@ async function processDataUpdateJob(job: Job<DataUpdateJobData>): Promise<DataUp
   const startDate =
     mode === 'incremental'
       ? new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().substring(0, 10)
-      : '2000-01-01';
+      : DEFAULT_START_DATE;
 
   let completedTickers = 0;
   const failedTickers: string[] = [];

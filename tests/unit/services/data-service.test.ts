@@ -367,6 +367,7 @@ describe('extended scenarios', () => {
       vi.doMock('../../../packages/backend/src/infrastructure/dataCache.js', () => dataCacheMocks);
       vi.doMock('../../../packages/backend/src/utils/misc.js', () => ({
         toDateStr: dateUtilsMocks.toDateStr,
+        DEFAULT_START_DATE: '2000-01-01',
       }));
       dateUtilsMocks.toDateStr.mockReturnValue('2024-01-01');
       dataCacheMocks.getCacheKey.mockReturnValue('cache-key');
@@ -488,6 +489,23 @@ describe('extended scenarios', () => {
         },
       ],
       [
+        'DB 与 Go 双重降级（告警拼接而非覆盖）',
+        ['AAPL', 'MSFT'],
+        {
+          valid: ['AAPL'],
+          result: d('AAPL', 100),
+          missing: ['MSFT'],
+          dbDegraded: true,
+          go: { result: d('MSFT', 200), degraded: true },
+        },
+        {
+          data: { ...d('AAPL', 100), ...d('MSFT', 200) },
+          degraded: true,
+          warning: '数据库不可用，部分数据可能缺失；部分数据来自实时源（降级模式）',
+          goArgs: ['MSFT'],
+        },
+      ],
+      [
         'Go 仍无法获取部分（degraded=true）',
         ['AAPL', 'MSFT', 'GOOG'],
         {
@@ -547,7 +565,6 @@ describe('extended scenarios', () => {
     });
     it('直接暴露 dataQuery / dataCache 的函数（去除包装层）', () => {
       expect(facade.validateTickers).toBe(dataQueryMocks.validateTickers);
-      expect(facade.searchTickers).toBe(dataQueryMocks.searchTickers);
       expect(facade.invalidateAllCache).toBe(dataCacheMocks.invalidateAllCache);
     });
   });

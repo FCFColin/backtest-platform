@@ -160,16 +160,4 @@ describe('PBT: getCacheKey 参数顺序无关性', () => {
       expect(k1).not.toBe(k2);
     });
   });
-
-  it('不同 orgId 应产生不同 key', () => {
-    check(
-      [fc.stringMatching(/[a-zA-Z0-9]{1,30}/), fc.stringMatching(/[a-zA-Z0-9]{1,30}/)],
-      (org1, org2) => {
-        fc.pre(org1 !== org2);
-        const k1 = getCacheKey('price', { ticker: 'AAPL' }, org1);
-        const k2 = getCacheKey('price', { ticker: 'AAPL' }, org2);
-        expect(k1).not.toBe(k2);
-      },
-    );
-  });
 });
