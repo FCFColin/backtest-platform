@@ -186,7 +186,7 @@ export default defineConfig(async () => {
           'packages/frontend/src/**/*.d.ts',
           'packages/frontend/src/**/*.test.{ts,tsx}',
           'packages/frontend/src/store/{index,types}.ts',
-          'packages/backend/src/{utils/{logger,metrics},db/marketStatsTypes,app,ssrMiddleware,infrastructure/mailService,queues/{dataUpdateWorker,workerEntrypoint}}.ts',
+          'packages/backend/src/{utils/{logger,metrics},db/{marketStatsTypes,migrate-cli},app,ssrMiddleware,infrastructure/mailService,queues/{dataUpdateWorker,workerEntrypoint}}.ts',
         ],
         // 全局 80/80/80/80 与每文件 60% 以 scripts/check-coverage.mjs 为单一权威源；
         // 此处仅保留目录级阈值（其余处未重复）。
