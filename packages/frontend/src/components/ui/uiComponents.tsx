@@ -395,13 +395,13 @@ export const TabsTrigger = wrapPrimitive(
 );
 export const TabsContent = wrapPrimitive(TabsPrimitive.Content, 'mt-2', 'TabsContent');
 
-export const Tooltip = ({ children }: { children: ReactNode }) => (
+const Tooltip = ({ children }: { children: ReactNode }) => (
   <TooltipPrimitive.Provider delayDuration={200}>
     <TooltipPrimitive.Root>{children}</TooltipPrimitive.Root>
   </TooltipPrimitive.Provider>
 );
-export const TooltipTrigger = TooltipPrimitive.Trigger;
-export const TooltipContent = React.forwardRef<
+const TooltipTrigger = TooltipPrimitive.Trigger;
+const TooltipContent = React.forwardRef<
   React.ElementRef<typeof TooltipPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof TooltipPrimitive.Content>
 >(({ className, sideOffset = 8, ...props }, ref) => (
