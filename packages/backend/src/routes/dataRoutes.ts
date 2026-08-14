@@ -1,7 +1,7 @@
 import { Router, type Request, type Response } from 'express';
 import { fetchCpiForRoute, SYNTHETIC_TICKERS } from '../infrastructure/dataServices.js';
 import { sendProblem } from '../utils/errors.js';
-import { asyncRouteHandler, sendData, sendDegraded } from './routeUtils.js';
+import { crudRouteHandler, sendData, sendDegraded } from './routeUtils.js';
 import { getReadPool } from '../db/pool.js';
 import { rowMapper, toIso } from '../repositories/rowMapper.js';
 import { createTtlCache } from '../utils/ttlCache.js';
@@ -54,7 +54,7 @@ const router = Router();
 
 router.get(
   '/health',
-  asyncRouteHandler(
+  crudRouteHandler(
     async (_req: Request, res: Response): Promise<void> => {
       const result = (await callService(
         config.GO_DATA_SERVICE_URL,
@@ -71,7 +71,7 @@ router.get(
 
 router.get(
   '/cpi/:country',
-  asyncRouteHandler(
+  crudRouteHandler(
     async (req: Request, res: Response): Promise<void> => {
       const country = req.params.country;
       if (country !== 'us' && country !== 'cn') {
@@ -92,7 +92,7 @@ router.get(
 
 router.get(
   '/meta',
-  asyncRouteHandler(
+  crudRouteHandler(
     async (_req: Request, res: Response): Promise<void> => {
       const cached = metaCache.get('meta');
       if (cached) {
@@ -114,7 +114,7 @@ router.get(
 
 router.get(
   '/factors',
-  asyncRouteHandler(
+  crudRouteHandler(
     async (_req: Request, res: Response): Promise<void> => {
       try {
         const { rows } = await getReadPool().query(
@@ -134,7 +134,7 @@ router.get(
 
 router.get(
   '/ticker-meta',
-  asyncRouteHandler(
+  crudRouteHandler(
     async (req: Request, res: Response): Promise<void> => {
       const ticker = String(req.query.ticker ?? '').toUpperCase();
       if (!ticker) {
@@ -195,7 +195,7 @@ router.get(
 
 router.get(
   '/recent-updates',
-  asyncRouteHandler(
+  crudRouteHandler(
     async (req: Request, res: Response): Promise<void> => {
       const limit = Math.min(parseInt(String(req.query.limit ?? '10'), 10), 50);
       const result = await getReadPool().query(

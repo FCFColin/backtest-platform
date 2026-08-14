@@ -12,7 +12,6 @@ import { searchTickers } from '../infrastructure/dataFacade.js';
 import { SYNTHETIC_TICKERS } from '../infrastructure/dataServices.js';
 import { sendProblem } from '../utils/errors.js';
 import {
-  asyncRouteHandler,
   crudRouteHandler,
   computeRoute,
   resolveAuthorizedJob,
@@ -34,7 +33,7 @@ const router = Router();
 
 router.get(
   '/search',
-  asyncRouteHandler(
+  crudRouteHandler(
     async (req: Request, res: Response): Promise<void> => {
       const query = req.query.query as string | undefined;
       const limit = parseInt((req.query.limit as string | undefined) ?? '', 10) || 10;
@@ -86,7 +85,7 @@ router.get(
 router.post(
   '/portfolio/series',
   validate(portfolioSeriesSchema),
-  asyncRouteHandler(
+  crudRouteHandler(
     async (req, res) => {
       const { portfolios, parameters, series } = req.body as {
         portfolios: Portfolio[];

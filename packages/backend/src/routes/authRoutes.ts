@@ -1,7 +1,7 @@
 import { Router, type Response } from 'express';
 import { logger } from '../utils/logger.js';
 import { sendProblem } from '../utils/errors.js';
-import { asyncRouteHandler, crudRouteHandler } from './routeUtils.js';
+import { crudRouteHandler } from './routeUtils.js';
 import { authConfig, config } from '../config/index.js';
 import {
   generateToken,
@@ -82,7 +82,7 @@ const router = Router();
 router.post(
   '/login/password',
   validate(loginPasswordSchema),
-  asyncRouteHandler(
+  crudRouteHandler(
     async (req, res) => {
       const { username, password } = req.body;
       const clientIp = req.ip ?? '';
@@ -208,7 +208,7 @@ router.post(
 
 router.post(
   '/refresh',
-  asyncRouteHandler(
+  crudRouteHandler(
     async (req, res) => {
       const refreshToken = req.cookies?.[RT_COOKIE];
       if (!refreshToken) {
@@ -230,7 +230,7 @@ router.post(
 
 router.delete(
   '/logout',
-  asyncRouteHandler(
+  crudRouteHandler(
     async (req, res) => {
       const refreshToken = req.cookies?.[RT_COOKIE] as string | undefined;
       if (refreshToken) {
@@ -262,7 +262,7 @@ router.get('/me', jwtAuth, (req: AuthenticatedRequest, res: Response) => {
 router.get(
   '/orgs',
   jwtAuth,
-  asyncRouteHandler(
+  crudRouteHandler(
     async (req, res): Promise<void> => {
       if (!requireUser(req, res)) return;
       const memberships = await getUserMemberships(req.user.sub);
@@ -280,7 +280,7 @@ router.post(
   '/switch-org',
   jwtAuth,
   validate(switchOrgSchema),
-  asyncRouteHandler(
+  crudRouteHandler(
     async (req, res): Promise<void> => {
       if (!requireUser(req, res)) return;
       const { orgId } = req.body;
@@ -316,7 +316,7 @@ router.post(
 router.delete(
   '/me',
   jwtAuth,
-  asyncRouteHandler(
+  crudRouteHandler(
     async (req, res): Promise<void> => {
       if (!requireUser(req, res)) return;
       const { anonymizeUser } = await import('../repositories/userRepo.js');

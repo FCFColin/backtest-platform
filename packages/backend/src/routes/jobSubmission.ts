@@ -6,7 +6,7 @@ import { randomUUID } from 'node:crypto';
 import type { RequestHandler, Response } from 'express';
 import { backtestQueue, type BacktestJobData } from '../queues/backtestQueue.js';
 import type { AuthenticatedRequest } from '../middleware/jwtAuth.js';
-import { asyncRouteHandler, ownerOf } from './routeUtils.js';
+import { crudRouteHandler, ownerOf } from './routeUtils.js';
 import { sendProblem } from '../utils/errors.js';
 import { logger } from '../utils/logger.js';
 import { withTimeout } from '../utils/misc.js';
@@ -31,7 +31,7 @@ interface SubmitQueueJobConfig {
 
 export function submitQueueJob(cfg: SubmitQueueJobConfig): RequestHandler {
   const { type, statusUrl } = cfg;
-  return asyncRouteHandler(
+  return crudRouteHandler(
     async (req, res) => {
       const authReq = req as AuthenticatedRequest;
       try {

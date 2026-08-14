@@ -3,7 +3,7 @@ import { getReadPool, withPlatformContext } from '../db/pool.js';
 import { sendProblem } from '../utils/errors.js';
 import { logger } from '../utils/logger.js';
 import type { AuthenticatedRequest } from '../middleware/jwtAuth.js';
-import { asyncRouteHandler, sendData } from './routeUtils.js';
+import { crudRouteHandler, sendData } from './routeUtils.js';
 import { validate } from '../middleware/miscMiddleware.js';
 import { platformAdminMiddleware } from '../middleware/middlewareChains.js';
 import { createAnnouncementSchema, errorReportSchema } from '../schemas/tactical.js';
@@ -21,7 +21,7 @@ const announcementCache = createTtlCache<object[]>(60 * 1000);
 
 router.get(
   '/announcements',
-  asyncRouteHandler(
+  crudRouteHandler(
     async (_req: Request, res: Response): Promise<void> => {
       const cached = announcementCache.get('announcements');
       if (cached) {
@@ -53,7 +53,7 @@ router.post(
   '/announcements',
   ...platformAdminMiddleware(),
   validate(createAnnouncementSchema),
-  asyncRouteHandler(
+  crudRouteHandler(
     async (req: Request, res: Response): Promise<void> => {
       const { title, body, category, severity } = req.body;
       const result = await withPlatformContext((client) =>

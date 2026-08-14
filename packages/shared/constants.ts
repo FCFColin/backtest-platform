@@ -4,8 +4,6 @@ import type { TechnicalIndicator } from './types/tactical.js';
 
 export const MAX_TICKERS = 50;
 
-export const MAX_PORTFOLIOS = MAX_TICKERS;
-
 export const TRADING_DAYS_PER_YEAR = 252;
 
 /** 图表序列色板唯一事实源（chart-1..8），暗色模式经 CSS 变量自动切换 */

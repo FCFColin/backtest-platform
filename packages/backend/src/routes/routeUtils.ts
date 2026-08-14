@@ -41,7 +41,7 @@ export function requireUuidParam(res: Response, id: string | undefined): boolean
   return true;
 }
 
-export type Job = NonNullable<Awaited<ReturnType<typeof backtestQueue.getJob>>>;
+type Job = NonNullable<Awaited<ReturnType<typeof backtestQueue.getJob>>>;
 
 // BullMQ 状态归一化：backtest/runs 与 jobs/:id 两个状态端点共用同一状态词表
 function mapJobState(bullmqState: string): 'queued' | 'running' | 'completed' | 'failed' {
@@ -163,7 +163,7 @@ function syncCompute(
   fn: (req: AuthenticatedRequest) => Promise<unknown>,
   opts: SyncComputeOpts & { shape?: (result: unknown) => unknown } = {},
 ): RequestHandler {
-  return asyncRouteHandler(
+  return crudRouteHandler(
     async (req, res) => {
       if (opts.guard && !(await opts.guard(req, res))) return;
       const startTime = Date.now();
@@ -198,12 +198,11 @@ export function computeRoute(
   });
 }
 
-// 计算/异步端点与 CRUD 端点共用同一 baseHandler：错误映射已收敛到 translateToProblem，两导出名保留仅为调用点语义可读
-export const asyncRouteHandler = (
+// 计算/异步端点与 CRUD 端点共用同一 baseHandler：错误映射已收敛到 translateToProblem
+export const crudRouteHandler = (
   fn: RouteHandlerFn,
   errorConfig: RouteErrorConfig,
 ): RequestHandler => baseHandler(fn, errorConfig);
-export const crudRouteHandler = asyncRouteHandler;
 
 export function tenantHandler(
   logMsg: string,
@@ -253,7 +252,7 @@ interface TenantCrudConfig {
 
 export function tenantCrudRoutes<T>(service: TenantCrudRepo<T>, cfg: TenantCrudConfig): Router {
   const router = Router();
-  const handler = cfg.metricPrefix ? asyncRouteHandler : crudRouteHandler;
+  const handler = crudRouteHandler;
   const h = (action: string, fn: (req: Request, res: Response) => Promise<void>): RequestHandler =>
     handler(fn as RouteHandlerFn, {
       logMsg: `[${cfg.resource}] ${action}失败`,

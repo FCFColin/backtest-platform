@@ -8,7 +8,7 @@ import { logger } from '../utils/logger.js';
 import { config } from '../config/index.js';
 import { requireTenant } from '../middleware/tenantContext.js';
 import { requirePermission, Permission } from '../middleware/rbac.js';
-import { requireTenantId, sendData, asyncRouteHandler } from './routeUtils.js';
+import { requireTenantId, sendData, crudRouteHandler } from './routeUtils.js';
 import { appRedis } from '../infrastructure/redisClient.js';
 import {
   isBillingEnabled,
@@ -35,7 +35,7 @@ router.use(requireTenant);
 
 router.get(
   '/subscription',
-  asyncRouteHandler(
+  crudRouteHandler(
     async (req, res) => {
       const tenantId = requireTenantId(req, res);
       if (!tenantId) return;
@@ -55,7 +55,7 @@ router.post(
   '/checkout',
   requireAdmin,
   validate(checkoutSchema),
-  asyncRouteHandler(
+  crudRouteHandler(
     async (req, res) => {
       if (!requireBillingEnabled(res)) return;
       const { plan } = req.body as { plan: 'pro' | 'enterprise' };
@@ -79,7 +79,7 @@ router.post(
   '/portal',
   requireAdmin,
   validate(emptyBodySchema),
-  asyncRouteHandler(
+  crudRouteHandler(
     async (req, res) => {
       if (!requireBillingEnabled(res)) return;
       const tenantId = requireTenantId(req, res);
