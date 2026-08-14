@@ -1,4 +1,4 @@
-﻿import { useState, memo, lazy, Suspense, type ReactNode } from 'react';
+﻿import { useState, memo, lazy, Suspense, useMemo, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LineChart } from 'lucide-react';
 import { type AssetAnalysisResult, type Statistics } from '@backtest/shared';
@@ -6,7 +6,7 @@ import { getPortfolioColor } from '@/lib/chart-theme.js';
 import { getColorClass } from '@/components/charts/chartUtils.js';
 import { ResultsShell } from '@/components/resultsShell.js';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/uiComponents';
-import { useAnalysisData } from '../../hooks/useAnalysisData.js';
+import { useAnalysisData, computePairRollingCorrelation } from '../../hooks/useAnalysisData.js';
 import { TABS, fetchAnalysisResult } from './analysisUtils.js';
 import { AnalysisParamsPanel } from './AnalysisParams.js';
 import {
@@ -120,7 +120,12 @@ function CorrelationsBetaTab({
     Math.min(1, results.tickers.length - 1),
   ]);
   const tickers = results.tickers.map((tk) => tk.ticker);
-  const { betaMatrix, rollingCorrData } = useAnalysisData(results, correlationWindow);
+  const { betaMatrix } = useAnalysisData(results);
+  // 按所选 pair 重算滚动相关（此前恒用前两只标的，选择器只改标签不改数据）
+  const rollingCorrData = useMemo(
+    () => computePairRollingCorrelation(results.tickers, rollingPair, correlationWindow),
+    [results, rollingPair, correlationWindow],
+  );
   return (
     <div className="space-y-6">
       <CorrelationMatrixTable tickers={results.tickers} correlations={results.correlations} />

@@ -38,7 +38,29 @@ function useGrowthData(portfolioResults: ReturnType<typeof usePortfolioResults>)
     [portfolioResults],
   );
 }
-export function useAnalysisData(results: AssetAnalysisResult, correlationWindow: number) {
+/**
+ * 计算指定标对（pair 为 tickers 索引）的滚动相关系数，供相关关系页选中标对后渲染。
+ */
+export function computePairRollingCorrelation(
+  tickers: AssetAnalysisResult['tickers'],
+  pair: [number, number],
+  correlationWindow: number,
+): Array<{ date: string; value: number }> {
+  if (tickers.length < 2) return [];
+  const a = tickers[pair[0]];
+  const b = tickers[pair[1]];
+  if (!a || !b) return [];
+  const dates = a.growthCurve.map((g) => g.date).slice(1);
+  const windowDays = Math.round((correlationWindow * TRADING_DAYS_PER_YEAR) / 12);
+  return computeRollingCorrelation(
+    a.dailyReturns ?? [],
+    b.dailyReturns ?? [],
+    dates,
+    windowDays,
+    Infinity,
+  );
+}
+export function useAnalysisData(results: AssetAnalysisResult) {
   const tickers = useMemo(() => results.tickers ?? [], [results.tickers]);
   const tickerNames = useMemo(() => tickers.map((t) => t.ticker), [tickers]);
   const portfolioResults = usePortfolioResults(tickers);
@@ -47,18 +69,6 @@ export function useAnalysisData(results: AssetAnalysisResult, correlationWindow:
     () => computeBetaMatrix(tickers.map((t) => t.dailyReturns)),
     [tickers],
   );
-  const rollingCorrData = useMemo(() => {
-    if (tickers.length < 2) return [];
-    const dates = tickers[0].growthCurve.map((g) => g.date).slice(1);
-    const windowDays = Math.round((correlationWindow * TRADING_DAYS_PER_YEAR) / 12);
-    return computeRollingCorrelation(
-      tickers[0]?.dailyReturns ?? [],
-      tickers[1]?.dailyReturns ?? [],
-      dates,
-      windowDays,
-      Infinity,
-    );
-  }, [tickers, correlationWindow]);
   const scatterData = useMemo(
     () =>
       tickers.map((tk) => ({
@@ -73,7 +83,6 @@ export function useAnalysisData(results: AssetAnalysisResult, correlationWindow:
     portfolioResults,
     growthData,
     betaMatrix,
-    rollingCorrData,
     scatterData,
   };
 }
