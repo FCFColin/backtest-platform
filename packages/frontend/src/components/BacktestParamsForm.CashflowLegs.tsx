@@ -149,15 +149,6 @@ function CashflowLegRow({ leg, currency, t }: CashflowLegRowProps) {
         onChange={(type) => updateCashflowLeg(leg.id, { type })}
       />
       <CashflowFrequencySelect leg={leg} updateCashflowLeg={updateCashflowLeg} t={t} />
-      <ParamCard label={t('Offset')}>
-        <Input
-          type="number"
-          value={leg.offset || ''}
-          placeholder="0"
-          className="w-[80px]"
-          onChange={(e) => updateCashflowLeg(leg.id, { offset: Number(e.target.value) || 0 })}
-        />
-      </ParamCard>
       <ParamCard label={t('Until')}>
         <Input
           type="date"

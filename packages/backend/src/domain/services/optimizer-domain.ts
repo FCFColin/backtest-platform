@@ -53,7 +53,6 @@ export function buildBacktestParameters(
     adjustForInflation: parameters.adjustForInflation ?? false,
     rollingWindowMonths: 12,
     benchmarkTicker: parameters.benchmarkTicker || '',
-    extendedWithdrawalStats: false,
     cashflowLegs: [],
     oneTimeCashflows: [],
   };

@@ -23,8 +23,6 @@ type RebalanceBands struct {
 	Enabled      bool     `json:"enabled"`
 	AbsoluteBand *float64 `json:"absoluteBand,omitempty"`
 	RelativeBand *float64 `json:"relativeBand,omitempty"`
-	UpperBand    *float64 `json:"upperBand,omitempty"`
-	LowerBand    *float64 `json:"lowerBand,omitempty"`
 }
 
 var periodCrossing = map[string]func(prev, curr time.Time) bool{

@@ -38,20 +38,20 @@ var expectedStatisticsFields = []string{
 	"swr", "pwr", "swr10y", "pwr10y", "swr20y", "pwr20y", "swr30y", "pwr30y", "swr40y", "pwr40y",
 }
 var expectedBacktestParamsFields = []string{
-	"startDate", "endDate", "startingValue", "baseCurrency",
+	"startDate", "endDate", "startingValue",
 	"adjustForInflation", "rollingWindowMonths", "benchmarkTicker",
-	"extendedWithdrawalStats", "cashflowLegs", "oneTimeCashflows",
+	"cashflowLegs", "oneTimeCashflows",
 }
 var expectedPortfolioInputFields = []string{
 	"name", "assets", "rebalanceFrequency", "rebalanceThreshold",
-	"rebalanceOffset", "rebalanceBands", "drag", "totalReturn",
+	"rebalanceOffset", "rebalanceBands", "drag",
 	"glidepathYears", "glidepathToWeights",
 }
 var expectedRebalanceBandsFields = []string{
-	"enabled", "absoluteBand", "relativeBand", "upperBand", "lowerBand",
+	"enabled", "absoluteBand", "relativeBand",
 }
 var expectedCashflowLegFields = []string{
-	"amount", "type", "frequency", "offset", "until",
+	"amount", "type", "frequency", "until",
 }
 var expectedOneTimeCashflowFields = []string{
 	"amount", "type", "date",

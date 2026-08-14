@@ -25,7 +25,6 @@ const cfLeg = (type: string, amount = 1000) => ({
   amount,
   type,
   frequency: 'monthly' as const,
-  offset: 0,
 });
 const otcCF = (type: string, date: string, amount = 1000) => ({ id: 'cf-1', amount, type, date });
 
@@ -257,7 +256,7 @@ describe('goalOptimizerSchema', () => {
   );
   it('constraints 可选字段应通过校验', () => {
     const d = makeOptimizerInput();
-    set('constraints', { maxDrawdown: 0.3, minSuccessRate: 0.9, maxVolatility: 0.2 })(d);
+    set('constraints', { maxDrawdown: 0.3, maxVolatility: 0.2 })(d);
     expect(() => goalOptimizerSchema.parse(d)).not.toThrow();
   });
 });

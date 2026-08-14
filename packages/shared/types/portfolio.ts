@@ -11,8 +11,6 @@ export interface RebalanceBands {
   enabled: boolean;
   absoluteBand?: number;
   relativeBand?: number;
-  upperBand?: number;
-  lowerBand?: number;
 }
 
 export interface Portfolio {
@@ -24,7 +22,6 @@ export interface Portfolio {
   rebalanceOffset?: number;
   rebalanceBands?: RebalanceBands;
   drag?: number;
-  totalReturn?: boolean;
   isGlidepath?: boolean;
   glidepathFrom?: string;
   glidepathTo?: string;
@@ -50,7 +47,6 @@ export type CashflowBase = {
 /** 周期性现金流腿 */
 export interface CashflowLeg extends CashflowBase {
   frequency: CashflowFrequency;
-  offset: number;
   until?: string;
 }
 

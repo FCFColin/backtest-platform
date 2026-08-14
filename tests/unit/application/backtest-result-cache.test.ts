@@ -32,7 +32,6 @@ const portfolios: Portfolio[] = [
     rebalanceFrequency: 'annual',
     rebalanceOffset: 0,
     drag: 0,
-    totalReturn: true,
   },
 ];
 
@@ -44,7 +43,6 @@ const parameters: BacktestParameters = {
   adjustForInflation: false,
   rollingWindowMonths: 12,
   benchmarkTicker: 'SPY',
-  extendedWithdrawalStats: false,
   cashflowLegs: [],
   oneTimeCashflows: [],
 };

@@ -68,7 +68,6 @@ describe('buildBacktestParameters', () => {
     expect(params.adjustForInflation).toBe(false);
     expect(params.rollingWindowMonths).toBe(12);
     expect(params.benchmarkTicker).toBe('');
-    expect(params.extendedWithdrawalStats).toBe(false);
     expect(params.cashflowLegs).toEqual([]);
     expect(params.oneTimeCashflows).toEqual([]);
   });

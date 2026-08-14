@@ -16,9 +16,7 @@ type AnalysisParams struct {
 	StartDate           string  `json:"startDate"`
 	EndDate             string  `json:"endDate"`
 	StartingValue       float64 `json:"startingValue"`
-	AdjustForInflation  bool    `json:"adjustForInflation"`
 	RollingWindowMonths int     `json:"rollingWindowMonths"`
-	BenchmarkTicker     string  `json:"benchmarkTicker"`
 }
 type AnalysisResult struct {
 	Assets       []AssetAnalysisItem `json:"assets"`

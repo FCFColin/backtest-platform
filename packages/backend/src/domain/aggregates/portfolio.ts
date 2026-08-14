@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import { Ticker, Weight, DomainValidationError } from '../value-objects/index.js';
 import type {
   Portfolio as PortfolioDTO,
@@ -18,7 +19,6 @@ type PortfolioConfigKeys =
   | 'rebalanceOffset'
   | 'rebalanceBands'
   | 'drag'
-  | 'totalReturn'
   | 'isGlidepath'
   | 'glidepathFrom'
   | 'glidepathTo'
@@ -40,7 +40,6 @@ export class Portfolio {
   public readonly rebalanceOffset?: number;
   public readonly rebalanceBands?: RebalanceBands;
   public readonly drag?: number;
-  public readonly totalReturn?: boolean;
   public readonly isGlidepath?: boolean;
   public readonly glidepathFrom?: string;
   public readonly glidepathTo?: string;
@@ -56,7 +55,6 @@ export class Portfolio {
     this.rebalanceOffset = props.rebalanceOffset;
     this.rebalanceBands = props.rebalanceBands;
     this.drag = props.drag;
-    this.totalReturn = props.totalReturn;
     this.isGlidepath = props.isGlidepath;
     this.glidepathFrom = props.glidepathFrom;
     this.glidepathTo = props.glidepathTo;
@@ -120,7 +118,6 @@ export class Portfolio {
       rebalanceThreshold: this.rebalanceThreshold,
       rebalanceOffset: this.rebalanceOffset,
       drag: this.drag,
-      totalReturn: this.totalReturn,
       rebalanceBands: this.rebalanceBands?.enabled
         ? {
             absoluteBand: this.rebalanceBands.absoluteBand,

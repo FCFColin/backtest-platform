@@ -135,14 +135,12 @@ type BacktestRequest struct {
 type BacktestParams struct {
 	StartDate               string            `json:"startDate"`
 	EndDate                 string            `json:"endDate"`
-	StartingValue           float64           `json:"startingValue"`
-	BaseCurrency            string            `json:"baseCurrency,omitempty"`
-	AdjustForInflation      bool              `json:"adjustForInflation"`
-	RollingWindowMonths     int               `json:"rollingWindowMonths"`
-	BenchmarkTicker         string            `json:"benchmarkTicker"`
-	ExtendedWithdrawalStats bool              `json:"extendedWithdrawalStats"`
-	CashflowLegs            []CashflowLeg     `json:"cashflowLegs"`
-	OneTimeCashflows        []OneTimeCashflow `json:"oneTimeCashflows"`
+	StartingValue       float64           `json:"startingValue"`
+	AdjustForInflation  bool              `json:"adjustForInflation"`
+	RollingWindowMonths int               `json:"rollingWindowMonths"`
+	BenchmarkTicker     string            `json:"benchmarkTicker"`
+	CashflowLegs        []CashflowLeg     `json:"cashflowLegs"`
+	OneTimeCashflows    []OneTimeCashflow `json:"oneTimeCashflows"`
 }
 type PortfolioInput struct {
 	Name               string          `json:"name"`
@@ -151,7 +149,6 @@ type PortfolioInput struct {
 	RebalanceThreshold float64         `json:"rebalanceThreshold"`
 	RebalanceOffset    int             `json:"rebalanceOffset"`
 	Drag               float64         `json:"drag"`
-	TotalReturn        bool            `json:"totalReturn"`
 	RebalanceBands     *RebalanceBands `json:"rebalanceBands"`
 	GlidepathToWeights []float64       `json:"glidepathToWeights"`
 	GlidepathYears     int             `json:"glidepathYears"`
@@ -161,7 +158,6 @@ type CashflowLeg struct {
 	Amount    float64 `json:"amount"`
 	Type      string  `json:"type"`
 	Frequency string  `json:"frequency"`
-	Offset    int     `json:"offset"`
 	Until     string  `json:"until"`
 }
 type OneTimeCashflow struct {

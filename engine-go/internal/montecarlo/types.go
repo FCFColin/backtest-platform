@@ -9,11 +9,9 @@ type MonteCarloRequest struct {
 	MCParams  MCSimParams      `json:"mcParams"`
 }
 type MCPortfolioInput struct {
-	Name               string       `json:"name"`
-	Assets             []AssetInput `json:"assets"`
-	RebalanceFrequency string       `json:"rebalanceFrequency"`
-	Drag               float64      `json:"drag"`
-	TotalReturn        bool         `json:"totalReturn"`
+	Name   string       `json:"name"`
+	Assets []AssetInput `json:"assets"`
+	Drag   float64      `json:"drag"`
 }
 type AssetInput struct {
 	Ticker string  `json:"ticker"`
@@ -21,12 +19,9 @@ type AssetInput struct {
 }
 type PriceDataMap = engine.PriceDataMap
 type MCBacktestParams struct {
-	StartDate           string  `json:"startDate"`
-	EndDate             string  `json:"endDate"`
-	StartingValue       float64 `json:"startingValue"`
-	AdjustForInflation  bool    `json:"adjustForInflation"`
-	RollingWindowMonths int     `json:"rollingWindowMonths"`
-	BenchmarkTicker     string  `json:"benchmarkTicker"`
+	StartDate     string  `json:"startDate"`
+	EndDate       string  `json:"endDate"`
+	StartingValue float64 `json:"startingValue"`
 }
 type MCSimParams struct {
 	NumSimulations   int     `json:"numSimulations"`

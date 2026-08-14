@@ -23,12 +23,9 @@ const portfolioSchema = z
         enabled: z.boolean(),
         absoluteBand: z.number().optional(),
         relativeBand: z.number().optional(),
-        upperBand: z.number().optional(),
-        lowerBand: z.number().optional(),
       })
       .optional(),
     drag: z.number().optional(),
-    totalReturn: z.boolean().optional(),
     isGlidepath: z.boolean().optional(),
     glidepathFrom: z.string().optional(),
     glidepathTo: z.string().optional(),
@@ -51,7 +48,6 @@ const cashflowLegSchema = z.object({
   amount: z.number(),
   type: z.enum(['contribution', 'withdrawal']),
   frequency: z.enum(['yearly', 'monthly', 'quarterly', 'weekly']),
-  offset: z.number(),
   until: z.string().date().optional(),
 });
 
@@ -71,7 +67,6 @@ const backtestParametersSchema = z
     adjustForInflation: z.boolean().optional(),
     rollingWindowMonths: z.number().int().positive().optional(),
     benchmarkTicker: z.string().optional(),
-    extendedWithdrawalStats: z.boolean().optional(),
     cashflowLegs: z.array(cashflowLegSchema).optional(),
     oneTimeCashflows: z.array(oneTimeCashflowSchema).optional(),
   })

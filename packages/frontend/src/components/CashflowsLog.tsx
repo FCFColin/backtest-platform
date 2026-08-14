@@ -48,12 +48,6 @@ function PeriodicCashflowsTable({
       render: (leg) => <span className={muted}>{TYPE_LABELS[leg.type] || leg.type}</span>,
     },
     {
-      key: 'offset',
-      label: t('Offset Days'),
-      align: 'right',
-      render: (leg) => <span className={muted}>{leg.offset}</span>,
-    },
-    {
       key: 'until',
       label: t('End Date'),
       render: (leg) => (

@@ -34,7 +34,7 @@ export interface GoalOptimizerRequest {
   initialAmount: number;
   years: number;
   assets: Array<{ ticker: string; weight: number }>;
-  constraints?: { maxDrawdown?: number; minSuccessRate?: number; maxVolatility?: number };
+  constraints?: { maxDrawdown?: number; maxVolatility?: number };
   numSimulations?: number;
 }
 export interface GoalOptimizerResult {

@@ -5,7 +5,7 @@ export interface PriceData {
   [ticker: string]: Record<string, number>;
 }
 
-/** 回测参数（adjustForInflation 启用 CPI 调整；rollingWindowMonths 控制滚动收益窗口；extendedWithdrawalStats 启用 SWR/PWR 计算） */
+/** 回测参数（adjustForInflation 启用 CPI 调整；rollingWindowMonths 控制滚动收益窗口） */
 export interface BacktestParameters {
   startDate: string;
   endDate: string;
@@ -14,7 +14,6 @@ export interface BacktestParameters {
   adjustForInflation: boolean;
   rollingWindowMonths: number;
   benchmarkTicker: string;
-  extendedWithdrawalStats?: boolean;
   cashflowLegs?: CashflowLeg[];
   oneTimeCashflows?: OneTimeCashflow[];
 }

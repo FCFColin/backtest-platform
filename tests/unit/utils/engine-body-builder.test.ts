@@ -49,14 +49,14 @@ describe('Portfolio.toEngineBody', () => {
       },
     },
     {
-      name: '应映射可选字段 rebalanceThreshold/rebalanceOffset/drag/totalReturn',
-      overrides: { rebalanceThreshold: 5, rebalanceOffset: 1, drag: 0.5, totalReturn: true },
-      match: { rebalanceThreshold: 5, rebalanceOffset: 1, drag: 0.5, totalReturn: true },
+      name: '应映射可选字段 rebalanceThreshold/rebalanceOffset/drag',
+      overrides: { rebalanceThreshold: 5, rebalanceOffset: 1, drag: 0.5 },
+      match: { rebalanceThreshold: 5, rebalanceOffset: 1, drag: 0.5 },
     },
     {
       name: '可选字段未设置时应为 undefined',
       overrides: {},
-      undefinedFields: ['rebalanceThreshold', 'rebalanceOffset', 'drag', 'totalReturn'],
+      undefinedFields: ['rebalanceThreshold', 'rebalanceOffset', 'drag'],
     },
     {
       name: 'rebalanceBands.enabled=false 时应返回 undefined',
@@ -133,11 +133,6 @@ describe('buildEngineParams', () => {
       },
     },
     {
-      name: 'extendedWithdrawalStats 缺省时应默认为 false',
-      params: makeBaseParams(),
-      match: { extendedWithdrawalStats: false },
-    },
-    {
       name: 'cashflowLegs 缺省时应默认为空数组',
       params: makeBaseParams(),
       match: { cashflowLegs: [] },
@@ -148,21 +143,12 @@ describe('buildEngineParams', () => {
       match: { oneTimeCashflows: [] },
     },
     {
-      name: 'extendedWithdrawalStats=true 时应原样映射',
-      params: makeBaseParams({ extendedWithdrawalStats: true }),
-      match: { extendedWithdrawalStats: true },
-    },
-    {
       name: 'cashflowLegs 设置时应原样映射',
       params: makeBaseParams({
-        cashflowLegs: [
-          { id: 'leg-1', amount: 1000, type: 'contribution', frequency: 'monthly', offset: 0 },
-        ],
+        cashflowLegs: [{ id: 'leg-1', amount: 1000, type: 'contribution', frequency: 'monthly' }],
       }),
       match: {
-        cashflowLegs: [
-          { id: 'leg-1', amount: 1000, type: 'contribution', frequency: 'monthly', offset: 0 },
-        ],
+        cashflowLegs: [{ id: 'leg-1', amount: 1000, type: 'contribution', frequency: 'monthly' }],
       },
     },
     {
@@ -177,13 +163,10 @@ describe('buildEngineParams', () => {
     {
       name: '所有可选字段同时设置时应全部正确映射',
       params: makeBaseParams({
-        extendedWithdrawalStats: true,
-        cashflowLegs: [
-          { id: 'l1', amount: 100, type: 'contribution', frequency: 'yearly', offset: 0 },
-        ],
+        cashflowLegs: [{ id: 'l1', amount: 100, type: 'contribution', frequency: 'yearly' }],
         oneTimeCashflows: [{ id: 'o1', amount: 200, type: 'withdrawal', date: '2024-01-01' }],
       }),
-      match: { extendedWithdrawalStats: true },
+      match: {},
       checks: (body) => {
         expect(body.cashflowLegs).toHaveLength(1);
         expect(body.oneTimeCashflows).toHaveLength(1);

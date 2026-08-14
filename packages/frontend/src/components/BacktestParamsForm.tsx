@@ -17,6 +17,7 @@ import { useSettingsStore } from '@/store/settingsStore';
 import { useToastStore } from '@/store/toastStore';
 import {
   Switch,
+  AffixInput,
   Collapsible,
   CollapsibleTrigger,
   CollapsibleContent,
@@ -216,18 +217,13 @@ export function BasicParamsRow({
       ))}
       <Field className="min-w-[8rem] flex-1">
         <FieldLabel htmlFor="bp-start-val">{t('Starting Value')}</FieldLabel>
-        <div className="relative">
-          <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-body text-fg-tertiary">
-            {prefix}
-          </span>
-          <Input
-            id="bp-start-val"
-            type="number"
-            className="pl-7"
-            value={startingValue}
-            onChange={(e) => onChange('startingValue', Number(e.target.value))}
-          />
-        </div>
+        <AffixInput
+          id="bp-start-val"
+          type="number"
+          prefix={prefix}
+          value={startingValue}
+          onChange={(e) => onChange('startingValue', Number(e.target.value))}
+        />
       </Field>
       <Field className="w-28">
         <FieldLabel htmlFor="bp-currency">{t('Currency')}</FieldLabel>
@@ -392,11 +388,8 @@ function BasicParamsGrid() {
 
 const ADVANCED_SWITCHES: Array<{
   labelKey: string;
-  paramKey: 'adjustForInflation' | 'extendedWithdrawalStats';
-}> = [
-  { labelKey: 'params.adjustForInflation', paramKey: 'adjustForInflation' },
-  { labelKey: 'params.extendedWithdrawalStats', paramKey: 'extendedWithdrawalStats' },
-];
+  paramKey: 'adjustForInflation';
+}> = [{ labelKey: 'params.adjustForInflation', paramKey: 'adjustForInflation' }];
 
 function AdvancedParamsSection({
   advancedOpen,
