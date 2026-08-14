@@ -5,7 +5,7 @@ import { logger } from '../utils/logger.js';
 import type { AuthenticatedRequest } from '../middleware/jwtAuth.js';
 import { asyncRouteHandler, sendData } from './routeUtils.js';
 import { validate } from '../middleware/miscMiddleware.js';
-import { adminMiddleware } from '../middleware/middlewareChains.js';
+import { platformAdminMiddleware } from '../middleware/middlewareChains.js';
 import { createAnnouncementSchema, errorReportSchema } from '../schemas/tactical.js';
 import {
   recordFrontendWebVital,
@@ -51,7 +51,7 @@ router.get(
 
 router.post(
   '/announcements',
-  ...adminMiddleware(),
+  ...platformAdminMiddleware(),
   validate(createAnnouncementSchema),
   asyncRouteHandler(
     async (req: Request, res: Response): Promise<void> => {

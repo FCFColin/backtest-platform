@@ -9,7 +9,9 @@ export function errorHandler(error: Error, req: Request, res: Response, _next: N
     '[Server Error]',
   );
   if (error instanceof ApplicationError) {
-    sendProblem(res, error.statusCode, error.errorCode, error.errorTitle);
+    sendProblem(res, error.statusCode, error.errorCode, error.errorTitle, {
+      detail: error.message,
+    });
     return;
   }
   sendProblem(res, 500, 'INTERNAL_ERROR');

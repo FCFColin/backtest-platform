@@ -93,14 +93,8 @@ function extractJobId(req: IncomingMessage): string | null {
   return jobId.length > 0 ? jobId : null;
 }
 
+// 仅接受 sec-websocket-protocol 通道传凭证，query token 会落入代理与访问日志（泄密面）
 function extractToken(req: IncomingMessage): string | null {
-  const url = req.url || '';
-  try {
-    const token = new URL(url, 'http://localhost').searchParams.get('token');
-    if (token) return token;
-  } catch {
-    /* URL 解析失败时回退 subprotocol */
-  }
   const proto = req.headers['sec-websocket-protocol'];
   if (typeof proto === 'string') {
     for (const part of proto.split(',')) {

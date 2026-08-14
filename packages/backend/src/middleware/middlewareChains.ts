@@ -7,7 +7,7 @@ import {
   idempotencyKey,
 } from './jwtAuth.js';
 import { resolveTenant, requireTenant } from './tenantContext.js';
-import { requirePermission, Permission } from './rbac.js';
+import { requirePermission, requirePlatformAdmin, Permission } from './rbac.js';
 import { enforceQuota } from './quota.js';
 import { USAGE_METRIC } from '../config/index.js';
 
@@ -34,10 +34,10 @@ export const crudMiddleware = (permission: Permission) => [
   requirePermission(permission),
 ];
 export const readOnlyAuth: RequestHandler[] = [optionalJwtAuth, assignGuestReadonly];
-export const adminMiddleware = () => [
-  jwtAuth,
-  resolveTenant,
-  requirePermission(Permission.ADMIN_ACCESS),
-  auditLog,
-  idempotencyKey,
-];
+
+// 写面链：鉴权 + 租户解析 + 权限门槛 + 审计 + 幂等键，admin/platform-admin 复用同构链
+function writeChain(auth: RequestHandler): RequestHandler[] {
+  return [jwtAuth, resolveTenant, auth, auditLog, idempotencyKey];
+}
+export const adminMiddleware = () => writeChain(requirePermission(Permission.ADMIN_ACCESS));
+export const platformAdminMiddleware = () => writeChain(requirePlatformAdmin);
