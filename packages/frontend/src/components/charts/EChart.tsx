@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import * as echarts from 'echarts/core';
 import type { EChartsOption } from 'echarts';
+import { resolveVarColorToken } from '@/lib/cssVarResolver.js';
 import { LineChart, BarChart, PieChart, ScatterChart } from 'echarts/charts';
 import {
   GridComponent,
@@ -26,20 +27,19 @@ echarts.use([
   CanvasRenderer,
 ]);
 
-// canvas 渲染器无法解析 CSS 变量，渲染前把 var(--x) 深度解析为具体色值；
-// 别名 token（如 --text-muted 已是 hsl(...)）不可再包一层 hsl()
-const VAR_PATTERN = /var\((--[\w-]+)\)/g;
+// canvas 渲染器无法解析 CSS 变量，渲染前把 var(--x)/hsl(var(--x)) 深度解析为具体色值；
+// 别名 token（如 --text-muted 已是 hsl(...)）不可再包一层 hsl()（解析逻辑见 lib/cssVarResolver）
 const COLOR_FN = /^(?:hsl|rgb|rgba|hwb|lab|lch|oklch|color)\b/i;
 // HSL 通道三元组（如 "213 33% 96%"）需包一层 hsl()；shadow/px 等非颜色值原样透传
 const CHANNEL_RE = /^\d+\s+[\d.]+%?\s+[\d.]+%?$/;
 function resolveToken(name: string): string {
   const raw = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
   if (!raw) return '';
-  if (raw.includes('var(')) return resolveVarColor(raw);
+  if (raw.includes('var(')) return resolveVarColorToken(raw, resolveToken);
   return COLOR_FN.test(raw) || !CHANNEL_RE.test(raw) ? raw : `hsl(${raw})`;
 }
 function resolveVarColor(input: string): string {
-  return input.replace(VAR_PATTERN, (full, name: string) => resolveToken(name) || full);
+  return resolveVarColorToken(input, resolveToken);
 }
 function resolveTheme(option: EChartsOption): EChartsOption {
   const walk = (node: unknown): unknown => {
