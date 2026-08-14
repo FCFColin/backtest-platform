@@ -26,9 +26,6 @@ const eventMocks = vi.hoisted(() => ({
   dispatch: vi.fn(async () => {}),
 }));
 
-const outboxMocks = vi.hoisted(() => ({
-  writeEventInTransaction: vi.fn(async () => {}),
-}));
 const cacheMocks = vi.hoisted(() => ({
   backtestCacheKey: vi.fn(),
   setBacktestResultCache: vi.fn(async () => {}),
@@ -71,10 +68,6 @@ vi.mock('../../../packages/backend/src/domain/events/events.js', () => ({
 }));
 
 vi.mock('../../../packages/backend/src/db/pool.js', () => ({}));
-
-vi.mock('../../../packages/backend/src/infrastructure/outboxWriter.js', () => ({
-  writeEventInTransaction: outboxMocks.writeEventInTransaction,
-}));
 
 vi.mock('../../../packages/backend/src/application/backtest/backtestResultUtils.js', () => ({
   backtestCacheKey: cacheMocks.backtestCacheKey,

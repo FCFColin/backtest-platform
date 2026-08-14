@@ -24,25 +24,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **API 包整合（ADR-011）**：`api/python/` 目录删除，admin bulk-ingest 端点返回 501；TS 后端整合到 `packages/backend/`
 - **OTel SaaS 替换（ADR-006）**：可观测性后端切换为 go-shared + `OTEL_EXPORTER_OTLP_ENDPOINT` 环境变量切换，移除 SaaS 强依赖
 - **合成标的支持回测至 1962 年**：扩展历史数据覆盖范围，支持长周期回测
-- **Webhook 系统**：Outbox 事件触发外部 webhook 投递（含重试与幂等）
 - **审计存储**：审计日志持久化存储，支持合规追溯
-- **自定义 RBAC**：RBAC 角色权限扩展，支持自定义角色
 - **RLS 扩展**：多租户 RLS 隔离扩展到更多表（ADR-009 范围扩大）
 - **迁移添加**：新增多个数据库迁移（Outbox、CDC 支持、审计、配额等）
 
 ### Added（ADR 新增）
 
-- DADR-046：API 版本生命周期策略（`Deprecation`/`Sunset`/`Link` 头，RFC 8594）
 - ADR-011：后端模块化策略（逻辑边界 + 微服务化触发条件）
-- DADR-050：微前端 Module Federation 架构预留
 - ADR-005：CDC via Debezium for Outbox（多 Pod 水平扩展，门控默认关闭）
-- DADR-052：CI 分层与依赖方向强制（原误编为 DADR-038，与灾难恢复策略冲突，重新编号）
 
 ### Changed（前端 v2 UI 重构）
 
 - 前端 v2 UI 重构：导航栏、Hero 区、参数区、结果区全面重构，提升信息密度与交互体验
-- DADR-039/040/041 状态确认：实际作为独立 Proposed 决策存在（多区域部署、数据生命周期、服务边界），此前被误标为已删除
-- DADR-038 冲突修复：保留 DADR-038-DR-Strategy（灾难恢复，Proposed），CI 分层决策重新编号为 DADR-052
 - ADR 索引（`docs/adr/README.md`）重写：基于实际文件遍历生成，移除虚假已删除条目
 
 ### Removed

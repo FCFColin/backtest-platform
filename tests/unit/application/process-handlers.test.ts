@@ -35,14 +35,6 @@ vi.mock('../../../packages/backend/src/infrastructure/dataFacade.js', () => ({
   initDb: vi.fn().mockResolvedValue(undefined),
 }));
 
-vi.mock('../../../packages/backend/src/infrastructure/platformAdminBootstrap.js', () => ({
-  bootstrapPlatformAdminKey: vi.fn().mockResolvedValue(undefined),
-}));
-
-vi.mock('../../../packages/backend/src/infrastructure/apiKeyMonitoring.js', () => ({
-  startApiKeyMonitoring: vi.fn(),
-}));
-
 vi.mock('../../../packages/backend/src/db/pool.js', () => ({
   getPool: vi.fn(),
   getReadPool: vi.fn(),

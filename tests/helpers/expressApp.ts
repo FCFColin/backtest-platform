@@ -1,10 +1,6 @@
 import express, { type Express, type Request, type Router } from 'express';
 import { vi, beforeEach, afterEach } from 'vitest';
 
-const API_PORT = 15001;
-
-export const API_BASE_URL = `http://localhost:${API_PORT}`;
-
 export interface TestServer {
   url: string;
   close: () => Promise<void>;

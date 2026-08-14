@@ -37,12 +37,6 @@ const internalMocks = vi.hoisted(() => ({
     unlink: vi.fn().mockResolvedValue(undefined),
   },
   circuitBreaker: { instance: { fire: vi.fn(), opened: false, on: vi.fn() } },
-  integrity: {
-    signFileSync: vi.fn(),
-    verifyFileSync: vi.fn().mockReturnValue(true),
-    signFile: vi.fn().mockResolvedValue(undefined),
-    verifyFile: vi.fn().mockResolvedValue(true),
-  },
   goDataServiceClient: {
     callGoDataService: vi.fn(),
     fetchGoJson: vi.fn(async (path: string, orgId?: string) => {
@@ -109,12 +103,6 @@ vi.mock('../../../packages/backend/src/infrastructure/goDataServiceClient.js', (
   callGoDataService: internalMocks.goDataServiceClient.callGoDataService,
   fetchGoJson: internalMocks.goDataServiceClient.fetchGoJson,
 }));
-vi.mock('../../../packages/backend/src/utils/integrity.js', () => ({
-  signFileSync: internalMocks.integrity.signFileSync,
-  verifyFileSync: internalMocks.integrity.verifyFileSync,
-  signFile: internalMocks.integrity.signFile,
-  verifyFile: internalMocks.integrity.verifyFile,
-}));
 
 export const dbMocks = internalMocks.db;
 export const tickerValidationMocks = internalMocks.tickerValidation;
@@ -123,7 +111,6 @@ export const redisMocks = internalMocks.redis;
 const fsMocks = internalMocks.fs;
 const fsPromisesMocks = internalMocks.fsPromises;
 export const circuitBreakerMocks = internalMocks.circuitBreaker;
-const integrityMocks = internalMocks.integrity;
 export const goDataServiceClientMocks = internalMocks.goDataServiceClient;
 export const dataQueryMocks = internalMocks.dataQuery;
 export const dataCacheMocks = internalMocks.dataCache;
@@ -138,8 +125,6 @@ export function setupDefault(): void {
     /^[A-Z0-9._-]{1,20}$/.test(t),
   );
   fsMocks.existsSync.mockReturnValue(false);
-  integrityMocks.verifyFileSync.mockReturnValue(true);
-  integrityMocks.verifyFile.mockResolvedValue(true);
   fsPromisesMocks.access.mockRejectedValue(new Error('no file'));
 }
 
