@@ -5,41 +5,17 @@ import '../helpers/loggerMock.js'; /**
  * 安全断言：明文密钥仅创建时一次性返回，列表不含明文/哈希，吊销后不可用。
  * 使用 testcontainers 起真实 PG。
  */
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect } from 'vitest';
 
 import '../helpers/middlewareMocks.js';
 import apiKeyRoutes from '../../packages/backend/src/routes/apiKeyRoutes.js';
-import {
-  isDockerAvailable,
-  setupTestContainer,
-  seedOrgAndUser,
-  startSaasTestServer,
-  type TestContainerContext,
-  type SeedData,
-} from '../helpers/testcontainersPg.js';
+import { saasIntegrationServer } from '../helpers/testcontainersPg.js';
 
-const dockerAvailable = isDockerAvailable();
+const saas = saasIntegrationServer(apiKeyRoutes);
 
-let ctx: TestContainerContext | null = null;
-let seed: SeedData | null = null;
-let baseUrl = '';
-
-beforeAll(async () => {
-  if (!dockerAvailable) return;
-  ctx = await setupTestContainer();
-  seed = await seedOrgAndUser();
-
-  const server = await startSaasTestServer(seed.orgId, seed.userId, '/api/v1', apiKeyRoutes);
-  baseUrl = server.url;
-}, 300000);
-
-afterAll(async () => {
-  if (ctx) await ctx.cleanup();
-});
-
-describe.skipIf(!dockerAvailable)('API Keys 管理集成测试', () => {
+describe.skipIf(!saas.dockerAvailable)('API Keys 管理集成测试', () => {
   it('POST 创建密钥返回 201 且明文仅此一次', async () => {
-    const res = await fetch(`${baseUrl}/api/v1/keys`, {
+    const res = await fetch(`${saas.url}/api/v1/keys`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: 'CI 集成密钥' }),
@@ -55,13 +31,13 @@ describe.skipIf(!dockerAvailable)('API Keys 管理集成测试', () => {
   });
 
   it('GET 列表不含明文密钥与哈希', async () => {
-    await fetch(`${baseUrl}/api/v1/keys`, {
+    await fetch(`${saas.url}/api/v1/keys`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: '列表测试密钥' }),
     });
 
-    const res = await fetch(`${baseUrl}/api/v1/keys`);
+    const res = await fetch(`${saas.url}/api/v1/keys`);
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.success).toBe(true);
@@ -75,7 +51,7 @@ describe.skipIf(!dockerAvailable)('API Keys 管理集成测试', () => {
   });
 
   it('DELETE 吊销密钥后列表显示已吊销', async () => {
-    const createRes = await fetch(`${baseUrl}/api/v1/keys`, {
+    const createRes = await fetch(`${saas.url}/api/v1/keys`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: '待吊销密钥' }),
@@ -83,14 +59,14 @@ describe.skipIf(!dockerAvailable)('API Keys 管理集成测试', () => {
     const created = await createRes.json();
     const keyId = created.data.id;
 
-    const revokeRes = await fetch(`${baseUrl}/api/v1/keys/${keyId}`, {
+    const revokeRes = await fetch(`${saas.url}/api/v1/keys/${keyId}`, {
       method: 'DELETE',
     });
     expect(revokeRes.status).toBe(200);
     const revokeJson = await revokeRes.json();
     expect(revokeJson.data.revoked).toBe(true);
 
-    const listRes = await fetch(`${baseUrl}/api/v1/keys`);
+    const listRes = await fetch(`${saas.url}/api/v1/keys`);
     const listJson = await listRes.json();
     const revokedKey = listJson.data.find((k: { id: string }) => k.id === keyId);
     expect(revokedKey).toBeDefined();
@@ -98,19 +74,19 @@ describe.skipIf(!dockerAvailable)('API Keys 管理集成测试', () => {
   });
 
   it('DELETE 不存在的密钥返回 404', async () => {
-    const res = await fetch(`${baseUrl}/api/v1/keys/00000000-0000-4000-8000-000000000000`, {
+    const res = await fetch(`${saas.url}/api/v1/keys/00000000-0000-4000-8000-000000000000`, {
       method: 'DELETE',
     });
     expect(res.status).toBe(404);
   });
 
   it('DELETE 非法 UUID 返回 400', async () => {
-    const res = await fetch(`${baseUrl}/api/v1/keys/not-a-uuid`, { method: 'DELETE' });
+    const res = await fetch(`${saas.url}/api/v1/keys/not-a-uuid`, { method: 'DELETE' });
     expect(res.status).toBe(400);
   });
 
   it('POST 空名称返回校验错误', async () => {
-    const res = await fetch(`${baseUrl}/api/v1/keys`, {
+    const res = await fetch(`${saas.url}/api/v1/keys`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: '' }),

@@ -1,5 +1,6 @@
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { execSync } from 'node:child_process';
+import { beforeAll, afterAll } from 'vitest';
 import type { Request, Response, NextFunction, Router } from 'express';
 import { config } from '../../packages/backend/src/config/index.js';
 import { getPool, closeDb } from '../../packages/backend/src/db/pool.js';
@@ -124,4 +125,34 @@ export async function startSaasTestServer(
     app.use(mockAuthMiddleware(orgId, userId));
     app.use(mountPath, router);
   });
+}
+
+/**
+ * 集成测试常用骨架：起容器 + 种子数据 + SaaS 服务器，并注册 beforeAll/afterAll。
+ * 不 Docker 时 beforeAll 跳过（配合 describe.skipIf(!saas.dockerAvailable)）。
+ */
+export function saasIntegrationServer(routes: Router, mountPath = '/api/v1') {
+  const dockerAvailable = isDockerAvailable();
+  let ctx: TestContainerContext | null = null;
+  let seed: SeedData | null = null;
+  let url = '';
+  beforeAll(async () => {
+    if (!dockerAvailable) return;
+    ctx = await setupTestContainer();
+    seed = await seedOrgAndUser();
+    const server = await startSaasTestServer(seed.orgId, seed.userId, mountPath, routes);
+    url = server.url;
+  }, 300000);
+  afterAll(async () => {
+    if (ctx) await ctx.cleanup();
+  });
+  return {
+    dockerAvailable,
+    get url() {
+      return url;
+    },
+    get seed() {
+      return seed;
+    },
+  };
 }
