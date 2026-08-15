@@ -1,7 +1,7 @@
 import { useState, useEffect, memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { BarChart3, ChevronDown, Check } from 'lucide-react';
-import { Settings, Rocket, ChevronUp, ArrowRight, FlaskConical } from 'lucide-react';
+import { Settings, Rocket, ChevronUp, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router';
 import { Button, Card } from '@/components/ui/uiComponents';
 import { cn } from '@/lib/utils';
@@ -47,28 +47,6 @@ function HeroDetails() {
             path: tool.path,
           }))}
         />
-      </div>
-      <div
-        className="mt-6 p-4 bg-brand-subtle/6 border border-brand/20 rounded-lg flex items-center gap-4"
-        data-testid="synthetic-promo"
-      >
-        <div className="flex-shrink-0 p-2 bg-brand-subtle/10 rounded-lg">
-          <FlaskConical className="h-5 w-5 text-brand" />
-        </div>
-        <div className="flex-1">
-          <div className="text-body font-medium text-fg">
-            {t('Synthetic tickers extend 60/40 backtests to 40+ years')}
-          </div>
-          <div className="text-caption text-fg-secondary mt-0.5">
-            {t('VTISIM · BNDSIM · SPYSIM and 20+ synthetic tickers ready')}
-          </div>
-        </div>
-        <Link
-          to="/data-engine"
-          className="text-caption text-brand hover:underline flex items-center gap-1"
-        >
-          {t('View all')} <ArrowRight className="h-3 w-3" />
-        </Link>
       </div>
     </>
   );

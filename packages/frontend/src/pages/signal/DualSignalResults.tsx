@@ -5,7 +5,7 @@ import type { TFunction } from 'i18next';
 import { fmtPct, fmtRatio, downsample } from '@/utils/format';
 import { getPortfolioColor } from '@/lib/chart-theme.js';
 import type { SignalAnalysisResult } from '@backtest/shared/types/signal';
-import { CollapsibleSection } from '@/components/cards';
+import { ResultsSection } from '@/components/cards';
 import { Button } from '@/components/ui/uiComponents.js';
 import {
   SortableTable,
@@ -73,13 +73,9 @@ function StatsComparisonTable({ statRows }: { statRows: StatRow[] }) {
     })),
   ];
   return (
-    <CollapsibleSection
-      title={t('Combined Signal Stats vs Single Signal Stats')}
-      defaultOpen
-      className="rounded-xl border border-border bg-surface"
-    >
+    <ResultsSection title={t('Combined Signal Stats vs Single Signal Stats')}>
       <SimpleTable columns={columns} data={STAT_COLS} rowKey={(r) => r.key} />
-    </CollapsibleSection>
+    </ResultsSection>
   );
 }
 function buildComparisonColumns(
@@ -132,11 +128,7 @@ function DualSignalResultsBody({
   return (
     <div className="flex flex-col gap-4">
       <StatsComparisonTable statRows={statRows} />
-      <CollapsibleSection
-        title={t('Signal Comparison ({{count}})', { count: comparison.length })}
-        defaultOpen
-        className="rounded-xl border border-border bg-surface"
-      >
+      <ResultsSection title={t('Signal Comparison ({{count}})', { count: comparison.length })}>
         {comparison.length > 0 ? (
           <>
             <div className="flex items-center justify-between border-b border-border px-4 py-2 text-caption text-fg-tertiary">
@@ -175,12 +167,8 @@ function DualSignalResultsBody({
         ) : (
           <TableEmpty message={t('No signals generated for the current parameters')} />
         )}
-      </CollapsibleSection>
-      <CollapsibleSection
-        title={t('Equity Curve Comparison')}
-        defaultOpen
-        className="rounded-xl border border-border bg-surface"
-      >
+      </ResultsSection>
+      <ResultsSection title={t('Equity Curve Comparison')}>
         <TimeSeriesLineChart
           data={chartData}
           series={[
@@ -191,7 +179,7 @@ function DualSignalResultsBody({
           referenceY={10000}
           tooltipLabelFormatter={(label) => `${t('Date')}: ${label}`}
         />
-      </CollapsibleSection>
+      </ResultsSection>
     </div>
   );
 }

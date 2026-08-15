@@ -53,6 +53,24 @@ export function CollapsibleSection({
     </Collapsible>
   );
 }
+
+/** 结果面板统一卡片样式：白底圆角边框 + 默认展开 */
+export function ResultsSection({
+  title,
+  description,
+  children,
+}: Pick<CollapsibleSectionProps, 'title' | 'description' | 'children'>) {
+  return (
+    <CollapsibleSection
+      title={title}
+      description={description}
+      defaultOpen
+      className="rounded-xl border border-border bg-surface"
+    >
+      {children}
+    </CollapsibleSection>
+  );
+}
 interface SectionTitleProps {
   icon: ReactNode;
   title: string;

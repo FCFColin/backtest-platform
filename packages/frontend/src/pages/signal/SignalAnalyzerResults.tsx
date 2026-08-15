@@ -4,7 +4,7 @@ import { fmtPct, fmtRatio, fmtAmount, downsample } from '@/utils/format';
 import type { SignalAnalysisResult } from '@backtest/shared/types/signal';
 import type { MultiSignalResponse, ResultsPanelProps } from './signalState.js';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/uiComponents';
-import { CollapsibleSection, StatCard } from '@/components/cards';
+import { ResultsSection, StatCard } from '@/components/cards';
 import { SortableTable, type TableColumn } from '../../components/tables.js';
 import { TimeSeriesLineChart } from '@/components/charts/TimeSeriesLineChart.js';
 import { ResultsShell } from '@/components/resultsShell.js';
@@ -195,18 +195,10 @@ export function MultiSignalResultsPanel({
       emptyTitle={t('Set parameters and click "Run Analysis" to view results')}
     >
       <div className="flex flex-col gap-4">
-        <CollapsibleSection
-          title={t('Aggregated Signal Statistics')}
-          defaultOpen
-          className="rounded-xl border border-border bg-surface"
-        >
+        <ResultsSection title={t('Aggregated Signal Statistics')}>
           <StatGrid rows={aggStatRows.map((r) => ({ label: t(r.label), value: r.value }))} />
-        </CollapsibleSection>
-        <CollapsibleSection
-          title={t('Signal Contribution Comparison')}
-          defaultOpen
-          className="rounded-xl border border-border bg-surface"
-        >
+        </ResultsSection>
+        <ResultsSection title={t('Signal Contribution Comparison')}>
           {results!.contributions.length > 0 ? (
             <SortableTable
               columns={contributionColumns}
@@ -217,12 +209,8 @@ export function MultiSignalResultsPanel({
           ) : (
             <TableEmpty message={t('No contribution data')} />
           )}
-        </CollapsibleSection>
-        <CollapsibleSection
-          title={t('Equity Curve')}
-          defaultOpen
-          className="rounded-xl border border-border bg-surface"
-        >
+        </ResultsSection>
+        <ResultsSection title={t('Equity Curve')}>
           <TimeSeriesLineChart
             data={equityChartData}
             series={[{ dataKey: 'value', legendName: t('Aggregated Equity') }]}
@@ -230,7 +218,7 @@ export function MultiSignalResultsPanel({
             tooltipValueFormatter={(v) => [`$${v.toLocaleString()}`, t('Equity')]}
             tooltipLabelFormatter={(label) => `${t('Date')}: ${label}`}
           />
-        </CollapsibleSection>
+        </ResultsSection>
       </div>
     </ResultsShell>
   );
