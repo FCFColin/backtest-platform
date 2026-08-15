@@ -80,39 +80,68 @@ const hashKey = (prefix: string, value: string): string =>
 
 describe('rateLimiter — keyGenerator（Redis 可用路径）', () => {
   // P0-XX：JWT 感知键生成器——已认证用户按 userId:ip 组合键限流，
+  const computeGroup = (p: string, inner: string): string => `${p}:${inner}`;
   it.each([
     [
       'computeRateLimitKey: 忽略可伪造的 req.user，按原始凭证哈希分桶',
       computeOpts,
       {
+        path: '/api/v1/backtest',
         user: { sub: 'user-xyz' },
         headers: { 'x-api-key': 'bpk_live_test123' },
       },
-      hashKey('apikey', 'bpk_live_test123'),
+      computeGroup('/api/v1/backtest', hashKey('apikey', 'bpk_live_test123')),
     ],
     [
       'computeRateLimitKey: Bearer token 按原始 token 哈希分桶（不信任可伪造的 JWT payload）',
       computeOpts,
       {
+        path: '/api/v1/backtest',
         headers: {
           authorization: `Bearer header.${encodeJwtPayload({ tenant_id: 'tenant-from-jwt' })}.sig`,
         },
       },
-      hashKey('token', `header.${encodeJwtPayload({ tenant_id: 'tenant-from-jwt' })}.sig`),
+      computeGroup(
+        '/api/v1/backtest',
+        hashKey('token', `header.${encodeJwtPayload({ tenant_id: 'tenant-from-jwt' })}.sig`),
+      ),
     ],
     [
       'computeRateLimitKey: 不同 token 永不落入同一桶（伪造 token 无法污染目标配额）',
       computeOpts,
-      { headers: { authorization: `Bearer header.${encodeJwtPayload({ sub: 'user-abc' })}.sig` } },
-      hashKey('token', `header.${encodeJwtPayload({ sub: 'user-abc' })}.sig`),
+      {
+        path: '/api/v1/backtest',
+        headers: { authorization: `Bearer header.${encodeJwtPayload({ sub: 'user-abc' })}.sig` },
+      },
+      computeGroup(
+        '/api/v1/backtest',
+        hashKey('token', `header.${encodeJwtPayload({ sub: 'user-abc' })}.sig`),
+      ),
     ],
     [
       'computeRateLimitKey: x-api-key 哈希后作为 key',
       computeOpts,
-      { headers: { 'x-api-key': 'bpk_live_test123' } },
-      hashKey('apikey', 'bpk_live_test123'),
+      { path: '/api/v1/backtest', headers: { 'x-api-key': 'bpk_live_test123' } },
+      computeGroup('/api/v1/backtest', hashKey('apikey', 'bpk_live_test123')),
     ],
-    ['computeRateLimitKey: 无任何标识时 fallback 到 IP', computeOpts, {}, '127.0.0.1'],
+    [
+      'computeRateLimitKey: 无任何标识时 fallback 到 IP',
+      computeOpts,
+      { path: '/api/v1/backtest' },
+      computeGroup('/api/v1/backtest', '127.0.0.1'),
+    ],
+    [
+      'computeRateLimitKey: 长前缀子路径独立分组，不被 /backtest 前缀吞并',
+      computeOpts,
+      { path: '/api/v1/backtest-optimizer' },
+      computeGroup('/api/v1/backtest-optimizer', '127.0.0.1'),
+    ],
+    [
+      'computeRateLimitKey: 非计算路径归入 other 组',
+      computeOpts,
+      { path: '/api/v1/users' },
+      computeGroup('other', '127.0.0.1'),
+    ],
     [
       'authRateLimitKey: body.username 优先',
       loginOpts,

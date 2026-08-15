@@ -80,6 +80,27 @@ function computeRateLimitKey(req: Request): string {
   return req.ip ?? '';
 }
 
+// 同步计算端点（requestTimeout 与 computeLimiter 共用同一路径集合）
+export const COMPUTE_PATHS = [
+  '/api/v1/backtest',
+  '/api/v1/backtest-optimizer',
+  '/api/v1/tactical',
+  '/api/v1/tactical-grid',
+  '/api/v1/pca',
+  '/api/v1/signal',
+  '/api/v1/letf',
+  '/api/v1/goal-optimizer',
+  '/api/v1/analysis',
+  '/api/v1/calculators',
+];
+
+// 按子路径分组限流：/backtest-optimizer 等长前缀必须优先匹配，否则被吞进 /backtest 组
+const COMPUTE_PATHS_BY_LENGTH = [...COMPUTE_PATHS].sort((a, b) => b.length - a.length);
+function computePathRateLimitKey(req: Request): string {
+  const group = COMPUTE_PATHS_BY_LENGTH.find((p) => req.path.startsWith(p)) ?? 'other';
+  return `${group}:${computeRateLimitKey(req)}`;
+}
+
 function authRateLimitKey(req: Request): string {
   const body = req.body as
     { username?: string; apiKey?: string; refreshToken?: string } | undefined;
@@ -186,7 +207,8 @@ export const computeLimiter = createLimiter({
   windowMs: 60 * 1000,
   max: config.COMPUTE_RATE_LIMIT_MAX,
   storePrefix: 'rl:compute:',
-  keyGenerator: computeRateLimitKey,
+  // 按子路径分组：单个计算端点的高频调用不挤占其他计算端点的配额
+  keyGenerator: computePathRateLimitKey,
   code: 'RATE_LIMITED',
   detail: '请求过于频繁，请稍后再试',
 });
