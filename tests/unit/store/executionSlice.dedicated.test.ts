@@ -1,24 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { mockFetch, toastMock } from '../../helpers/backtestStoreFixtures.js';
 import {
   mockPortfolio,
   mockBacktestParams,
   mockBacktestResult,
 } from '../../helpers/storeFixtures.js';
-
-vi.mock('react', () => ({ startTransition: vi.fn((cb) => cb()) }));
-
-const mockFetch = vi.fn();
-
-vi.mock('../../../packages/frontend/src/utils/apiClient.js', () => ({
-  apiFetch: (input: RequestInfo | URL, init?: RequestInit) => mockFetch(input, init),
-  notifyIfDegraded: vi.fn(),
-}));
-
-const toastMock = vi.fn();
-vi.mock('../../../packages/frontend/src/store/toastStore.js', () => ({
-  useToastStore: { getState: () => ({ addToast: toastMock }) },
-}));
-
 import {
   useBacktestStore,
   pollJobStatus,

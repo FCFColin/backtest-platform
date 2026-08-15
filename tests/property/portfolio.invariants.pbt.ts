@@ -20,15 +20,16 @@ const tickerArb = fc
     return withSuffix ? `${base}.${suffix}` : base;
   });
 
-const weightsSumTo100Arb = fc
-  .array(fc.float({ min: 1, max: 50, noDefaultInfinity: true, noNaN: true }), {
+// 成对 (ticker, weight) 生成：消除 ticker 与 weight 数组长度错配导致的样本丢弃
+const tickerWeightArb = fc
+  .array(fc.tuple(tickerArb, fc.float({ min: 1, max: 50, noDefaultInfinity: true, noNaN: true })), {
     minLength: 2,
     maxLength: 10,
   })
-  .map((ws) => {
-    const sum = ws.reduce((s, w) => s + w, 0);
+  .map((pairs) => {
+    const sum = pairs.reduce((s, [, w]) => s + w, 0);
     const factor = 100 / sum;
-    return ws.map((w) => w * factor);
+    return pairs.map(([t, w]) => [t, w * factor] as const);
   });
 
 function buildDTO(tickers: string[], weights: number[]): PortfolioDTO {
@@ -43,9 +44,10 @@ function buildDTO(tickers: string[], weights: number[]): PortfolioDTO {
 describe('Portfolio 不变量 property 测试', () => {
   it('Portfolio.fromDTO：合法 DTO 构造后 totalWeight 等于输入权重和（容差 1e-6）', () => {
     check(
-      [fc.array(tickerArb, { minLength: 2, maxLength: 10 }), weightsSumTo100Arb],
-      (tickers, weights) => {
-        if (tickers.length !== weights.length) return true;
+      [tickerWeightArb],
+      (pairs) => {
+        const tickers = pairs.map(([t]) => t);
+        const weights = pairs.map(([, w]) => w);
         const unique = [...new Set(tickers)];
         if (unique.length !== tickers.length) return true;
         const dto = buildDTO(tickers, weights);
@@ -61,13 +63,16 @@ describe('Portfolio 不变量 property 测试', () => {
   it('Portfolio.fromDTO：权重和偏离 100 超过容差（1）应抛错', () => {
     check(
       [
-        fc.array(tickerArb, { minLength: 2, maxLength: 5 }),
-        fc.float({ min: 10, max: 40, noDefaultInfinity: true, noNaN: true }),
+        fc.array(
+          fc.tuple(tickerArb, fc.float({ min: 10, max: 40, noDefaultInfinity: true, noNaN: true })),
+          { minLength: 2, maxLength: 5 },
+        ),
       ],
-      (tickers, badWeight) => {
+      (pairs) => {
+        const tickers = pairs.map(([t]) => t);
+        const weights = pairs.map(([, w]) => w);
         const unique = [...new Set(tickers)];
         if (unique.length !== tickers.length) return true;
-        const weights = tickers.map(() => badWeight);
         const sum = weights.reduce((s, w) => s + w, 0);
         if (Math.abs(sum - 100) <= 1) return true;
         const dto = buildDTO(tickers, weights);

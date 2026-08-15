@@ -1,18 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-vi.mock('react', () => ({ startTransition: vi.fn((cb) => cb()) }));
-const mockFetch = vi.fn();
-global.fetch = mockFetch;
-vi.mock('../../../packages/frontend/src/utils/apiClient.js', () => ({
-  apiFetch: (input: RequestInfo | URL, init?: RequestInit) => fetch(input, init),
-  notifyIfDegraded: vi.fn(),
-}));
-vi.mock('../../../packages/frontend/src/store/toastStore.js', () => ({
-  useToastStore: { getState: () => ({ addToast: vi.fn() }) },
-}));
+import { describe, it, expect, beforeEach } from 'vitest';
+import { mockFetch, resetBacktestStoreState } from '../../helpers/backtestStoreFixtures.js';
 import { useBacktestStore } from '../../../packages/frontend/src/store/backtestStore.js';
 import type { Portfolio } from '../../../packages/shared/types/portfolio.js';
 import { mockBacktestParams } from '../../helpers/storeFixtures.js';
-import { resetBacktestStoreState } from '../../helpers/backtestStoreFixtures.js';
 
 const S = () => useBacktestStore.getState();
 beforeEach(() => resetBacktestStoreState(mockFetch));

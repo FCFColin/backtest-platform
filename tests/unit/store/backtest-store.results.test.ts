@@ -1,21 +1,4 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-vi.mock('react', () => ({ startTransition: vi.fn((cb) => cb()) }));
-const mockFetch = vi.fn();
-global.fetch = mockFetch;
-vi.mock('../../../packages/frontend/src/utils/apiClient.js', () => ({
-  apiFetch: (input: RequestInfo | URL, init?: RequestInit) => fetch(input, init),
-  notifyIfDegraded: vi.fn(),
-}));
-vi.mock('../../../packages/frontend/src/store/toastStore.js', () => ({
-  useToastStore: { getState: () => ({ addToast: vi.fn() }) },
-}));
-import {
-  extractApiErrorDetail,
-  normalizeBacktestResult,
-} from '../../../packages/frontend/src/store/backtestHelpers.js';
-import { useBacktestStore } from '../../../packages/frontend/src/store/backtestStore.js';
-import { mockBacktestResult, mockPortfolioResult } from '../../helpers/storeFixtures.js';
-import { mockPortfolio, mockBacktestParams } from '../../helpers/storeFixtures.js';
 import {
   resetBacktestStoreState,
   mockFetchOnce,
@@ -24,7 +7,12 @@ import {
   emptySuccessResponse,
   setSinglePortfolioResult,
   setResultsWith,
+  mockFetch,
 } from '../../helpers/backtestStoreFixtures.js';
+import { normalizeBacktestResult } from '../../../packages/frontend/src/store/backtestHelpers.js';
+import { useBacktestStore } from '../../../packages/frontend/src/store/backtestStore.js';
+import { mockBacktestResult, mockPortfolioResult } from '../../helpers/storeFixtures.js';
+import { mockPortfolio, mockBacktestParams } from '../../helpers/storeFixtures.js';
 
 const S = () => useBacktestStore.getState();
 beforeEach(() => resetBacktestStoreState(mockFetch));
@@ -42,37 +30,6 @@ const topLevelPayload = () => ({
   benchmarkGrowth: [],
 });
 
-describe('extractApiErrorDetail', () => {
-  it.each<[string, unknown, string]>([
-    ['returns detail field when present', { detail: 'invalid ticker' }, 'invalid ticker'],
-    [
-      'detail takes priority over error field',
-      { detail: 'priority', error: 'ignored' },
-      'priority',
-    ],
-    [
-      'returns error string when detail absent',
-      { error: 'something went wrong' },
-      'something went wrong',
-    ],
-    [
-      'returns nested error.detail when error is object with detail',
-      { error: { detail: 'nested detail' } },
-      'nested detail',
-    ],
-  ])('%s', (_n, input, expected) => {
-    expect(extractApiErrorDetail(input)).toBe(expected);
-  });
-  it.each<[string, unknown]>([
-    ['null', null],
-    ['primitive string', 'hello'],
-    ['empty object', {}],
-  ])('returns default for %s', (_n, input) => {
-    const result = extractApiErrorDetail(input);
-    expect(typeof result).toBe('string');
-    expect(result.length).toBeGreaterThan(0);
-  });
-});
 describe('setHasLoadedFromShare / setActiveTab / getShareableState', () => {
   it('sets the flag to true/false', () => {
     S().setHasLoadedFromShare(true);

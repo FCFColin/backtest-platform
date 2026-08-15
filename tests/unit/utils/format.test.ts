@@ -1,16 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
 
-vi.mock('@/i18n/index.js', () => ({
-  default: {
-    t: (key: string, options?: Record<string, unknown>) => {
-      if (!options) return key;
-      let result = key;
-      for (const [k, v] of Object.entries(options)) result = result.replace(`{{${k}}}`, String(v));
-      return result;
-    },
-    language: 'zh-CN',
-  },
-}));
+vi.mock(
+  '@/i18n/index.js',
+  async () => (await import('../../helpers/i18nMock.js')).i18nIndexModuleMock,
+);
 
 import {
   fmtPct,

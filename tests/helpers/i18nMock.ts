@@ -7,3 +7,5 @@ export const i18nMock = {
   useTranslation: () => ({ t, i18n: { language: 'zh-CN', changeLanguage: vi.fn() } }),
   Trans: ({ i18nKey }: { i18nKey: string }) => i18nKey,
 };
+
+export const i18nIndexModuleMock = { default: { t } };

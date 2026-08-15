@@ -3,6 +3,21 @@ import type { PortfolioResult } from '../../packages/shared/types/backtest.js';
 import { useBacktestStore } from '../../packages/frontend/src/store/backtestStore.js';
 import { mockPortfolio, mockBacktestParams, mockPortfolioResult } from './storeFixtures.js';
 
+vi.mock('react', () => ({ startTransition: vi.fn((cb) => cb()) }));
+
+export const mockFetch = vi.fn();
+global.fetch = mockFetch;
+
+vi.mock('../../packages/frontend/src/utils/apiClient.js', () => ({
+  apiFetch: (input: RequestInfo | URL, init?: RequestInit) => fetch(input, init),
+  notifyIfDegraded: vi.fn(),
+}));
+
+export const toastMock = vi.fn();
+vi.mock('../../packages/frontend/src/store/toastStore.js', () => ({
+  useToastStore: { getState: () => ({ addToast: toastMock }) },
+}));
+
 type MockFetch = ReturnType<typeof vi.fn>;
 
 export function resetBacktestStoreState(mockFetch: MockFetch): void {

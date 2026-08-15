@@ -1,5 +1,6 @@
 import '../../helpers/loggerMock.js';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { createPoolModuleMock } from '../../helpers/mockFactories.js';
 
 const dbMocks = vi.hoisted(() => ({ query: vi.fn() }));
 const redisMocks = vi.hoisted(() => ({
@@ -11,11 +12,7 @@ const cryptoMocks = vi.hoisted(() => ({
   verifyApiKeyArgon2id: vi.fn(),
 }));
 
-vi.mock('../../../packages/backend/src/db/pool.js', () => ({
-  getPool: () => ({ query: dbMocks.query }),
-  withTenant: async (_orgId: string, fn: (client: { query: typeof dbMocks.query }) => unknown) =>
-    fn({ query: dbMocks.query }),
-}));
+vi.mock('../../../packages/backend/src/db/pool.js', () => createPoolModuleMock(dbMocks));
 
 vi.mock('../../../packages/backend/src/repositories/apiKeyRepo.js', () => ({
   KEY_PREFIX: 'bpk_live_',

@@ -7,19 +7,21 @@ import {
 } from '../../../packages/frontend/src/pages/monte-carlo/monteCarloUtils.js';
 import { loadInBacktesterAction } from '../../../packages/frontend/src/pages/optimizer/optimizerApi.js';
 
+const makeSetters = () => ({
+  setPortfolioMode: vi.fn(),
+  setPortfolios: vi.fn(),
+  setNumYears: vi.fn(),
+  setNumSimulations: vi.fn(),
+  setStartingValue: vi.fn(),
+  setMinBlock: vi.fn(),
+  setMaxBlock: vi.fn(),
+});
+
 describe('monteCarloUtils.buildPresets', () => {
   beforeEach(() => localStorage.clear());
 
   it('应生成 3 个预设按钮，点击后设置对应参数', () => {
-    const setters = {
-      setPortfolioMode: vi.fn(),
-      setPortfolios: vi.fn(),
-      setNumYears: vi.fn(),
-      setNumSimulations: vi.fn(),
-      setStartingValue: vi.fn(),
-      setMinBlock: vi.fn(),
-      setMaxBlock: vi.fn(),
-    };
+    const setters = makeSetters();
     const presets = buildPresets(setters);
     expect(presets).toHaveLength(3);
 
@@ -41,15 +43,7 @@ describe('monteCarloUtils.buildPresets', () => {
   });
 
   it('第三预设（三基金）应设置正确的权重组合', () => {
-    const setters = {
-      setPortfolioMode: vi.fn(),
-      setPortfolios: vi.fn(),
-      setNumYears: vi.fn(),
-      setNumSimulations: vi.fn(),
-      setStartingValue: vi.fn(),
-      setMinBlock: vi.fn(),
-      setMaxBlock: vi.fn(),
-    };
+    const setters = makeSetters();
     const presets = buildPresets(setters);
     presets[2].onClick();
     const [portfolios] = setters.setPortfolios.mock.calls[0];

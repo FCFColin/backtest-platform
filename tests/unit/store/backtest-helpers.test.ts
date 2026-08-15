@@ -1,17 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
 
-vi.mock('../../../packages/frontend/src/i18n/index.js', () => ({
-  default: {
-    t: (key: string, opts?: Record<string, unknown>) => {
-      if (!opts) return key;
-      let result = key;
-      for (const [k, v] of Object.entries(opts)) {
-        result = result.replace(`{{${k}}}`, String(v));
-      }
-      return result;
-    },
-  },
-}));
+vi.mock(
+  '../../../packages/frontend/src/i18n/index.js',
+  async () => (await import('../../helpers/i18nMock.js')).i18nIndexModuleMock,
+);
 
 import {
   extractApiErrorDetail,
@@ -29,6 +21,7 @@ describe('extractApiErrorDetail', () => {
     ['字符串 detail', { detail: '余额不足' }, '余额不足'],
     ['字符串 error', { error: '服务器错误' }, '服务器错误'],
     ['嵌套 error.detail', { error: { detail: '参数无效' } }, '参数无效'],
+    ['detail 优先于 error', { detail: '优先', error: '忽略' }, '优先'],
   ])('%s 应返回 %p', (_label, input, expected) => {
     expect(extractApiErrorDetail(input)).toBe(expected);
   });

@@ -1,6 +1,6 @@
 import '../../helpers/loggerMock.js';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createRedisModuleMock } from '../../helpers/mockFactories.js';
+import { createRedisModuleMock, createPoolModuleMock } from '../../helpers/mockFactories.js';
 
 const redisMocks = vi.hoisted(() => ({}));
 const dbMocks = vi.hoisted(() => ({
@@ -18,11 +18,7 @@ vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () =>
   ),
 );
 
-vi.mock('../../../packages/backend/src/db/pool.js', () => ({
-  getPool: () => ({ query: dbMocks.query }),
-  withTenant: async (_orgId: string, fn: (client: { query: typeof dbMocks.query }) => unknown) =>
-    fn({ query: dbMocks.query }),
-}));
+vi.mock('../../../packages/backend/src/db/pool.js', () => createPoolModuleMock(dbMocks));
 
 import {
   isLockedOut,
