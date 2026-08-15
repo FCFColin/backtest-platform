@@ -27,12 +27,10 @@ await runCheck(results, 'C-015', () => {
     return { status: 'FAIL', summary: 'docs/adr/README.md 不存在' };
   const readme = readFileContent('docs/adr/README.md');
   const sections = readme.split(/^## /m);
-  const activeAdrs = new Set(
-    (sections.find((s) => s.startsWith('当前有效')) ?? '').match(/ADR-\d+/g) ?? [],
-  );
-  const deletedAdrs = new Set(
-    (sections.find((s) => s.startsWith('已删除')) ?? '').match(/ADR-\d+/g) ?? [],
-  );
+  // (?<!D) 排除 "DADR-003" 等已删除条目中的子串，避免误把活跃 ADR 记入已删除集合
+  const adrIds = (s) => s.match(/(?<!D)ADR-\d+/g) ?? [];
+  const activeAdrs = new Set(adrIds(sections.find((s) => s.startsWith('当前有效')) ?? ''));
+  const deletedAdrs = new Set(adrIds(sections.find((s) => s.startsWith('已删除')) ?? ''));
   let files = [];
   try {
     files = readdirSync(join(PROJECT_ROOT_PATH, 'docs', 'adr')).filter((f) =>
@@ -57,7 +55,7 @@ await runCheck(results, 'C-015', () => {
   };
 });
 
-// ── C-016: CHANGELOG 新鲜度（最近提交 7 天内）───────────────
+// ── C-016: CHANGELOG 新鲜度 + 版本一致性 ────────────────────
 await runCheck(results, 'C-016', () => {
   if (!fileExists('CHANGELOG.md')) return { status: 'FAIL', summary: 'CHANGELOG.md 不存在' };
   const changelog = readFileContent('CHANGELOG.md');
@@ -69,12 +67,18 @@ await runCheck(results, 'C-016', () => {
   const gitDate = runCmd('git log -1 --format=%ai').out.trim().split(' ')[0];
   if (!gitDate) return { status: 'FAIL', summary: '无法获取 git log 最新提交日期' };
   const diffDays = (new Date(gitDate).getTime() - new Date(latestDate).getTime()) / 86400000;
-  const ok = diffDays <= 7;
+  const latestVersion = changelog.match(/^## \[([\d.]+)\]\s*-\s*\d{4}-\d{2}-\d{2}/m)?.[1];
+  const pkgVersion = JSON.parse(readFileContent('package.json')).version;
+  const reasons = [];
+  if (diffDays > 7) reasons.push(`新鲜度差 ${diffDays.toFixed(1)} 天`);
+  if (latestVersion !== pkgVersion)
+    reasons.push(`版本 ${latestVersion} 与 package.json ${pkgVersion} 不一致`);
+  const ok = reasons.length === 0;
   return {
     status: ok ? 'PASS' : 'FAIL',
     summary: ok
-      ? `CHANGELOG ${latestDate} 在提交 ${gitDate} 7天内`
-      : `CHANGELOG 过期: ${latestDate} vs ${gitDate}, 差${diffDays.toFixed(1)}天`,
+      ? `CHANGELOG ${latestDate} 新鲜 + 版本 ${pkgVersion} 一致`
+      : `C-016 失败: ${reasons.join('; ')}`,
   };
 });
 
@@ -141,14 +145,7 @@ await runCheck(results, 'C-019', () => {
 await runCheck(results, 'C-020', () => {
   const f = 'packages/backend/src/config/env.ts';
   if (!fileExists(f)) return { status: 'FAIL', summary: `${f} 不存在` };
-  const content = readFileContent(f);
-  const timeoutMs =
-    content
-      .match(
-        /ENGINE_TIMEOUT_MS\s*[=:]\s*(\d+)|ENGINE_TIMEOUT_MS\s*[=:]\s*\w+\([^)]*['"](\d+)['"]\)|ENGINE_TIMEOUT_MS\s*[=:]\s*[^;]*?\|\|\s*['"](\d+)['"]/,
-      )
-      ?.slice(1)
-      .find((v) => v !== undefined) || null;
+  const timeoutMs = readFileContent(f).match(/ENGINE_TIMEOUT_MS[^\n]*?(\d+)/)?.[1] || null;
   if (timeoutMs === null) return { status: 'FAIL', summary: `${f} 中未找到 ENGINE_TIMEOUT_MS` };
   const ok = parseInt(timeoutMs, 10) >= 120000;
   return {

@@ -1,4 +1,4 @@
-import { readdirSync } from 'node:fs';
+import { readdirSync, writeFileSync, unlinkSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   runCmd,
@@ -7,6 +7,7 @@ import {
   grepInCode,
   runCheck,
   finishVerify,
+  PROJECT_ROOT_PATH,
 } from './_lib.mjs';
 
 const results = {};
@@ -17,46 +18,66 @@ await runCheck(results, 'C-007', () => {
   const kubectlRes = runCmd('kubectl version --client', { timeout: 15000 });
   if (kubectlRes.code !== 0) return { status: 'SKIP', summary: 'kubectl not installed' };
 
+  // k8s/*-secret.yaml 是 gitignored 本地密钥（仅 .example 模板入库）；CI checkout 无此文件会令 kustomize 失败。
+  // 缺失时生成临时占位 Secret（用毕即删）使 C-007 在 CI 可真实执行；占位内容不含 REPLACE_ME 等标记，不触 hasPlaceholders。
+  const secretFiles = [
+    'k8s/auth-secret.yaml',
+    'k8s/postgres-secret.yaml',
+    'k8s/alertmanager-webhooks-secret.yaml',
+  ];
+  const placeholder =
+    'apiVersion: v1\nkind: Secret\nmetadata:\n  name: placeholder\n  namespace: backtest-platform\ntype: Opaque\nstringData:\n  value: build-validation\n';
+  const created = [];
+  for (const f of secretFiles)
+    if (!fileExists(f)) {
+      writeFileSync(join(PROJECT_ROOT_PATH, f), placeholder);
+      created.push(f);
+    }
+
   const details = {
     overlays: {},
     pathCheck: {},
     kubectlVersion: kubectlRes.out.trim().split('\n')[0],
   };
   let allPass = true;
-  for (const env of OVERLAYS) {
-    const dir = `k8s/overlays/${env}/`;
-    const kExists = fileExists(`${dir}kustomization.yaml`);
-    if (!kExists) {
-      details.overlays[env] = { kustomizationExists: false, pass: false };
-      allPass = false;
-      continue;
+  try {
+    for (const env of OVERLAYS) {
+      const dir = `k8s/overlays/${env}/`;
+      const kExists = fileExists(`${dir}kustomization.yaml`);
+      if (!kExists) {
+        details.overlays[env] = { kustomizationExists: false, pass: false };
+        allPass = false;
+        continue;
+      }
+      const content = readFileContent(`${dir}kustomization.yaml`);
+      const baseRef = content.match(/^\s*-\s+(\.\.\/\.\.\/?[^\s]*)\s*$/m);
+      const hasTrailingSlash = baseRef ? /\/$/.test(baseRef[1]) : false;
+      const pathOk = baseRef !== null && !hasTrailingSlash;
+      details.pathCheck[env] = { referencesBase: baseRef !== null, hasTrailingSlash, pass: pathOk };
+      const flaggedRes = runCmd(`kubectl kustomize --load-restrictor LoadRestrictionsNone ${dir}`, {
+        timeout: 60000,
+      });
+      const buildOk = flaggedRes.code === 0 && flaggedRes.out.split('\n').length > 0;
+      // 防占位符 secret 被直接 apply（k8s/*-secret.yaml 为 gitignore 的真实密钥，.example 仅模板）
+      const hasPlaceholders = buildOk && /(REPLACE_ME|CHANGE_ME|<[^>\s]+>)/i.test(flaggedRes.out);
+      details.overlays[env] = {
+        kustomizationExists: true,
+        buildOk,
+        hasPlaceholders,
+        pass: pathOk && buildOk && !hasPlaceholders,
+      };
+      if (!pathOk || !buildOk || hasPlaceholders) allPass = false;
     }
-    const content = readFileContent(`${dir}kustomization.yaml`);
-    const baseRef = content.match(/^\s*-\s+(\.\.\/\.\.\/?[^\s]*)\s*$/m);
-    const hasTrailingSlash = baseRef ? /\/$/.test(baseRef[1]) : false;
-    const pathOk = baseRef !== null && !hasTrailingSlash;
-    details.pathCheck[env] = { referencesBase: baseRef !== null, hasTrailingSlash, pass: pathOk };
-    const flaggedRes = runCmd(`kubectl kustomize --load-restrictor LoadRestrictionsNone ${dir}`, {
-      timeout: 60000,
-    });
-    const buildOk = flaggedRes.code === 0 && flaggedRes.out.split('\n').length > 0;
-    // 防占位符 secret 被直接 apply（k8s/*-secret.yaml 为 gitignore 的真实密钥，.example 仅模板）
-    const hasPlaceholders = buildOk && /(REPLACE_ME|CHANGE_ME|<[^>\s]+>)/i.test(flaggedRes.out);
-    details.overlays[env] = {
-      kustomizationExists: true,
-      buildOk,
-      hasPlaceholders,
-      pass: pathOk && buildOk && !hasPlaceholders,
+    return {
+      status: allPass ? 'PASS' : 'FAIL',
+      summary: allPass
+        ? 'All 3 overlays kustomize build OK, no placeholder secrets'
+        : 'Some overlays failed or contain placeholder secrets',
+      details,
     };
-    if (!pathOk || !buildOk || hasPlaceholders) allPass = false;
+  } finally {
+    for (const f of created) unlinkSync(join(PROJECT_ROOT_PATH, f));
   }
-  return {
-    status: allPass ? 'PASS' : 'FAIL',
-    summary: allPass
-      ? 'All 3 overlays kustomize build OK, no placeholder secrets'
-      : 'Some overlays failed or contain placeholder secrets',
-    details,
-  };
 });
 
 await runCheck(results, 'C-008', () => {
@@ -299,6 +320,18 @@ await runCheck(results, 'C-025', () => {
       withContinueOnError: withContinue.length,
       hasEnforcement: enforcementLines.length > 0,
     },
+  };
+});
+
+// ── C-026: 生产 JWT 配置齐备（RS256 默认需 RSA 密钥，否则 api/worker 启动即 CrashLoop）──
+await runCheck(results, 'C-026', () => {
+  const cfg = readFileContent('k8s/configmap.yaml');
+  const secret = readFileContent('k8s/auth-secret.yaml.example');
+  const ok =
+    /JWT_ALGORITHM/.test(cfg) || (/JWT_PRIVATE_KEY/.test(secret) && /JWT_PUBLIC_KEY/.test(secret));
+  return {
+    status: ok ? 'PASS' : 'FAIL',
+    summary: ok ? '生产 JWT 配置齐备' : '生产缺 JWT_ALGORITHM 且无 RSA 密钥（部署即 CrashLoop）',
   };
 });
 
