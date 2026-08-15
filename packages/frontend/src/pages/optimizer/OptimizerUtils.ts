@@ -4,55 +4,6 @@ import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants
 import type { OptimizerStateParams, OptimizerResultExt, SolverType } from './optimizerApi.js';
 import { fetchStats, loadInBacktesterAction, runOptimizeApi } from './optimizerApi.js';
 export type { SolverType, OptimizerResultExt } from './optimizerApi.js';
-export interface EfficientFrontierState {
-  tickers: string[];
-  setTickers: (v: string[]) => void;
-  objective: string;
-  setObjective: (v: string) => void;
-  startDate: string;
-  setStartDate: (v: string) => void;
-  endDate: string;
-  setEndDate: (v: string) => void;
-  minWeight: number;
-  setMinWeight: (v: number) => void;
-  maxWeight: number;
-  setMaxWeight: (v: number) => void;
-  tbillRate: number;
-  setTbillRate: (v: number) => void;
-  allowShort: boolean;
-  setAllowShort: (v: boolean) => void;
-  solver: SolverType;
-  setSolver: (v: SolverType) => void;
-  minCagr: string;
-  setMinCagr: (v: string) => void;
-  minSharpe: string;
-  setMinSharpe: (v: string) => void;
-  minSortino: string;
-  setMinSortino: (v: string) => void;
-  maxVol: string;
-  setMaxVol: (v: string) => void;
-  maxMaxDD: string;
-  setMaxMaxDD: (v: string) => void;
-  maxAvgDD: string;
-  setMaxAvgDD: (v: string) => void;
-  maxHoldings: string;
-  setMaxHoldings: (v: string) => void;
-  minWeightToInclude: string;
-  setMinWeightToInclude: (v: string) => void;
-  enableMaxDD: boolean;
-  setEnableMaxDD: (v: boolean) => void;
-  enableMinCagr: boolean;
-  setEnableMinCagr: (v: boolean) => void;
-  enableMaxVol: boolean;
-  setEnableMaxVol: (v: boolean) => void;
-  isLoading: boolean;
-  isCalculatingStats: boolean;
-  error: string | null;
-  results: OptimizerResultExt | null;
-  backtestStats: Statistics | null;
-  runOptimize: () => Promise<void>;
-  handleLoadInBacktester: () => void;
-}
 function useWeightConstraints() {
   return useSetterState({
     minWeight: 0,
@@ -151,13 +102,11 @@ async function runOptimizeAction(
     s.setIsLoading(false);
   }
 }
-export function useOptimizerState(
-  t: (k: string) => string,
-  navigate: (path: string) => void,
-): EfficientFrontierState {
+export function useOptimizerState(t: (k: string) => string, navigate: (path: string) => void) {
   const s = useOptimizerSetters();
   const state = buildOptimizerStateParams(s);
   const runOptimize = () => runOptimizeAction(s, state, t);
   const handleLoadInBacktester = () => loadInBacktesterAction(s, t, navigate);
   return { ...s, runOptimize, handleLoadInBacktester };
 }
+export type EfficientFrontierState = ReturnType<typeof useOptimizerState>;

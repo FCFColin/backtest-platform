@@ -12,6 +12,7 @@ import { fmtAmount, fmtNum, fmtPct, percentile, mean, std } from '@/utils/format
 import {
   DEFAULT_BACKTEST_START_DATE,
   DEFAULT_END_DATE,
+  DEFAULT_60_40_ASSETS,
   buildBacktestParameters,
 } from '@/utils/constants';
 
@@ -33,10 +34,7 @@ export const RESULT_TABS: { key: ResultTab; label: string }[] = [
   { key: 'scenarios', label: 'Scenarios' },
 ];
 const DEFAULT_ASSETS: Record<1 | 2, PortfolioState['assets']> = {
-  1: [
-    { ticker: 'VTI', weight: 60 },
-    { ticker: 'BND', weight: 40 },
-  ],
+  1: DEFAULT_60_40_ASSETS,
   2: [
     { ticker: 'VXUS', weight: 50 },
     { ticker: 'BND', weight: 50 },

@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { ShieldAlert, BarChart3 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { CalcCard, Field, SWRChart } from './BaseCalculatorUI.js';
-import { formatPct } from './baseCalculatorUtils.js';
+import { fmtPct } from '@/utils/format';
 export function SWRCalculator() {
   const { t } = useTranslation();
   const [expectedReturn, setExpectedReturn] = useState(7);
@@ -70,7 +70,7 @@ export function SWRCalculator() {
         },
       ]}
       rows={[
-        { label: t('Estimated SWR'), value: formatPct(swr), tone: 'brand' },
+        { label: t('Estimated SWR'), value: fmtPct(swr), tone: 'brand' },
         { label: t('Annual Withdrawal (per $1M)'), value: annualWithdrawal, tone: 'success' },
       ]}
       chart={<SWRChart data={portfolioSurvival} />}
@@ -164,14 +164,14 @@ export function AssetAllocationRiskCalculator() {
       }
       rowsClassName="mt-2"
       rows={[
-        { label: t('Portfolio Volatility'), value: formatPct(result.portfolioVol), tone: 'brand' },
+        { label: t('Portfolio Volatility'), value: fmtPct(result.portfolioVol), tone: 'brand' },
         {
           label: t('Diversification Benefit'),
-          value: formatPct(result.diversificationBenefit),
+          value: fmtPct(result.diversificationBenefit),
           tone: 'success',
         },
-        { label: t('Stock Risk Contribution'), value: formatPct(result.riskContributionStock) },
-        { label: t('Bond Risk Contribution'), value: formatPct(result.riskContributionBond) },
+        { label: t('Stock Risk Contribution'), value: fmtPct(result.riskContributionStock) },
+        { label: t('Bond Risk Contribution'), value: fmtPct(result.riskContributionBond) },
       ]}
       info={t('Formula: σp = √(ws²σs² + wb²σb² + 2wswbσsσbρ)')}
     />

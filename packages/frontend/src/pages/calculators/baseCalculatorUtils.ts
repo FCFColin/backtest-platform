@@ -1,5 +1,3 @@
-import { fmtPct } from '@/utils/format';
-export const formatPct = fmtPct;
 export function formatNum(v: number) {
   if (Math.abs(v) >= 1e6) return (v / 1e6).toFixed(2) + 'M';
   if (Math.abs(v) >= 1e3) return (v / 1e3).toFixed(1) + 'K';

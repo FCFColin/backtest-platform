@@ -2,7 +2,8 @@ import { useState, useMemo } from 'react';
 import { TrendingUp, DollarSign } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { CalcCard } from './BaseCalculatorUI.js';
-import { formatPct, formatNum } from './baseCalculatorUtils.js';
+import { formatNum } from './baseCalculatorUtils.js';
+import { fmtPct } from '@/utils/format';
 import { getPortfolioColor } from '@/lib/chart-theme.js';
 import { SimpleAreaChart } from '@/components/charts/sharedChartContent.js';
 function ValueCurveChart({
@@ -48,7 +49,7 @@ export function CAGRCalculator() {
         { label: t('Final Value'), value: finalVal, onChange: setFinalVal, step: 1000, min: 0 },
         { label: t('Years'), value: years, onChange: setYears, suffix: t('y'), step: 1, min: 1 },
       ]}
-      rows={[{ label: 'CAGR', value: formatPct(cagr), tone: 'brand' }]}
+      rows={[{ label: 'CAGR', value: fmtPct(cagr), tone: 'brand' }]}
       info={t('Formula: CAGR = (Final Value / Initial Value)^(1 / Years) - 1')}
     />
   );

@@ -1,6 +1,6 @@
 import type { OptimizationResult, Statistics } from '@backtest/shared';
 import { apiPostJSON } from '@/utils/apiClient';
-import { buildBacktestParameters } from '@/utils/constants';
+import { buildBacktestParameters, buildSinglePortfolioBody } from '@/utils/constants';
 export type SolverType = 'markowitz' | 'ga';
 export type OptimizerResultExt = OptimizationResult & {
   frontier?: Array<{ expectedReturn: number; expectedVolatility: number; sharpeRatio: number }>;
@@ -27,11 +27,6 @@ export interface OptimizerStateParams {
   enableMinCagr: boolean;
   enableMaxVol: boolean;
 }
-const BASE_PARAMS = buildBacktestParameters('2010-01-01', '2024-12-31', {
-  startingValue: 10000,
-  adjustForInflation: false,
-  baseCurrency: 'usd',
-});
 function buildConstraints(s: OptimizerStateParams): Record<string, number> {
   const c: Record<string, number> = {
     minWeight: s.minWeight / 100,
@@ -55,7 +50,7 @@ export async function runOptimizeApi(
     tickers: validTickers,
     objective: s.objective,
     constraints: buildConstraints(s),
-    parameters: { ...BASE_PARAMS, startDate: s.startDate, endDate: s.endDate },
+    parameters: buildBacktestParameters(s.startDate, s.endDate),
     allowShort: s.allowShort,
     solver: s.solver,
   };
@@ -74,22 +69,12 @@ function buildPortfolioBody(
   endDate: string,
   id?: string,
 ) {
-  return {
-    portfolios: [
-      {
-        ...(id ? { id } : {}),
-        name,
-        assets: Object.entries(weights).map(([tk, w]) => ({
-          ticker: tk,
-          weight: Math.round(w * 10000) / 100,
-        })),
-        rebalanceFrequency: 'quarterly',
-        rebalanceOffset: 0,
-        drag: 0,
-      },
-    ],
-    parameters: { ...BASE_PARAMS, startDate, endDate },
-  };
+  return buildSinglePortfolioBody(
+    name,
+    Object.entries(weights).map(([tk, w]) => ({ ticker: tk, weight: Math.round(w * 10000) / 100 })),
+    { id },
+    buildBacktestParameters(startDate, endDate),
+  );
 }
 export async function fetchStats(
   optResult: OptimizerResultExt,

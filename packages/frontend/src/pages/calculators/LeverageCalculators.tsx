@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { Layers, Target, Flame } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { CalcCard } from './BaseCalculatorUI.js';
-import { formatPct } from './baseCalculatorUtils.js';
+import { fmtPct } from '@/utils/format';
 export function LeverageDecayCalculator() {
   const { t } = useTranslation();
   const [baseVol, setBaseVol] = useState(18);
@@ -48,13 +48,13 @@ export function LeverageDecayCalculator() {
         },
       ]}
       rows={[
-        { label: t('Annual Volatility Drag'), value: formatPct(result.volDrag), tone: 'warning' },
+        { label: t('Annual Volatility Drag'), value: fmtPct(result.volDrag), tone: 'warning' },
         {
           label: t('{{years}}-Year Total Decay', { years }),
-          value: formatPct(result.totalDecay),
+          value: fmtPct(result.totalDecay),
           tone: 'danger',
         },
-        { label: t('Effective Loss'), value: formatPct(result.effectiveReturn), tone: 'danger' },
+        { label: t('Effective Loss'), value: fmtPct(result.effectiveReturn), tone: 'danger' },
       ]}
       info={t('Decay Formula: Total Decay = (1 - (1 - Annual Drag)^Years) × 100%')}
     />
@@ -94,8 +94,8 @@ export function LeverageETFCalculator() {
         { label: t('Borrow Spread'), value: borrowSpread, onChange: setBorrowSpread, suffix: '%' },
       ]}
       rows={[
-        { label: t('Leveraged CAGR'), value: formatPct(result.levCagr), tone: 'brand' },
-        { label: t('Leveraged Volatility'), value: formatPct(result.levVol), tone: 'warning' },
+        { label: t('Leveraged CAGR'), value: fmtPct(result.levCagr), tone: 'brand' },
+        { label: t('Leveraged Volatility'), value: fmtPct(result.levVol), tone: 'warning' },
         {
           label: t('Leveraged Sharpe'),
           value: (result.levCagr / result.levVol).toFixed(3),
@@ -132,8 +132,8 @@ export function KellyLeverageCalculator() {
       rows={[
         { label: t('Kelly Optimal'), value: `${result.kelly.toFixed(3)}x`, tone: 'brand' },
         { label: t('Half Kelly'), value: `${result.halfKelly.toFixed(3)}x`, tone: 'muted' },
-        { label: t('Kelly Expected CAGR'), value: formatPct(result.optimalCagr) },
-        { label: t('Half Kelly Expected CAGR'), value: formatPct(result.halfKellyCagr) },
+        { label: t('Kelly Expected CAGR'), value: fmtPct(result.optimalCagr) },
+        { label: t('Half Kelly Expected CAGR'), value: fmtPct(result.halfKellyCagr) },
       ]}
       info={t('Kelly Formula: f* = (μ - r) / σ²')}
     />
