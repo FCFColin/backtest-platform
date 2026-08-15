@@ -2,15 +2,7 @@
 
 ## 搭建环境
 
-```bash
-git clone <repo-url> && cd 回测平台
-pnpm install
-cd engine-go && go mod download && cd ..
-cd data-fetcher && go mod download && cd ..
-docker compose up -d
-```
-
-前置要求与常用命令见 `README.md` 与 `AGENTS.md`。IDE 推荐 VS Code（项目推荐扩展）或 WebStorm / GoLand。
+前置要求与常用命令见 `README.md`（快速启动）与 `AGENTS.md`（权威源为 package.json scripts 与 `.env.example`）。IDE 推荐 VS Code（项目推荐扩展）或 WebStorm / GoLand。
 
 ## PR 提交规范
 

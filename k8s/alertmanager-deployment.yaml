@@ -16,10 +16,10 @@ data:
         target_matchers: [alertname =~ "RedisReplicationLagHigh|RedisNoSlavesConnected"]
         equal: ["instance"]
       - source_matchers: [alertname = "GoEngineDown"]
-        target_matchers: [alertname =~ "HighErrorRate|DegradedResponseRateHigh"]
+        target_matchers: [alertname =~ "HighErrorRate"]
         equal: ["service"]
       - source_matchers: [alertname = "PostgresDown"]
-        target_matchers: [alertname =~ "PgPoolWaiting|ReplicationLag"]
+        target_matchers: [alertname =~ "ReplicationLag"]
         equal: ["service"]
     route:
       group_by: ["alertname", "severity", "service"]

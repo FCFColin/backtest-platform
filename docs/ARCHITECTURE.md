@@ -83,7 +83,7 @@ Trace: 各服务 → OTLP HTTP → SaaS 后端。Go OTel 收口到 packages/go-s
 | PostgreSQL   | opossum(Node) | 降级到 Go 数据服务 |
 | 数据服务上游 | gobreaker(Go) | 数据获取降级       |
 
-配置: 50% 失败率 Open, 30s HalfOpen 探测。
+配置: 50% 失败率 Open, HalfOpen 探测间隔: 引擎 30s、PostgreSQL 10s。
 
 ## 10. 数据存储演进
 

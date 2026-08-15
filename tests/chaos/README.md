@@ -9,10 +9,9 @@
 - **完整应用栈运行**(通过 `docker compose up -d` 启动)
   - 必需容器:`backtest-postgres` / `backtest-redis` / `backtest-engine-go` / `backtest-data-fetcher` / `backtest-api`
   - compose `api` 容器以 `DEV_SKIP_AUTH=true` 运行(dev 编排已内置),混沌测试以无认证请求探活,故认证中间件须放行
-- **后端 API 在 `http://127.0.0.1:15001` 可访问**(chaos 测试通过 `/api/health`、`/api/ready` 与 `/api/metrics` 探活与读取熔断器状态)
+- **后端 API 在 `http://127.0.0.1:15001` 可访问**(chaos 测试通过 `/api/meta` 与 `/api/ready` 探活与验证降级契约)
 - **可选环境变量**:
   - `API_URL`:覆盖默认 API 地址(默认 `http://127.0.0.1:15001`)
-  - `METRICS_AUTH_TOKEN`:/api/metrics 的 Bearer 令牌(默认 `dev-metrics-token`,与 compose `api` 容器一致;`tests/helpers/chaos.ts` 读取同变量作为请求头)
 
 ## 运行命令
 

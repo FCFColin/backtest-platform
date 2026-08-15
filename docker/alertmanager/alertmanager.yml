@@ -13,25 +13,18 @@ inhibit_rules:
       - severity = "warning"
     equal: ['service']
 
-  # RedisDown → suppress replication/slave alerts
-  - source_matchers:
-      - alertname = "RedisDown"
-    target_matchers:
-      - alertname =~ "RedisReplicationLagHigh|RedisNoSlavesConnected"
-    equal: ['instance']
-
   # GoEngineDown → suppress error rate alerts
   - source_matchers:
       - alertname = "GoEngineDown"
     target_matchers:
-      - alertname =~ "HighErrorRate|DegradedResponseRateHigh"
+      - alertname =~ "HighErrorRate"
     equal: ['service']
 
   # PostgresDown → suppress pool/replication alerts
   - source_matchers:
       - alertname = "PostgresDown"
     target_matchers:
-      - alertname =~ "PgPoolWaiting|ReplicationLag"
+      - alertname =~ "ReplicationLag"
     equal: ['service']
 
 route:
