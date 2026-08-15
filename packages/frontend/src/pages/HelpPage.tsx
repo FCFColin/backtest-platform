@@ -33,7 +33,7 @@ export default function HelpPage() {
   ];
   return (
     <StaticPageShell title={t('Help Center')}>
-      <div className="mb-6 flex gap-2 border-b-2 border-subtle pb-3">
+      <div className="mb-6 flex gap-2 border-b-2 border-border-subtle pb-3">
         {tabs.map((tab) => (
           <button
             key={tab.key}
@@ -223,7 +223,7 @@ function MetricCard({
 function FaqItemRow({ q, a }: { q: string; a: string }) {
   const [open, setOpen] = useState(false);
   return (
-    <div className="overflow-hidden rounded-lg border border-subtle">
+    <div className="overflow-hidden rounded-lg border border-border-subtle">
       <button
         onClick={() => setOpen(!open)}
         className="flex w-full items-center justify-between bg-input-bg px-4 py-3 text-left text-body font-semibold text-fg"

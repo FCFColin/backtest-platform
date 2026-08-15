@@ -159,7 +159,7 @@ function ThemeCurrencyButtons() {
         aria-label={t('Switch theme')}
         data-testid="theme-toggle"
       >
-        {theme === 'dark' ? <Sun /> : theme === 'system' ? <Monitor /> : <MoonStar />}
+        {theme === 'light' ? <Sun /> : theme === 'dark' ? <MoonStar /> : <Monitor />}
       </Button>
       <Button
         variant="secondary"

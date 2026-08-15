@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/uiComponents';
 import SinglePortfolioEditor from '@/components/PortfolioEditor.js';
 import { RunButton } from '@/components/form/sharedFields';
+import { useSettingsStore } from '@/store/settingsStore';
 import { StatCard } from '@/components/cards.js';
 import { ResultsShell } from '@/components/resultsShell.js';
 import { TableEmpty } from '@/components/stateDisplay.js';
@@ -235,6 +236,7 @@ function FreqMultiSelect({ s }: OptimizerSectionProps) {
 }
 function ParameterSpaceSection({ s }: OptimizerSectionProps) {
   const { t } = useTranslation();
+  const currency = useSettingsStore((s) => s.currency);
   return (
     <ParamGroup
       title={t('Parameter Space')}
@@ -251,7 +253,7 @@ function ParameterSpaceSection({ s }: OptimizerSectionProps) {
                   <div className="flex items-center gap-2">
                     {r.prefix && (
                       <span className="text-body text-fg-tertiary font-mono shrink-0">
-                        {r.prefix}
+                        {r.prefix === '$' ? (currency === 'cny' ? '¥' : '$') : r.prefix}
                       </span>
                     )}
                     <Input

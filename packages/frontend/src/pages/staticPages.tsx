@@ -139,7 +139,7 @@ function UpgradeContent() {
           return (
             <div
               key={p.id}
-              className={`rounded-lg p-5 ${current ? 'border-2 border-brand bg-brand/10' : 'border border-subtle bg-input-bg'}`}
+              className={`rounded-lg p-5 ${current ? 'border-2 border-brand bg-brand/10' : 'border border-border-subtle bg-input-bg'}`}
             >
               <div className="mb-1 text-h3 font-bold text-fg">{p.name}</div>
               <div className="mb-4 text-h1 font-bold text-brand">
@@ -193,7 +193,7 @@ export function AboutPage({ section }: { section?: string }) {
   const Content = tab.C;
   return (
     <StaticPageShell title={t(tab.titleKey)}>
-      <div className="mb-6 flex gap-2 border-b-2 border-subtle pb-3">
+      <div className="mb-6 flex gap-2 border-b-2 border-border-subtle pb-3">
         {ABOUT_TABS.map((tab) => (
           <Link
             key={tab.key}

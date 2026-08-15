@@ -24,6 +24,10 @@ import {
   SelectValue,
   SelectContent,
   SelectItem,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
 } from '@/components/ui/uiComponents';
 import { ResultsShell } from '@/components/resultsShell.js';
 import { fmtPct } from '@/utils/format';
@@ -184,13 +188,13 @@ function ResultsTableHead() {
   return (
     <thead>
       <tr className="bg-input-bg">
-        <th className="border-b-2 border-subtle px-3 py-2.5 text-left text-caption font-semibold text-fg-tertiary">
+        <th className="border-b-2 border-border-subtle px-3 py-2.5 text-left text-caption font-semibold text-fg-tertiary">
           {t('Frequency')}
         </th>
         {cols.map(([label]) => (
           <th
             key={label}
-            className="border-b-2 border-subtle px-3 py-2.5 text-right text-caption font-semibold text-fg-tertiary"
+            className="border-b-2 border-border-subtle px-3 py-2.5 text-right text-caption font-semibold text-fg-tertiary"
           >
             {label}
           </th>
@@ -200,7 +204,7 @@ function ResultsTableHead() {
   );
 }
 function cellClassName(isBest: boolean): string {
-  return `border-b border-subtle px-3 py-2 text-right font-mono text-label font-medium ${isBest ? 'font-bold text-success' : 'text-fg'}`;
+  return `border-b border-border-subtle px-3 py-2 text-right font-mono text-label font-medium ${isBest ? 'font-bold text-success' : 'text-fg'}`;
 }
 function ResultsTable({ results }: { results: FreqResult[] }) {
   const best = {
@@ -225,7 +229,7 @@ function ResultsTable({ results }: { results: FreqResult[] }) {
         <tbody>
           {results.map((r, idx) => (
             <tr key={r.frequency} className={idx % 2 === 1 ? 'bg-input-bg' : ''}>
-              <td className="border-b border-subtle px-3 py-2 text-label text-fg">
+              <td className="border-b border-border-subtle px-3 py-2 text-label text-fg">
                 <span
                   className="mr-1.5 inline-block size-2.5 rounded-full align-middle"
                   style={{ backgroundColor: r.color }}
@@ -259,22 +263,27 @@ export function ResultsPanel({ s }: { s: RebalancingState }) {
       emptyTitle={t('Select rebalancing frequencies and click "Run Analysis"')}
     >
       <Card className="p-5">
-        <div className="mb-4 flex gap-2 border-b-2 border-subtle pb-3">
-          {TABS.map((tab) => (
-            <button
-              key={tab.key}
-              type="button"
-              onClick={() => s.setActiveTab(tab.key)}
-              className={`rounded-lg px-3 py-1.5 text-caption font-semibold transition-colors ${s.activeTab === tab.key ? 'bg-brand/10 text-brand' : 'text-fg-tertiary hover:text-fg-secondary'}`}
-            >
-              {t(tab.labelKey)}
-            </button>
-          ))}
-        </div>
-        {s.activeTab === 'scatter' && <ScatterTab results={s.results} />}
-        {s.activeTab === 'distributions' && <DistributionTab results={s.results} />}
-        {s.activeTab === 'offset' && <OffsetTab s={s} />}
-        {s.activeTab === 'table' && <ResultsTable results={s.results} />}
+        <Tabs value={s.activeTab} onValueChange={s.setActiveTab}>
+          <TabsList className="mb-4 flex-wrap">
+            {TABS.map((tab) => (
+              <TabsTrigger key={tab.key} value={tab.key}>
+                {t(tab.labelKey)}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+          <TabsContent value="scatter">
+            <ScatterTab results={s.results} />
+          </TabsContent>
+          <TabsContent value="distributions">
+            <DistributionTab results={s.results} />
+          </TabsContent>
+          <TabsContent value="offset">
+            <OffsetTab s={s} />
+          </TabsContent>
+          <TabsContent value="table">
+            <ResultsTable results={s.results} />
+          </TabsContent>
+        </Tabs>
       </Card>
     </ResultsShell>
   );

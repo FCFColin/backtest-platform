@@ -124,7 +124,7 @@ function PlanCard({ plan }: { plan: Plan }) {
   return (
     <div
       className={cn(
-        'relative flex flex-col p-6',
+        'relative flex flex-col rounded-lg p-6',
         rec ? 'border-2 border-brand bg-brand/10' : 'border border-border-subtle bg-hover',
       )}
     >

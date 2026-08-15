@@ -281,7 +281,7 @@ export function OptimizerParams({ s }: { s: EfficientFrontierState }) {
       <RunButton
         isLoading={running}
         onClick={() => void s.runOptimize()}
-        label={t('OPTIMIZE')}
+        label={t('Optimize')}
         loadingLabel={loadingLabel}
       />
     </div>

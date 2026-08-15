@@ -7,6 +7,13 @@ import {
 import i18n from '@/i18n/index.js';
 import { apiFetch } from '@/utils/apiClient';
 import { buildBacktestParameters, buildSinglePortfolioBody } from '@/utils/constants';
+type BacktestParamsInput = {
+  startDate: string;
+  endDate: string;
+  startingValue: number;
+  baseCurrency: 'usd' | 'cny';
+  adjustForInflation: boolean;
+};
 export const REBALANCE_OPTIONS: { value: RebalanceFrequency; label: string; color: string }[] =
   REBALANCE_FREQUENCIES.map((value) => ({
     value,
@@ -31,13 +38,7 @@ function buildBacktestBody(
   assets: Array<{ ticker: string; weight: number }>,
   freq: RebalanceFrequency,
   offset: number,
-  params: {
-    startDate: string;
-    endDate: string;
-    startingValue: number;
-    baseCurrency: 'usd' | 'cny';
-    adjustForInflation: boolean;
-  },
+  params: BacktestParamsInput,
 ) {
   return buildSinglePortfolioBody(
     label,
@@ -101,13 +102,7 @@ function extractFreqResult(
 export async function fetchFreqResult(
   freq: RebalanceFrequency,
   assets: Array<{ ticker: string; weight: number }>,
-  params: {
-    startDate: string;
-    endDate: string;
-    startingValue: number;
-    baseCurrency: 'usd' | 'cny';
-    adjustForInflation: boolean;
-  },
+  params: BacktestParamsInput,
   absoluteBand: number | '',
   relativeBand: number | '',
 ): Promise<FreqResult> {
@@ -129,13 +124,7 @@ export async function fetchOffsetResult(
   offset: number,
   freq: RebalanceFrequency,
   assets: Array<{ ticker: string; weight: number }>,
-  params: {
-    startDate: string;
-    endDate: string;
-    startingValue: number;
-    baseCurrency: 'usd' | 'cny';
-    adjustForInflation: boolean;
-  },
+  params: BacktestParamsInput,
 ): Promise<{ offset: number; cagr: number }> {
   const body = buildBacktestBody(`offset-${offset}`, assets, freq, offset, params);
   const res = await postPortfolioBacktest(body);

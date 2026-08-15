@@ -14,6 +14,7 @@ import { Field, FieldLabel } from '@/components/form/Field';
 import { SectionHeader, SelectField, RunButton } from '@/components/form/sharedFields';
 import { SegmentedControl } from '../../components/form/SegmentedControl.js';
 import PortfolioEditor from '../../components/PortfolioEditor.js';
+import { useSettingsStore } from '@/store/settingsStore';
 import type { McState, PortfolioMode, PortfolioState } from './monteCarloUtils.js';
 const GOAL_KEYS = [
   'maxCagrPercentile',
@@ -155,6 +156,7 @@ function BasicField({ t, cfg }: { t: TFunction; cfg: FieldConfig }) {
 }
 function SimParamsSection({ s }: { s: McState }) {
   const { t } = useTranslation();
+  const prefix = useSettingsStore((s) => (s.currency === 'cny' ? '¥' : '$'));
   const fields: FieldConfig[] = [
     {
       labelKey: 'Start Date',
@@ -185,7 +187,7 @@ function SimParamsSection({ s }: { s: McState }) {
       value: s.startingValue,
       onChange: (v) => s.setStartingValue(Number(v)),
       type: 'number',
-      prefix: '$',
+      prefix,
     },
     {
       labelKey: 'monteCarlo.params.minBlock',
@@ -319,7 +321,7 @@ function McParamsPanel({ s }: { s: McState }) {
       <RunButton
         isLoading={s.isLoading}
         onClick={s.runSimulation}
-        label={t('RUN SIMULATION')}
+        label={t('Run Simulation')}
         loadingLabel={t('Simulating...')}
       />
     </div>

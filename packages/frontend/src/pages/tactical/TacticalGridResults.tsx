@@ -15,6 +15,8 @@ import {
 import type { HeatmapData, TacticalGridResponse, TopCombinationResult } from './tacticalGridUtils';
 import type { TacticalGridState } from '@/hooks/useTacticalGridState';
 type StatTone = 'brand' | 'success' | 'default';
+type ParamLabels = { p1: string; p2: string };
+type GridSectionProps = { results: TacticalGridResponse; paramLabels: ParamLabels };
 const HEATMAP_TH =
   'sticky top-0 z-10 min-w-[56px] border-b-2 border-r border-border-subtle bg-elevated px-2 py-1.5 text-caption font-semibold text-fg-tertiary';
 const TONE_CLASS: Record<StatTone, string> = {
@@ -22,13 +24,7 @@ const TONE_CLASS: Record<StatTone, string> = {
   success: 'text-success',
   default: 'text-fg',
 };
-function ResultsSummary({
-  results,
-  paramLabels,
-}: {
-  results: TacticalGridResponse;
-  paramLabels: { p1: string; p2: string };
-}) {
+function ResultsSummary({ results, paramLabels }: GridSectionProps) {
   const { t } = useTranslation();
   const best = results.bestCombination;
   const stats: Array<{ label: string; value: string | number; tone?: StatTone }> = [
@@ -59,7 +55,7 @@ function ResultsSummary({
 type RankedResult = TopCombinationResult & { rank: number };
 function buildTopColumns(
   t: (k: string) => string,
-  paramLabels: { p1: string; p2: string },
+  paramLabels: ParamLabels,
 ): TableColumn<RankedResult>[] {
   const num = (v: number | string) => <span className="font-mono tabular-nums">{v}</span>;
   const col = (
@@ -84,13 +80,7 @@ function buildTopColumns(
     col('totalReturn', t('stats.totalReturn'), fmtPct),
   ];
 }
-function TopCombinationsTable({
-  results,
-  paramLabels,
-}: {
-  results: TacticalGridResponse;
-  paramLabels: { p1: string; p2: string };
-}) {
+function TopCombinationsTable({ results, paramLabels }: GridSectionProps) {
   const { t } = useTranslation();
   const rows = (results.topResults ?? []).map((r, i) => ({ ...r, rank: i + 1 }));
   return (
@@ -107,13 +97,7 @@ function TopCombinationsTable({
     </Card>
   );
 }
-function BestGrowthChart({
-  results,
-  paramLabels,
-}: {
-  results: TacticalGridResponse;
-  paramLabels: { p1: string; p2: string };
-}) {
+function BestGrowthChart({ results, paramLabels }: GridSectionProps) {
   const { t } = useTranslation();
   const best = results.bestCombination;
   if (!best || best.growthCurve.length === 0) return null;
