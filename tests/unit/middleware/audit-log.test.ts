@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+﻿import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createMockRequest, createMockResponse } from '../../helpers/expressMocks.js';
 import { createMockClient } from '../../helpers/mockFactories.js';
 
@@ -25,10 +25,8 @@ vi.mock('../../../packages/backend/src/db/pool.js', () => ({
 }));
 
 import { auditLog } from '../../../packages/backend/src/middleware/jwtAuth.js';
-import {
-  verifyPayload,
-  writeOutboxEvent,
-} from '../../../packages/backend/src/middleware/auditMiddleware.js';
+import { writeOutboxEvent } from '../../../packages/backend/src/middleware/auditMiddleware.js';
+import { verifyAuditEntry } from '../../../packages/backend/src/utils/auditCrypto.js';
 import { config } from '../../../packages/backend/src/config/index.js';
 
 function createMockReqRes(opts: {
@@ -159,7 +157,7 @@ describe('auditLog 安全攻击用例', () => {
   });
 });
 
-describe('verifyPayload HMAC 签名', () => {
+describe('verifyAuditEntry HMAC 签名', () => {
   const originalKey = config.AUDIT_HMAC_KEY;
   afterEach(() => {
     config.AUDIT_HMAC_KEY = originalKey;
@@ -179,14 +177,14 @@ describe('verifyPayload HMAC 签名', () => {
     },
   ])('$name', ({ key, payload, sig }) => {
     config.AUDIT_HMAC_KEY = key;
-    expect(verifyPayload(payload, sig)).toBe(false);
+    expect(verifyAuditEntry(payload, sig)).toBe(false);
   });
   it('正确 HMAC 签名应验证通过', async () => {
     config.AUDIT_HMAC_KEY = 'test-hmac-key';
     const crypto = await import('crypto');
     const payload = '{"userId":"u1","action":"login"}';
     const sig = crypto.createHmac('sha256', 'test-hmac-key').update(payload).digest('hex');
-    expect(verifyPayload(payload, sig)).toBe(true);
+    expect(verifyAuditEntry(payload, sig)).toBe(true);
   });
 });
 

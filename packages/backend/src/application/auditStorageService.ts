@@ -1,10 +1,12 @@
 // P2-03: HMAC-SHA256 签名防篡改 + prev_hash 链式完整性；AUDIT_HMAC_KEY 由 config/index.ts 生产强制 ≥32 字节，缺失时降级不签名（仅开发环境可达）
 import crypto from 'crypto';
 import type { PoolClient } from 'pg';
-import { config } from '../config/index.js';
 import { logger } from '../utils/logger.js';
 import { withPlatformContext } from '../db/pool.js';
 import { rowMapper, iso, toIso } from '../repositories/rowMapper.js';
+import { signAuditEntry, verifyAuditEntry } from '../utils/auditCrypto.js';
+
+export { signAuditEntry };
 
 export type AuditAction =
   'CREATE' | 'UPDATE' | 'DELETE' | 'LOGIN' | 'LOGOUT' | 'READ' | 'EXPORT' | 'CONFIG';
@@ -41,14 +43,6 @@ const UNEXPORTED_BATCH_LIMIT = 100;
 const AUDIT_LOG_COLUMNS =
   'id, event_type, user_id, org_id, ip_address, action, resource_type, resource_id, payload, hmac_signature, object_key, exported_at, created_at';
 
-export function signAuditEntry(payload: string): string {
-  const key = config.AUDIT_HMAC_KEY;
-  if (!key) {
-    logger.warn('[auditStorage] AUDIT_HMAC_KEY not set, audit log signing disabled');
-    return '';
-  }
-  return crypto.createHmac('sha256', key).update(payload).digest('hex');
-}
 function computePrevHash(id: string, signature: string): string {
   return crypto.createHash('sha256').update(`${id}${signature}`).digest('hex');
 }
@@ -152,12 +146,8 @@ export async function verifyAuditIntegrity(
   if (rows.length === 0) return { valid: false, expected: '', actual: '' };
   const storedSignature = rows[0].hmac_signature as string;
   const payloadText = rows[0].payload_text as string;
-  const key = config.AUDIT_HMAC_KEY;
-  if (!key) return { valid: false, expected: '', actual: storedSignature };
-  const expected = crypto.createHmac('sha256', key).update(payloadText).digest('hex');
-  const sigBuf = Buffer.from(storedSignature);
-  const expBuf = Buffer.from(expected);
-  const valid = sigBuf.length === expBuf.length && crypto.timingSafeEqual(sigBuf, expBuf);
+  const expected = signAuditEntry(payloadText);
+  const valid = verifyAuditEntry(payloadText, storedSignature);
   if (!valid)
     logger.warn(
       { module: 'auditStorage', logId },

@@ -1,11 +1,11 @@
 import crypto from 'crypto';
 import type { Request, Response, NextFunction } from 'express';
-import { config } from '../config/index.js';
 import { logger } from '../utils/logger.js';
 import type { PoolClient } from 'pg';
 import { getPool } from '../db/pool.js';
 import { writeEventInTransaction } from '../infrastructure/outbox.js';
 import { auditOutboxWriteFailures } from '../utils/metrics.js';
+import { signAuditEntry } from '../utils/auditCrypto.js';
 import type { AuthenticatedRequest } from './authShared.js';
 
 const auditLogger = logger.child({ audit: true, module: 'audit' });
@@ -15,35 +15,13 @@ function hashApiKey(apiKey: string | undefined): string {
     ? crypto.createHash('sha256').update(apiKey).digest('hex').slice(0, 16)
     : 'anonymous';
 }
-function auditHmac(payload: string, warnMsg: string): string {
-  const key = config.AUDIT_HMAC_KEY;
-  if (!key) {
-    logger.warn(warnMsg);
-    return '';
-  }
-  return crypto.createHmac('sha256', key).update(payload).digest('hex');
-}
-function signPayload(payload: string): string {
-  return auditHmac(payload, 'AUDIT_HMAC_KEY not set, audit log signing disabled');
-}
-export function verifyPayload(payload: string, signature: string): boolean {
-  const expected = auditHmac(
-    payload,
-    'AUDIT_HMAC_KEY not set, audit payload verification fails closed (returns false)',
-  );
-  if (!expected) return false;
-  const sigBuf = Buffer.from(signature),
-    expBuf = Buffer.from(expected);
-  if (sigBuf.length !== expBuf.length) return false;
-  return crypto.timingSafeEqual(sigBuf, expBuf);
-}
 export async function writeOutboxEvent(
   auditEntry: Record<string, unknown>,
   client?: PoolClient,
 ): Promise<void> {
   const conn = client ?? getPool();
   const payload = JSON.stringify(auditEntry);
-  const signature = signPayload(payload);
+  const signature = signAuditEntry(payload);
   const eventId = crypto.randomUUID();
   try {
     await writeEventInTransaction(conn, {
