@@ -119,12 +119,13 @@ describe('auditStorageService', () => {
       const payloadText = canonicalPayload(entry);
       poolMocks.pool.query
         .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [] })
         .mockResolvedValueOnce({ rows: [{ id: LOG_ID, payload: payloadText }] })
         .mockResolvedValueOnce({ rows: [] });
       expect(await writeAuditLog(entry, poolMocks.pool)).toBe(LOG_ID);
-      expect(callSql(1)).toContain('INSERT INTO audit_logs');
-      expect(callSql(1)).toContain('RETURNING id, payload::text');
-      const args = callArgs(1);
+      expect(callSql(2)).toContain('INSERT INTO audit_logs');
+      expect(callSql(2)).toContain('RETURNING id, payload::text');
+      const args = callArgs(2);
       expect(args[0]).toBe('AuditEvent');
       expect(args[1]).toBe(USER_ID);
       expect(args[4]).toBe('CREATE');
@@ -139,13 +140,14 @@ describe('auditStorageService', () => {
     it('可选字段为 null 时应传 null 而非 undefined', async () => {
       poolMocks.pool.query
         .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [] })
         .mockResolvedValueOnce({ rows: [{ id: LOG_ID, payload: '{}' }] })
         .mockResolvedValueOnce({ rows: [] });
       await writeAuditLog(
         makeEntry({ userId: null, orgId: null, resourceType: null, resourceId: null }),
         poolMocks.pool,
       );
-      const args = callArgs(1);
+      const args = callArgs(2);
       expect(args[1]).toBeNull();
       expect(args[2]).toBeNull();
       expect(args[5]).toBeNull();
@@ -155,10 +157,11 @@ describe('auditStorageService', () => {
       poolMocks.pool.query
         .mockResolvedValueOnce({ rows: [] })
         .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [] })
         .mockResolvedValueOnce({ rows: [{ id: LOG_ID }] });
       const result = await writeAuditLog(makeEntry(), poolMocks.pool, 'outbox-1');
       expect(result).toBe(LOG_ID);
-      expect(poolMocks.pool.query.mock.calls[1][0]).toContain('ON CONFLICT (outbox_event_id)');
+      expect(poolMocks.pool.query.mock.calls[2][0]).toContain('ON CONFLICT (outbox_event_id)');
       expect(
         poolMocks.pool.query.mock.calls.some((c) => (c[0] as string).includes('UPDATE audit_logs')),
       ).toBe(false);
@@ -167,6 +170,7 @@ describe('auditStorageService', () => {
       const canonicalText =
         '{"method":"POST","result":"ok","timestamp":"2026-07-25T10:00:00Z","userAgent":"ua","statusCode":200}';
       poolMocks.pool.query
+        .mockResolvedValueOnce({ rows: [] })
         .mockResolvedValueOnce({ rows: [] })
         .mockResolvedValueOnce({ rows: [{ id: LOG_ID, payload: canonicalText }] })
         .mockResolvedValueOnce({ rows: [] });

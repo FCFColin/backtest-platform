@@ -40,6 +40,8 @@ export interface AuditLogRow {
 }
 
 const UNEXPORTED_BATCH_LIMIT = 100;
+// 链式追加串行化：并发写审计时 prev_hash 读取+写入须原子，事务级 advisory lock（提交即释放）
+const AUDIT_CHAIN_LOCK_ID = 0x4155444954;
 const AUDIT_LOG_COLUMNS =
   'id, event_type, user_id, org_id, ip_address, action, resource_type, resource_id, payload, hmac_signature, object_key, exported_at, created_at';
 
@@ -52,6 +54,7 @@ export async function writeAuditLog(
   client: PoolClient,
   outboxEventId?: string,
 ): Promise<string | null> {
+  await client.query('SELECT pg_advisory_xact_lock($1)', [AUDIT_CHAIN_LOCK_ID]);
   const payloadStr = JSON.stringify(entry.payload);
   const prevResult = await client.query(
     'SELECT id, hmac_signature FROM audit_logs ORDER BY created_at DESC, id DESC LIMIT 1',
