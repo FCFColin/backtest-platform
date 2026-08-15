@@ -35,8 +35,8 @@ function FrontierScatterChartInner({
     scatterSeries.push({
       data: [
         {
-          expectedVolatility: maxSharpe.expectedVolatility,
-          expectedReturn: maxSharpe.expectedReturn,
+          expectedVolatility: Number((maxSharpe.expectedVolatility * 100).toFixed(2)),
+          expectedReturn: Number((maxSharpe.expectedReturn * 100).toFixed(2)),
           sharpeRatio: maxSharpe.sharpeRatio,
         },
       ],
@@ -53,14 +53,12 @@ function FrontierScatterChartInner({
       yName={t('Return (%)')}
       zRange={[60, 60]}
       height={height}
-      tooltipFormatter={(v: number, name: string) =>
-        name === 'sharpeRatio' ? v.toFixed(2) : `${v.toFixed(2)}%`
-      }
+      tooltipFormatter={(v: number) => `${v.toFixed(2)}%`}
       series={scatterSeries}
       onClick={({ seriesIndex }) => {
-        // 每点独立 series（data 恒单元素），dataIndex 恒 0，须按 seriesIndex 定位 frontier
-        if (seriesIndex !== undefined && frontier[seriesIndex])
-          onSelectPoint(frontier[seriesIndex]);
+        // 每点独立 series（data 恒单元素），dataIndex 恒 0，须按 seriesIndex 定位 frontier；末位为 maxSharpe 星标
+        const p = seriesIndex !== undefined ? (frontier[seriesIndex] ?? maxSharpe) : undefined;
+        if (p) onSelectPoint(p);
       }}
     />
   );

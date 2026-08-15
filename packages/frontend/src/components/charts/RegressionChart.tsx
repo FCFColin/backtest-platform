@@ -2,7 +2,7 @@
 import { useTranslation } from 'react-i18next';
 import { type PortfolioResult } from '@backtest/shared';
 import ChartCard from '../ChartCard.js';
-import { CHART_MARGIN, getPortfolioColor } from '@/lib/chart-theme.js';
+import { getPortfolioColor } from '@/lib/chart-theme.js';
 import { downsample, DOWNSAMPLE_THRESHOLD, DOWNSAMPLE_TARGET } from '../../utils/format.js';
 import { XYScatterChart } from './sharedChartContent.js';
 import { TimeSeriesLineChart } from './TimeSeriesLineChart.js';
@@ -89,7 +89,6 @@ function RegressionScatterChart({
         yName={t('Target Daily Return')}
         xLabel={t('{{name}} Daily Return', { name: baseName })}
         yLabel={t('{{name}} Daily Return', { name: reg.name })}
-        margin={CHART_MARGIN}
         height={400}
         xTickFormatter={(v: number) => `${Number(v).toFixed(2)}%`}
         yTickFormatter={(v: number) => `${Number(v).toFixed(2)}%`}

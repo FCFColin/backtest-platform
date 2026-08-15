@@ -60,6 +60,8 @@ export default function PortfolioPiesChart({ portfolios }: PortfolioPiesChartPro
                 radius: '65%',
                 center: ['50%', '44%'],
                 data: pieData,
+                avoidLabelOverlap: true,
+                labelLayout: { hideOverlap: true },
                 label: {
                   formatter: (p: { name: string; value: number }) => `${p.name} ${p.value}%`,
                   color: 'hsl(var(--fg-tertiary))',

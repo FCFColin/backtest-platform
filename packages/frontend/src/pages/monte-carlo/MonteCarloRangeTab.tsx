@@ -128,7 +128,7 @@ function MonteCarloTerminalHistogram({
           {
             label: p50Label,
             color: getPortfolioColor(2),
-            value: t('Median', { value: fmtAmount(p50Val) }),
+            value: t('charts.annualReturn.median', { value: fmtAmount(p50Val) }),
           },
           {
             label: p95Label,

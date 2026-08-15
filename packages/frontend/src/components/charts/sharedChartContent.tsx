@@ -21,7 +21,10 @@ import {
 type ChartDataPoint = Record<string, number | string | null>;
 
 const HEADER_DIV = '<div style="font-weight:600;margin-bottom:6px;color:hsl(var(--fg))">';
+// valueFormatter 第二参数传数据键（xKey/yKey）供单位分支判断；行标签回退为显示名
 function scatterTooltip(
+  xKey: string,
+  yKey: string,
   xName: string,
   yName: string,
   labelFormatter?: (label: string) => string,
@@ -30,13 +33,15 @@ function scatterTooltip(
   return tooltipOption((p: { name: string; value: [number, number]; color: string }) => {
     const [x, y] = p.value;
     const header = labelFormatter ? labelFormatter(p.name) : p.name;
-    const row = (val: number, name: string) => {
-      const r = valueFormatter ? valueFormatter(val, name) : [String(val), name];
+    const row = (val: number, name: string, key: string) => {
+      const r = valueFormatter ? valueFormatter(val, key) : [String(val), name];
       const [v, n] = Array.isArray(r) ? r : [r, name];
       return tooltipRow(p.color, n, String(v));
     };
     return (
-      (header ? `${HEADER_DIV}${escapeHtml(header)}</div>` : '') + row(x, xName) + row(y, yName)
+      (header ? `${HEADER_DIV}${escapeHtml(header)}</div>` : '') +
+      row(x, xName, xKey) +
+      row(y, yName, yKey)
     );
   }, 'item');
 }
@@ -317,7 +322,14 @@ export function ScatterChartContent({
     grid: chartGrid(margin),
     xAxis: valueXAxis({ formatter: fmt2, name: xLabel ?? xName }),
     yAxis: valueYAxis({ formatter: fmt2, name: yLabel ?? yName }),
-    tooltip: scatterTooltip(xName, yName, tooltipLabelFormatter, tooltipFormatter),
+    tooltip: scatterTooltip(
+      xDataKey,
+      yDataKey,
+      xName,
+      yName,
+      tooltipLabelFormatter,
+      tooltipFormatter,
+    ),
     series: [
       {
         type: 'scatter',
@@ -328,6 +340,7 @@ export function ScatterChartContent({
         })),
         symbolSize: 8,
         label: scatterLabel(),
+        labelLayout: { hideOverlap: true },
       },
     ],
     animation: animated,
@@ -426,6 +439,7 @@ export function XYScatterChart({
       })),
       symbol: s.symbol ?? 'circle',
       label: s.showLabels ? scatterLabel() : undefined,
+      labelLayout: s.showLabels ? { hideOverlap: true } : undefined,
     };
   });
   if (referenceLines?.length && seriesArr[0])
@@ -452,7 +466,7 @@ export function XYScatterChart({
       formatter: (yTickFormatter ?? toStr) as (v: number) => string,
       name: yLabel ?? yName,
     }),
-    tooltip: scatterTooltip(xName, yName, labelFormatter, tooltipFormatter),
+    tooltip: scatterTooltip(xKey, yKey, xName, yName, labelFormatter, tooltipFormatter),
     series: seriesArr as EChartsOption['series'],
     animation: animated,
   };

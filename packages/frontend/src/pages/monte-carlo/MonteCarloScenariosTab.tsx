@@ -68,7 +68,7 @@ function DistHistogramChart({
         {
           label: medianLabel,
           color: getPortfolioColor(2),
-          value: t('Median', {
+          value: t('charts.annualReturn.median', {
             value: medianVal !== undefined ? METRIC_FORMAT[distMetric](medianVal) : '',
           }),
         },

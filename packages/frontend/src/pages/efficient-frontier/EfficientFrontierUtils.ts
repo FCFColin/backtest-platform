@@ -105,8 +105,8 @@ function computeFrontierDerivedData(results: EfficientFrontierResult | null) {
     : { min: 0, max: 1 };
   const scatterData = results
     ? results.frontier.map((p) => ({
-        expectedVolatility: p.expectedVolatility,
-        expectedReturn: p.expectedReturn,
+        expectedVolatility: Number((p.expectedVolatility * 100).toFixed(2)),
+        expectedReturn: Number((p.expectedReturn * 100).toFixed(2)),
         sharpeRatio: p.sharpeRatio,
       }))
     : [];

@@ -246,6 +246,8 @@ function FrontierResultsView({ state }: { state: FrontierState }) {
       errorPrefix={`${t('Calculation failed')}: `}
       isLoading={state.isLoading}
       hasResults={!!state.results && state.results.frontier.length > 0}
+      loadingLabel={t('Calculating...')}
+      emptyTitle={t('Set parameters and click "Calculate Efficient Frontier" to view results')}
       onRetry={state.runFrontier}
     >
       <div className="flex flex-col gap-3">
