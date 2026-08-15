@@ -24,12 +24,15 @@ function normalize(username: string): string {
   return username.trim().toLowerCase();
 }
 
-export async function isLockedOut(username: string): Promise<number> {
-  const key = LOCK_PREFIX + normalize(username);
+function lockTtl(key: string): Promise<number> {
   return requireRedis(key, async () => {
     const ttl = await appRedis.ttl(key);
     return ttl > 0 ? ttl : 0;
   });
+}
+
+export async function isLockedOut(username: string): Promise<number> {
+  return lockTtl(LOCK_PREFIX + normalize(username));
 }
 
 export async function recordFailure(username: string): Promise<void> {
@@ -61,11 +64,7 @@ export async function clearFailures(username: string): Promise<void> {
 
 export async function isIpBlocked(ip: string): Promise<number> {
   if (!ip) return 0;
-  const key = IP_LOCK_PREFIX + hashIp(ip);
-  return requireRedis(key, async () => {
-    const ttl = await appRedis.ttl(key);
-    return ttl > 0 ? ttl : 0;
-  });
+  return lockTtl(IP_LOCK_PREFIX + hashIp(ip));
 }
 
 export async function recordIpFailure(ip: string): Promise<void> {
