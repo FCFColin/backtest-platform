@@ -103,10 +103,6 @@ export class Portfolio {
     return this.holdings.reduce((acc, h) => acc + h.weight.value, 0);
   }
 
-  get maxWeight(): number {
-    return this.holdings.reduce((max, h) => Math.max(max, h.weight.value), 0);
-  }
-
   toEngineBody(): Record<string, unknown> {
     return {
       name: this.name,

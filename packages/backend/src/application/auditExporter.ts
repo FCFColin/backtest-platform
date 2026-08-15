@@ -14,8 +14,6 @@ import {
   isMinioConfigured,
 } from '../infrastructure/minioStorage.js';
 
-const EXPORT_BATCH_SIZE = 100;
-
 interface ExportResult {
   processed: number;
   exported: number;
@@ -33,7 +31,7 @@ export async function exportPendingAuditLogs(): Promise<ExportResult> {
     minioConfigured: isMinioConfigured(),
   };
 
-  const logs = await getUnexportedAuditLogs(EXPORT_BATCH_SIZE);
+  const logs = await getUnexportedAuditLogs();
   result.processed = logs.length;
   if (logs.length === 0) {
     logger.debug('[auditExporter] 无待导出审计日志');

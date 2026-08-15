@@ -105,7 +105,7 @@ router.get(
         metaCache.set('meta', data);
         sendData(res, data);
       } catch {
-        sendData(res, EMPTY_META);
+        sendDegraded(res, EMPTY_META, '数据元信息暂不可用，返回空快照');
       }
     },
     { logMsg: 'Data meta fetch error', code: 'DATA_META_ERROR', endpoint: 'data-meta' },
@@ -197,7 +197,7 @@ router.get(
   '/recent-updates',
   crudRouteHandler(
     async (req: Request, res: Response): Promise<void> => {
-      const limit = Math.min(parseInt(String(req.query.limit ?? '10'), 10), 50);
+      const limit = Math.min(50, Math.max(1, parseInt(String(req.query.limit ?? '10'), 10) || 10));
       const result = await getReadPool().query(
         `SELECT t.ticker,
                 COALESCE(t.category, t.ticker) AS name,

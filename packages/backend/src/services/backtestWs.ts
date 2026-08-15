@@ -5,13 +5,12 @@ import IORedis from 'ioredis';
 import client from 'prom-client';
 import { verifyToken } from '../middleware/jwtAuth.js';
 import { jobAccessGranted } from '../middleware/jobAccess.js';
-import { backtestQueue } from '../queues/backtestQueue.js';
+import { backtestQueue, PROGRESS_CHANNEL_PREFIX } from '../queues/backtestQueue.js';
 import { buildRedisBaseOptions } from '../infrastructure/redisClient.js';
 import { logger } from '../utils/logger.js';
 import { getPrometheusRegister } from '../utils/metrics.js';
 
 const WS_PATH_PREFIX = '/api/v1/ws/runs/';
-const CHANNEL_PREFIX = 'backtest:progress:';
 
 const wsConnectionsActive = new client.Gauge({
   name: 'ws_connections_active',
@@ -113,7 +112,7 @@ function rejectHandshake(socket: Duplex, statusCode: number, reason: string): vo
 
 function handleConnection(ws: WebSocket, jobId: string, userId: string): void {
   wsConnectionsActive.inc();
-  const channel = `${CHANNEL_PREFIX}${jobId}`;
+  const channel = `${PROGRESS_CHANNEL_PREFIX}${jobId}`;
   logger.info({ jobId, userId }, '[ws] 连接已建立，注册到共享订阅');
   let cleaned = false;
   const cleanup = (): void => {

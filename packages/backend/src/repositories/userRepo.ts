@@ -77,10 +77,3 @@ export async function anonymizeUser(id: string): Promise<boolean> {
   logger.info({ userId: id, affected: rowCount }, '[userService] 用户已匿名化（GDPR Art.17）');
   return (rowCount ?? 0) > 0;
 }
-
-export async function deleteUser(id: string): Promise<boolean> {
-  const pool = getPool();
-  const { rowCount } = await pool.query('DELETE FROM users WHERE id = $1', [id]);
-  logger.info({ userId: id, affected: rowCount }, '[userService] 用户已物理删除');
-  return (rowCount ?? 0) > 0;
-}

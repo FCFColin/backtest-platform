@@ -37,10 +37,6 @@ export interface Combo {
 
 export const MAX_OPTIMIZER_COMBINATIONS = 1000;
 
-export function range(min: number, max: number, step: number): number[] {
-  return numericRange(min, max, step, 2);
-}
-
 export function buildBacktestParameters(
   parameters: BacktestOptimizerRequest['parameters'],
   startingValue: number,
@@ -74,13 +70,13 @@ export function validateOptimizeRequest(body: BacktestOptimizerRequest): string 
 export function buildCombinations(
   parameterSpace: BacktestOptimizerRequest['parameterSpace'],
 ): Combo[] {
-  const capitals = range(
+  const capitals = numericRange(
     parameterSpace.initialCapital.min,
     parameterSpace.initialCapital.max,
     parameterSpace.initialCapital.step,
   );
   const thresholds = parameterSpace.rebalanceThreshold
-    ? range(
+    ? numericRange(
         parameterSpace.rebalanceThreshold.min,
         parameterSpace.rebalanceThreshold.max,
         parameterSpace.rebalanceThreshold.step,

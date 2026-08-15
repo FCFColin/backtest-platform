@@ -29,7 +29,6 @@ import {
   getUserById,
   getUserByEmail,
   anonymizeUser,
-  deleteUser,
   createUserTx,
 } from '../../../packages/backend/src/repositories/userRepo.js';
 import {
@@ -163,13 +162,11 @@ describe('getUserByEmail - 按邮箱查询', () => {
     check(await getUserByEmail('CASE@TEST.COM'));
   });
 });
-describe('用户生命周期操作（anonymize / delete）', () => {
+describe('用户生命周期操作（anonymize）', () => {
   beforeEach(reset);
   it.each<[string, (id: string) => Promise<boolean>, number, boolean]>([
     ['anonymizeUser 应替换用户名并清空密码', anonymizeUser, 1, true],
     ['anonymizeUser 无匹配用户应返回 false', anonymizeUser, 0, false],
-    ['deleteUser 应执行 DELETE 并返回 true', deleteUser, 1, true],
-    ['deleteUser 无匹配记录应返回 false', deleteUser, 0, false],
   ])('%s', async (_n, fn, rowCount, expected) => {
     qRowCount(rowCount);
     expect(await fn('user-123')).toBe(expected);
@@ -181,11 +178,6 @@ describe('用户生命周期操作（anonymize / delete）', () => {
       'abcd-1234-efgh-5678',
       'deleted_abcd1234',
     ]);
-  });
-  it('deleteUser 应使用 DELETE FROM users WHERE id = $1', async () => {
-    qRowCount(1);
-    await deleteUser('user-123');
-    expect(mocks.pool.query).toHaveBeenCalledWith('DELETE FROM users WHERE id = $1', ['user-123']);
   });
 });
 describe('createUserTx - 事务内创建用户', () => {

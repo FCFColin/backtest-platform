@@ -45,7 +45,6 @@ export interface DateRangeInfo {
 }
 interface PortfolioBacktestPrep {
   allTickers: Set<string>;
-  warnings: Warning[];
 }
 
 export function portfolioToDomain(raw: Portfolio): DomainPortfolio {
@@ -73,7 +72,7 @@ export function preparePortfolioBacktest(
   if (portfolios.length > MAX_TICKERS || totalAssets > MAX_TICKERS)
     throw new ValidationError(`Portfolio or asset count exceeds limit (max ${MAX_TICKERS})`);
   if (parameters.benchmarkTicker) allTickers.add(parameters.benchmarkTicker);
-  return { allTickers, warnings: [] as Warning[] };
+  return { allTickers };
 }
 
 /** 根据 priceData 识别无效 ticker，填充 warnings。 */

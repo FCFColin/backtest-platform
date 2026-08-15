@@ -54,7 +54,7 @@ backtestQueue.on('error', (err) => {
   logger.error({ module: 'backtestQueue', err: err.message }, 'BullMQ Queue connection error');
 });
 
-const PROGRESS_CHANNEL_PREFIX = 'backtest:progress:';
+export const PROGRESS_CHANNEL_PREFIX = 'backtest:progress:';
 
 // DADR-045: 多 Pod 广播——每个 API Pod 各自订阅同一 channel，Worker 只需 publish 一次
 function publishBacktestProgress(jobId: string, payload: Record<string, unknown>): void {
