@@ -1,26 +1,27 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { PlanBadge } from '../../../packages/frontend/src/components/layout/Navbar.js';
+import { planTier } from '../../../packages/frontend/src/utils/orgPlan.js';
 
 describe('PlanBadge', () => {
   it('渲染 free tier 并显示 FREE 标签', () => {
     render(<PlanBadge tier="free" />);
-    expect(screen.getByText('FREE')).toBeTruthy();
+    screen.getByText('FREE');
   });
 
   it('渲染 pro tier 并显示 PRO 标签', () => {
     render(<PlanBadge tier="pro" />);
-    expect(screen.getByText('PRO')).toBeTruthy();
+    screen.getByText('PRO');
   });
 
   it('渲染 pro-plus tier 并显示 PRO+ 标签', () => {
     render(<PlanBadge tier="pro-plus" />);
-    expect(screen.getByText('PRO+')).toBeTruthy();
+    screen.getByText('PRO+');
   });
 
   it('渲染 public tier 并显示 PUBLIC 标签', () => {
     render(<PlanBadge tier="public" />);
-    expect(screen.getByText('PUBLIC')).toBeTruthy();
+    screen.getByText('PUBLIC');
   });
 
   it('free tier 包含 brand 色相关样式', () => {
@@ -51,6 +52,16 @@ describe('PlanBadge', () => {
     expect(badge?.className).toContain('tracking-wider');
     expect(badge?.className).toContain('rounded-full');
     expect(badge?.className).toContain('font-semibold');
+  });
+
+  it('渲染 enterprise tier 并显示 ENTERPRISE 标签', () => {
+    render(<PlanBadge tier="enterprise" />);
+    screen.getByText('ENTERPRISE');
+  });
+
+  it('enterprise 计划映射到 enterprise 徽章而非 fallback 到 free', () => {
+    expect(planTier('enterprise')).toBe('enterprise');
+    expect(planTier('free')).toBe('free');
   });
 
   it('支持自定义 className', () => {
