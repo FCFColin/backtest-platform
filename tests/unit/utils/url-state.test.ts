@@ -6,6 +6,7 @@ import {
   writeStateToURL,
   type ShareableState,
 } from '../../../packages/frontend/src/utils/portfolioStorage.js';
+import { mockBacktestParams } from '../../helpers/storeFixtures.js';
 
 const validState: ShareableState = {
   portfolios: [
@@ -19,14 +20,7 @@ const validState: ShareableState = {
       rebalanceFrequency: 'quarterly',
     },
   ],
-  parameters: {
-    startDate: '2010-01-01',
-    endDate: '2024-12-31',
-    startingValue: 10000,
-    adjustForInflation: false,
-    rollingWindowMonths: 12,
-    benchmarkTicker: 'SPY',
-  },
+  parameters: mockBacktestParams(),
 };
 
 const mockWindow = {

@@ -1,6 +1,10 @@
 import '../../helpers/loggerMock.js';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createConfigMocks, createPoolModuleMock } from '../../helpers/mockFactories.js';
+import {
+  createConfigMocks,
+  createPoolModuleMock,
+  mockEnvModule,
+} from '../../helpers/mockFactories.js';
 import { loggerMocks } from '../../helpers/loggerFixture.js';
 
 const dbMocks = vi.hoisted(() => ({
@@ -10,12 +14,9 @@ const dbMocks = vi.hoisted(() => ({
 
 vi.mock('../../../packages/backend/src/db/pool.js', () => createPoolModuleMock(dbMocks));
 
-vi.mock('../../../packages/backend/src/config/env.js', () => ({
-  config: createConfigMocks({ REDIS_URL: 'redis://localhost:6379' }),
-  requireSecret: vi.fn(),
-  parseCorsOrigins: vi.fn(),
-  resolveJwtAlgorithm: vi.fn(),
-}));
+vi.mock('../../../packages/backend/src/config/env.js', () =>
+  mockEnvModule(createConfigMocks({ REDIS_URL: 'redis://localhost:6379' })),
+);
 
 // redisClient 断言依赖模块加载期（import 时）记录的 IORedis 构造调用。
 // DADR-045 后 redisClient.ts 统一使用 (options) 单参数形式（buildRedisBaseOptions）。
@@ -114,12 +115,7 @@ describe('Redis Sentinel 模式（DADR-045）', () => {
       REDIS_SENTINEL_NAME: 'mymaster',
       REDIS_PASSWORD: 'secret',
     });
-    vi.doMock('../../../packages/backend/src/config/env.js', () => ({
-      config: sentinelConfig,
-      requireSecret: vi.fn(),
-      parseCorsOrigins: vi.fn(),
-      resolveJwtAlgorithm: vi.fn(),
-    }));
+    vi.doMock('../../../packages/backend/src/config/env.js', () => mockEnvModule(sentinelConfig));
 
     const sentinelInstances: Array<{ options: Record<string, unknown> }> = [];
     vi.doMock('ioredis', () => ({

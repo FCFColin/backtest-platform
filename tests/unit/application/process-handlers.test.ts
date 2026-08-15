@@ -24,12 +24,10 @@ vi.mock('../../../packages/backend/src/app.js', () => ({
   backtestWs: { close: vi.fn() },
 }));
 
-vi.mock('../../../packages/backend/src/config/env.js', () => ({
-  config: { API_PORT: 5001, NODE_ENV: 'test' },
-  requireSecret: vi.fn(),
-  parseCorsOrigins: vi.fn(),
-  resolveJwtAlgorithm: vi.fn(),
-}));
+import { mockEnvModule } from '../../helpers/mockFactories.js';
+vi.mock('../../../packages/backend/src/config/env.js', () =>
+  mockEnvModule({ API_PORT: 5001, NODE_ENV: 'test' }),
+);
 
 vi.mock('../../../packages/backend/src/infrastructure/dataFacade.js', () => ({
   initDb: vi.fn().mockResolvedValue(undefined),

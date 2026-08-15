@@ -23,6 +23,16 @@ function createEventMockResponse() {
   };
 }
 
+function invoke(
+  middleware: ReturnType<typeof requestTimeout>,
+  req: { method: string; path: string },
+) {
+  const res = createEventMockResponse();
+  const next = vi.fn();
+  middleware(req as never, res as never, next);
+  return { res, next };
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   vi.useFakeTimers();
@@ -34,23 +44,16 @@ afterEach(() => {
 
 describe('requestTimeout', () => {
   it('应立即调用 next()，不阻塞请求', () => {
-    const middleware = requestTimeout(30_000);
-    const req = { method: 'GET', path: '/api/test' };
-    const res = createEventMockResponse();
-    const next = vi.fn();
-
-    middleware(req as never, res as never, next);
+    const { next } = invoke(requestTimeout(30_000), { method: 'GET', path: '/api/test' });
 
     expect(next).toHaveBeenCalledTimes(1);
   });
 
   it('请求超时后应返回 408 RFC 7807 Problem Detail + Retry-After 头', () => {
-    const middleware = requestTimeout(5_000);
-    const req = { method: 'POST', path: '/api/v1/backtest/portfolio' };
-    const res = createEventMockResponse();
-    const next = vi.fn();
-
-    middleware(req as never, res as never, next);
+    const { res } = invoke(requestTimeout(5_000), {
+      method: 'POST',
+      path: '/api/v1/backtest/portfolio',
+    });
 
     vi.advanceTimersByTime(5_000);
 
@@ -71,12 +74,7 @@ describe('requestTimeout', () => {
   });
 
   it('超时时应输出 Pino warn 日志（含 method/path/timeoutMs）', () => {
-    const middleware = requestTimeout(10_000);
-    const req = { method: 'GET', path: '/api/v1/data/tickers' };
-    const res = createEventMockResponse();
-    const next = vi.fn();
-
-    middleware(req as never, res as never, next);
+    invoke(requestTimeout(10_000), { method: 'GET', path: '/api/v1/data/tickers' });
     vi.advanceTimersByTime(10_000);
 
     expect(loggerMocks.warn).toHaveBeenCalledWith(
@@ -90,12 +88,7 @@ describe('requestTimeout', () => {
   });
 
   it('请求正常完成（finish 事件）后应清除定时器，不发送超时响应', () => {
-    const middleware = requestTimeout(10_000);
-    const req = { method: 'GET', path: '/api/health' };
-    const res = createEventMockResponse();
-    const next = vi.fn();
-
-    middleware(req as never, res as never, next);
+    const { res } = invoke(requestTimeout(10_000), { method: 'GET', path: '/api/health' });
 
     res.emit('finish');
 
@@ -106,12 +99,7 @@ describe('requestTimeout', () => {
   });
 
   it('连接关闭（close 事件）后应清除定时器', () => {
-    const middleware = requestTimeout(10_000);
-    const req = { method: 'GET', path: '/api/health' };
-    const res = createEventMockResponse();
-    const next = vi.fn();
-
-    middleware(req as never, res as never, next);
+    const { res } = invoke(requestTimeout(10_000), { method: 'GET', path: '/api/health' });
 
     res.emit('close');
 
@@ -121,12 +109,7 @@ describe('requestTimeout', () => {
   });
 
   it('headers 已发送时超时不应重复响应', () => {
-    const middleware = requestTimeout(5_000);
-    const req = { method: 'GET', path: '/api/test' };
-    const res = createEventMockResponse();
-    const next = vi.fn();
-
-    middleware(req as never, res as never, next);
+    const { res } = invoke(requestTimeout(5_000), { method: 'GET', path: '/api/test' });
 
     res.headersSent = true;
 
@@ -137,12 +120,7 @@ describe('requestTimeout', () => {
   });
 
   it('默认超时应为 30 秒', () => {
-    const middleware = requestTimeout();
-    const req = { method: 'GET', path: '/api/test' };
-    const res = createEventMockResponse();
-    const next = vi.fn();
-
-    middleware(req as never, res as never, next);
+    const { res } = invoke(requestTimeout(), { method: 'GET', path: '/api/test' });
 
     vi.advanceTimersByTime(29_000);
     expect(res.status).not.toHaveBeenCalled();

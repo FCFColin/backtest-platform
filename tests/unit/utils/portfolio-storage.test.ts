@@ -4,7 +4,8 @@ import {
   loadNamedConfigs,
   deleteNamedConfig,
 } from '../../../packages/frontend/src/utils/portfolioStorage.js';
-import type { Portfolio, BacktestParameters } from '@backtest/shared';
+import type { Portfolio } from '@backtest/shared';
+import { mockBacktestParams } from '../../helpers/storeFixtures.js';
 
 const validPortfolios: Portfolio[] = [
   {
@@ -17,14 +18,7 @@ const validPortfolios: Portfolio[] = [
     rebalanceFrequency: 'quarterly',
   },
 ];
-const validParams: BacktestParameters = {
-  startDate: '2010-01-01',
-  endDate: '2024-12-31',
-  startingValue: 10000,
-  adjustForInflation: false,
-  rollingWindowMonths: 12,
-  benchmarkTicker: 'SPY',
-};
+const validParams = mockBacktestParams();
 
 function createLocalStorageMock() {
   let store: Record<string, string> = {};

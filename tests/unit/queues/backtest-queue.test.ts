@@ -1,6 +1,6 @@
 import '../../helpers/loggerMock.js';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createConfigMocks } from '../../helpers/mockFactories.js';
+import { mockEnvModule, createConfigMocks } from '../../helpers/mockFactories.js';
 import { loggerMocks } from '../../helpers/loggerFixture.js';
 import { redisModuleMock } from '../../helpers/redisFixture.js';
 
@@ -15,12 +15,9 @@ const workerInstanceMocks = vi.hoisted(() => ({
 const QueueMock = vi.hoisted(() => vi.fn(() => queueInstanceMocks));
 const WorkerMock = vi.hoisted(() => vi.fn(() => workerInstanceMocks));
 
-vi.mock('../../../packages/backend/src/config/env.js', () => ({
-  config: createConfigMocks({ REDIS_URL: 'redis://localhost:6379' }),
-  requireSecret: vi.fn(),
-  parseCorsOrigins: vi.fn(),
-  resolveJwtAlgorithm: vi.fn(),
-}));
+vi.mock('../../../packages/backend/src/config/env.js', () =>
+  mockEnvModule(createConfigMocks({ REDIS_URL: 'redis://localhost:6379' })),
+);
 
 vi.mock('ioredis', () => ({
   default: vi.fn(() => ({ on: vi.fn(), publish: vi.fn().mockResolvedValue(undefined) })),

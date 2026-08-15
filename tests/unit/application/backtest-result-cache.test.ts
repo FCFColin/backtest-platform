@@ -23,6 +23,7 @@ import {
   getBacktestResultCache,
 } from '../../../packages/backend/src/application/backtest/backtestResultUtils.js';
 import type { BacktestResult, Portfolio, BacktestParameters } from '@backtest/shared';
+import { mockBacktestParams } from '../../helpers/storeFixtures.js';
 
 const portfolios: Portfolio[] = [
   {
@@ -35,17 +36,10 @@ const portfolios: Portfolio[] = [
   },
 ];
 
-const parameters: BacktestParameters = {
-  startDate: '2010-01-01',
+const parameters: BacktestParameters = mockBacktestParams({
   endDate: '2020-01-01',
-  startingValue: 10000,
   baseCurrency: 'usd',
-  adjustForInflation: false,
-  rollingWindowMonths: 12,
-  benchmarkTicker: 'SPY',
-  cashflowLegs: [],
-  oneTimeCashflows: [],
-};
+});
 
 const stubResult: BacktestResult = {
   portfolios: [],

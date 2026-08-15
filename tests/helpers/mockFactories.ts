@@ -54,6 +54,15 @@ export function mockConfigModule(overrides: Record<string, unknown> = {}) {
   };
 }
 
+export function mockEnvModule(config: Record<string, unknown>) {
+  return {
+    config,
+    requireSecret: vi.fn(),
+    parseCorsOrigins: vi.fn(),
+    resolveJwtAlgorithm: vi.fn(),
+  };
+}
+
 export function mockBacktestQueue(
   add: ReturnType<typeof vi.fn>,
   getJob?: ReturnType<typeof vi.fn>,

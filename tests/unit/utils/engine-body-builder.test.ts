@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { buildEngineParams } from '../../../packages/backend/src/application/backtest/backtestEngineUtils.js';
 import { Portfolio } from '../../../packages/backend/src/domain/aggregates/portfolio.js';
+import { mockBacktestParams } from '../../helpers/storeFixtures.js';
 import type { Portfolio as PortfolioDTO, BacktestParameters } from '@backtest/shared';
 
 function makeBasePortfolio(overrides: Partial<PortfolioDTO> = {}): PortfolioDTO {
@@ -17,15 +18,7 @@ function makeBasePortfolio(overrides: Partial<PortfolioDTO> = {}): PortfolioDTO 
 }
 
 function makeBaseParams(overrides: Partial<BacktestParameters> = {}): BacktestParameters {
-  return {
-    startDate: '2020-01-01',
-    endDate: '2024-12-31',
-    startingValue: 10000,
-    adjustForInflation: false,
-    rollingWindowMonths: 12,
-    benchmarkTicker: 'SPY',
-    ...overrides,
-  };
+  return mockBacktestParams({ startDate: '2020-01-01', ...overrides });
 }
 
 describe('Portfolio.toEngineBody', () => {
