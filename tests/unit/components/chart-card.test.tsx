@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import ChartCard from '../../../packages/frontend/src/components/ChartCard.js';
 
@@ -9,8 +9,8 @@ describe('ChartCard', () => {
         <div>图表内容</div>
       </ChartCard>,
     );
-    expect(screen.getByText('测试图表')).toBeTruthy();
-    expect(screen.getByText('图表内容')).toBeTruthy();
+    screen.getByText('测试图表');
+    screen.getByText('图表内容');
   });
 
   it('渲染 headerExtra 内容', () => {
@@ -19,7 +19,7 @@ describe('ChartCard', () => {
         <div>图表内容</div>
       </ChartCard>,
     );
-    expect(screen.getByText('额外操作')).toBeTruthy();
+    screen.getByText('额外操作');
   });
 
   it('渲染复杂子元素', () => {
@@ -28,6 +28,6 @@ describe('ChartCard', () => {
         <div data-testid="chart">图表区域</div>
       </ChartCard>,
     );
-    expect(screen.getByTestId('chart')).toBeTruthy();
+    screen.getByTestId('chart');
   });
 });

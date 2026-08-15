@@ -17,12 +17,12 @@ beforeEach(() => {
 describe('PromoBar', () => {
   it('渲染消息文本', () => {
     render(<PromoBar id="test-1" message="Test message" />);
-    expect(screen.getByText('Test message')).toBeTruthy();
+    screen.getByText('Test message');
   });
 
   it('渲染 CTA 链接', () => {
     render(<PromoBar id="test-2" message="Test" ctaLabel="Click here" ctaLink="/data-engine" />);
-    expect(screen.getByText('Click here')).toBeTruthy();
+    screen.getByText('Click here');
   });
 
   it('不渲染 CTA 当 ctaLabel 或 ctaLink 缺失', () => {

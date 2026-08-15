@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 
 vi.mock('react-i18next', async () => (await import('../../helpers/i18nMock.js')).i18nMock);
@@ -54,16 +54,16 @@ describe('BacktestPage (smoke)', () => {
 
   it('happy path: 装配标题与全部面板 slot', async () => {
     render(<BacktestPage />);
-    expect(screen.getByTestId('backtest-hero')).toBeTruthy();
-    await waitFor(() => expect(screen.getByTestId('backtest-params')).toBeTruthy());
-    await waitFor(() => expect(screen.getByTestId('portfolio-editor')).toBeTruthy());
-    await waitFor(() => expect(screen.getByTestId('backtest-run')).toBeTruthy());
-    await waitFor(() => expect(screen.getByTestId('backtest-results')).toBeTruthy());
+    screen.getByTestId('backtest-hero');
+    await waitFor(() => screen.getByTestId('backtest-params'));
+    await waitFor(() => screen.getByTestId('portfolio-editor'));
+    await waitFor(() => screen.getByTestId('backtest-run'));
+    await waitFor(() => screen.getByTestId('backtest-results'));
   });
 
   it('edge path: 空组合状态下仍渲染标题不崩溃', () => {
     pageState.portfolios = [];
     render(<BacktestPage />);
-    expect(screen.getByTestId('backtest-hero')).toBeTruthy();
+    screen.getByTestId('backtest-hero');
   });
 });

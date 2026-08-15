@@ -27,7 +27,7 @@ function ControlledTickerInput() {
 describe('TickerInput', () => {
   it('使用初始值渲染', () => {
     render(<TickerInput value="SPY" onChange={() => {}} />);
-    expect(screen.getByDisplayValue('SPY')).toBeTruthy();
+    screen.getByDisplayValue('SPY');
   });
 
   it('onChange 在输入时被调用', () => {
@@ -39,7 +39,7 @@ describe('TickerInput', () => {
 
   it('使用自定义 placeholder', () => {
     render(<TickerInput value="" onChange={() => {}} placeholder="输入股票代码" />);
-    expect(screen.getByPlaceholderText('输入股票代码')).toBeTruthy();
+    screen.getByPlaceholderText('输入股票代码');
   });
 
   it('输入时通过远端搜索显示建议下拉', async () => {

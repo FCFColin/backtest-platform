@@ -27,21 +27,19 @@ beforeEach(() => {
 describe('BacktestHero', () => {
   it('渲染标题', () => {
     render(<BacktestHero />);
-    expect(screen.getByText('nav.portfolioBacktest')).toBeTruthy();
+    screen.getByText('nav.portfolioBacktest');
   });
 
   it('渲染副标题', () => {
     render(<BacktestHero />);
-    expect(
-      screen.getByText(
-        'Professional tools for backtesting portfolios, asset allocations, and retirement cashflows',
-      ),
-    ).toBeTruthy();
+    screen.getByText(
+      'Professional tools for backtesting portfolios, asset allocations, and retirement cashflows',
+    );
   });
 
   it('首次访问默认展开', () => {
     render(<BacktestHero />);
-    expect(screen.getByText(HERO_DESCRIPTION)).toBeTruthy();
+    screen.getByText(HERO_DESCRIPTION);
   });
 
   it('记住折叠选择，重新渲染仍折叠', () => {
@@ -58,7 +56,7 @@ describe('BacktestHero', () => {
     fireEvent.click(first.getByText('Show Intro'));
     first.unmount();
     render(<BacktestHero />);
-    expect(screen.getByText(HERO_DESCRIPTION)).toBeTruthy();
+    screen.getByText(HERO_DESCRIPTION);
   });
 
   it('点击展开按钮显示详情', () => {
@@ -66,7 +64,7 @@ describe('BacktestHero', () => {
     render(<BacktestHero />);
     const expandBtn = screen.getByText('Show Intro');
     fireEvent.click(expandBtn);
-    expect(screen.getByText(HERO_DESCRIPTION)).toBeTruthy();
+    screen.getByText(HERO_DESCRIPTION);
   });
 
   it('点击折叠按钮隐藏详情', () => {
@@ -78,15 +76,15 @@ describe('BacktestHero', () => {
 
   it('展开时显示三栏能力卡片标题', () => {
     render(<BacktestHero />);
-    expect(screen.getByText('What You Can Model')).toBeTruthy();
-    expect(screen.getByText('Metrics You Can Inspect')).toBeTruthy();
-    expect(screen.getByText('Related Research Tools')).toBeTruthy();
+    screen.getByText('What You Can Model');
+    screen.getByText('Metrics You Can Inspect');
+    screen.getByText('Related Research Tools');
   });
 
   it('展开时显示研究工具链接', () => {
     render(<BacktestHero />);
-    expect(screen.getByText('nav.monteCarlo')).toBeTruthy();
-    expect(screen.getByText('nav.portfolioOptimize')).toBeTruthy();
-    expect(screen.getByText('nav.efficientFrontier')).toBeTruthy();
+    screen.getByText('nav.monteCarlo');
+    screen.getByText('nav.portfolioOptimize');
+    screen.getByText('nav.efficientFrontier');
   });
 });

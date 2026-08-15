@@ -26,7 +26,7 @@ describe('ProtectedRoute', () => {
         <div>受保护内容</div>
       </ProtectedRoute>,
     );
-    expect(screen.getByRole('status')).toBeTruthy();
+    screen.getByRole('status');
     expect(screen.queryByText('受保护内容')).toBeNull();
   });
 
@@ -55,7 +55,7 @@ describe('ProtectedRoute', () => {
         <div>受保护内容</div>
       </ProtectedRoute>,
     );
-    expect(screen.getByText('受保护内容')).toBeTruthy();
+    screen.getByText('受保护内容');
   });
 
   it('非管理员访问管理员路由时重定向到首页', () => {
@@ -90,6 +90,6 @@ describe('ProtectedRoute', () => {
         <div>管理员内容</div>
       </ProtectedRoute>,
     );
-    expect(screen.getByText('管理员内容')).toBeTruthy();
+    screen.getByText('管理员内容');
   });
 });

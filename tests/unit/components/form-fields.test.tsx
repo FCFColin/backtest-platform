@@ -11,7 +11,7 @@ vi.mock('react-i18next', async () => (await import('../../helpers/i18nMock.js'))
 describe('DateField', () => {
   it('渲染标签并透传日期值', () => {
     render(<DateField id="start" label="START DATE" value="2024-01-15" onChange={() => {}} />);
-    expect(screen.getByText('START DATE')).toBeTruthy();
+    screen.getByText('START DATE');
     expect(screen.getByDisplayValue('2024-01-15').getAttribute('type')).toBe('date');
   });
 
@@ -35,20 +35,20 @@ describe('SelectField', () => {
         ]}
       />,
     );
-    expect(screen.getByText('CURRENCY')).toBeTruthy();
-    expect(screen.getByText('USD ($)')).toBeTruthy();
+    screen.getByText('CURRENCY');
+    screen.getByText('USD ($)');
   });
 });
 
 describe('AffixInput', () => {
   it('渲染前缀与后缀', () => {
     render(<AffixInput prefix="$" suffix="months" />);
-    expect(screen.getByText('$')).toBeTruthy();
-    expect(screen.getByText('months')).toBeTruthy();
+    screen.getByText('$');
+    screen.getByText('months');
   });
 
   it('输入值正确传递', () => {
     render(<AffixInput value="100" onChange={() => {}} />);
-    expect(screen.getByDisplayValue('100')).toBeTruthy();
+    screen.getByDisplayValue('100');
   });
 });

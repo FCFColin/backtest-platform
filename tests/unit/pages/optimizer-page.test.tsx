@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 
 vi.mock('react-i18next', async () => (await import('../../helpers/i18nMock.js')).i18nMock);
@@ -27,14 +27,14 @@ describe('OptimizerPage (smoke)', () => {
 
   it('happy path: 装配标题与参数/结果面板 slot', async () => {
     render(<OptimizerPage />);
-    expect(screen.getByText('nav.portfolioOptimize')).toBeTruthy();
-    await waitFor(() => expect(screen.getByTestId('optimizer-params')).toBeTruthy());
-    await waitFor(() => expect(screen.getByTestId('optimizer-results')).toBeTruthy());
+    screen.getByText('nav.portfolioOptimize');
+    await waitFor(() => screen.getByTestId('optimizer-params'));
+    await waitFor(() => screen.getByTestId('optimizer-results'));
   });
 
   it('edge path: 空 tickers 状态下仍渲染标题不崩溃', () => {
     pageState.tickers = [];
     render(<OptimizerPage />);
-    expect(screen.getByText('nav.portfolioOptimize')).toBeTruthy();
+    screen.getByText('nav.portfolioOptimize');
   });
 });

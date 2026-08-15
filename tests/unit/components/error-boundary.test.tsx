@@ -32,7 +32,7 @@ describe('ErrorBoundary', () => {
         <NormalChild />
       </ErrorBoundary>,
     );
-    expect(screen.getByText('正常内容')).toBeTruthy();
+    screen.getByText('正常内容');
   });
 
   it('捕获错误并显示错误 UI', () => {
@@ -41,13 +41,11 @@ describe('ErrorBoundary', () => {
         <BrokenChild shouldThrow={true} />
       </ErrorBoundary>,
     );
-    expect(screen.getByText('Something went wrong')).toBeTruthy();
-    expect(
-      screen.getByText(
-        'Sorry, the page encountered an error. Please refresh. If the problem persists, contact the administrator.',
-      ),
-    ).toBeTruthy();
-    expect(screen.getByText('Refresh page')).toBeTruthy();
+    screen.getByText('Something went wrong');
+    screen.getByText(
+      'Sorry, the page encountered an error. Please refresh. If the problem persists, contact the administrator.',
+    );
+    screen.getByText('Refresh page');
   });
 
   it('显示错误信息', () => {
@@ -56,7 +54,7 @@ describe('ErrorBoundary', () => {
         <BrokenChild shouldThrow={true} />
       </ErrorBoundary>,
     );
-    expect(screen.getByText('测试错误')).toBeTruthy();
+    screen.getByText('测试错误');
   });
 
   it('在捕获错误时调用 console.error', () => {
