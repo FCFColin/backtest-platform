@@ -100,7 +100,9 @@ function DrawdownSummary({ episodes }: { episodes: DrawdownEpisode[] }) {
       {metrics.map((m) => (
         <div key={m.label}>
           <div className="text-label-tiny text-fg-tertiary">{m.label}</div>
-          <div className={cn('text-h3 font-mono tabular-nums', m.neg && 'text-neg')}>{m.value}</div>
+          <div className={cn('text-h3 font-mono tabular-nums', m.neg && 'text-danger')}>
+            {m.value}
+          </div>
         </div>
       ))}
     </div>
@@ -126,7 +128,9 @@ function DrawdownEpisodeRow({ episode }: { episode: DrawdownEpisode }) {
         />
         <div className="flex-1 flex items-center gap-6 py-4 px-6">
           <div className="w-24 text-right">
-            <div className="text-h3 font-mono tabular-nums text-neg">{fmtPct(episode.depth)}</div>
+            <div className="text-h3 font-mono tabular-nums text-danger">
+              {fmtPct(episode.depth)}
+            </div>
           </div>
           <div className="flex-1">
             <TimelineViz episode={episode} />

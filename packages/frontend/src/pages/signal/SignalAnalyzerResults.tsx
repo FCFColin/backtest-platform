@@ -29,11 +29,10 @@ function buildSignalColumns(t: (key: string) => string): TableColumn<SignalRow>[
     {
       key: 'type',
       label: t('Type'),
-      render: (r) => (
-        <span className={r.type === 'buy' ? 'text-pos font-semibold' : 'text-neg font-semibold'}>
-          {r.type === 'buy' ? t('Buy') : t('Sell')}
-        </span>
-      ),
+      render: (r) => {
+        const cls = r.type === 'buy' ? 'text-success font-semibold' : 'text-danger font-semibold';
+        return <span className={cls}>{r.type === 'buy' ? t('Buy') : t('Sell')}</span>;
+      },
       sortValue: (r) => r.type,
     },
     {

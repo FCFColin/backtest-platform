@@ -12,6 +12,7 @@ import {
   DOWNSAMPLE_TARGET,
 } from '../../utils/format.js';
 import ChartCard from '../ChartCard.js';
+import { LoadingState } from '@/components/stateDisplay';
 export const RollingCorrelationChart = memo(function RollingCorrelationChart({
   tickers,
   rollingPair,
@@ -40,7 +41,7 @@ export const RollingCorrelationChart = memo(function RollingCorrelationChart({
             options={tickers.map((tk, i) => ({ value: i, label: tk }))}
             width={100}
           />
-          <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>vs</span>
+          <span style={{ color: 'hsl(var(--fg-tertiary))', fontSize: 12 }}>vs</span>
           <MiniSelect
             value={rollingPair[1]}
             onChange={(v) => setRollingPair([rollingPair[0], v])}
@@ -159,9 +160,7 @@ export const RollingMetricsChart = memo(function RollingMetricsChart({
           t={t}
         />
       ) : (
-        <div className="flex items-center justify-center h-[400px] text-fg-tertiary text-caption">
-          {t('Loading...')}
-        </div>
+        <LoadingState label={t('Loading...')} className="h-[400px]" />
       )}
     </ChartCard>
   );

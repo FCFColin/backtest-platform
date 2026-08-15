@@ -27,8 +27,7 @@ echarts.use([
   CanvasRenderer,
 ]);
 
-// canvas 渲染器无法解析 CSS 变量，渲染前把 var(--x)/hsl(var(--x)) 深度解析为具体色值；
-// 别名 token（如 --text-muted 已是 hsl(...)）不可再包一层 hsl()（解析逻辑见 lib/cssVarResolver）
+// canvas 渲染器无法解析 CSS 变量，渲染前把 var(--x)/hsl(var(--x)) 深度解析为具体色值
 const COLOR_FN = /^(?:hsl|rgb|rgba|hwb|lab|lch|oklch|color)\b/i;
 // HSL 通道三元组（如 "213 33% 96%"）需包一层 hsl()；shadow/px 等非颜色值原样透传
 const CHANNEL_RE = /^\d+\s+[\d.]+%?\s+[\d.]+%?$/;

@@ -64,7 +64,7 @@ function buildStatRows(
 function whatIfSignalColor(t: WhatIfResult['signalType']): string {
   if (t === 'buy') return 'hsl(var(--success))';
   if (t === 'sell') return 'hsl(var(--danger))';
-  return 'var(--text-muted)';
+  return 'hsl(var(--fg-tertiary))';
 }
 function whatIfSignalLabel(t: WhatIfResult['signalType'], tfn: TFunction): string {
   if (t === 'buy') return tfn('Buy');

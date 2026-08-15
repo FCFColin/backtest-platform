@@ -101,8 +101,8 @@ export function StatCard({ label, value, color, tone }: StatCardProps) {
       <div
         className={cn(
           'mt-2 text-display text-fg tabular-nums font-mono',
-          tone === 'pos' && 'text-pos',
-          tone === 'neg' && 'text-neg',
+          tone === 'pos' && 'text-success',
+          tone === 'neg' && 'text-danger',
         )}
       >
         {value}

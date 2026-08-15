@@ -18,12 +18,12 @@ const ERROR_CONTAINER_STYLE: React.CSSProperties = {
   minHeight: '100vh',
   padding: '24px',
   fontFamily: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
-  color: 'var(--text-strong)',
+  color: 'hsl(var(--fg))',
   textAlign: 'center',
 };
 const ERROR_DETAIL_STYLE: React.CSSProperties = {
   fontSize: '12px',
-  color: 'var(--text-muted)',
+  color: 'hsl(var(--fg-tertiary))',
   margin: '0 0 16px',
   maxWidth: '500px',
   wordBreak: 'break-word',
@@ -55,7 +55,7 @@ export function ErrorFallback({
       <p
         style={{
           fontSize: '14px',
-          color: 'var(--text-muted)',
+          color: 'hsl(var(--fg-tertiary))',
           margin: '0 0 16px',
           maxWidth: '420px',
         }}
@@ -131,10 +131,10 @@ const ROUTE_ERROR_STYLE: React.CSSProperties = {
   margin: '24px auto',
   maxWidth: '640px',
   fontFamily: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
-  color: 'var(--text-strong)',
+  color: 'hsl(var(--fg))',
   textAlign: 'center',
-  background: 'var(--bg-surface)',
-  border: '1px solid var(--border-soft)',
+  background: 'hsl(var(--surface))',
+  border: '1px solid hsl(var(--border-subtle))',
   borderRadius: '12px',
   boxShadow: 'var(--shadow-card)',
 };

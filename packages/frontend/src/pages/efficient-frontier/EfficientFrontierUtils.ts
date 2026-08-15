@@ -9,7 +9,7 @@ export type SolveSpeed = 'ultrafast' | 'fast' | 'medium' | 'slow';
 export type FrontierSolver = 'markowitz' | 'nsga2';
 export type ReturnObjective = 'maxCagr' | 'minVolatility';
 export function sharpeToColor(sharpe: number, minSharpe: number, maxSharpe: number): string {
-  if (maxSharpe === minSharpe) return 'hsl(var(--pos))';
+  if (maxSharpe === minSharpe) return 'hsl(var(--success))';
   const t = Math.max(0, Math.min(1, (sharpe - minSharpe) / (maxSharpe - minSharpe)));
   const r = t < 0.5 ? 220 : Math.round(220 - (t - 0.5) * 2 * 220);
   const g = t < 0.5 ? Math.round(t * 2 * 180) : 180;

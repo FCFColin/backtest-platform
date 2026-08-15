@@ -56,7 +56,7 @@ function ResidualsChart({ residuals }: { residuals: number[] }) {
           y1="100"
           x2="790"
           y2="100"
-          stroke="var(--border-soft)"
+          stroke="hsl(var(--border-subtle))"
           strokeWidth="1"
           strokeDasharray="4,4"
         />
@@ -126,7 +126,7 @@ function RegressionResultTable({
               label="Alpha"
               color={FACTOR_COLORS.alpha}
               value={fmtPct(result.alpha)}
-              valueClassName={result.alpha >= 0 ? 'text-pos' : 'text-neg'}
+              valueClassName={result.alpha >= 0 ? 'text-success' : 'text-danger'}
               desc={t(
                 "Portfolio excess return (annualized); positive means outperforming the factor model's expectation",
               )}

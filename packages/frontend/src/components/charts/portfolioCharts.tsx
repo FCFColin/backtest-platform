@@ -80,7 +80,7 @@ export default function PortfolioPiesChart({ portfolios }: PortfolioPiesChartPro
                 height={300}
                 ariaLabel={`${portfolio.name} ${t('Allocation')}`}
               />
-              <div className="text-label font-medium mt-1" style={{ color: 'var(--text-strong)' }}>
+              <div className="text-label font-medium mt-1" style={{ color: 'hsl(var(--fg))' }}>
                 {portfolio.name}
               </div>
             </div>
@@ -192,7 +192,7 @@ function InitialWeightChart({
       />
       <div
         className="text-label-tiny mt-2 text-center"
-        style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}
+        style={{ color: 'hsl(var(--fg-tertiary))', fontStyle: 'italic' }}
       >
         {t('Initial Weight')}
       </div>

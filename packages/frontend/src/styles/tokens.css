@@ -23,15 +23,6 @@
   --success: 142 71% 36%;
   --danger: 0 72% 51%;
   --warning: 32 88% 36%;
-  --pos: 142 68% 31%;
-  --neg: 0 72% 51%;
-
-  --bg-surface: hsl(var(--surface));
-  --bg-subtle: hsl(var(--hover));
-  --text-strong: hsl(var(--fg));
-  --text-body: hsl(var(--fg-secondary));
-  --text-muted: hsl(var(--fg-tertiary));
-  --border-soft: hsl(var(--border-subtle));
 
   --surface-sunken: 210 40% 94%;
 
@@ -88,8 +79,6 @@
   --success: 160 84% 39%;
   --danger: 0 84% 60%;
   --warning: 38 92% 50%;
-  --pos: 160 84% 39%;
-  --neg: 0 84% 60%;
 
   --surface-sunken: 224 20% 3%;
 

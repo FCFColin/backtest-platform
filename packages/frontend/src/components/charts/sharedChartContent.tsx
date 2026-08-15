@@ -154,7 +154,7 @@ export function SimpleChart({
     };
   });
   if (referenceLines?.length && seriesArr[0])
-    seriesArr[0].markLine = markLineData(referenceLines, 'hsl(var(--text-muted))');
+    seriesArr[0].markLine = markLineData(referenceLines, 'hsl(var(--fg-tertiary))');
   const option: EChartsOption = {
     grid,
     xAxis: isCategory

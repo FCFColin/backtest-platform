@@ -18,8 +18,8 @@ import { ResultsShell } from '@/components/resultsShell.js';
 import { TableEmpty } from '@/components/stateDisplay.js';
 import type { DualSignalResponse, SignalDir, ResultsPanelProps } from './signalState.js';
 function renderDir(d: SignalDir, t: TFunction): ReactNode {
-  if (d === 'buy') return <span className="font-semibold text-pos">{t('Buy')}</span>;
-  if (d === 'sell') return <span className="font-semibold text-neg">{t('Sell')}</span>;
+  if (d === 'buy') return <span className="font-semibold text-success">{t('Buy')}</span>;
+  if (d === 'sell') return <span className="font-semibold text-danger">{t('Sell')}</span>;
   return <span className="text-fg-tertiary">-</span>;
 }
 function buildEquityData(results: DualSignalResponse): Array<Record<string, number | string>> {

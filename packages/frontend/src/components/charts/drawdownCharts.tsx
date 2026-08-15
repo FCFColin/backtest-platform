@@ -74,7 +74,7 @@ function StatsBar({ stats }: { stats: UnderwaterStats }) {
     <div className="px-6 pb-3 flex flex-wrap gap-4">
       <div className="flex items-baseline gap-1.5">
         <span className="text-label-tiny text-fg-tertiary">{t('Max Drawdown')}</span>
-        <span className="text-caption font-mono tabular-nums font-semibold text-neg">
+        <span className="text-caption font-mono tabular-nums font-semibold text-danger">
           {fmtPct(-stats.maxDrawdown)}
         </span>
       </div>

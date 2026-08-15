@@ -5,7 +5,7 @@ const resolve = (name: string): string => {
   switch (name) {
     case '--chart-1':
       return 'hsl(217 91% 53%)';
-    case '--text-muted':
+    case '--fg-tertiary':
       return 'hsl(217 20% 45%)';
     case '--tooltip-shadow':
       return '0 10px 30px -5px rgba(0, 0, 0, 0.25)';
@@ -19,8 +19,8 @@ describe('resolveVarColorToken', () => {
     expect(resolveVarColorToken('hsl(var(--chart-1))', resolve)).toBe('hsl(217 91% 53%)');
   });
 
-  it('别名 token（已是 hsl(...)）不做二次包裹', () => {
-    expect(resolveVarColorToken('hsl(var(--text-muted))', resolve)).toBe('hsl(217 20% 45%)');
+  it('hsl() 包裹的 token 不产生二次包裹', () => {
+    expect(resolveVarColorToken('hsl(var(--fg-tertiary))', resolve)).toBe('hsl(217 20% 45%)');
   });
 
   it('非颜色值 var(--x)（如 box-shadow）原样透传', () => {

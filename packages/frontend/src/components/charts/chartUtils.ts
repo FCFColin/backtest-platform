@@ -6,7 +6,7 @@ export const AXIS_TEXT = {
   fontSize: 11,
   fontFamily: 'Geist Mono Variable',
 } as const;
-export const BORDER_SOFT = 'hsl(var(--border-soft))';
+export const BORDER_SOFT = 'hsl(var(--border-subtle))';
 export type Margin = { top?: number; right?: number; bottom?: number; left?: number };
 type ValueFormatter = (v: number) => string;
 function axisLabel(formatter?: ValueFormatter, fontSize?: number) {
@@ -143,7 +143,7 @@ export function scatterLabel() {
     show: true,
     position: 'right' as const,
     formatter: (p: { name: string }) => p.name,
-    color: 'hsl(var(--text-muted))',
+    color: 'hsl(var(--fg-tertiary))',
     fontSize: 11,
   };
 }
@@ -372,5 +372,5 @@ export function getCorrelationTextColor(val: number): string {
   return pickByAbsThreshold(val, 0.6, 'hsl(var(--corr-text-strong))', 'hsl(var(--fg))');
 }
 export function getColorClass(value: number): string {
-  return value > 0 ? 'text-pos' : value < 0 ? 'text-neg' : 'text-fg';
+  return value > 0 ? 'text-success' : value < 0 ? 'text-danger' : 'text-fg';
 }

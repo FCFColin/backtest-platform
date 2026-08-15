@@ -5,7 +5,7 @@ export interface GoalAsset {
   weight: number;
 }
 export function getProbColor(prob: number | undefined): string {
-  if (prob === undefined) return 'var(--text-strong)';
+  if (prob === undefined) return 'hsl(var(--fg))';
   if (prob >= 0.7) return 'hsl(var(--success))';
   if (prob >= 0.4) return getPortfolioColor(1);
   return 'hsl(var(--danger))';

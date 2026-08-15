@@ -17,7 +17,7 @@ const TYPE_LABELS: Record<string, string> = {
 };
 const muted = 'text-fg-secondary';
 const amountSpan = (type: string, sign: string, amount: number) => (
-  <span className={type === 'contribution' ? 'text-pos' : 'text-neg'}>
+  <span className={type === 'contribution' ? 'text-success' : 'text-danger'}>
     {sign}
     {amount.toLocaleString()}
   </span>

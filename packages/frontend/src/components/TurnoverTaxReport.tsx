@@ -79,7 +79,7 @@ function buildTurnoverColumns(
       label: t('Tax Drag'),
       align: 'right',
       render: (row) =>
-        rightCell(fmtPct(row.taxDrag), row.taxDrag != null ? 'text-neg' : 'text-fg-tertiary'),
+        rightCell(fmtPct(row.taxDrag), row.taxDrag != null ? 'text-danger' : 'text-fg-tertiary'),
       sortValue: (row) => row.taxDrag ?? -1,
     },
     {

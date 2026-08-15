@@ -143,7 +143,7 @@ function RegressionResidualChart({ reg, color }: { reg: RegressionWithMeta; colo
       <div className="text-h3 font-semibold text-fg" style={{ marginTop: '8px' }}>
         {t('Residual Chart')}
       </div>
-      <div className="text-label-tiny mb-2" style={{ color: 'var(--text-muted)' }}>
+      <div className="text-label-tiny mb-2" style={{ color: 'hsl(var(--fg-tertiary))' }}>
         {t(
           'Regression residual: the portion of portfolio daily return above/below the regression model prediction',
         )}
@@ -220,7 +220,7 @@ export default function RegressionChart({ portfolios }: RegressionChartProps) {
       <ChartCard title={t('tabs.regression')}>
         <div
           style={{
-            color: 'var(--text-muted)',
+            color: 'hsl(var(--fg-tertiary))',
             fontSize: '13px',
             padding: '40px 0',
             textAlign: 'center',

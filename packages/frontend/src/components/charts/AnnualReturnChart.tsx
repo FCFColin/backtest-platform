@@ -5,6 +5,7 @@ import { getPortfolioColor } from '@/lib/chart-theme.js';
 import { percentile, mean, std, mergePortfolioSeries, fmtPct } from '@/utils/format';
 import ChartCard from '../ChartCard.js';
 import { BarChartContent } from './sharedChartContent.js';
+import { getColorClass } from './chartUtils.js';
 import { SimpleTable, type SimpleTableColumn } from '../tables.js';
 interface AnnualReturnChartProps {
   portfolios?: PortfolioResult[];
@@ -43,12 +44,12 @@ function PortfolioSummaryStats({
   ];
   return (
     <div style={{ marginTop: '16px' }}>
-      <div className="text-label font-semibold mb-2" style={{ color: 'var(--text-strong)' }}>
+      <div className="text-label font-semibold mb-2" style={{ color: 'hsl(var(--fg))' }}>
         <span
           className="inline-block w-2.5 h-2.5 rounded-full mr-1.5 align-middle"
           style={{ backgroundColor: getPortfolioColor(colorIndex) }}
         />
-        {portfolio.name} Summary Statistics
+        {t('Summary Statistics', { name: portfolio.name })}
       </div>
       <SimpleTable columns={columns} data={SUMMARY_ROWS} maxWidth={600} rowKey={(r) => r.key} />
     </div>
@@ -63,7 +64,7 @@ function AnnualReturnTable({
 }) {
   const { t } = useTranslation();
   const columns: SimpleTableColumn<Record<string, unknown>>[] = [
-    { key: 'year', label: 'Year', render: (r) => r.year as number },
+    { key: 'year', label: t('Year'), render: (r) => r.year as number },
     ...portfolios.map((p, idx) => ({
       key: p.name,
       label: (
@@ -78,17 +79,13 @@ function AnnualReturnTable({
       align: 'right' as const,
       render: (r: Record<string, unknown>) => {
         const v = r[p.name] as number | undefined;
-        return v !== undefined ? (
-          <span className={v < 0 ? 'text-neg' : undefined}>{v.toFixed(2)}%</span>
-        ) : (
-          '-'
-        );
+        return v !== undefined ? <span className={getColorClass(v)}>{v.toFixed(2)}%</span> : '-';
       },
     })),
   ];
   return (
     <div style={{ marginTop: '20px' }}>
-      <div className="text-label font-semibold mb-2" style={{ color: 'var(--text-strong)' }}>
+      <div className="text-label font-semibold mb-2" style={{ color: 'hsl(var(--fg))' }}>
         {t('Annual Returns Table')}
       </div>
       <SimpleTable columns={columns} data={[...data].reverse()} rowKey={(r) => String(r.year)} />

@@ -93,7 +93,7 @@ export function MarketDistributionCard({
         </div>
       ))}
       {universe?.stats && (universe.stats.us != null || universe.stats.cn != null) && (
-        <div className="mt-3 border-t border-subtle pt-3 text-caption text-fg-tertiary">
+        <div className="mt-3 border-t border-border-subtle pt-3 text-caption text-fg-tertiary">
           <div className="mb-1 font-semibold">{t('Universe vs Cache')}</div>
           <div>
             {t('US Stocks')}: {fmt(universe.stats.us)} → {t('Cached')}{' '}
@@ -160,7 +160,7 @@ function DistributionBarCard({
         interval: 0,
         rotate: rotate ? -35 : 0,
       },
-      axisLine: { lineStyle: { color: 'hsl(var(--border-soft))' } },
+      axisLine: { lineStyle: { color: 'hsl(var(--border-subtle))' } },
       axisTick: { show: false },
     },
     yAxis: { show: false },
