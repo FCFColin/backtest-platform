@@ -5,7 +5,7 @@ import { LabeledField, SelectField, DateField, DollarInput } from '@/components/
 import { ParamSection } from './TacticalSignalEditor';
 import { REBALANCE_OPTIONS } from './TacticalUtils';
 
-export interface BacktestParamsState {
+interface BacktestParamsState {
   startDate: string;
   setStartDate: (v: string) => void;
   endDate: string;

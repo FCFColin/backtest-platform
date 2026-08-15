@@ -1,4 +1,4 @@
-import { memo, useEffect, type ChangeEvent } from 'react';
+import { memo, useEffect, useState, type ChangeEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useShallow } from 'zustand/react/shallow';
 import { useBacktestStore } from '@/store/backtestStore';
@@ -17,7 +17,7 @@ export interface TFunctionProp {
   t: TFunction;
 }
 
-export type BasicParamsField =
+type BasicParamsField =
   | 'startDate'
   | 'endDate'
   | 'startingValue'
@@ -88,14 +88,24 @@ export function BasicParamsFields({
     }
     onChange(field, v);
   };
+  const [numDraft, setNumDraft] = useState<{
+    startingValue?: string;
+    rollingWindowMonths?: string;
+  }>({});
   const handleNum =
     (field: 'startingValue' | 'rollingWindowMonths') => (e: ChangeEvent<HTMLInputElement>) => {
-      const raw = Number(e.target.value) || 0;
+      const v = e.target.value;
+      setNumDraft((d) => ({ ...d, [field]: v }));
+      if (v === '') return;
+      const n = Number(v);
+      if (Number.isNaN(n)) return;
       onChange(
         field,
-        field === 'rollingWindowMonths' ? Math.min(Math.max(1, raw), 120) : Math.max(1, raw),
+        field === 'rollingWindowMonths' ? Math.min(Math.max(1, n), 120) : Math.max(1, n),
       );
     };
+  const commitNum = (field: 'startingValue' | 'rollingWindowMonths') => () =>
+    setNumDraft((d) => ({ ...d, [field]: undefined }));
   const prefix = baseCurrency === 'usd' ? '$' : '¥';
   return (
     <div className="flex flex-col gap-4">
@@ -122,10 +132,11 @@ export function BasicParamsFields({
             id="bp-start-val"
             type="number"
             prefix={prefix}
-            value={startingValue}
+            value={numDraft.startingValue ?? String(startingValue)}
             min={1}
             step="any"
             onChange={handleNum('startingValue')}
+            onBlur={commitNum('startingValue')}
           />
         </Field>
         {showRollingWindow && (
@@ -135,11 +146,12 @@ export function BasicParamsFields({
               id="bp-window"
               type="number"
               suffix={t('months')}
-              value={rollingWindowMonths}
+              value={numDraft.rollingWindowMonths ?? rollingWindowMonths ?? ''}
               min={1}
               max={120}
               step={1}
               onChange={handleNum('rollingWindowMonths')}
+              onBlur={commitNum('rollingWindowMonths')}
             />
           </Field>
         )}
