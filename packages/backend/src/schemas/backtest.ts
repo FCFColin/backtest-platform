@@ -3,6 +3,7 @@ import { extendZodWithOpenApi } from '@asteasolutions/zod-to-openapi';
 import { MAX_TICKERS, ALL_REBALANCE_FREQUENCIES } from '@backtest/shared/constants';
 import { isValidTicker } from '../utils/tickerValidation.js';
 import { assetSchema } from './analysisSchemas.js';
+import { paramRangeSchema } from './tactical.js';
 import type { BacktestOptimizerRequest } from '../domain/services/optimizer-domain.js';
 
 extendZodWithOpenApi(z);
@@ -43,10 +44,14 @@ const portfolioSchema = z
     },
   );
 
+const contributionType = z.enum(['contribution', 'withdrawal']);
+const optionalDate = z.string().date().or(z.literal(''));
+const baseCurrencySchema = z.enum(['usd', 'cny']).optional();
+
 const cashflowLegSchema = z.object({
   id: z.string(),
   amount: z.number(),
-  type: z.enum(['contribution', 'withdrawal']),
+  type: contributionType,
   frequency: z.enum(['yearly', 'monthly', 'quarterly', 'weekly']),
   until: z.string().date().optional(),
 });
@@ -54,16 +59,16 @@ const cashflowLegSchema = z.object({
 const oneTimeCashflowSchema = z.object({
   id: z.string(),
   amount: z.number(),
-  type: z.enum(['contribution', 'withdrawal']),
+  type: contributionType,
   date: z.string().date(),
 });
 
 const backtestParametersSchema = z
   .object({
-    startDate: z.string().date().or(z.literal('')),
-    endDate: z.string().date().or(z.literal('')),
+    startDate: optionalDate,
+    endDate: optionalDate,
     startingValue: z.number().positive().optional(),
-    baseCurrency: z.enum(['usd', 'cny']).optional(),
+    baseCurrency: baseCurrencySchema,
     adjustForInflation: z.boolean().optional(),
     rollingWindowMonths: z.number().int().positive().optional(),
     benchmarkTicker: z.string().optional(),
@@ -185,24 +190,14 @@ export const backtestOptimizerSchema = z.object({
   }),
   parameterSpace: z.object({
     rebalanceFrequencies: z.array(z.enum(ALL_REBALANCE_FREQUENCIES)).min(1),
-    rebalanceThreshold: z
-      .object({
-        min: z.number(),
-        max: z.number(),
-        step: z.number().positive(),
-      })
-      .optional(),
-    initialCapital: z.object({
-      min: z.number(),
-      max: z.number(),
-      step: z.number().positive(),
-    }),
+    rebalanceThreshold: paramRangeSchema.optional(),
+    initialCapital: paramRangeSchema,
   }),
   parameters: z.object({
     startDate: z.string().min(1),
     endDate: z.string().min(1),
     benchmarkTicker: z.string().optional(),
-    baseCurrency: z.enum(['usd', 'cny']).optional(),
+    baseCurrency: baseCurrencySchema,
     adjustForInflation: z.boolean().optional(),
   }),
   objective: z.enum(['maxCagr', 'minMaxDrawdown', 'maxSharpe', 'maxSortino']),

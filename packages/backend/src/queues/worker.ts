@@ -14,8 +14,7 @@ import { executeOptimization } from '../application/optimize-service.js';
 import { runPortfolioBacktest } from '../application/backtest-service.js';
 import { executeGridSearch } from '../application/grid-application-service.js';
 import { save } from '../repositories/backtestRunRepo.js';
-import { getOrg } from '../application/org/membershipService.js';
-import { getPlanLimits } from '../application/billing/planLimitsService.js';
+import { getOrgPlanLimit } from '../application/billing/planLimitsService.js';
 import { appRedis } from '../infrastructure/redisClient.js';
 import { logger } from '../utils/logger.js';
 import { errorMessage, UpstreamProblemError } from '../utils/errors.js';
@@ -35,20 +34,14 @@ async function deferJob(job: Job<BacktestJobData>, reason: string): Promise<neve
   throw new DelayedError(reason);
 }
 
-async function tenantConcurrencyCap(tenantId: string): Promise<number> {
-  try {
-    const org = await getOrg(tenantId);
-    return getPlanLimits(org?.plan).asyncConcurrency;
-  } catch (err) {
-    logger.warn({ err: String(err), tenantId }, '[worker] 组织查询失败，使用 free 并发上限');
-    return getPlanLimits('free').asyncConcurrency;
-  }
-}
-
 async function acquireTenantSlot(job: Job<BacktestJobData>): Promise<boolean> {
   const tenantId = job.data.tenantId!;
   const jobId = String(job.id);
-  const cap = await tenantConcurrencyCap(tenantId);
+  const cap = await getOrgPlanLimit(
+    tenantId,
+    'asyncConcurrency',
+    '[worker] 组织查询失败，使用 free 并发上限',
+  );
   const key = inflightKey(tenantId);
   let inflight = 0;
   try {

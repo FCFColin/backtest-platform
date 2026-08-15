@@ -118,7 +118,7 @@ export const updateTacticalConfigSchema = z.object({
 
 export type TacticalBacktestRequest = z.infer<typeof tacticalBacktestSchema>;
 
-const paramRangeSchema = z.object({
+export const paramRangeSchema = z.object({
   min: z.number(),
   max: z.number(),
   step: z.number().positive(),

@@ -1,5 +1,5 @@
 import { Router, type Request, type Response, type NextFunction } from 'express';
-import { jwtAuth } from '../middleware/jwtAuth.js';
+import { jwtAuth, requireUser } from '../middleware/jwtAuth.js';
 import { resolveTenant } from '../middleware/tenantContext.js';
 import { computeMiddleware } from '../middleware/middlewareChains.js';
 import { Permission } from '../middleware/rbac.js';
@@ -26,11 +26,7 @@ router.get(
   resolveTenant,
   crudRouteHandler(
     async (req, res): Promise<void> => {
-      const requester = req.user;
-      if (!requester) {
-        sendProblem(res, 401, 'UNAUTHORIZED');
-        return;
-      }
+      if (!requireUser(req, res)) return;
 
       const job = await resolveAuthorizedJob(req, res, req.params.id!);
       if (!job) return;

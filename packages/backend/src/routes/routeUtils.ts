@@ -199,10 +199,7 @@ export function computeRoute(
 }
 
 // 计算/异步端点与 CRUD 端点共用同一 baseHandler：错误映射已收敛到 translateToProblem
-export const crudRouteHandler = (
-  fn: RouteHandlerFn,
-  errorConfig: RouteErrorConfig,
-): RequestHandler => baseHandler(fn, errorConfig);
+export const crudRouteHandler = baseHandler;
 
 export function tenantHandler(
   logMsg: string,

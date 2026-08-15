@@ -7,7 +7,6 @@ import { enforceOrgActive } from '../middleware/quota.js';
 import { Permission } from '../middleware/rbac.js';
 import { tenantCrudRoutes, requireTenantId, ownerOf } from './routeUtils.js';
 import { sendProblem } from '../utils/errors.js';
-import { logger } from '../utils/logger.js';
 import {
   backtestRunBodySchema,
   savedConfigBodySchema,
@@ -15,8 +14,7 @@ import {
 } from '../schemas/backtest.js';
 import { createTacticalConfigSchema, updateTacticalConfigSchema } from '../schemas/tactical.js';
 import * as tacticalConfigRepo from '../repositories/tacticalConfigRepository.js';
-import { getOrg } from '../application/org/membershipService.js';
-import { getPlanLimits } from '../application/billing/planLimitsService.js';
+import { getOrgPlanLimit } from '../application/billing/planLimitsService.js';
 import { listRuns, getRun, createRun, deleteRun } from '../repositories/backtestRunRepo.js';
 import {
   listConfigs,
@@ -95,16 +93,6 @@ router.use(
   ),
 );
 
-async function getMaxTacticalConfigs(tenantId: string): Promise<number> {
-  try {
-    const org = await getOrg(tenantId);
-    return getPlanLimits(org?.plan ?? null).maxTacticalConfigs;
-  } catch {
-    logger.warn({ tenantId }, '[tactical-config] 组织查询失败，降级为 free 配额');
-    return getPlanLimits('free').maxTacticalConfigs;
-  }
-}
-
 async function beforeCreateTacticalConfig(
   req: AuthenticatedRequest,
   res: Response,
@@ -115,7 +103,11 @@ async function beforeCreateTacticalConfig(
     sendProblem(res, 401, 'UNAUTHORIZED');
     return false;
   }
-  const maxConfigs = await getMaxTacticalConfigs(tenantId);
+  const maxConfigs = await getOrgPlanLimit(
+    tenantId,
+    'maxTacticalConfigs',
+    '[tactical-config] 组织查询失败，降级为 free 配额',
+  );
   if (Number.isFinite(maxConfigs)) {
     const currentCount = await tacticalConfigRepo.count(tenantId);
     if (currentCount >= maxConfigs) {
