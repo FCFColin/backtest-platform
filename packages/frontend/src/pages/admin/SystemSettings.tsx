@@ -6,6 +6,7 @@ import { useToastStore } from '../../store/toastStore.js';
 import { reportError } from '../../utils/errorReporter.js';
 import { Button, Card } from '../../components/ui/uiComponents.js';
 import { Field, FieldLabel } from '../../components/form/Field.js';
+import { useConfirmDialog } from '../../components/confirmDialog.js';
 import { buildServiceHealths, type ServiceHealthView } from '../../utils/adminStats.js';
 import { ServiceStatusTable } from '../../components/admin/AdminLayout.js';
 interface AppConfig {
@@ -109,6 +110,7 @@ export default function SystemSettings() {
   const [config, setConfig] = useState<AppConfig>(DEFAULT_CONFIG);
   const [loading, setLoading] = useState(false);
   const [saveMsg, setSaveMsg] = useState('');
+  const [confirmDialog, confirm] = useConfirmDialog();
   const clearMsgTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(
     () => () => {
@@ -135,20 +137,26 @@ export default function SystemSettings() {
   useEffect(() => {
     fetchConfig();
   }, [fetchConfig]);
-  const handleClearCache = async () => {
-    if (!window.confirm(t('Full update refetches all market data. Continue?'))) return;
-    setSaveMsg(t('Clearing cache...'));
-    try {
-      const res = await apiFetch('/api/v1/data/manage/update/full', { method: 'PUT' });
-      const json = await res.json();
-      setSaveMsg(
-        json.success ? t('Cache cleared') : t('Action failed: {{error}}', { error: json.error }),
-      );
-    } catch {
-      setSaveMsg(t('Request failed'));
-    }
-    clearMsgTimerRef.current = setTimeout(() => setSaveMsg(''), 5000);
-  };
+  const handleClearCache = () =>
+    confirm(
+      t('Full update refetches all market data. Continue?'),
+      async () => {
+        setSaveMsg(t('Clearing cache...'));
+        try {
+          const res = await apiFetch('/api/v1/data/manage/update/full', { method: 'PUT' });
+          const json = await res.json();
+          setSaveMsg(
+            json.success
+              ? t('Cache cleared')
+              : t('Action failed: {{error}}', { error: json.error }),
+          );
+        } catch {
+          setSaveMsg(t('Request failed'));
+        }
+        clearMsgTimerRef.current = setTimeout(() => setSaveMsg(''), 5000);
+      },
+      true,
+    );
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
@@ -162,6 +170,7 @@ export default function SystemSettings() {
       <RuntimeEnvSection config={config} />
       <DataManagementSection onClearCache={handleClearCache} />
       <ArchitectureSection />
+      {confirmDialog}
     </div>
   );
 }

@@ -17,6 +17,7 @@ import { reportError } from '../../utils/errorReporter.js';
 import { parseMarketBreakdown } from '../../utils/adminStats.js';
 import { KpiCard, ServiceStatusBadge } from '../../components/admin/AdminLayout.js';
 import { Button, Card } from '../../components/ui/uiComponents.js';
+import { useConfirmDialog } from '../../components/confirmDialog.js';
 
 interface DataSource {
   name: string;
@@ -102,6 +103,7 @@ function ActionBar({
   onAction: (url: string, method: string, label: string) => void;
 }) {
   const { t } = useTranslation();
+  const [confirmDialog, confirmAction] = useConfirmDialog();
   const actions = [
     {
       url: '/api/v1/data/manage/update/inc',
@@ -134,17 +136,20 @@ function ActionBar({
               : undefined
           }
           onClick={() => {
-            const confirmed =
-              a.method === 'PUT'
-                ? window.confirm(t('Full update refetches all market data. Continue?'))
-                : true;
-            if (confirmed) onAction(a.url, a.method, a.label);
+            if (a.method === 'PUT')
+              confirmAction(
+                t('Full update refetches all market data. Continue?'),
+                () => onAction(a.url, a.method, a.label),
+                true,
+              );
+            else onAction(a.url, a.method, a.label);
           }}
         >
           <a.icon className="h-4 w-4" /> {a.label}
         </Button>
       ))}
       {actionMsg && <span className="text-sm font-medium text-brand">{actionMsg}</span>}
+      {confirmDialog}
     </div>
   );
 }

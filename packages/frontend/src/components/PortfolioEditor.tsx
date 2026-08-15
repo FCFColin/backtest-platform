@@ -9,6 +9,7 @@ import {
   type BacktestParameters,
 } from '@backtest/shared';
 import { useToastStore } from '@/store/toastStore';
+import { useConfirmDialog } from '@/components/confirmDialog';
 import { PRESET_PORTFOLIOS } from '@/store/presetPortfolios.js';
 import { validateAssetWeights } from '@/utils/validation';
 import type { StorePortfolio, TFunc } from './portfolioEditor/portfolioEditor.js';
@@ -208,6 +209,7 @@ export default function PortfolioEditor(props?: PortfolioEditorProps) {
 }
 function MultiPortfolioEditor() {
   const { t } = useTranslation();
+  const [confirmDialog, confirmDelete] = useConfirmDialog();
   const portfolios = useBacktestStore((s) => s.portfolios);
   const addPortfolio = useBacktestStore((s) => s.addPortfolio);
   const addGlidepath = useBacktestStore((s) => s.addGlidepath);
@@ -275,15 +277,20 @@ function MultiPortfolioEditor() {
               rebalanceOptions={rebalanceOptions}
               nonGlidepathPortfolios={nonGlidepathPortfolios}
               onUpdate={updatePortfolio}
-              onDelete={() => {
-                if (window.confirm(t('Delete this portfolio?'))) removePortfolio(portfolio.id);
-              }}
+              onDelete={() =>
+                confirmDelete(
+                  t('Delete this portfolio?'),
+                  () => removePortfolio(portfolio.id),
+                  true,
+                )
+              }
               onDuplicate={() => duplicatePortfolio(portfolio.id)}
               onSave={(p) => handleSavePortfolio(p, parameters, t)}
             />
           ))
         )}
       </div>
+      {confirmDialog}
     </div>
   );
 }

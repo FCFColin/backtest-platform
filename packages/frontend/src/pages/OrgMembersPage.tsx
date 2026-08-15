@@ -6,7 +6,6 @@ import { StandardPageShell } from '../components/shells/index.js';
 import { useOrgAuth } from '@/hooks/miscHooks';
 import { useConfirmDialog } from '@/components/confirmDialog';
 import { ErrorBanner } from '@/components/stateDisplay';
-import { ErrorBanner } from '@/components/stateDisplay';
 import { useOrgMembersState } from './org/hooks/useOrgMembersState.js';
 import { ROLES, type Invitation, type Member, type Role } from './org/orgTypes.js';
 import { Button, Card } from '@/components/ui/uiComponents';
