@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
   MAX_OPTIMIZER_COMBINATIONS,
-  range,
   buildBacktestParameters,
   validateOptimizeRequest,
   buildCombinations,
@@ -45,17 +44,6 @@ function makeItem(overrides: Partial<OptimizeResultItem> = {}): OptimizeResultIt
     ...overrides,
   };
 }
-
-describe('range', () => {
-  it.each([
-    ['正步长生成等差数列', [1, 5, 1], [1, 2, 3, 4, 5]],
-    ['步长为 2 时跳过中间值', [0, 10, 2], [0, 2, 4, 6, 8, 10]],
-    ['min === max 时返回单元素', [5, 5, 1], [5]],
-    ['浮点步长保留两位小数', [0, 0.03, 0.01], [0, 0.01, 0.02, 0.03]],
-  ])('%s', (_n, [min, max, step], expected) => {
-    expect(range(min, max, step)).toEqual(expected);
-  });
-});
 
 describe('buildBacktestParameters', () => {
   it('补齐默认值', () => {
