@@ -1,6 +1,6 @@
 ﻿import { useEffect, useRef, lazy, Suspense, type ReactNode } from 'react';
 import { useTranslation, Trans } from 'react-i18next';
-import { Link } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import { MoreHorizontal } from 'lucide-react';
 import { useBacktestStore } from '@/store/backtestStore';
 import {
@@ -108,8 +108,20 @@ const mapDrawdown = (pf: PortfolioResult[]) =>
   }));
 function TabBar() {
   const { t } = useTranslation();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const urlTab = searchParams.get('tab');
   const activeTab = useBacktestStore((s) => s.activeTab);
   const setActiveTab = useBacktestStore((s) => s.setActiveTab);
+  useEffect(() => {
+    if (urlTab && urlTab !== activeTab) setActiveTab(urlTab);
+  }, [urlTab, activeTab, setActiveTab]);
+  const selectTab = (tab: string) => {
+    if (tab === activeTab) return;
+    setActiveTab(tab);
+    const next = new URLSearchParams(searchParams);
+    next.set('tab', tab);
+    setSearchParams(next);
+  };
   const moreTabs = ALL_TABS.filter((tab) => !PRIMARY_TABS.has(tab.key));
   const activeMore = moreTabs.find((tab) => tab.key === activeTab);
   return (
@@ -122,7 +134,7 @@ function TabBar() {
             size="sm"
             className="shrink-0"
             aria-pressed={activeTab === tab.key}
-            onClick={() => setActiveTab(tab.key)}
+            onClick={() => selectTab(tab.key)}
           >
             {t(tab.labelKey)}
           </Button>
@@ -139,7 +151,7 @@ function TabBar() {
               <DropdownMenuItem
                 key={tab.key}
                 className={activeTab === tab.key ? 'bg-hover text-fg' : undefined}
-                onClick={() => setActiveTab(tab.key)}
+                onClick={() => selectTab(tab.key)}
               >
                 {t(tab.labelKey)}
               </DropdownMenuItem>
