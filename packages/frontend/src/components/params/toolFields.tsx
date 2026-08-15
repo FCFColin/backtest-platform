@@ -1,5 +1,35 @@
+import { useTranslation } from 'react-i18next';
 import { Checkbox } from '@/components/ui/uiComponents';
+import { SectionHeader } from '@/components/form/sharedFields';
+import { TickerTagInput } from '@/components/form/TickerTagInput.js';
 import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
+
+export function AssetSelectionField({
+  tickers,
+  onChange,
+  minCount,
+  title,
+  info,
+}: {
+  tickers: string[];
+  onChange: (v: string[]) => void;
+  minCount: number;
+  title: string;
+  info?: string;
+}) {
+  const { t } = useTranslation();
+  return (
+    <section className="flex flex-col gap-3">
+      <SectionHeader title={title} info={info} />
+      <TickerTagInput
+        tickers={tickers}
+        onChange={onChange}
+        minCount={minCount}
+        placeholder={t('Enter ticker, e.g. VTI')}
+      />
+    </section>
+  );
+}
 
 export function AllHistoryCheckbox({
   startDate,

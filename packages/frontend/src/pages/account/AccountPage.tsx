@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { Link } from 'react-router';
-import { Mail, Palette, DollarSign, CreditCard, Crown, Calendar, LogIn } from 'lucide-react';
+import { Mail, Palette, DollarSign, CreditCard, Crown, Calendar } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../hooks/miscHooks.js';
 import { useAuthStore } from '@/store/authStore';
@@ -44,13 +44,6 @@ function UserInfoCard({
           {userId ? t('User ID: {{userId}}', { userId }) : 'user@backtest.local'}
         </div>
       </div>
-      {!userId && (
-        <Button asChild variant="primary" className="min-h-[38px] px-4 text-label">
-          <Link to="/login" className="no-underline">
-            <LogIn className="w-4 h-4" /> {t('Log In')}
-          </Link>
-        </Button>
-      )}
     </div>
   );
 }

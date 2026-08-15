@@ -80,6 +80,7 @@ export const buttonVariants = cva(
           'bg-transparent text-brand hover:text-brand-hover hover:bg-brand/10 disabled:opacity-40',
         destructive:
           'bg-transparent text-fg-tertiary hover:bg-danger/10 hover:text-danger active:scale-[0.98] disabled:opacity-40',
+        danger: 'bg-danger text-white hover:bg-danger/90 active:scale-[0.98] disabled:opacity-40',
         icon: 'bg-transparent text-fg-tertiary hover:bg-hover hover:text-fg rounded-md disabled:opacity-40',
       },
       size: {
@@ -167,8 +168,8 @@ const alertVariants = cva(
 export const Alert = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement> & VariantProps<typeof alertVariants>
->(({ className, variant, ...props }, ref) => (
-  <div ref={ref} role="alert" className={cn(alertVariants({ variant }), className)} {...props} />
+>(({ className, variant, role = 'alert', ...props }, ref) => (
+  <div ref={ref} role={role} className={cn(alertVariants({ variant }), className)} {...props} />
 ));
 export const AlertDescription = wrapPrimitive(
   'div',
@@ -449,7 +450,13 @@ export function LoadingButton({
 }: LoadingButtonProps) {
   const { t } = useTranslation();
   return (
-    <Button type={type} variant={variant} disabled={isLoading || disabled} {...rest}>
+    <Button
+      type={type}
+      variant={variant}
+      disabled={isLoading || disabled}
+      aria-busy={isLoading}
+      {...rest}
+    >
       {isLoading && <Loader2 className="animate-spin" />}
       {isLoading ? (loadingText ?? t('Loading...')) : children}
     </Button>

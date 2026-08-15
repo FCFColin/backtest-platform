@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { FolderOpen, Trash2, X, ChevronDown } from 'lucide-react';
+import { FolderOpen, Trash2, X, ChevronDown, Save } from 'lucide-react';
 import { Card, Button, Input } from '@/components/ui/uiComponents';
 import { ComputeToolShell, type ComputeToolConfig } from '../../components/shells/index.js';
 import BacktestParamsForm from '@/components/BacktestParamsForm.js';
@@ -156,6 +156,10 @@ function BacktestToolbar({ state }: { state: BacktestState }) {
           <FolderOpen />
           {t('Load Saved Backtest')}
           <ChevronDown className="size-3.5" />
+        </Button>
+        <Button variant="secondary" onClick={() => setShowSaveInput(true)}>
+          <Save className="size-4" />
+          {t('Save')}
         </Button>
       </div>
       {portfolioCount === 0 && (

@@ -4,7 +4,6 @@ import { StandardPageShell } from '../../components/shells/index.js';
 import { useTranslation } from 'react-i18next';
 import { apiFetch } from '@/utils/apiClient';
 import { useOrgAuth } from '@/hooks/miscHooks';
-import { LoginRequiredCard } from '@/components/auth/formFields';
 import { ErrorBanner } from '@/components/stateDisplay';
 import { cn } from '@/lib/utils';
 import { BILLABLE_PLANS, planPrice, planPeriod } from '@/lib/pricing';
@@ -146,7 +145,7 @@ function BillingContent({
     </>
   );
 }
-function useBillingState(isAuthed: boolean) {
+function useBillingState() {
   const { t } = useTranslation();
   const [state, setState] = useState<BillingState | null>(null);
   const [loading, setLoading] = useState(true);
@@ -164,9 +163,8 @@ function useBillingState(isAuthed: boolean) {
     }
   }, []);
   useEffect(() => {
-    if (isAuthed) void load();
-    else setLoading(false);
-  }, [isAuthed, load]);
+    void load();
+  }, [load]);
   const postRedirect = async (url: string, body: Record<string, unknown>, failKey: string) => {
     setBusy(true);
     setError(null);
@@ -191,9 +189,8 @@ function useBillingState(isAuthed: boolean) {
 }
 export default function BillingPage() {
   const { t } = useTranslation();
-  const { isAuthed, org, isAdmin } = useOrgAuth();
-  const { state, loading, busy, error, checkout, openPortal } = useBillingState(isAuthed);
-  if (!isAuthed) return <LoginRequiredCard message={t('to manage your subscription.')} />;
+  const { org, isAdmin } = useOrgAuth();
+  const { state, loading, busy, error, checkout, openPortal } = useBillingState();
   const currentPlan = state?.subscription?.plan ?? org?.plan ?? 'free';
   const statusPrefix = state?.subscription?.status
     ? t('Status: {{status}}', { status: state.subscription.status })

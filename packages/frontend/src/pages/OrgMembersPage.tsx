@@ -4,7 +4,8 @@ import { useTranslation } from 'react-i18next';
 import { Users, Loader2, Mail, Send, Trash2 } from 'lucide-react';
 import { StandardPageShell } from '../components/shells/index.js';
 import { useOrgAuth } from '@/hooks/miscHooks';
-import { LoginRequiredCard } from '@/components/auth/formFields';
+import { useConfirmDialog } from '@/components/confirmDialog';
+import { ErrorBanner } from '@/components/stateDisplay';
 import { ErrorBanner } from '@/components/stateDisplay';
 import { useOrgMembersState } from './org/hooks/useOrgMembersState.js';
 import { ROLES, type Invitation, type Member, type Role } from './org/orgTypes.js';
@@ -13,7 +14,7 @@ const TH = 'text-left text-xs font-semibold text-fg-tertiary px-[10px] py-2';
 const TD = 'text-label text-fg-secondary py-2 px-[10px]';
 export default function OrgMembersPage() {
   const { t } = useTranslation();
-  const { isAuthed, org, isAdmin } = useOrgAuth();
+  const { org, isAdmin } = useOrgAuth();
   const {
     members,
     invitations,
@@ -27,9 +28,8 @@ export default function OrgMembersPage() {
     revokeInvite,
   } = useOrgMembersState(isAdmin);
   useEffect(() => {
-    if (isAuthed) void load();
-  }, [isAuthed, load]);
-  if (!isAuthed) return <LoginRequiredCard message={t('to manage organization members.')} />;
+    void load();
+  }, [load]);
   return (
     <StandardPageShell
       config={{
@@ -101,6 +101,7 @@ interface MemberTableProps {
 }
 function MemberTable({ members, isAdmin, busy, onChangeRole, onRemoveMember }: MemberTableProps) {
   const { t } = useTranslation();
+  const [confirmDialog, confirm] = useConfirmDialog();
   return (
     <div className="overflow-x-auto">
       <table className="w-full border-collapse mb-6">
@@ -133,19 +134,18 @@ function MemberTable({ members, isAdmin, busy, onChangeRole, onRemoveMember }: M
                 <td className={TD}>
                   {m.role !== 'owner' && (
                     <button
-                      onClick={() => {
-                        if (
-                          window.confirm(
-                            t('Remove member {{name}}? This cannot be undone.', {
-                              name: m.username,
-                            }),
-                          )
+                      onClick={() =>
+                        confirm(
+                          t('Remove member {{name}}? This cannot be undone.', {
+                            name: m.username,
+                          }),
+                          () => onRemoveMember(m.userId),
+                          true,
                         )
-                          onRemoveMember(m.userId);
-                      }}
+                      }
                       disabled={busy}
                       title={t('Remove Member')}
-                      className="bg-transparent border-0 cursor-pointer text-danger"
+                      className="inline-flex items-center bg-transparent border-0 cursor-pointer text-danger"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -156,6 +156,7 @@ function MemberTable({ members, isAdmin, busy, onChangeRole, onRemoveMember }: M
           ))}
         </tbody>
       </table>
+      {confirmDialog}
     </div>
   );
 }
@@ -213,6 +214,7 @@ interface InvitationTableProps {
 }
 function InvitationTable({ invitations, busy, onRevokeInvite }: InvitationTableProps) {
   const { t } = useTranslation();
+  const [confirmDialog, confirm] = useConfirmDialog();
   return (
     <div className="overflow-x-auto">
       <table className="w-full border-collapse">
@@ -233,15 +235,16 @@ function InvitationTable({ invitations, busy, onRevokeInvite }: InvitationTableP
               <td className={TD}>
                 {!inv.acceptedAt && (
                   <button
-                    onClick={() => {
-                      if (
-                        window.confirm(t('Revoke invitation for {{email}}?', { email: inv.email }))
+                    onClick={() =>
+                      confirm(
+                        t('Revoke invitation for {{email}}?', { email: inv.email }),
+                        () => onRevokeInvite(inv.id),
+                        true,
                       )
-                        onRevokeInvite(inv.id);
-                    }}
+                    }
                     disabled={busy}
                     title={t('Revoke Invitation')}
-                    className="bg-transparent border-0 cursor-pointer text-danger"
+                    className="inline-flex items-center bg-transparent border-0 cursor-pointer text-danger"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -251,6 +254,7 @@ function InvitationTable({ invitations, busy, onRevokeInvite }: InvitationTableP
           ))}
         </tbody>
       </table>
+      {confirmDialog}
     </div>
   );
 }

@@ -17,8 +17,14 @@ export function SegmentedControl<T extends string | number>({
     onChange(options[next].value);
     focusAt(next);
   };
+  const tabClass = (isActive: boolean) =>
+    `text-caption font-medium cursor-pointer rounded bg-transparent border-none px-3.5 py-[5px] transition-all hover:text-fg-secondary ${
+      isActive
+        ? 'bg-surface text-fg shadow-[0_1px_2px_rgba(0,0,0,0.12)] dark:bg-brand/16 dark:text-brand dark:shadow-none'
+        : 'text-fg-tertiary'
+    }`;
   return (
-    <div className="mini-tabs" role="radiogroup">
+    <div className="inline-flex bg-hover rounded-md p-0.5 gap-0.5" role="radiogroup">
       {options.map((opt, i) => (
         <button
           key={String(opt.value)}
@@ -29,7 +35,7 @@ export function SegmentedControl<T extends string | number>({
           role="radio"
           aria-checked={value === opt.value}
           tabIndex={value === opt.value ? 0 : -1}
-          className={`mini-tab ${value === opt.value ? 'active' : ''}`}
+          className={tabClass(value === opt.value)}
           onClick={() => onChange(opt.value)}
           onKeyDown={(e) => {
             if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
@@ -38,6 +44,11 @@ export function SegmentedControl<T extends string | number>({
             } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
               e.preventDefault();
               move(i, -1);
+            } else if (e.key === 'Home' || e.key === 'End') {
+              e.preventDefault();
+              const next = e.key === 'Home' ? 0 : options.length - 1;
+              onChange(options[next].value);
+              focusAt(next);
             }
           }}
         >

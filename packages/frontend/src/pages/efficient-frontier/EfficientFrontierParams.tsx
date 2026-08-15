@@ -3,8 +3,7 @@ import type { TFunction } from 'i18next';
 import { Checkbox, Input, AffixInput } from '@/components/ui/uiComponents';
 import { Field, FieldLabel } from '@/components/form/Field';
 import { SectionHeader, SelectField, RunButton, DateField } from '@/components/form/sharedFields';
-import { TickerTagInput } from '../../components/form/TickerTagInput.js';
-import { AllHistoryCheckbox } from '@/components/params/toolFields.js';
+import { AssetSelectionField, AllHistoryCheckbox } from '@/components/params/toolFields.js';
 import type { SolveSpeed, FrontierSolver, ReturnObjective } from './EfficientFrontierUtils.js';
 import type { FrontierState } from './EfficientFrontierUtils.js';
 const solveSpeedOptions = (t: TFunction): { value: SolveSpeed; label: string }[] => [
@@ -31,20 +30,6 @@ const solverOptions = (t: TFunction): { value: FrontierSolver; label: string }[]
 interface FrontierParamsProps {
   state: FrontierState;
 }
-function TickerListSection({ s }: { s: FrontierState }) {
-  const { t } = useTranslation();
-  return (
-    <section className="flex flex-col gap-3">
-      <SectionHeader title={t('Ticker List')} />
-      <TickerTagInput
-        tickers={s.tickers.filter(Boolean)}
-        onChange={s.setTickers}
-        minCount={2}
-        placeholder={t('Enter ticker, e.g. VTI')}
-      />
-    </section>
-  );
-}
 function DateAndPointsGrid({ s }: { s: FrontierState }) {
   const { t } = useTranslation();
   return (
@@ -62,7 +47,6 @@ function DateAndPointsGrid({ s }: { s: FrontierState }) {
         />
       </Field>
       <Field>
-        <FieldLabel>{t('All History')}</FieldLabel>
         <AllHistoryCheckbox
           startDate={s.startDate}
           endDate={s.endDate}
@@ -114,7 +98,6 @@ function AdvancedParamsGrid({ s }: { s: FrontierState }) {
         options={solverOptions(t)}
       />
       <Field>
-        <FieldLabel>{t('Allow Cash Allocation')}</FieldLabel>
         <label className="flex h-10 cursor-pointer items-center gap-2 text-label text-fg-secondary">
           <Checkbox checked={s.allowCash} onCheckedChange={(c) => s.setAllowCash(c === true)} />
           <span>{t('Allow Cash Allocation')}</span>
@@ -137,7 +120,12 @@ function FrontierParams({ state }: FrontierParamsProps) {
   const { t } = useTranslation();
   return (
     <div className="flex flex-col gap-5">
-      <TickerListSection s={state} />
+      <AssetSelectionField
+        tickers={state.tickers.filter(Boolean)}
+        onChange={state.setTickers}
+        minCount={2}
+        title={t('Ticker List')}
+      />
       <ParamsSection s={state} />
       <RunButton
         isLoading={state.isLoading}

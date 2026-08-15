@@ -1,15 +1,15 @@
 import { useTranslation } from 'react-i18next';
-import { Play, Loader2 } from 'lucide-react';
-import { Button, Input, Switch } from '@/components/ui/uiComponents';
+import { Input, Switch } from '@/components/ui/uiComponents';
 import { Field, FieldLabel } from '@/components/form/Field.js';
 import { CollapsibleSection } from '@/components/cards.js';
-import { TickerTagInput } from '@/components/form/TickerTagInput.js';
+import { AssetSelectionField } from '@/components/params/toolFields.js';
 import {
   SectionHeader,
   LabeledField,
   SelectField,
   PercentInput,
   SwitchField,
+  RunButton,
 } from '@/components/form/sharedFields';
 import type { EfficientFrontierState, SolverType } from './OptimizerUtils.js';
 import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
@@ -23,24 +23,6 @@ const SOLVERS = [
   { value: 'markowitz', labelKey: 'optimizer.solverMarkowitz' },
   { value: 'ga', labelKey: 'optimizer.solverGA' },
 ] as const;
-
-function TickerEditor({ s }: { s: EfficientFrontierState }) {
-  const { t } = useTranslation();
-  return (
-    <section className="flex flex-col gap-3">
-      <SectionHeader
-        title={t('Asset Selection')}
-        info={t('Enter ticker symbols for optimization, at least two required')}
-      />
-      <TickerTagInput
-        tickers={s.tickers.filter(Boolean)}
-        onChange={s.setTickers}
-        minCount={2}
-        placeholder={t('Enter ticker, e.g. VTI')}
-      />
-    </section>
-  );
-}
 
 const DATE_FIELDS = [
   {
@@ -281,23 +263,27 @@ function AdvancedConstraints({ s }: { s: EfficientFrontierState }) {
 export function OptimizerParams({ s }: { s: EfficientFrontierState }) {
   const { t } = useTranslation();
   const running = s.isLoading || s.isCalculatingStats;
-  const btnLabel = s.isCalculatingStats
+  const loadingLabel = s.isCalculatingStats
     ? t('Calculating backtest statistics...')
-    : s.isLoading
-      ? t('Optimizing...')
-      : t('OPTIMIZE');
+    : t('Optimizing...');
   return (
     <div className="flex flex-col gap-5">
-      <TickerEditor s={s} />
+      <AssetSelectionField
+        tickers={s.tickers.filter(Boolean)}
+        onChange={s.setTickers}
+        minCount={2}
+        title={t('Asset Selection')}
+        info={t('Enter ticker symbols for optimization, at least two required')}
+      />
       <SolverSettings s={s} />
       <HistoricalConstraints s={s} />
       <AdvancedConstraints s={s} />
-      <div className="flex justify-end pt-1">
-        <Button variant="primary" size="lg" disabled={running} onClick={() => void s.runOptimize()}>
-          {running ? <Loader2 className="animate-spin" /> : <Play />}
-          {btnLabel}
-        </Button>
-      </div>
+      <RunButton
+        isLoading={running}
+        onClick={() => void s.runOptimize()}
+        label={t('OPTIMIZE')}
+        loadingLabel={loadingLabel}
+      />
     </div>
   );
 }

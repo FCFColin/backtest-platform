@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useId } from 'react';
 import type { ElementType, ReactNode } from 'react';
 import { ChevronDown, PieChart } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -37,10 +37,12 @@ interface CalcFieldProps {
   step?: number;
 }
 export function Field({ label, value, onChange, suffix, min, max, step = 0.1 }: CalcFieldProps) {
+  const id = useId();
   return (
     <FieldShell>
-      <FieldLabel>{label}</FieldLabel>
+      <FieldLabel htmlFor={id}>{label}</FieldLabel>
       <AffixInput
+        id={id}
         type="number"
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}

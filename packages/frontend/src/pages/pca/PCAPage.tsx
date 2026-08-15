@@ -1,9 +1,8 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Play } from 'lucide-react';
 import type { EChartsOption } from 'echarts';
 import { type PCAResult } from '@backtest/shared';
-import { Card, buttonVariants, LoadingButton, AffixInput } from '@/components/ui/uiComponents';
+import { Card, AffixInput } from '@/components/ui/uiComponents';
 import { CollapsibleSection } from '@/components/cards.js';
 import { ResultsShell } from '@/components/resultsShell.js';
 import { useComputeTool } from '../../hooks/miscHooks.js';
@@ -21,7 +20,7 @@ import {
 import { TimeSeriesLineChart } from '@/components/charts/TimeSeriesLineChart.js';
 import { MatrixHeatmap } from '@/components/charts/tables.js';
 import { Field, FieldLabel, FieldDescription } from '../../components/form/Field.js';
-import { DateField } from '../../components/form/sharedFields.js';
+import { DateField, RunButton } from '../../components/form/sharedFields.js';
 import { TickerTagInput } from '../../components/form/TickerTagInput.js';
 import { ComputeToolShell, type ComputeToolConfig } from '../../components/shells/index.js';
 import { XYScatterChart } from '@/components/charts/sharedChartContent.js';
@@ -31,15 +30,15 @@ function usePcaPageState() {
   const [startDate, setStartDate] = useState(DEFAULT_BACKTEST_START_DATE);
   const [endDate, setEndDate] = useState(DEFAULT_END_DATE);
   const [numComponents, setNumComponents] = useState<number | ''>('');
+  const validTickers = tickers.map((tk) => tk.trim()).filter(Boolean);
   const {
     isLoading,
     error,
     results,
     runCompute: runAnalysis,
   } = useComputeTool<PCAResult>(
-    async () => {
-      const validTickers = tickers.map((tk) => tk.trim()).filter(Boolean);
-      return apiPostJSON<PCAResult>(
+    async () =>
+      apiPostJSON<PCAResult>(
         '/api/v1/pca/analyze',
         {
           tickers: validTickers,
@@ -48,12 +47,8 @@ function usePcaPageState() {
           numComponents: numComponents === '' ? undefined : numComponents,
         },
         t('PCA analysis failed'),
-      );
-    },
-    () =>
-      tickers.map((tk) => tk.trim()).filter(Boolean).length >= 2
-        ? null
-        : t('PCA analysis requires at least 2 ticker symbols'),
+      ),
+    () => (validTickers.length >= 2 ? null : t('PCA analysis requires at least 2 ticker symbols')),
   );
   return {
     tickers,
@@ -117,15 +112,12 @@ function PCAParamsPanel({ state: s }: { state: PCAState }) {
         </FieldDescription>
       </Field>
       <div className="col-span-full">
-        <LoadingButton
+        <RunButton
           isLoading={s.isLoading}
           onClick={s.runAnalysis}
-          loadingText={t('Analyzing...')}
-          className={buttonVariants({ variant: 'primary', size: 'lg', className: 'w-full' })}
-        >
-          <Play className="w-4 h-4" />
-          {t('Run Analysis')}
-        </LoadingButton>
+          label={t('Run Analysis')}
+          loadingLabel={t('Analyzing...')}
+        />
       </div>
     </div>
   );
