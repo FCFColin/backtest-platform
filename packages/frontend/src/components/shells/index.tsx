@@ -51,7 +51,9 @@ export function StandardPageShell({
   return (
     <div className="page-container pt-0 pb-3 sm:pb-4">
       <div className="flex justify-between items-start px-1 mb-3">
-        <h1 className="page-title-slim">{t(config.titleKey)}</h1>
+        <h1 className="text-[20px] font-semibold text-fg tracking-[-0.2px] shrink-0">
+          {t(config.titleKey)}
+        </h1>
         {config.headerExtra}
       </div>
       {children}
@@ -70,9 +72,12 @@ function PageHeaderActions({
   t: (key: string) => string;
 }) {
   return (
-    <div className="page-header-actions">
+    <div className="flex items-center gap-3 shrink-0">
       {(showAbout || showRelated) && (
-        <button className="text-link-subtle" onClick={onToggle}>
+        <button
+          className="text-[13px] text-fg-tertiary no-underline bg-transparent border-none cursor-pointer p-0 transition-colors hover:text-brand"
+          onClick={onToggle}
+        >
           {showAbout ? t('About') : t('Related Tools:')}
         </button>
       )}
@@ -81,7 +86,10 @@ function PageHeaderActions({
 }
 function PresetButton({ label, onClick }: PresetButtonProps) {
   return (
-    <button className="preset-chip" onClick={onClick}>
+    <button
+      className="text-caption font-medium cursor-pointer whitespace-nowrap rounded border border-border-subtle bg-input-bg text-fg-secondary px-2.5 py-1 transition-all hover:border-brand hover:text-brand"
+      onClick={onClick}
+    >
       {label}
     </button>
   );
@@ -89,8 +97,8 @@ function PresetButton({ label, onClick }: PresetButtonProps) {
 function PresetsCard({ presets }: { presets: PresetButtonProps[] }) {
   const { t } = useTranslation();
   return (
-    <div className="preset-chips">
-      <span className="preset-label">{t('Presets')}:</span>
+    <div className="flex flex-wrap items-center gap-1.5 bg-hover rounded-md px-3 py-2 mb-3">
+      <span className="text-caption text-fg-tertiary shrink-0">{t('Presets')}:</span>
       {presets.map((preset) => (
         <PresetButton key={preset.label} label={preset.label} onClick={preset.onClick} />
       ))}
@@ -118,11 +126,17 @@ export function ComputeToolShell<S>({
   const paramsTitle = config.hideParamsTitle ? undefined : t('params.basicParams');
   return (
     <div className="page-container pt-0 pb-3 sm:pb-4">
-      <div className="page-header-slim">
-        <div className="page-header-title-row">
-          {!config.hidePageTitle && <h1 className="page-title-slim">{t(config.titleKey)}</h1>}
+      <div className="border-b border-border-subtle pt-3 pb-2.5 mb-3">
+        <div className="flex items-baseline gap-4">
+          {!config.hidePageTitle && (
+            <h1 className="text-[20px] font-semibold text-fg tracking-[-0.2px] shrink-0">
+              {t(config.titleKey)}
+            </h1>
+          )}
           {config.seoSubtitleKey && (
-            <span className="page-subtitle-inline">{t(config.seoSubtitleKey)}</span>
+            <span className="text-[13px] text-fg-tertiary flex-1 min-w-0">
+              {t(config.seoSubtitleKey)}
+            </span>
           )}
           <PageHeaderActions
             showAbout={!!config.seoDescKey}

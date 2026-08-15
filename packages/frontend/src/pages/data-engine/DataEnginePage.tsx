@@ -66,7 +66,7 @@ export default function DataEnginePage() {
     useDataEngineState();
   return (
     <div className="flex w-full flex-col gap-3">
-      <h1 className="page-title-slim">{t('Data Engine')}</h1>
+      <h1 className="text-[20px] font-semibold text-fg tracking-[-0.2px]">{t('Data Engine')}</h1>
       {error ? (
         <DataEngineError error={error} onRetry={() => fetchStats(true)} />
       ) : !stats ? (
