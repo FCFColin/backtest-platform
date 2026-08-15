@@ -6,6 +6,9 @@ import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 
 const projectRoot = path.dirname(fileURLToPath(import.meta.url));
+// 依赖 jsdom 的前端 utils 测试：node 项目排除、browser 项目包含（两处共用避免清单漂移）
+const BROWSER_UTILS_TESTS =
+  'tests/unit/utils/{admin-stats,api-client,auth-tokens,chart-data-merge,color-scale,config-api,format,portfolio-storage,stats,url-state}.test.ts';
 const frontendRequire = createRequire(path.resolve(projectRoot, 'packages/frontend/package.json'));
 const tailwindcss = frontendRequire('tailwindcss');
 const autoprefixer = frontendRequire('autoprefixer');
@@ -93,11 +96,7 @@ export default defineConfig(async () => {
               'tests/contract/**/*.test.ts',
               'tests/property/**/*.{test,pbt}.ts',
             ],
-            exclude: [
-              'tests/chaos/**',
-              'tests/**/*.bench.ts',
-              'tests/unit/utils/{admin-stats,api-client,auth-tokens,chart-data-merge,color-scale,config-api,format,portfolio-storage,stats,url-state}.test.ts',
-            ],
+            exclude: ['tests/chaos/**', 'tests/**/*.bench.ts', BROWSER_UTILS_TESTS],
             testTimeout: 30000,
             hookTimeout: 60000,
             deps: {
@@ -144,7 +143,7 @@ export default defineConfig(async () => {
               'tests/unit/hooks/**/*.test.{ts,tsx}',
               'tests/unit/components/**/*.test.{ts,tsx}',
               'tests/unit/pages/**/*.test.{ts,tsx}',
-              'tests/unit/utils/{admin-stats,api-client,auth-tokens,chart-data-merge,color-scale,config-api,format,portfolio-storage,stats,url-state}.test.ts',
+              BROWSER_UTILS_TESTS,
             ],
             deps: { moduleDirectories: ['node_modules', 'packages/frontend/node_modules'] },
           },

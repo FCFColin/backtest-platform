@@ -8,14 +8,11 @@ const fail = (msg) => {
 };
 
 const GLOBAL_THRESHOLDS = { lines: 80, functions: 80, statements: 80, branches: 80 };
-const candidatePaths = [
-  resolve(projectRoot, 'coverage/vitest/coverage-summary.json'),
-  resolve(projectRoot, 'coverage/coverage-summary.json'),
-];
-const coveragePath = candidatePaths.find((p) => existsSync(p));
-if (!coveragePath)
+// vite.config.ts coverage.reportsDirectory 固定为 coverage/vitest（单一权威路径）
+const coveragePath = resolve(projectRoot, 'coverage/vitest/coverage-summary.json');
+if (!existsSync(coveragePath))
   fail(
-    `覆盖率数据缺失（未找到 coverage-summary.json，已检查: ${candidatePaths.join(', ')}）。请先运行 pnpm test:unit`,
+    `覆盖率数据缺失（未找到 coverage-summary.json，已检查: ${coveragePath}）。请先运行 pnpm test:unit`,
   );
 
 let summary;

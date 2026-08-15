@@ -5,6 +5,7 @@
     "eslint.config.js",
     "vite.config.ts",
     "tailwind.config.cjs",
+    "packages/backend/esbuild.config.mjs",
     ".npmrc"
   ],
   "globalEnv": ["NODE_ENV", "CI", "VITE_*"],

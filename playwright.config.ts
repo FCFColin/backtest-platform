@@ -35,11 +35,14 @@ export default defineConfig({
       name: 'firefox',
       dependencies: ['setup'],
       use: { ...devices['Desktop Firefox'], storageState: '.auth/user.json' },
+      // 性能 spec 阈值按 chromium 基线标定，多浏览器重复跑纯增 flake 面
+      testIgnore: ['**/backtest-performance.spec.ts', '**/page-load-performance.spec.ts'],
     },
     {
       name: 'webkit',
       dependencies: ['setup'],
       use: { ...devices['Desktop Safari'], storageState: '.auth/user.json' },
+      testIgnore: ['**/backtest-performance.spec.ts', '**/page-load-performance.spec.ts'],
     },
   ],
   webServer: {

@@ -86,6 +86,7 @@ export default tseslint.config(
       '@typescript-eslint/no-explicit-any': 'error',
       'no-empty': ['error', { allowEmptyCatch: true }],
       'no-console': 'error',
+      'no-warning-comments': ['error', { terms: ['TODO', 'FIXME', 'HACK', 'XXX'] }],
     },
   },
   {
