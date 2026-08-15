@@ -8,6 +8,7 @@ import { appRedis, getRedisHealth } from '../infrastructure/redisClient.js';
 import { logger } from '../utils/logger.js';
 import { getPrometheusRegister } from './metrics.js';
 import { RedisUnavailableError } from './errors.js';
+import { RT_COOKIE } from '../middleware/authShared.js';
 
 const rateLimiterRedisUnavailableCounter = new client.Counter({
   name: 'rate_limiter_redis_unavailable_total',
@@ -88,6 +89,10 @@ function authRateLimitKey(req: Request): string {
     return `apikey:${crypto.createHash('sha256').update(body.apiKey).digest('hex').slice(0, 16)}`;
   if (body?.refreshToken)
     return `refresh:${crypto.createHash('sha256').update(body.refreshToken).digest('hex').slice(0, 16)}`;
+  // refresh 端点凭据走 HttpOnly cookie（authRoutes），body 可能为空——按 cookie 分桶，避免共享 IP 挤占同一限流预算
+  const refreshCookie = req.cookies?.[RT_COOKIE];
+  if (typeof refreshCookie === 'string' && refreshCookie.length > 0)
+    return `refresh:${crypto.createHash('sha256').update(refreshCookie).digest('hex').slice(0, 16)}`;
   return req.ip ?? '';
 }
 

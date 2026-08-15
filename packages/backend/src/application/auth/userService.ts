@@ -54,7 +54,12 @@ export async function verifyUser(username: string, password: string): Promise<Us
   }
 
   const user = rows[0];
-  const isValid = await argon2.verify(user.password_hash, password);
+  let isValid = false;
+  try {
+    isValid = await argon2.verify(user.password_hash, password);
+  } catch {
+    logger.warn({ username }, '[userService] 密码 hash 校验异常，按验证失败处理');
+  }
 
   if (!isValid) {
     logger.warn({ username }, '[userService] 密码验证失败');

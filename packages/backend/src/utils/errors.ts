@@ -54,11 +54,15 @@ export class RedisUnavailableError extends ApplicationError {
   }
 }
 
-/** Stripe 未配置对应 plan 的 price（503，计费配置缺失）。name 不显式设置，pino 按构造器名序列化。 */
+/** Stripe 未配置对应 plan 的 price（503，计费配置缺失）。 */
 export class BillingNotConfiguredError extends ApplicationError {
   readonly statusCode = 503;
   readonly errorCode = 'PRICE_NOT_CONFIGURED';
   readonly errorTitle = 'Billing not configured';
+  constructor(message: string) {
+    super(message);
+    this.name = 'BillingNotConfiguredError';
+  }
 }
 
 /** 组织尚未建立 Stripe 客户（404）。 */

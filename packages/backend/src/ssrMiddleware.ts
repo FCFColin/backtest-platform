@@ -37,7 +37,8 @@ async function prefetchMeta(): Promise<void> {
     });
     if (resp.ok) {
       const json = await resp.json();
-      metaCache = JSON.stringify(json);
+      // Security: 内联进 <script> 的 JSON 须转义 < >，否则 meta 数据含 </script> 可突破脚本上下文（XSS）
+      metaCache = JSON.stringify(json).replace(/</g, '\\u003c').replace(/>/g, '\\u003e');
     }
   } catch {
     logger.warn('[ssr] meta 数据预取失败（服务未就绪）');

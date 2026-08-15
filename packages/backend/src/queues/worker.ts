@@ -129,7 +129,9 @@ async function dispatchJob(job: Job<BacktestJobData>): Promise<BacktestJobResult
         >[0]['parameters'],
         tenantId: job.data.tenantId,
         onProgress: (pct: number) => {
-          void job.updateProgress(pct);
+          job
+            .updateProgress(pct)
+            .catch((err) => logger.warn({ err: String(err), jobId }, '[worker] 进度更新失败'));
         },
       });
       const portfolioResult = { data: result, warnings, dateRange };

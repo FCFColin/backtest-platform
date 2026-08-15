@@ -75,6 +75,7 @@ export function getReadPool(): pg.Pool {
   readPool = createAndInstrumentPool({
     connectionString: readUrl,
     poolName: 'PostgreSQL 只读连接池',
+    keepAlive: true,
   });
   registerPgPoolMetrics('read', () => ({
     waitingCount: readPool?.waitingCount ?? 0,
