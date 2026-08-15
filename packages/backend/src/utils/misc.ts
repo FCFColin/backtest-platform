@@ -1,5 +1,11 @@
 const MAX_RANGE_SIZE = 100000;
 
+function stepDecimals(step: number): number {
+  const s = String(step);
+  const dot = s.indexOf('.');
+  return dot < 0 ? 0 : s.length - dot - 1;
+}
+
 export function numericRange(min: number, max: number, step: number, decimals = 2): number[] {
   if (step <= 0 || min > max) return [min];
   if (min === -Infinity || max === Infinity) {
@@ -12,7 +18,8 @@ export function numericRange(min: number, max: number, step: number, decimals = 
   if ((max - min) / step > MAX_RANGE_SIZE) {
     throw new RangeError('numericRange: range too large');
   }
-  const factor = 10 ** decimals;
+  // 取整精度对齐步长小数位，避免 step < 0.01 时多个值被舍入成同一值
+  const factor = 10 ** Math.max(decimals, stepDecimals(step));
   const arr: number[] = [];
   for (let v = min; v <= max + 1e-9; v += step) {
     arr.push(Math.round(v * factor) / factor);
@@ -54,5 +61,8 @@ export function todayStr(): string {
 
 export function isValidDate(value: string): boolean {
   if (!value) return true;
-  return /^\d{4}-\d{2}-\d{2}$/.test(value);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  // 校验真实日历日期（2023-02-31 这类会被 Date 滚动到 3 月，与字面量不一致）
+  const d = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === value;
 }

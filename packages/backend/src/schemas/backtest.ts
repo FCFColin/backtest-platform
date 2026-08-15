@@ -151,7 +151,6 @@ export const efficientFrontierSchema = z.object({
   tickers: tickerListSchema,
   numPoints: z.number().optional(),
   parameters: backtestParametersSchema,
-  numIterations: z.number().optional(),
 });
 
 export const portfolioSeriesSchema = portfolioBacktestSchema.extend({

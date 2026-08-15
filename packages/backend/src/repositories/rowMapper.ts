@@ -36,6 +36,8 @@ export async function queryMany<T>(
 }
 
 export function iso(v: unknown): string {
+  // null/undefined 经 new Date() 会静默变成 1970 纪元时间——显式失败而非产出假日期
+  if (v == null) throw new TypeError(`iso: 空值无法转为 ISO 日期（v=${String(v)}）`);
   return new Date(v as Date | string).toISOString();
 }
 

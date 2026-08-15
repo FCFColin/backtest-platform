@@ -69,7 +69,7 @@ interface CpiRouteResult {
 export async function fetchCpiForRoute(country: string): Promise<CpiRouteResult> {
   // key 归一为小写，与 loadCpiMap 共用同一缓存分区
   const key = country.toLowerCase();
-  const { raw, map } = await fetchCpiFromGo(country);
+  const { raw, map } = await fetchCpiFromGo(key);
   if (raw) return { data: raw, degraded: false, notFound: false };
   if (cpiCache[key]?.routeData && Date.now() - cpiCache[key]!.ts < CPI_CACHE_TTL_MS) {
     return {
@@ -79,7 +79,7 @@ export async function fetchCpiForRoute(country: string): Promise<CpiRouteResult>
       notFound: false,
     };
   }
-  const cpiData = await loadCpiSeriesFromDb(country);
+  const cpiData = await loadCpiSeriesFromDb(key);
   if (cpiData.length > 0) {
     cpiCache[key] = { ...cpiCache[key], routeData: cpiData, ts: Date.now() };
     return {
