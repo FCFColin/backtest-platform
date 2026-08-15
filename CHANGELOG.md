@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- feat(frontend): 货币切换支持（DollarInput ¥/$）+ 图表工具打磨（tooltip 转义、坐标轴首尾刻度、dataZoom 主题化、品牌色）+ admin/表单可访问性完善（aria-label、年份截断）
+- refactor(frontend): ticker 标签输入、图表空态/参考线、signal 结果面板、portfolio 编辑器 props 契约、tactical 参数共享类型收编
+- fix(worker): 数据更新全部失败时抛错触发重试/DLQ（S16）
+- test: 移除失效 stub 键收敛 mock 样板
 - 治理收尾：verify 拆分出 verify-static（C-015 ADR 一致性/C-016 CHANGELOG/C-017 迁移/C-019 前端死代码等纯静态检查），CI 的 `--skip-db --skip-frontend` 不再使其失效；run-all 仅聚合本次运行脚本的结果并清理过期 audit 生成物
 - 配置/文档对齐：tsconfig paths 收敛单一通配、vite 死 glob 清理、env 默认 DB 用户降权为最小权限 backtest_app、.env.example 权威源指引、React 19 版本对齐、ops-guide/security 端口与键名修正
 

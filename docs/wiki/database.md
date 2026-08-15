@@ -40,14 +40,4 @@ requireRedis 封装: Redis 不可用显式 503（非内存降级，见 infra/red
 
 ## 5. 共享类型 (packages/shared/types/)
 
-Barrel export from index.ts。关键类型: Portfolio, BacktestParameters, Statistics(60+字段), MonteCarloParameters, OptimizationResult, CHART_COLORS。
-
-## 6. ProblemDetails 错误格式 (RFC 7807)
-
-`{ success: false, error: { type, title, status, code, detail } }`。
-类型化错误: AppError 基类 → ValidationError/AuthError/EngineUnavailableError 等；ErrorCodes 常量。
-降级差异: 数据服务 degraded: true + degradedWarning；引擎 503 无 degraded（ADR-008）。
-
-## 7. 关键 ADR 对照
-
-ADR-002 PostgreSQL / 004 DDD / 005 Outbox+CDC / 007 JWT+RBAC+API Key / 009 多租户 RLS。完整索引见 [ARCHITECTURE.md](../ARCHITECTURE.md#11-adr-索引)。
+关键类型: Portfolio, BacktestParameters, Statistics(60+字段), MonteCarloParameters, OptimizationResult, CHART_COLORS。

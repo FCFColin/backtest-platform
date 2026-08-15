@@ -151,15 +151,15 @@ jobs:
       # 故 Go 单测在本 job 执行，勿误以为 PR CI 不含 Go 测试
       - name: Run static verification scripts
         run: pnpm verify:critical --skip-db --skip-frontend
-      # Go 官方漏洞扫描：基于调用图只报实际受影响漏洞
+      # Go 官方漏洞扫描：基于调用图只报实际受影响漏洞；版本固定（@v1.7.0）符合供应链固定纪律
       - name: govulncheck (engine-go)
-        run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+        run: go run golang.org/x/vuln/cmd/govulncheck@v1.7.0 ./...
         working-directory: engine-go
       - name: govulncheck (data-fetcher)
-        run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+        run: go run golang.org/x/vuln/cmd/govulncheck@v1.7.0 ./...
         working-directory: data-fetcher
       - name: govulncheck (go-shared)
-        run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+        run: go run golang.org/x/vuln/cmd/govulncheck@v1.7.0 ./...
         working-directory: packages/go-shared
 
   go-lint:

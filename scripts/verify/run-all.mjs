@@ -1,8 +1,10 @@
 import { readdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 
-const PROJECT_ROOT = resolve(process.cwd());
+// 从脚本自身位置推导仓库根，避免从子目录调用时 cwd 漂移
+const PROJECT_ROOT = resolve(fileURLToPath(new URL('../..', import.meta.url)));
 const VERIFY_DIR = join(PROJECT_ROOT, 'scripts', 'verify');
 const OUTPUT_DIR = join(PROJECT_ROOT, 'docs', 'audit', 'verify');
 

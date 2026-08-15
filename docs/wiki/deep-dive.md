@@ -17,20 +17,20 @@
 
 ## 3. 路由清单
 
-| 路由文件                  | 挂载点                                                | 前置中间件                                               |
-| ------------------------- | ----------------------------------------------------- | -------------------------------------------------------- |
-| healthRoutes              | /api                                                  | 无（含 /metrics, /ready）                                |
-| dataRoutes                | /api/v1/data                                          | optionalJwtAuth + assignGuestReadonly                    |
-| dataManageRoutes          | /api/v1/data/manage                                   | readOnlyAuth + DATA_READ + auditLog + 幂等               |
-| backtestRoutes            | /api/v1/backtest                                      | computeMiddleware(BACKTEST_RUN) + computeLimiter(10/min) |
-| analysisRoutes            | /api/v1/{pca,letf,goal-optimizer,tactical,signal,...} | 各路由独立链（ADR-011 合并）                             |
-| authRoutes                | /api/v1/auth                                          | 公开（登录/注册/验证）+ 独立限流                         |
-| apiKeyRoutes              | /api/v1/keys, /api/v1/admin/keys                      | crudMiddleware(ADMIN_ACCESS)                             |
-| workspaceRoutes           | /api/v1/{runs,configs,portfolios,tactical/configs}    | crudMiddleware（tenantCrudRoutes 工厂）                  |
-| jobRoutes                 | /api/v1/jobs                                          | jwtAuth + 所有权校验                                     |
-| platformRoutes            | /api/v1/{announcements,errors}                        | 公开读 + adminMiddleware 写                              |
-| adminRoutes               | /api/v1/admin                                         | adminMiddleware + adminLimiter(30/min)                   |
-| orgRoutes / billingRoutes | /api/v1/orgs, /billing                                | jwtAuth + resolveTenant (+requireTenant)                 |
+| 路由文件                  | 挂载点                                                | 前置中间件                                                                |
+| ------------------------- | ----------------------------------------------------- | ------------------------------------------------------------------------- |
+| healthRoutes              | /api                                                  | 无（含 /metrics, /ready）                                                 |
+| dataRoutes                | /api/v1/data                                          | optionalJwtAuth + assignGuestReadonly                                     |
+| dataManageRoutes          | /api/v1/data/manage                                   | readOnlyAuth + DATA_READ + auditLog + 幂等（写/更新端点另需 DATA_MANAGE） |
+| backtestRoutes            | /api/v1/backtest                                      | computeMiddleware(BACKTEST_RUN) + computeLimiter(10/min)                  |
+| analysisRoutes            | /api/v1/{pca,letf,goal-optimizer,tactical,signal,...} | 各路由独立链（ADR-011 合并）                                              |
+| authRoutes                | /api/v1/auth                                          | 公开（登录/注册/验证）+ 独立限流                                          |
+| apiKeyRoutes              | /api/v1/keys, /api/v1/admin/keys                      | crudMiddleware(ADMIN_ACCESS)                                              |
+| workspaceRoutes           | /api/v1/{runs,configs,portfolios,tactical/configs}    | crudMiddleware（tenantCrudRoutes 工厂）                                   |
+| jobRoutes                 | /api/v1/jobs                                          | jwtAuth + 所有权校验                                                      |
+| platformRoutes            | /api/v1/{announcements,errors}                        | 公开读 + adminMiddleware 写                                               |
+| adminRoutes               | /api/v1/admin                                         | adminMiddleware + adminLimiter(30/min)                                    |
+| orgRoutes / billingRoutes | /api/v1/orgs, /billing                                | jwtAuth + resolveTenant (+requireTenant)                                  |
 
 > computeMiddleware(p) = jwtAuth → resolveTenant → requireTenant → requirePermission(p) → enforceQuota → auditLog
 > crudMiddleware(p) = jwtAuth → resolveTenant → requireTenant → requirePermission(p)

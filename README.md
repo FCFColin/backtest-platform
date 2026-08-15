@@ -49,5 +49,11 @@ pnpm dev:all          # 全栈开发：PG/Redis + Go 引擎/数据服务 + API 1
 
 ## 文档
 
-- [架构详解](docs/ARCHITECTURE.md) ｜ [应用层契约](docs/application-layer-contract.md) ｜ [ADR 索引](docs/adr/README.md) ｜ [运维手册](docs/wiki/ops-guide.md)
-- 开发规范与代码风格见 `AGENTS.md`（编码智能体优先阅读）
+| 类别      | 文档                                                                                                                                                                     |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 架构      | [ARCHITECTURE.md](docs/ARCHITECTURE.md)（权威拓扑源）｜[ADR 索引](docs/adr/README.md)｜[应用层契约](docs/application-layer-contract.md)                                  |
+| 指南      | [后端深度指南](docs/wiki/deep-dive.md)｜[数据库与共享层](docs/wiki/database.md)｜[运维手册](docs/wiki/ops-guide.md)｜[Docker 开发环境](docs/development/docker-setup.md) |
+| 安全/合规 | [安全管理](docs/compliance/security.md)｜[数据治理](docs/compliance/data-governance.md)｜[break-glass 密钥流程](docs/security/break-glass-procedure.md)                  |
+| 运维/性能 | [runbooks](docs/runbooks/)｜[性能 SLO](docs/performance-slo.md)                                                                                                          |
+
+开发规范与代码风格见 `AGENTS.md`（编码智能体优先阅读）；测试分层见 [tests/e2e/README.md](tests/e2e/README.md) 与 [tests/chaos/README.md](tests/chaos/README.md)。

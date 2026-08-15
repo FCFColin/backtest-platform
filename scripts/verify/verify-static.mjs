@@ -55,7 +55,7 @@ await runCheck(results, 'C-015', () => {
   };
 });
 
-// ── C-016: CHANGELOG 新鲜度 + 版本一致性 ────────────────────
+// ── C-016: CHANGELOG 新鲜度 + 版本一致性 + Unreleased 非空 ──
 await runCheck(results, 'C-016', () => {
   if (!fileExists('CHANGELOG.md')) return { status: 'FAIL', summary: 'CHANGELOG.md 不存在' };
   const changelog = readFileContent('CHANGELOG.md');
@@ -73,11 +73,14 @@ await runCheck(results, 'C-016', () => {
   if (diffDays > 7) reasons.push(`新鲜度差 ${diffDays.toFixed(1)} 天`);
   if (latestVersion !== pkgVersion)
     reasons.push(`版本 ${latestVersion} 与 package.json ${pkgVersion} 不一致`);
+  const unreleased = changelog.match(/## \[Unreleased\]\n([\s\S]*?)(?=\n## |$)/)?.[1] ?? '';
+  const unreleasedItems = unreleased.split('\n').filter((l) => l.trim().startsWith('-')).length;
+  if (unreleasedItems === 0) reasons.push('Unreleased 为空（应记录未发布改动）');
   const ok = reasons.length === 0;
   return {
     status: ok ? 'PASS' : 'FAIL',
     summary: ok
-      ? `CHANGELOG ${latestDate} 新鲜 + 版本 ${pkgVersion} 一致`
+      ? `CHANGELOG ${latestDate} 新鲜 + 版本 ${pkgVersion} 一致 + Unreleased ${unreleasedItems} 条`
       : `C-016 失败: ${reasons.join('; ')}`,
   };
 });

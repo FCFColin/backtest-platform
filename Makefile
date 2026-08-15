@@ -38,8 +38,8 @@ test: ## 全部测试（vitest）
 test-unit: ## 单元测试
 	pnpm run test:unit
 
-bench: ## 性能基准（无专用 bench 套件，复用单元测试）
-	pnpm run test:unit
+bench: ## Go 引擎性能基准（engine-go benchmarks）
+	cd engine-go && go test -bench=. -benchmem ./...
 
 audit: ## 供应链审计（prod 依赖漏洞阻断）
 	pnpm run audit:supply

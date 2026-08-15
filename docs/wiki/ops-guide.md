@@ -22,10 +22,9 @@
 
 ## 5. 已知坑点
 
-| 前端                         | 后端                          | Go 引擎                                    | 数据库                               |
-| ---------------------------- | ----------------------------- | ------------------------------------------ | ------------------------------------ |
-|                              | API Key 路径 /api/v1/keys     | withComputeHandler 统一计算端点            | audit_logs 链式 hash（HMAC）         |
-|                              | services/ 已迁入 application/ | PowerShell BOM 用 WriteAllText(UTF8,无BOM) | RLS 不启用: 市场/outbox              |
-| react-router v8 单包(无 dom) | Worker 独立进程               | 降级: data-fetcher 有 degraded, 引擎无     | FORCE RLS: backtest_app 无 BYPASSRLS |
-| authStore 不持久化           | Stripe Webhook 无 jwtAuth     | 引擎不可用 503 非 200+degraded             | 最小权限 backtest_app（无 CREATE）   |
-|                              | opossum + gobreaker           |                                            | Redis: 认证 fail-closed, 缓存跳过    |
+仅收录未在 deep-dive/ARCHITECTURE 重复的独有注意项：
+
+- **前端**：react-router v8 单包（无 dom 分包）；authStore 不持久化（刷新需重登/重取）
+- **后端**：Worker 独立进程；Stripe Webhook 独立挂载（无 jwtAuth，签名验证）
+- **Go 引擎**：withComputeHandler 统一计算端点；PowerShell 写文件用 `WriteAllText(UTF8, 无BOM)` 防 BOM 头解析异常
+- **数据库**：RLS 不启用市场/outbox 表；backtest_app 无 BYPASSRLS（FORCE RLS 生效）；最小权限（无 CREATE）

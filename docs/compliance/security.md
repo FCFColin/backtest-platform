@@ -4,26 +4,26 @@
 
 异常登录检测: 登录失败 5 次/15min → 锁 15min；IP 失败 10 次/h → 封锁 1h；异地登录 >500km 突变 → 告警；非工作时间(02-06)管理员登录 → 告警。
 
-| 层级   | 措施                      | 实现                                               |
-| ------ | ------------------------- | -------------------------------------------------- |
-| 网络层 | 端口最小暴露/WAF/DDoS/IDS | 仅 80/443 对外，APISIX waf，云厂商 DDoS+IDS        |
-| 应用层 | 输入验证/SQLi/XSS/CSRF    | Zod schema，参数化查询，React 转义+CSP，JWT Bearer |
-| 主机层 | 镜像/依赖扫描/最小权限    | Trivy+pnpm audit+govulncheck，非 root 容器         |
+| 层级   | 措施                      | 实现                                                        |
+| ------ | ------------------------- | ----------------------------------------------------------- |
+| 网络层 | 端口最小暴露/WAF/DDoS/IDS | 仅 80/443 对外，nginx ingress + 云厂商 WAF，云厂商 DDoS+IDS |
+| 应用层 | 输入验证/SQLi/XSS/CSRF    | Zod schema，参数化查询，React 转义+CSP，JWT Bearer          |
+| 主机层 | 镜像/依赖扫描/最小权限    | Trivy+pnpm audit+govulncheck，非 root 容器                  |
 
 告警规则: SuspiciousLoginActivity（IP 封锁 >3/5min, critical）；GoEngineDown/PostgresDown（关键服务不可用, critical）；HighErrorRate（5xx >5%/5min, warning）；HighLatency/HighP90Latency（SLO 违约, warning）。完整规则见 `docker/prometheus/rules.yml` 与 `k8s/prometheus-rules.yaml`。
 
 ## 2. 网络架构与区域边界
 
-| 端口        | 服务       | 暴露              | 安全               |
-| ----------- | ---------- | ----------------- | ------------------ |
-| 80/443      | APISIX     | 公网              | TLS+WAF+限流       |
-| 5432 / 6379 | PG / Redis | 内网              | TLS+RLS / TLS+密码 |
-| 5001        | API        | 内网(APISIX 代理) | JWT+RBAC           |
-| 5003-5004   | Go 服务    | 内网              | Auth Token         |
+| 端口        | 服务          | 暴露                     | 安全               |
+| ----------- | ------------- | ------------------------ | ------------------ |
+| 80/443      | nginx ingress | 公网                     | TLS+WAF+限流       |
+| 5432 / 6379 | PG / Redis    | 内网                     | TLS+RLS / TLS+密码 |
+| 5001        | API           | 内网(nginx ingress 代理) | JWT+RBAC           |
+| 5003-5004   | Go 服务       | 内网                     | Auth Token         |
 
 > 上表为容器内端口；主机访问经 docker-compose 映射为 15001/15003/15004（见 [ARCHITECTURE.md §4](../ARCHITECTURE.md#4-服务与端口)）。
 
-通信加密: 客户端→APISIX TLS 强制；API→PG/Redis TLS 强制(生产)。网络隔离: K8s NetworkPolicy 默认拒绝；pg_hba.conf 限制来源。多可用区: K8s 跨 2+ AZ；PG 主+流复制跨 AZ；Redis Sentinel 跨 AZ。
+通信加密: 客户端→nginx ingress TLS 强制；API→PG/Redis TLS 强制(生产)。网络隔离: K8s NetworkPolicy 默认拒绝；pg_hba.conf 限制来源。多可用区: K8s 跨 2+ AZ；PG 主+流复制跨 AZ；Redis Sentinel 跨 AZ。
 
 ## 3. 安全开发（SDL）
 
