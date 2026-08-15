@@ -42,7 +42,7 @@ metadata:
     app: postgres
 spec:
   serviceName: postgres
-  replicas: 1
+  replicas: 1 # 单副本且无备份（compose 有 wal-g+ofelia 每日备份，k8s 未落地）；上线生产前须补齐 PITR
   selector:
     matchLabels:
       app: postgres

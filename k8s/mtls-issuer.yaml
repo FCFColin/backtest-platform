@@ -30,8 +30,9 @@ kind: PeerAuthentication
 metadata:
   name: default
 spec:
+  # namespace 未注入 istio sidecar，STRICT 会拒绝全部流量；PERMISSIVE 为 mesh 默认值，mesh 落地后再收紧
   mtls:
-    mode: STRICT
+    mode: PERMISSIVE
 ---
 apiVersion: networking.istio.io/v1beta1
 kind: DestinationRule

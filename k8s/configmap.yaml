@@ -4,12 +4,13 @@ metadata:
   name: backtest-config
 data:
   NODE_ENV: 'production'
+  # 生产默认 RS256 需 RSA 密钥（config/index.ts 强制），auth-secret 仅提供 JWT_SECRET，故显式 HS256；需 RS256 时在 secret 配 JWT_PRIVATE_KEY/PUBLIC_KEY
+  JWT_ALGORITHM: 'HS256'
   API_PORT: '5001'
   TRUST_PROXY_HOPS: '2'
   GO_ENGINE_URL: 'http://engine-go:5004'
   GO_DATA_SERVICE_URL: 'http://data-fetcher:5003'
-  # Redis: 单实例回退，仅当 REDIS_SENTINELS 未设置时生效（DADR-045 向后兼容）
-  # 生产环境使用 Sentinel 高可用，凭证经 Secret 注入
+  # Redis: 生产无 Sentinel 时 fail-closed FATAL（redisClient.ts）；此单实例 URL 仅本地/降级路径回退
   REDIS_URL: 'redis://redis:6379'
   REDIS_SENTINELS: 'redis-0.redis:26379,redis-1.redis:26379,redis-2.redis:26379'
   REDIS_SENTINEL_NAME: 'mymaster'

@@ -135,6 +135,29 @@ spec:
         - { protocol: TCP, port: 5003 }
         - { protocol: TCP, port: 5004 }
 ---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-alertmanager
+spec:
+  podSelector:
+    matchLabels: { app: alertmanager }
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: monitoring }
+          podSelector:
+            matchLabels: { app.kubernetes.io/name: prometheus }
+      ports:
+        - { protocol: TCP, port: 9093 }
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except: [10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16]
+      ports: [{ protocol: TCP, port: 443 }] # 飞书/钉钉 webhook
+---
 # ── Egress（源侧）──
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
