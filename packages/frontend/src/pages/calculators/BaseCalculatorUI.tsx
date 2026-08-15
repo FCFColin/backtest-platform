@@ -261,7 +261,7 @@ export default function CalculatorsPage() {
   const { t } = useTranslation();
   return (
     <div className="page-container flex flex-col gap-3 pb-4">
-      <h1 className="text-display text-fg">{t('Investment Calculators')}</h1>
+      <h1 className="text-page-title text-fg">{t('Investment Calculators')}</h1>
       <ToolPageLayout
         params={
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">

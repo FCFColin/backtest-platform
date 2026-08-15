@@ -25,12 +25,12 @@ export default function AuthPageLayout({
         {centered ? (
           <>
             {icon}
-            <h1 className={cn('text-[20px] font-bold text-fg', icon && 'mb-2')}>{title}</h1>
+            <h1 className={cn('text-page-title font-bold text-fg', icon && 'mb-2')}>{title}</h1>
           </>
         ) : (
           <div className="mb-5 flex items-center gap-2.5">
             {icon && <BrandIconBadge icon={icon} />}
-            <h1 className="text-[20px] font-bold text-fg">{title}</h1>
+            <h1 className="text-page-title font-bold text-fg">{title}</h1>
           </div>
         )}
         {children}

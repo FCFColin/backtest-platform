@@ -51,9 +51,7 @@ export function StandardPageShell({
   return (
     <div className="page-container pt-0 pb-3 sm:pb-4">
       <div className="flex justify-between items-start px-1 mb-3">
-        <h1 className="text-[20px] font-semibold text-fg tracking-[-0.2px] shrink-0">
-          {t(config.titleKey)}
-        </h1>
+        <h1 className="text-page-title text-fg shrink-0">{t(config.titleKey)}</h1>
         {config.headerExtra}
       </div>
       {children}
@@ -129,9 +127,7 @@ export function ComputeToolShell<S>({
       <div className="border-b border-border-subtle pt-3 pb-2.5 mb-3">
         <div className="flex items-baseline gap-4">
           {!config.hidePageTitle && (
-            <h1 className="text-[20px] font-semibold text-fg tracking-[-0.2px] shrink-0">
-              {t(config.titleKey)}
-            </h1>
+            <h1 className="text-page-title text-fg shrink-0">{t(config.titleKey)}</h1>
           )}
           {config.seoSubtitleKey && (
             <span className="text-[13px] text-fg-tertiary flex-1 min-w-0">
