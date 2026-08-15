@@ -51,6 +51,8 @@ const internalMocks = vi.hoisted(() => ({
     queryPricesFromDb: vi.fn(),
     fetchMissingFromGoService: vi.fn(),
     searchTickers: vi.fn(),
+    missingTickers: (result: Record<string, Record<string, number>>, tickers: string[]) =>
+      tickers.filter((t) => !result[t] || Object.keys(result[t]).length === 0),
   },
   dataCache: {
     getCacheKey: vi.fn(),

@@ -113,7 +113,7 @@ router.post('/errors', validate(errorReportSchema), (req: Request, res: Response
         '[frontend-vital] Web Vital reported',
       );
       if (typeof metric === 'string' && typeof value === 'number') {
-        recordFrontendWebVital(metric, value, typeof route === 'string' ? route : undefined);
+        recordFrontendWebVital(metric, value);
       }
       break;
 

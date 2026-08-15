@@ -307,14 +307,45 @@ const fe = {
   webVital: gauge(
     'frontend_web_vital',
     'Web Vitals from real-user monitoring (lcp/cls/inp/fcp/ttfb)',
-    ['metric', 'route'],
+    ['metric'],
   ),
   ...Object.fromEntries(
     Object.entries(FE_HIST_DEFS).map(([k, [n, h, l, b]]) => [k, histogram(n, h, [...l], [...b])]),
   ),
 } as Record<string, client.Gauge | client.Histogram>;
-export const recordFrontendWebVital = (metric: string, value: number, route?: string): void =>
-  (fe.webVital as client.Gauge).set({ metric, route: route || 'unknown' }, value);
+
+// /api/v1/errors 无认证入口：客户端可控 label 须防高基数注入（白名单 / 归一化 / 基数上限）
+const OTHER_LABEL = '[other]';
+const LABEL_CARDINALITY_CAP = 300;
+const KNOWN_LABEL_SETS = {
+  webVital: new Set(['lcp', 'cls', 'inp', 'fcp', 'ttfb']),
+  pageLoad: new Set(['ttfb', 'fcp', 'dom_ready', 'load']),
+  renderPhase: new Set(['mount', 'update']),
+} as const;
+const ID_SEGMENT_RE = /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$|^\d{6,}$/i;
+const seenLabels = new Set<string>();
+
+function boundedLabel(scope: string, raw: string): string {
+  const key = `${scope}\u0000${raw}`;
+  if (seenLabels.has(key)) return raw;
+  if (!raw || seenLabels.size >= LABEL_CARDINALITY_CAP) return OTHER_LABEL;
+  seenLabels.add(key);
+  return raw;
+}
+
+function normalizeEndpoint(raw: string): string {
+  const rest = raw.split('?')[0].replace(/^https?:\/\/[^/]+/, '');
+  return rest
+    .split('/')
+    .map((s) => (ID_SEGMENT_RE.test(s) ? ':id' : s))
+    .join('/')
+    .slice(0, 128);
+}
+
+export const recordFrontendWebVital = (metric: string, value: number): void => {
+  if (!KNOWN_LABEL_SETS.webVital.has(metric)) return;
+  (fe.webVital as client.Gauge).set({ metric }, value);
+};
 export const recordFrontendApiCall = (
   endpoint: string,
   method: string,
@@ -322,7 +353,11 @@ export const recordFrontendApiCall = (
   durationMs: number,
 ): void =>
   (fe.apiCall as client.Histogram).observe(
-    { endpoint: endpoint.slice(0, 128), method, status_code: String(statusCode) },
+    {
+      endpoint: boundedLabel('apiCall', normalizeEndpoint(endpoint)),
+      method,
+      status_code: String(statusCode),
+    },
     durationMs / 1000,
   );
 export const recordFrontendComponentRender = (
@@ -331,11 +366,16 @@ export const recordFrontendComponentRender = (
   durationMs: number,
 ): void =>
   (fe.componentRender as client.Histogram).observe(
-    { component: component.slice(0, 128), phase },
+    {
+      component: boundedLabel('render', component.slice(0, 128)),
+      phase: KNOWN_LABEL_SETS.renderPhase.has(phase) ? phase : OTHER_LABEL,
+    },
     durationMs / 1000,
   );
-export const recordFrontendPageLoad = (metric: string, value: number): void =>
+export const recordFrontendPageLoad = (metric: string, value: number): void => {
+  if (!KNOWN_LABEL_SETS.pageLoad.has(metric)) return;
   (fe.pageLoad as client.Histogram).observe({ metric }, value / 1000);
+};
 
 export function getPrometheusRegister(): client.Registry {
   return register;

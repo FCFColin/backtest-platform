@@ -15,6 +15,10 @@ import {
   registerSemaphoreMetrics,
   resetMetrics,
   getPrometheusRegister,
+  recordFrontendWebVital,
+  recordFrontendApiCall,
+  recordFrontendComponentRender,
+  recordFrontendPageLoad,
 } from '../../../packages/backend/src/utils/metrics.js';
 
 describe('指标对象导出', () => {
@@ -171,5 +175,72 @@ describe('getPrometheusRegister', () => {
     expect(metricsText.length).toBeGreaterThan(0);
     const metrics = await register.getMetricsAsJSON();
     expect(Array.isArray(metrics)).toBe(true);
+  });
+});
+
+function feMetric(name: string): {
+  get: () => Promise<{ values: Array<{ value: number; labels: Record<string, string> }> }>;
+} {
+  const metric = getPrometheusRegister().getSingleMetric(name);
+  if (!metric) throw new Error(`metric not found: ${name}`);
+  return metric as never;
+}
+
+// /api/v1/errors 无认证入口：客户端可控 label 必须收敛，防 prometheus 高基数注入
+describe('前端上报指标标签防护', () => {
+  beforeEach(() => {
+    resetMetrics();
+  });
+
+  it('webVital/pageLoad 白名单：未知 metric 不产生序列', async () => {
+    recordFrontendWebVital('lcp', 2500);
+    recordFrontendWebVital('attacker', 1);
+    recordFrontendPageLoad('ttfb', 300);
+    recordFrontendPageLoad('evil', 1);
+    const vital = (await feMetric('frontend_web_vital').get()).values;
+    const load = (await feMetric('frontend_page_load_seconds').get()).values;
+    expect(vital.find((v) => v.labels.metric === 'lcp')?.value).toBe(2500);
+    expect(vital.find((v) => v.labels.metric === 'attacker')).toBeUndefined();
+    expect(load.find((v) => v.labels.le === '+Inf' && v.labels.metric === 'ttfb')?.value).toBe(1);
+    expect(load.find((v) => v.labels.le === '+Inf' && v.labels.metric === 'evil')).toBeUndefined();
+  });
+
+  it('apiCall 归一化 endpoint：去 query、折叠 id 段', async () => {
+    recordFrontendApiCall('/api/v1/backtest/portfolio?from=2020', 'POST', 200, 100);
+    recordFrontendApiCall(
+      'https://example.com/api/v1/orgs/members/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+      'DELETE',
+      204,
+      50,
+    );
+    const values = (await feMetric('frontend_api_call_duration_seconds').get()).values;
+    expect(values.some((v) => v.labels.endpoint === '/api/v1/backtest/portfolio')).toBe(true);
+    expect(values.some((v) => v.labels.endpoint === '/api/v1/orgs/members/:id')).toBe(true);
+    expect(values.some((v) => v.labels.endpoint.includes('aaaaaaaa'))).toBe(false);
+  });
+
+  it('componentRender 未知 phase 归一化为 [other]', async () => {
+    recordFrontendComponentRender('ChartView', 'update', 5);
+    recordFrontendComponentRender('ChartView', 'evil-phase', 7);
+    const values = (await feMetric('frontend_component_render_duration_seconds').get()).values;
+    expect(
+      values.some((v) => v.labels.component === 'ChartView' && v.labels.phase === 'update'),
+    ).toBe(true);
+    expect(
+      values.some((v) => v.labels.component === 'ChartView' && v.labels.phase === '[other]'),
+    ).toBe(true);
+  });
+
+  it('超过基数上限后新增 endpoint 并入 [other]', async () => {
+    for (let i = 0; i < 300; i++) recordFrontendApiCall(`/attack/${i}`, 'POST', 200, 1);
+    recordFrontendApiCall('/attack/overflow', 'POST', 200, 1);
+    const endpoints = new Set(
+      (await feMetric('frontend_api_call_duration_seconds').get()).values.map(
+        (v) => v.labels.endpoint,
+      ),
+    );
+    expect(endpoints.has('[other]')).toBe(true);
+    expect(endpoints.has('/attack/overflow')).toBe(false);
+    expect(endpoints.size).toBeLessThanOrEqual(301);
   });
 });

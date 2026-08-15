@@ -11,6 +11,7 @@ import {
   validateTickers,
   searchTickersFromDb,
   validateSearchQuery,
+  missingTickers,
   type TickerSearchResult,
 } from './dataQuery.js';
 import { fetchGoJson } from './goDataServiceClient.js';
@@ -77,9 +78,7 @@ async function fetchFromGoWithDegradation(
   );
   Object.assign(result, goResult);
 
-  const stillMissing = tickersToFetch.filter(
-    (t) => !result[t] || Object.keys(result[t]).length === 0,
-  );
+  const stillMissing = missingTickers(result, tickersToFetch);
   if (stillMissing.length > 0) {
     return {
       degraded: true,
@@ -107,9 +106,7 @@ function applyCachedHistory(
   const cacheResult = cached as Record<string, Record<string, number>>;
   Object.assign(result, cacheResult);
   // 历史脏缓存可能只覆盖局部 ticker：返回仍缺失的集合，调用方对它们落 Go 补取
-  const cachedMissing = tickersToFetch.filter(
-    (t) => !cacheResult[t] || Object.keys(cacheResult[t]).length === 0,
-  );
+  const cachedMissing = missingTickers(cacheResult, tickersToFetch);
   return cachedMissing.length === 0 ? null : cachedMissing;
 }
 

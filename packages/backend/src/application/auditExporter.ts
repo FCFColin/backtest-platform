@@ -112,17 +112,9 @@ export async function exportPendingAuditLogs(): Promise<ExportResult> {
 function groupByDate(logs: AuditLogRow[]): Map<string, AuditLogRow[]> {
   const grouped = new Map<string, AuditLogRow[]>();
   for (const log of logs) {
-    const date = new Date(log.createdAt);
-    const year = date.getUTCFullYear();
-    const month = String(date.getUTCMonth() + 1).padStart(2, '0');
-    const day = String(date.getUTCDate()).padStart(2, '0');
-    const dateKey = `${year}/${month}/${day}`;
-    const group = grouped.get(dateKey);
-    if (group) {
-      group.push(log);
-    } else {
-      grouped.set(dateKey, [log]);
-    }
+    const dateKey = log.createdAt.slice(0, 10).replace(/-/g, '/');
+    if (!grouped.has(dateKey)) grouped.set(dateKey, []);
+    grouped.get(dateKey)!.push(log);
   }
   return grouped;
 }

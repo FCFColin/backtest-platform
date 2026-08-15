@@ -44,6 +44,11 @@ export function isDbAvailable(): boolean {
   return !pgCircuitBreaker.opened;
 }
 
+export const missingTickers = (
+  result: Record<string, Record<string, number>>,
+  tickers: string[],
+): string[] => tickers.filter((t) => !result[t] || Object.keys(result[t]).length === 0);
+
 async function runQuery<T extends QueryResultRow>(
   sql: string,
   params: unknown[],
@@ -110,7 +115,7 @@ export async function queryPricesFromDb(
     const priceRows = rows as Array<{ ticker: string; date: Date | string; close: number }>;
     for (const { ticker, date, close } of priceRows)
       (result[ticker] ??= {})[toDateStr(date)] = close;
-    const missing = validTickers.filter((t) => !result[t] || Object.keys(result[t]).length === 0);
+    const missing = missingTickers(result, validTickers);
     return { result, missing, dbDegraded: false };
   } catch (err) {
     logger.warn({ err }, '[dataService] fetchHistoryData: PostgreSQL 查询失败');
@@ -152,9 +157,7 @@ export async function fetchMissingFromGoService(
       }
     }),
   );
-  const stillMissingAfterGo = stillMissing.filter(
-    (t) => !goResult[t] || Object.keys(goResult[t]).length === 0,
-  );
+  const stillMissingAfterGo = missingTickers(goResult, stillMissing);
   // 仅当全部取齐才写缓存，避免局部结果把缺失 ticker 钉在缓存里直到 TTL 过期
   if (stillMissingAfterGo.length === 0) await writeCache(cacheKey, goResult, HISTORY_CACHE_TTL_SEC);
   return { result: goResult, degraded };
