@@ -1,6 +1,6 @@
 // ADR-009: 令牌仅存哈希、有过期、可吊销；创建走 withTenant（invitations 的 WITH CHECK 无逃逸），列表/撤销靠 USING 逃逸放行
 import crypto from 'crypto';
-import { getPool, withTenant, withTenantReadOnly } from '../db/pool.js';
+import { withTenant, withTenantReadOnly } from '../db/pool.js';
 import { logger } from '../utils/logger.js';
 import { sha256Hex } from '../utils/crypto.js';
 import type { OrgRole } from '@backtest/shared/types/org';
@@ -72,10 +72,11 @@ export async function listInvitations(orgId: string): Promise<InvitationRecord[]
 }
 
 export async function revokeInvitation(orgId: string, id: string): Promise<boolean> {
-  const pool = getPool();
-  const { rowCount } = await pool.query(
-    `DELETE FROM invitations WHERE id = $1 AND org_id = $2 AND accepted_at IS NULL`,
-    [id, orgId],
+  const { rowCount } = await withTenant(orgId, (client) =>
+    client.query(`DELETE FROM invitations WHERE id = $1 AND org_id = $2 AND accepted_at IS NULL`, [
+      id,
+      orgId,
+    ]),
   );
   return (rowCount ?? 0) > 0;
 }

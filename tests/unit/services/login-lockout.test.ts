@@ -210,11 +210,12 @@ describe('verifyApiKey', () => {
   it('命中应返回 orgId/keyId 并异步更新 last_used_at', async () => {
     dbMocks.query
       .mockResolvedValueOnce({ rows: [{ id: KEY_ID, org_id: ORG }] }) // SELECT
+      .mockResolvedValueOnce({ rows: [{ status: 'active' }] }) // org 状态（挂起拒绝）
       .mockResolvedValueOnce({ rowCount: 1 }); // UPDATE last_used_at
     const result = await verifyApiKey('bpk_live_validlookingkey');
     expect(result).toEqual({ orgId: ORG, keyId: KEY_ID });
     await new Promise((r) => setTimeout(r, 5));
-    expect(dbMocks.query).toHaveBeenCalledTimes(2);
+    expect(dbMocks.query).toHaveBeenCalledTimes(3);
   });
 });
 

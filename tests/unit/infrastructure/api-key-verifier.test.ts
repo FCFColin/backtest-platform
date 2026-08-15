@@ -47,12 +47,22 @@ function selectRow(overrides: Record<string, unknown> = {}) {
   };
 }
 
+function selectOrg(status: string) {
+  return {
+    id: ORG,
+    name: 'Test Org',
+    slug: 'test-org',
+    plan: 'enterprise',
+    status,
+  };
+}
+
 describe('verifyApiKey - Redis 吊销缓存（立即生效层）', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     redisMocks.get.mockResolvedValue(null);
     cryptoMocks.verifyApiKeyArgon2id.mockResolvedValue(true);
-    dbMocks.query.mockResolvedValue({ rows: [], rowCount: 1 });
+    dbMocks.query.mockResolvedValue({ rows: [selectOrg('active')], rowCount: 1 });
   });
 
   it('DB 命中但 Redis 吊销缓存标记已吊销时应拒绝', async () => {
@@ -90,9 +100,26 @@ describe('verifyApiKey - Redis 吊销缓存（立即生效层）', () => {
       rows: [selectRow({ key_hash_argon2: '$argon2id$...', is_platform_admin: true })],
     });
     cryptoMocks.verifyApiKeyArgon2id.mockResolvedValueOnce(true);
+    dbMocks.query.mockResolvedValueOnce({ rows: [selectOrg('active')] });
 
     const result = await verifyApiKey('bpk_live_validkey');
     expect(result).toEqual({ orgId: ORG, keyId: KEY_ID, isPlatformAdmin: true });
+  });
+
+  it('所属组织已挂起（suspended）时应拒绝', async () => {
+    dbMocks.query.mockResolvedValueOnce({ rows: [selectRow()] });
+    dbMocks.query.mockResolvedValueOnce({ rows: [selectOrg('suspended')] });
+
+    const result = await verifyApiKey('bpk_live_validkey');
+    expect(result).toBeNull();
+  });
+
+  it('组织状态查询失败时应 fail-closed 拒绝', async () => {
+    dbMocks.query.mockResolvedValueOnce({ rows: [selectRow()] });
+    dbMocks.query.mockRejectedValueOnce(new Error('db down'));
+
+    const result = await verifyApiKey('bpk_live_validkey');
+    expect(result).toBeNull();
   });
 });
 

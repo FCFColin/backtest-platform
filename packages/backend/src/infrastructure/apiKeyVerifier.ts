@@ -2,6 +2,7 @@
 import { getPool, withTenant } from '../db/pool.js';
 import { logger } from '../utils/logger.js';
 import { KEY_PREFIX, PLATFORM_ADMIN_KEY_MAX_TTL_DAYS } from '../repositories/apiKeyRepo.js';
+import { getOrg } from '../repositories/orgRepo.js';
 import { sha256Hex, verifyApiKeyArgon2id } from '../utils/crypto.js';
 import { appRedis } from '../infrastructure/redisClient.js';
 import { requireRedis } from '../utils/redisFallback.js';
@@ -50,6 +51,17 @@ async function isApiKeyRevoked(keyId: string): Promise<boolean> {
   }
 }
 
+// 挂起组织的密钥必须拒用（与 enforceOrgActive 语义一致）；查询失败 fail-closed
+async function isOrgActive(orgId: string): Promise<boolean> {
+  try {
+    const org = await getOrg(orgId);
+    return org !== null && org.status !== 'suspended';
+  } catch (err) {
+    logger.error({ err: String(err), orgId }, '[apiKeyService] 组织状态查询失败，fail-closed');
+    return false;
+  }
+}
+
 export async function verifyApiKey(plaintext: string): Promise<VerifiedApiKey | null> {
   if (
     typeof plaintext !== 'string' ||
@@ -84,6 +96,11 @@ export async function verifyApiKey(plaintext: string): Promise<VerifiedApiKey | 
       logger.warn({ keyId }, '[apiKeyService] argon2id 校验失败，拒绝访问');
       return null;
     }
+  }
+
+  if (candidate.org_id && !(await isOrgActive(candidate.org_id))) {
+    logger.warn({ keyId, orgId: candidate.org_id }, '[apiKeyService] 组织已挂起，拒绝访问');
+    return null;
   }
 
   const touch = candidate.org_id

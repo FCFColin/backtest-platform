@@ -20,7 +20,7 @@ import {
 } from '../application/org/invitationService.js';
 import { sendInvitationEmail } from '../infrastructure/mailService.js';
 import { revokeAllUserSessions } from '../middleware/tokenStore.js';
-import { ORG_ROLES } from '@backtest/shared/types/org';
+import { ORG_ROLES } from '@backtest/shared/types';
 
 const router = Router();
 

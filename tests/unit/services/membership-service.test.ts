@@ -300,15 +300,15 @@ describe('listInvitations / revokeInvitation', () => {
   });
 
   it('revoke 应以 org_id 收敛且仅作用于未接受邀请', async () => {
-    dbMocks.query.mockResolvedValueOnce({ rowCount: 0 });
+    dbMocks.client.query.mockResolvedValueOnce({ rowCount: 0 });
     expect(await revokeInvitation(ORG, INV_ID)).toBe(false);
-    const [sql, params] = dbMocks.query.mock.calls[0];
+    const [sql, params] = dbMocks.client.query.mock.calls[0];
     expect(sql).toContain('accepted_at IS NULL');
     expect(params).toEqual([INV_ID, ORG]);
   });
 
   it('revoke 成功返回 true', async () => {
-    dbMocks.query.mockResolvedValueOnce({ rowCount: 1 });
+    dbMocks.client.query.mockResolvedValueOnce({ rowCount: 1 });
     expect(await revokeInvitation(ORG, INV_ID)).toBe(true);
   });
 });

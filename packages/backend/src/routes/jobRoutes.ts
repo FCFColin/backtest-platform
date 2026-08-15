@@ -1,7 +1,8 @@
 import { Router, type Request, type Response, type NextFunction } from 'express';
 import { jwtAuth, requireUser } from '../middleware/jwtAuth.js';
-import { resolveTenant } from '../middleware/tenantContext.js';
+import { resolveTenant, requireTenant } from '../middleware/tenantContext.js';
 import { computeMiddleware } from '../middleware/middlewareChains.js';
+import { enforceOrgActive } from '../middleware/quota.js';
 import { Permission } from '../middleware/rbac.js';
 import { sendProblem } from '../utils/errors.js';
 import { validate } from '../middleware/miscMiddleware.js';
@@ -24,6 +25,8 @@ router.get(
   '/jobs/:id',
   jwtAuth,
   resolveTenant,
+  requireTenant,
+  enforceOrgActive(),
   crudRouteHandler(
     async (req, res): Promise<void> => {
       if (!requireUser(req, res)) return;
