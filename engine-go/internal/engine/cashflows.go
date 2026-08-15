@@ -2,7 +2,7 @@ package engine
 
 import "engine-go/internal/engineutil"
 
-var cashflowFreqDays = map[string]int{"weekly": 5, "monthly": 21, "quarterly": 63, "yearly": 252}
+var cashflowFreqDays = map[string]int{"weekly": 5, "monthly": 21, "quarterly": 63, "yearly": int(engineutil.TradingDaysPerYear)}
 
 func buildPeriodicCashflowMap(legs []CashflowLeg, dates []string) (map[string]float64, error) {
 	m := make(map[string]float64)

@@ -24,10 +24,10 @@ func baseTacticalReq(strategy TacticalStrategy) TacticalBacktestRequest {
 	return TacticalBacktestRequest{Strategy: strategy, PriceData: pd, Dates: dates, StartingValue: 10000, RebalanceFrequency: "daily"}
 }
 func baseGridReq() TacticalGridRequest {
-	dates, prices, pd := setupData()
+	dates, prices, _ := setupData()
 	return TacticalGridRequest{
 		Indicator: "sma", Param1: ParamRange{Min: 5, Max: 10, Step: 5},
-		Param2: ParamRange{Min: 0, Max: 5, Step: 5}, PriceData: pd,
+		Param2: ParamRange{Min: 0, Max: 5, Step: 5},
 		Dates: dates, Prices: prices, TradingTicker: "A",
 		StartDate: dates[0], EndDate: dates[len(dates)-1], StartingValue: 10000,
 		RebalanceFrequency: "daily",
