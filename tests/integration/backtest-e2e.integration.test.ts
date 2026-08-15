@@ -61,6 +61,15 @@ const validOptimizeBody = {
   parameters: { startDate: '2020-01-01', endDate: '2023-12-31' },
 };
 
+const mockPriceData = () =>
+  fetchHistoryDataMock.mockResolvedValueOnce({
+    data: {
+      AAPL: { '2020-01-01': 100 },
+      MSFT: { '2020-01-01': 200 },
+    },
+    degraded: false,
+  });
+
 describe('回测端到端集成测试', () => {
   it('GET /search 返回 ticker 搜索结果', async () => {
     searchTickersMock.mockResolvedValueOnce([
@@ -80,13 +89,7 @@ describe('回测端到端集成测试', () => {
   });
 
   it('POST /optimize 引擎正常返回 200 + 优化结果', async () => {
-    fetchHistoryDataMock.mockResolvedValueOnce({
-      data: {
-        AAPL: { '2020-01-01': 100 },
-        MSFT: { '2020-01-01': 200 },
-      },
-      degraded: false,
-    });
+    mockPriceData();
     callEngineStrictMock.mockResolvedValueOnce({
       optimalWeights: { AAPL: 0.6, MSFT: 0.4 },
       sharpe: 1.8,
@@ -99,13 +102,7 @@ describe('回测端到端集成测试', () => {
   });
 
   it('POST /optimize 引擎不可用时 fail-closed 返回 503（ADR-008）', async () => {
-    fetchHistoryDataMock.mockResolvedValueOnce({
-      data: {
-        AAPL: { '2020-01-01': 100 },
-        MSFT: { '2020-01-01': 200 },
-      },
-      degraded: false,
-    });
+    mockPriceData();
     callEngineStrictMock.mockRejectedValueOnce(
       new engineMocks.EngineUnavailableError('/api/engine/optimize'),
     );

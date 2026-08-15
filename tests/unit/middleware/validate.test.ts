@@ -65,22 +65,14 @@ describe('validate middleware', () => {
 });
 
 describe('安全攻击用例', () => {
-  it('原型污染：body 含 __proto__ 不应修改 Object.prototype', () => {
-    const body = JSON.parse('{"__proto__": {"admin": true}, "name": "test", "age": 25}');
-
-    expect({}.admin).toBeUndefined();
-
-    const { req, next } = run(body);
-
-    expect(next).toHaveBeenCalled();
-    expect({}.admin).toBeUndefined();
-    expect((req.body as Record<string, unknown>).admin).toBeUndefined();
-  });
-
-  it('构造函数污染：body 含 constructor.prototype 不应修改 Object.prototype', () => {
-    const body = JSON.parse(
+  it.each([
+    ['原型污染：body 含 __proto__', '{"__proto__": {"admin": true}, "name": "test", "age": 25}'],
+    [
+      '构造函数污染：body 含 constructor.prototype',
       '{"constructor": {"prototype": {"admin": true}}, "name": "test", "age": 25}',
-    );
+    ],
+  ])('%s 不应修改 Object.prototype', (_name, payload) => {
+    const body = JSON.parse(payload);
 
     expect({}.admin).toBeUndefined();
 

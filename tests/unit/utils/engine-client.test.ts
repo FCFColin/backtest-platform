@@ -91,7 +91,7 @@ describe('callEngineStrict（fail-closed）', () => {
     const result = await callEngineStrict('/api/engine/backtest', { test: true });
     expect(result).toEqual(goResult);
     expect(cbMocks.goCB.fire).toHaveBeenCalledWith('/api/engine/backtest', { test: true });
-    expect(metricsMocks.recordEngineCall).toHaveBeenCalledWith(true);
+    expect(metricsMocks.recordEngineCall).toHaveBeenCalledWith('success');
   });
   it('Go 引擎不可用时应 fail-closed 抛出 EngineUnavailableError', async () => {
     cbMocks.goCB.fire.mockImplementation(async () => {
@@ -99,7 +99,7 @@ describe('callEngineStrict（fail-closed）', () => {
     });
     const error = await settle(callEngineStrict('/api/engine/backtest', {}));
     expect(error).toBeInstanceOf(EngineUnavailableError);
-    expect(metricsMocks.recordEngineCall).toHaveBeenCalledWith(false);
+    expect(metricsMocks.recordEngineCall).toHaveBeenCalledWith('unavailable');
   });
   it('Go 引擎 4xx 应透传 UpstreamProblemError（不包装、不重试）', async () => {
     const upstreamErr = new UpstreamProblemError(

@@ -119,24 +119,22 @@ describe('enforceQuota', () => {
     if (org.plan === 'enterprise') expect(mocks.getMonthlyUsage).not.toHaveBeenCalled();
   });
 
-  it('P0-04: getOrg 抛错时 fail-closed 返回 503（不放行）', async () => {
-    mocks.getOrg.mockRejectedValueOnce(new Error('DB error'));
-    const { res, next } = await callQuota({
-      tenantId: TENANT,
-      user: {},
-      body: { tickers: ['A', 'B', 'C'] },
-      path: '/x',
-    });
-    expect(res.status).toHaveBeenCalledWith(503);
-    expect(next).not.toHaveBeenCalled();
-    expect(mocks.quotaEnforcementFailures.inc).toHaveBeenCalledWith(
-      expect.objectContaining({ reason: 'org_query_failed' }),
-    );
-  });
-
-  it('P0-04: 用量校验抛错时 fail-closed 返回 503（不放行）', async () => {
-    mocks.getOrg.mockResolvedValueOnce({ plan: 'free' });
-    mocks.getMonthlyUsage.mockRejectedValueOnce(new Error('usage check failed'));
+  it.each<[string, () => void, string]>([
+    [
+      'P0-04: getOrg 抛错时 fail-closed 返回 503（不放行）',
+      () => mocks.getOrg.mockRejectedValueOnce(new Error('DB error')),
+      'org_query_failed',
+    ],
+    [
+      'P0-04: 用量校验抛错时 fail-closed 返回 503（不放行）',
+      () => {
+        mocks.getOrg.mockResolvedValueOnce({ plan: 'free' });
+        mocks.getMonthlyUsage.mockRejectedValueOnce(new Error('usage check failed'));
+      },
+      'usage_check_failed',
+    ],
+  ])('%s', async (_name, setup, reason) => {
+    setup();
     const { res, next } = await callQuota({
       tenantId: TENANT,
       user: {},
@@ -146,7 +144,7 @@ describe('enforceQuota', () => {
     expect(res.status).toHaveBeenCalledWith(503);
     expect(next).not.toHaveBeenCalled();
     expect(mocks.quotaEnforcementFailures.inc).toHaveBeenCalledWith(
-      expect.objectContaining({ reason: 'usage_check_failed' }),
+      expect.objectContaining({ reason }),
     );
   });
 });

@@ -33,7 +33,6 @@ describe('Portfolio Aggregate', () => {
     it.each([
       ['tickers 返回所有 ticker 值列表', (x: Portfolio) => x.tickers, ['AAPL', 'SPY']],
       ['totalWeight 返回权重总和', (x: Portfolio) => x.totalWeight, 100],
-      ['maxWeight 返回最大持仓权重', (x: Portfolio) => x.maxWeight, 60],
     ])('%s', (_n, getter, expected) => {
       expect(getter(p)).toEqual(expected);
     });

@@ -6,25 +6,28 @@ interface MockPortfolio {
   values: Array<{ date: string; v: number }>;
 }
 
+const merge = (
+  portfolios: MockPortfolio[],
+  getSeries: (p: MockPortfolio) => MockPortfolio['values'] | undefined = (p) => p.values,
+  key: 'date' | 'year' = 'date',
+) =>
+  mergePortfolioSeries<{ date: string; v: number }, MockPortfolio>(
+    portfolios,
+    getSeries,
+    (item) => item[key],
+    (item) => item.v,
+    key,
+  );
+
 describe('mergePortfolioSeries', () => {
   it('空数组应返回空数组', () => {
-    const result = mergePortfolioSeries<{ date: string; v: number }, MockPortfolio>(
-      [],
-      (p) => p.values,
-      (item) => item.date,
-      (item) => item.v,
-    );
+    const result = merge([]);
     expect(result).toEqual([]);
   });
 
   it('单组合单条目应正确合并', () => {
     const portfolios: MockPortfolio[] = [{ name: 'A', values: [{ date: '2024-01-01', v: 100 }] }];
-    const result = mergePortfolioSeries(
-      portfolios,
-      (p) => p.values,
-      (item) => item.date,
-      (item) => item.v,
-    );
+    const result = merge(portfolios);
     expect(result).toEqual([{ date: '2024-01-01', A: 100 }]);
   });
 
@@ -33,12 +36,7 @@ describe('mergePortfolioSeries', () => {
       { name: 'A', values: [{ date: '2024-01-01', v: 100 }] },
       { name: 'B', values: [{ date: '2024-01-01', v: 200 }] },
     ];
-    const result = mergePortfolioSeries(
-      portfolios,
-      (p) => p.values,
-      (item) => item.date,
-      (item) => item.v,
-    );
+    const result = merge(portfolios);
     expect(result).toEqual([{ date: '2024-01-01', A: 100, B: 200 }]);
   });
 
@@ -53,12 +51,7 @@ describe('mergePortfolioSeries', () => {
         ],
       },
     ];
-    const result = mergePortfolioSeries(
-      portfolios,
-      (p) => p.values,
-      (item) => item.date,
-      (item) => item.v,
-    );
+    const result = merge(portfolios);
     expect(result).toEqual([
       { date: '2024-01-01', A: undefined, B: 100 },
       { date: '2024-01-02', A: undefined, B: 200 },
@@ -71,12 +64,7 @@ describe('mergePortfolioSeries', () => {
       { name: 'A', values: [] },
       { name: 'B', values: [{ date: '2024-01-01', v: 100 }] },
     ];
-    const result = mergePortfolioSeries(
-      portfolios,
-      (p) => (p.values.length === 0 ? undefined : p.values),
-      (item) => item.date,
-      (item) => item.v,
-    );
+    const result = merge(portfolios, (p) => (p.values.length === 0 ? undefined : p.values));
     expect(result).toEqual([{ date: '2024-01-01', B: 100 }]);
   });
 
@@ -90,11 +78,9 @@ describe('mergePortfolioSeries', () => {
         ],
       },
     ];
-    const result = mergePortfolioSeries(
+    const result = merge(
       portfolios,
       (p) => p.values.map((v) => ({ year: Number(v.date), v: v.v })),
-      (item) => item.year,
-      (item) => item.v,
       'year',
     );
     expect(result).toEqual([
@@ -114,12 +100,7 @@ describe('mergePortfolioSeries', () => {
       },
       { name: 'B', values: [{ date: '2024-01-01', v: 300 }] },
     ];
-    const result = mergePortfolioSeries(
-      portfolios,
-      (p) => p.values,
-      (item) => item.date,
-      (item) => item.v,
-    );
+    const result = merge(portfolios);
     expect(result).toEqual([
       { date: '2024-01-01', A: 100, B: 300 },
       { date: '2024-01-02', A: 200, B: undefined },

@@ -56,21 +56,21 @@ describe('recordEngineCall', () => {
     resetMetrics();
   });
 
-  it('success=true 应将 result=success 计数器递增到精确值', async () => {
-    recordEngineCall(true);
-    recordEngineCall(true);
+  it('result=success 应将 result=success 计数器递增到精确值', async () => {
+    recordEngineCall('success');
+    recordEngineCall('success');
     expect(await metricValue(engineCallsTotal, { result: 'success' })).toBe(2);
     expect(await metricValue(engineCallsTotal, { result: 'unavailable' })).toBeUndefined();
   });
 
-  it('success=false 应递增 result=unavailable 而非 success', async () => {
-    recordEngineCall(false);
+  it('result=unavailable 应递增 result=unavailable 而非 success', async () => {
+    recordEngineCall('unavailable');
     expect(await metricValue(engineCallsTotal, { result: 'unavailable' })).toBe(1);
     expect(await metricValue(engineCallsTotal, { result: 'success' })).toBeUndefined();
   });
 
-  it('success=false 且带 error 时应仅递增 engineCallsTotal（engineUnavailableTotal 由 recordEngineUnavailable 独立管理）', async () => {
-    recordEngineCall(false, 'engine_timeout');
+  it('result=unavailable 时应仅递增 engineCallsTotal（engineUnavailableTotal 由 recordEngineUnavailable 独立管理）', async () => {
+    recordEngineCall('unavailable');
     expect(await metricValue(engineCallsTotal, { result: 'unavailable' })).toBe(1);
     // engineUnavailableTotal 不再由 recordEngineCall 管理，
     const snapshot = await engineUnavailableTotal.get();

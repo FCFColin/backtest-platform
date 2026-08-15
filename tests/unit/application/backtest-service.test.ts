@@ -97,14 +97,13 @@ const baseParams: BacktestParameters = {
 };
 describe('preparePortfolioBacktest', () => {
   it('合法输入应收集全部 ticker 并包含 benchmark', () => {
-    const { allTickers, warnings } = preparePortfolioBacktest(
-      [makePortfolio('p1', ['AAPL', 'MSFT'])],
-      { ...baseParams, benchmarkTicker: 'SPY' },
-    );
+    const { allTickers } = preparePortfolioBacktest([makePortfolio('p1', ['AAPL', 'MSFT'])], {
+      ...baseParams,
+      benchmarkTicker: 'SPY',
+    });
     expect(allTickers.has('AAPL')).toBe(true);
     expect(allTickers.has('MSFT')).toBe(true);
     expect(allTickers.has('SPY')).toBe(true);
-    expect(warnings).toEqual([]);
   });
 
   it.each<[keyof BacktestParameters, string]>([

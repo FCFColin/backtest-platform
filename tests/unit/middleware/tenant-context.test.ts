@@ -41,27 +41,12 @@ describe('resolveTenant', () => {
     expect(next).toHaveBeenCalledOnce();
   });
 
-  it('无 tenant_id 时软放行且不设置 req.tenantId', () => {
-    const req = { user: { sub: 'u1' }, path: '/x' } as unknown as AuthenticatedRequest;
-    const next = vi.fn();
-    resolveTenant(req, mockRes(), next);
-    expect(req.tenantId).toBeUndefined();
-    expect(next).toHaveBeenCalledOnce();
-  });
-
-  it('非法 tenant_id 格式应被忽略并软放行', () => {
-    const req = {
-      user: { tenant_id: 'not-a-uuid' },
-      path: '/x',
-    } as unknown as AuthenticatedRequest;
-    const next = vi.fn();
-    resolveTenant(req, mockRes(), next);
-    expect(req.tenantId).toBeUndefined();
-    expect(next).toHaveBeenCalledOnce();
-  });
-
-  it('无 user 时软放行', () => {
-    const req = { path: '/x' } as unknown as AuthenticatedRequest;
+  it.each<[string, Record<string, unknown>]>([
+    ['无 tenant_id', { user: { sub: 'u1' } }],
+    ['非法 tenant_id 格式', { user: { tenant_id: 'not-a-uuid' } }],
+    ['无 user', {}],
+  ])('%s 应软放行且不设置 req.tenantId', (_name, user) => {
+    const req = { ...user, path: '/x' } as unknown as AuthenticatedRequest;
     const next = vi.fn();
     resolveTenant(req, mockRes(), next);
     expect(req.tenantId).toBeUndefined();
