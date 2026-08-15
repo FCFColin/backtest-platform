@@ -162,10 +162,18 @@ export function executeGoalOptimize(
   const tickers = validateGoalOptimizerAssets(request);
   ensurePriceDataExists(tickers, priceData, 'GoalOptimizer');
 
+  const weightByTicker = new Map<string, number>();
+  for (const asset of request.assets) {
+    const t = asset.ticker.trim().toUpperCase();
+    if (!weightByTicker.has(t)) weightByTicker.set(t, asset.weight);
+  }
+
   return callEngineStrict(
     '/api/engine/goal-optimize',
     {
       ...request,
+      // assets ticker 须与 priceData 键（trim+uppercase）一致，否则引擎端按 Ticker 查 priceData 会漏配
+      assets: tickers.map((ticker) => ({ ticker, weight: weightByTicker.get(ticker) ?? 0 })),
       priceData,
       startDate,
       endDate,
