@@ -1,39 +1,36 @@
 import { vi } from 'vitest';
 export { loggerMocks } from './loggerFixture.js';
 
+const redisMockStore = vi.hoisted(() => new Map<string, string>());
+
 vi.mock('../../packages/backend/src/middleware/jwtAuth.js', () => ({
   jwtAuth: (_req: unknown, _res: unknown, next: () => void) => next(),
   optionalJwtAuth: (_req: unknown, _res: unknown, next: () => void) => next(),
   assignGuestReadonly: (_req: unknown, _res: unknown, next: () => void) => next(),
   auditLog: (_req: unknown, _res: unknown, next: () => void) => next(),
   idempotencyKey: (_req: unknown, _res: unknown, next: () => void) => next(),
+  requireUser: (
+    req: { user?: unknown },
+    res: { status: (n: number) => { json: (b: unknown) => void } },
+  ) => {
+    if (req?.user) return true;
+    res.status(401).json({ success: false, error: { code: 'UNAUTHORIZED' } });
+    return false;
+  },
 }));
 vi.mock('../../packages/backend/src/middleware/tenantContext.js', () => ({
   resolveTenant: (_req: unknown, _res: unknown, next: () => void) => next(),
   requireTenant: (_req: unknown, _res: unknown, next: () => void) => next(),
   hasTenant: vi.fn(() => true),
 }));
-vi.mock('../../packages/backend/src/middleware/rbac.js', () => {
-  const PERMS: Record<string, Set<string>> = {
-    admin: new Set([
-      'backtest:run',
-      'data:manage',
-      'data:read',
-      'admin:access',
-      'optimizer:run',
-      'signal:read',
-      'strategy:manage',
-    ]),
-    analyst: new Set([
-      'backtest:run',
-      'data:read',
-      'data:manage',
-      'optimizer:run',
-      'signal:read',
-      'strategy:manage',
-    ]),
-    readonly: new Set(['data:read', 'signal:read']),
-  };
+vi.mock('../../packages/backend/src/middleware/rbac.js', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('../../packages/backend/src/middleware/rbac.js')>();
+  const PERMS = new Map<string, Set<string>>(
+    Object.entries(actual.ROLE_PERMISSIONS).map(([role, perms]) => [role, new Set<string>(perms)]),
+  );
+  const deny = (res: { status: (n: number) => { json: (b: unknown) => void } }) =>
+    res.status(403).json({ success: false, error: { code: 'FORBIDDEN' } });
   return {
     requirePermission:
       (perm: string) =>
@@ -44,26 +41,18 @@ vi.mock('../../packages/backend/src/middleware/rbac.js', () => {
       ) => {
         if (!req.user) return next();
         const role = req.user.role ?? req.user.org_role;
-        if (!role || !PERMS[role] || PERMS[role].has(perm)) return next();
-        res.status(403).json({ success: false, error: { code: 'FORBIDDEN' } });
+        if (!role || !PERMS.has(role) || PERMS.get(role)?.has(perm)) return next();
+        deny(res);
       },
-    Permission: {
-      BACKTEST_RUN: 'backtest:run',
-      DATA_MANAGE: 'data:manage',
-      DATA_READ: 'data:read',
-      ADMIN_ACCESS: 'admin:access',
-      OPTIMIZER_RUN: 'optimizer:run',
-      SIGNAL_READ: 'signal:read',
-      STRATEGY_MANAGE: 'strategy:manage',
-    },
-    Role: { ADMIN: 'admin', ANALYST: 'analyst', READONLY: 'readonly' },
+    Permission: actual.Permission,
+    Role: actual.Role,
     requirePlatformAdmin: (
       req: { user?: { platform_admin?: boolean } },
       res: { status: (n: number) => { json: (b: unknown) => void } },
       next: () => void,
     ) => {
       if (req.user?.platform_admin === true) return next();
-      res.status(403).json({ success: false, error: { code: 'FORBIDDEN' } });
+      deny(res);
     },
   };
 });
@@ -76,8 +65,10 @@ vi.mock('../../packages/backend/src/infrastructure/redisClient.js', () => ({
   appRedis: {
     on: () => {},
     ping: vi.fn().mockResolvedValue('PONG'),
-    get: vi.fn().mockResolvedValue(null),
-    set: vi.fn().mockResolvedValue('OK'),
+    get: vi.fn((key: string) => Promise.resolve(redisMockStore.get(key) ?? null)),
+    set: vi.fn((key: string, value: string) =>
+      Promise.resolve(redisMockStore.set(key, value) && 'OK'),
+    ),
     del: vi.fn().mockResolvedValue(0),
     expire: vi.fn().mockResolvedValue(1),
     exists: vi.fn().mockResolvedValue(0),

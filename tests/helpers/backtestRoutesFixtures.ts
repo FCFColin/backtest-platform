@@ -136,6 +136,7 @@ const DEFAULT_PRICE_DATA = {
 
 interface BacktestServerOptions {
   auth?: { user?: Partial<NonNullable<TestRequest['user']>>; tenantId?: string };
+  middleware?: Array<(req: unknown, res: unknown, next: () => void) => void>;
 }
 
 // 与生产 app.ts 挂载一致（/api/v1/backtest），statusUrl 契约才能闭环
@@ -152,6 +153,7 @@ export const createBacktestApp = (
           next();
         });
       }
+      for (const mw of opts.middleware ?? []) app.use(mw as never);
       app.use('/api/v1/backtest', routes);
     },
     { bodyLimit: '10mb' },

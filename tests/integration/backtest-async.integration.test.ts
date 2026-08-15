@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { m, queueMocks } from '../unit/routes/backtestRoutes.shared.js';
 import { createValidRequestBody, setupPortfolioServer } from '../helpers/backtestRoutesFixtures.js';
+import { idempotencyKey } from '../../packages/backend/src/middleware/idempotency.js';
 import backtestRoutes from '../../packages/backend/src/routes/backtestRoutes.js';
 
 const jobStore = vi.hoisted(
@@ -37,6 +38,7 @@ describe('P0-01 T3 · 异步回测全链路集成测试', () => {
     // GET /runs 走 jobAccessGranted（ADR-007 fail-closed），必须注入已认证请求上下文
     server = await setupPortfolioServer(backtestRoutes, m, {
       auth: { user: { sub: 'test-user', role: 'admin' }, tenantId: 'tenant-456' },
+      middleware: [idempotencyKey],
     });
 
     // 生产按 ADR-009 传 UUID jobId 作为 BullMQ 选项，mock 须采纳同一 id 才能让提交/轮询闭环
@@ -130,8 +132,8 @@ describe('P0-01 T3 · 异步回测全链路集成测试', () => {
     const secondRes = await submit({ 'Idempotency-Key': idempotencyKey });
     expect(secondRes.status).toBe(202);
 
-    const secondJson = await secondRes.json();
-    expect(secondJson.data.jobId).toBeDefined();
+    const [firstJson, secondJson] = await Promise.all([firstRes.json(), secondRes.json()]);
+    expect(secondJson.data.jobId).toBe(firstJson.data.jobId);
     expect(secondJson.data.status).toBe('queued');
   });
 

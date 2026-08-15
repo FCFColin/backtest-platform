@@ -4,7 +4,7 @@ import { logger } from '../utils/logger.js';
 import { sendProblem } from '../utils/errors.js';
 import { recordAuthFailure, getRoutePattern } from '../utils/metrics.js';
 
-enum Role {
+export enum Role {
   ADMIN = 'admin',
   ANALYST = 'analyst',
   READONLY = 'readonly',
@@ -20,7 +20,7 @@ export enum Permission {
   STRATEGY_MANAGE = 'strategy:manage',
 }
 
-const ROLE_PERMISSIONS: Record<Role, Set<Permission>> = {
+export const ROLE_PERMISSIONS: Record<Role, Set<Permission>> = {
   [Role.ADMIN]: new Set(Object.values(Permission)),
   [Role.ANALYST]: new Set([
     Permission.BACKTEST_RUN,
