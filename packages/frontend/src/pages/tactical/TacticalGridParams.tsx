@@ -75,30 +75,9 @@ function SignalGridSection({ state }: { state: TacticalGridState }) {
 }
 function BacktestParamsSection({ state }: { state: TacticalGridState }) {
   const { t } = useTranslation();
-  const {
-    ticker,
-    setTicker,
-    startDate,
-    setStartDate,
-    endDate,
-    setEndDate,
-    startingValue,
-    setStartingValue,
-    rebalanceFrequency,
-    setRebalanceFrequency,
-  } = state;
+  const { ticker, setTicker } = state;
   return (
-    <BacktestParamsFields
-      idPrefix="grid"
-      startDate={startDate}
-      setStartDate={setStartDate}
-      endDate={endDate}
-      setEndDate={setEndDate}
-      startingValue={startingValue}
-      setStartingValue={setStartingValue}
-      rebalanceFrequency={rebalanceFrequency}
-      setRebalanceFrequency={setRebalanceFrequency}
-    >
+    <BacktestParamsFields idPrefix="grid" state={state}>
       <LabeledField htmlFor="grid-ticker" label={t('Ticker')}>
         <Input
           id="grid-ticker"

@@ -65,29 +65,7 @@ function AggregationSection({ state }: { state: TacticalPageState }) {
   );
 }
 function BacktestParamsSection({ state }: { state: TacticalPageState }) {
-  const {
-    startDate,
-    setStartDate,
-    endDate,
-    setEndDate,
-    startingValue,
-    setStartingValue,
-    rebalanceFrequency,
-    setRebalanceFrequency,
-  } = state;
-  return (
-    <BacktestParamsFields
-      idPrefix="tactical"
-      startDate={startDate}
-      setStartDate={setStartDate}
-      endDate={endDate}
-      setEndDate={setEndDate}
-      startingValue={startingValue}
-      setStartingValue={setStartingValue}
-      rebalanceFrequency={rebalanceFrequency}
-      setRebalanceFrequency={setRebalanceFrequency}
-    />
-  );
+  return <BacktestParamsFields idPrefix="tactical" state={state} />;
 }
 function applyTacticalConfig(state: TacticalPageState, config: TacticalConfigPayload) {
   state.setStrategy(config.strategy);
