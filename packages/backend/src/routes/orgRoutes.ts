@@ -20,10 +20,11 @@ import {
 } from '../application/org/invitationService.js';
 import { sendInvitationEmail } from '../infrastructure/mailService.js';
 import { revokeAllUserSessions } from '../middleware/tokenStore.js';
+import { ORG_ROLES } from '@backtest/shared/types/org';
 
 const router = Router();
 
-const ROLE_ENUM = z.enum(['owner', 'admin', 'analyst', 'readonly']);
+const ROLE_ENUM = z.enum(ORG_ROLES);
 
 const requireAdmin = requirePermission(Permission.ADMIN_ACCESS);
 

@@ -85,17 +85,3 @@ export async function authenticateWithApiKey(
     });
   }
 }
-export function handleApiKeyAuth(
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction,
-): Promise<void> {
-  return authenticateWithApiKey(req, res, next, false);
-}
-export function handleOptionalApiKey(
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction,
-): Promise<void> {
-  return authenticateWithApiKey(req, res, next, true);
-}

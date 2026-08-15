@@ -1,14 +1,9 @@
 ﻿import type { Response, NextFunction } from 'express';
 import type { AuthenticatedRequest } from './jwtAuth.js';
+import type { Role } from './authShared.js';
 import { logger } from '../utils/logger.js';
 import { sendProblem } from '../utils/errors.js';
 import { recordAuthFailure, getRoutePattern } from '../utils/metrics.js';
-
-export enum Role {
-  ADMIN = 'admin',
-  ANALYST = 'analyst',
-  READONLY = 'readonly',
-}
 
 export enum Permission {
   BACKTEST_RUN = 'backtest:run',
@@ -21,8 +16,8 @@ export enum Permission {
 }
 
 export const ROLE_PERMISSIONS: Record<Role, Set<Permission>> = {
-  [Role.ADMIN]: new Set(Object.values(Permission)),
-  [Role.ANALYST]: new Set([
+  admin: new Set(Object.values(Permission)),
+  analyst: new Set([
     Permission.BACKTEST_RUN,
     Permission.DATA_READ,
     Permission.DATA_MANAGE,
@@ -30,25 +25,25 @@ export const ROLE_PERMISSIONS: Record<Role, Set<Permission>> = {
     Permission.SIGNAL_READ,
     Permission.STRATEGY_MANAGE,
   ]),
-  [Role.READONLY]: new Set([Permission.DATA_READ, Permission.SIGNAL_READ]),
+  readonly: new Set([Permission.DATA_READ, Permission.SIGNAL_READ]),
 };
 
 function assertRbacConfig(): void {
   if (Object.keys(ROLE_PERMISSIONS).length === 0) {
     throw new Error('[RBAC] Permission matrix is empty — check configuration');
   }
-  for (const role of Object.values(Role)) {
+  for (const role of Object.keys(ROLE_PERMISSIONS) as Role[]) {
     const perms = ROLE_PERMISSIONS[role];
     if (!perms || perms.size === 0) {
       throw new Error(`[RBAC] Role "${role}" has no permissions defined — check configuration`);
     }
   }
   const validPermissions = new Set<string>(Object.values(Permission));
-  for (const [role, perms] of Object.entries(ROLE_PERMISSIONS)) {
+  for (const perms of Object.values(ROLE_PERMISSIONS)) {
     for (const perm of perms) {
       if (!validPermissions.has(perm as string)) {
         throw new Error(
-          `[RBAC] Role "${role}" references unknown permission "${String(perm)}" — check configuration`,
+          `[RBAC] Role references unknown permission "${String(perm)}" — check configuration`,
         );
       }
     }
@@ -65,7 +60,7 @@ function hasPermission(role: Role | string, permission: Permission): boolean {
 // 多租户下角色以"用户在当前活跃组织内的成员角色"为准（ADR-009），
 function effectiveRole(user: NonNullable<AuthenticatedRequest['user']>): string {
   const orgRole = user.org_role;
-  if (orgRole) return orgRole === 'owner' ? Role.ADMIN : orgRole;
+  if (orgRole) return orgRole === 'owner' ? 'admin' : orgRole;
   return user.role;
 }
 

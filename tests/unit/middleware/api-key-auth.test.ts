@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+﻿import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createMockMiddleware } from '../../helpers/expressMocks.js';
 import '../../helpers/loggerMock.js';
 
@@ -16,10 +16,7 @@ vi.mock('../../../packages/backend/src/utils/errors.js', () => ({
   sendProblem: mocks.sendProblem,
 }));
 
-import {
-  handleApiKeyAuth,
-  handleOptionalApiKey,
-} from '../../../packages/backend/src/middleware/apiKeyAuth.js';
+import { authenticateWithApiKey } from '../../../packages/backend/src/middleware/apiKeyAuth.js';
 
 const ORG_ID = '11111111-1111-1111-1111-111111111111';
 const KEY_ID = '22222222-2222-2222-2222-222222222222';
@@ -33,20 +30,20 @@ function flushPromises(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, 10));
 }
 
-describe('handleApiKeyAuth', () => {
+describe('authenticateWithApiKey（必选模式）', () => {
   it.each([
     ['缺失 API Key 应直接返回（不断言、不阻断、不调 verifyApiKey）', {}, false],
     ['空字符串 API Key 应直接返回（同缺失，由下游中间件处理）', { 'x-api-key': '' }, false],
   ])('%s', (_n, headers, _unused) => {
     const { req, res, next } = createMockMiddleware({ headers });
-    handleApiKeyAuth(req, res, next);
+    authenticateWithApiKey(req, res, next, false);
     expect(next).not.toHaveBeenCalled();
     expect(mocks.sendProblem).not.toHaveBeenCalled();
     expect(mocks.verifyApiKey).not.toHaveBeenCalled();
   });
   it('超长 API Key（>128 字符）应返回 401', async () => {
     const { req, res, next } = createMockMiddleware({ headers: { 'x-api-key': 'x'.repeat(129) } });
-    handleApiKeyAuth(req, res, next);
+    authenticateWithApiKey(req, res, next, false);
     await flushPromises();
     expect(mocks.sendProblem).toHaveBeenCalledWith(expect.anything(), 401, 'INVALID_API_KEY');
     expect(next).not.toHaveBeenCalled();
@@ -66,7 +63,7 @@ describe('handleApiKeyAuth', () => {
   ])('%s', async (_n, verified, expected) => {
     mocks.verifyApiKey.mockResolvedValueOnce(verified);
     const { req, res, next } = createMockMiddleware({ headers: { 'x-api-key': 'bpk_live_key' } });
-    handleApiKeyAuth(req, res, next);
+    authenticateWithApiKey(req, res, next, false);
     await flushPromises();
     if (expected) {
       expect(next).toHaveBeenCalledTimes(1);
@@ -81,7 +78,7 @@ describe('handleApiKeyAuth', () => {
   it('verifyApiKey 抛出异常应返回 503 AUTH_SERVICE_UNAVAILABLE（fail-closed）（D4-010）', async () => {
     mocks.verifyApiKey.mockRejectedValueOnce(new Error('DB connection error'));
     const { req, res, next } = createMockMiddleware({ headers: { 'x-api-key': 'bpk_live_key' } });
-    handleApiKeyAuth(req, res, next);
+    authenticateWithApiKey(req, res, next, false);
     await flushPromises();
     expect(mocks.sendProblem).toHaveBeenCalledWith(
       expect.anything(),
@@ -94,10 +91,10 @@ describe('handleApiKeyAuth', () => {
   });
 });
 
-describe('handleOptionalApiKey', () => {
+describe('authenticateWithApiKey（可选模式）', () => {
   it('缺失 API Key 应设 req.user=null 并放行', async () => {
     const { req, res, next } = createMockMiddleware({ headers: {} });
-    await handleOptionalApiKey(req as AuthenticatedRequest, res, next);
+    await authenticateWithApiKey(req as AuthenticatedRequest, res, next, true);
     expect(next).toHaveBeenCalledTimes(1);
     expect(req.user).toBeNull();
   });
@@ -116,7 +113,7 @@ describe('handleOptionalApiKey', () => {
   ])('%s', async (_n, verified, expected) => {
     mocks.verifyApiKey.mockResolvedValueOnce(verified);
     const { req, res, next } = createMockMiddleware({ headers: { 'x-api-key': 'bpk_live_key' } });
-    await handleOptionalApiKey(req as AuthenticatedRequest, res, next);
+    await authenticateWithApiKey(req as AuthenticatedRequest, res, next, true);
     expect(next).toHaveBeenCalledTimes(1);
     if (expected) expect(req.user).toMatchObject(expected);
     else expect(req.user).toBeNull();
@@ -125,7 +122,7 @@ describe('handleOptionalApiKey', () => {
   it('verifyApiKey 抛出异常应返回 503 AUTH_SERVICE_UNAVAILABLE（fail-closed）（D4-010）', async () => {
     mocks.verifyApiKey.mockRejectedValueOnce(new Error('DB connection failed'));
     const { req, res, next } = createMockMiddleware({ headers: { 'x-api-key': 'bpk_live_key' } });
-    await handleOptionalApiKey(req as AuthenticatedRequest, res, next);
+    await authenticateWithApiKey(req as AuthenticatedRequest, res, next, true);
     expect(mocks.sendProblem).toHaveBeenCalledWith(
       res,
       503,
@@ -142,7 +139,7 @@ describe('handleOptionalApiKey', () => {
       headers: { 'x-api-key': 'bpk_live_hanging' },
     });
     vi.useFakeTimers();
-    const promise = handleOptionalApiKey(req as AuthenticatedRequest, res, next);
+    const promise = authenticateWithApiKey(req as AuthenticatedRequest, res, next, true);
     vi.advanceTimersByTime(5000); // 快进 5s 触发超时
     await promise;
     vi.useRealTimers();
