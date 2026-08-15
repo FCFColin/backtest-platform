@@ -13,10 +13,7 @@ vi.mock('@/utils/format', () => ({
   fmtNum: (v: number, digits = 2) => v.toFixed(digits),
 }));
 
-import {
-  StatisticsTableHeader,
-  MetricsRows,
-} from '../../../packages/frontend/src/components/statistics-table/index.js';
+import { MetricRowsTable } from '../../../packages/frontend/src/components/CustomMetricsTable.js';
 import type { StatRow } from '../../../packages/frontend/src/components/statistics-table/types.js';
 
 function createPortfolio(name: string, stats: Record<string, number | undefined>) {
@@ -34,62 +31,42 @@ const ROWS: StatRow[] = [
   { key: 'ulcerIndex', label: 'Ulcer', fmt: 'num' },
 ];
 
-describe('StatisticsTableHeader', () => {
+describe('MetricRowsTable', () => {
   it('渲染指标列标题与各组合名称', () => {
     const portfolios = [
       createPortfolio('组合 A', { cagr: 0.08 }),
       createPortfolio('组合 B', { cagr: 0.06 }),
     ];
 
-    const { container } = render(
-      <table>
-        <thead>
-          <StatisticsTableHeader portfolios={portfolios as never} />
-        </thead>
-      </table>,
-    );
+    const { container } = render(<MetricRowsTable rows={ROWS} portfolios={portfolios as never} />);
 
-    expect(screen.getByText('Metric')).toBeTruthy();
-    expect(screen.getByText('组合 A')).toBeTruthy();
-    expect(screen.getByText('组合 B')).toBeTruthy();
+    screen.getByText('Metric');
+    screen.getByText('组合 A');
+    screen.getByText('组合 B');
     const dots = container.querySelectorAll('.rounded-full');
     expect(dots.length).toBe(2);
   });
-});
 
-describe('MetricsRows', () => {
   it('渲染各组合的指标值', () => {
     const portfolios = [
       createPortfolio('组合 A', { cagr: 0.08, sharpe: 1.5 }),
       createPortfolio('组合 B', { cagr: 0.06, sharpe: 1.2 }),
     ];
 
-    render(
-      <table>
-        <tbody>
-          <MetricsRows rows={ROWS.slice(0, 2)} portfolios={portfolios as never} />
-        </tbody>
-      </table>,
-    );
+    render(<MetricRowsTable rows={ROWS.slice(0, 2)} portfolios={portfolios as never} />);
 
-    expect(screen.getByText('8.00%')).toBeTruthy();
-    expect(screen.getByText('6.00%')).toBeTruthy();
-    expect(screen.getByText('1.50')).toBeTruthy();
-    expect(screen.getByText('1.20')).toBeTruthy();
+    screen.getByText('8.00%');
+    screen.getByText('6.00%');
+    screen.getByText('1.50');
+    screen.getByText('1.20');
   });
 
   it('跳过所有组合均无值的指标行', () => {
     const portfolios = [createPortfolio('组合 A', { cagr: 0.08 })];
 
-    render(
-      <table>
-        <tbody>
-          <MetricsRows rows={ROWS} portfolios={portfolios as never} />
-        </tbody>
-      </table>,
-    );
+    render(<MetricRowsTable rows={ROWS} portfolios={portfolios as never} />);
 
-    expect(screen.getByText('CAGR')).toBeTruthy();
+    screen.getByText('CAGR');
     expect(screen.queryByText('夏普')).toBeNull();
     expect(screen.queryByText('最大回撤')).toBeNull();
   });
@@ -100,15 +77,9 @@ describe('MetricsRows', () => {
       createPortfolio('组合 B', { cagr: 0.06 }),
     ];
 
-    render(
-      <table>
-        <tbody>
-          <MetricsRows rows={ROWS.slice(0, 2)} portfolios={portfolios as never} />
-        </tbody>
-      </table>,
-    );
+    render(<MetricRowsTable rows={ROWS.slice(0, 2)} portfolios={portfolios as never} />);
 
-    expect(screen.getByText('1.50')).toBeTruthy();
+    screen.getByText('1.50');
     expect(screen.getAllByText('—').length).toBe(1);
   });
 });

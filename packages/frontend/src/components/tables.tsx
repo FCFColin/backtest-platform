@@ -7,7 +7,7 @@ const TD_BORDER: CSSProperties = { borderBottom: '1px solid hsl(var(--border-sub
 const TH_BASE =
   'text-caption text-fg-tertiary uppercase tracking-wide font-semibold py-2.5 px-3 whitespace-nowrap';
 const TD_BASE = 'py-2 px-3 text-body text-fg';
-const rowClass = (idx: number) => cn(idx % 2 === 1 && 'bg-elevated/40');
+const ZEBRA = 'bg-[color-mix(in_srgb,hsl(var(--elevated))_40%,hsl(var(--surface)))]';
 const handleSortKey =
   (onSort: (key: string) => void, colKey: string) => (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' || e.key === ' ') {
@@ -46,6 +46,7 @@ interface TableProps<T> {
   sortDir?: 'asc' | 'desc';
   onSort?: (key: string) => void;
   caption?: ReactNode;
+  testIdOf?: (row: T) => string | undefined;
 }
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 泛型约束需要 any 以兼容无索引签名的具体接口
 function BaseTable<T extends Record<string, any>>({
@@ -58,11 +59,12 @@ function BaseTable<T extends Record<string, any>>({
   sortDir,
   onSort,
   caption,
+  testIdOf,
 }: TableProps<T>) {
   return (
     <div className="overflow-x-auto">
       <table
-        className="w-full border-collapse text-body"
+        className="w-full border-separate border-spacing-0 text-body"
         style={maxWidth ? { maxWidth } : undefined}
       >
         {caption && <caption className="sr-only">{caption}</caption>}
@@ -110,19 +112,24 @@ function BaseTable<T extends Record<string, any>>({
         </thead>
         <tbody>
           {data.map((row, idx) => (
-            <tr key={rowKey ? rowKey(row, idx) : idx} className={rowClass(idx)}>
+            <tr
+              key={rowKey ? rowKey(row, idx) : idx}
+              className="hover:bg-hover/50 transition-colors"
+            >
               {columns.map((col) => {
                 const colKey = String(col.key);
                 const isRight = col.align === 'right';
+                const zebraBg = idx % 2 === 1 ? ZEBRA : '';
                 return (
                   <td
                     key={colKey}
-                    data-testid={col.testId}
+                    data-testid={col.testId ?? testIdOf?.(row)}
                     className={cn(
                       TD_BASE,
+                      zebraBg,
                       nowrap && 'whitespace-nowrap',
                       isRight && 'text-right font-mono tabular-nums font-medium',
-                      col.sticky === 'left' && 'sticky left-0 z-10 bg-surface',
+                      col.sticky === 'left' && cn('sticky left-0 z-10', zebraBg || 'bg-surface'),
                     )}
                     style={{ ...TD_BORDER, ...col.style }}
                   >
@@ -143,6 +150,7 @@ interface SimpleTableProps<T> {
   maxWidth?: number;
   rowKey?: (row: T, idx: number) => string;
   caption?: ReactNode;
+  testIdOf?: (row: T) => string | undefined;
 }
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 泛型约束需要 any 以兼容无索引签名的具体接口
 export function SimpleTable<T extends Record<string, any>>({
@@ -151,6 +159,7 @@ export function SimpleTable<T extends Record<string, any>>({
   maxWidth,
   rowKey,
   caption,
+  testIdOf,
 }: SimpleTableProps<T>) {
   return (
     <BaseTable
@@ -159,6 +168,7 @@ export function SimpleTable<T extends Record<string, any>>({
       maxWidth={maxWidth}
       rowKey={rowKey}
       caption={caption}
+      testIdOf={testIdOf}
     />
   );
 }

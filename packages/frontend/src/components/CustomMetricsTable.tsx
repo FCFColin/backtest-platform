@@ -9,10 +9,14 @@ import {
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuCheckboxItem,
+  InfoTooltip,
 } from './ui/uiComponents.js';
-import { StatisticsTableHeader, MetricsRows } from './statistics-table/index.js';
+import { TableFrame, SimpleTable, type SimpleTableColumn } from './tables.js';
 import { TableEmpty } from '@/components/stateDisplay.js';
-import type { StatRow } from './statistics-table/types.js';
+import { getColorClass } from '@/components/charts/chartUtils.js';
+import { getPortfolioColor } from '@/lib/chart-theme.js';
+import { fmtPct, fmtRatio, fmtNum } from '@/utils/format.js';
+import { STAT_KEY_TO_TESTID, type StatRow } from './statistics-table/types.js';
 interface CustomMetricsTableProps {
   portfolios: PortfolioResult[];
 }
@@ -58,6 +62,71 @@ const DEFAULT_KEYS: (keyof Statistics)[] = [
   'swr10y',
   'pwr30y',
 ];
+function formatMetricValue(v: number | undefined, fmt: StatRow['fmt']): string {
+  if (v == null) return '—';
+  if (fmt === 'pct') return fmtPct(v);
+  if (fmt === 'ratio') return fmtRatio(v);
+  if (fmt === 'num') return fmtNum(v, 2);
+  return String(v);
+}
+function MetricLabel({ row }: { row: StatRow }) {
+  const { t } = useTranslation();
+  if (!row.description) {
+    return <>{t(row.label)}</>;
+  }
+  return (
+    <span className="inline-flex items-center gap-1">
+      <span>{t(row.label)}</span>
+      <InfoTooltip description={t(row.description)} />
+    </span>
+  );
+}
+interface MetricRowsTableProps {
+  rows: StatRow[];
+  portfolios: PortfolioResult[];
+}
+export function MetricRowsTable({ rows, portfolios }: MetricRowsTableProps) {
+  const { t } = useTranslation();
+  const visibleRows = rows.filter((row) => portfolios.some((p) => p.statistics[row.key] != null));
+  const columns: SimpleTableColumn<StatRow>[] = [
+    {
+      key: 'label',
+      label: t('Metric'),
+      sticky: 'left',
+      style: { minWidth: 160 },
+      render: (row) => <MetricLabel row={row} />,
+    },
+    ...portfolios.map((p, i) => ({
+      key: p.name,
+      label: (
+        <span className="inline-flex items-center gap-1.5">
+          <span
+            className="inline-block w-2.5 h-2.5 rounded-full align-middle"
+            style={{ backgroundColor: getPortfolioColor(i) }}
+          />
+          {p.name}
+        </span>
+      ),
+      align: 'right' as const,
+      render: (row: StatRow) => {
+        const val = p.statistics[row.key] as number | undefined;
+        const colorClass = val == null || !row.colorize ? '' : getColorClass(val);
+        return <span className={colorClass}>{formatMetricValue(val, row.fmt)}</span>;
+      },
+    })),
+  ];
+  return (
+    <TableFrame>
+      <SimpleTable
+        columns={columns}
+        data={visibleRows}
+        rowKey={(row) => row.key}
+        caption={t('My Metrics')}
+        testIdOf={(row) => STAT_KEY_TO_TESTID[row.key]}
+      />
+    </TableFrame>
+  );
+}
 function MetricSelector({
   selectedKeys,
   onToggle,
@@ -122,16 +191,7 @@ export default function CustomMetricsTable({ portfolios }: CustomMetricsTablePro
           {t('Please select at least one metric')}
         </div>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="stat-table w-full">
-            <thead>
-              <StatisticsTableHeader portfolios={portfolios} minWidth="160px" />
-            </thead>
-            <tbody>
-              <MetricsRows rows={visibleMetrics} portfolios={portfolios} />
-            </tbody>
-          </table>
-        </div>
+        <MetricRowsTable rows={visibleMetrics} portfolios={portfolios} />
       )}
     </ChartCard>
   );
