@@ -7,7 +7,7 @@ export const AXIS_TEXT = {
   fontFamily: 'Geist Mono Variable',
 } as const;
 export const BORDER_SOFT = 'hsl(var(--border-subtle))';
-export type Margin = { top?: number; right?: number; bottom?: number; left?: number };
+type Margin = { top?: number; right?: number; bottom?: number; left?: number };
 type ValueFormatter = (v: number) => string;
 function axisLabel(formatter?: ValueFormatter, fontSize?: number) {
   return {
@@ -204,34 +204,32 @@ export function axisTooltipFormatter(
 export type RollingMetricKey = 'cagr' | 'volatility' | 'excess' | 'skewness' | 'kurtosis' | 'kelly';
 export type RiskMetricKey = 'stdev' | 'maxDrawdown' | 'avgDrawdown' | 'ulcerIndex';
 
+function calcMoments(window: number[]): { mean: number; variance: number } {
+  const mean = window.reduce((s, r) => s + r, 0) / window.length;
+  const variance = window.reduce((s, r) => s + (r - mean) ** 2, 0) / (window.length - 1);
+  return { mean, variance };
+}
 function calcCagr(window: number[], windowDays: number): number {
   let cumProd = 1;
   for (const r of window) cumProd *= 1 + r;
   const years = windowDays / TRADING_DAYS_PER_YEAR;
   return Math.pow(cumProd, 1 / years) - 1;
 }
-
 function calcVolatility(window: number[]): number {
-  const mean = window.reduce((s, r) => s + r, 0) / window.length;
-  const variance = window.reduce((s, r) => s + (r - mean) ** 2, 0) / (window.length - 1);
-  return Math.sqrt(variance) * Math.sqrt(TRADING_DAYS_PER_YEAR);
+  return Math.sqrt(calcMoments(window).variance) * Math.sqrt(TRADING_DAYS_PER_YEAR);
 }
-
 function calcSkewness(window: number[]): number {
   const n = window.length;
-  const mean = window.reduce((s, r) => s + r, 0) / n;
-  const variance = window.reduce((s, r) => s + (r - mean) ** 2, 0) / (n - 1);
+  const { mean, variance } = calcMoments(window);
   if (variance === 0) return 0;
   const stdev = Math.sqrt(variance);
   const sumCubed = window.reduce((s, r) => s + ((r - mean) / stdev) ** 3, 0);
   return (n / ((n - 1) * (n - 2))) * sumCubed;
 }
-
 function calcKurtosis(window: number[]): number {
   const n = window.length;
   if (n < 4) return 0;
-  const mean = window.reduce((s, r) => s + r, 0) / n;
-  const variance = window.reduce((s, r) => s + (r - mean) ** 2, 0) / (n - 1);
+  const { mean, variance } = calcMoments(window);
   if (variance === 0) return 0;
   const stdev = Math.sqrt(variance);
   const sumFourth = window.reduce((s, r) => s + ((r - mean) / stdev) ** 4, 0);
@@ -240,10 +238,8 @@ function calcKurtosis(window: number[]): number {
     (3 * (n - 1) ** 2) / ((n - 2) * (n - 3))
   );
 }
-
 function calcKelly(window: number[]): number {
-  const mean = window.reduce((s, r) => s + r, 0) / window.length;
-  const variance = window.reduce((s, r) => s + (r - mean) ** 2, 0) / (window.length - 1);
+  const { mean, variance } = calcMoments(window);
   return variance > 0 ? mean / variance : 0;
 }
 
