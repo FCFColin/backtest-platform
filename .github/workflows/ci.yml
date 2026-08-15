@@ -206,11 +206,11 @@ jobs:
           pnpm-version: ${{ env.PNPM_VERSION }}
       - run: pnpm deadcode
 
-  # TS 镜像在 PR 期即构建，Dockerfile 错误无需等 nightly docker-security-scan
+  # 应用镜像在 PR 期即构建，Dockerfile 错误无需等 nightly docker-security-scan
   docker-build:
-    name: Docker Build (TS images)
+    name: Docker Build (app images)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-      - run: docker compose build api frontend worker
+      - run: docker compose build api frontend worker engine-go data-fetcher

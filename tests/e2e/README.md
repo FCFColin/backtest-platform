@@ -20,8 +20,8 @@
 
 ### 环境变量
 
-- `DATABASE_URL`:PostgreSQL 连接串(默认 `postgresql://backtest:backtest@localhost:5432/backtest`,本地开发需指向 `15442` 端口)
-- `REDIS_URL`:Redis 连接串(默认 `redis://localhost:6379`,本地开发需指向 `16381` 端口)
+- `DATABASE_URL`:PostgreSQL 连接串(默认 `postgresql://backtest_app:backtest_app_dev@localhost:15442/backtest`)
+- `REDIS_URL`:Redis 连接串(默认 `redis://localhost:16381`)
 - `GO_ENGINE_URL`:Go 引擎地址(默认 `http://127.0.0.1:15004`)
 - `GO_DATA_SERVICE_URL`:Go 数据服务地址(默认 `http://127.0.0.1:15003`)
 - `COMPUTE_RATE_LIMIT_MAX`:回测限流(Playwright 已设为 `200`,避免 E2E 触发限流)

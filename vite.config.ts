@@ -221,7 +221,6 @@ export default defineConfig(async () => {
       rollupOptions: {
         output: {
           manualChunks(id: string) {
-            if (process.env.VITE_SSR === 'true') return;
             if (
               id.includes('packages/frontend/src/utils/') ||
               id.includes('packages/frontend/src/hooks/')

@@ -103,12 +103,12 @@ export const authConfig = {
 const databaseConfig = {
   DATABASE_URL: str(
     process.env.DATABASE_URL,
-    'postgresql://backtest_app:backtest_app_dev@localhost:5432/backtest',
+    'postgresql://backtest_app:backtest_app_dev@localhost:15442/backtest',
   ),
   DATABASE_READ_URL: str(process.env.DATABASE_READ_URL, ''),
   DB_STATEMENT_TIMEOUT_MS: intFromEnv('DB_STATEMENT_TIMEOUT_MS', 10000),
   BACKTEST_SYNC_TIMEOUT_MS: intFromEnv('BACKTEST_SYNC_TIMEOUT_MS', 120000),
-  REDIS_URL: str(process.env.REDIS_URL, 'redis://localhost:6379'),
+  REDIS_URL: str(process.env.REDIS_URL, 'redis://localhost:16381'),
   REDIS_SENTINELS: str(process.env.REDIS_SENTINELS, ''),
   REDIS_SENTINEL_NAME: str(process.env.REDIS_SENTINEL_NAME, 'mymaster'),
   REDIS_PASSWORD: str(process.env.REDIS_PASSWORD, ''),
