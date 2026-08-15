@@ -3,6 +3,7 @@ import pino from 'pino';
 import pinoHttp from 'pino-http';
 import { randomUUID } from 'crypto';
 import { trace, context } from '@opentelemetry/api';
+import { requestContextStorage } from './requestContext.js';
 
 const isDev = process.env.NODE_ENV === 'development';
 
@@ -19,12 +20,15 @@ const prettyTransport = (() => {
 
 function otelMixin(): Record<string, string> {
   const span = trace.getSpan(context.active());
-  if (!span) return {};
-  const spanContext = span.spanContext();
-  return {
-    trace_id: spanContext.traceId,
-    span_id: spanContext.spanId,
-  };
+  const result: Record<string, string> = {};
+  if (span) {
+    const spanContext = span.spanContext();
+    result.trace_id = spanContext.traceId;
+    result.span_id = spanContext.spanId;
+  }
+  const requestId = requestContextStorage.getStore()?.requestId;
+  if (requestId) result.request_id = requestId;
+  return result;
 }
 
 const logger = pino({
@@ -102,6 +106,11 @@ const SENSITIVE_PATTERNS: { pattern: RegExp; replacement: string }[] = [
   {
     pattern: /(api[_-]?key|apikey|token|secret|password|auth|credential)[=:]\s*['"]?\S+['"]?/gi,
     replacement: '$1=***',
+  },
+  {
+    // JSON 形态（"apiKey":"xxx"）的键带引号，上面的模式匹配不到
+    pattern: /"(api[_-]?key|apikey|token|secret|password|auth|credential)"\s*:\s*"[^"]*"/gi,
+    replacement: '"$1":"***"',
   },
   {
     pattern: /(Authorization|X-Engine-Auth|X-Data-Service-Auth|X-Api-Key):\s*\S+/gi,

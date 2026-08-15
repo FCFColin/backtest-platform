@@ -51,9 +51,7 @@ app.set('trust proxy', config.TRUST_PROXY_HOPS); // 信任 X-Forwarded-For，使
 app.use(httpLogger);
 
 app.use((req: Request, _res: Response, next: NextFunction) => {
-  const requestId = req.id !== undefined ? String(req.id) : undefined;
-  if (requestId) requestContextStorage.run({ requestId }, () => next());
-  else next();
+  requestContextStorage.run({ requestId: String(req.id) }, () => next());
 });
 
 app.use((req: Request, res: Response, next: NextFunction) => {

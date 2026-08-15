@@ -211,8 +211,8 @@ export function registerPgPoolMetrics(
   }, 5_000);
 }
 
-export const recordEngineCall = (success: boolean): void =>
-  engineCallsTotal.inc({ result: success ? 'success' : 'unavailable' });
+export const recordEngineCall = (result: 'success' | 'client_error' | 'unavailable'): void =>
+  engineCallsTotal.inc({ result });
 export const recordEngineUnavailable = (reason: string): void =>
   engineUnavailableTotal.inc({ reason: sanitizeMetricLabel(reason) });
 export const resetMetrics = (): void => register.resetMetrics();

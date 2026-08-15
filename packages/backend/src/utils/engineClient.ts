@@ -98,7 +98,7 @@ export async function callEngineStrict<T>(
   try {
     const result = await retryWithBackoff(() => goCircuitBreaker.fire(endpoint, body));
     const elapsed = Date.now() - t0;
-    recordEngineCall(true);
+    recordEngineCall('success');
     engineCallDuration.observe({ result: 'success' }, elapsed / 1000);
     logger.info(`[callEngineStrict] ${endpoint} Go 引擎耗时 ${elapsed}ms`);
 
@@ -120,12 +120,12 @@ export async function callEngineStrict<T>(
   } catch (err) {
     const elapsed = Date.now() - t0;
     if (err instanceof UpstreamProblemError) {
-      recordEngineCall(false);
+      recordEngineCall('client_error');
       engineCallDuration.observe({ result: 'client_error' }, elapsed / 1000);
       logger.warn(`[callEngineStrict] ${endpoint} Go 引擎返回 4xx: ${err.status} ${err.code}`);
       throw err;
     }
-    recordEngineCall(false);
+    recordEngineCall('unavailable');
     engineCallDuration.observe({ result: 'unavailable' }, elapsed / 1000);
     logger.error({ err }, `[callEngineStrict] ${endpoint} Go 引擎不可用，fail-closed 返回 503`);
     throw new EngineUnavailableError(endpoint);

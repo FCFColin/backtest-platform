@@ -24,6 +24,14 @@ const metricReader = metricExporter
   ? new PeriodicExportingMetricReader({ exporter: metricExporter, exportIntervalMillis: 30000 })
   : undefined;
 
+// 健康/指标端点避免探活流量污染 trace（healthRoutes 挂载于 /api 前缀下，须与实际路径一致）
+const IGNORE_INSTRUMENTED_PATHS = [
+  '/api/metrics',
+  '/api/health',
+  '/api/ready',
+  '/api/v1/debug/health',
+];
+
 const sdk = new NodeSDK({
   serviceName: 'backtest-platform-api',
   traceExporter,
@@ -33,15 +41,11 @@ const sdk = new NodeSDK({
       '@opentelemetry/instrumentation-fs': { enabled: false },
       '@opentelemetry/instrumentation-dns': { enabled: true },
       '@opentelemetry/instrumentation-http': {
-        ignoreIncomingRequestHook: (request: { url?: string }) => {
-          const url = request.url ?? '';
-          return url === '/metrics' || url === '/health' || url === '/ready';
-        },
+        ignoreIncomingRequestHook: (request: { url?: string }) =>
+          IGNORE_INSTRUMENTED_PATHS.includes(request.url ?? ''),
       },
       '@opentelemetry/instrumentation-express': {
-        ignoreLayers: [
-          (name: string) => name === '/metrics' || name === '/health' || name === '/ready',
-        ],
+        ignoreLayers: [(name: string) => IGNORE_INSTRUMENTED_PATHS.includes(name)],
       },
     }),
   ],
