@@ -3,7 +3,7 @@ import { ComputeToolShell, type ComputeToolConfig } from '@/components/shells/in
 import { REBALANCE_OPTIONS, useRebalancingState } from './rebalancingSensitivityUtils.js';
 import type { RebalancingState } from './rebalancingSensitivityUtils.js';
 import { ResultsPanel } from './ResultsPanel.js';
-import { BasicParamsRow } from '../../components/BacktestParamsForm.js';
+import { BasicParamsFields } from '../../components/BacktestParamsForm.js';
 import PortfolioEditor from '../../components/PortfolioEditor.js';
 import { AffixInput } from '@/components/ui/uiComponents';
 import { Field, FieldLabel } from '@/components/form/Field';
@@ -96,7 +96,7 @@ function RebalancingSensitivityParamsForm({ s }: { s: RebalancingState }) {
   const { t } = useTranslation();
   return (
     <div className="flex flex-col gap-4">
-      <BasicParamsRow
+      <BasicParamsFields
         startDate={s.startDate}
         endDate={s.endDate}
         startingValue={s.startingValue}

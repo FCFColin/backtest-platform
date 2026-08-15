@@ -11,7 +11,7 @@ import {
   SelectItem,
 } from '@/components/ui/uiComponents';
 import { Field, FieldLabel } from '@/components/form/Field';
-import { BasicParamsRow } from '../../components/BacktestParamsForm.js';
+import { BasicParamsFields } from '../../components/BacktestParamsForm.js';
 import PortfolioEditor from '../../components/PortfolioEditor.js';
 import { LoadingButton } from '../../components/ui/uiComponents.js';
 import { useLumpSumVsDCAState } from '../../hooks/useLumpSumVsDCAState.js';
@@ -82,7 +82,7 @@ function LumpSumVsDCAParamsForm({ state }: { state: LumpSumVsDCAState }) {
   const { t } = useTranslation();
   return (
     <div className="flex flex-col gap-4">
-      <BasicParamsRow
+      <BasicParamsFields
         startDate={state.startDate}
         endDate={state.endDate}
         startingValue={state.startingValue}
