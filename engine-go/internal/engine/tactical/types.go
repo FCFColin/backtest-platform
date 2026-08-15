@@ -89,7 +89,6 @@ type TacticalGridRequest struct {
 	Indicator          string                        `json:"indicator"`
 	Param1             ParamRange                    `json:"param1"`
 	Param2             ParamRange                    `json:"param2"`
-	PriceData          map[string]map[string]float64 `json:"priceData"`
 	Dates              []string                      `json:"dates"`
 	Prices             []float64                     `json:"prices"`
 	TradingTicker      string                        `json:"tradingTicker"`

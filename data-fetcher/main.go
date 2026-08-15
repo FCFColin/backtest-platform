@@ -7,6 +7,7 @@ import (
 	"data-fetcher/internal/provider"
 	"data-fetcher/internal/registry"
 	"data-fetcher/internal/store"
+	"data-fetcher/internal/version"
 	gosharedhttp "github.com/backtest/go-shared/http"
 	gosharedlog "github.com/backtest/go-shared/log"
 	gosharedmw "github.com/backtest/go-shared/middleware"
@@ -51,7 +52,7 @@ func main() {
 	if port := os.Getenv("DATA_FETCHER_PORT"); port != "" {
 		cfg.Port = port
 	}
-	slog.Info("Go数据获取服务启动", "module", "main", "version", "0.1.0", "port", cfg.Port)
+	slog.Info("Go数据获取服务启动", "module", "main", "version", version.String, "port", cfg.Port)
 	ctx := context.Background()
 	reg := newRegistry()
 	ds, err := store.New(ctx, cfg.DatabaseURL, reg)

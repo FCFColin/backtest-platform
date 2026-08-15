@@ -36,8 +36,6 @@ type SignalAnalysisRequest struct {
 	Indicator  string  `json:"indicator"`
 	Period     int     `json:"period"`
 	Threshold  float64 `json:"threshold"`
-	StartDate  string  `json:"startDate"`
-	EndDate    string  `json:"endDate"`
 	SignalType string  `json:"signalType"`
 }
 type DualSignalConfig struct {

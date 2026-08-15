@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"engine-go/internal/server"
+	"engine-go/internal/version"
 	gosharedhttp "github.com/backtest/go-shared/http"
 	gosharedlog "github.com/backtest/go-shared/log"
 	"github.com/backtest/go-shared/observability"
@@ -26,7 +27,7 @@ func main() {
 	}()
 	r := server.SetupRouter(metricsHandler)
 	gosharedhttp.StartPprofServerIfEnabled("127.0.0.1:6061")
-	slog.Info("Go引擎服务启动", "port", port, "version", "0.1.0")
+	slog.Info("Go引擎服务启动", "port", port, "version", version.String)
 	srv := &http.Server{Addr: ":" + port, Handler: r, ReadTimeout: 30 * time.Second, WriteTimeout: 120 * time.Second, ReadHeaderTimeout: 10 * time.Second}
 	gosharedhttp.RunServer(srv, 30*time.Second)
 }

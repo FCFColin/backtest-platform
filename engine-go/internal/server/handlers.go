@@ -12,6 +12,7 @@ import (
 	"engine-go/internal/montecarlo"
 	"engine-go/internal/optimizer"
 	"engine-go/internal/signal"
+	"engine-go/internal/version"
 	"errors"
 	sharedhttp "github.com/backtest/go-shared/http"
 	gosharedmw "github.com/backtest/go-shared/middleware"
@@ -126,7 +127,7 @@ func handleHealth(c *gin.Context) {
 	goroutines := runtime.NumGoroutine()
 	var memStats runtime.MemStats
 	runtime.ReadMemStats(&memStats)
-	resp := gin.H{"engine": "go", "version": "0.1.0", "goroutines": goroutines}
+	resp := gin.H{"engine": "go", "version": version.String, "goroutines": goroutines}
 	if goroutines > maxGoroutinesForHealth {
 		resp["status"] = "unhealthy"
 		resp["reason"] = "goroutine count exceeds threshold"

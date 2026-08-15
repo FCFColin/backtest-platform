@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"data-fetcher/internal/store"
+	"data-fetcher/internal/version"
 	"errors"
 	"fmt"
 	sharedhttp "github.com/backtest/go-shared/http"
@@ -180,7 +181,7 @@ func HandleHealth(ds *store.DataStore) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var tickerCount, priceCount int
 		if err := ds.Pool().QueryRow(c.Request.Context(), "SELECT COUNT(*) FROM tickers").Scan(&tickerCount); err != nil {
-			c.JSON(http.StatusOK, gin.H{"status": "degraded", "engine": "go", "version": "0.1.0", "error": "查询标的数失败"})
+			c.JSON(http.StatusOK, gin.H{"status": "degraded", "engine": "go", "version": version.String, "error": "查询标的数失败"})
 			return
 		}
 		if err := ds.Pool().QueryRow(c.Request.Context(), "SELECT COUNT(*) FROM prices").Scan(&priceCount); err != nil {
@@ -189,7 +190,7 @@ func HandleHealth(ds *store.DataStore) gin.HandlerFunc {
 		c.JSON(http.StatusOK, gin.H{
 			"status":       "ok",
 			"engine":       "go",
-			"version":      "0.1.0",
+			"version":      version.String,
 			"ticker_count": tickerCount,
 			"price_count":  priceCount,
 		})
