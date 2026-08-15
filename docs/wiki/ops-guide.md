@@ -10,39 +10,17 @@
 
 ## 2. 前置要求与开发
 
-前置要求与启动命令见 [README 快速启动](../../README.md#快速启动)；服务端口表见 [ARCHITECTURE §4](../ARCHITECTURE.md)。
+前置要求与启动命令见 [README 快速启动](../../README.md#快速启动)；docker compose 与混沌测试见 `package.json` scripts；端口与拓扑见 [ARCHITECTURE §4](../ARCHITECTURE.md#4-服务与端口)。
 
 ## 3. 环境变量速查
 
-| 类别              | 关键变量                                                                                                                                     |
-| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| 基础 / Go 引擎    | NODE_ENV, API_PORT(15001), VITE_PORT(15173) / GO_ENGINE_URL(:15004), GO_DATA_SERVICE_URL(:15003), ENGINE_AUTH_TOKEN, DATA_SERVICE_AUTH_TOKEN |
-| CORS / 数据库     | CORS_ORIGINS（生产必填；开发 true 允许全部）/ DATABASE_URL, DATABASE_READ_URL                                                                |
-| Redis / 认证      | REDIS_URL, REDIS_SENTINELS / JWT_SECRET, JWT_ALGORITHM(RS256 用 *_KEY_FILE), DEV_SKIP_AUTH                                                   |
-| 可观测性 / Stripe | OTEL_EXPORTER_OTLP_ENDPOINT / STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET                                                                       |
+环境变量定义以 `.env.example` 为权威源。
 
 ## 4. 检查 / 测试命令
 
-    pnpm check        # tsc --noEmit      pnpm lint      # ESLint
-    pnpm build        # Vite + tsc
+检查与各层测试命令以 `package.json` scripts 为权威源（`check` / `lint` / `test:*` / `verify:critical`）；覆盖率门控见 `scripts/check-coverage.mjs`（lines/functions/statements/branches ≥ 80%）。
 
-| 命令                                             | 说明                                                                 |
-| ------------------------------------------------ | -------------------------------------------------------------------- |
-| pnpm test / test:unit                            | 全部 / 单元（mocks 无 DB）                                           |
-| test:integration / test:contract / test:property | testcontainers / OpenAPI 契约 ≥60% 双向 + 错误响应 ≥70% / fast-check |
-| test:chaos / test:docker                         | 混沌（需 Docker）/ 全量 Vitest（RUN_TESTCONTAINERS=1）               |
-| test:e2e:ui                                      | Playwright E2E                                                       |
-
-覆盖率门控: lines/functions/statements/branches ≥ 80%（scripts/check-coverage.mjs）。
-
-## 5. Docker 与端口
-
-    docker compose up -d             # 全栈
-    pnpm test:chaos                  # 混沌测试（需先 docker compose up -d）
-
-端口与拓扑见 [ARCHITECTURE.md §4](../ARCHITECTURE.md#4-服务与端口)。
-
-## 6. 已知坑点
+## 5. 已知坑点
 
 | 前端                         | 后端                          | Go 引擎                                    | 数据库                               |
 | ---------------------------- | ----------------------------- | ------------------------------------------ | ------------------------------------ |

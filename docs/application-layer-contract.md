@@ -34,7 +34,7 @@ domain 层**不得** import `utils/errors.js`（反向依赖）。
 ## 目录结构
 
 ```
-application/   backtest/montecarlo/optimize/tactical/grid service + backtest-helpers + backtest/ 工具
-services/      analysis/signal orchestrator + loginLockout/usageService/billingService 等
+application/   backtest/montecarlo/optimize/tactical/grid service + analysis/signal orchestrator + 审计/计费服务
+services/      仅 backtestWs.ts（其余服务已并入 application/，ADR-012）
 domain/        aggregates/ value-objects/ services/ events/
 ```

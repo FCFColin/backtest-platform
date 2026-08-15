@@ -37,47 +37,15 @@ pnpm dev:all          # 全栈开发：PG/Redis + Go 引擎/数据服务 + API 1
 
 最小开发（仅前端+API，Go 引擎不可用时计算端点 503）：`pnpm dev`
 
-手动启动 Go 服务（`pnpm dev:all` 已自动启动，无需手动）：
-`cd engine-go && go run ./cmd/server`（默认 :5004，docker 宿主映射 :15004）
-`cd data-fetcher && go run main.go`（默认 :5003，docker 宿主映射 :15003）
+手动启动 Go 服务（`pnpm dev:all` 已自动启动，无需手动）：`cd engine-go && go run ./cmd/server`（:5004，宿主映射 :15004）
 
 ## 目录结构
 
-```
-packages/frontend/src/  # 前端 (React + Vite + Tailwind)
-packages/backend/src/   # 后端 API (Express + TS)
-engine-go/             # Go 计算引擎（gin + gonum）
-data-fetcher/          # Go 数据服务 (gin)
-migrations/            # PostgreSQL 迁移脚本
-packages/shared/       # 前后端共享类型
-tests/                 # 测试 (unit/e2e/contract/chaos/property)
-docs/                  # 架构 / ADR / 运维手册
-```
-
-详细结构见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) 与 [docs/adr/README.md](docs/adr/README.md)。
-
-## 常用命令
-
-```powershell
-pnpm dev          # 启动前端+后端开发服务器
-pnpm check        # TypeScript 类型检查
-pnpm lint         # ESLint
-pnpm test         # 运行所有测试
-pnpm test:unit    # 仅单元测试
-```
+目录树与详细结构见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)（ADR 索引见 [docs/adr/README.md](docs/adr/README.md)）。
 
 ## 环境变量
 
-| 变量                  | 默认值                   | 说明                                          |
-| --------------------- | ------------------------ | --------------------------------------------- |
-| `GO_ENGINE_URL`       | `http://127.0.0.1:15004` | Go 计算引擎地址（唯一引擎）                   |
-| `GO_DATA_SERVICE_URL` | `http://127.0.0.1:15003` | Go 数据服务地址                               |
-| `DATABASE_URL`        | -                        | PostgreSQL 连接串                             |
-| `REDIS_URL`           | -                        | Redis 连接串（会话/限流/队列）                |
-| `NODE_ENV`            | -                        | 环境（development 显示错误详情）              |
-| `APP_BASE_URL`        | `http://localhost:15173` | 验证/邀请/计费跳转链接基址（ADR-009/ADR-010） |
-| `EMAIL_TRANSPORT`     | `console`                | 邮件传输：`console`/`smtp`（ADR-009）         |
-| `STRIPE_SECRET_KEY`   | -                        | Stripe 密钥（留空则计费端点返回 503）         |
+配置以 `.env.example` 为权威源（复制为 `.env` 后按需修改），关键变量含 `DATABASE_URL`/`REDIS_URL`/`JWT_SECRET`/`GO_ENGINE_URL`/`GO_DATA_SERVICE_URL`/`ADMIN_API_KEY`，生产必填项见 `.env.example` 的 `[生产必填]` 标记。
 
 ## 文档
 

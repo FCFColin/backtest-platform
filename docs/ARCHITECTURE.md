@@ -93,8 +93,6 @@ JSON(DADR-002) → SQLite(DADR-006) → PostgreSQL(ADR-002)。行情持久化于
 
 > 完整索引（含已删除/合并记录）见 [adr/README.md](./adr/README.md)。
 
-核心 ADR: 001 Express / 002 PostgreSQL / 003 Go+TS / 004 DDD+Outbox / 005 Outbox+CDC / 006 可观测性 / 007 认证授权 / 008 单引擎 fail-closed / 009 多租户 RLS / 010 Stripe / 011 模块化 / 012 退役零消费者子系统 / 013 死 schema 退役 / 014 未实现引擎字段退役 / 015 data-fetcher worker CLI 退役。
-
 ## 12. 容量扩展瓶颈
 
 | 顺序 | 瓶颈                  | 指标                       | 缓解                       |
