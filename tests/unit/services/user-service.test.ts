@@ -42,6 +42,12 @@ const reset = () => {
   vi.clearAllMocks();
   mocks.argon2.hash.mockResolvedValue('hashed-password');
 };
+const setupTxPoolMocks = () => {
+  vi.clearAllMocks();
+  mocks.pool.connect.mockResolvedValue(mocks.poolClient);
+  mocks.poolClient.query.mockReset();
+  mocks.poolClient.release.mockReset();
+};
 const qOnce = (rows: unknown[]) => mocks.pool.query.mockResolvedValueOnce({ rows });
 const qRowCount = (n: number) => mocks.pool.query.mockResolvedValueOnce({ rowCount: n });
 const txClient = (row: Record<string, unknown>) => ({
@@ -221,10 +227,7 @@ describe('createUserTx - 事务内创建用户', () => {
 });
 describe('registerUser - 注册即创建个人组织（ADR-009）', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
-    mocks.pool.connect.mockResolvedValue(mocks.poolClient);
-    mocks.poolClient.query.mockReset();
-    mocks.poolClient.release.mockReset();
+    setupTxPoolMocks();
     mocks.argon2.hash.mockResolvedValue('hashed-password');
   });
   it('应在单事务中创建用户 + 组织 + owner 成员并返回 userId', async () => {
@@ -282,12 +285,7 @@ describe('issueEmailVerificationToken - 签发邮箱验证令牌', () => {
   });
 });
 describe('verifyEmailToken - 校验邮箱验证令牌', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    mocks.pool.connect.mockResolvedValue(mocks.poolClient);
-    mocks.poolClient.query.mockReset();
-    mocks.poolClient.release.mockReset();
-  });
+  beforeEach(setupTxPoolMocks);
   it.each([
     { name: '空字符串', token: '' },
     { name: '超过 256 字符的令牌', token: 'x'.repeat(257) },

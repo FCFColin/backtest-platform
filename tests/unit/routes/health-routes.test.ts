@@ -113,12 +113,17 @@ describe('healthRoutes', () => {
   });
 
   describe('GET /api/metrics', () => {
-    it('应返回 Prometheus text format', async () => {
+    const fetchMetrics = async () => {
       config.METRICS_AUTH_TOKEN = 'test-metrics-token';
       const res = await fetch(`${getServer().url}/api/metrics`, {
         headers: { Authorization: 'Bearer test-metrics-token' },
       });
       const text = await res.text();
+      return { res, text };
+    };
+
+    it('应返回 Prometheus text format', async () => {
+      const { res, text } = await fetchMetrics();
 
       expect(res.status).toBe(200);
       expect(res.headers.get('content-type')).toContain('text/plain');
@@ -126,12 +131,9 @@ describe('healthRoutes', () => {
     });
 
     it('应包含 saturation 指标（T-P1-1）', async () => {
-      config.METRICS_AUTH_TOKEN = 'test-metrics-token';
-      const res = await fetch(`${getServer().url}/api/metrics`, {
-        headers: { Authorization: 'Bearer test-metrics-token' },
-      });
-      const text = await res.text();
+      const { res, text } = await fetchMetrics();
 
+      expect(res.status).toBe(200);
       expect(text).toContain('node_eventloop_lag_seconds');
       expect(text).toContain('circuit_breaker_state');
     });
@@ -160,35 +162,31 @@ describe('healthRoutes (debug endpoint) - GET /api/v1/debug/health', () => {
     config.DEBUG_AUTH_TOKEN = originalToken;
   });
 
-  it('未配置 DEBUG_AUTH_TOKEN 时应返回 404', async () => {
-    config.DEBUG_AUTH_TOKEN = '';
-
-    const res = await fetch(`${getServer().url}/api/v1/debug/health`);
+  const debugHealth = async (token: string, bearer?: string) => {
+    config.DEBUG_AUTH_TOKEN = token;
+    const res = await fetch(`${getServer().url}/api/v1/debug/health`, {
+      headers: bearer ? { Authorization: `Bearer ${bearer}` } : undefined,
+    });
     const json = await res.json();
+    return { res, json };
+  };
+
+  it('未配置 DEBUG_AUTH_TOKEN 时应返回 404', async () => {
+    const { res, json } = await debugHealth('');
 
     expect(res.status).toBe(404);
     expect(json.error.code).toBe('NOT_FOUND');
   });
 
   it('Bearer token 错误时应返回 401', async () => {
-    config.DEBUG_AUTH_TOKEN = 'correct-secret-token';
-
-    const res = await fetch(`${getServer().url}/api/v1/debug/health`, {
-      headers: { Authorization: 'Bearer wrong-token' },
-    });
-    const json = await res.json();
+    const { res, json } = await debugHealth('correct-secret-token', 'wrong-token');
 
     expect(res.status).toBe(401);
     expect(json.error.code).toBe('UNAUTHORIZED');
   });
 
   it('有效 DEBUG_AUTH_TOKEN 时应返回 200', async () => {
-    config.DEBUG_AUTH_TOKEN = 'correct-secret-token';
-
-    const res = await fetch(`${getServer().url}/api/v1/debug/health`, {
-      headers: { Authorization: 'Bearer correct-secret-token' },
-    });
-    const json = await res.json();
+    const { res, json } = await debugHealth('correct-secret-token', 'correct-secret-token');
 
     expect(res.status).toBe(200);
     expect(json.success).toBe(true);
@@ -201,13 +199,7 @@ describe('healthRoutes (debug endpoint) - GET /api/v1/debug/health', () => {
   });
 
   it('超长恶意 Bearer token 应返回 401', async () => {
-    config.DEBUG_AUTH_TOKEN = 'correct-secret-token';
-    const maliciousToken = 'A'.repeat(10000);
-
-    const res = await fetch(`${getServer().url}/api/v1/debug/health`, {
-      headers: { Authorization: `Bearer ${maliciousToken}` },
-    });
-    const json = await res.json();
+    const { res, json } = await debugHealth('correct-secret-token', 'A'.repeat(10000));
 
     expect(res.status).toBe(401);
     expect(json.error.code).toBe('UNAUTHORIZED');
