@@ -1,14 +1,9 @@
 import { isValidTicker } from '../../utils/tickerValidation.js';
 
 export class DomainValidationError extends Error {
-  readonly field?: string;
-  readonly value?: unknown;
-
-  constructor(message: string, field?: string, value?: unknown) {
+  constructor(message: string) {
     super(message);
     this.name = 'DomainValidationError';
-    this.field = field;
-    this.value = value;
   }
 }
 

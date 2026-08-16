@@ -1,5 +1,4 @@
 // ADR-009: RLS 强制租户隔离（读 withTenantReadOnly，写 withTenant）
-import crypto from 'node:crypto';
 import {
   Portfolio as DomainPortfolio,
   type PortfolioHolding,
@@ -37,13 +36,13 @@ const mapRow = rowMapper<PortfolioRecord>({
 });
 
 // @throws {ValidationError} 权重和不为 ~100 或包含非法 ticker
-function validateAndBuild(input: PortfolioInput, id: string): unknown {
+function validateAndBuild(input: PortfolioInput): unknown {
   try {
     const holdings: PortfolioHolding[] = input.assets.map((a) => ({
       ticker: Ticker.create(a.ticker),
       weight: Weight.create(a.weight),
     }));
-    return DomainPortfolio.create(id, input.name, holdings, {
+    return DomainPortfolio.create(input.name, holdings, {
       rebalanceFrequency: input.rebalanceFrequency,
     }).toPersistenceDTO();
   } catch (err) {
@@ -63,7 +62,7 @@ const repo = createTenantCrudRepo<PortfolioRecord, PortfolioInput>({
   updateSet: 'name = $2, assets = $3::jsonb, rebalance_frequency = $4, updated_at = NOW()',
   mapRow,
   toInsert: (tenantId, ownerUserId, input) => {
-    const dto = validateAndBuild(input, crypto.randomUUID()) as {
+    const dto = validateAndBuild(input) as {
       name: string;
       assets: Asset[];
     };
@@ -75,8 +74,8 @@ const repo = createTenantCrudRepo<PortfolioRecord, PortfolioInput>({
       input.rebalanceFrequency ?? 'none',
     ];
   },
-  toUpdate: (id, input) => {
-    const dto = validateAndBuild(input, id) as { name: string; assets: Asset[] };
+  toUpdate: (_id, input) => {
+    const dto = validateAndBuild(input) as { name: string; assets: Asset[] };
     return [dto.name, JSON.stringify(dto.assets), input.rebalanceFrequency ?? 'none'];
   },
 });

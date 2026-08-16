@@ -1,4 +1,3 @@
-import crypto from 'node:crypto';
 import { Ticker, Weight, DomainValidationError } from '../value-objects/index.js';
 import type {
   Portfolio as PortfolioDTO,
@@ -20,19 +19,15 @@ type PortfolioConfigKeys =
   | 'rebalanceBands'
   | 'drag'
   | 'isGlidepath'
-  | 'glidepathFrom'
-  | 'glidepathTo'
   | 'glidepathYears'
   | 'glidepathToWeights';
 type PortfolioConfig = Partial<Pick<PortfolioDTO, PortfolioConfigKeys>>;
 interface PortfolioProps extends PortfolioConfig {
-  id: string;
   name: string;
   holdings: PortfolioHolding[];
 }
 
 export class Portfolio {
-  public readonly id: string;
   public readonly name: string;
   private holdings: PortfolioHolding[];
   public readonly rebalanceFrequency: RebalanceFrequency;
@@ -41,13 +36,10 @@ export class Portfolio {
   public readonly rebalanceBands?: RebalanceBands;
   public readonly drag?: number;
   public readonly isGlidepath?: boolean;
-  public readonly glidepathFrom?: string;
-  public readonly glidepathTo?: string;
   public readonly glidepathYears?: number;
   public readonly glidepathToWeights?: number[];
 
   private constructor(props: PortfolioProps) {
-    this.id = props.id;
     this.name = props.name;
     this.holdings = props.holdings;
     this.rebalanceFrequency = props.rebalanceFrequency ?? 'monthly';
@@ -56,8 +48,6 @@ export class Portfolio {
     this.rebalanceBands = props.rebalanceBands;
     this.drag = props.drag;
     this.isGlidepath = props.isGlidepath;
-    this.glidepathFrom = props.glidepathFrom;
-    this.glidepathTo = props.glidepathTo;
     this.glidepathYears = props.glidepathYears;
     this.glidepathToWeights = props.glidepathToWeights;
     this.validateWeightSum();
@@ -71,24 +61,18 @@ export class Portfolio {
       try {
         return { ticker: Ticker.create(asset.ticker), weight: Weight.create(asset.weight) };
       } catch (err) {
-        throw new DomainValidationError((err as Error).message, 'asset', asset);
+        throw new DomainValidationError((err as Error).message);
       }
     });
     return new Portfolio({
       ...rest,
-      id: rest.id ?? crypto.randomUUID(),
       name: rest.name ?? 'Portfolio',
       holdings,
     });
   }
 
-  static create(
-    id: string,
-    name: string,
-    holdings: PortfolioHolding[],
-    config?: PortfolioConfig,
-  ): Portfolio {
-    return new Portfolio({ id, name, holdings, ...config });
+  static create(name: string, holdings: PortfolioHolding[], config?: PortfolioConfig): Portfolio {
+    return new Portfolio({ name, holdings, ...config });
   }
 
   get holdingCount(): number {
@@ -143,8 +127,6 @@ export class Portfolio {
     if (Math.abs(sum - 100) > PORTFOLIO_WEIGHT_SUM_TOLERANCE) {
       throw new DomainValidationError(
         `Portfolio weights must sum to ~100 (percent), got ${sum.toFixed(2)}`,
-        'totalWeight',
-        sum,
       );
     }
   }
@@ -153,11 +135,7 @@ export class Portfolio {
     const seen = new Set<string>();
     for (const h of this.holdings) {
       if (seen.has(h.ticker.value)) {
-        throw new DomainValidationError(
-          `Portfolio contains duplicate ticker: ${h.ticker.value}`,
-          'assets',
-          h.ticker.value,
-        );
+        throw new DomainValidationError(`Portfolio contains duplicate ticker: ${h.ticker.value}`);
       }
       seen.add(h.ticker.value);
     }

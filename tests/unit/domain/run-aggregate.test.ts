@@ -15,21 +15,21 @@ function makeHolding(ticker: string, weight: number) {
 
 describe('Portfolio Aggregate', () => {
   it('权重和为 100 时创建成功', () => {
-    const p = Portfolio.create('p1', 'Test', [makeHolding('AAPL', 60), makeHolding('SPY', 40)]);
+    const p = Portfolio.create('Test', [makeHolding('AAPL', 60), makeHolding('SPY', 40)]);
     expect(p.holdingCount).toBe(2);
   });
   it('权重和偏差超过容差时抛出错误', () => {
-    expect(() => Portfolio.create('p1', 'Test', [makeHolding('AAPL', 50)])).toThrow(
+    expect(() => Portfolio.create('Test', [makeHolding('AAPL', 50)])).toThrow(
       'weights must sum to ~100',
     );
   });
   it('重复 ticker 应抛出错误（持仓权重歧义）', () => {
     expect(() =>
-      Portfolio.create('p1', 'Test', [makeHolding('AAPL', 60), makeHolding('AAPL', 40)]),
+      Portfolio.create('Test', [makeHolding('AAPL', 60), makeHolding('AAPL', 40)]),
     ).toThrow('duplicate ticker: AAPL');
   });
   describe('properties', () => {
-    const p = Portfolio.create('p1', 'Test', [makeHolding('AAPL', 60), makeHolding('SPY', 40)]);
+    const p = Portfolio.create('Test', [makeHolding('AAPL', 60), makeHolding('SPY', 40)]);
     it.each([
       ['tickers 返回所有 ticker 值列表', (x: Portfolio) => x.tickers, ['AAPL', 'SPY']],
       ['totalWeight 返回权重总和', (x: Portfolio) => x.totalWeight, 100],

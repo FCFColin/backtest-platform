@@ -14,16 +14,12 @@ export function buildEngineParams(parameters: BacktestParameters) {
   };
 }
 
-function hasPriceData(priceData: Record<string, Record<string, number>>, ticker: string): boolean {
-  return !!priceData[ticker] && Object.keys(priceData[ticker]).length > 0;
-}
-
 export function ensurePriceDataExists(
   tickers: string[],
   priceData: Record<string, Record<string, number>>,
   context?: string,
 ): void {
-  const missing = tickers.filter((t) => !hasPriceData(priceData, t));
+  const missing = tickers.filter((t) => !priceData[t] || Object.keys(priceData[t]).length === 0);
   if (missing.length > 0) {
     const prefix = context ? `[${context}] ` : '';
     throw new DataNotFoundError(`${prefix}Price data not found for: ${missing.join(', ')}`);

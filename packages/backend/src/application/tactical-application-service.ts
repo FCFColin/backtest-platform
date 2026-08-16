@@ -37,7 +37,6 @@ async function runBenchmarkBacktest(params: BenchmarkParams): Promise<PortfolioR
   const { allTickers, startDate, endDate, startingValue, rebalanceFrequency, priceData } = params;
   const benchmarkPortfolio = translateDomainError(() =>
     DomainPortfolio.create(
-      'tactical-benchmark',
       '等权基准',
       allTickers.map((t) => ({
         ticker: Ticker.create(t),
