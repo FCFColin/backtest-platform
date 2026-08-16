@@ -142,18 +142,19 @@ interface MonthlySeries {
   monthlyReturns: Array<{ year: number; month: number; return: number }>;
 }
 function HeatmapTable({ data }: { data: Array<{ year: number; months: (number | null)[] }> }) {
+  const { t } = useTranslation();
   return (
     <div className="overflow-x-auto">
       <table className="border-collapse">
         <thead>
           <tr>
             <th className="px-2 py-1 text-label-tiny font-medium text-left w-10 text-fg-tertiary" />
-            {MONTH_LABELS.map((m) => (
+            {Array.from({ length: 12 }, (_, i) => i + 1).map((n) => (
               <th
-                key={m}
+                key={n}
                 className="px-1 py-1 text-label-tiny font-medium text-center min-w-[36px] text-fg-tertiary"
               >
-                {m}
+                {t('Month {{n}}', { n })}
               </th>
             ))}
           </tr>
@@ -169,7 +170,7 @@ function HeatmapTable({ data }: { data: Array<{ year: number; months: (number | 
                   key={mIdx}
                   className="px-0.5 py-0.5 text-center cursor-default"
                   style={{ backgroundColor: getHeatColor(val) }}
-                  title={`${row.year} ${MONTH_LABELS[mIdx]}: ${val !== null ? val.toFixed(2) : '-'}%`}
+                  title={`${row.year} ${t('Month {{n}}', { n: mIdx + 1 })}: ${val !== null ? val.toFixed(2) : '-'}%`}
                 >
                   <span
                     className="text-micro inline-block w-[34px] leading-[24px]"
