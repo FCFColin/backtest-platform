@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - test: 移除失效 stub 键收敛 mock 样板
 - 治理收尾：verify 拆分出 verify-static（C-015 ADR 一致性/C-016 CHANGELOG/C-017 迁移/C-019 前端死代码等纯静态检查），CI 的 `--skip-db --skip-frontend` 不再使其失效；run-all 仅聚合本次运行脚本的结果并清理过期 audit 生成物
 - 配置/文档对齐：tsconfig paths 收敛单一通配、vite 死 glob 清理、env 默认 DB 用户降权为最小权限 backtest_app、.env.example 权威源指引、React 19 版本对齐、ops-guide/security 端口与键名修正
+- 治理收尾（ADR-017）：退役 CI 从不执行的 verify-backend/verify-frontend 脚本（RLS/迁移由集成测试+静态检查承担），run-all 移除 --skip-db/--skip-frontend 分支；CLS 与起始资金默认值断言并入 E2E（page-load-performance P4、backtest beforeEach）
 
 ## [0.4.1] - 2026-08-09
 
@@ -118,26 +119,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - threat-model.md：R-1（审计日志）和 E-2（非 root 用户）状态更新为"已缓解"
 - runbook.md：Go 数据服务健康检查路径修正为 `/api/data/health`
 - package.json：version 从 0.0.0 同步为 0.2.0（与 CHANGELOG 一致）
-
-## [0.2.0] - 2026-06-23
-
-### Added
-
-- K8s 部署配置：namespace、3 个 Deployment、3 个 ClusterIP Service、ConfigMap、Ingress
-- 缓存一致性机制：版本号校验 + `invalidateCache()` 函数，支持按 ticker 或全量失效
-- Schema 迁移系统：基于版本号的迁移函数，事务执行，记录到 `schema_migrations` 表
-- 性能基准测试：`tests/bench/statistics.bench.ts`，覆盖均值、标准差、夏普比率、最大回撤
-- Pre-commit hook：husky + lint-staged，自动对 TS/JSON/YAML 文件执行 eslint --fix 和 prettier --write
-- CHANGELOG.md：遵循 Keep a Changelog 规范
-- On-call runbook SRE 标准要素：Escalation 路径、SLA/SLO、事故分级、Postmortem 模板
-
-### Changed
-
-- Dockerfile：builder 阶段添加 esbuild 打包步骤，runner 阶段 CMD 从 `node --import tsx` 改为 `node dist/server.js`
-- Dockerfile（3 个）：基础镜像添加 digest pinning 注释，标记 CI 自动更新 TODO
-- 数据库初始化：`initSchema` 从单次全量创建改为基于版本号的增量迁移系统
-
-### Security
-
-- 镜像 digest pinning：3 个 Dockerfile 的基础镜像添加 `@sha256` pinning 注释，防止供应链攻击
-- 缓存版本号机制：防止多实例部署时返回过期数据
