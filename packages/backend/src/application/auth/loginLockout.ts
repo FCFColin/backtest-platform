@@ -4,7 +4,7 @@ import { logger } from '../../utils/logger.js';
 import { requireRedis } from '../../utils/redisFallback.js';
 import { config } from '../../config/index.js';
 import { authIpLockoutCounter } from '../../utils/metrics.js';
-import { createHash } from 'node:crypto';
+import { sha256Hex } from '../../utils/crypto.js';
 
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCKOUT_DURATION_SEC = 15 * 60;
@@ -15,10 +15,6 @@ const LOCK_PREFIX = 'login_lock:';
 
 const IP_FAIL_PREFIX = 'login_ip_fail:';
 const IP_LOCK_PREFIX = 'login_ip_lock:';
-
-function hashIp(ip: string): string {
-  return createHash('sha256').update(ip).digest('hex');
-}
 
 function normalize(username: string): string {
   return username.trim().toLowerCase();
@@ -64,12 +60,12 @@ export async function clearFailures(username: string): Promise<void> {
 
 export async function isIpBlocked(ip: string): Promise<number> {
   if (!ip) return 0;
-  return lockTtl(IP_LOCK_PREFIX + hashIp(ip));
+  return lockTtl(IP_LOCK_PREFIX + sha256Hex(ip));
 }
 
 export async function recordIpFailure(ip: string): Promise<void> {
   if (!ip) return;
-  const hashedIp = hashIp(ip);
+  const hashedIp = sha256Hex(ip);
   const failKey = IP_FAIL_PREFIX + hashedIp;
   const lockKey = IP_LOCK_PREFIX + hashedIp;
   const windowSec = config.ANOMALY_LOGIN_WINDOW_SEC;
