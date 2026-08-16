@@ -81,7 +81,6 @@ async function retryWithBackoff<T>(
 
 export class EngineUnavailableError extends Error {
   readonly retryAfterSeconds: number;
-  readonly code = 'ENGINE_UNAVAILABLE';
   constructor(endpoint: string, retryAfterSeconds = 30) {
     super(`计算引擎暂不可用（${endpoint}），请稍后重试`);
     this.name = 'EngineUnavailableError';
@@ -98,8 +97,6 @@ export async function callEngineStrict<T>(
   try {
     const result = await retryWithBackoff(() => goCircuitBreaker.fire(endpoint, body));
     const elapsed = Date.now() - t0;
-    recordEngineCall('success');
-    engineCallDuration.observe({ result: 'success' }, elapsed / 1000);
     logger.info(`[callEngineStrict] ${endpoint} Go 引擎耗时 ${elapsed}ms`);
 
     // 引擎统一 { success, data } 包络（engine-go handlers.go okJSON），返回 data
@@ -116,6 +113,9 @@ export async function callEngineStrict<T>(
         );
       }
     }
+    // success 指标在契约校验通过后才记录（校验失败属内部错误，不计入 success 也不复用 success+unavailable 双计）
+    recordEngineCall('success');
+    engineCallDuration.observe({ result: 'success' }, elapsed / 1000);
     return data;
   } catch (err) {
     const elapsed = Date.now() - t0;
