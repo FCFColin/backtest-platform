@@ -26,7 +26,7 @@ vi.mock('../../../packages/backend/src/app.js', () => ({
 
 import { mockEnvModule } from '../../helpers/mockFactories.js';
 vi.mock('../../../packages/backend/src/config/env.js', () =>
-  mockEnvModule({ API_PORT: 5001, NODE_ENV: 'test' }),
+  mockEnvModule({ API_PORT: 5001, NODE_ENV: 'test', EMAIL_TRANSPORT: 'console' }),
 );
 
 vi.mock('../../../packages/backend/src/infrastructure/dataFacade.js', () => ({

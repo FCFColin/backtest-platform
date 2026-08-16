@@ -90,6 +90,8 @@ export function validateConfig(): void {
 
   if (Number.isNaN(config.TRUST_PROXY_HOPS) || config.TRUST_PROXY_HOPS < 0)
     errors.push('TRUST_PROXY_HOPS 必须为非负整数');
+  if (config.EMAIL_TRANSPORT !== 'smtp' && config.EMAIL_TRANSPORT !== 'console')
+    errors.push('EMAIL_TRANSPORT 必须为 smtp 或 console');
   if (config.EMAIL_TRANSPORT === 'smtp' && !config.EMAIL_SMTP_HOST)
     errors.push('EMAIL_TRANSPORT=smtp 时必须设置 EMAIL_SMTP_HOST');
 

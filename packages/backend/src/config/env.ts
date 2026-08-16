@@ -46,7 +46,8 @@ export function parseCorsOrigins(raw: string | undefined): CorsOrigins {
 
 export function requireSecret(name: string): string {
   const value = process.env[name];
-  if (!value) throw new Error(`${name} is required. Set it in .env (see .env.example).`);
+  if (!value || value.trim() === '')
+    throw new Error(`${name} is required. Set it in .env (see .env.example).`);
   return value;
 }
 
