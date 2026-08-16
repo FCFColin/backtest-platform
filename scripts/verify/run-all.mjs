@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { readdirSync, readFileSync, writeFileSync, existsSync, unlinkSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
@@ -11,8 +11,6 @@ const OUTPUT_DIR = join(PROJECT_ROOT, 'docs', 'audit', 'verify');
 const args = process.argv.slice(2);
 const onlyArg = args.find((a) => a.startsWith('--only='))?.split('=')[1];
 const patternArg = args.find((a) => a.startsWith('--pattern='))?.split('=')[1];
-const skipFrontend = args.includes('--skip-frontend');
-const skipDb = args.includes('--skip-db');
 const runStartMs = Date.now();
 
 const allScripts = readdirSync(VERIFY_DIR)
@@ -22,8 +20,6 @@ const allScripts = readdirSync(VERIFY_DIR)
 let scripts = allScripts;
 if (onlyArg) scripts = allScripts.filter((f) => f.startsWith(onlyArg));
 else if (patternArg) scripts = allScripts.filter((f) => new RegExp(patternArg).test(f));
-if (skipFrontend) scripts = scripts.filter((f) => f !== 'verify-frontend.mjs');
-if (skipDb) scripts = scripts.filter((f) => f !== 'verify-backend.mjs');
 
 console.log(`\n=== Critical Fixes Verification Runner ===`);
 console.log(`Found ${scripts.length} verification script(s) to run\n`);
@@ -42,6 +38,8 @@ for (const script of scripts) {
     encoding: 'utf-8',
     env: { ...process.env, FORCE_COLOR: '0' },
     timeout: 600000,
+    // 同 _lib.runCmd：脚本 stdout 可能超 1MB（如 depcruise JSON），默认上限会抛 ERR_CHILD_PROCESS_STDIO_MAXBUFFER
+    maxBuffer: 32 * 1024 * 1024,
   });
   const elapsed = Date.now() - start;
   const exitCode = r.status ?? -1;
@@ -75,6 +73,15 @@ if (existsSync(OUTPUT_DIR)) {
         issueResults.push({ issueId: id, script: aggregateId, ...sub });
       }
     } else if (data.issueId) issueResults.push({ ...data, script: aggregateId });
+  }
+}
+
+// 全量运行时清理已退役脚本的过期报告（ADR-017 曾留下 verify-backend/-frontend 的 stale 产物）
+if (!onlyArg && !patternArg && existsSync(OUTPUT_DIR)) {
+  const activeIds = new Set(scripts.map((s) => s.replace(/\.mjs$/, '')));
+  for (const f of readdirSync(OUTPUT_DIR)) {
+    if (f.endsWith('-reverify.json') && !activeIds.has(f.replace(/-reverify\.json$/, '')))
+      unlinkSync(join(OUTPUT_DIR, f));
   }
 }
 

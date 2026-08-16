@@ -3,7 +3,6 @@ try {
 } catch {}
 import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, statSync } from 'node:fs';
 import { execSync } from 'node:child_process';
-import { createRequire } from 'node:module';
 import { join, resolve, sep } from 'node:path';
 
 const PROJECT_ROOT = resolve(process.cwd());
@@ -12,9 +11,6 @@ mkdirSync(OUTPUT_DIR, { recursive: true });
 mkdirSync(join(OUTPUT_DIR, 'screenshots'), { recursive: true });
 
 // pg 只存在于 backend workspace（pnpm 不提升到根），经 backend 的 require 解析
-export const loadPg = () =>
-  createRequire(join(PROJECT_ROOT, 'packages/backend/package.json'))('pg');
-
 export function writeAggregatedResult(aggregateId, results) {
   const timestamp = new Date().toISOString();
   const allPass = Object.values(results).every((r) => r.status === 'PASS');
@@ -29,20 +25,6 @@ export function writeAggregatedResult(aggregateId, results) {
     `[${allPass ? '✓' : '✗'} ${aggregateId}] overall=${allPass ? 'PASS' : 'FAIL'} (${Object.keys(results).length} sub-checks)`,
   );
   return allPass;
-}
-
-export async function withDb(fn, opts = {}) {
-  const pg = loadPg();
-  const url = opts.useAppRole
-    ? process.env.APP_DATABASE_URL || process.env.DATABASE_URL
-    : process.env.DATABASE_URL || process.env.APP_DATABASE_URL;
-  const client = new pg.Client({ connectionString: url });
-  await client.connect();
-  try {
-    return await fn(client);
-  } finally {
-    await client.end();
-  }
 }
 
 export function fileExists(relativePath) {
@@ -134,6 +116,8 @@ export function runCmd(cmd, opts = {}) {
       encoding: 'utf-8',
       cwd: PROJECT_ROOT,
       timeout: opts.timeout ?? 60000,
+      // 默认 1MB 上限会截断 depcruise 等大 JSON 输出（C-024 历史回归：stdout 位置 ~1MB 处解析失败）
+      maxBuffer: opts.maxBuffer ?? 16 * 1024 * 1024,
       stdio: ['ignore', 'pipe', 'pipe'],
       env: { ...process.env, ...(opts.env ?? {}) },
     });

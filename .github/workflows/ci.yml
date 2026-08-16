@@ -79,7 +79,7 @@ jobs:
       - run: pnpm format:check
       - run: pnpm check
       # 层间依赖纪律门禁（C-024）：只 gate 分层规则，no-circular 配置为 warn 仅记录
-      - run: pnpm run depcheck:layer
+      # 注意：verify-depcruise 经 run-all 在 critical-verify job 统一执行（C-015 门禁），此处不重复
       # 重复代码门禁（jscpd --threshold 5）：与 DADR-052 依赖/健康门禁配套
       - run: pnpm run simplify
       # i18n 键完整性门禁：防止收敛误删仍被引用的键（历史回归：e8a0d805 / 83f9be11）
@@ -145,12 +145,12 @@ jobs:
             engine-go/go.sum
             data-fetcher/go.sum
             packages/go-shared/go.sum
-      # 静态验证门禁（verify-static 不依赖 DB/前端，--skip 不影响其执行）：
+      # 静态验证门禁（verify-static 不依赖 DB/前端，纯静态执行）：
       # C-015 ADR 一致性 / C-016 CHANGELOG / C-017 迁移 / C-019 前端死代码等
       # 注意：verify:critical 同时内含 C-014 —— engine-go 的 `go test -race` + 覆盖率门禁，
       # 故 Go 单测在本 job 执行，勿误以为 PR CI 不含 Go 测试
       - name: Run static verification scripts
-        run: pnpm verify:critical --skip-db --skip-frontend
+        run: pnpm verify:critical
       # Go 官方漏洞扫描：基于调用图只报实际受影响漏洞；版本固定（@v1.7.0）符合供应链固定纪律
       - name: govulncheck (engine-go)
         run: go run golang.org/x/vuln/cmd/govulncheck@v1.7.0 ./...

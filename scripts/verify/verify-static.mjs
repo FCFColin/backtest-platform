@@ -1,5 +1,5 @@
 // scripts/verify/verify-static.mjs
-// 纯静态 CRITICAL 修复验证：不依赖 DB/前端服务，CI 始终执行（--skip-db 仅跳过 verify-backend.mjs，不影响本脚本）
+// 纯静态 CRITICAL 修复验证：不依赖 DB/前端服务，CI 始终执行
 // C-015 (ADR) + C-016 (CHANGELOG) + C-017 (migration chain) + C-018 (singleflight) + C-019 (frontend dead code)
 // + C-020 (engine timeout) + C-021 (BullMQ DLQ) + C-022 (OpenAPI) + C-023 (degraded)
 import { existsSync, readdirSync } from 'node:fs';
@@ -15,11 +15,6 @@ import {
 } from './_lib.mjs';
 
 const results = {};
-
-const regLines = (p) =>
-  readFileContent(p)
-    .split('\n')
-    .filter((l) => !/^\s*(\/\/|\*)/.test(l));
 
 // ── C-015: ADR 索引与文件一致性 ──────────────────────────────
 await runCheck(results, 'C-015', () => {
@@ -86,28 +81,14 @@ await runCheck(results, 'C-016', () => {
 });
 
 // ── C-017: 迁移文件与注册表对齐 ───────────────────────────────
+// 委托 scripts/check-migrations.mjs（命名/序号/UP-DOWN/注册表全量检查），避免双份解析漂移
 await runCheck(results, 'C-017', () => {
-  const dir = join(process.cwd(), 'migrations');
-  let allFiles = [];
-  try {
-    allFiles = readdirSync(dir).filter((f) => f.endsWith('.sql'));
-  } catch (e) {
-    return { status: 'FAIL', summary: `无法读取 migrations: ${e.message}` };
-  }
-  const regPath = 'packages/backend/src/db/migrations.ts';
-  const regExists = fileExists(regPath);
-  const registered = regExists
-    ? regLines(regPath)
-        .flatMap((l) => [...l.matchAll(/(?:upFile|downFile):\s*'([^']+)'/g)].map((m) => m[1]))
-        .filter(Boolean)
-    : [];
-  const orphans = allFiles.filter((f) => !registered.includes(f));
-  const missingReg = registered.filter((f) => !allFiles.includes(f));
-  const pass = regExists && orphans.length === 0 && missingReg.length === 0;
+  const r = runCmd('node scripts/check-migrations.mjs', { timeout: 120000 });
   return {
-    status: pass ? 'PASS' : 'FAIL',
-    summary: `orphans=${orphans.length}, missing_reg=${missingReg.length}, registered=${registered.length}`,
-    details: { orphans, missingReg },
+    status: r.code === 0 ? 'PASS' : 'FAIL',
+    summary:
+      r.code === 0 ? 'check-migrations.mjs 通过' : `check-migrations.mjs 失败 (exit ${r.code})`,
+    details: { exitCode: r.code, outputTail: (r.out + r.err).slice(-2000) },
   };
 });
 

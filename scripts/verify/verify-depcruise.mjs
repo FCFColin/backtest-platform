@@ -1,14 +1,12 @@
 // scripts/verify/verify-depcruise.mjs
-// C-024: 层间纪律门禁 — 只对 4 条层间规则（domain-zero-deps/no-reverse-layer/utils-no-routes/frontend-no-backend）
-// 做 error 门禁；no-circular 配置为 warn（既有环是前端组件族独立工作线，不阻塞 CI），仅记录数量。
+// C-024: 层间纪律门禁 — 对 depcruise 配置中全部 error 级规则做门禁（单一口径，不再重复清单）；
+// no-circular 配置为 warn（既有环是前端组件族独立工作线，不阻塞 CI），仅记录数量。
 import { runCmd, runCheck, finishVerify } from './_lib.mjs';
+import layerConfig from '../../.dependency-cruiser.config.mjs';
 
-const LAYER_RULES = new Set([
-  'domain-zero-deps',
-  'no-reverse-layer',
-  'utils-no-routes',
-  'frontend-no-backend',
-]);
+const LAYER_RULES = new Set(
+  layerConfig.forbidden.filter((r) => r.severity === 'error').map((r) => r.name),
+);
 
 const results = {};
 
