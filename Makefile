@@ -38,8 +38,8 @@ test: ## 全部测试（vitest）
 test-unit: ## 单元测试
 	pnpm run test:unit
 
-bench: ## Go 引擎性能基准（engine-go benchmarks）
-	cd engine-go && go test -bench=. -benchmem ./...
+bench: ## Go 性能基准（engine-go + data-fetcher）
+	cd engine-go && go test -bench=. -benchmem ./... && cd ../data-fetcher && go test -bench=. -benchmem ./...
 
 audit: ## 供应链审计（prod 依赖漏洞阻断）
 	pnpm run audit:supply
@@ -57,5 +57,5 @@ go-test: ## Go 竞态测试
 go-vet: ## Go 静态检查
 	cd engine-go && go vet ./... && cd ../data-fetcher && go vet ./...
 
-fmt: ## 格式化（prettier）
-	pnpm exec prettier --write .
+fmt: ## 格式化（prettier，等价 pnpm format）
+	pnpm run format
