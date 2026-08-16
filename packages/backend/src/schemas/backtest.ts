@@ -72,8 +72,8 @@ const backtestParametersSchema = z
     adjustForInflation: z.boolean().optional(),
     rollingWindowMonths: z.number().int().positive().optional(),
     benchmarkTicker: z.string().optional(),
-    cashflowLegs: z.array(cashflowLegSchema).optional(),
-    oneTimeCashflows: z.array(oneTimeCashflowSchema).optional(),
+    cashflowLegs: z.array(cashflowLegSchema).max(100).optional(),
+    oneTimeCashflows: z.array(oneTimeCashflowSchema).max(100).optional(),
   })
   .refine((data) => !data.startDate || !data.endDate || data.startDate <= data.endDate, {
     message: 'startDate must be before or equal to endDate',

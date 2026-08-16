@@ -1,8 +1,14 @@
 import { z } from 'zod';
 import { SIGNAL_TYPES } from '@backtest/shared/constants';
+import { isValidTicker } from '../utils/tickerValidation.js';
 
 export const assetSchema = z.object({
-  ticker: z.string().trim().min(1).max(32),
+  ticker: z
+    .string()
+    .trim()
+    .min(1)
+    .max(32)
+    .refine((t) => isValidTicker(t.toUpperCase())),
   weight: z.number().nonnegative(),
 });
 
