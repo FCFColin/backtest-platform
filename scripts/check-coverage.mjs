@@ -90,19 +90,18 @@ const PER_FILE_EXCLUDE_SUFFIXES = [
   'packages/frontend/src/utils/constants.ts',
 ];
 
-const failures = [],
-  malformedFiles = [];
+const failures = [];
 let checkedCount = 0;
 const normalize = (p) => p.replace(/\\/g, '/');
 
 for (const [fileKey, data] of Object.entries(summary)) {
   if (fileKey === 'total') continue;
   const f = normalize(fileKey);
-  if (!ALLOWED_PREFIXES.some((p) => f.includes(p))) continue;
+  if (!ALLOWED_PREFIXES.some((p) => f.startsWith(p))) continue;
   if (PER_FILE_EXCLUDE_SUFFIXES.some((s) => f.endsWith(s))) continue;
   if (f.endsWith('.test.ts') || f.endsWith('.test.tsx') || f.endsWith('.d.ts')) continue;
-  if (!data || typeof data !== 'object' || !data.lines || typeof data.lines.pct !== 'number') {
-    malformedFiles.push({ file: f });
+  if (typeof data?.lines?.pct !== 'number') {
+    console.warn(`[coverage] 跳过无覆盖率数据的文件: ${f}`);
     continue;
   }
   checkedCount++;
@@ -123,11 +122,6 @@ if (globalFailures.length) {
   globalFailures.forEach((f) => console.log(`     ${f.reason}`));
 }
 console.log(`\n  检查文件: ${checkedCount} 个（每文件行覆盖率阈值 ${MIN_LINE_COVERAGE}%）`);
-if (malformedFiles.length) {
-  console.log(`\n  ⚠️  格式异常跳过（${malformedFiles.length} 个）:`);
-  malformedFiles.slice(0, 20).forEach((f) => console.log(`     ${f.file}`));
-  if (malformedFiles.length > 20) console.log(`     ... 还有 ${malformedFiles.length - 20} 个`);
-}
 if (failures.length) {
   console.log(`\n  ⚠️  未达标文件（${failures.length} 个）:`);
   failures
