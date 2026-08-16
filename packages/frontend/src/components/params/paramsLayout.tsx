@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { ReactNode, CSSProperties } from 'react';
-import { ChevronDown, Info } from 'lucide-react';
-import { Card } from '@/components/ui/uiComponents';
+import { ChevronDown } from 'lucide-react';
+import { Card, InfoTooltip } from '@/components/ui/uiComponents';
 import { cn } from '@/lib/utils';
 interface ParamRowProps {
   children: ReactNode;
@@ -67,19 +67,7 @@ export function ParamGroup({
             </span>
           )}
         </button>
-        {info && (
-          <div className="relative inline-flex group mr-2 shrink-0">
-            <Info
-              className="size-3.5 cursor-help text-fg-tertiary rounded focus-visible:ring-2"
-              tabIndex={0}
-              role="img"
-              aria-label={info}
-            />
-            <div className="absolute right-0 top-6 hidden group-hover:block group-focus-within:block z-10 w-60 rounded-md border border-border bg-elevated p-2 text-caption text-fg-secondary leading-relaxed shadow-lg whitespace-normal">
-              {info}
-            </div>
-          </div>
-        )}
+        {info && <InfoTooltip description={info} />}
       </div>
       {expanded && <div className="pb-4 pt-2">{children}</div>}
     </div>

@@ -497,10 +497,10 @@ export function MiniSelect<T extends string | number>({
       value={value}
       onChange={(e) => onChange(e.target.value as T)}
       className={cn(
-        'bg-input-bg text-fg border border-border-subtle rounded font-medium cursor-pointer',
+        'bg-input-bg text-fg border border-border-subtle rounded font-medium cursor-pointer text-xs px-2 py-1',
         className,
       )}
-      style={{ ...(width !== undefined ? { width } : {}), fontSize: 12, padding: '4px 8px' }}
+      style={width !== undefined ? { width } : undefined}
     >
       {options.map((o) => (
         <option key={String(o.value)} value={o.value}>

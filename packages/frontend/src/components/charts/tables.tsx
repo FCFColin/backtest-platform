@@ -36,16 +36,12 @@ export function MatrixHeatmap({
       <table className="border-collapse">
         <thead>
           <tr>
-            <th
-              className="px-3 py-2 text-label-tiny font-medium"
-              style={{ color: 'hsl(var(--fg-tertiary))' }}
-            />
+            <th className="px-3 py-2 text-label-tiny font-medium text-fg-tertiary" />
             {columnLabels.map((col) => (
               <th
                 key={col}
                 scope="col"
-                className="px-3 py-2 text-label-tiny font-medium text-center"
-                style={{ color: 'hsl(var(--fg-tertiary))' }}
+                className="px-3 py-2 text-label-tiny font-medium text-center text-fg-tertiary"
               >
                 {col}
               </th>
@@ -55,12 +51,7 @@ export function MatrixHeatmap({
         <tbody>
           {rowLabels.map((rowLabel, i) => (
             <tr key={rowLabel}>
-              <td
-                className="px-3 py-2 text-caption font-medium"
-                style={{ color: 'hsl(var(--fg-secondary))' }}
-              >
-                {rowLabel}
-              </td>
+              <td className="px-3 py-2 text-caption font-medium text-fg-secondary">{rowLabel}</td>
               {columnLabels.map((colLabel, j) => {
                 const value = matrix[i]?.[j] ?? 0;
                 const titleText = formatTitle
