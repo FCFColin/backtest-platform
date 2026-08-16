@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import { logger } from '../utils/logger.js';
-import { sendProblem } from '../utils/errors.js';
+import { ApplicationError, sendProblem } from '../utils/errors.js';
 import { translateToProblem } from '../utils/errorMapper.js';
 
 // body-parser 抛出的实体错误带 status 与 type（entity.too.large/entity.parse.failed），其余未知错误一律 500
@@ -10,10 +10,18 @@ function isBodyParserError(error: Error): error is Error & { status: number } {
 
 export function errorHandler(error: Error, req: Request, res: Response, _next: NextFunction): void {
   const userId = (req as { user?: { sub?: string } }).user?.sub;
-  logger.error(
-    { err: error, requestId: req.id, method: req.method, path: req.path, ip: req.ip, userId },
-    '[Server Error]',
-  );
+  const log = {
+    err: error,
+    requestId: req.id,
+    method: req.method,
+    path: req.path,
+    ip: req.ip,
+    userId,
+  };
+  // 客户端入参错误（4xx ApplicationError）属预期路径，降级 warn 避免与真实服务故障混淆
+  const clientError = error instanceof ApplicationError && error.statusCode < 500;
+  if (clientError) logger.warn(log, '[Request Error]');
+  else logger.error(log, '[Server Error]');
   if (translateToProblem(res, error)) return;
   if (isBodyParserError(error)) {
     // 413 Payload Too Large / 400 JSON 语法错误：映射到客户端错误而非 500

@@ -1,11 +1,11 @@
 import rateLimit from 'express-rate-limit';
 import { RedisStore, type RedisReply } from 'rate-limit-redis';
-import crypto from 'crypto';
 import client from 'prom-client';
 import type { Request, Response, NextFunction, RequestHandler } from 'express';
 import { config } from '../config/index.js';
 import { appRedis, getRedisHealth } from '../infrastructure/redisClient.js';
 import { logger } from '../utils/logger.js';
+import { sha256Hex } from './crypto.js';
 import { getPrometheusRegister } from './metrics.js';
 import { RedisUnavailableError } from './errors.js';
 import { RT_COOKIE } from '../middleware/authShared.js';
@@ -66,17 +66,18 @@ function createRateLimiterStore(prefix: string): RedisStore | undefined {
   }
 }
 
+const hashCredential = (v: string): string => sha256Hex(v).slice(0, 16);
+
 function computeRateLimitKey(req: Request): string {
   // 限流先于认证执行，JWT payload 可被伪造，不得信任——按原始 token 哈希分桶，
   // 伪造 token 只会烧自己桶，无法污染目标用户配额
   const authHeader = req.headers.authorization;
   if (typeof authHeader === 'string' && authHeader.startsWith('Bearer ')) {
     const token = authHeader.slice(7).trim();
-    return `token:${crypto.createHash('sha256').update(token).digest('hex').slice(0, 16)}`;
+    return `token:${hashCredential(token)}`;
   }
   const apiKey = req.headers['x-api-key'];
-  if (typeof apiKey === 'string' && apiKey.length > 0)
-    return `apikey:${crypto.createHash('sha256').update(apiKey).digest('hex').slice(0, 16)}`;
+  if (typeof apiKey === 'string' && apiKey.length > 0) return `apikey:${hashCredential(apiKey)}`;
   return req.ip ?? '';
 }
 
@@ -107,14 +108,12 @@ function authRateLimitKey(req: Request): string {
     { username?: string; apiKey?: string; refreshToken?: string } | undefined;
   // 与 loginLockout 归一化一致（trim+lowercase），否则大小写/空白变体可拆分同一账户的限流预算
   if (body?.username) return `user:${body.username.trim().toLowerCase()}`;
-  if (body?.apiKey)
-    return `apikey:${crypto.createHash('sha256').update(body.apiKey).digest('hex').slice(0, 16)}`;
-  if (body?.refreshToken)
-    return `refresh:${crypto.createHash('sha256').update(body.refreshToken).digest('hex').slice(0, 16)}`;
+  if (body?.apiKey) return `apikey:${hashCredential(body.apiKey)}`;
+  if (body?.refreshToken) return `refresh:${hashCredential(body.refreshToken)}`;
   // refresh 端点凭据走 HttpOnly cookie（authRoutes），body 可能为空——按 cookie 分桶，避免共享 IP 挤占同一限流预算
   const refreshCookie = req.cookies?.[RT_COOKIE];
   if (typeof refreshCookie === 'string' && refreshCookie.length > 0)
-    return `refresh:${crypto.createHash('sha256').update(refreshCookie).digest('hex').slice(0, 16)}`;
+    return `refresh:${hashCredential(refreshCookie)}`;
   return req.ip ?? '';
 }
 
@@ -122,7 +121,7 @@ function buildRateLimitMessage(code: string, detail?: string) {
   return {
     success: false,
     error: {
-      type: 'https://backtest.platform/errors/rate-limited',
+      type: `https://backtest.platform/errors/${code}`,
       title: code,
       status: 429,
       code,
@@ -149,10 +148,10 @@ function createDenyAllLimiter(code: string, detail: string): RequestHandler {
       .json({
         success: false,
         error: {
-          type: 'https://backtest.platform/errors/service-unavailable',
+          type: `https://backtest.platform/errors/${code}`,
           title: code,
           status: 503,
-          code: 'SERVICE_UNAVAILABLE',
+          code,
           detail: `Rate limiter unavailable: ${detail}. Redis is required for distributed rate limiting.`,
           instance: req.path,
         },

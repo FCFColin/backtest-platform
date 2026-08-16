@@ -170,8 +170,9 @@ export function setupBacktestWebSocket(server: Server): WebSocketServer {
         wss.handleUpgrade(req, socket, head, (ws) => handleConnection(ws, jobId, payload.sub));
       })
       .catch((err) => {
-        logger.warn({ err: String(err), jobId }, '[ws] verifyToken 抛出异常');
-        rejectHandshake(socket, 401, 'Unauthorized');
+        // verifyToken/getJob 抛错 = JWT/Redis/BullMQ 内部故障，非凭证无效（401 由内层分支处理），fail-closed 503（ADR-008）
+        logger.warn({ err: String(err), jobId }, '[ws] 握手内部服务异常');
+        rejectHandshake(socket, 503, 'Service Unavailable');
       });
   });
   logger.info('[ws] Backtest WebSocket 服务端已挂载 (/api/v1/ws/runs/:jobId)');

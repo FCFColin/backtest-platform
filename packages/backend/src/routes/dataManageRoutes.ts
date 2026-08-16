@@ -33,7 +33,12 @@ function updateRoute(mode: 'full' | 'incremental' | 'stop', code: string) {
   return crudRouteHandler(
     async (_req, res): Promise<void> => {
       const result = mode === 'stop' ? await stopUpdate() : await startUpdate(mode);
-      res.json({ success: result.success, data: result });
+      // 失败时 error 承载 message，成功时 data 含 message/jobId（前端按 json.success 分支渲染）
+      res.json(
+        result.success
+          ? { success: true, data: result }
+          : { success: false, error: result.message },
+      );
     },
     { logMsg: `[dataManage] ${UPDATE_LOG[mode]}失败`, code },
   );

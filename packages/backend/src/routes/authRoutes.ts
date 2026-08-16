@@ -238,7 +238,7 @@ router.delete(
         logger.info('[auth] Refresh Token 已撤销');
       }
       res.clearCookie(RT_COOKIE, RT_COOKIE_CLEAR); // 无论 RT 是否存在都清除，避免浏览器残留过期凭证
-      res.json({ success: true });
+      res.json({ success: true, data: null });
     },
     { logMsg: 'Logout error', code: 'LOGOUT_ERROR', endpoint: 'auth-logout' },
   ),

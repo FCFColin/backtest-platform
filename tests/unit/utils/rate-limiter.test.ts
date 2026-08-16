@@ -224,9 +224,9 @@ describe('P0-05: Redis 不可用 → 限流 fail-closed (503)', () => {
         expect.objectContaining({
           success: false,
           error: expect.objectContaining({
-            type: 'https://backtest.platform/errors/service-unavailable',
+            type: 'https://backtest.platform/errors/RATE_LIMITED',
             status: 503,
-            code: 'SERVICE_UNAVAILABLE',
+            code: 'RATE_LIMITED',
           }),
         }),
       );
