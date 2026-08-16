@@ -15,12 +15,12 @@ GDPR: 被遗忘权(anonymize)、最小化(username+email+hash)、可追溯(HMAC 
 
 ## 2. 加密策略
 
-| 层级           | 对象                | 算法                                  | 密钥管理                    |
-| -------------- | ------------------- | ------------------------------------- | --------------------------- |
-| 传输           | 网络通信            | TLS 1.2/1.3                           | Let's Encrypt               |
-| 密码 / API Key | 用户密码 / 组织密钥 | argon2id + SHA-256 索引               | 内置盐 / K8s Secret         |
-| 审计 / JWT     | HMAC 签名 / Token   | HMAC-SHA256 / RS256(生产) HS256(开发) | AUDIT_HMAC_KEY / K8s Secret |
-| 备份           | WAL-G               | Brotli + 可选 KMS                     | WALG_ENVELOP                |
+| 层级           | 对象                | 算法                                  | 密钥管理                                                          |
+| -------------- | ------------------- | ------------------------------------- | ----------------------------------------------------------------- |
+| 传输           | 网络通信            | TLS 1.2/1.3                           | Let's Encrypt                                                     |
+| 密码 / API Key | 用户密码 / 组织密钥 | argon2id + SHA-256 索引               | 内置盐 / K8s Secret                                               |
+| 审计 / JWT     | HMAC 签名 / Token   | HMAC-SHA256 / RS256(生产) HS256(开发) | AUDIT_HMAC_KEY / K8s Secret                                       |
+| 备份           | WAL-G               | Brotli + 可选 KMS                     | `docker/wal-g/env` 注入（dev 默认 MinIO 凭据；生产走 K8s Secret） |
 
 轮换: JWT 90 天（新钥签名→等 TTL→移旧公钥）；审计 HMAC 180 天（新日志新钥, 旧钥验历史）。TLS 最低 1.2, 推荐 1.3；仅 AES-GCM + ChaCha20-Poly1305。
 
@@ -36,7 +36,7 @@ JWT / x-api-key / Idempotency-Key / break-glass 模型见 ADR-007。
 
 ## 5. 备份与恢复
 
-方案与 RTO/RPO 目标：WAL-G 每日全量+实时 WAL 保留 7 份、Redis RDB、K8s Secret；恢复流程：`bash scripts/backup-restore.sh LATEST`、PITR 用 recovery_target_time、pg_verifybackup + WAL 完整性验证。（当前仅 docker-compose 落地 wal-g+ofelia 每日备份与 7 份保留；k8s 生产未落地 PITR，见 k8s/postgres.yaml。）
+方案与 RTO/RPO 目标：WAL-G 每日全量+实时 WAL 保留 7 份、K8s Secret；恢复流程：`bash scripts/backup-restore.sh LATEST`、PITR 用 recovery_target_time、pg_verifybackup + WAL 完整性验证。（当前仅 docker-compose 落地 wal-g+ofelia 每日备份与 7 份保留；Redis 持久化未启用，k8s 生产未落地 PITR，见 k8s/postgres.yaml。）
 
 ## 6. 等保对照
 

@@ -17,12 +17,7 @@
                        └──────────┘            └────────────┘
 ```
 
-| 服务        | 语言       | 目录                     | 端口  | 职责                                 |
-| ----------- | ---------- | ------------------------ | ----- | ------------------------------------ |
-| 前端 Web    | React/TS   | `packages/frontend/src/` | 15173 | UI 渲染、用户交互                    |
-| 后端 API    | Express/TS | `packages/backend/src/`  | 15001 | 路由编排、鉴权、降级调度             |
-| Go 计算引擎 | Go         | `engine-go/`             | 15004 | 主计算引擎（回测/MC/优化/前沿/分析） |
-| Go 数据服务 | Go         | `data-fetcher/`          | 15003 | 主数据服务                           |
+> 服务拓扑与端口（前端/API/Go 引擎/Go 数据服务/PostgreSQL/Redis）见 `docs/ARCHITECTURE.md §4`。
 
 降级策略（ADR-008 fail-closed）与多租户 SaaS（ADR-009/ADR-010）详见 `docs/adr/`。
 

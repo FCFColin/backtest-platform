@@ -75,7 +75,7 @@ CDC 扩展: Debezium → Kafka（多 Pod 扩展, 见 runbooks/cdc-debezium.md）
 
 ## 9. 限流分层
 
-apiLimiter(100/15min) > computeLimiter(10/min) > adminLimiter(30/min)。Redis 不可用 fail-closed。熔断器矩阵见 [ARCHITECTURE.md §9](../ARCHITECTURE.md#9-熔断器dADR-016-已删除行为保留)。
+apiLimiter(100/15min) > computeLimiter(10/min) > adminLimiter(30/min)。Redis 不可用 fail-closed。熔断器矩阵见 [ARCHITECTURE.md §9](../ARCHITECTURE.md)。
 
 ## 10. Go 引擎 (engine-go/)
 
