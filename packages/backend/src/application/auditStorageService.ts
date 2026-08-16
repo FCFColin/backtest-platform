@@ -126,7 +126,8 @@ export async function markExported(ids: string[], objectKey: string): Promise<vo
   if (ids.length === 0) return;
   await withPlatformContext((client) =>
     client.query(
-      `UPDATE audit_logs SET exported_at = NOW(), object_key = $2 WHERE id = ANY($1::uuid[])`,
+      // 仅标记仍未导出的行：并发/重复导出不会覆盖已导出的 object_key，保证幂等
+      `UPDATE audit_logs SET exported_at = NOW(), object_key = $2 WHERE id = ANY($1::uuid[]) AND exported_at IS NULL`,
       [ids, objectKey],
     ),
   );

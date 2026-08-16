@@ -28,6 +28,7 @@ const createKeySchema = z.object({
 router.post(
   '/keys',
   ...crudMiddleware(Permission.ADMIN_ACCESS),
+  auditLog,
   validate(createKeySchema),
   tenantHandler(
     '[apiKeyRoutes] 创建 API Key 失败',
@@ -64,6 +65,7 @@ router.get(
 router.delete(
   '/keys/:id',
   ...crudMiddleware(Permission.ADMIN_ACCESS),
+  auditLog,
   tenantHandler(
     '[apiKeyRoutes] 吊销 API Key 失败',
     'API_KEY_REVOKE_FAILED',

@@ -1,34 +1,29 @@
-import crypto from 'crypto';
 import type { Request, Response, NextFunction } from 'express';
 import { logger } from '../utils/logger.js';
 import type { PoolClient } from 'pg';
 import { getPool } from '../db/pool.js';
 import { writeEventInTransaction } from '../infrastructure/outbox.js';
 import { auditOutboxWriteFailures } from '../utils/metrics.js';
-import { signAuditEntry } from '../utils/auditCrypto.js';
+import { sha256Hex } from '../utils/crypto.js';
 import type { AuthenticatedRequest } from './authShared.js';
 
 const auditLogger = logger.child({ audit: true, module: 'audit' });
 const WRITE_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 function hashApiKey(apiKey: string | undefined): string {
-  return apiKey
-    ? crypto.createHash('sha256').update(apiKey).digest('hex').slice(0, 16)
-    : 'anonymous';
+  return apiKey ? sha256Hex(apiKey).slice(0, 16) : 'anonymous';
 }
 export async function writeOutboxEvent(
   auditEntry: Record<string, unknown>,
   client?: PoolClient,
 ): Promise<void> {
   const conn = client ?? getPool();
-  const payload = JSON.stringify(auditEntry);
-  const signature = signAuditEntry(payload);
   const eventId = crypto.randomUUID();
   try {
     await writeEventInTransaction(conn, {
       aggregateType: 'audit',
       aggregateId: String(auditEntry.userId || 'unknown'),
       eventType: 'AuditEvent',
-      payload: { ...auditEntry, signature },
+      payload: auditEntry,
       eventId,
     });
     logger.debug(
@@ -68,19 +63,8 @@ export function auditLog(req: Request, res: Response, next: NextFunction): void 
       userAgent: req.headers['user-agent'] || 'unknown',
       statusCode: res.statusCode,
       result: res.statusCode < 400 ? 'success' : 'failure',
+      requestId: req.id,
     };
-    logger.info(
-      {
-        middleware: 'auditLog',
-        method: req.method,
-        path: req.path,
-        userId,
-        statusCode: res.statusCode,
-        requestId: req.id,
-        audit: true,
-      },
-      '[auditLog] 审计记录写入',
-    );
     auditLogger.info(
       auditEntry,
       `[audit] ${req.method} ${req.originalUrl || req.url} → ${res.statusCode}`,
