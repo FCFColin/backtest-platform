@@ -75,10 +75,7 @@ func computePortfolioDailyReturns(portfolio MCPortfolioInput, priceData PriceDat
 	if len(portfolio.Assets) == 0 {
 		return nil, engineutil.NewInputError("组合无资产")
 	}
-	tradingDates, err := engineutil.ParseTradingDates(priceData)
-	if err != nil {
-		return nil, fmt.Errorf("解析交易日失败: %w", err)
-	}
+	tradingDates := engineutil.ParseTradingDates(priceData)
 	tradingDates = engineutil.FilterByDateRange(tradingDates, params.StartDate, params.EndDate)
 	if len(tradingDates) == 0 {
 		return nil, engineutil.NewInputError("日期范围内无交易数据")

@@ -12,10 +12,7 @@ import (
 )
 
 func RunBacktest(ctx context.Context, req BacktestRequest) (*BacktestResult, error) {
-	tradingDates, err := engineutil.ParseTradingDates(req.PriceData)
-	if err != nil {
-		return nil, fmt.Errorf("解析交易日失败: %w", err)
-	}
+	tradingDates := engineutil.ParseTradingDates(req.PriceData)
 	tradingDates = engineutil.FilterByDateRange(tradingDates, req.Params.StartDate, req.Params.EndDate)
 	if len(tradingDates) == 0 {
 		return nil, engineutil.NewInputError("日期范围内无交易数据")

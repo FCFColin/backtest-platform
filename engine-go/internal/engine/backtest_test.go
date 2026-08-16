@@ -51,10 +51,7 @@ func TestComputeBenchmarkGrowth(t *testing.T) {
 			"VTI": {"2023-01-03": 100, "2023-01-04": 101, "2023-01-05": 102, "2023-01-06": 103, "2023-01-09": 104},
 			"SPY": {"2023-01-03": 400, "2023-01-04": 402, "2023-01-06": 405, "2023-01-09": 408},
 		}
-		dates, err := engineutil.ParseTradingDates(priceData)
-		if err != nil {
-			t.Fatalf("ParseTradingDates 返回错误: %v", err)
-		}
+		dates := engineutil.ParseTradingDates(priceData)
 		curve := computeBenchmarkGrowth("SPY", priceData, dates, BacktestParams{StartingValue: 10000})
 		if len(curve) != 5 {
 			t.Fatalf("基准曲线应对齐全部交易日，实际 %d 点", len(curve))
@@ -70,10 +67,7 @@ func TestComputeBenchmarkGrowth(t *testing.T) {
 	})
 	t.Run("基准无任何价格应返回 nil", func(t *testing.T) {
 		priceData := PriceDataMap{"VTI": {"2023-01-03": 100, "2023-01-04": 101}}
-		dates, err := engineutil.ParseTradingDates(priceData)
-		if err != nil {
-			t.Fatalf("ParseTradingDates 返回错误: %v", err)
-		}
+		dates := engineutil.ParseTradingDates(priceData)
 		if curve := computeBenchmarkGrowth("SPY", priceData, dates, BacktestParams{}); curve != nil {
 			t.Fatalf("无价格基准应返回 nil，实际 %v", curve)
 		}
@@ -99,19 +93,13 @@ func TestComputeStatisticsBenchmarkDateAligned(t *testing.T) {
 func TestParseTradingDates(t *testing.T) {
 	t.Run("正常数据应返回排序日期", func(t *testing.T) {
 		priceData := PriceDataMap{"VTI": {"2023-01-03": 100, "2023-01-04": 101, "2023-01-05": 102}}
-		dates, err := engineutil.ParseTradingDates(priceData)
-		if err != nil {
-			t.Fatalf("parseTradingDates 返回错误: %v", err)
-		}
+		dates := engineutil.ParseTradingDates(priceData)
 		if len(dates) != 3 {
 			t.Errorf("期望 3 个日期，实际 %d", len(dates))
 		}
 	})
 	t.Run("空数据应返回空日期", func(t *testing.T) {
-		dates, err := engineutil.ParseTradingDates(PriceDataMap{})
-		if err != nil {
-			t.Fatalf("空数据不应返回错误: %v", err)
-		}
+		dates := engineutil.ParseTradingDates(PriceDataMap{})
 		if len(dates) != 0 {
 			t.Errorf("期望 0 个日期，实际 %d", len(dates))
 		}
@@ -119,7 +107,7 @@ func TestParseTradingDates(t *testing.T) {
 }
 func TestFilterByDateRange(t *testing.T) {
 	priceData := PriceDataMap{"VTI": {"2023-01-03": 100, "2023-01-04": 101, "2023-01-05": 102, "2023-01-06": 103}}
-	dates, _ := engineutil.ParseTradingDates(priceData)
+	dates := engineutil.ParseTradingDates(priceData)
 	t.Run("范围内过滤", func(t *testing.T) {
 		filtered := engineutil.FilterByDateRange(dates, "2023-01-04", "2023-01-05")
 		if len(filtered) != 2 {
@@ -159,7 +147,7 @@ func BenchmarkRunBacktest(b *testing.B) {
 }
 func BenchmarkComputeGrowthCurve(b *testing.B) {
 	req := newBenchBacktestRequest()
-	tradingDates, _ := engineutil.ParseTradingDates(req.PriceData)
+	tradingDates := engineutil.ParseTradingDates(req.PriceData)
 	tradingDates = engineutil.FilterByDateRange(tradingDates, req.Params.StartDate, req.Params.EndDate)
 	b.ResetTimer()
 	b.ReportAllocs()
