@@ -21,6 +21,7 @@
     "format:check": "prettier --check .",
     "check:frontend": "tsc --noEmit -p tsconfig.frontend.json",
     "check:backend": "tsc --noEmit -p tsconfig.backend.json",
+    "check:tests": "tsc --noEmit -p tsconfig.tests.node.json",
     "check": "turbo run check",
     "test": "vitest run --project node --project browser",
     "test:unit": "vitest run tests/unit",

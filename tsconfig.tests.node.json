@@ -1,0 +1,30 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "types": ["node", "vitest/globals", "vite/client"],
+    "paths": {
+      "@/*": ["./packages/frontend/src/*"],
+      "@backtest/shared": ["./packages/shared/types/index.ts"],
+      "@backtest/shared/*": ["./packages/shared/*"],
+      "*": [
+        "./packages/backend/node_modules/@types/*",
+        "./packages/frontend/node_modules/@types/*",
+        "./packages/backend/node_modules/*",
+        "./packages/frontend/node_modules/*",
+        "./node_modules/*"
+      ]
+    }
+  },
+  "include": [
+    "tests/unit/**/*.test.ts",
+    "tests/integration/**/*.test.ts",
+    "tests/contract/**/*.test.ts",
+    "tests/property/**/*.{test,pbt}.ts",
+    "tests/chaos/**/*.test.ts",
+    "tests/helpers/**/*.ts",
+    "tests/mocks/**/*.{ts,tsx}",
+    "tests/setup-browser.ts",
+    "packages/shared"
+  ]
+}

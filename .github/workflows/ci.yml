@@ -3,9 +3,9 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [master]
   pull_request:
-    branches: [main]
+    branches: [master]
 
 env:
   NODE_VERSION: '22'
@@ -78,6 +78,8 @@ jobs:
       - run: pnpm exec eslint . --max-warnings 10
       - run: pnpm format:check
       - run: pnpm check
+      # 测试套件类型门禁：tests/**（unit/integration/contract/property/chaos/helpers/mocks）全量 tsc
+      - run: pnpm check:tests
       # 层间依赖纪律门禁（C-024）：只 gate 分层规则，no-circular 配置为 warn 仅记录
       # 注意：verify-depcruise 经 run-all 在 critical-verify job 统一执行（C-015 门禁），此处不重复
       # 重复代码门禁（jscpd --threshold 5）：与 DADR-052 依赖/健康门禁配套
