@@ -39,6 +39,7 @@ export async function runMonteCarlo(
   );
 
   const limit = pLimit(ENGINE_CONCURRENCY_LIMIT);
+  const filteredPriceData = filterPriceData(priceData, allTickers);
   const results = await Promise.all(
     domainPortfolios.map((dp) =>
       limit(() =>
@@ -46,7 +47,7 @@ export async function runMonteCarlo(
           '/api/engine/monte-carlo',
           {
             portfolio: dp.toEngineBody(),
-            priceData: filterPriceData(priceData, allTickers),
+            priceData: filteredPriceData,
             params: buildEngineParams(effectiveParameters),
             cpiData,
             exchangeRates,
@@ -63,7 +64,8 @@ export async function runMonteCarlo(
   const dateRange = calculateDateRange(
     parameters.startDate,
     parameters.endDate,
-    priceData,
+    effectiveStartDate,
+    effectiveEndDate,
     invalidTickers.length > 0 ? invalidTickers : undefined,
   );
 

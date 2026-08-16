@@ -135,15 +135,14 @@ function inferDateRangeFromData(
   return minDate && maxDate ? { min: minDate, max: maxDate } : null;
 }
 
+// effective 日期由 preparePriceDataAndWarnings 已从数据推断，避免对 priceData 二次全量扫描
 export function calculateDateRange(
   startDate: string,
   endDate: string,
-  priceData: Record<string, Record<string, number>>,
+  effectiveStartDate: string,
+  effectiveEndDate: string,
   missingTickers?: string[],
 ): DateRangeInfo {
-  const inferredRange = inferDateRangeFromData(priceData);
-  const effectiveStartDate = inferredRange?.min ?? startDate;
-  const effectiveEndDate = inferredRange?.max ?? endDate;
   let clamped = false;
   if (startDate !== '' || endDate !== '') {
     if (startDate && effectiveStartDate > startDate) clamped = true;

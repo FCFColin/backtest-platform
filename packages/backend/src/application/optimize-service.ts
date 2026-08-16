@@ -37,11 +37,8 @@ async function runCompute(
   bodyExtra: Record<string, unknown>,
   schema: z.ZodType<unknown>,
 ): Promise<{ data: Record<string, unknown>; warnings: Warning[]; dateRange: DateRangeInfo }> {
-  const { priceData, warnings, invalidTickers, allTickers } = await preparePriceDataAndWarnings(
-    tickers,
-    parameters.startDate,
-    parameters.endDate,
-  );
+  const { priceData, warnings, invalidTickers, allTickers, effectiveStartDate, effectiveEndDate } =
+    await preparePriceDataAndWarnings(tickers, parameters.startDate, parameters.endDate);
   const result = await callEngineStrict<Record<string, unknown>>(
     path,
     {
@@ -54,7 +51,8 @@ async function runCompute(
   const dateRange = calculateDateRange(
     parameters.startDate,
     parameters.endDate,
-    priceData,
+    effectiveStartDate,
+    effectiveEndDate,
     invalidTickers,
   );
   return { data: result, warnings, dateRange };
@@ -170,11 +168,12 @@ export async function executeOptimization(body: Record<string, unknown>): Promis
   if (validationError) return { success: false, error: validationError };
   const allTickers = new Set(portfolio.assets.map((a) => a.ticker));
   if (parameters.benchmarkTicker) allTickers.add(parameters.benchmarkTicker);
-  const { priceData, warnings, invalidTickers } = await preparePriceDataAndWarnings(
-    Array.from(allTickers),
-    parameters.startDate,
-    parameters.endDate,
-  );
+  const { priceData, warnings, invalidTickers, effectiveStartDate, effectiveEndDate } =
+    await preparePriceDataAndWarnings(
+      Array.from(allTickers),
+      parameters.startDate,
+      parameters.endDate,
+    );
   if (invalidTickers.length > 0)
     return { success: false, error: `以下标的代码无效：${invalidTickers.join(', ')}` };
   const macro = await loadMacroData(parameters);
@@ -200,7 +199,12 @@ export async function executeOptimization(body: Record<string, unknown>): Promis
   logger.info(
     `[backtest-optimizer] 优化完成：${combos.length} 组合，${filtered.length} 通过过滤，耗时 ${Date.now() - startTime}ms`,
   );
-  const dateRange = calculateDateRange(parameters.startDate, parameters.endDate, priceData);
+  const dateRange = calculateDateRange(
+    parameters.startDate,
+    parameters.endDate,
+    effectiveStartDate,
+    effectiveEndDate,
+  );
   return {
     success: true,
     data: {

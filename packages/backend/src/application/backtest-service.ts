@@ -67,7 +67,7 @@ export async function runPortfolioBacktest(opts: {
     'portfolio-backtest',
   );
   onProgress?.(90);
-  const cacheKey = backtestCacheKey(portfolios, parameters, tenantId);
+  const cacheKey = backtestCacheKey(portfolios, effectiveParameters, tenantId);
   void setBacktestResultCache(cacheKey, result).catch((err) =>
     logger.error({ err, cacheKey }, '[backtest-service] Failed to set backtest result cache'),
   );
@@ -75,7 +75,8 @@ export async function runPortfolioBacktest(opts: {
   const dateRange = calculateDateRange(
     parameters.startDate,
     parameters.endDate,
-    priceData,
+    effectiveStartDate,
+    effectiveEndDate,
     invalidTickers,
   );
   return { result: compressBacktestResultForSync(result), warnings, dateRange };

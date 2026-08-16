@@ -1,76 +1,25 @@
 import '../../helpers/loggerMock.js';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { BacktestParameters } from '@backtest/shared';
-import type { Warning } from '../../../packages/backend/src/application/backtest-helpers.js';
 import { engineMocks } from '../../helpers/engineFixture.js';
 import {
   mockParameters,
   mockPortfolio as portfolioFixture,
 } from '../../helpers/backtestFixtures.js';
 
-const helpersMocks = vi.hoisted(() => ({
-  collectDomainTickers: vi.fn(),
-  fetchPriceDataWithRange: vi.fn(),
-  filterPriceData: vi.fn(),
-  loadMacroData: vi.fn(),
-  sanitizeMcParams: vi.fn(),
-  collectInvalidTickerWarnings: vi.fn(),
-  calculateDateRange: vi.fn(),
-}));
-vi.mock('../../../packages/backend/src/utils/engineClient.js', () => engineMocks);
+// 只挡 IO 边界，backtest-helpers 真实执行（避免 mock 重实现掩盖 helper 回归）
+const dataFacadeMocks = vi.hoisted(() => ({ fetchHistoryData: vi.fn() }));
+const helpersMocks = vi.hoisted(() => ({ loadMacroData: vi.fn() }));
 
-vi.mock('../../../packages/backend/src/application/backtest-helpers.js', async () => {
-  const { Portfolio } =
-    await import('../../../packages/backend/src/domain/aggregates/portfolio.js');
-  const mockPushDegradedWarning = (
-    warnings: Warning[],
-    degraded: boolean,
-    degradedWarning?: string,
-  ) => {
-    if (degraded)
-      warnings.push({
-        code: 'DATA_DEGRADED',
-        message: degradedWarning || '数据服务降级，部分数据可能缺失',
-      });
-  };
-  return {
-    collectDomainTickers: helpersMocks.collectDomainTickers,
-    fetchPriceDataWithRange: helpersMocks.fetchPriceDataWithRange,
-    portfolioToDomain: (raw: unknown) => Portfolio.fromDTO(raw as never),
-    preparePriceDataAndWarnings: async (tickers: string[], startDate: string, endDate: string) => {
-      const warnings: Warning[] = [];
-      const { priceData, effectiveStartDate, effectiveEndDate, degraded, degradedWarning } =
-        await helpersMocks.fetchPriceDataWithRange(tickers, startDate, endDate);
-      const invalidTickers = helpersMocks.collectInvalidTickerWarnings(
-        new Set(tickers),
-        priceData,
-        warnings,
-      );
-      mockPushDegradedWarning(warnings, degraded, degradedWarning);
-      return {
-        priceData,
-        warnings,
-        invalidTickers,
-        effectiveStartDate,
-        effectiveEndDate,
-        allTickers: new Set(tickers),
-      };
-    },
-    filterPriceData: helpersMocks.filterPriceData,
-    loadMacroData: helpersMocks.loadMacroData,
-    sanitizeMcParams: helpersMocks.sanitizeMcParams,
-    collectInvalidTickerWarnings: helpersMocks.collectInvalidTickerWarnings,
-    calculateDateRange: helpersMocks.calculateDateRange,
-    pushDegradedWarning: mockPushDegradedWarning,
-    clampParametersToDataRange: (
-      parameters: Pick<BacktestParameters, 'startDate' | 'endDate'>,
-      effectiveStartDate: string,
-      effectiveEndDate: string,
-    ) =>
-      effectiveStartDate !== parameters.startDate || effectiveEndDate !== parameters.endDate
-        ? { ...parameters, startDate: effectiveStartDate, endDate: effectiveEndDate }
-        : parameters,
-  };
+vi.mock('../../../packages/backend/src/utils/engineClient.js', () => engineMocks);
+vi.mock('../../../packages/backend/src/infrastructure/dataFacade.js', () => ({
+  fetchHistoryData: dataFacadeMocks.fetchHistoryData,
+}));
+vi.mock('../../../packages/backend/src/application/backtest-helpers.js', async (importOriginal) => {
+  const actual =
+    await importOriginal<
+      typeof import('../../../packages/backend/src/application/backtest-helpers.js')
+    >();
+  return { ...actual, loadMacroData: helpersMocks.loadMacroData };
 });
 
 import { runMonteCarlo } from '../../../packages/backend/src/application/montecarlo-service.js';
@@ -80,32 +29,17 @@ const mockPortfolio = portfolioFixture({ name: 'Test' });
 describe('runMonteCarlo', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    helpersMocks.collectDomainTickers.mockReturnValue(new Set(['AAPL', 'BND']));
-    helpersMocks.fetchPriceDataWithRange.mockResolvedValue({
-      priceData: {
-        AAPL: { '2020-01-02': 100 },
-        BND: { '2020-01-02': 50 },
+    dataFacadeMocks.fetchHistoryData.mockResolvedValue({
+      data: {
+        AAPL: { '2020-01-02': 100, '2020-12-31': 200 },
+        BND: { '2020-01-02': 50, '2020-12-31': 60 },
       },
-      effectiveStartDate: '2020-01-02',
-      effectiveEndDate: '2020-12-31',
       degraded: false,
-      degradedWarning: undefined,
-    });
-    helpersMocks.filterPriceData.mockReturnValue({
-      AAPL: { '2020-01-02': 100 },
-      BND: { '2020-01-02': 50 },
-    });
-    helpersMocks.collectInvalidTickerWarnings.mockReturnValue([]);
-    helpersMocks.calculateDateRange.mockReturnValue({
-      requested: { start: '2020-01-02', end: '2020-12-31' },
-      actual: { start: '2020-01-02', end: '2020-12-31' },
-      clamped: false,
     });
     helpersMocks.loadMacroData.mockResolvedValue({
       cpiData: { '2020-01-01': 258.8 },
       exchangeRates: {},
     });
-    helpersMocks.sanitizeMcParams.mockReturnValue({ numSimulations: 100 });
     engineMocks.callEngineStrict.mockResolvedValue({ simulated: true });
   });
 
@@ -131,33 +65,30 @@ describe('runMonteCarlo', () => {
     expect(engineMocks.callEngineStrict).toHaveBeenCalledTimes(2);
   });
 
-  it('mcParams 透传到 sanitizeMcParams，结果作为 mcParams 字段传给引擎', async () => {
+  it('mcParams 未知键被 sanitize 过滤，结果作为 mcParams 字段传给引擎', async () => {
     const mcParams = { numSimulations: 500, unknownKey: 'should-be-filtered' };
-    helpersMocks.sanitizeMcParams.mockReturnValue({ numSimulations: 500 });
 
     await runMonteCarlo([mockPortfolio], mockParameters, mcParams);
 
-    expect(helpersMocks.sanitizeMcParams).toHaveBeenCalledWith(mcParams);
     const [, body] = engineMocks.callEngineStrict.mock.calls[0];
     expect(body.mcParams).toEqual({ numSimulations: 500 });
   });
 
-  it('mcParams 缺省时 sanitizeMcParams 收到 undefined', async () => {
+  it('mcParams 缺省时引擎收到空对象', async () => {
     await runMonteCarlo([mockPortfolio], mockParameters);
 
-    expect(helpersMocks.sanitizeMcParams).toHaveBeenCalledWith(undefined);
+    const [, body] = engineMocks.callEngineStrict.mock.calls[0];
+    expect(body.mcParams).toEqual({});
   });
 
-  it('编排链路：collectDomainTickers → fetchPriceDataWithRange → sanitizeMcParams → loadMacroData', async () => {
+  it('编排链路：fetchHistoryData 按收集 tickers 请求，loadMacroData 收到参数', async () => {
     await runMonteCarlo([mockPortfolio], mockParameters);
 
-    expect(helpersMocks.collectDomainTickers).toHaveBeenCalledWith(expect.any(Array), '');
-    expect(helpersMocks.fetchPriceDataWithRange).toHaveBeenCalledWith(
+    expect(dataFacadeMocks.fetchHistoryData).toHaveBeenCalledWith(
       ['AAPL', 'BND'],
       '2020-01-02',
       '2020-12-31',
     );
-    expect(helpersMocks.sanitizeMcParams).toHaveBeenCalledTimes(1);
     expect(helpersMocks.loadMacroData).toHaveBeenCalledWith(mockParameters);
   });
 
@@ -167,10 +98,13 @@ describe('runMonteCarlo', () => {
     const [endpoint, body] = engineMocks.callEngineStrict.mock.calls[0];
     expect(endpoint).toBe('/api/engine/monte-carlo');
     expect(body).toMatchObject({
-      priceData: { AAPL: { '2020-01-02': 100 } },
+      priceData: {
+        AAPL: { '2020-01-02': 100, '2020-12-31': 200 },
+        BND: { '2020-01-02': 50, '2020-12-31': 60 },
+      },
       cpiData: { '2020-01-01': 258.8 },
       exchangeRates: {},
-      mcParams: { numSimulations: 100 },
+      mcParams: { numSimulations: 200 },
     });
     expect(body.portfolio).toBeDefined();
   });

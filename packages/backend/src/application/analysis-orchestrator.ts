@@ -25,11 +25,8 @@ export async function runAnalysis(
   tickers: string[],
   parameters: BacktestParameters,
 ): Promise<{ data: Record<string, unknown>; warnings: Warning[]; dateRange: DateRangeInfo }> {
-  const { priceData, warnings, invalidTickers } = await preparePriceDataAndWarnings(
-    tickers,
-    parameters.startDate,
-    parameters.endDate,
-  );
+  const { priceData, warnings, invalidTickers, effectiveStartDate, effectiveEndDate } =
+    await preparePriceDataAndWarnings(tickers, parameters.startDate, parameters.endDate);
   if (Object.keys(priceData).length === 0) {
     throw new ValidationError(`Price data unavailable for all tickers: ${tickers.join(', ')}`);
   }
@@ -50,7 +47,8 @@ export async function runAnalysis(
   const dateRange = calculateDateRange(
     parameters.startDate,
     parameters.endDate,
-    priceData,
+    effectiveStartDate,
+    effectiveEndDate,
     invalidTickers.length ? invalidTickers : undefined,
   );
 
