@@ -31,17 +31,25 @@ func CalcSMA(prices []float64, period int) []float64 {
 }
 func CalcEMA(prices []float64, period int) []float64 {
 	result := NanSeries(len(prices))
-	if len(prices) < period || period <= 0 {
+	if period <= 0 || len(prices) < period {
 		return result
 	}
-	// 以首个 period 的 SMA 为种子预热，避免冷启动偏差（TA-Lib/TradingView 标准做法）。
+	// 以首个非 NaN 段的 SMA 为种子预热（TA-Lib/TradingView 标准做法）；耐前导 NaN，
+	// MACD 将 fast/slow EMA 的 NaN 预热段注入 signal EMA，若不跳过则 signal 恒 NaN。
+	start := 0
+	for start < len(prices) && math.IsNaN(prices[start]) {
+		start++
+	}
+	if start+period > len(prices) {
+		return result
+	}
 	seed := 0.0
-	for i := 0; i < period; i++ {
+	for i := start; i < start+period; i++ {
 		seed += prices[i]
 	}
-	result[period-1] = seed / float64(period)
+	result[start+period-1] = seed / float64(period)
 	mult := 2.0 / float64(period+1)
-	for i := period; i < len(prices); i++ {
+	for i := start + period; i < len(prices); i++ {
 		result[i] = prices[i]*mult + result[i-1]*(1-mult)
 	}
 	return result

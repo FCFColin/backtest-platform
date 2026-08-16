@@ -104,6 +104,19 @@ func TestCalcMACD_LengthAndRelation(t *testing.T) {
 		}
 	}
 }
+func TestCalcMACD_ProducesFiniteSignal(t *testing.T) {
+	prices := make([]float64, 40)
+	for i := range prices {
+		prices[i] = float64(i + 1)
+	}
+	_, signal, hist := CalcMACD(prices)
+	// 慢 EMA 预热(25) + signal 预热(9) 之后必须为有限值（回归：CalcEMA 曾吞 NaN 前缀致 signal 恒 NaN）
+	for i := 33; i < len(prices); i++ {
+		if math.IsNaN(signal[i]) || math.IsNaN(hist[i]) {
+			t.Fatalf("CalcMACD[%d]: signal=%v hist=%v 应为有限值", i, signal[i], hist[i])
+		}
+	}
+}
 func TestCalcMACDHist_MatchesCalcMACD(t *testing.T) {
 	prices := []float64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
 		11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
