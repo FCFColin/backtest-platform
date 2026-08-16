@@ -69,6 +69,11 @@ export async function anonymizeUser(id: string): Promise<boolean> {
     `UPDATE users
        SET username = $2,
            password_hash = '',
+           email = NULL,
+           email_verified_at = NULL,
+           mfa_secret = NULL,
+           mfa_backup_codes = NULL,
+           mfa_enabled = FALSE,
            is_active = false,
            updated_at = NOW()
      WHERE id = $1`,
