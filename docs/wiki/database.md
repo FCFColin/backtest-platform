@@ -14,7 +14,7 @@
 
 ## 2. 迁移与索引
 
-migrations/ 由自研 runner（packages/backend/src/db/migrations.ts, schema_migrations 追踪）管理 Up/Down；CI check-migrations 验证命名/连续性/UP-DOWN 配对。PgBouncer: transaction 模式 + RLS 兼容（SET LOCAL, 禁 SET 会话级）。
+prices 为 TimescaleDB hypertable（3 个月 chunk、列压缩、prices_monthly CAGG，见 migrations/001），其余表为标准 PostgreSQL。migrations/ 由自研 runner（packages/backend/src/db/migrations.ts, schema_migrations 追踪）管理 Up/Down；CI check-migrations 验证命名/连续性/UP-DOWN 配对。PgBouncer: transaction 模式 + RLS 兼容（SET LOCAL, 禁 SET 会话级）。
 
 | 表                         | 索引                                                                                                                    |
 | -------------------------- | ----------------------------------------------------------------------------------------------------------------------- |

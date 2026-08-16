@@ -20,7 +20,7 @@
 | 后端 API        | Express 4 + TS(ESM) + tsx                               |
 | 引擎            | Go(engine-go, gin + gonum) — 唯一计算引擎               |
 | 数据服务        | Go(data-fetcher, gin)                                   |
-| 数据库 / 缓存   | PostgreSQL(pg) / Redis(ioredis + BullMQ)                |
+| 数据库 / 缓存   | PostgreSQL + TimescaleDB(pg) / Redis(ioredis + BullMQ)  |
 | 验证 / 可观测性 | Zod v4 / pino + OTel + prom-client                      |
 
 ## 3. 降级策略
@@ -75,7 +75,7 @@ x-api-key → analyst 角色；RBAC 三角色 × 七权限；Idempotency-Key 中
 
 Trace: 各服务 → OTLP HTTP → SaaS 后端。Go OTel 收口到 packages/go-shared/observability/otel.go。
 
-## 9. 熔断器（DADR-016 已删除，行为保留）
+## 9. 熔断器（行为保留；原决策记录 DADR-016 已删除）
 
 | 服务         | 熔断器        | 保护               |
 | ------------ | ------------- | ------------------ |
@@ -87,7 +87,7 @@ Trace: 各服务 → OTLP HTTP → SaaS 后端。Go OTel 收口到 packages/go-s
 
 ## 10. 数据存储演进
 
-JSON(DADR-002) → SQLite(DADR-006) → PostgreSQL(ADR-002)。行情持久化于 PostgreSQL，data/ 仅作运行期缓存。
+JSON(DADR-002) → SQLite(DADR-006) → PostgreSQL(ADR-002)。行情持久化于 PostgreSQL（prices 为 TimescaleDB hypertable + 压缩 + CAGG，见 ADR-002 修订），data/ 仅作运行期缓存。
 
 ## 11. ADR 索引
 

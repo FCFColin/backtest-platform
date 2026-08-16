@@ -2,9 +2,7 @@
 
 ## 1. 前端概览
 
-目录: `pages/`（BacktestPage, AnalysisPage 等）、`components/`、`store/`（Zustand 无 persist）、`utils/`、`hooks/`、`i18n/`、`styles/`。
-
-路由: `/` (BacktestPage), /analysis, /monte-carlo, /optimizer, /efficient-frontier, /factor-regression, /calculators, /data-engine, /billing, /login, /signup, /account。
+页面与路由以 `packages/frontend/src/routes/index.tsx` 为权威源（pages/ 按功能分子目录）；`components/`、`store/`（Zustand 无 persist）、`utils/`、`hooks/`、`i18n/`、`styles/`。
 
 技术栈: apiClient（Bearer + 401 自动刷新）、ECharts、Tailwind 3、Playwright E2E。
 
