@@ -14,7 +14,7 @@ export interface TestContainerContext {
   cleanup: () => Promise<void>;
 }
 
-export interface SeedData {
+interface SeedData {
   orgId: string;
   userId: string;
   secondUserId: string;
@@ -115,7 +115,7 @@ function mockAuthMiddleware(orgId: string, userId: string) {
   };
 }
 
-export async function startSaasTestServer(
+async function startSaasTestServer(
   orgId: string,
   userId: string,
   mountPath: string,

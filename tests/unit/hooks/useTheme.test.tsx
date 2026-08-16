@@ -11,6 +11,8 @@ async function renderTheme() {
 }
 
 describe('useTheme', () => {
+  const toggle = (result: Awaited<ReturnType<typeof renderTheme>>['result']) =>
+    act(() => result.current.toggleTheme());
   beforeEach(() => {
     storage.clear();
     matchDark = false;
@@ -88,19 +90,13 @@ describe('useTheme', () => {
 
     const { result } = await renderTheme();
 
-    act(() => {
-      result.current.toggleTheme();
-    });
+    toggle(result);
     expect(storage.get('theme')).toBe('dark');
 
-    act(() => {
-      result.current.toggleTheme();
-    });
+    toggle(result);
     expect(storage.get('theme')).toBeUndefined();
 
-    act(() => {
-      result.current.toggleTheme();
-    });
+    toggle(result);
     expect(storage.get('theme')).toBe('light');
   });
 
@@ -108,14 +104,10 @@ describe('useTheme', () => {
     storage.set('theme', 'dark');
     const { result } = await renderTheme();
 
-    act(() => {
-      result.current.toggleTheme();
-    });
+    toggle(result);
     expect(result.current.theme).toBe('system');
 
-    act(() => {
-      result.current.toggleTheme();
-    });
+    toggle(result);
     expect(result.current.theme).toBe('light');
   });
 
@@ -124,18 +116,14 @@ describe('useTheme', () => {
 
     const { result } = await renderTheme();
 
-    act(() => {
-      result.current.toggleTheme();
-    });
+    toggle(result);
 
     expect(result.current.theme).toBe('dark');
     expect(result.current.isDark).toBe(true);
     expect(storage.get('theme')).toBe('dark');
     expect(document.documentElement.dataset.theme).toBe('dark');
 
-    act(() => {
-      result.current.toggleTheme();
-    });
+    toggle(result);
 
     expect(result.current.theme).toBe('system');
     expect(storage.get('theme')).toBeUndefined();
