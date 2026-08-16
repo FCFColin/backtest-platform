@@ -250,10 +250,12 @@ describe.each(ANALYSIS_CASES)('analysisRoutes - %s: POST %s', (c) => {
     expect(engineMocks.callEngineStrict).toHaveBeenCalledTimes(1);
     c.expectSuccess(body as { data: Record<string, unknown> });
   });
-  if (c.tickerBody && c.expectTickerArgs) {
+  const tickerBody = c.tickerBody;
+  const expectTickerArgs = c.expectTickerArgs;
+  if (tickerBody && expectTickerArgs) {
     it('应将 ticker 转大写并去重后调用 fetchHistoryData', async () => {
-      await post(getServer(), c.path, c.tickerBody);
-      c.expectTickerArgs(dataServiceMocks.fetchHistoryData.mock.calls[0]);
+      await post(getServer(), c.path, tickerBody);
+      expectTickerArgs(dataServiceMocks.fetchHistoryData.mock.calls[0]);
     });
   }
   it.each(c.validationCases)('%s 应返回 400（zod 校验失败）', async (_n, body) => {
@@ -562,12 +564,12 @@ describe('tacticalGridRoutes - POST /api/tactical-grid/search', () => {
   async function postGrid(body: unknown) {
     return post(getServer(), '/api/v1/tactical-grid/search', body);
   }
-  it('异步提交成功时应返回 202 和 jobId', async () => {
+  it('异步提交成功时应返回 202 和标准成功形状 {success, data:{jobId, statusUrl}}', async () => {
     const { res, body } = await postGrid(createValidGridRequest());
     expect(res.status).toBe(202);
-    expect(body.status).toBe(202);
-    expect(body.jobId).toBe('grid-job-123');
-    expect(body.statusUrl).toContain('/api/v1/jobs/grid-job-123');
+    expect(body.success).toBe(true);
+    expect(body.data.jobId).toBe('grid-job-123');
+    expect(body.data.statusUrl).toContain('/api/v1/jobs/grid-job-123');
     expect(queueMocks.add).toHaveBeenCalledTimes(1);
   });
   it.each([
@@ -649,7 +651,6 @@ describe('认证用户请求', () => {
     expect(queueMocks.add).toHaveBeenCalledWith(
       'grid-search',
       expect.objectContaining({
-        userId: 'user-123',
         ownerUserId: 'user-123',
         tenantId: 'tenant-456',
       }),

@@ -16,7 +16,6 @@ import { createQueueWorker } from './workerFactory.js';
 export interface BacktestJobData {
   type: 'optimizer' | 'grid-search' | 'portfolio';
   payload: Record<string, unknown>;
-  userId?: string;
   /** 提交任务的租户（组织）UUID，用于结果持久化的 RLS 隔离与所有权校验（ADR-009） */
   tenantId?: string;
   /** 提交者用户 UUID（区别于 API Key 调用方，后者为 null） */

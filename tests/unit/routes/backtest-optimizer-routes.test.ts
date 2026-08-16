@@ -26,7 +26,7 @@ function createValidRequest() {
       assets: [{ ticker: 'SPY', weight: 100 }],
     },
     parameterSpace: {
-      rebalanceFrequencies: ['monthly'] as const[],
+      rebalanceFrequencies: ['monthly'],
       initialCapital: { min: 10000, max: 10000, step: 1000 },
     },
     parameters: {
@@ -117,7 +117,6 @@ describe('认证用户请求', () => {
     expect(queueMocks.add).toHaveBeenCalledWith(
       'optimizer',
       expect.objectContaining({
-        userId: 'user-123',
         ownerUserId: 'user-123',
         tenantId: 'tenant-456',
       }),
