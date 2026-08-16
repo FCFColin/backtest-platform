@@ -28,6 +28,7 @@ import {
   TabsContent,
   TabsList,
   TabsTrigger,
+  PortfolioLabel,
 } from '@/components/ui/uiComponents';
 import { ResultsShell } from '@/components/resultsShell.js';
 import { fmtPct } from '@/utils/format';
@@ -230,11 +231,7 @@ function ResultsTable({ results }: { results: FreqResult[] }) {
           {results.map((r, idx) => (
             <tr key={r.frequency} className={idx % 2 === 1 ? 'bg-input-bg' : ''}>
               <td className="border-b border-border-subtle px-3 py-2 text-label text-fg">
-                <span
-                  className="mr-1.5 inline-block size-2.5 rounded-full align-middle"
-                  style={{ backgroundColor: r.color }}
-                />
-                {r.label}
+                <PortfolioLabel color={r.color} name={r.label} />
               </td>
               {cells.map((c) => {
                 const val = r[c.k] as number;

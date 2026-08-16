@@ -1,5 +1,5 @@
 import type { Statistics } from '@backtest/shared';
-export type FmtType = 'pct' | 'ratio' | 'num';
+export type FmtType = 'pct' | 'ratio' | 'num' | 'duration';
 export interface StatRow {
   key: keyof Statistics;
   label: string;

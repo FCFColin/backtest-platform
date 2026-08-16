@@ -12,6 +12,8 @@ import {
   CardTitle,
   CardContent,
   InfoTooltip,
+  PortfolioDot,
+  PortfolioLabel,
 } from '@/components/ui/uiComponents.js';
 import { type PortfolioResult, type Statistics } from '@backtest/shared';
 import { getPortfolioColor } from '@/lib/chart-theme.js';
@@ -81,10 +83,7 @@ export function StatisticsTable({
     render: (p) =>
       col.key === 'name' ? (
         <div className="flex items-center gap-2">
-          <span
-            className="w-2 h-2 rounded-full flex-shrink-0"
-            style={{ background: colorByPortfolio.get(p.id) ?? 'hsl(var(--fg-tertiary))' }}
-          />
+          <PortfolioDot color={colorByPortfolio.get(p.id) ?? 'hsl(var(--fg-tertiary))'} />
           <span className="truncate">{p.name}</span>
         </div>
       ) : (
@@ -236,13 +235,11 @@ export function WithdrawalRatesCard({ portfolios }: WithdrawalRatesCardProps) {
           return (
             <div key={p.name} className="space-y-2">
               {showName && (
-                <div className="flex items-center gap-2 text-caption text-fg-secondary">
-                  <span
-                    className="inline-block w-2.5 h-2.5 rounded-full"
-                    style={{ backgroundColor: color }}
-                  />
-                  <span className="truncate">{p.name}</span>
-                </div>
+                <PortfolioLabel
+                  name={p.name}
+                  color={color}
+                  className="text-caption text-fg-secondary"
+                />
               )}
               <SimpleTable columns={columns} data={data} rowKey={(r) => r.labelKey} />
             </div>

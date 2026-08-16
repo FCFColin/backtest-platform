@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { fmtPct, fmtNum } from '@/utils/format';
 import { cn } from '@/lib/utils';
-import { Card } from '@/components/ui/uiComponents';
+import { Card, PortfolioLabel } from '@/components/ui/uiComponents';
 import { CollapsibleSection, StatCard } from '@/components/cards.js';
 import { ResultsShell } from '@/components/resultsShell.js';
 import { FACTOR_COLORS } from './factorRegressionUtils.js';
@@ -28,11 +28,7 @@ function RegressionRow({
   return (
     <tr className="border-b border-border-subtle transition-colors last:border-0 hover:bg-hover">
       <td className="px-3 py-2 text-body text-fg">
-        <span
-          className="mr-1.5 inline-block size-2.5 rounded-full align-middle"
-          style={{ backgroundColor: color }}
-        />
-        {label}
+        <PortfolioLabel color={color} name={label} />
       </td>
       <td
         className={cn(

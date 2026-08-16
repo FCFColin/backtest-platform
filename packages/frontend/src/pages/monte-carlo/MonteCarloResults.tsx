@@ -75,7 +75,7 @@ export function StatsGrid({
     </div>
   );
 }
-function PortfolioLabel({ label, colorIdx }: { label: string; colorIdx: number }) {
+function ResultsHeading({ label, colorIdx }: { label: string; colorIdx: number }) {
   return (
     <div className="mb-3 mt-2 text-h3 font-semibold" style={{ color: getPortfolioColor(colorIdx) }}>
       {label}
@@ -133,7 +133,7 @@ function ResultsDisplay({
   const { t } = useTranslation();
   return (
     <div key={label}>
-      {portfolioMode === 2 && <PortfolioLabel label={label} colorIdx={colorIdx} />}
+      {portfolioMode === 2 && <ResultsHeading label={label} colorIdx={colorIdx} />}
       <StatsGrid r={r} startingValue={startingValue} numSimulations={numSimulations} />
       <Tabs value={activeTab} onValueChange={(v) => onTabChange(v as ResultTab)} className="w-full">
         <TabsList className="mb-4 flex-wrap">

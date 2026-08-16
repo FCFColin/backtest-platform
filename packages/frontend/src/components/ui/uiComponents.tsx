@@ -476,6 +476,32 @@ export function Spinner({ size = 5, className }: { size?: number; className?: st
   );
 }
 
+export function PortfolioDot({ color, className }: { color: string; className?: string }) {
+  return (
+    <span
+      className={cn('inline-block size-2.5 rounded-full flex-shrink-0', className)}
+      style={{ background: color }}
+    />
+  );
+}
+
+export function PortfolioLabel({
+  color,
+  name,
+  className,
+}: {
+  color: string;
+  name: string;
+  className?: string;
+}) {
+  return (
+    <span className={cn('inline-flex items-center gap-1.5', className)}>
+      <PortfolioDot color={color} />
+      {name}
+    </span>
+  );
+}
+
 export function MiniSelect<T extends string | number>({
   value,
   onChange,

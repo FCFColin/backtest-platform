@@ -10,46 +10,45 @@ import {
   DropdownMenuContent,
   DropdownMenuCheckboxItem,
   InfoTooltip,
+  PortfolioLabel,
 } from './ui/uiComponents.js';
 import { TableFrame, SimpleTable, type SimpleTableColumn } from './tables.js';
 import { TableEmpty } from '@/components/stateDisplay.js';
 import { getColorClass } from '@/components/charts/chartUtils.js';
 import { getPortfolioColor } from '@/lib/chart-theme.js';
-import { fmtPct, fmtRatio, fmtNum } from '@/utils/format.js';
+import { fmtPct, fmtNum } from '@/utils/format.js';
+import { rowsFromMeta } from './statistics-table/columns.js';
 import { STAT_KEY_TO_TESTID, type StatRow } from './statistics-table/types.js';
 interface CustomMetricsTableProps {
   portfolios: PortfolioResult[];
 }
-const ALL_METRICS: StatRow[] = [
-  { label: 'stats.cagr', key: 'cagr', fmt: 'pct', colorize: true },
-  { label: 'stats.mwrr', key: 'mwrr', fmt: 'pct', colorize: true },
-  { label: 'stats.totalReturn', key: 'totalReturn', fmt: 'pct', colorize: true },
-  { label: 'backtest.stdev', key: 'stdev', fmt: 'pct' },
-  { label: 'backtest.sharpeRatio', key: 'sharpe', fmt: 'num' },
-  { label: 'lumpSumDca.stats.sortino', key: 'sortino', fmt: 'num' },
-  { label: 'lumpSumDca.stats.calmar', key: 'calmar', fmt: 'num' },
-  { label: 'Max Drawdown', key: 'maxDrawdown', fmt: 'pct', colorize: true },
-  { label: 'analysis.ulcerIndex', key: 'ulcerIndex', fmt: 'num' },
-  { label: 'Beta', key: 'beta', fmt: 'num' },
-  { label: 'stats.alpha', key: 'alpha', fmt: 'pct', colorize: true },
-  { label: 'stats.rSquared', key: 'rSquared', fmt: 'num' },
-  { label: 'stats.trackingError', key: 'trackingError', fmt: 'pct', colorize: true },
-  { label: 'stats.informationRatio', key: 'informationRatio', fmt: 'num' },
-  { label: 'stats.upsideCapture', key: 'upsideCapture', fmt: 'pct', colorize: true },
-  { label: 'stats.downsideCapture', key: 'downsideCapture', fmt: 'pct', colorize: true },
-  { label: 'stats.skewnessDaily', key: 'skewnessDaily' as keyof Statistics, fmt: 'num' },
-  {
-    label: 'stats.excessKurtosisDaily',
-    key: 'excessKurtosisDaily' as keyof Statistics,
-    fmt: 'num',
-  },
-  { label: 'stats.varDaily5', key: 'varDaily5' as keyof Statistics, fmt: 'pct', colorize: true },
-  { label: 'stats.cvarDaily5', key: 'cvarDaily5' as keyof Statistics, fmt: 'pct', colorize: true },
-  { label: 'stats.swr10y', key: 'swr10y', fmt: 'pct', colorize: true },
-  { label: 'stats.pwr10y', key: 'pwr10y', fmt: 'pct', colorize: true },
-  { label: 'stats.swr30y', key: 'swr30y', fmt: 'pct', colorize: true },
-  { label: 'stats.pwr30y', key: 'pwr30y', fmt: 'pct', colorize: true },
-];
+const CUSTOM_METRIC_KEYS = [
+  'cagr',
+  'mwrr',
+  'totalReturn',
+  'stdev',
+  'sharpe',
+  'sortino',
+  'calmar',
+  'maxDrawdown',
+  'ulcerIndex',
+  'beta',
+  'alpha',
+  'rSquared',
+  'trackingError',
+  'informationRatio',
+  'upsideCapture',
+  'downsideCapture',
+  'skewnessDaily',
+  'excessKurtosisDaily',
+  'varDaily5',
+  'cvarDaily5',
+  'swr10y',
+  'pwr10y',
+  'swr30y',
+  'pwr30y',
+] as const;
+const ALL_METRICS: StatRow[] = rowsFromMeta(CUSTOM_METRIC_KEYS);
 const DEFAULT_KEYS: (keyof Statistics)[] = [
   'cagr',
   'stdev',
@@ -65,9 +64,7 @@ const DEFAULT_KEYS: (keyof Statistics)[] = [
 function formatMetricValue(v: number | undefined, fmt: StatRow['fmt']): string {
   if (v == null) return '—';
   if (fmt === 'pct') return fmtPct(v);
-  if (fmt === 'ratio') return fmtRatio(v);
-  if (fmt === 'num') return fmtNum(v, 2);
-  return String(v);
+  return fmtNum(v, 2);
 }
 function MetricLabel({ row }: { row: StatRow }) {
   const { t } = useTranslation();
@@ -98,15 +95,7 @@ export function MetricRowsTable({ rows, portfolios }: MetricRowsTableProps) {
     },
     ...portfolios.map((p, i) => ({
       key: p.name,
-      label: (
-        <span className="inline-flex items-center gap-1.5">
-          <span
-            className="inline-block w-2.5 h-2.5 rounded-full align-middle"
-            style={{ backgroundColor: getPortfolioColor(i) }}
-          />
-          {p.name}
-        </span>
-      ),
+      label: <PortfolioLabel name={p.name} color={getPortfolioColor(i)} />,
       align: 'right' as const,
       render: (row: StatRow) => {
         const val = p.statistics[row.key] as number | undefined;

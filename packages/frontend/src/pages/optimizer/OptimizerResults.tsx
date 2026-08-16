@@ -19,17 +19,20 @@ import { MiniStatCard } from '@/components/cards.js';
 import { fmtPct, fmtNum } from '@/utils/format';
 import { XYScatterChart } from '@/components/charts/sharedChartContent.js';
 import { ChartEmptyState } from '@/components/stateDisplay.js';
-const METRICS_ROWS: { key: keyof Statistics; labelKey: string; fmt: 'pct' | 'num' }[] = [
-  { key: 'cagr', labelKey: 'stats.cagr', fmt: 'pct' },
-  { key: 'stdev', labelKey: 'Volatility', fmt: 'pct' },
-  { key: 'maxDrawdown', labelKey: 'Max Drawdown', fmt: 'pct' },
-  { key: 'avgDrawdown', labelKey: 'Avg Drawdown', fmt: 'pct' },
-  { key: 'sharpe', labelKey: 'Sharpe', fmt: 'num' },
-  { key: 'sortino', labelKey: 'Sortino', fmt: 'num' },
-  { key: 'calmar', labelKey: 'Calmar', fmt: 'num' },
-  { key: 'ulcerIndex', labelKey: 'analysis.ulcerIndex', fmt: 'num' },
-  { key: 'ulcerPerformanceIndex', labelKey: 'UPI', fmt: 'num' },
-];
+import { rowsFromMeta } from '../../components/statistics-table/columns.js';
+import type { StatRow } from '../../components/statistics-table/types.js';
+const METRICS_KEYS = [
+  'cagr',
+  'stdev',
+  'maxDrawdown',
+  'avgDrawdown',
+  'sharpe',
+  'sortino',
+  'calmar',
+  'ulcerIndex',
+  'ulcerPerformanceIndex',
+] as const;
+const METRICS_ROWS: StatRow[] = rowsFromMeta(METRICS_KEYS);
 function ConstraintsSummary({ s }: { s: EfficientFrontierState }) {
   const { t } = useTranslation();
   const cards: Array<{ show?: boolean; label: string; value: string }> = [
@@ -130,7 +133,7 @@ function MetricsTable({
   results: OptimizerResultExt;
 }) {
   const { t } = useTranslation();
-  const getVal = (key: keyof Statistics, fmt: 'pct' | 'num'): string => {
+  const getVal = (key: keyof Statistics, fmt: StatRow['fmt']): string => {
     const val = backtestStats ? backtestStats[key] : undefined;
     if (val != null) return fmt === 'pct' ? fmtPct(val as number) : fmtNum(val as number);
     if (!backtestStats && key === 'cagr') return fmtPct(results.expectedReturn);
@@ -138,8 +141,8 @@ function MetricsTable({
     if (!backtestStats && key === 'sharpe') return fmtNum(results.sharpeRatio);
     return '\u2014';
   };
-  const columns: SimpleTableColumn<(typeof METRICS_ROWS)[number]>[] = [
-    { key: 'metric', label: t('Metric'), render: (r) => t(r.labelKey) },
+  const columns: SimpleTableColumn<StatRow>[] = [
+    { key: 'metric', label: t('Metric'), render: (r) => t(r.label) },
     {
       key: 'value',
       label: t('Optimal Portfolio'),

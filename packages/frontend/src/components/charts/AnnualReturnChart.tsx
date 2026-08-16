@@ -4,6 +4,7 @@ import { type AssetAnalysisResult, type PortfolioResult } from '@backtest/shared
 import { getPortfolioColor } from '@/lib/chart-theme.js';
 import { percentile, mean, std, mergePortfolioSeries, fmtPct } from '@/utils/format';
 import ChartCard from '../ChartCard.js';
+import { PortfolioLabel, PortfolioDot } from '../ui/uiComponents.js';
 import { BarChartContent } from './sharedChartContent.js';
 import { getColorClass } from './chartUtils.js';
 import { SimpleTable, type SimpleTableColumn } from '../tables.js';
@@ -45,10 +46,7 @@ function PortfolioSummaryStats({
   return (
     <div style={{ marginTop: '16px' }}>
       <div className="text-label font-semibold mb-2" style={{ color: 'hsl(var(--fg))' }}>
-        <span
-          className="inline-block w-2.5 h-2.5 rounded-full mr-1.5 align-middle"
-          style={{ backgroundColor: getPortfolioColor(colorIndex) }}
-        />
+        <PortfolioDot color={getPortfolioColor(colorIndex)} className="mr-1.5 align-middle" />
         {t('Summary Statistics', { name: portfolio.name })}
       </div>
       <SimpleTable columns={columns} data={SUMMARY_ROWS} maxWidth={600} rowKey={(r) => r.key} />
@@ -67,15 +65,7 @@ function AnnualReturnTable({
     { key: 'year', label: t('Year'), render: (r) => r.year as number },
     ...portfolios.map((p, idx) => ({
       key: p.name,
-      label: (
-        <span className="inline-flex items-center gap-1.5">
-          <span
-            className="inline-block h-2.5 w-2.5 rounded-full"
-            style={{ background: getPortfolioColor(idx) }}
-          />
-          {p.name}
-        </span>
-      ),
+      label: <PortfolioLabel name={p.name} color={getPortfolioColor(idx)} />,
       align: 'right' as const,
       render: (r: Record<string, unknown>) => {
         const v = r[p.name] as number | undefined;

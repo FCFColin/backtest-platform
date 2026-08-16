@@ -7,7 +7,6 @@ import {
   type ParsedAdminStats,
 } from '../../utils/adminStats.js';
 import { KpiCard, ServiceStatusTable } from '../../components/admin/AdminLayout.js';
-import { ToolPageLayout } from '../../components/layout/ToolPageLayout.js';
 function KpiGrid({ data, totalSizeGB }: { data: ParsedAdminStats; totalSizeGB: string }) {
   const { t } = useTranslation();
   return (
@@ -104,35 +103,36 @@ function SystemResourceSection({
   totalSizeGB: string;
 }) {
   const { t } = useTranslation();
+  const items = [
+    {
+      label: t('Node Memory'),
+      value: `${data.system.memoryMB} MB`,
+      icon: <Server className="h-4 w-4 text-fg-tertiary" />,
+    },
+    {
+      label: t('Data Directory Size'),
+      value: `${totalSizeGB} GB`,
+      icon: <HardDrive className="h-4 w-4 text-fg-tertiary" />,
+    },
+    {
+      label: t('Ticker File Count'),
+      value: data.dataStats.totalTickers.toLocaleString(),
+      icon: <Database className="h-4 w-4 text-fg-tertiary" />,
+    },
+  ];
   return (
     <div className="rounded-lg border border-border bg-surface p-4">
       <h2 className="mb-4 text-sm font-semibold text-fg">{t('System Resources')}</h2>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <div className="rounded-lg border border-border-subtle p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <Server className="h-4 w-4 text-fg-tertiary" />
-            <span className="text-sm font-medium text-fg-secondary">{t('Node Memory')}</span>
+        {items.map(({ label, value, icon }) => (
+          <div key={label} className="rounded-lg border border-border-subtle p-4">
+            <div className="mb-2 flex items-center gap-2">
+              {icon}
+              <span className="text-sm font-medium text-fg-secondary">{label}</span>
+            </div>
+            <p className="text-2xl font-bold text-fg">{value}</p>
           </div>
-          <p className="text-2xl font-bold text-fg">{data.system.memoryMB} MB</p>
-        </div>
-        <div className="rounded-lg border border-border-subtle p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <HardDrive className="h-4 w-4 text-fg-tertiary" />
-            <span className="text-sm font-medium text-fg-secondary">
-              {t('Data Directory Size')}
-            </span>
-          </div>
-          <p className="text-2xl font-bold text-fg">{totalSizeGB} GB</p>
-        </div>
-        <div className="rounded-lg border border-border-subtle p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <Database className="h-4 w-4 text-fg-tertiary" />
-            <span className="text-sm font-medium text-fg-secondary">{t('Ticker File Count')}</span>
-          </div>
-          <p className="text-2xl font-bold text-fg">
-            {data.dataStats.totalTickers.toLocaleString()}
-          </p>
-        </div>
+        ))}
       </div>
     </div>
   );
@@ -152,19 +152,15 @@ export default function AdminDashboard() {
   usePolling(fetchDashboardData, 30000);
   const totalSizeGB = (data.dataStats.totalSizeMB / 1024).toFixed(1);
   return (
-    <ToolPageLayout
-      params={<KpiGrid data={data} totalSizeGB={totalSizeGB} />}
-      afterParams={
-        <div className="space-y-3">
-          <ServiceMarketSection
-            data={data}
-            loading={loading}
-            lastRefresh={lastRefresh}
-            onRefresh={fetchDashboardData}
-          />
-          <SystemResourceSection data={data} totalSizeGB={totalSizeGB} />
-        </div>
-      }
-    />
+    <div className="space-y-6">
+      <KpiGrid data={data} totalSizeGB={totalSizeGB} />
+      <ServiceMarketSection
+        data={data}
+        loading={loading}
+        lastRefresh={lastRefresh}
+        onRefresh={fetchDashboardData}
+      />
+      <SystemResourceSection data={data} totalSizeGB={totalSizeGB} />
+    </div>
   );
 }

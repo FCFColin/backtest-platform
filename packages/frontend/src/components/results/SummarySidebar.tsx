@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { Card } from '@/components/ui/uiComponents.js';
+import { Card, PortfolioDot } from '@/components/ui/uiComponents.js';
 import { fmtPct, fmtNum } from '@/utils/format.js';
 import { cn } from '@/lib/utils.js';
 import { getColorClass } from '@/components/charts/chartUtils.js';
@@ -85,10 +85,7 @@ export function SummarySidebar({
         <h3 className="text-h3 mb-3">{t('Key Metrics')}</h3>
         {name && (
           <div className="flex items-center gap-1.5 mb-3">
-            <span
-              className="inline-block size-2.5 rounded-full shrink-0"
-              style={{ backgroundColor: color }}
-            />
+            <PortfolioDot color={color ?? ''} className="shrink-0" />
             <span className="text-caption text-fg-secondary truncate">{name}</span>
           </div>
         )}

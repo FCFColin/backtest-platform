@@ -6,7 +6,7 @@ import { fmtPct, fmtRatio, downsample } from '@/utils/format';
 import { getPortfolioColor } from '@/lib/chart-theme.js';
 import type { SignalAnalysisResult } from '@backtest/shared/types/signal';
 import { ResultsSection } from '@/components/cards';
-import { Button } from '@/components/ui/uiComponents.js';
+import { Button, PortfolioLabel } from '@/components/ui/uiComponents.js';
 import {
   SortableTable,
   type TableColumn,
@@ -58,15 +58,7 @@ function StatsComparisonTable({ statRows }: { statRows: StatRow[] }) {
     { key: 'metric', label: t('Metric'), render: (col) => t(col.label) },
     ...statRows.map((r, idx) => ({
       key: `signal${idx}`,
-      label: (
-        <>
-          <span
-            className="mr-1.5 inline-block size-2.5 rounded-full align-middle"
-            style={{ backgroundColor: getPortfolioColor(idx) }}
-          />
-          {r.name}
-        </>
-      ),
+      label: <PortfolioLabel color={getPortfolioColor(idx)} name={r.name} />,
       align: 'right' as const,
       render: (col: (typeof STAT_COLS)[number]) =>
         formatStat((r.stats as Record<string, number>)[col.key], col.fmt),

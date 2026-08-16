@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Card } from '@/components/ui/uiComponents.js';
+import { Card, PortfolioLabel } from '@/components/ui/uiComponents.js';
 import { TableFrame } from '@/components/tables.js';
 import { formatPercentSigned } from '@/utils/format.js';
 import { getPortfolioColor } from '@/lib/chart-theme.js';
@@ -72,13 +72,7 @@ function buildYearlyRows(
 function PortfolioHeaderCell({ name, index }: { name: string; index: number }) {
   return (
     <th className="h-10 px-3 text-right text-fg-tertiary text-label-tiny">
-      <span className="inline-flex items-center gap-1.5 ml-auto">
-        <span
-          className="w-2 h-2 rounded-full flex-shrink-0"
-          style={{ background: getPortfolioColor(index) }}
-        />
-        {name}
-      </span>
+      <PortfolioLabel name={name} color={getPortfolioColor(index)} className="ml-auto" />
     </th>
   );
 }

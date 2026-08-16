@@ -1,7 +1,11 @@
+import type { Statistics } from '@backtest/shared';
+import type { StatRow } from './types.js';
+
+export type StatFormat = 'currency' | 'percent' | 'duration' | 'number' | 'text';
 export interface StatColumn {
   key: string;
   label: string;
-  format: 'currency' | 'percent' | 'duration' | 'number' | 'text';
+  format: StatFormat;
   colorize?: boolean;
   invert?: boolean;
   sticky?: 'left' | 'right';
@@ -62,3 +66,32 @@ export const EXTENDED_COLUMNS: StatColumn[] = [
     invert: true,
   },
 ];
+
+const EXTRA_METRICS: StatColumn[] = [
+  { key: 'totalReturn', label: 'stats.totalReturn', format: 'percent', colorize: true },
+  { key: 'varDaily5', label: 'stats.varDaily5', format: 'percent', colorize: true },
+  { key: 'cvarDaily5', label: 'stats.cvarDaily5', format: 'percent', colorize: true },
+  { key: 'swr10y', label: 'stats.swr10y', format: 'percent', colorize: true },
+  { key: 'pwr10y', label: 'stats.pwr10y', format: 'percent', colorize: true },
+  { key: 'swr30y', label: 'stats.swr30y', format: 'percent', colorize: true },
+  { key: 'pwr30y', label: 'stats.pwr30y', format: 'percent', colorize: true },
+];
+
+const METRIC_LOOKUP = new Map(
+  [...DEFAULT_COLUMNS, ...EXTENDED_COLUMNS, ...EXTRA_METRICS].map((c) => [c.key, c]),
+);
+
+const METRIC_FMT: Record<StatFormat, StatRow['fmt']> = {
+  currency: 'num',
+  percent: 'pct',
+  duration: 'duration',
+  number: 'num',
+  text: 'num',
+};
+export function rowsFromMeta(keys: readonly (keyof Statistics)[]): StatRow[] {
+  return keys.map((key) => {
+    const col = METRIC_LOOKUP.get(key);
+    if (!col) throw new Error(`Unknown metric key: ${key}`);
+    return { key, label: col.label, fmt: METRIC_FMT[col.format], colorize: col.colorize };
+  });
+}

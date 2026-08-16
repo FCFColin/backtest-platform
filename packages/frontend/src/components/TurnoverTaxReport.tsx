@@ -4,7 +4,7 @@ import { type PortfolioResult } from '@backtest/shared';
 import { getPortfolioColor } from '@/lib/chart-theme.js';
 import { SortableTable, type TableColumn } from './tables.js';
 import { fmtPct } from '@/utils/format';
-import { Input } from '@/components/ui/uiComponents';
+import { Input, PortfolioLabel } from '@/components/ui/uiComponents';
 import { cn } from '@/lib/utils';
 import ChartCard from './ChartCard.js';
 import { TableEmpty } from '@/components/stateDisplay.js';
@@ -55,16 +55,7 @@ function buildTurnoverColumns(
       label: t('Portfolio'),
       render: (row) => {
         const idx = portfolios.findIndex((p) => p.name === row.name);
-        const color = getPortfolioColor(idx);
-        return (
-          <span className="inline-flex items-center gap-1.5">
-            <span
-              className="inline-block size-2.5 rounded-full"
-              style={{ backgroundColor: color }}
-            />
-            {row.name}
-          </span>
-        );
+        return <PortfolioLabel name={row.name} color={getPortfolioColor(idx)} />;
       },
     },
     {

@@ -5,7 +5,7 @@ import type { RebalancingState } from './rebalancingSensitivityUtils.js';
 import { ResultsPanel } from './ResultsPanel.js';
 import { BasicParamsFields } from '../../components/BacktestParamsForm.js';
 import PortfolioEditor from '../../components/PortfolioEditor.js';
-import { AffixInput } from '@/components/ui/uiComponents';
+import { AffixInput, PortfolioLabel } from '@/components/ui/uiComponents';
 import { Field, FieldLabel } from '@/components/form/Field';
 import { RunButton } from '@/components/form/sharedFields';
 function FreqSelector({ s }: { s: RebalancingState }) {
@@ -34,11 +34,10 @@ function FreqSelector({ s }: { s: RebalancingState }) {
                 checked={selected}
                 onChange={() => s.toggleFreq(opt.value)}
               />
-              <span
-                className="inline-block size-2.5 rounded-full"
-                style={{ backgroundColor: opt.color }}
+              <PortfolioLabel
+                color={opt.color}
+                name={t(`rebalancingSensitivity.freq.${opt.value}`)}
               />
-              {t(`rebalancingSensitivity.freq.${opt.value}`)}
             </label>
           );
         })}

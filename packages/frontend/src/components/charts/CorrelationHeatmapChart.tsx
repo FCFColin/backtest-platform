@@ -1,6 +1,6 @@
 ﻿import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Spinner, MiniSelect } from '@/components/ui/uiComponents';
+import { Spinner, MiniSelect, PortfolioDot } from '@/components/ui/uiComponents';
 import { TableEmpty } from '@/components/stateDisplay.js';
 import { TimeSeriesLineChart } from './TimeSeriesLineChart.js';
 import { CorrelationMatrixTable } from './tables.js';
@@ -27,15 +27,12 @@ function BetaTable({ betaData, baseName }: { betaData: BetaRow[]; baseName: stri
       label: t('Portfolio'),
       render: (row, idx) => (
         <>
-          <span
-            className="inline-block w-2.5 h-2.5 rounded-full mr-1.5 align-middle"
-            style={{ backgroundColor: getPortfolioColor(idx + 1) }}
-          />
+          <PortfolioDot color={getPortfolioColor(idx + 1)} className="mr-1.5" />
           {row.name}
         </>
       ),
     },
-    { key: 'beta', label: 'Beta', align: 'right', render: (row) => row.beta.toFixed(4) },
+    { key: 'beta', label: 'Beta', align: 'right', render: (row) => row.beta.toFixed(2) },
   ];
   return (
     <ChartCard title={t('Beta Table (Benchmark: {{baseName}})', { baseName })}>

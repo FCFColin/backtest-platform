@@ -10,6 +10,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
+  PortfolioLabel,
 } from '@/components/ui/uiComponents';
 import {
   StatisticsTable,
@@ -386,15 +387,7 @@ function RebalancingStats({ portfolios }: RebalancingStatsProps) {
     {
       key: 'name',
       label: t('Portfolio'),
-      render: (p, i) => (
-        <span className="inline-flex items-center gap-1.5">
-          <span
-            className="inline-block size-2.5 rounded-full align-middle"
-            style={{ backgroundColor: getPortfolioColor(i) }}
-          />
-          {p.name}
-        </span>
-      ),
+      render: (p, i) => <PortfolioLabel color={getPortfolioColor(i)} name={p.name} />,
     },
     {
       key: 'rebalanceFrequency',

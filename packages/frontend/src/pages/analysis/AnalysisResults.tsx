@@ -1,11 +1,17 @@
 ﻿import { useState, memo, lazy, Suspense, useMemo, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LineChart } from 'lucide-react';
-import { type AssetAnalysisResult, type Statistics } from '@backtest/shared';
+import { type AssetAnalysisResult } from '@backtest/shared';
 import { getPortfolioColor } from '@/lib/chart-theme.js';
 import { getColorClass } from '@/components/charts/chartUtils.js';
 import { ResultsShell } from '@/components/resultsShell.js';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/uiComponents';
+import {
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+  PortfolioLabel,
+} from '@/components/ui/uiComponents';
 import { useAnalysisData, computePairRollingCorrelation } from '../../hooks/useAnalysisData.js';
 import { TABS, fetchAnalysisResult } from './analysisUtils.js';
 import { AnalysisParamsPanel } from './AnalysisParams.js';
@@ -15,8 +21,10 @@ import {
   type ComputeToolConfig,
 } from '../../components/shells/index.js';
 import { useComputeTool, useSetterState } from '../../hooks/miscHooks.js';
-import { fmtPct, fmtRatio } from '@/utils/format';
+import { fmtPct, fmtNum } from '@/utils/format';
 import { SimpleTable, type SimpleTableColumn } from '@/components/tables.js';
+import { rowsFromMeta } from '../../components/statistics-table/columns.js';
+import type { StatRow } from '../../components/statistics-table/types.js';
 import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
 import { normalizeTicker } from '@/utils/ticker';
 import { lazyNamed } from '@/utils/lazyImport';
@@ -202,55 +210,42 @@ export default function AnalysisPage() {
   const s = useAnalysisPageState();
   return <ComputeToolShell config={config} state={s} />;
 }
-type StatCol = {
-  key: keyof Statistics;
-  labelKey: string;
-  fmt: 'pct' | 'ratio' | 'duration';
-  colorize?: boolean;
-};
-const STATS_COLUMNS: StatCol[] = [
-  { key: 'cagr', labelKey: 'stats.cagr', fmt: 'pct', colorize: true },
-  { key: 'maxDrawdown', labelKey: 'Max Drawdown', fmt: 'pct', colorize: true },
-  { key: 'avgDrawdown', labelKey: 'Avg Drawdown', fmt: 'pct', colorize: true },
-  { key: 'maxDrawdownDuration', labelKey: 'analysis.maxDrawdownDuration', fmt: 'duration' },
-  { key: 'stdev', labelKey: 'backtest.stdev', fmt: 'pct' },
-  { key: 'sharpe', labelKey: 'backtest.sharpeRatio', fmt: 'ratio' },
-  { key: 'sortino', labelKey: 'Sortino', fmt: 'ratio' },
-  { key: 'calmar', labelKey: 'Calmar', fmt: 'ratio' },
-  { key: 'ulcerIndex', labelKey: 'analysis.ulcerIndex', fmt: 'ratio' },
-  { key: 'ulcerPerformanceIndex', labelKey: 'UPI', fmt: 'ratio' },
-  { key: 'beta', labelKey: 'Beta', fmt: 'ratio' },
-];
+const STATS_KEYS = [
+  'cagr',
+  'maxDrawdown',
+  'avgDrawdown',
+  'maxDrawdownDuration',
+  'stdev',
+  'sharpe',
+  'sortino',
+  'calmar',
+  'ulcerIndex',
+  'ulcerPerformanceIndex',
+  'beta',
+] as const;
+const STATS_COLUMNS: StatRow[] = rowsFromMeta(STATS_KEYS);
 export const StatsTable = memo(function StatsTable({
   tickers,
 }: {
   tickers: AssetAnalysisResult['tickers'];
 }) {
   const { t } = useTranslation();
-  const fmt = (v: number | undefined, f: 'pct' | 'ratio' | 'duration') => {
+  const fmt = (v: number | undefined, f: StatRow['fmt']) => {
     if (f === 'duration') return v == null ? '—' : `${v} ${t('days')}`;
-    return f === 'pct' ? fmtPct(v) : fmtRatio(v);
+    return f === 'pct' ? fmtPct(v) : fmtNum(v, 2);
   };
   const rows = STATS_COLUMNS.filter((c) => tickers.some((tk) => tk.statistics[c.key] != null));
-  const columns: SimpleTableColumn<StatCol>[] = [
+  const columns: SimpleTableColumn<StatRow>[] = [
     {
       key: 'metric',
       label: t('Metric'),
-      render: (c) => (c.labelKey.includes('.') ? t(c.labelKey) : c.labelKey),
+      render: (c) => (c.label.includes('.') ? t(c.label) : c.label),
     },
     ...tickers.map((tk, idx) => ({
       key: tk.ticker,
-      label: (
-        <span className="inline-flex items-center gap-1.5">
-          <span
-            className="inline-block size-2.5 rounded-full"
-            style={{ backgroundColor: getPortfolioColor(idx) }}
-          />
-          {tk.ticker}
-        </span>
-      ),
+      label: <PortfolioLabel color={getPortfolioColor(idx)} name={tk.ticker} />,
       align: 'right' as const,
-      render: (c: StatCol) => {
+      render: (c: StatRow) => {
         const v = tk.statistics[c.key] as number | undefined;
         const text = fmt(v, c.fmt);
         return c.colorize && v != null ? <span className={getColorClass(v)}>{text}</span> : text;

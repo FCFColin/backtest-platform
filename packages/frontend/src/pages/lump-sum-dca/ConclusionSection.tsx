@@ -2,7 +2,7 @@ import { useMemo, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AlertTriangle, TrendingDown, TrendingUp } from 'lucide-react';
 import { getPortfolioColor } from '@/lib/chart-theme.js';
-import { Card } from '@/components/ui/uiComponents';
+import { Card, PortfolioLabel } from '@/components/ui/uiComponents';
 import { SimpleTable, type SimpleTableColumn } from '@/components/tables.js';
 import { mergeRowsByDate } from '@/utils/format.js';
 import { TimeSeriesLineChart } from '@/components/charts/TimeSeriesLineChart.js';
@@ -70,15 +70,7 @@ function StatsTable({ results, fmtPct, fmtNum, fmtMoney }: FmtFns & { results: C
     },
     ...results.map((r, idx) => ({
       key: r.label,
-      label: (
-        <>
-          <span
-            className="mr-1.5 inline-block size-2.5 rounded-full align-middle"
-            style={{ backgroundColor: getPortfolioColor(idx) }}
-          />
-          {r.label}
-        </>
-      ),
+      label: <PortfolioLabel color={getPortfolioColor(idx)} name={r.label} />,
       align: 'right' as const,
       render: (row: (typeof STATS_ROWS)[number]) =>
         r[row.key] != null ? fmtVal(row.key, r[row.key] as number) : '\u2014',

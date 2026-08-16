@@ -23,7 +23,7 @@
   ],
   "limits": [
     {
-      "labelKey": "Portfolio Count",
+      "labelKey": "about.limits.portfolioCountLabel",
       "valueKey": "about.limits.portfolioCountValue",
       "descKey": "about.limits.portfolioCountDesc"
     },
@@ -33,12 +33,12 @@
       "descKey": "about.limits.tickerCountDesc"
     },
     {
-      "labelKey": "Backtest Range",
+      "labelKey": "about.limits.backtestRangeLabel",
       "valueKey": "about.limits.backtestRangeValue",
       "descKey": "about.limits.backtestRangeDesc"
     },
     {
-      "labelKey": "Simulation Count",
+      "labelKey": "about.limits.mcSimLabel",
       "valueKey": "about.limits.mcSimValue",
       "descKey": "about.limits.mcSimDesc"
     },
