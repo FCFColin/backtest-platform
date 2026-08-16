@@ -5,23 +5,22 @@ import { appRedis, getRedisHealth, markRedisUnhealthy } from '../infrastructure/
 import { readEntry, redisKeys } from './tokenStore.js';
 import type { AuthenticatedRequest } from './authShared.js';
 
-interface CachedResult {
-  statusCode: number;
-  body: unknown;
+// 单 key 状态机：SET NX 原子占位（并发同 key 仅一个执行），2xx 覆盖 done 供重放，非 2xx 删占位，崩溃由 TTL 兜底。
+const RESULT_TTL_SEC = 3600;
+const PROCESSING_TTL_SEC = 120;
+
+interface IdemEntry {
+  status: 'processing' | 'done';
+  statusCode?: number;
+  body?: unknown;
   timestamp: number;
 }
-const KEY_TTL_SEC = 3600;
+type IdemCtx = { middleware: string; key: string; path: string; requestId: unknown };
 
 export function idempotencyKey(req: Request, res: Response, next: NextFunction): void {
-  if (req.method.toUpperCase() !== 'POST') {
-    next();
-    return;
-  }
+  if (req.method.toUpperCase() !== 'POST') return next();
   const key = req.headers['idempotency-key'] as string | undefined;
-  if (!key) {
-    next();
-    return;
-  }
+  if (!key) return next();
   if (key.length > 128) {
     sendProblem(res, 400, 'INVALID_IDEMPOTENCY_KEY');
     return;
@@ -34,59 +33,64 @@ function redisUnavailable(res: Response): void {
     headers: { 'Retry-After': '30' },
   });
 }
-function idemCtx(req: Request, key: string): Record<string, unknown> {
-  return { middleware: 'idempotency', key, path: req.path, requestId: req.id };
+function finalize(redisKey: string, ctx: IdemCtx, statusCode: number, body: unknown): void {
+  const entry: IdemEntry = { status: 'done', statusCode, body, timestamp: Date.now() };
+  const p =
+    statusCode < 300
+      ? appRedis.set(redisKey, JSON.stringify(entry), 'EX', RESULT_TTL_SEC)
+      : appRedis.del(redisKey);
+  p.catch((err: unknown) =>
+    logger.warn(
+      { ...ctx, err: String(err) },
+      statusCode < 300 ? '[idempotency] 结果写入失败' : '[idempotency] 占位清理失败',
+    ),
+  );
 }
+
+// principal 优先用户 id（sub）而非租户 id；有租户时叠加前缀（同用户跨组织不串）；匿名共享 sub='guest' 按 IP 隔离幂等桶。
+function scopedRedisKey(req: Request, key: string): string {
+  const user = (req as AuthenticatedRequest).user;
+  const principal =
+    (user?.sub !== 'guest' ? user?.sub : undefined) ?? user?.tenant_id ?? req.ip ?? 'anonymous';
+  const tenantScope = user?.tenant_id;
+  return redisKeys.idempotency(
+    tenantScope ? `${tenantScope}:${principal}:${key}` : `${principal}:${key}`,
+  );
+}
+
 async function handleWithRedis(
   key: string,
   req: Request,
   res: Response,
   next: NextFunction,
 ): Promise<void> {
-  // principal 优先用户 id（sub）而非租户 id；有租户时叠加前缀（同用户跨组织不串），无租户保持原 key 形态，避免部署切换破坏在途幂等重试
-  const principal =
-    (req as AuthenticatedRequest).user?.sub ??
-    (req as AuthenticatedRequest).user?.tenant_id ??
-    req.ip ??
-    'anonymous';
-  const tenantScope = (req as AuthenticatedRequest).user?.tenant_id;
-  const redisKey = redisKeys.idempotency(
-    tenantScope ? `${tenantScope}:${principal}:${key}` : `${principal}:${key}`,
-  );
+  const redisKey = scopedRedisKey(req, key);
   if (!(await getRedisHealth())) return redisUnavailable(res);
+  const ctx = { middleware: 'idempotency', key, path: req.path, requestId: req.id };
   try {
-    const cached = await readEntry<CachedResult>(redisKey);
-    if (cached) {
-      logger.info(idemCtx(req, key), '[idempotency] Redis 幂等性 Key 命中缓存，返回缓存结果');
-      res.status(cached.statusCode).json(cached.body);
+    const claim = JSON.stringify({ status: 'processing' as const, timestamp: Date.now() });
+    const claimed = await appRedis.set(redisKey, claim, 'EX', PROCESSING_TTL_SEC, 'NX');
+    if (claimed !== 'OK') {
+      const existing = await readEntry<IdemEntry>(redisKey);
+      if (existing?.status === 'done' && existing.statusCode) {
+        logger.info(ctx, '[idempotency] 命中已完成结果，返回缓存响应');
+        res.status(existing.statusCode).json(existing.body);
+        return;
+      }
+      sendProblem(res, 409, 'IDEMPOTENCY_IN_FLIGHT', 'Idempotent request already in flight', {
+        detail: '相同 Idempotency-Key 的请求正在处理中，请稍后重试',
+        headers: { 'Retry-After': '1' },
+      });
       return;
     }
     const originalJson = res.json.bind(res);
     res.json = function (body: unknown): Response {
-      if (res.statusCode >= 200 && res.statusCode < 300)
-        appRedis
-          .set(
-            redisKey,
-            JSON.stringify({ statusCode: res.statusCode, body, timestamp: Date.now() }),
-            'EX',
-            KEY_TTL_SEC,
-            'NX',
-          )
-          .then(() => logger.info(idemCtx(req, key), '[idempotency] Redis 幂等性 Key 缓存写入'))
-          .catch((err: unknown) =>
-            logger.warn(
-              { middleware: 'idempotency', key, err: String(err) },
-              '[idempotency] Redis 缓存写入失败',
-            ),
-          );
+      finalize(redisKey, ctx, res.statusCode, body);
       return originalJson(body);
     };
     next();
   } catch (err) {
-    logger.warn(
-      { middleware: 'idempotency', key, err: String(err) },
-      '[idempotency] Redis 操作异常，返回 503',
-    );
+    logger.warn({ ...ctx, err: String(err) }, '[idempotency] Redis 操作异常，返回 503');
     markRedisUnhealthy();
     redisUnavailable(res);
   }

@@ -133,8 +133,12 @@ describe('Refresh Token 生命周期与 Redis', () => {
     if (familiesKey) expect(redisMocks.store.has(familiesKey)).toBe(false);
   });
   it.each([
-    ['不存在的 token', async () => 'nonexistent-token'],
-    ['TTL 过期（fake timers）', () => expiredTokenByFakeTimers(mocks.config.JWT_REFRESH_TTL + 60)],
+    ['不存在的 token', async () => 'nonexistent-token', undefined],
+    [
+      'TTL 过期（fake timers）',
+      () => expiredTokenByFakeTimers(mocks.config.JWT_REFRESH_TTL + 60),
+      undefined,
+    ],
     [
       'Redis entry 已过期',
       async () => expireStoredToken('redis-expired'),
@@ -402,21 +406,23 @@ describe('idempotencyKey 中间件', () => {
       expect(res.json).toHaveBeenCalledWith(cachedBody);
     }
   });
-  it('Redis 缓存写入失败应记录 warn 且不阻塞响应', async () => {
-    redisMocks.set.mockRejectedValueOnce(new Error('redis set failed'));
+  it('幂等结果写入失败应记录 warn 且不阻塞响应', async () => {
+    redisMocks.set.mockResolvedValueOnce('OK'); // claim 成功
+    redisMocks.set.mockRejectedValueOnce(new Error('redis set failed')); // 结果写入失败
     const { req, res, next } = createIdempotencyReqRes('redis-write-fail');
     idempotencyKey(req, res, next);
     await vi.waitFor(() => expect(next).toHaveBeenCalledTimes(1));
     res.statusCode = 200;
     expect(() => res.json({ success: true })).not.toThrow();
-    await vi.waitFor(() => expect(redisMocks.set).toHaveBeenCalled());
+    await vi.waitFor(() => expect(redisMocks.set).toHaveBeenCalledTimes(2));
   });
   it.each([
     ['Redis ping 失败', () => redisMocks.useMemoryFallback()],
     [
-      'Redis get 抛错',
+      'Redis 占位读取抛错',
       () => {
         redisMocks.ping.mockResolvedValue('PONG');
+        redisMocks.set.mockResolvedValueOnce(null); // claim 失败（key 已存在）
         redisMocks.get.mockRejectedValueOnce(new Error('redis read failed'));
       },
     ],
