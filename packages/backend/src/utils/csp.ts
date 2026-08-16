@@ -2,5 +2,5 @@
 // 否则每次请求都换新 nonce 会导致缓存命中页面的全部内联脚本被 CSP 拦截
 export function buildCspHeader(nonce: string, includeNonce = true): string {
   const scriptSrc = includeNonce ? `'self' 'nonce-${nonce}'` : "'self'";
-  return `default-src 'self'; script-src ${scriptSrc}; style-src 'self' 'unsafe-inline'; img-src 'self' data:;`;
+  return `default-src 'self'; script-src ${scriptSrc}; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self';`;
 }
