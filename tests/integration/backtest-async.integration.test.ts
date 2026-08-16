@@ -43,7 +43,7 @@ describe('P0-01 T3 · 异步回测全链路集成测试', () => {
 
     // 生产按 ADR-009 传 UUID jobId 作为 BullMQ 选项，mock 须采纳同一 id 才能让提交/轮询闭环
     queueMocks.add.mockImplementation(
-      async (name: string, data: Record<string, unknown>, opts?: { jobId?: string }) => {
+      async (_name: string, data: Record<string, unknown>, opts?: { jobId?: string }) => {
         const jobId = opts?.jobId ?? `job-${jobStore.size + 1}`;
         jobStore.set(jobId, {
           id: jobId,

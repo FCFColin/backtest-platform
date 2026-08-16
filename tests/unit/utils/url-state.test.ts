@@ -161,7 +161,7 @@ describe('特殊字符处理', () => {
     ['组合名称', 'Test & <>"\'#/\\组合', 'VTI'],
     ['ticker', 'Test', 'A&B=C#D'],
     ['空格', 'With Spaces', 'VTI', { benchmarkTicker: 'SP Y' }],
-  ])('%s包含特殊字符能正确往返', (_n, name, ticker, params) => {
+  ])('%s包含特殊字符能正确往返', (_n, name, ticker, params?: { benchmarkTicker: string }) => {
     const state = makeState(name, ticker, params);
     expect(decodeState(encodeState(state))).toEqual(state);
   });

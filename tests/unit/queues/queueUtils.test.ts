@@ -42,9 +42,9 @@ describe('queueUtils', () => {
 
   describe('transferToDlq', () => {
     it('job 无 id 时跳过转移', async () => {
-      const dlq = { add: vi.fn() } as never;
+      const dlq = { add: vi.fn() };
       await transferToDlq(
-        dlq,
+        dlq as unknown as Parameters<typeof transferToDlq>[0],
         'src',
         { id: null, name: 'job', data: {}, attemptsMade: 1 },
         new Error('fail'),
@@ -52,9 +52,9 @@ describe('queueUtils', () => {
       expect(dlq.add).not.toHaveBeenCalled();
     });
     it('job 有 id 时应调用 dlq.add', async () => {
-      const dlq = { add: vi.fn().mockResolvedValue(undefined) } as never;
+      const dlq = { add: vi.fn().mockResolvedValue(undefined) };
       await transferToDlq(
-        dlq,
+        dlq as unknown as Parameters<typeof transferToDlq>[0],
         'src',
         { id: 'job-1', name: 'job', data: { x: 1 }, attemptsMade: 3 },
         new Error('boom'),
@@ -66,10 +66,10 @@ describe('queueUtils', () => {
       );
     });
     it('dlq.add 失败时不抛出', async () => {
-      const dlq = { add: vi.fn().mockRejectedValue(new Error('redis down')) } as never;
+      const dlq = { add: vi.fn().mockRejectedValue(new Error('redis down')) };
       await expect(
         transferToDlq(
-          dlq,
+          dlq as unknown as Parameters<typeof transferToDlq>[0],
           'src',
           { id: 'job-2', name: 'job', data: {}, attemptsMade: 1 },
           new Error('orig'),

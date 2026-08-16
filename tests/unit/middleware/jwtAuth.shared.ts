@@ -4,17 +4,19 @@ import {
   createRedisModuleMock,
   createJwtAuthConfigMocks,
   type JwtAuthConfigMocks,
+  type RedisTestMocks,
 } from '../../helpers/mockFactories.js';
 import '../../helpers/loggerMock.js';
 import { createJwtAuthUserRepoMock } from '../../helpers/authFixtures.js';
+import type { VerifiedApiKey } from '../../../packages/backend/src/infrastructure/apiKeyVerifier.js';
 import { getUserById } from '../../../packages/backend/src/repositories/userRepo.js';
 
 /** jwt-auth.test.ts / token-refresh.test.ts 共享的 mock 配置与 setup helper */
 const internalMocks = vi.hoisted(() => ({
   configContainer: { config: {} as JwtAuthConfigMocks },
-  redis: {} as Record<string, unknown>,
+  redis: {} as RedisTestMocks,
   fs: { readFileSync: vi.fn() },
-  apiKey: { verifyApiKey: vi.fn(async () => null) },
+  apiKey: { verifyApiKey: vi.fn(async (): Promise<VerifiedApiKey | null> => null) },
   membership: {
     getMembership: vi.fn(),
     orgRoleToGlobalRole: vi.fn((role: string) => (role === 'owner' ? 'admin' : role)),

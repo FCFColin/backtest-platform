@@ -1,5 +1,6 @@
 import '../../helpers/loggerMock.js';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import type { MockInstance } from 'vitest';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 vi.mock('dotenv', () => ({
@@ -70,7 +71,7 @@ describe('validateConfig - 开发环境（宽松校验）', () => {
   });
   afterEach(() => restore());
 
-  it.each(['development', 'test'])('%s 环境不应抛错（宽松校验）', (env) => {
+  it.each(['development' as const, 'test' as const])('%s 环境不应抛错（宽松校验）', (env) => {
     config.NODE_ENV = env;
     expect(() => validateConfig()).not.toThrow();
   });
@@ -192,7 +193,7 @@ describe('CORS_ORIGINS', () => {
 });
 
 describe('P0-02: assertNoDefaultSecrets — 默认密钥启动拦截', () => {
-  let exitSpy: ReturnType<typeof vi.spyOn>;
+  let exitSpy: MockInstance<typeof process.exit>;
   let errorSpy: ReturnType<typeof vi.spyOn>;
   let originalNodeEnv: string | undefined;
 

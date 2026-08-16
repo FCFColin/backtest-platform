@@ -120,6 +120,8 @@ describe('defaultParameters', () => {
     expect(defaultParameters.startingValue).toBe(10000);
     expect(defaultParameters.baseCurrency).toBe('usd');
     expect(defaultParameters.benchmarkTicker).toBe('SPY');
-    expect(defaultParameters.rebalanceFrequency).toBeUndefined();
+    expect(
+      (defaultParameters as unknown as Record<string, unknown>).rebalanceFrequency,
+    ).toBeUndefined();
   });
 });

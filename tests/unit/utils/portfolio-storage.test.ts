@@ -145,7 +145,10 @@ describe('localStorage 不可用 - 优雅降级', () => {
     ['saveNamedConfig', () => saveNamedConfig('Test', validPortfolios, validParams), 'throwSet'],
     ['deleteNamedConfig', () => deleteNamedConfig('any-id'), 'throwSet'],
   ])('%s 不抛错', (_n, fn, mode) => {
-    vi.stubGlobal('localStorage', unavailableStorage(mode as string));
+    vi.stubGlobal(
+      'localStorage',
+      unavailableStorage(mode as 'throwSet' | 'throwRemove' | 'throwGet'),
+    );
     expect(() => fn()).not.toThrow();
   });
   it.each([['loadNamedConfigs', () => loadNamedConfigs(), []]])(

@@ -27,7 +27,7 @@ function mockRes() {
     },
     req: { path: '/x' },
   };
-  return res as unknown as Response & { statusCode: number; body: { code?: string } };
+  return res as unknown as Response & { statusCode: number; body: { error: { code?: string } } };
 }
 
 describe('resolveTenant', () => {

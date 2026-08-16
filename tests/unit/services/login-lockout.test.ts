@@ -1,8 +1,12 @@
 import '../../helpers/loggerMock.js';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createRedisModuleMock, createPoolModuleMock } from '../../helpers/mockFactories.js';
+import {
+  createRedisModuleMock,
+  createPoolModuleMock,
+  type RedisTestMocks,
+} from '../../helpers/mockFactories.js';
 
-const redisMocks = vi.hoisted(() => ({}));
+const redisMocks = vi.hoisted(() => ({}) as RedisTestMocks);
 const dbMocks = vi.hoisted(() => ({
   query: vi.fn(),
 }));
@@ -225,7 +229,7 @@ describe('listApiKeys', () => {
     const keys = await listApiKeys(ORG);
     expect(keys).toHaveLength(1);
     expect(keys[0]).toMatchObject({ id: KEY_ID, orgId: ORG, keyPrefix: 'bpk_live_abcd' });
-    expect((keys[0] as Record<string, unknown>).plaintext).toBeUndefined();
+    expect(keys[0]).not.toHaveProperty('plaintext');
   });
 });
 

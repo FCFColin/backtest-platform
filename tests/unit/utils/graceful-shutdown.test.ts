@@ -1,8 +1,9 @@
 import '../../helpers/loggerMock.js';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import type { MockInstance } from 'vitest';
 import { createShutdownOnce } from '../../../packages/backend/src/utils/gracefulShutdown.js';
 
-let exitMock: ReturnType<typeof vi.spyOn>;
+let exitMock: MockInstance<typeof process.exit>;
 
 beforeEach(() => {
   vi.useFakeTimers();

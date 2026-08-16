@@ -114,10 +114,25 @@ const findOrgUpdate = () =>
   dbMocks.client.query.mock.calls.find((c) => String(c[0]).includes('UPDATE organizations'));
 describe('plan/price 映射', () => {
   it.each<[string, (x: string | null) => string, string | null, string]>([
-    ['priceIdForPlan 返回配置的 Price', priceIdForPlan, 'pro', 'price_pro'],
-    ['planForPriceId 反查计划', planForPriceId, 'price_ent', 'enterprise'],
-    ['planForPriceId 未匹配回 free', planForPriceId, 'price_unknown', 'free'],
-    ['planForPriceId 空值回 free', planForPriceId, null, 'free'],
+    [
+      'priceIdForPlan 返回配置的 Price',
+      priceIdForPlan as (x: string | null) => string,
+      'pro',
+      'price_pro',
+    ],
+    [
+      'planForPriceId 反查计划',
+      planForPriceId as (x: string | null) => string,
+      'price_ent',
+      'enterprise',
+    ],
+    [
+      'planForPriceId 未匹配回 free',
+      planForPriceId as (x: string | null) => string,
+      'price_unknown',
+      'free',
+    ],
+    ['planForPriceId 空值回 free', planForPriceId as (x: string | null) => string, null, 'free'],
   ])('%s', (_n, fn, input, expected) => {
     expect(fn(input)).toBe(expected);
   });
@@ -284,7 +299,12 @@ describe('createCheckoutSession', () => {
   ])('%s', async (_n, createResult, expectedUrl, throws) => {
     dbMocks.client.query.mockResolvedValueOnce({ rows: [{ stripe_customer_id: 'cus_1' }] }); // ensureCustomer
     stripeMocks.checkout.sessions.create.mockResolvedValueOnce(createResult);
-    const args = { orgId: ORG, plan: 'pro', successUrl: 'http://ok', cancelUrl: 'http://cancel' };
+    const args = {
+      orgId: ORG,
+      plan: 'pro' as const,
+      successUrl: 'http://ok',
+      cancelUrl: 'http://cancel',
+    };
     if (throws) {
       await expect(createCheckoutSession(args)).rejects.toThrow('checkout_session_no_url');
     } else {

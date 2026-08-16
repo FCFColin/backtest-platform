@@ -34,12 +34,13 @@ const mkSeries = (ticker: string, returns: number[], value = 100, p = 'd') =>
     growthCurve: dates(returns.length, p).map((d) => ({ date: d, value })),
   });
 const run = (r: AssetAnalysisResult) => renderHook(() => useAnalysisData(r)).result.current;
-const range = (n: number, fn: (i: number) => number) => Array.from({ length: n }, (_, i) => fn(i));
+const range = <T>(n: number, fn: (i: number) => T): T[] =>
+  Array.from({ length: n }, (_, i) => fn(i));
 const dates = (n: number, p = 'd') => Array.from({ length: n }, (_, i) => `${p}${i}`);
 
 describe('useAnalysisData', () => {
   it('tickers 为 undefined 时使用空数组默认值', () => {
-    const h = run({ tickers: undefined, correlations: [] } as AssetAnalysisResult);
+    const h = run({ tickers: undefined, correlations: [] } as unknown as AssetAnalysisResult);
     expect(h.tickers).toEqual([]);
     expect(h.tickerNames).toEqual([]);
   });

@@ -1,5 +1,6 @@
 import '../../helpers/loggerMock.js';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import type { MockInstance } from 'vitest';
 import { loggerMocks } from '../../helpers/loggerFixture.js';
 
 vi.mock('../../../packages/backend/src/tracing.js', () => ({
@@ -7,7 +8,7 @@ vi.mock('../../../packages/backend/src/tracing.js', () => ({
 }));
 
 const mockServer = {
-  listen: vi.fn((port: number, cb?: () => void) => {
+  listen: vi.fn((_port: number, cb?: () => void) => {
     if (cb) cb();
     return mockServer;
   }),
@@ -66,7 +67,7 @@ vi.mock('../../../packages/backend/src/queues/queueDefinitions.js', () => ({
 }));
 
 describe('P0-01: uncaughtException / unhandledRejection 必须终止进程', () => {
-  let exitSpy: ReturnType<typeof vi.spyOn>;
+  let exitSpy: MockInstance<typeof process.exit>;
   let originalExit: typeof process.exit;
 
   beforeEach(() => {
@@ -92,7 +93,10 @@ describe('P0-01: uncaughtException / unhandledRejection 必须终止进程', () 
     exitSpy.mockClear();
 
     const reason = new Error('test unhandled rejection');
-    process.emit('unhandledRejection', reason);
+    (process.emit as unknown as (event: 'unhandledRejection', reason: unknown) => boolean)(
+      'unhandledRejection',
+      reason,
+    );
 
     expect(loggerMocks.error).toHaveBeenCalled();
     await vi.waitFor(() => expect(exitSpy).toHaveBeenCalledWith(1));

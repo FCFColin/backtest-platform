@@ -11,6 +11,7 @@ import {
 } from '../../helpers/backtestStoreFixtures.js';
 import { normalizeBacktestResult } from '../../../packages/frontend/src/store/backtestHelpers.js';
 import { useBacktestStore } from '../../../packages/frontend/src/store/backtestStore.js';
+import type { BacktestSeriesField } from '../../../packages/frontend/src/store/types.js';
 import { mockBacktestResult, mockPortfolioResult } from '../../helpers/storeFixtures.js';
 import { mockPortfolio, mockBacktestParams } from '../../helpers/storeFixtures.js';
 
@@ -176,13 +177,13 @@ describe('resultsStale 过期标记', () => {
   });
 });
 describe('enrichSeries', () => {
-  it.each<[string, () => void, string[], boolean]>([
+  it.each<[string, () => void, BacktestSeriesField[], boolean]>([
     ['results is null', () => {}, ['rollingReturns'], false],
     ['no portfolios', () => setResultsWith([]), ['rollingReturns'], false],
     ['empty series array', () => setSinglePortfolioResult(), [], false],
     [
       'all fields populated',
-      () => setSinglePortfolioResult({ rollingReturns: [{ date: '2020-01-02', value: 0.1 }] }),
+      () => setSinglePortfolioResult({ rollingReturns: [{ date: '2020-01-02', return: 0.1 }] }),
       ['rollingReturns'],
       false,
     ],

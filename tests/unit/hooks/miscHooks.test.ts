@@ -279,7 +279,7 @@ describe('useAdminFetch', () => {
       ok: true,
       json: async () => ({ success: true, data: { n: 3 } }),
     });
-    const parser = vi.fn((d: Record<string, unknown>) => ({ count: d.n }));
+    const parser = vi.fn((d: Record<string, unknown>) => ({ count: d.n as number }));
     const { result } = renderHook(() =>
       useAdminFetch<{ count: number }>('/api/v1/admin/x', parser, { count: 0 }, 'TestComp'),
     );

@@ -16,7 +16,7 @@ function makePortfolio(name: string, n: number): PortfolioResult {
   return {
     name,
     growthCurve: curve,
-    drawdownCurve: curve.map((p, i) => ({ date: p.date, value: -(i % 10) })),
+    drawdownCurve: curve.map((p, i) => ({ date: p.date, drawdown: -(i % 10) })),
     rollingReturns: curve.map((p, i) => ({ date: p.date, return: i * 0.001 })),
     annualReturns: [{ year: 2020, return: 0.1 }],
     monthlyReturns: [{ year: 2020, month: 1, return: 0.01 }],
@@ -69,7 +69,7 @@ describe('compressBacktestResultForSync', () => {
     const full = compressBacktestResult(makeResult(2000));
     const slices = extractBacktestSeries(full, ['rollingReturns', 'allocationHistory']);
 
-    expect(slices[0].rollingReturns.length).toBeLessThanOrEqual(800);
+    expect(slices[0].rollingReturns!.length).toBeLessThanOrEqual(800);
     expect(slices[0].allocationHistory?.length).toBeLessThanOrEqual(800);
     expect(slices[0].growthCurve).toBeUndefined();
   });

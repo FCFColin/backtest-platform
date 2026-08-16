@@ -94,7 +94,7 @@ describe('authenticateWithApiKey（必选模式）', () => {
 describe('authenticateWithApiKey（可选模式）', () => {
   it('缺失 API Key 应设 req.user=null 并放行', async () => {
     const { req, res, next } = createMockMiddleware({ headers: {} });
-    await authenticateWithApiKey(req as AuthenticatedRequest, res, next, true);
+    await authenticateWithApiKey(req, res, next, true);
     expect(next).toHaveBeenCalledTimes(1);
     expect(req.user).toBeNull();
   });
@@ -113,7 +113,7 @@ describe('authenticateWithApiKey（可选模式）', () => {
   ])('%s', async (_n, verified, expected) => {
     mocks.verifyApiKey.mockResolvedValueOnce(verified);
     const { req, res, next } = createMockMiddleware({ headers: { 'x-api-key': 'bpk_live_key' } });
-    await authenticateWithApiKey(req as AuthenticatedRequest, res, next, true);
+    await authenticateWithApiKey(req, res, next, true);
     expect(next).toHaveBeenCalledTimes(1);
     if (expected) expect(req.user).toMatchObject(expected);
     else expect(req.user).toBeNull();
@@ -122,7 +122,7 @@ describe('authenticateWithApiKey（可选模式）', () => {
   it('verifyApiKey 抛出异常应返回 503 AUTH_SERVICE_UNAVAILABLE（fail-closed）（D4-010）', async () => {
     mocks.verifyApiKey.mockRejectedValueOnce(new Error('DB connection failed'));
     const { req, res, next } = createMockMiddleware({ headers: { 'x-api-key': 'bpk_live_key' } });
-    await authenticateWithApiKey(req as AuthenticatedRequest, res, next, true);
+    await authenticateWithApiKey(req, res, next, true);
     expect(mocks.sendProblem).toHaveBeenCalledWith(
       res,
       503,
@@ -139,7 +139,7 @@ describe('authenticateWithApiKey（可选模式）', () => {
       headers: { 'x-api-key': 'bpk_live_hanging' },
     });
     vi.useFakeTimers();
-    const promise = authenticateWithApiKey(req as AuthenticatedRequest, res, next, true);
+    const promise = authenticateWithApiKey(req, res, next, true);
     vi.advanceTimersByTime(5000); // 快进 5s 触发超时
     await promise;
     vi.useRealTimers();

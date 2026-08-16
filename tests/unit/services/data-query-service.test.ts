@@ -143,7 +143,7 @@ describe('queryPricesFromDb', () => {
         { ticker: 'VTI', date: new Date('2024-01-02'), close: 200 },
       ],
     });
-    const r = await queryPricesFromDb(tickers, start, end);
+    const r = await queryPricesFromDb(tickers, start, end, false);
     expect(r.result.SPY).toBeDefined();
     expect(r.result.SPY['2024-01-02']).toBe(400);
     expect(r.missing).toEqual([]);
@@ -170,7 +170,7 @@ describe('queryPricesFromDb', () => {
     ],
   ])('%s', async (_n, setup, dbDegraded) => {
     setup();
-    const r = await queryPricesFromDb(tickers, start, end);
+    const r = await queryPricesFromDb(tickers, start, end, false);
     expect(r.missing).toEqual(tickers);
     expect(r.dbDegraded).toBe(dbDegraded);
     expect(Object.keys(r.result)).toHaveLength(0);
@@ -195,7 +195,7 @@ describe('callGoDataService', () => {
 });
 
 describe('P0-03: callGoDataService 响应体大小限制（MAX_RESPONSE_BODY_SIZE=100 bytes）', () => {
-  it.each([
+  it.each<{ name: string; data: string; headers: Record<string, string>; chunkSize?: number }>([
     {
       name: 'Content-Length 超限应立即拒绝（不等数据到达）',
       data: '',
@@ -213,7 +213,7 @@ describe('P0-03: callGoDataService 响应体大小限制（MAX_RESPONSE_BODY_SIZ
     await expect(callGoDataService('/api/data/price/SPY')).rejects.toThrow(/response too large/i);
   });
 
-  it.each([
+  it.each<{ name: string; data: string; headers: Record<string, string> }>([
     { name: '正常响应（在 100 字节限制内）应成功返回', data: '{"success":true}', headers: {} },
     {
       name: '正常响应有 Content-Length 且在限制内应成功',

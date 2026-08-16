@@ -67,7 +67,7 @@ describe('savedConfigRepo', () => {
     [9999, 200, '上限钳制为 200'],
     [undefined, 50, '默认 limit 为 50'],
     [0, 0, 'limit 为 0 应传 0'],
-  ])('listConfigs %s', async (limit, expected) => {
+  ])('listConfigs %s', async (limit, expected, _label) => {
     dbMocks.query.mockResolvedValueOnce({ rows: [] });
     await listConfigs(TENANT, limit);
     expect(dbMocks.query.mock.calls[0][1][1]).toBe(expected);

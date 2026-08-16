@@ -25,8 +25,10 @@ describe('sanitizeMcParams（与 Go MCSimParams 白名单对齐）', () => {
 
   it('undefined / 非对象 / 数组均返回空对象', () => {
     expect(sanitizeMcParams(undefined)).toEqual({});
-    expect(sanitizeMcParams(null)).toEqual({});
-    expect(sanitizeMcParams('nope')).toEqual({});
-    expect(sanitizeMcParams([{ numSimulations: 1 }])).toEqual({});
+    expect(sanitizeMcParams(null as unknown as Record<string, unknown>)).toEqual({});
+    expect(sanitizeMcParams('nope' as unknown as Record<string, unknown>)).toEqual({});
+    expect(sanitizeMcParams([{ numSimulations: 1 }] as unknown as Record<string, unknown>)).toEqual(
+      {},
+    );
   });
 });

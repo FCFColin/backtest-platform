@@ -26,7 +26,7 @@ vi.mock('ioredis', () => ({
 vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () => redisModuleMock);
 
 const queueUtilsMocks = vi.hoisted(() => ({
-  isFinalFailure: vi.fn(() => false),
+  isFinalFailure: vi.fn((_job: { attemptsMade: number }) => false),
 }));
 
 vi.mock('../../../packages/backend/src/queues/queueUtils.js', () => ({

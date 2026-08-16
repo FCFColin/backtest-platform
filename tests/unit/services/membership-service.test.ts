@@ -83,7 +83,7 @@ describe('orgRoleToGlobalRole', () => {
     ['owner 应映射为 admin', 'owner', 'admin'],
     ['其它角色应原样返回', 'analyst', 'analyst'],
     ['readonly 应原样返回', 'readonly', 'readonly'],
-  ])('%s', (_n, role, expected) => {
+  ] as const)('%s', (_n, role, expected) => {
     expect(orgRoleToGlobalRole(role)).toBe(expected);
   });
 });

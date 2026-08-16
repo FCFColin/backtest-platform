@@ -104,7 +104,7 @@ describe('createAuditExportWorker', () => {
     const { exportPendingAuditLogs } =
       await import('../../../packages/backend/src/application/auditExporter.js');
     createAuditExportWorker();
-    const fn = workerMocks.instances['audit-export'].fn as () => Promise<void>;
+    const fn = (workerMocks.instances['audit-export'] as { fn: () => Promise<void> }).fn;
     await fn();
     expect(exportPendingAuditLogs).toHaveBeenCalled();
   });
@@ -114,7 +114,7 @@ describe('createAuditExportWorker', () => {
       await import('../../../packages/backend/src/application/auditExporter.js');
     (exportPendingAuditLogs as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('fail'));
     createAuditExportWorker();
-    const fn = workerMocks.instances['audit-export'].fn as () => Promise<void>;
+    const fn = (workerMocks.instances['audit-export'] as { fn: () => Promise<void> }).fn;
     await expect(fn()).resolves.toBeUndefined();
   });
 });

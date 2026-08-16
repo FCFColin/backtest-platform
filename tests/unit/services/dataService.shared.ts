@@ -3,6 +3,7 @@ import {
   createConfigMocks,
   createRedisModuleMock,
   createMetricsMocks,
+  type RedisTestMocks,
 } from '../../helpers/mockFactories.js';
 
 const internalMocks = vi.hoisted(() => ({
@@ -19,7 +20,7 @@ const internalMocks = vi.hoisted(() => ({
     debug: vi.fn(),
     child: vi.fn(() => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() })),
   },
-  redis: {} as Record<string, unknown>,
+  redis: {} as RedisTestMocks,
   fs: {
     existsSync: vi.fn().mockReturnValue(false),
     readFileSync: vi.fn(),

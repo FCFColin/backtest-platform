@@ -40,7 +40,9 @@ describe('指标对象导出', () => {
 
 async function metricValue(
   metric: {
-    get: () => Promise<{ values: Array<{ value: number; labels: Record<string, string> }> }>;
+    get: () => Promise<{
+      values: Array<{ value: number; labels: Partial<Record<string, string | number>> }>;
+    }>;
   },
   labels: Record<string, string>,
 ): Promise<number | undefined> {

@@ -1,20 +1,25 @@
 import { describe, it, expect } from 'vitest';
 import { mergePortfolioSeries } from '../../../packages/frontend/src/utils/format.js';
 
+interface SeriesItem {
+  date?: string;
+  year?: number;
+  v: number;
+}
 interface MockPortfolio {
   name: string;
-  values: Array<{ date: string; v: number }>;
+  values: SeriesItem[];
 }
 
 const merge = (
   portfolios: MockPortfolio[],
-  getSeries: (p: MockPortfolio) => MockPortfolio['values'] | undefined = (p) => p.values,
+  getSeries: (p: MockPortfolio) => SeriesItem[] | undefined = (p) => p.values,
   key: 'date' | 'year' = 'date',
 ) =>
-  mergePortfolioSeries<{ date: string; v: number }, MockPortfolio>(
+  mergePortfolioSeries<SeriesItem, MockPortfolio>(
     portfolios,
     getSeries,
-    (item) => item[key],
+    (item) => item[key] as string | number,
     (item) => item.v,
     key,
   );

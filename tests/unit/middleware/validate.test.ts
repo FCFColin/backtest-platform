@@ -74,12 +74,12 @@ describe('安全攻击用例', () => {
   ])('%s 不应修改 Object.prototype', (_name, payload) => {
     const body = JSON.parse(payload);
 
-    expect({}.admin).toBeUndefined();
+    expect(({} as Record<string, unknown>).admin).toBeUndefined();
 
     const { req, next } = run(body);
 
     expect(next).toHaveBeenCalled();
-    expect({}.admin).toBeUndefined();
+    expect(({} as Record<string, unknown>).admin).toBeUndefined();
     expect((req.body as Record<string, unknown>).admin).toBeUndefined();
   });
 

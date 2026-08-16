@@ -16,6 +16,8 @@ import {
 } from '../../helpers/expressMocks.js';
 import { expectProblem } from '../../helpers/routeAssertions.js';
 import { sha256Hex } from '../../../packages/backend/src/utils/crypto.js';
+import type { TenantContext } from '../../../packages/backend/src/middleware/authShared.js';
+import type { VerifiedApiKey } from '../../../packages/backend/src/infrastructure/apiKeyVerifier.js';
 import {
   mocks,
   redisMocks,
@@ -46,7 +48,7 @@ function mockReqRes(reqInit: Record<string, unknown> = {}) {
     next: createJwtAuthMockNext(),
   };
 }
-async function expectJwtAuth401(
+async function expectAuthRejected(
   headers: Record<string, unknown>,
   code?: string,
   mw = jwtAuth,
@@ -88,7 +90,7 @@ describe('JWT 生成与验证', () => {
     const after = Math.floor(Date.now() / 1000);
     expect(p.iat).toBeGreaterThanOrEqual(before);
     expect(p.iat).toBeLessThanOrEqual(after);
-    expect(p.exp).toBe(p.iat! + mocks.config.JWT_ACCESS_TTL);
+    expect(p.exp).toBe(Number(p.iat) + mocks.config.JWT_ACCESS_TTL);
     const id = 'a'.repeat(200);
     expect(decodePayload(await generateToken(id, 'readonly')).sub).toBe(id);
   });
@@ -96,11 +98,12 @@ describe('JWT 生成与验证', () => {
     ['完整租户上下文', { tenantId: 'org-123', orgRole: 'owner', platformAdmin: true }],
     ['无租户上下文', undefined],
     ['仅 tenantId', { tenantId: 'org-456' }],
-  ])('%s 应正确嵌入租户字段', async (_n, ctx) => {
-    const p = decodePayload(await generateToken('user-1', 'admin', ctx));
-    expect(p.tenant_id).toBe(ctx?.tenantId);
-    expect(p.org_role).toBe(ctx?.orgRole);
-    expect(p.platform_admin).toBe(ctx?.platformAdmin);
+  ] as const)('%s 应正确嵌入租户字段', async (_n, ctx) => {
+    const tenant = ctx as TenantContext | undefined;
+    const p = decodePayload(await generateToken('user-1', 'admin', tenant));
+    expect(p.tenant_id).toBe(tenant?.tenantId);
+    expect(p.org_role).toBe(tenant?.orgRole);
+    expect(p.platform_admin).toBe(tenant?.platformAdmin);
   });
   const gen = () => generateToken('user-1', 'admin');
   it.each([
@@ -164,7 +167,7 @@ describe('jwtAuth 与相关中间件', () => {
   it.each([
     ['jwtAuth', jwtAuth, 'admin', true],
     ['optionalJwtAuth', optionalJwtAuth, 'readonly', false],
-  ])('%s 应注入脱敏日志上下文', async (_n, mw, role, checkRole) => {
+  ] as const)('%s 应注入脱敏日志上下文', async (_n, mw, role, checkRole) => {
     const token = await generateToken('log-context-user', role);
     const childFn = vi.fn(() => ({ info: vi.fn(), warn: vi.fn() }));
     const { req, res, next } = mockReqRes({
@@ -184,14 +187,14 @@ describe('jwtAuth 与相关中间件', () => {
     ['无空格 Bearer 前缀', { authorization: 'Bearertoken-without-space' }],
     ['无认证凭证', {}],
   ])('%s 应返回 401', async (_n, headers) => {
-    await expectJwtAuth401(headers);
+    await expectAuthRejected(headers);
   });
   it.each([
     ['无效 x-api-key', 'wrong-key'],
     ['超长 x-api-key（防缓冲区攻击）', 'a'.repeat(129)],
   ])('%s 应返回 401', async (_n, key) => {
     apiKeyMocks.verifyApiKey.mockResolvedValueOnce(null);
-    await expectJwtAuth401({ 'x-api-key': key });
+    await expectAuthRejected({ 'x-api-key': key });
   });
   it.each([
     [
@@ -210,7 +213,7 @@ describe('jwtAuth 与相关中间件', () => {
       { role: 'admin', platform_admin: true },
     ],
   ])('%s 应注入对应 user', async (_n, apiKeyResult, expectedUser) => {
-    apiKeyMocks.verifyApiKey.mockResolvedValueOnce(apiKeyResult as Record<string, unknown>);
+    apiKeyMocks.verifyApiKey.mockResolvedValueOnce(apiKeyResult as VerifiedApiKey);
     const { req, res, next } = mockReqRes({ headers: { 'x-api-key': 'bpk_live_testkey' } });
     await awaitMiddleware(jwtAuth, req, res, next);
     expect(next).toHaveBeenCalled();
@@ -265,7 +268,7 @@ describe('jwtAuth 与相关中间件', () => {
       'INVALID_TOKEN',
     ],
   ])('%s jwtAuth 应返回 401 %s', async (_n, build, code) => {
-    await expectJwtAuth401({ authorization: `Bearer ${await build()}` }, code);
+    await expectAuthRejected({ authorization: `Bearer ${await build()}` }, code);
   });
   it('已停用用户 refresh 应被拒绝并删除 token', async () => {
     const t = await generateRefreshToken('disabled-redis-refresh', 'admin');
@@ -325,7 +328,8 @@ describe('verifyToken RS256 算法边界', () => {
     ],
     [
       '缺失签名段',
-      async (keys) => (await signRsa(validPayload(), keys.privateKey)).replace(/[^.]*$/, ''),
+      async (keys: Awaited<ReturnType<typeof setupRsaKeys>>) =>
+        (await signRsa(validPayload(), keys.privateKey)).replace(/[^.]*$/, ''),
     ],
   ])('%s 应被拒绝', async (_n, build) => {
     const keys = await setupRsaKeys();
@@ -403,7 +407,7 @@ describe('jwtAuth RS256 路径（PEM 加载与签发）', () => {
       await import('../../../packages/backend/src/repositories/userRepo.js');
     redisMocks.useRedisSuccess();
     vi.mocked(g).mockRejectedValueOnce(new Error('db error'));
-    await expectJwtAuth401(
+    await expectAuthRejected(
       { authorization: `Bearer ${await mod.generateToken('user-db-error', 'admin')}` },
       'AUTH_SERVICE_UNAVAILABLE',
       mod.jwtAuth,

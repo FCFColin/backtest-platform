@@ -22,7 +22,7 @@ describe('monteCarloUtils.buildPresets', () => {
 
   it('应生成 3 个预设按钮，点击后设置对应参数', () => {
     const setters = makeSetters();
-    const presets = buildPresets(setters);
+    const presets = buildPresets(setters as unknown as Parameters<typeof buildPresets>[0]);
     expect(presets).toHaveLength(3);
 
     presets[0].onClick();
@@ -44,7 +44,7 @@ describe('monteCarloUtils.buildPresets', () => {
 
   it('第三预设（三基金）应设置正确的权重组合', () => {
     const setters = makeSetters();
-    const presets = buildPresets(setters);
+    const presets = buildPresets(setters as unknown as Parameters<typeof buildPresets>[0]);
     presets[2].onClick();
     const [portfolios] = setters.setPortfolios.mock.calls[0];
     expect(portfolios[0].assets).toEqual([

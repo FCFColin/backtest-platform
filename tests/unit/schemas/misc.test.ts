@@ -66,7 +66,7 @@ describe('portfolioBodySchema', () => {
     ['空资产列表应拒绝', { assets: [] }, false],
     ['超过 200 资产应拒绝', { assets: Array(201).fill({ ticker: 'VTI', weight: 0.5 }) }, false],
     ['负权重应拒绝', { assets: [{ ticker: 'VTI', weight: -1 }] }, false],
-  ])('%s', (label, patch, shouldPass) => {
+  ])('%s', (_label, patch, shouldPass) => {
     const r = portfolioBodySchema.safeParse({ ...valid, ...patch });
     expect(r.success).toBe(shouldPass);
   });
@@ -85,7 +85,7 @@ describe('savedConfigBodySchema', () => {
   it.each([
     ['应接受合法请求', { name: 'My Config', config: { portfolios: [] } }, true],
     ['空名称应拒绝', { name: '', config: {} }, false],
-  ])('%s', (label, data, shouldPass) => {
+  ])('%s', (_label, data, shouldPass) => {
     expect(savedConfigBodySchema.safeParse(data).success).toBe(shouldPass);
   });
 });
@@ -95,7 +95,7 @@ describe('backtestRunBodySchema', () => {
     ['应接受仅 name + request', { name: 'run-1', request: { portfolios: [] } }, true],
     ['可选字段', { name: 'r', request: {}, status: 'pending', result: {} }, true],
     ['非法 status 应拒绝', { name: 'r', request: {}, status: 'invalid' }, false],
-  ])('%s', (label, data, shouldPass) => {
+  ])('%s', (_label, data, shouldPass) => {
     expect(backtestRunBodySchema.safeParse(data).success).toBe(shouldPass);
   });
 });

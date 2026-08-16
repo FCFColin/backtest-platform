@@ -188,7 +188,7 @@ describe('apiPostJSON', () => {
   it('HTTP 非 2xx 无错误详情时应抛可读错误（不再泄露 `HTTP ${status}`）', async () => {
     mocks.fetch.mockResolvedValue(makeResponse({ ok: false, status: 500, body: {} }));
 
-    const err = await apiPostJSON('/api/foo', {}, 'custom error').catch((e) => e);
+    const err = (await apiPostJSON('/api/foo', {}, 'custom error').catch((e: Error) => e)) as Error;
     expect(err.message).toBeTruthy();
     expect(err.message).not.toContain('HTTP 500');
   });

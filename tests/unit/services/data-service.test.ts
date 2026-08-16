@@ -361,6 +361,21 @@ describe('extended scenarios', () => {
   describe('dataFacade 编排（mock dataQuery/dataCache 层）', () => {
     let facade: typeof import('../../../packages/backend/src/infrastructure/dataFacade.js');
     const d = (t: string, v: number) => ({ [t]: { '2024-01-02': v } });
+    type ExpectedFacadeResult = {
+      data: Record<string, Record<string, number>>;
+      degraded?: boolean;
+      warning?: string;
+      warningContains?: string;
+      warningUndefined?: boolean;
+      noCacheRead?: boolean;
+      cacheRead?: boolean;
+      noGo?: boolean;
+      noDb?: boolean;
+      info?: string;
+      warn?: string;
+      goArgs?: string[];
+      defaultDates?: boolean;
+    };
     beforeEach(async () => {
       vi.resetModules();
       vi.doMock('../../../packages/backend/src/infrastructure/dataQuery.js', () => dataQueryMocks);
@@ -396,7 +411,7 @@ describe('extended scenarios', () => {
       dataCacheMocks.readCache.mockResolvedValue(o.cached ?? null);
       if (o.go) dataQueryMocks.fetchMissingFromGoService.mockResolvedValue(o.go);
     }
-    it.each([
+    it.each<[string, string[], Record<string, unknown>, ExpectedFacadeResult]>([
       [
         '全部 DB 命中（不查缓存/Go）',
         ['AAPL', 'MSFT'],

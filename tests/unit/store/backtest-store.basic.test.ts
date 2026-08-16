@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { mockFetch, resetBacktestStoreState } from '../../helpers/backtestStoreFixtures.js';
 import { useBacktestStore } from '../../../packages/frontend/src/store/backtestStore.js';
 import type { Portfolio } from '../../../packages/shared/types/portfolio.js';
+import type { BacktestParameters } from '../../../packages/shared/types/index.js';
 import { mockBacktestParams } from '../../helpers/storeFixtures.js';
 
 const S = () => useBacktestStore.getState();
@@ -56,12 +57,12 @@ describe('removePortfolio', () => {
   });
 });
 describe('updatePortfolio', () => {
-  it.each([
+  it.each<[string, { name: string } | { rebalanceFrequency: 'monthly' }, string, string]>([
     ['名称', { name: '我的组合' }, 'name', '我的组合'],
     ['调仓频率', { rebalanceFrequency: 'monthly' }, 'rebalanceFrequency', 'monthly'],
   ])('更新%s', (_n, update, key, expected) => {
     S().updatePortfolio('p1', update);
-    expect((S().portfolios[0] as Record<string, unknown>)[key]).toBe(expected);
+    expect((S().portfolios[0] as unknown as Record<string, unknown>)[key]).toBe(expected);
   });
   it('更新偏离调仓阈值', () => {
     S().updatePortfolio('p1', { rebalanceFrequency: 'threshold', rebalanceThreshold: 10 });
@@ -75,7 +76,7 @@ describe('updatePortfolio', () => {
   });
 });
 describe('updateParameter', () => {
-  it.each<[string, unknown]>([
+  it.each<[keyof BacktestParameters, BacktestParameters[keyof BacktestParameters]]>([
     ['startingValue', 50000],
     ['startDate', '2015-01-01'],
     ['endDate', '2023-12-31'],
@@ -84,7 +85,7 @@ describe('updateParameter', () => {
     ['rollingWindowMonths', 6],
   ])('更新%s', (key, value) => {
     S().updateParameter(key, value);
-    expect((S().parameters as Record<string, unknown>)[key]).toBe(value);
+    expect((S().parameters as unknown as Record<string, unknown>)[key]).toBe(value);
   });
 });
 describe('addGlidepath', () => {
@@ -235,7 +236,7 @@ describe.each(cashflowOps)(
       if (key === null) {
         expect(list()[0]).toMatchObject(patch);
       } else {
-        expect((list()[0] as Record<string, unknown>)[key]).toBe(expected);
+        expect((list()[0] as unknown as Record<string, unknown>)[key]).toBe(expected);
       }
     });
     it('update with non-existent id does nothing', () => {

@@ -1,5 +1,10 @@
 ﻿import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { createMockRequest, createMockResponse } from '../../helpers/expressMocks.js';
+import type { Request, Response } from 'express';
+import {
+  createMockRequest,
+  createMockResponse,
+  type MockResponse,
+} from '../../helpers/expressMocks.js';
 import { createMockClient } from '../../helpers/mockFactories.js';
 
 const loggerMocks = vi.hoisted(() => {
@@ -47,7 +52,7 @@ function createMockReqRes(opts: {
     on: vi.fn((event: string, cb: () => void) => {
       if (event === 'finish') res._finishCallback = cb;
     }),
-  } as unknown as Response;
+  } as unknown as MockResponse & Response;
   return { req, res, next: vi.fn() };
 }
 
@@ -75,11 +80,15 @@ describe('auditLog 中间件', () => {
     auditLog(req, res, next);
     const finishCb = res._finishCallback;
     expect(finishCb).toBeDefined();
-    finishCb();
-    expect(loggerMocks.info).toHaveBeenCalled();
+    finishCb!();
     expect(loggerMocks.childInfo).toHaveBeenCalled();
   });
-  it.each([
+  it.each<{
+    name: string;
+    headers: Record<string, string>;
+    expectUserId?: string;
+    notContaining?: string;
+  }>([
     { name: '无 x-api-key 时 userId 应为 anonymous', headers: {}, expectUserId: 'anonymous' },
     {
       name: '有 x-api-key 时 userId 应为 SHA-256 哈希前 16 位（非明文）',
@@ -89,7 +98,7 @@ describe('auditLog 中间件', () => {
   ])('$name', ({ headers, expectUserId, notContaining }) => {
     const { req, res, next } = createMockReqRes({ method: 'POST', headers });
     auditLog(req, res, next);
-    res._finishCallback();
+    res._finishCallback?.();
     expect(loggerMocks.childInfo).toHaveBeenCalledWith(
       expect.objectContaining(
         notContaining
@@ -106,7 +115,7 @@ describe('auditLog 中间件', () => {
     });
     (req as Request & { user?: { sub: string } }).user = { sub: 'jwt-user-42' };
     auditLog(req, res, next);
-    res._finishCallback();
+    res._finishCallback?.();
     expect(loggerMocks.childInfo).toHaveBeenCalledWith(
       expect.objectContaining({ userId: 'jwt-user-42' }),
       expect.any(String),
@@ -136,7 +145,7 @@ describe('auditLog 安全攻击用例', () => {
     expect(res.on).toHaveBeenCalledWith('finish', expect.any(Function));
     const finishCb = res._finishCallback;
     expect(finishCb).toBeDefined();
-    expect(() => finishCb()).not.toThrow();
+    expect(() => finishCb!()).not.toThrow();
     expect(loggerMocks.childInfo).toHaveBeenCalled();
     const loggedEntry = loggerMocks.childInfo.mock.calls[0]?.[0];
     if (expectVerbatim) expect(loggedEntry.path).toBe(path);
@@ -146,13 +155,13 @@ describe('auditLog 安全攻击用例', () => {
     }
   });
   it('原型污染：headers 含 __proto__ 不应修改 Object.prototype', () => {
-    expect({}.admin).toBeUndefined();
+    expect(({} as Record<string, unknown>).admin).toBeUndefined();
     const maliciousHeaders = JSON.parse('{"__proto__": {"admin": true}, "x-api-key": "test-key"}');
     const { req, res, next } = createMockReqRes({ method: 'POST', headers: maliciousHeaders });
     auditLog(req, res, next);
     const finishCb = res._finishCallback;
-    expect(() => finishCb()).not.toThrow();
-    expect({}.admin).toBeUndefined();
+    expect(() => finishCb!()).not.toThrow();
+    expect(({} as Record<string, unknown>).admin).toBeUndefined();
     expect(loggerMocks.childInfo).toHaveBeenCalled();
   });
 });

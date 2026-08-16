@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import type { PoolClient } from 'pg';
 import crypto from 'crypto';
 const poolMocks = vi.hoisted(() => ({ pool: { query: vi.fn().mockResolvedValue({ rows: [] }) } }));
+const poolClient = poolMocks.pool as unknown as PoolClient;
 vi.mock('../../../packages/backend/src/db/pool.js', () => ({
   getPool: vi.fn(() => poolMocks.pool),
   withPlatformContext: vi.fn((fn) => fn(poolMocks.pool)),
@@ -122,7 +124,7 @@ describe('auditStorageService', () => {
         .mockResolvedValueOnce({ rows: [] })
         .mockResolvedValueOnce({ rows: [{ id: LOG_ID, payload: payloadText }] })
         .mockResolvedValueOnce({ rows: [] });
-      expect(await writeAuditLog(entry, poolMocks.pool)).toBe(LOG_ID);
+      expect(await writeAuditLog(entry, poolClient)).toBe(LOG_ID);
       expect(callSql(2)).toContain('INSERT INTO audit_logs');
       expect(callSql(2)).toContain('RETURNING id, payload::text');
       const args = callArgs(2);
@@ -145,7 +147,7 @@ describe('auditStorageService', () => {
         .mockResolvedValueOnce({ rows: [] });
       await writeAuditLog(
         makeEntry({ userId: null, orgId: null, resourceType: null, resourceId: null }),
-        poolMocks.pool,
+        poolClient,
       );
       const args = callArgs(2);
       expect(args[1]).toBeNull();
@@ -159,7 +161,7 @@ describe('auditStorageService', () => {
         .mockResolvedValueOnce({ rows: [] })
         .mockResolvedValueOnce({ rows: [] })
         .mockResolvedValueOnce({ rows: [{ id: LOG_ID }] });
-      const result = await writeAuditLog(makeEntry(), poolMocks.pool, 'outbox-1');
+      const result = await writeAuditLog(makeEntry(), poolClient, 'outbox-1');
       expect(result).toBe(LOG_ID);
       expect(poolMocks.pool.query.mock.calls[2][0]).toContain('ON CONFLICT (outbox_event_id)');
       expect(
@@ -174,7 +176,7 @@ describe('auditStorageService', () => {
         .mockResolvedValueOnce({ rows: [] })
         .mockResolvedValueOnce({ rows: [{ id: LOG_ID, payload: canonicalText }] })
         .mockResolvedValueOnce({ rows: [] });
-      const id = await writeAuditLog(makeEntry(), poolMocks.pool);
+      const id = await writeAuditLog(makeEntry(), poolClient);
       expect(id).toBe(LOG_ID);
       const update = poolMocks.pool.query.mock.calls.find((c) =>
         (c[0] as string).includes('UPDATE audit_logs SET hmac_signature'),

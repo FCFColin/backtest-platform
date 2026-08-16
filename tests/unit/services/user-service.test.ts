@@ -211,7 +211,7 @@ describe('createUserTx - 事务内创建用户', () => {
   it.each([
     ['email 为 null 时应传入 null', 'nullemail', null, 'readonly'],
     ['默认角色应为 analyst', 'def', null, undefined],
-  ])('%s', async (_n, username, email, role) => {
+  ] as const)('%s', async (_n, username, email, role) => {
     const client = txClient(
       mockUserRecord({ id: 'u2', username, role: role ?? 'analyst', created_at: new Date() }),
     );

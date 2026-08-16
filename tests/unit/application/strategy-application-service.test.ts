@@ -265,7 +265,12 @@ describe('strategy-application-services', () => {
       await expect(executeTacticalBacktest(backtestParams)).rejects.toThrow('benchmark error');
     });
 
-    it.each([
+    it.each<{
+      name: string;
+      data: Record<string, Record<string, number>>;
+      dates: [string, string];
+      msg: string;
+    }>([
       {
         name: '无效标的应抛出错误',
         data: {},

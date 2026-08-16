@@ -51,7 +51,7 @@ beforeEach(() => {
 });
 
 describe('useAsyncAction - 成功执行', () => {
-  it.each([
+  it.each<[string, () => Promise<unknown>, unknown]>([
     ['数字', async () => 42, 42],
     ['null', async () => null, null],
     ['undefined', async () => undefined, undefined],

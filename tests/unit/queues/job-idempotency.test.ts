@@ -2,6 +2,7 @@ import '../../helpers/loggerMock.js';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { RedisUnavailableError } from '../../../packages/backend/src/utils/errors.js';
 import { redisModuleMock } from '../../helpers/redisFixture.js';
+import type { RedisTestMocks } from '../../helpers/mockFactories.js';
 
 vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () => redisModuleMock);
 
@@ -11,7 +12,9 @@ import {
   releaseJobClaim,
   getProcessedJobResult,
 } from '../../../packages/backend/src/queues/queueUtils.js';
-import { appRedis } from '../../../packages/backend/src/infrastructure/redisClient.js';
+import { appRedis as appRedisReal } from '../../../packages/backend/src/infrastructure/redisClient.js';
+
+const appRedis = appRedisReal as unknown as RedisTestMocks;
 
 describe('jobIdempotency', () => {
   beforeEach(() => {

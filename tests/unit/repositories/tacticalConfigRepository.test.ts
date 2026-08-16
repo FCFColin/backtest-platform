@@ -127,7 +127,7 @@ describe('update', () => {
 
   it('仅更新 description 时应正确构建参数', async () => {
     dbMocks.clientQuery.mockResolvedValue({ rows: [{ ...configRow, description: 'new' }] });
-    await update(ORG, CONFIG_ID, { description: 'new' });
+    await update(ORG, CONFIG_ID, { description: 'new' } as unknown as Parameters<typeof update>[2]);
     const [sql, params] = dbMocks.clientQuery.mock.calls[0];
     expect(sql).toContain('description = $2');
     expect(params).toEqual([CONFIG_ID, 'new', ORG]);
@@ -135,14 +135,16 @@ describe('update', () => {
 
   it('无更新字段时应回退到 findById', async () => {
     dbMocks.clientQuery.mockResolvedValue({ rows: [configRow] });
-    const result = await update(ORG, CONFIG_ID, {});
+    const result = await update(ORG, CONFIG_ID, {} as unknown as Parameters<typeof update>[2]);
     expect(result).toMatchObject({ id: CONFIG_ID });
     expect(dbMocks.withTenantReadOnly).toHaveBeenCalled();
   });
 
   it('更新不存在的记录应返回 null', async () => {
     dbMocks.clientQuery.mockResolvedValue({ rows: [] });
-    expect(await update(ORG, CONFIG_ID, { name: 'x' })).toBeNull();
+    expect(
+      await update(ORG, CONFIG_ID, { name: 'x' } as unknown as Parameters<typeof update>[2]),
+    ).toBeNull();
   });
 });
 
