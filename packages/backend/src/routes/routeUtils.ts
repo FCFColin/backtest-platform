@@ -229,7 +229,7 @@ export function jsonRoute(
   );
 }
 
-interface TenantCrudRepo<T> {
+export interface TenantCrudRepo<T> {
   list(tenantId: string, limit?: number, offset?: number): Promise<T[]>;
   get(tenantId: string, id: string): Promise<T | null>;
   create(tenantId: string, ownerUserId: string | null, input: unknown): Promise<T>;
@@ -237,7 +237,7 @@ interface TenantCrudRepo<T> {
   remove(tenantId: string, id: string): Promise<boolean>;
 }
 
-interface TenantCrudConfig {
+export interface TenantCrudConfig {
   resource: string;
   codePrefix: string;
   notFoundCode: string;

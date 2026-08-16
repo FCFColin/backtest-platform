@@ -6,6 +6,7 @@ import { crudMiddleware } from '../middleware/middlewareChains.js';
 import { enforceOrgActive } from '../middleware/quota.js';
 import { Permission } from '../middleware/rbac.js';
 import { tenantCrudRoutes, requireTenantId, ownerOf } from './routeUtils.js';
+import type { TenantCrudRepo, TenantCrudConfig } from './routeUtils.js';
 import { sendProblem } from '../utils/errors.js';
 import {
   backtestRunBodySchema,
@@ -33,64 +34,67 @@ import {
 
 const router = Router();
 
-// 停用组织拒绝工作台 CRUD（quota 只覆盖 compute 路径，此处补齐）
-router.use(enforceOrgActive());
+// 停用组织拒绝工作台 CRUD（quota 只覆盖 compute 路径，此处补齐）；须在 crudMiddleware 完成鉴权+租户解析后执行
+const workspaceCrud = (permission: Permission) => [
+  ...crudMiddleware(permission),
+  enforceOrgActive(),
+];
+function crudMount(
+  path: string,
+  permission: Permission,
+  repo: TenantCrudRepo<unknown>,
+  cfg: TenantCrudConfig,
+): void {
+  router.use(path, ...workspaceCrud(permission), tenantCrudRoutes(repo, cfg));
+}
 
-router.use(
+crudMount(
   '/runs',
-  ...crudMiddleware(Permission.BACKTEST_RUN),
-  tenantCrudRoutes(
-    { list: listRuns, get: getRun, create: createRun, remove: deleteRun },
-    {
-      resource: 'runs',
-      codePrefix: 'RUN',
-      notFoundCode: 'RUN_NOT_FOUND',
-      createSchema: backtestRunBodySchema,
-    },
-  ),
+  Permission.BACKTEST_RUN,
+  { list: listRuns, get: getRun, create: createRun, remove: deleteRun },
+  {
+    resource: 'runs',
+    codePrefix: 'RUN',
+    notFoundCode: 'RUN_NOT_FOUND',
+    createSchema: backtestRunBodySchema,
+  },
 );
-
-router.use(
+crudMount(
   '/configs',
-  ...crudMiddleware(Permission.BACKTEST_RUN),
-  tenantCrudRoutes(
-    {
-      list: listConfigs,
-      get: getConfig,
-      create: createConfig,
-      update: updateConfig,
-      remove: deleteConfig,
-    },
-    {
-      resource: 'configs',
-      codePrefix: 'CONFIG',
-      notFoundCode: 'CONFIG_NOT_FOUND',
-      createSchema: savedConfigBodySchema,
-      updateSchema: savedConfigBodySchema,
-    },
-  ),
+  Permission.BACKTEST_RUN,
+  {
+    list: listConfigs,
+    get: getConfig,
+    create: createConfig,
+    update: updateConfig,
+    remove: deleteConfig,
+  },
+  {
+    resource: 'configs',
+    codePrefix: 'CONFIG',
+    notFoundCode: 'CONFIG_NOT_FOUND',
+    createSchema: savedConfigBodySchema,
+    updateSchema: savedConfigBodySchema,
+  },
 );
-
-router.use(
+crudMount(
   '/portfolios',
-  ...crudMiddleware(Permission.BACKTEST_RUN),
-  tenantCrudRoutes(
-    {
-      list: listPortfolios,
-      get: getPortfolio,
-      create: createPortfolio,
-      update: updatePortfolio,
-      remove: deletePortfolio,
-    },
-    {
-      resource: 'portfolios',
-      codePrefix: 'PORTFOLIO',
-      notFoundCode: 'PORTFOLIO_NOT_FOUND',
-      createSchema: portfolioBodySchema,
-      updateSchema: portfolioBodySchema,
-      metricPrefix: 'portfolio',
-    },
-  ),
+  Permission.BACKTEST_RUN,
+  {
+    list: listPortfolios,
+    get: getPortfolio,
+    create: createPortfolio,
+    update: updatePortfolio,
+    remove: deletePortfolio,
+  },
+  {
+    resource: 'portfolios',
+    codePrefix: 'PORTFOLIO',
+    notFoundCode: 'PORTFOLIO_NOT_FOUND',
+    createSchema: portfolioBodySchema,
+    updateSchema: portfolioBodySchema,
+    metricPrefix: 'portfolio',
+  },
 );
 
 async function beforeCreateTacticalConfig(
@@ -120,26 +124,24 @@ async function beforeCreateTacticalConfig(
   return true;
 }
 
-router.use(
+crudMount(
   '/tactical/configs',
-  ...crudMiddleware(Permission.STRATEGY_MANAGE),
-  tenantCrudRoutes(
-    {
-      list: tacticalConfigRepo.findByTenant,
-      get: tacticalConfigRepo.findById,
-      create: tacticalConfigRepo.create,
-      update: tacticalConfigRepo.update,
-      remove: tacticalConfigRepo.remove,
-    },
-    {
-      resource: 'tactical-config',
-      codePrefix: 'TACTICAL_CONFIG',
-      notFoundCode: 'TACTICAL_CONFIG_NOT_FOUND',
-      createSchema: createTacticalConfigSchema,
-      updateSchema: updateTacticalConfigSchema,
-      beforeCreate: beforeCreateTacticalConfig,
-    },
-  ),
+  Permission.STRATEGY_MANAGE,
+  {
+    list: tacticalConfigRepo.findByTenant,
+    get: tacticalConfigRepo.findById,
+    create: tacticalConfigRepo.create,
+    update: tacticalConfigRepo.update,
+    remove: tacticalConfigRepo.remove,
+  },
+  {
+    resource: 'tactical-config',
+    codePrefix: 'TACTICAL_CONFIG',
+    notFoundCode: 'TACTICAL_CONFIG_NOT_FOUND',
+    createSchema: createTacticalConfigSchema,
+    updateSchema: updateTacticalConfigSchema,
+    beforeCreate: beforeCreateTacticalConfig,
+  },
 );
 
 export default router;
