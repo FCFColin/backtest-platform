@@ -7,30 +7,22 @@ const results = {};
 await runCheck(results, 'C-014', () => {
   if (!existsSync(join(PROJECT_ROOT_PATH, 'engine-go')))
     return { status: 'FAIL', summary: 'engine-go 目录不存在' };
-  // -race：并发数据竞争是引擎/数据服务最高风险（block bootstrap、多 worker 并行模拟）
-  const testR = runCmd('cd engine-go && go test -race ./... -coverprofile=coverage.out', {
-    timeout: 600000,
-  });
-  if (testR.code !== 0)
-    return {
-      status: 'FAIL',
-      summary: `go test -race 失败 (exit ${testR.code})`,
-      details: { outputTail: (testR.out + testR.err).slice(-2000) },
-    };
-  const dfR = runCmd('cd data-fetcher && go test -race ./...', { timeout: 600000 });
-  if (dfR.code !== 0)
-    return {
-      status: 'FAIL',
-      summary: `data-fetcher go test -race 失败 (exit ${dfR.code})`,
-      details: { outputTail: (dfR.out + dfR.err).slice(-2000) },
-    };
-  const sharedR = runCmd('cd packages/go-shared && go test ./...', { timeout: 300000 });
-  if (sharedR.code !== 0)
-    return {
-      status: 'FAIL',
-      summary: `go-shared go test 失败 (exit ${sharedR.code})`,
-      details: { outputTail: (sharedR.out + sharedR.err).slice(-2000) },
-    };
+  // -race 守护引擎/数据服务并发竞争（最高风险）；需 cgo，Windows 无 C 工具链时降级普通 go test（CI Linux 真跑），本地 SKIP 避免假红
+  const race = runCmd('go env CGO_ENABLED').out.trim() === '1' ? ' -race' : '';
+  const goDirs = [
+    ['engine-go', `go test${race} ./... -coverprofile=coverage.out`],
+    ['data-fetcher', `go test${race} ./...`],
+    ['packages/go-shared', 'go test ./...'],
+  ];
+  for (const [dir, cmd] of goDirs) {
+    const r = runCmd(`cd ${dir} && ${cmd}`, { timeout: 600000 });
+    if (r.code !== 0)
+      return {
+        status: 'FAIL',
+        summary: `${dir} ${cmd} 失败 (exit ${r.code})`,
+        details: { outputTail: (r.out + r.err).slice(-2000) },
+      };
+  }
   const coverR = runCmd('cd engine-go && go tool cover -func=coverage.out');
   if (coverR.code !== 0 || !coverR.out.trim())
     return { status: 'FAIL', summary: `go tool cover 失败` };
@@ -55,10 +47,12 @@ await runCheck(results, 'C-014', () => {
   }
   const allHaveCov = Object.values(pkgResults).every((r) => r.found && r.max > 0);
   const pass = totalCov >= 70 && allHaveCov;
+  const base = `Go 覆盖率: ${totalCov}% (>= 70%), 6 包 ${allHaveCov ? '全覆盖' : '部分缺失'}`;
+  const suffix = !race ? '；-race 需 cgo，由 CI(Linux) 执行' : '（-race 已执行）';
   return {
-    status: pass ? 'PASS' : 'FAIL',
-    summary: `Go 覆盖率: ${totalCov}% (>= 70%), 6 包 ${allHaveCov ? '全覆盖' : '部分缺失'}`,
-    details: { totalCov, pkgResults },
+    status: !pass ? 'FAIL' : race ? 'PASS' : 'SKIP',
+    summary: pass ? `${base}${suffix}` : base,
+    details: { totalCov, pkgResults, raceEnabled: !!race },
   };
 });
 

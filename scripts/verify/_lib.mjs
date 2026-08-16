@@ -13,7 +13,7 @@ mkdirSync(join(OUTPUT_DIR, 'screenshots'), { recursive: true });
 // pg 只存在于 backend workspace（pnpm 不提升到根），经 backend 的 require 解析
 export function writeAggregatedResult(aggregateId, results) {
   const timestamp = new Date().toISOString();
-  const allPass = Object.values(results).every((r) => r.status === 'PASS');
+  const allPass = Object.values(results).every((r) => r.status === 'PASS' || r.status === 'SKIP');
   const output = {
     aggregateId,
     timestamp,
