@@ -88,7 +88,7 @@ describe('callEngineStrict（fail-closed）', () => {
   it('Go 引擎可用时应返回 Go 引擎结果并记录成功指标', async () => {
     const goResult = { portfolios: [], statistics: { cagr: 0.1 } };
     cbMocks.goCB.fire.mockResolvedValue(goResult);
-    const result = await callEngineStrict('/api/engine/backtest', { test: true });
+    const result = await callEngineStrict('/api/engine/backtest', { test: true }, z.unknown());
     expect(result).toEqual(goResult);
     expect(cbMocks.goCB.fire).toHaveBeenCalledWith('/api/engine/backtest', { test: true });
     expect(metricsMocks.recordEngineCall).toHaveBeenCalledWith('success');
@@ -97,7 +97,7 @@ describe('callEngineStrict（fail-closed）', () => {
     cbMocks.goCB.fire.mockImplementation(async () => {
       throw new Error('go down');
     });
-    const error = await settle(callEngineStrict('/api/engine/backtest', {}));
+    const error = await settle(callEngineStrict('/api/engine/backtest', {}, z.unknown()));
     expect(error).toBeInstanceOf(EngineUnavailableError);
     expect(metricsMocks.recordEngineCall).toHaveBeenCalledWith('unavailable');
   });
@@ -109,7 +109,7 @@ describe('callEngineStrict（fail-closed）', () => {
       'portfolios 不能为空',
     );
     cbMocks.goCB.fire.mockRejectedValue(upstreamErr);
-    const error = await settle(callEngineStrict('/api/engine/backtest', {}));
+    const error = await settle(callEngineStrict('/api/engine/backtest', {}, z.unknown()));
     expect(error).toBe(upstreamErr);
     expect(error).toBeInstanceOf(UpstreamProblemError);
     expect(error).not.toBeInstanceOf(EngineUnavailableError);
@@ -147,7 +147,7 @@ describe('callEngineStrict（fail-closed）', () => {
         throw 'connection reset';
       })
       .mockResolvedValueOnce({ ok: true });
-    const result = await settle(callEngineStrict('/api/engine/backtest', {}));
+    const result = await settle(callEngineStrict('/api/engine/backtest', {}, z.unknown()));
     expect(result).toEqual({ ok: true });
     expect(cbMocks.goCB.fire).toHaveBeenCalledTimes(2);
   });
@@ -189,12 +189,9 @@ describe('熔断器事件回调', () => {
     cbMocks.reset();
   });
 
-  it.each([
-    ['open 事件应记录 engineUnavailable 指标', 'open', 'go_circuit_breaker_open'],
-    ['fallback 事件应记录 engineUnavailable 指标', 'fallback', 'go_circuit_breaker_fallback'],
-  ])('%s', (_n, event, reason) => {
-    cbEventHandlers[event]();
-    expect(metricsMocks.recordEngineUnavailable).toHaveBeenCalledWith(reason);
+  it('open 事件应记录 engineUnavailable 指标', () => {
+    cbEventHandlers.open();
+    expect(metricsMocks.recordEngineUnavailable).toHaveBeenCalledWith('go_circuit_breaker_open');
   });
   it('halfOpen 与 close 事件应仅记录日志（无指标副作用）', () => {
     cbEventHandlers.halfOpen();

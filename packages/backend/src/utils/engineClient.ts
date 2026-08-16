@@ -51,9 +51,6 @@ goCircuitBreaker.on('halfOpen', () => {
 goCircuitBreaker.on('close', () => {
   logger.info('[circuit-breaker] Go 引擎熔断器恢复 Closed 状态');
 });
-goCircuitBreaker.on('fallback', () => {
-  recordEngineUnavailable('go_circuit_breaker_fallback');
-});
 
 registerCircuitBreakerMetrics('go_engine', goCircuitBreaker);
 
@@ -91,9 +88,14 @@ export class EngineUnavailableError extends Error {
 export async function callEngineStrict<T>(
   endpoint: string,
   body: unknown,
-  responseSchema?: z.ZodType<unknown>,
+  responseSchema: z.ZodType<unknown>,
 ): Promise<T> {
   const t0 = Date.now();
+  // 熔断 open 期间直接快速失败（重试只会加剧雪崩），指标与 catch 路径一致按 unavailable 记录
+  if (goCircuitBreaker.opened) {
+    recordEngineCall('unavailable');
+    throw new EngineUnavailableError(endpoint);
+  }
   try {
     const result = await retryWithBackoff(() => goCircuitBreaker.fire(endpoint, body));
     const elapsed = Date.now() - t0;
@@ -101,17 +103,13 @@ export async function callEngineStrict<T>(
 
     // 引擎统一 { success, data } 包络（engine-go handlers.go okJSON），返回 data
     const data = ((result as { data?: T })?.data ?? result) as T;
-    if (responseSchema) {
-      const parsed = responseSchema.safeParse(data);
-      if (!parsed.success) {
-        logger.error(
-          { endpoint, issues: parsed.error.issues },
-          '[callEngineStrict] 引擎响应类型校验失败',
-        );
-        throw new Error(
-          `Engine response validation failed for ${endpoint}: ${parsed.error.message}`,
-        );
-      }
+    const parsed = responseSchema.safeParse(data);
+    if (!parsed.success) {
+      logger.error(
+        { endpoint, issues: parsed.error.issues },
+        '[callEngineStrict] 引擎响应类型校验失败',
+      );
+      throw new Error(`Engine response validation failed for ${endpoint}: ${parsed.error.message}`);
     }
     // success 指标在契约校验通过后才记录（校验失败属内部错误，不计入 success 也不复用 success+unavailable 双计）
     recordEngineCall('success');
