@@ -47,7 +47,9 @@ export async function callGoDataService(path: string, orgId?: string): Promise<s
         );
       }
       let body = '';
-      for await (const chunk of res.body!) {
+      // 运行期 res.body 为 undici ReadableStream（async-iterable）；DOM lib 下的 ReadableStream 类型缺
+      // asyncIterator，故此处需类型断言（测试 mock 亦按 async-iterable 契约提供 body）
+      for await (const chunk of res.body as unknown as AsyncIterable<Uint8Array>) {
         body += Buffer.from(chunk).toString();
         if (body.length > MAX_RESPONSE_BODY_SIZE) {
           throw new Error(

@@ -286,16 +286,16 @@ describe('portfolioRepo CRUD', () => {
   describe('updatePortfolio', () => {
     it('应更新并返回新记录', async () => {
       dbMocks.query.mockResolvedValueOnce({
-        rows: [{ ...baseRow, name: 'Updated', rebalance_frequency: 'annually' }],
+        rows: [{ ...baseRow, name: 'Updated', rebalance_frequency: 'annual' }],
       });
       const r = await updatePortfolio(TENANT, PORTFOLIO_ID, {
         name: 'Updated',
         assets: [{ ticker: 'VTI', weight: 100 }],
-        rebalanceFrequency: 'annually',
+        rebalanceFrequency: 'annual',
       });
       expect(r).not.toBeNull();
       expect(r!.name).toBe('Updated');
-      expect(r!.rebalanceFrequency).toBe('annually');
+      expect(r!.rebalanceFrequency).toBe('annual');
     });
 
     it('不存在应返回 null', async () => {

@@ -13,7 +13,7 @@ interface PortfolioRecord {
   id: string;
   name: string;
   assets: Asset[];
-  rebalanceFrequency: string;
+  rebalanceFrequency: RebalanceFrequency;
   ownerUserId: string | null;
   createdAt: string;
   updatedAt: string;

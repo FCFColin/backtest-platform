@@ -1,8 +1,8 @@
-import crypto from 'crypto';
 import type { Request, Response } from 'express';
 import { config } from '../config/index.js';
 import { logger } from '../utils/logger.js';
 import { sendProblem } from '../utils/errors.js';
+import { sha256Hex } from '../utils/crypto.js';
 import { recordAuthFailure, getRoutePattern } from '../utils/metrics.js';
 import type { OrgRole } from '@backtest/shared/types/org';
 
@@ -43,7 +43,7 @@ export const ROLE_TTL: Record<Role, number> = {
 };
 
 export const hashUserId = (sub: string | undefined): string | undefined =>
-  sub ? crypto.createHash('sha256').update(sub).digest('hex').slice(0, 16) : undefined;
+  sub ? sha256Hex(sub).slice(0, 16) : undefined;
 
 export function attachAuthLogContext(req: AuthenticatedRequest): void {
   const sub = req.user?.sub;

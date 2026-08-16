@@ -96,10 +96,10 @@ export function extractBacktestSeries(
   });
 }
 
-const TTL_MS = 5 * 60 * 1000;
+const BACKTEST_CACHE_TTL_SEC = 300;
+const TTL_MS = BACKTEST_CACHE_TTL_SEC * 1000;
 const MAX_ENTRIES = 50;
 const BACKTEST_CACHE_REDIS_PREFIX = 'backtest_cache:';
-const BACKTEST_CACHE_TTL_SEC = 300;
 
 interface CacheEntry {
   result: BacktestResult;

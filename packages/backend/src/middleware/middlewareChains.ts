@@ -11,9 +11,7 @@ import { requirePermission, requirePlatformAdmin, Permission } from './rbac.js';
 import { enforceQuota } from './quota.js';
 import { USAGE_METRIC } from '../config/index.js';
 
-const computeQuotaHandler: RequestHandler = (req, res, next) => {
-  void enforceQuota(USAGE_METRIC.BACKTEST)(req, res, next);
-};
+const computeQuotaHandler = enforceQuota(USAGE_METRIC.BACKTEST);
 
 function computeChain(permission: Permission): RequestHandler[] {
   return [
@@ -21,9 +19,10 @@ function computeChain(permission: Permission): RequestHandler[] {
     resolveTenant,
     requireTenant,
     requirePermission(permission),
+    // 幂等前置：重放/在途请求在计费与审计前短路返回，避免配额双计与重复审计
+    idempotencyKey,
     computeQuotaHandler,
     auditLog,
-    idempotencyKey,
   ];
 }
 

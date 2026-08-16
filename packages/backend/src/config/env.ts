@@ -19,7 +19,6 @@ const asInt = (raw: string, label: string): number => {
 };
 const intFromEnv = (name: string, fallback: number): number =>
   asInt(process.env[name] ?? String(fallback), name);
-const int = (v: string | undefined, d: string): number => asInt(v || d, 'config');
 const bool = (v: string | undefined) => v === 'true';
 const str = (v: string | undefined, d: string) => v || d;
 const NODE_ENV_VALUES: readonly NodeEnv[] = ['development', 'production', 'test', 'staging'];
@@ -54,7 +53,7 @@ export function requireSecret(name: string): string {
 const serverConfig = {
   NODE_ENV: nodeEnv(process.env.NODE_ENV, 'development'),
   SERVE_STATIC: process.env.SERVE_STATIC !== undefined ? bool(process.env.SERVE_STATIC) : true,
-  API_PORT: int(process.env.API_PORT || process.env.PORT, '15001'),
+  API_PORT: asInt(process.env.API_PORT || process.env.PORT || '15001', 'API_PORT'),
   CORS_ORIGINS: parseCorsOrigins(process.env.CORS_ORIGINS),
   TRUST_PROXY_HOPS: intFromEnv('TRUST_PROXY_HOPS', 1),
   COMPUTE_RATE_LIMIT_MAX: intFromEnv('COMPUTE_RATE_LIMIT_MAX', 10),

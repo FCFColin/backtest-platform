@@ -10,8 +10,8 @@ import { apiKeysStaleCount } from '../utils/metrics.js';
 const STALE_CHECK_INTERVAL_MS = 60 * 60 * 1000;
 const STALE_THRESHOLD_DAYS = 7;
 
-async function refreshStaleApiKeyMetrics(thresholdDays = STALE_THRESHOLD_DAYS): Promise<void> {
-  const stale = await findStaleApiKeys(thresholdDays);
+async function refreshStaleApiKeyMetrics(): Promise<void> {
+  const stale = await findStaleApiKeys(STALE_THRESHOLD_DAYS);
   let platformCount = 0;
   let tenantCount = 0;
   for (const k of stale) {
@@ -22,7 +22,7 @@ async function refreshStaleApiKeyMetrics(thresholdDays = STALE_THRESHOLD_DAYS): 
   apiKeysStaleCount.set({ is_platform_admin: 'false' }, tenantCount);
   if (platformCount > 0) {
     logger.warn(
-      { platformCount, tenantCount, thresholdDays },
+      { platformCount, tenantCount, thresholdDays: STALE_THRESHOLD_DAYS },
       '[apiKeyMonitoring] 检测到陈旧的平台 break-glass 密钥（超过阈值未使用），请核查是否泄露',
     );
   }
