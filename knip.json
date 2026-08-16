@@ -1,0 +1,38 @@
+{
+  "ignoreExportsUsedInFile": true,
+  "ignore": [
+    "tailwind.config.cjs",
+    "scripts/check-coverage.mjs",
+    "scripts/dev-supervisor.mjs",
+    "scripts/e2e-servers.mjs",
+    "scripts/verify/_lib.mjs",
+    "scripts/verify/verify-infra.mjs",
+    "scripts/verify/verify-static.mjs",
+    "scripts/verify/verify-tests.mjs",
+    "tests/mocks/react-router.tsx",
+    "tests/e2e/ui/auth.setup.ts",
+    "tests/e2e/ui/global-setup.ts",
+    "packages/frontend/src/entry-server.tsx",
+    "public/assets/theme-init.2026.js"
+  ],
+  "workspaces": {
+    ".": {
+      "ignoreDependencies": ["bullmq", "pg", "zod", "opossum", "tailwindcss-animate", "react", "dependency-cruiser"],
+      "ignoreBinaries": ["powershell"],
+      "ignoreUnresolved": ["tests/setup-browser.ts"]
+    },
+    "packages/frontend": {
+      "ignoreDependencies": [
+        "@testing-library/react",
+        "@vitejs/plugin-react",
+        "autoprefixer",
+        "postcss",
+        "tailwindcss",
+        "vite-tsconfig-paths"
+      ]
+    },
+    "packages/backend": {
+      "ignoreDependencies": ["pino-pretty"]
+    }
+  }
+}

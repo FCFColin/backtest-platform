@@ -59,8 +59,8 @@ tmp_*
 *.zip
 
 # 静态分析输出
-knip*.json
-knip*.txt
+knip.report.json
+knip.export.txt
 jscpd_out/
 scc_*.json
 
