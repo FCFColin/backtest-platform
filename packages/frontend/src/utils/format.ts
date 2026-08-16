@@ -23,6 +23,8 @@ export const fmtRatio = (v: number | undefined | null): string =>
 export const fmtNum = (v: number | undefined | null, decimals = 2): string =>
   v == null || Number.isNaN(v) ? NULL : v.toFixed(decimals);
 
+export const formatISODate = (iso: string): string => iso.split('-').join('/');
+
 export function formatPercentSigned(value: number | null | undefined, digits = 2): string {
   if (invalid(value)) return NULL;
   const fixed = (value * 100).toFixed(digits);

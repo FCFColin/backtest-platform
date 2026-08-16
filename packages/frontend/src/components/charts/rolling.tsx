@@ -132,9 +132,11 @@ export const RollingMetricsChart = memo(function RollingMetricsChart({
   );
   const { data: chartData, isPending } =
     useChartCalcWorker<Array<Record<string, number | string>>>(task);
-  const prevDataRef = useRef(chartData);
-  if (chartData !== null) prevDataRef.current = chartData;
-  const displayData = chartData ?? prevDataRef.current;
+  const taskKey = `${metric}:${windowDays}`;
+  const prevDataRef = useRef<{ key: string; data: typeof chartData }>(null);
+  if (chartData !== null) prevDataRef.current = { key: taskKey, data: chartData };
+  const displayData =
+    chartData ?? (prevDataRef.current?.key === taskKey ? prevDataRef.current.data : null);
   const isPct = metric === 'cagr' || metric === 'volatility' || metric === 'excess';
   return (
     <ChartCard

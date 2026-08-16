@@ -8,7 +8,6 @@ interface ErrorBoundaryProps {
 }
 interface ErrorBoundaryState {
   hasError: boolean;
-  error: Error | null;
 }
 const ERROR_CONTAINER_STYLE: React.CSSProperties = {
   display: 'flex',
@@ -21,18 +20,9 @@ const ERROR_CONTAINER_STYLE: React.CSSProperties = {
   color: 'hsl(var(--fg))',
   textAlign: 'center',
 };
-const ERROR_DETAIL_STYLE: React.CSSProperties = {
-  fontSize: '12px',
-  color: 'hsl(var(--fg-tertiary))',
-  margin: '0 0 16px',
-  maxWidth: '500px',
-  wordBreak: 'break-word',
-  fontFamily: 'monospace',
-};
 export function ErrorFallback({
   title,
   description,
-  error,
   actionLabel,
   onAction,
   headingSize,
@@ -40,7 +30,6 @@ export function ErrorFallback({
 }: {
   title: string;
   description: string;
-  error: Error | null;
   actionLabel: string;
   onAction: () => void;
   headingSize: number;
@@ -62,11 +51,6 @@ export function ErrorFallback({
       >
         {description}
       </p>
-      {error && (
-        <p style={ERROR_DETAIL_STYLE}>
-          {error.message?.slice(0, 200) || String(error).slice(0, 200)}
-        </p>
-      )}
       <Button variant="primary" onClick={onAction}>
         {actionLabel}
       </Button>
@@ -76,10 +60,10 @@ export function ErrorFallback({
 export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   constructor(props: ErrorBoundaryProps) {
     super(props);
-    this.state = { hasError: false, error: null };
+    this.state = { hasError: false };
   }
-  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
-    return { hasError: true, error };
+  static getDerivedStateFromError(): ErrorBoundaryState {
+    return { hasError: true };
   }
   componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
     reportError(error, {
@@ -103,7 +87,6 @@ export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
         description={i18n.t(
           'Sorry, the page encountered an error. Please refresh. If the problem persists, contact the administrator.',
         )}
-        error={this.state.error}
         actionLabel={i18n.t('Refresh page')}
         onAction={this.handleRefresh}
         headingSize={24}
@@ -118,7 +101,6 @@ interface RouteErrorBoundaryProps {
 }
 interface RouteErrorBoundaryState {
   hasError: boolean;
-  error: Error | null;
   resetKey: number;
 }
 const ROUTE_ERROR_STYLE: React.CSSProperties = {
@@ -144,10 +126,10 @@ export class RouteErrorBoundary extends Component<
 > {
   constructor(props: RouteErrorBoundaryProps) {
     super(props);
-    this.state = { hasError: false, error: null, resetKey: 0 };
+    this.state = { hasError: false, resetKey: 0 };
   }
-  static getDerivedStateFromError(error: Error): Partial<RouteErrorBoundaryState> {
-    return { hasError: true, error };
+  static getDerivedStateFromError(): Partial<RouteErrorBoundaryState> {
+    return { hasError: true };
   }
   componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
     reportError(error, {
@@ -158,7 +140,7 @@ export class RouteErrorBoundary extends Component<
     });
   }
   private handleRetry = (): void => {
-    this.setState((prev) => ({ hasError: false, error: null, resetKey: prev.resetKey + 1 }));
+    this.setState((prev) => ({ hasError: false, resetKey: prev.resetKey + 1 }));
   };
   render(): ReactNode {
     if (this.state.hasError) return this.renderErrorUI();
@@ -176,7 +158,6 @@ export class RouteErrorBoundary extends Component<
         description={i18n.t(
           'Something went wrong while rendering this page. You can retry without reloading the whole app.',
         )}
-        error={this.state.error}
         actionLabel={i18n.t('Retry')}
         onAction={this.handleRetry}
         headingSize={18}

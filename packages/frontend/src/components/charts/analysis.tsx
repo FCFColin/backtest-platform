@@ -232,6 +232,7 @@ function MonthlyHeatmapImpl({ results, portfolio }: MonthlyHeatmapProps) {
   const title = portfolio
     ? t('{{name}} Monthly Returns Heatmap', { name: portfolio.name })
     : t('Monthly Returns Heatmap');
+  // CSV 表头保留英文月份缩写：导出数据面向机器消费，不随界面语言切换（显示层走 t('Month {{n}}')）
   const exportData = heatmapData.map((row) => ({
     year: row.year,
     ...Object.fromEntries(MONTH_LABELS.map((m, i) => [m, row.months[i] ?? ''])),

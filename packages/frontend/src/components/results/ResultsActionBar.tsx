@@ -9,6 +9,7 @@ import {
   DropdownMenuItem,
 } from '@/components/ui/uiComponents.js';
 import { cn } from '@/lib/utils.js';
+import { formatISODate } from '@/utils/format.js';
 interface ResultsActionBarProps {
   timeRange: { start: string; end: string; years: number };
   onExport?: (format: 'csv' | 'json') => void;
@@ -42,8 +43,8 @@ export function ResultsActionBar({ timeRange, onExport }: ResultsActionBarProps)
             <span className="text-caption text-fg-tertiary font-mono tabular-nums">
               {t('{{years}} yrs · {{start}} to {{end}}', {
                 years,
-                start: timeRange.start,
-                end: timeRange.end,
+                start: formatISODate(timeRange.start),
+                end: formatISODate(timeRange.end),
               })}
             </span>
           </div>

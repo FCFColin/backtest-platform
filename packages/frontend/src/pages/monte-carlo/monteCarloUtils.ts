@@ -180,7 +180,7 @@ async function executeSimulation(s: McSetters, ops: PortfolioOps): Promise<void>
   }
   s.setIsLoading(true);
   s.setError(null);
-  // 保留上一次结果，失败仅展示错误横幅
+  // 失败时 ResultsShell 以错误横幅整块替换结果区（不会保留旧结果）
   const reqBody = {
     parameters: buildBacktestParameters(s.startDate, s.endDate, {
       startingValue: s.startingValue,

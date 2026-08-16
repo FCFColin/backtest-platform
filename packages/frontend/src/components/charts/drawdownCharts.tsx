@@ -138,7 +138,7 @@ function DrawdownAreaChart({
             xTickInterval={SMART_DATE_INTERVAL(totalMonths)}
             yTickFormatter={(v: number) => fmtPct(v)}
             yDomain={['auto', 0]}
-            areaColor={areaColor}
+            areaColor={portfolios.length === 1 ? areaColor : undefined}
             tooltipFormatter={(value: number, name: string) => [fmtPct(value), name]}
             tooltipLabelFormatter={(label) => t(tooltipLabelKey, { label })}
             series={portfolios.map((p, i) => ({

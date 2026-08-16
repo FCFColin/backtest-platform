@@ -81,11 +81,11 @@ function ComparisonTable() {
         <table className="w-full border-collapse text-label">
           <thead>
             <tr className="border-b-2 border-border-subtle">
-              <th className="px-3 py-2.5 text-left font-semibold text-fg-tertiary">
+              <th scope="col" className="px-3 py-2.5 text-left font-semibold text-fg-tertiary">
                 {t('Feature')}
               </th>
               {PLANS.map((p) => (
-                <th key={p.id} className={th(p.recommended)}>
+                <th scope="col" key={p.id} className={th(p.recommended)}>
                   {p.name}
                 </th>
               ))}

@@ -53,10 +53,19 @@ export function TickerTagInput({
   const { t } = useTranslation();
   const resolvedPlaceholder = placeholder ?? t('Enter a ticker and press Enter to add...');
   const [input, setInput] = useState('');
+  const [error, setError] = useState<string | null>(null);
   const addTicker = (raw: string): boolean => {
     const code = normalizeTicker(raw);
-    if (!code || tickers.includes(code)) return false;
+    if (!code) {
+      if (raw.trim()) setError(t('Enter a valid ticker first'));
+      return false;
+    }
+    if (tickers.includes(code)) {
+      setError(t('{{ticker}} is already added', { ticker: code }));
+      return false;
+    }
     onChange([...tickers, code]);
+    setError(null);
     return true;
   };
   const removeTicker = (idx: number) => {
@@ -82,32 +91,43 @@ export function TickerTagInput({
     setInput('');
   };
   return (
-    <div
-      className={cn(
-        'flex flex-wrap items-center gap-2 p-2',
-        'bg-input-bg border border-border rounded-lg',
-        'min-h-10 transition-colors duration-150',
-        'hover:border-border-strong',
-        'focus-within:border-brand focus-within:ring-4 focus-within:ring-brand/15',
-      )}
-    >
-      <TickerChips tickers={tickers} onRemove={removeTicker} />
-      <Input
-        type="text"
-        value={input}
-        onChange={(e) => setInput(e.target.value)}
-        onKeyDown={handleKeyDown}
-        onPaste={handlePaste}
-        onBlur={() => {
-          if (addTicker(input)) setInput('');
-        }}
-        placeholder={tickers.length === 0 ? resolvedPlaceholder : ''}
-        aria-label={resolvedPlaceholder}
+    <>
+      <div
         className={cn(
-          'h-7 min-w-[140px] flex-1 border-0 bg-transparent px-1 shadow-none',
-          'focus-visible:ring-0 focus:border-0 focus:ring-0',
+          'flex flex-wrap items-center gap-2 p-2',
+          'bg-input-bg border border-border rounded-lg',
+          'min-h-10 transition-colors duration-150',
+          'hover:border-border-strong',
+          'focus-within:border-brand focus-within:ring-4 focus-within:ring-brand/15',
         )}
-      />
-    </div>
+      >
+        <TickerChips tickers={tickers} onRemove={removeTicker} />
+        <Input
+          type="text"
+          value={input}
+          onChange={(e) => {
+            setInput(e.target.value);
+            setError(null);
+          }}
+          onKeyDown={handleKeyDown}
+          onPaste={handlePaste}
+          onBlur={() => {
+            if (addTicker(input)) setInput('');
+          }}
+          placeholder={tickers.length === 0 ? resolvedPlaceholder : ''}
+          aria-label={resolvedPlaceholder}
+          aria-invalid={error !== null}
+          className={cn(
+            'h-7 min-w-[140px] flex-1 border-0 bg-transparent px-1 shadow-none',
+            'focus-visible:ring-0 focus:border-0 focus:ring-0',
+          )}
+        />
+      </div>
+      {error && (
+        <p role="alert" className="text-caption text-danger mt-1">
+          {error}
+        </p>
+      )}
+    </>
   );
 }

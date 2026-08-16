@@ -106,10 +106,20 @@ function MemberTable({ members, isAdmin, busy, onChangeRole, onRemoveMember }: M
       <table className="w-full border-collapse mb-6">
         <thead>
           <tr>
-            <th className={TH}>{t('User')}</th>
-            <th className={TH}>{t('Email')}</th>
-            <th className={TH}>{t('Role')}</th>
-            {isAdmin && <th className={TH}>{t('Action')}</th>}
+            <th scope="col" className={TH}>
+              {t('User')}
+            </th>
+            <th scope="col" className={TH}>
+              {t('Email')}
+            </th>
+            <th scope="col" className={TH}>
+              {t('Role')}
+            </th>
+            {isAdmin && (
+              <th scope="col" className={TH}>
+                {t('Action')}
+              </th>
+            )}
           </tr>
         </thead>
         <tbody>
@@ -219,10 +229,18 @@ function InvitationTable({ invitations, busy, onRevokeInvite }: InvitationTableP
       <table className="w-full border-collapse">
         <thead>
           <tr>
-            <th className={TH}>{t('Email')}</th>
-            <th className={TH}>{t('Role')}</th>
-            <th className={TH}>{t('Status')}</th>
-            <th className={TH}>{t('Action')}</th>
+            <th scope="col" className={TH}>
+              {t('Email')}
+            </th>
+            <th scope="col" className={TH}>
+              {t('Role')}
+            </th>
+            <th scope="col" className={TH}>
+              {t('Status')}
+            </th>
+            <th scope="col" className={TH}>
+              {t('Action')}
+            </th>
           </tr>
         </thead>
         <tbody>

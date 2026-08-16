@@ -48,13 +48,14 @@ describe('ErrorBoundary', () => {
     screen.getByText('Refresh page');
   });
 
-  it('显示错误信息', () => {
+  it('不泄露错误详情，仅显示通用文案', () => {
     render(
       <ErrorBoundary>
         <BrokenChild shouldThrow={true} />
       </ErrorBoundary>,
     );
-    screen.getByText('测试错误');
+    expect(screen.queryByText('测试错误')).toBeNull();
+    screen.getByText('Something went wrong');
   });
 
   it('在捕获错误时调用 console.error', () => {

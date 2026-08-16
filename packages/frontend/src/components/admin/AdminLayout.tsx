@@ -164,6 +164,7 @@ export default function AdminLayout() {
       {mobileOpen && (
         <div
           role="button"
+          aria-label={t('Close menu')}
           tabIndex={0}
           className="fixed inset-0 z-40 bg-black/50 lg:hidden"
           onClick={() => setMobileOpen(false)}
