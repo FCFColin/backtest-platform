@@ -9,7 +9,7 @@ import { requireRedis } from '../utils/redisFallback.js';
 
 const APIKEY_REVOKED_PREFIX = 'apikey:revoked:';
 
-interface VerifiedApiKey {
+export interface VerifiedApiKey {
   /** 平台 break-glass 密钥为 null */
   orgId: string | null;
   keyId: string;

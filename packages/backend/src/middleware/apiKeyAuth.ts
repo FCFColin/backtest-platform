@@ -49,9 +49,11 @@ export async function authenticateWithApiKey(
     return;
   }
   try {
-    const user = optional
-      ? await withTimeout(resolveApiKeyUser(apiKey), API_KEY_RESOLUTION_TIMEOUT_MS, 'apiKey')
-      : await resolveApiKeyUser(apiKey);
+    const user = await withTimeout(
+      resolveApiKeyUser(apiKey),
+      API_KEY_RESOLUTION_TIMEOUT_MS,
+      'apiKey',
+    );
     if (user) {
       req.user = user;
       attachAuthLogContext(req);
@@ -72,7 +74,7 @@ export async function authenticateWithApiKey(
     }
     denyAuth(req, res, 'INVALID_API_KEY', 'API Key 无效', { middleware });
   } catch (err) {
-    if (optional && err instanceof TimeoutError) {
+    if (err instanceof TimeoutError) {
       authLog('warn', middleware, req, 'API Key 解析超时（5s），返回 504');
       sendProblem(res, 504, 'GATEWAY_TIMEOUT', 'API Key Resolution Timeout', {
         detail: 'The API key resolution service did not respond within 5 seconds',
