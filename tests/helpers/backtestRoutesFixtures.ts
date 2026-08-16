@@ -1,8 +1,10 @@
-import type { Router } from 'express';
+import { vi } from 'vitest';
+import type { RequestHandler, Router } from 'express';
 import { startExpressApp, type TestServer, type TestRequest } from './expressApp.js';
-import { mockBacktestResult } from './storeFixtures.js';
+import { mockBacktestResult, mockPortfolioResult } from './storeFixtures.js';
+import type { Portfolio, BacktestParameters } from '@backtest/shared';
 
-type MockFn = ReturnType<(typeof import('vitest'))['fn']>;
+type MockFn = ReturnType<typeof vi.fn>;
 
 export interface BacktestMockHandles {
   runBacktest: MockFn;
@@ -124,10 +126,25 @@ export function configureTickerHelpersMocks(m: BacktestMockHandles): void {
   m.loadMacroData.mockImplementation(async () => ({ cpiData: {}, exchangeRates: {} }));
 }
 
-const VALID_PARAMS = { startDate: '2024-01-01', endDate: '2024-06-30', startingValue: 10000 };
+const VALID_PARAMS: BacktestParameters = {
+  startDate: '2024-01-01',
+  endDate: '2024-06-30',
+  startingValue: 10000,
+  adjustForInflation: false,
+  rollingWindowMonths: 12,
+  benchmarkTicker: '',
+};
 const VALID_ASSETS = [
   { ticker: 'AAPL', weight: 60 },
   { ticker: 'BND', weight: 40 },
+];
+const VALID_PORTFOLIOS: Portfolio[] = [
+  {
+    id: 'pf-test-001',
+    name: '测试组合',
+    assets: VALID_ASSETS.map((a) => ({ ...a })),
+    rebalanceFrequency: 'monthly',
+  },
 ];
 const DEFAULT_PRICE_DATA = {
   AAPL: { '2024-01-02': 185.5, '2024-01-03': 186.0 },
@@ -136,7 +153,7 @@ const DEFAULT_PRICE_DATA = {
 
 interface BacktestServerOptions {
   auth?: { user?: Partial<NonNullable<TestRequest['user']>>; tenantId?: string };
-  middleware?: Array<(req: unknown, res: unknown, next: () => void) => void>;
+  middleware?: RequestHandler[];
 }
 
 // 与生产 app.ts 挂载一致（/api/v1/backtest），statusUrl 契约才能闭环
@@ -153,22 +170,20 @@ export const createBacktestApp = (
           next();
         });
       }
-      for (const mw of opts.middleware ?? []) app.use(mw as never);
+      for (const mw of opts.middleware ?? []) app.use(mw);
       app.use('/api/v1/backtest', routes);
     },
     { bodyLimit: '10mb' },
   );
 
 export const createValidRequestBody = () => ({
-  portfolios: [
-    { assets: VALID_ASSETS.map((a) => ({ ...a })), rebalanceFrequency: 'monthly' as const },
-  ],
+  portfolios: VALID_PORTFOLIOS.map((p) => ({ ...p, assets: p.assets.map((a) => ({ ...a })) })),
   parameters: { ...VALID_PARAMS },
 });
-export const createValidParameters = () => ({ ...VALID_PARAMS });
-export const createValidPortfolio = () => ({
+export const createValidParameters = (): BacktestParameters => ({ ...VALID_PARAMS });
+export const createValidPortfolio = (): Portfolio => ({
+  ...VALID_PORTFOLIOS[0]!,
   assets: VALID_ASSETS.map((a) => ({ ...a })),
-  rebalanceFrequency: 'monthly' as const,
 });
 
 export async function setupPortfolioServer(
@@ -182,14 +197,14 @@ export async function setupPortfolioServer(
   m.runBacktest.mockResolvedValue({
     result: mockBacktestResult({
       portfolios: [
-        {
+        mockPortfolioResult({
           name: 'Portfolio 0',
           growthCurve: [
             { date: '2024-01-02', value: 10000 },
             { date: '2024-01-03', value: 10100 },
           ],
           rollingReturns: [],
-        },
+        }),
       ],
     }),
   });

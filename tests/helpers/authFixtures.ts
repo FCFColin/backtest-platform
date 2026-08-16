@@ -1,4 +1,4 @@
-import { SignJWT, importJWK } from 'jose';
+import { SignJWT, importJWK, type KeyLike } from 'jose';
 import { vi } from 'vitest';
 import type { Request, Response, NextFunction } from 'express';
 import type { JwtAuthConfigMocks } from './mockFactories.js';
@@ -35,7 +35,7 @@ export async function signTestToken(
   return builder.sign(key);
 }
 
-export function signRsa(payload: Record<string, unknown>, key: CryptoKey, kid?: string) {
+export function signRsa(payload: Record<string, unknown>, key: KeyLike, kid?: string) {
   return new SignJWT(payload)
     .setProtectedHeader({ alg: 'RS256', ...(kid ? { kid } : {}) })
     .setIssuedAt()
@@ -108,7 +108,7 @@ export function createAuthJwtAuthMocks(target: Record<string, unknown> = {}) {
   target.revokeAllUserSessions = vi.fn();
   target.jwtAuth = vi.fn((_req: Request, _res: Response, next: NextFunction) => next());
   target.hashUserId = vi.fn((sub?: string) => sub);
-  target.requireUser = vi.fn((req: Request, res: Response) => {
+  target.requireUser = vi.fn((req: Request & { user?: unknown }, res: Response) => {
     if (!req.user) {
       res.status(401).json({
         success: false,

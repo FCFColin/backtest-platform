@@ -45,7 +45,6 @@ vi.mock('../../packages/backend/src/middleware/rbac.js', async (importOriginal) 
         deny(res);
       },
     Permission: actual.Permission,
-    Role: actual.Role,
     requirePlatformAdmin: (
       req: { user?: { platform_admin?: boolean } },
       res: { status: (n: number) => { json: (b: unknown) => void } },
@@ -66,10 +65,14 @@ vi.mock('../../packages/backend/src/infrastructure/redisClient.js', () => ({
     on: () => {},
     ping: vi.fn().mockResolvedValue('PONG'),
     get: vi.fn((key: string) => Promise.resolve(redisMockStore.get(key) ?? null)),
-    set: vi.fn((key: string, value: string) =>
-      Promise.resolve(redisMockStore.set(key, value) && 'OK'),
+    set: vi.fn((key: string, value: string, ...args: unknown[]) =>
+      Promise.resolve(
+        args.includes('NX') && redisMockStore.has(key)
+          ? null
+          : redisMockStore.set(key, value) && 'OK',
+      ),
     ),
-    del: vi.fn().mockResolvedValue(0),
+    del: vi.fn((key: string) => Promise.resolve(redisMockStore.delete(key) ? 1 : 0)),
     expire: vi.fn().mockResolvedValue(1),
     exists: vi.fn().mockResolvedValue(0),
     incr: vi.fn().mockResolvedValue(1),

@@ -1,5 +1,6 @@
 import type { Portfolio, BacktestParameters } from '@backtest/shared';
 import type { BacktestResult, PortfolioResult } from '../../packages/shared/types/backtest.js';
+import { createEmptyStatistics } from '../../packages/shared/types/statistics.js';
 
 export function mockPortfolio(overrides: Partial<Portfolio> = {}): Portfolio {
   return {
@@ -37,6 +38,7 @@ export function mockPortfolioResult(overrides: Partial<PortfolioResult> = {}): P
     annualReturns: [],
     monthlyReturns: [],
     statistics: {
+      ...createEmptyStatistics(),
       cagr: 0.069,
       stdev: 0.12,
       sharpe: 0.47,
@@ -53,6 +55,7 @@ export function mockPortfolioResult(overrides: Partial<PortfolioResult> = {}): P
 }
 
 export const mockBacktestStats: BacktestResult['portfolios'][number]['statistics'] = {
+  ...createEmptyStatistics(),
   cagr: 0.1,
   mwrr: 0.1,
   stdev: 0.15,

@@ -15,7 +15,7 @@ interface MockRequestOverrides {
   [key: string]: unknown;
 }
 
-interface MockResponse {
+export interface MockResponse {
   status: ReturnType<typeof vi.fn>;
   json: ReturnType<typeof vi.fn> & { (body: unknown): void };
   send: ReturnType<typeof vi.fn>;
@@ -41,11 +41,11 @@ export function createMockRequest(overrides: MockRequestOverrides = {}): Request
     user: overrides.user,
     tenantId: overrides.tenantId,
     ...overrides,
-  } as Request;
+  } as unknown as Request;
 }
 
-export function createMockResponse(): MockResponse {
-  const res: MockResponse = {
+export function createMockResponse(): MockResponse & Response {
+  return {
     status: vi.fn().mockReturnThis(),
     json: vi.fn().mockReturnThis(),
     send: vi.fn().mockReturnThis(),
@@ -55,8 +55,7 @@ export function createMockResponse(): MockResponse {
     get: vi.fn(),
     statusCode: 200,
     headersSent: false,
-  };
-  return res;
+  } as unknown as MockResponse & Response;
 }
 
 export function createMockNext(): ReturnType<typeof vi.fn> {
@@ -65,16 +64,16 @@ export function createMockNext(): ReturnType<typeof vi.fn> {
 
 export function createMockMiddleware(reqOverrides?: MockRequestOverrides) {
   return {
-    req: createMockRequest(reqOverrides),
+    req: createMockRequest(reqOverrides) as AuthenticatedRequest,
     res: createMockResponse(),
     next: createMockNext(),
   };
 }
 
 export async function awaitMiddleware(
-  middleware: (req: unknown, res: unknown, next: () => void) => void,
-  req: unknown,
-  res: unknown,
+  middleware: (req: AuthenticatedRequest, res: Response, next: NextFunction) => void,
+  req: AuthenticatedRequest,
+  res: Response,
   onNext?: () => void,
 ): Promise<void> {
   return new Promise<void>((resolve) =>
@@ -87,5 +86,5 @@ export async function awaitMiddleware(
 
 export const createJwtAuthMockRequest = (o: Record<string, unknown> = {}) =>
   createMockRequest(o) as unknown as AuthenticatedRequest;
-export const createJwtAuthMockResponse = () => createMockResponse() as unknown as Response;
+export const createJwtAuthMockResponse = () => createMockResponse();
 export const createJwtAuthMockNext = () => createMockNext() as unknown as NextFunction;

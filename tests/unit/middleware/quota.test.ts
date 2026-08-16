@@ -29,11 +29,14 @@ vi.mock('../../../packages/backend/src/utils/metrics.js', () => ({
 }));
 import type { Request } from 'express';
 import { enforceQuota } from '../../../packages/backend/src/middleware/quota.js';
+import { createMockResponse, type MockResponse } from '../../helpers/expressMocks.js';
+import type { Response } from 'express';
 
 const TENANT = '11111111-1111-1111-1111-111111111111';
 
-function mockRes() {
+function mockRes(): MockResponse & Response {
   const res = {
+    ...createMockResponse(),
     statusCode: 200,
     status: vi.fn((c: number) => {
       res.statusCode = c;
@@ -42,7 +45,7 @@ function mockRes() {
     header: vi.fn(() => res),
     json: vi.fn(() => res),
     send: vi.fn(() => res),
-  };
+  } as unknown as MockResponse & Response;
   return res;
 }
 async function callQuota(req: Record<string, unknown>) {

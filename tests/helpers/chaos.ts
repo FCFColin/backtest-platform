@@ -147,7 +147,10 @@ export async function withContainerStopped<T>(
   }
 }
 
-export function setupChaosLifecycle(containerName: string, recoverFn = startContainer) {
+export function setupChaosLifecycle(
+  containerName: string,
+  recoverFn: (name: string) => Promise<unknown> = startContainer,
+) {
   let containerReady = false;
   beforeAll(async () => {
     containerReady = await isContainerRunning(containerName);

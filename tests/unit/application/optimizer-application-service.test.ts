@@ -5,6 +5,7 @@ import {
   optimizeResultSchema,
   frontierResultSchema,
 } from '../../../packages/backend/src/schemas/engineSchemas.js';
+import { mockBacktestParams } from '../../helpers/storeFixtures.js';
 
 const mocks = vi.hoisted(() => ({
   callEngineStrict: vi.fn(),
@@ -60,7 +61,7 @@ function mockPriceDataResponse() {
   return { data: { AAPL: { '2020-01-01': 100 } }, degraded: false };
 }
 
-const params = { startDate: '2020-01-01', endDate: '2020-12-31' };
+const params = mockBacktestParams({ startDate: '2020-01-01', endDate: '2020-12-31' });
 const priceData = () => ({
   data: { AAPL: { '2020-01-02': 100 }, SPY: { '2020-01-02': 300 } },
   degraded: false,
@@ -180,7 +181,16 @@ describe('runOptimization', () => {
     expect(result.dateRange).toBeDefined();
   });
 
-  it.each([
+  it.each<
+    [
+      string,
+      Record<string, unknown>,
+      (r: never) => void,
+      string[],
+      'maxSharpe' | 'minVolatility' | 'maxReturn',
+      { minWeight?: number; maxWeight?: number },
+    ]
+  >([
     [
       '数据降级时应添加 DATA_DEGRADED 警告',
       { data: { AAPL: { '2020-01-02': 100 } }, degraded: true, degradedWarning: 'Go fetcher 降级' },
@@ -217,7 +227,7 @@ describe('runOptimization', () => {
     mocks.callEngineStrict.mockResolvedValue({});
     const iterations = _n.includes('100000') ? 500000 : undefined;
     const result = await runOptimization(tickers, objective, constraints, params, iterations);
-    check(result);
+    check(result as never);
   });
   it('引擎返回无 data 字段时应使用原始结果', async () => {
     mocks.fetchHistoryData.mockResolvedValue({

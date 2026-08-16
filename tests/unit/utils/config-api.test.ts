@@ -1,9 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { mockBacktestParams } from '../../helpers/storeFixtures.js';
 
 const mocks = vi.hoisted(() => ({
   apiFetch: vi.fn(),
   storage: {} as Record<string, string>,
-  getState: vi.fn(() => ({ user: { tenantId: 'org_1' } })),
+  getState: vi.fn<() => { user: { tenantId: string } | null }>(() => ({
+    user: { tenantId: 'org_1' },
+  })),
 }));
 
 vi.mock('../../../packages/frontend/src/utils/apiClient', () => ({ apiFetch: mocks.apiFetch }));
@@ -14,11 +17,10 @@ vi.mock('@/store/authStore', () => ({
 const TEST_PORTFOLIO = {
   id: 'p1',
   name: 'pf',
-  tickers: ['AAPL'],
-  weights: [1],
-  rebalanceFreq: 'monthly' as const,
-} as const;
-const TEST_PARAMS = { regimeFilter: false, maxDrawdown: 0.2 };
+  assets: [{ ticker: 'AAPL', weight: 1 }],
+  rebalanceFrequency: 'monthly' as const,
+};
+const TEST_PARAMS = mockBacktestParams();
 const LOCAL_CONFIG = {
   id: 'l1',
   name: 'local',
@@ -130,7 +132,7 @@ describe('saveNamedConfigApi', () => {
   it('未登录时写本地', async () => {
     mocks.getState.mockReturnValue({ user: null });
     const { saveNamedConfigApi } = await importMod();
-    await saveNamedConfigApi('test', [], {});
+    await saveNamedConfigApi('test', [], TEST_PARAMS);
     const saved = JSON.parse(globalThis.localStorage.getItem('backtest-saved-configs') ?? '[]') as {
       name: string;
     }[];

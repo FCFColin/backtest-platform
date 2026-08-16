@@ -14,7 +14,7 @@ import { OutboxKafkaConsumer } from '../../../packages/backend/src/infrastructur
 
 describe('OutboxKafkaConsumer - 未启用/降级路径', () => {
   it('CDC_KAFKA_ENABLED=false 时 start 为 no-op（保持 LISTEN/NOTIFY 默认通路）', async () => {
-    const consumer = new OutboxKafkaConsumer(() => null);
+    const consumer = new OutboxKafkaConsumer();
     await expect(consumer.start()).resolves.toBeUndefined();
     await expect(consumer.stop()).resolves.toBeUndefined();
   });
@@ -32,7 +32,7 @@ describe('OutboxKafkaConsumer - kafkajs 未安装降级', () => {
     }));
     const { OutboxKafkaConsumer: FreshConsumer } =
       await import('../../../packages/backend/src/infrastructure/outboxKafkaConsumer.js');
-    const consumer = new FreshConsumer(() => null);
+    const consumer = new FreshConsumer();
     await expect(consumer.start()).resolves.toBeUndefined();
   });
 });

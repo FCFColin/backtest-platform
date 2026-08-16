@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import { createRedisModuleMock } from '../../helpers/mockFactories.js';
+import { createRedisModuleMock, type RedisTestMocks } from '../../helpers/mockFactories.js';
 
-const redisMocks = vi.hoisted(() => ({}) as Record<string, unknown>);
+const redisMocks = vi.hoisted(() => ({})) as RedisTestMocks;
 
 vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () =>
   createRedisModuleMock(
@@ -23,7 +23,7 @@ import {
   getBacktestResultCache,
 } from '../../../packages/backend/src/application/backtest/backtestResultUtils.js';
 import type { BacktestResult, Portfolio, BacktestParameters } from '@backtest/shared';
-import { mockBacktestParams } from '../../helpers/storeFixtures.js';
+import { mockBacktestParams, mockPortfolioResult } from '../../helpers/storeFixtures.js';
 
 const portfolios: Portfolio[] = [
   {
@@ -106,11 +106,11 @@ describe('backtestResultCache', () => {
 
   it('cross-tenant cache isolation: same portfolio+parameters, different tenants hit own entries', async () => {
     const resultA: BacktestResult = {
-      portfolios: [{ id: 'pa', name: 'A', assets: [] }],
+      portfolios: [mockPortfolioResult({ name: 'A' })],
       correlations: [],
     };
     const resultB: BacktestResult = {
-      portfolios: [{ id: 'pb', name: 'B', assets: [] }],
+      portfolios: [mockPortfolioResult({ name: 'B' })],
       correlations: [],
     };
 

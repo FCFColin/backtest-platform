@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { PCARequest, GoalOptimizerRequest, LETFRequest } from '@backtest/shared';
 import '../../helpers/loggerMock.js';
 import { engineMocks } from '../../helpers/engineFixture.js';
+import { mockBacktestParams } from '../../helpers/storeFixtures.js';
 
 const dataMocks = vi.hoisted(() => ({ fetchHistoryData: vi.fn() }));
 const helpersMocks = vi.hoisted(() => ({
@@ -239,7 +240,7 @@ describe('analysis-service', () => {
   });
 
   describe('runAnalysis', () => {
-    const params = { startDate: '2020-01-01', endDate: '2020-12-31' };
+    const params = mockBacktestParams({ startDate: '2020-01-01', endDate: '2020-12-31' });
     const prep = (over: Record<string, unknown> = {}) =>
       helpersMocks.preparePriceDataAndWarnings.mockResolvedValue({
         priceData: {},

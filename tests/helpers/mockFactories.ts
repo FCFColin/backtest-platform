@@ -40,10 +40,26 @@ const CONFIG_DEFAULTS: Record<string, unknown> = {
   EMAIL_FROM: 'Backtest Platform <no-reply@backtest.local>',
 };
 
-export function createConfigMocks(
-  overrides: Record<string, unknown> = {},
-): Record<string, unknown> {
-  return { ...CONFIG_DEFAULTS, ...overrides };
+/** 测试可读写的 config 面；测试直接做运算/比较的属性给出具体类型，其余保持 unknown */
+export interface ConfigMocks extends Record<string, unknown> {
+  NODE_ENV: string;
+  JWT_SECRET: string;
+  JWT_ALGORITHM: string;
+  JWT_PRIVATE_KEY: string;
+  JWT_PRIVATE_KEY_FILE: string;
+  JWT_PUBLIC_KEY: string;
+  JWT_PUBLIC_KEY_FILE: string;
+  JWT_ACCESS_TTL: number;
+  JWT_REFRESH_TTL: number;
+  DEV_SKIP_AUTH: boolean;
+  AUDIT_HMAC_KEY: string;
+  DATABASE_URL: string;
+  DEBUG_AUTH_TOKEN: string;
+  METRICS_AUTH_TOKEN: string;
+}
+
+export function createConfigMocks(overrides: Record<string, unknown> = {}): ConfigMocks {
+  return { ...CONFIG_DEFAULTS, ...overrides } as ConfigMocks;
 }
 
 export function mockConfigModule(overrides: Record<string, unknown> = {}) {
@@ -92,14 +108,50 @@ interface RedisMocksOptions {
   withHandlers?: boolean;
   withMemoryHelpers?: boolean;
   memoryFallbackErrorMessage?: string;
-  methods?: Record<string, ReturnType<typeof vi.fn>>;
+  methods?: Record<string, MockFn>;
   rejectWithError?: Error;
+}
+
+export type MockFn = ReturnType<typeof vi.fn>;
+
+/** redisClient 模块 mock 的完整成员面；withXxx 选项决定运行时是否真正挂载对应成员 */
+export interface RedisTestMocks extends Record<string, unknown> {
+  ping: MockFn;
+  get: MockFn;
+  set: MockFn;
+  del: MockFn;
+  getdel: MockFn;
+  expire: MockFn;
+  incr: MockFn;
+  incrby: MockFn;
+  decr: MockFn;
+  ttl: MockFn;
+  exists: MockFn;
+  scan: MockFn;
+  eval: MockFn;
+  multi: MockFn;
+  info: MockFn;
+  quit: MockFn;
+  call: MockFn;
+  publish: MockFn;
+  on: MockFn;
+  sadd: MockFn;
+  smembers: MockFn;
+  emit: (event: string, ...args: unknown[]) => void;
+  handlers?: Record<string, Array<(...args: unknown[]) => void>>;
+  store: Map<string, string>;
+  sets: Map<string, Set<string>>;
+  resetStore: () => void;
+  useMemoryFallback: () => void;
+  useRedisSuccess: () => void;
+  getRedisHealth: MockFn;
+  markRedisUnhealthy: MockFn;
 }
 
 function createRedisMocks(
   opts: RedisMocksOptions = {},
   target: Record<string, unknown> = {},
-): Record<string, unknown> {
+): RedisTestMocks {
   const {
     withStore = false,
     withSets = false,
@@ -164,10 +216,12 @@ function createRedisMocks(
       (target.get as ReturnType<typeof vi.fn>).mockImplementation((key: string) =>
         Promise.resolve(store!.get(key) ?? null),
       );
-      (target.set as ReturnType<typeof vi.fn>).mockImplementation((key: string, value: string) => {
-        store!.set(key, value);
-        return Promise.resolve('OK');
-      });
+      (target.set as ReturnType<typeof vi.fn>).mockImplementation(
+        (key: string, value: string, ...args: unknown[]) =>
+          Promise.resolve(
+            args.includes('NX') && store!.has(key) ? null : (store!.set(key, value), 'OK'),
+          ),
+      );
       (target.del as ReturnType<typeof vi.fn>).mockImplementation((key: string) => {
         store!.delete(key);
         return Promise.resolve(1);
@@ -197,13 +251,13 @@ function createRedisMocks(
 
   Object.assign(target, methods);
 
-  return target;
+  return target as unknown as RedisTestMocks;
 }
 
 export function createRedisModuleMock(
   opts: RedisMocksOptions = {},
   target: Record<string, unknown> = {},
-) {
+): { appRedis: RedisTestMocks; getRedisHealth: MockFn; markRedisUnhealthy: MockFn } {
   const appRedis = createRedisMocks(opts, target);
   return {
     appRedis,
@@ -218,10 +272,8 @@ export function createRedisModuleMock(
   };
 }
 
-export type JwtAuthConfigMocks = ReturnType<typeof createConfigMocks>;
-export function createJwtAuthConfigMocks(
-  overrides: Record<string, unknown> = {},
-): Record<string, unknown> {
+export type JwtAuthConfigMocks = ConfigMocks;
+export function createJwtAuthConfigMocks(overrides: Record<string, unknown> = {}): ConfigMocks {
   return createConfigMocks({ NODE_ENV: 'production', ...overrides });
 }
 
