@@ -128,7 +128,8 @@ app.use(cookieParser()); // P0-1 BFF 模式：解析 httpOnly Cookie 中的 Refr
 // 计算端点限流：单次挂载，避免 backtest 前缀与 backtest-optimizer 等重叠路径被计双次；
 // 仅纯 /backtest 前缀的 GET（runs 列表等）跳过，重叠子路径（backtest-optimizer 等）照常限流
 app.use('/api/v1', (req, _res, next) => {
-  const paths = COMPUTE_PATHS.filter((p) => req.path.startsWith(p));
+  // req.path 在此已被剥去 /api/v1 挂载前缀，须用 originalUrl 匹配 COMPUTE_PATHS（含查询串不影响前缀匹配）
+  const paths = COMPUTE_PATHS.filter((p) => req.originalUrl.startsWith(p));
   if (paths.length === 0) return next();
   if (req.method === 'GET' && paths.length === 1 && paths[0] === '/api/v1/backtest') return next();
   computeLimiter(req, _res, next);

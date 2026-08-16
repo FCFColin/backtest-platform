@@ -47,7 +47,14 @@ const apiOpts = (apiLimiter as unknown as { __options: LimiterOptions }).__optio
 const adminOpts = (adminLimiter as unknown as { __options: LimiterOptions }).__options;
 
 function makeRequest(overrides: Record<string, unknown> = {}): Request {
-  return { headers: {}, ip: '127.0.0.1', path: '/api/test', ...overrides } as unknown as Request;
+  const path = (overrides.path as string | undefined) ?? '/api/test';
+  return {
+    headers: {},
+    ip: '127.0.0.1',
+    path,
+    originalUrl: path,
+    ...overrides,
+  } as unknown as Request;
 }
 function makeResponse(): Response & { statusCode: number; body: unknown } {
   const res = {

@@ -94,10 +94,11 @@ export const COMPUTE_PATHS = [
   '/api/v1/calculators',
 ];
 
-// 按子路径分组限流：/backtest-optimizer 等长前缀必须优先匹配，否则被吞进 /backtest 组
+// 按子路径分组限流：/backtest-optimizer 等长前缀必须优先匹配，否则被吞进 /backtest 组。
+// 必须用 originalUrl：computeLimiter 挂载在 /api/v1 下，req.path 已被剥去挂载前缀，无法命中 COMPUTE_PATHS。
 const COMPUTE_PATHS_BY_LENGTH = [...COMPUTE_PATHS].sort((a, b) => b.length - a.length);
 function computePathRateLimitKey(req: Request): string {
-  const group = COMPUTE_PATHS_BY_LENGTH.find((p) => req.path.startsWith(p)) ?? 'other';
+  const group = COMPUTE_PATHS_BY_LENGTH.find((p) => req.originalUrl.startsWith(p)) ?? 'other';
   return `${group}:${computeRateLimitKey(req)}`;
 }
 
