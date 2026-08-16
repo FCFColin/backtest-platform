@@ -210,8 +210,9 @@ func RunTacticalBacktest(ctx context.Context, req TacticalBacktestRequest) (*Tac
 			total := 0.0
 			for _, t := range allTickers {
 				pp := req.PriceData[t][prevDate]
-				if pp > 0 {
-					holdings[t] *= req.PriceData[t][date] / pp
+				pc := req.PriceData[t][date]
+				if pp > 0 && pc > 0 {
+					holdings[t] *= pc / pp
 				}
 				total += holdings[t]
 			}
