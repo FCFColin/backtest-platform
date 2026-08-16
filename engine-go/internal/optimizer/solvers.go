@@ -139,7 +139,8 @@ func optimizeMaxSharpeClosed(mu []float64, sigma [][]float64, c Constraints, num
 	if satisfiesConstraints(rawW, c) {
 		return rawW
 	}
-	clipped := clipWeights(rawW, c)
+	// clipWeights 单次 clip+归一化可能把权重再次推过 MaxWeight；projectWeights 迭代至满足约束
+	clipped := projectWeights(rawW, c)
 	if isValidPortfolio(clipped) {
 		return clipped
 	}
