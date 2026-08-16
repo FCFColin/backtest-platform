@@ -84,8 +84,8 @@ const engineCases: EngineCase[] = [
           });
           const { res, json } = await postJson(url, { ...c.validBody(), tickers: ['AAPL'] });
           expect(res.status).toBe(200);
-          expect(json.data.tickers).toBeDefined();
-          expect(json.data.correlations).toBeDefined();
+          expect(json.data.tickers).toEqual([{ ticker: 'AAPL', cagr: 0.1 }]);
+          expect(json.data.correlations).toEqual([[1]]);
         },
       ],
       [
