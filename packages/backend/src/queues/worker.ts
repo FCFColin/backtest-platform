@@ -113,8 +113,8 @@ async function dispatchJob(job: Job<BacktestJobData>): Promise<BacktestJobResult
     return deferJob(job, 'Processed marker without cached result');
   }
   if (claim === 'in_progress') {
-    logger.info({ jobId, type }, '[worker] 任务正在处理中，延迟重试');
-    return deferJob(job, 'Job already being processed');
+    // BullMQ 单投递保证：本 worker 持有 job 锁期间无他人并发处理，遗留占位只可能是前次崩溃残留，直接接管而非无限 defer
+    logger.warn({ jobId, type }, '[worker] 接管陈旧处理占位（原处理者已崩溃）');
   }
 
   logger.info({ type, jobId }, '[worker] 开始处理任务');

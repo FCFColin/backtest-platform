@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach, afterAll } from 'vitest';
+import type { MockInstance } from 'vitest';
 import '../../helpers/loggerMock.js';
 import { redisModuleMock } from '../../helpers/redisFixture.js';
 import { engineMocks } from '../../helpers/engineFixture.js';
@@ -165,7 +166,6 @@ describe('processBacktestJob - 任务分发', () => {
       { score: 0.9 },
       'completed',
     ],
-    ['in_progress 时应抛出 DelayedError 而非假 completed', 'in_progress', null, 'delayed'],
     [
       'already_processed 但缓存结果为 null 时应抛出 DelayedError',
       'already_processed',
@@ -186,6 +186,14 @@ describe('processBacktestJob - 任务分发', () => {
       expect(markJobProcessed).not.toHaveBeenCalled();
     }
     expect(executeOptimization).not.toHaveBeenCalled();
+  });
+  it('in_progress 应接管陈旧占位并继续处理（BullMQ 单投递保证原处理者已崩溃）', async () => {
+    vi.mocked(tryClaimJobProcessing).mockResolvedValueOnce('in_progress');
+    mockOptSuccess();
+    const result = await processBacktestJob(makeJob({ type: 'optimizer', payload: {} }));
+    expect(result).toEqual<BacktestJobResult>({ status: 'completed', result: { ok: 1 } });
+    expect(executeOptimization).toHaveBeenCalled();
+    expect(markJobProcessed).toHaveBeenCalledWith('job-1', 'optimizer', { ok: 1 });
   });
   it.each([
     [
@@ -316,7 +324,7 @@ describe('processBacktestJob - 任务分发', () => {
   });
 });
 describe('shutdownWorker（优雅关闭）', () => {
-  let exitSpy: ReturnType<typeof vi.spyOn>;
+  let exitSpy: MockInstance<typeof process.exit>;
   let workerCloseMock: ReturnType<typeof vi.fn>;
   let workerModule: typeof import('../../../packages/backend/src/queues/worker.js');
   beforeEach(async () => {
