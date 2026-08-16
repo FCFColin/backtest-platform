@@ -13,7 +13,8 @@ interface PageAdapter {
 }
 
 const TICKER_PLACEHOLDER = /输入代码|标的代码|Enter ticker|Enter symbol|e\.g\. VTI|^VTI$/;
-export const ERRORS = /校验|错误|失败|无效|至少|不能为空|exceeded|invalid|failed/i;
+// 仅匹配运行期错误文案；静态校验提示（如"至少需要 2 个标的"）会常驻页面，纳入会令 result.or(error) 平凡通过
+export const ERRORS = /失败|超时|请重试|服务不可用|error|failed|timed out|unavailable|exceeded/i;
 
 async function fillPortfolioEditor(page: Page, rng: Rng, maxRows = 4): Promise<void> {
   const { tickers, weights } = randomPortfolio(rng);
