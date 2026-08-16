@@ -43,13 +43,16 @@ async function handleWithRedis(
   res: Response,
   next: NextFunction,
 ): Promise<void> {
-  // principal 优先用户 id（sub）而非租户 id：同一用户重复提交命中同一缓存，跨用户同租户不串
+  // principal 优先用户 id（sub）而非租户 id；有租户时叠加前缀（同用户跨组织不串），无租户保持原 key 形态，避免部署切换破坏在途幂等重试
   const principal =
     (req as AuthenticatedRequest).user?.sub ??
     (req as AuthenticatedRequest).user?.tenant_id ??
     req.ip ??
     'anonymous';
-  const redisKey = redisKeys.idempotency(`${principal}:${key}`);
+  const tenantScope = (req as AuthenticatedRequest).user?.tenant_id;
+  const redisKey = redisKeys.idempotency(
+    tenantScope ? `${tenantScope}:${principal}:${key}` : `${principal}:${key}`,
+  );
   if (!(await getRedisHealth())) return redisUnavailable(res);
   try {
     const cached = await readEntry<CachedResult>(redisKey);
