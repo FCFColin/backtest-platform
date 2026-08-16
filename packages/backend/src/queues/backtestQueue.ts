@@ -85,11 +85,14 @@ export function createBacktestWorker(
       );
       const jobId = String(job.id);
       const rv = job.returnvalue as BacktestJobResult | undefined;
+      // 引擎 4xx 时 worker 返回 { status: 'failed' } 但 BullMQ 视为成功完成，须按 returnvalue 向 WS 广播真实终态
+      const failed = rv?.status === 'failed';
       publishBacktestProgress(jobId, {
         jobId,
-        status: 'completed',
+        status: failed ? 'failed' : 'completed',
         progressPct: 100,
-        result: rv?.result,
+        result: failed ? undefined : rv?.result,
+        error: failed ? rv?.error : undefined,
       });
     },
     onFailed: (job, err) => {
