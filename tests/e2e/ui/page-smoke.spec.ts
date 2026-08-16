@@ -42,7 +42,7 @@ test.describe('页面冒烟测试', () => {
       await expect(page.getByRole('heading', { name: smoke.headingRegex })).toBeVisible({
         timeout: 1_000,
       });
-      await expectA11y(page, { disable: ['region', 'color-contrast'] });
+      await expectA11y(page);
     });
   }
 
@@ -58,6 +58,6 @@ test.describe('页面冒烟测试', () => {
     await expect(page.getByText(/结果|Results|等权基准/).first()).toBeVisible({
       timeout: 1_000,
     });
-    await expectA11y(page, { disable: ['region', 'color-contrast'] });
+    await expectA11y(page);
   });
 });

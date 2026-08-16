@@ -14,6 +14,6 @@ test.describe('登录页面', () => {
     await expect(page.getByText('密码')).toBeVisible();
     await expect(page.getByRole('textbox', { name: /用户名/ })).toBeVisible();
     await expect(page.getByText('登录').first()).toBeVisible();
-    await expectA11y(page);
+    await expectA11y(page, { disable: [] });
   });
 });
