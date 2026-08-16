@@ -26,26 +26,34 @@ await runCheck(results, 'C-015', () => {
   const adrIds = (s) => s.match(/(?<!D)ADR-\d+/g) ?? [];
   const activeAdrs = new Set(adrIds(sections.find((s) => s.startsWith('当前有效')) ?? ''));
   const deletedAdrs = new Set(adrIds(sections.find((s) => s.startsWith('已删除')) ?? ''));
-  let files = [];
+  let listing = [];
   try {
-    files = readdirSync(join(PROJECT_ROOT_PATH, 'docs', 'adr')).filter((f) =>
-      /^ADR-\d+.*\.md$/.test(f),
-    );
+    listing = readdirSync(join(PROJECT_ROOT_PATH, 'docs', 'adr'));
   } catch {}
+  const files = listing.filter((f) => /^ADR-\d+.*\.md$/.test(f));
   const fileAdrs = new Set(files.map((f) => f.match(/^(ADR-\d+)/)?.[1]).filter(Boolean));
   const inIndexNotInFiles = [...activeAdrs].filter((a) => !fileAdrs.has(a));
   const inFilesNotInIndex = [...fileAdrs].filter((a) => !activeAdrs.has(a) && !deletedAdrs.has(a));
-  const ok = inIndexNotInFiles.length === 0 && inFilesNotInIndex.length === 0;
+  // DADR：已删除决策仅存索引条目；磁盘出现 DADR-*.md 文件须在"已删除"段登记（ADR-012 防复活未登记）
+  const dadrSection = sections.find((s) => s.startsWith('已删除')) ?? '';
+  const dadrUnregistered = listing
+    .filter((f) => /^DADR-\d+.*\.md$/.test(f))
+    .filter((f) => !new RegExp(`DADR-${f.match(/^DADR-(\d+)/)[1]}\\b`).test(dadrSection));
+  const ok =
+    inIndexNotInFiles.length === 0 &&
+    inFilesNotInIndex.length === 0 &&
+    dadrUnregistered.length === 0;
   return {
     status: ok ? 'PASS' : 'FAIL',
     summary: ok
-      ? `ADR 索引与文件一致 (${fileAdrs.size} 文件, ${activeAdrs.size} 有效, ${deletedAdrs.size} 已删除)`
-      : `差异: 索引有文件缺失 [${inIndexNotInFiles}], 文件有索引缺失 [${inFilesNotInIndex}]`,
+      ? `ADR 索引与文件一致 (${fileAdrs.size} 文件, ${activeAdrs.size} 有效, ${deletedAdrs.size} 已删除, ${dadrUnregistered.length} DADR 未登记)`
+      : `差异: 索引有文件缺失 [${inIndexNotInFiles}], 文件有索引缺失 [${inFilesNotInIndex}], DADR 未登记 [${dadrUnregistered}]`,
     details: {
       activeCount: activeAdrs.size,
       fileCount: fileAdrs.size,
       inIndexNotInFiles,
       inFilesNotInIndex,
+      dadrUnregistered,
     },
   };
 });
@@ -81,7 +89,7 @@ await runCheck(results, 'C-016', () => {
 });
 
 // ── C-017: 迁移文件与注册表对齐 ───────────────────────────────
-// 委托 scripts/check-migrations.mjs（命名/序号/UP-DOWN/注册表全量检查），避免双份解析漂移
+// 委托 scripts/check-migrations.mjs（命名/序号/注册表全量检查），避免双份解析漂移
 await runCheck(results, 'C-017', () => {
   const r = runCmd('node scripts/check-migrations.mjs', { timeout: 120000 });
   return {
