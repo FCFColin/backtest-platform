@@ -1,6 +1,7 @@
 /**
- * PostgreSQL Schema 迁移管理（ADR-002）。
+ * PostgreSQL Schema 迁移管理（ADR-002，forward-only，见 ADR-018）。
  * 迁移 SQL 已重基线为单个 001_initial_schema.sql（45 个历史迁移合并）。
+ * 回滚走备份恢复（scripts/backup-restore.sh），不做 down 迁移。
  */
 import fs from 'fs';
 import path from 'path';
@@ -17,38 +18,14 @@ function readMigrationFile(filename: string): string {
   return fs.readFileSync(path.join(MIGRATIONS_DIR, filename), 'utf-8');
 }
 
-export const migrations: Array<{ version: number; upFile: string; downFile: string }> = [
-  { version: 1, upFile: '001_initial_schema.sql', downFile: '001_initial_schema_down.sql' },
-  {
-    version: 2,
-    upFile: '002_fama_french_factors.sql',
-    downFile: '002_fama_french_factors_down.sql',
-  },
-  {
-    version: 3,
-    upFile: '003_platform_rls_escape.sql',
-    downFile: '003_platform_rls_escape_down.sql',
-  },
-  {
-    version: 4,
-    upFile: '004_remove_dead_schema.sql',
-    downFile: '004_remove_dead_schema_down.sql',
-  },
-  {
-    version: 5,
-    upFile: '005_remove_dead_schema.sql',
-    downFile: '005_remove_dead_schema_down.sql',
-  },
-  {
-    version: 6,
-    upFile: '006_audit_outbox_idempotency.sql',
-    downFile: '006_audit_outbox_idempotency_down.sql',
-  },
-  {
-    version: 7,
-    upFile: '007_outbox_notify_trigger.sql',
-    downFile: '007_outbox_notify_trigger_down.sql',
-  },
+export const migrations: Array<{ version: number; upFile: string }> = [
+  { version: 1, upFile: '001_initial_schema.sql' },
+  { version: 2, upFile: '002_fama_french_factors.sql' },
+  { version: 3, upFile: '003_platform_rls_escape.sql' },
+  { version: 4, upFile: '004_remove_dead_schema.sql' },
+  { version: 5, upFile: '005_remove_dead_schema.sql' },
+  { version: 6, upFile: '006_audit_outbox_idempotency.sql' },
+  { version: 7, upFile: '007_outbox_notify_trigger.sql' },
 ];
 
 export async function initSchema(): Promise<void> {
@@ -88,41 +65,6 @@ export async function initSchema(): Promise<void> {
       }
     }
     logger.info({ durationMs: Date.now() - t0 }, '[db] Schema 迁移完成');
-  } finally {
-    await client.query('SELECT pg_advisory_unlock($1)', [MIGRATION_LOCK_ID]);
-    client.release();
-  }
-}
-
-export async function rollbackSchema(targetVersion: number): Promise<void> {
-  const client = await getPool().connect();
-  try {
-    await client.query('SELECT pg_advisory_lock($1)', [MIGRATION_LOCK_ID]);
-    const { rows } = await client.query(
-      'SELECT version FROM schema_migrations ORDER BY version DESC',
-    );
-    const applied = rows.map((r: { version: number }) => r.version);
-    const toRollback = migrations.filter(
-      (m) => applied.includes(m.version) && m.version > targetVersion,
-    );
-    if (toRollback.length === 0) {
-      logger.info({ targetVersion }, '[db] 无需回滚');
-      return;
-    }
-    for (const m of toRollback.sort((a, b) => b.version - a.version)) {
-      const sql = readMigrationFile(m.downFile);
-      try {
-        await client.query('BEGIN');
-        await client.query(sql);
-        await client.query('DELETE FROM schema_migrations WHERE version = $1', [m.version]);
-        await client.query('COMMIT');
-      } catch (err) {
-        await client.query('ROLLBACK');
-        logger.error({ err, version: m.version }, `[db] Schema v${m.version} 回滚失败`);
-        throw err;
-      }
-    }
-    logger.info({ targetVersion }, '[db] Schema 回滚完成');
   } finally {
     await client.query('SELECT pg_advisory_unlock($1)', [MIGRATION_LOCK_ID]);
     client.release();

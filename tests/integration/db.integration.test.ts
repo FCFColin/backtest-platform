@@ -6,11 +6,7 @@ import {
   type TestContainerContext,
 } from '../helpers/testcontainersPg.js';
 
-import {
-  initSchema,
-  rollbackSchema,
-  migrations,
-} from '../../packages/backend/src/db/migrations.js';
+import { initSchema } from '../../packages/backend/src/db/migrations.js';
 import { getPool, closeDb } from '../../packages/backend/src/db/pool.js';
 import { config } from '../../packages/backend/src/config/index.js';
 
@@ -32,26 +28,6 @@ describe.skipIf(!dockerAvailable)('PostgreSQL 集成测试（testcontainers）',
 
   it('应成功初始化 schema', async () => {
     await initSchema();
-    await expect(getPool().query('SELECT 1')).resolves.toBeDefined();
-  });
-
-  it('应成功回滚到指定版本（v3→v2）', async () => {
-    await rollbackSchema(2);
-    const pool = getPool();
-    const { rows } = await pool.query('SELECT version FROM schema_migrations ORDER BY version');
-    const versions = rows.map((r: { version: number }) => r.version);
-    expect(versions).not.toContain(3);
-    expect(versions).toContain(2);
-    expect(versions).toContain(1);
-  });
-
-  it('应成功重新应用迁移（down→up 循环）', async () => {
-    await rollbackSchema(1);
-    await initSchema();
-    const pool = getPool();
-    const { rows } = await pool.query('SELECT version FROM schema_migrations ORDER BY version');
-    const versions = rows.map((r: { version: number }) => r.version);
-    expect(versions).toEqual(migrations.map((m) => m.version));
     await expect(getPool().query('SELECT 1')).resolves.toBeDefined();
   });
 

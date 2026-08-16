@@ -1,13 +1,12 @@
 #!/usr/bin/env node
 /**
- * CI 迁移完整性检查（ADR-002）。
+ * CI 迁移完整性检查（ADR-002，forward-only，见 ADR-018）。
  *
  * 检查项：
  * 1. 迁移文件命名遵循 NNN_descriptive_name.sql 约定（3 位零填充序号）
  * 2. 文件序号连续无空隙（001, 002, ..., N）
- * 3. 每个 UP 文件有对应 DOWN 文件（NNN_name_down.sql），或 UP 文件内标记 -- irreversible
- * 4. migrations.ts 注册表版本号与磁盘文件一致（无遗漏、无多余、无重复）
- * 5. 注册表版本号连续且与文件序号对齐
+ * 3. migrations.ts 注册表版本号与磁盘文件一致（无遗漏、无多余、无重复）
+ * 4. 注册表版本号连续且与文件序号对齐
  *
  * 用法：node scripts/check-migrations.mjs
  * 退出码：0 = 全部通过，1 = 存在违规（CI 失败）
@@ -22,7 +21,6 @@ const MIGRATIONS_DIR = path.join(ROOT, 'migrations');
 const REGISTRY_FILE = path.join(ROOT, 'packages', 'backend', 'src', 'db', 'migrations.ts');
 
 const NAME_PATTERN = /^(\d{3})_[a-z][a-z0-9_]*\.sql$/;
-const DOWN_SUFFIX = '_down.sql';
 
 const errors = [];
 const warnings = [];
@@ -48,34 +46,15 @@ if (!fs.existsSync(MIGRATIONS_DIR)) {
 }
 
 const allFiles = fs.readdirSync(MIGRATIONS_DIR).filter((f) => f.endsWith('.sql'));
-
-const upFiles = [];
-const downFiles = [];
-
-for (const f of allFiles) {
-  if (f.endsWith(DOWN_SUFFIX)) {
-    downFiles.push(f);
-  } else {
-    upFiles.push(f);
-  }
-}
-
-upFiles.sort();
-downFiles.sort();
+const upFiles = [...allFiles].sort();
 
 console.log(`迁移目录: ${MIGRATIONS_DIR}`);
-console.log(`UP 文件: ${upFiles.length}，DOWN 文件: ${downFiles.length}\n`);
+console.log(`迁移文件: ${upFiles.length}\n`);
 
 // --- 检查 1: 文件命名约定 ---
 for (const f of upFiles) {
   if (!NAME_PATTERN.test(f)) {
     error(`命名违规（应为 NNN_name.sql）: ${f}`);
-  }
-}
-for (const f of downFiles) {
-  const base = f.slice(0, -DOWN_SUFFIX.length);
-  if (!NAME_PATTERN.test(base + '.sql')) {
-    error(`命名违规（应为 NNN_name_down.sql）: ${f}`);
   }
 }
 
@@ -100,38 +79,17 @@ if (upVersions.length > 0) {
   assertContinuous(upVersions, (v) => `序号空隙: 缺少 ${String(v).padStart(3, '0')}_*.sql`);
 }
 
-// --- 检查 3: UP/DOWN 配对 ---
-for (const f of upFiles) {
-  const downName = f.replace(/\.sql$/, DOWN_SUFFIX);
-  if (!downFiles.includes(downName)) {
-    const content = fs.readFileSync(path.join(MIGRATIONS_DIR, f), 'utf-8');
-    if (/--\s*irreversible/i.test(content)) {
-      warn(`不可逆迁移（已标记 -- irreversible），无需 DOWN: ${f}`);
-    } else {
-      error(`缺少 DOWN 文件: ${f}（期望 ${downName}）`);
-    }
-  }
-}
-
-for (const f of downFiles) {
-  const upName = f.replace(/_down\.sql$/, '.sql');
-  if (!upFiles.includes(upName)) {
-    error(`孤立 DOWN 文件（无对应 UP）: ${f}`);
-  }
-}
-
-// --- 检查 4 & 5: 注册表一致性 ---
+// --- 检查 3 & 4: 注册表一致性 ---
 let registryEntries = [];
 
 if (fs.existsSync(REGISTRY_FILE)) {
   const content = fs.readFileSync(REGISTRY_FILE, 'utf-8');
-  const entryPattern = /version:\s*(\d+)\s*,\s*upFile:\s*'([^']+)'\s*,\s*downFile:\s*'([^']+)'/g;
+  const entryPattern = /version:\s*(\d+)\s*,\s*upFile:\s*'([^']+)'/g;
   let match;
   while ((match = entryPattern.exec(content)) !== null) {
     registryEntries.push({
       version: parseInt(match[1], 10),
       upFile: match[2],
-      downFile: match[3],
     });
   }
   console.log(`注册表: ${REGISTRY_FILE}`);
@@ -151,10 +109,7 @@ if (registryEntries.length > 0) {
     seenVersions.add(entry.version);
 
     if (!upFiles.includes(entry.upFile)) {
-      error(`注册表引用的 UP 文件不存在: ${entry.upFile}（版本 ${entry.version}）`);
-    }
-    if (!downFiles.includes(entry.downFile)) {
-      error(`注册表引用的 DOWN 文件不存在: ${entry.downFile}（版本 ${entry.version}）`);
+      error(`注册表引用的迁移文件不存在: ${entry.upFile}（版本 ${entry.version}）`);
     }
 
     const fileVersion = parseInt(entry.upFile.match(/^(\d{3})_/)?.[1] ?? '0', 10);
@@ -193,5 +148,5 @@ if (errors.length > 0) {
   process.exit(1);
 }
 
-console.log('✓ 迁移完整性检查通过（文件命名、序号连续、UP/DOWN 配对、注册表一致）');
+console.log('✓ 迁移完整性检查通过（文件命名、序号连续、注册表一致）');
 process.exit(0);

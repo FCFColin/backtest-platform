@@ -226,21 +226,4 @@ describe('db/migrations', () => {
     expect(poolMocks.mockClient.query).toHaveBeenCalledWith('BEGIN');
     expect(poolMocks.mockClient.query).toHaveBeenCalledWith('COMMIT');
   });
-
-  it('rollbackSchema 无需回滚时应直接返回', async () => {
-    poolMocks.mockClient.query
-      .mockResolvedValueOnce({ rows: [] }) // pg_advisory_lock
-      .mockResolvedValueOnce({ rows: [{ version: 1 }] });
-    const { rollbackSchema } = await import('../../../packages/backend/src/db/migrations.js');
-    await expect(rollbackSchema(1)).resolves.toBeUndefined();
-  });
-
-  it('rollbackSchema 应执行 down 迁移', async () => {
-    poolMocks.mockClient.query
-      .mockResolvedValueOnce({ rows: [] }) // pg_advisory_lock
-      .mockResolvedValueOnce({ rows: [{ version: 1 }] });
-    const { rollbackSchema } = await import('../../../packages/backend/src/db/migrations.js');
-    await expect(rollbackSchema(0)).resolves.toBeUndefined();
-    expect(poolMocks.mockClient.query).toHaveBeenCalledWith('BEGIN');
-  });
 });
