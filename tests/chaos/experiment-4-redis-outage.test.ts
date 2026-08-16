@@ -69,6 +69,10 @@ describe('Chaos Experiment 4: Redis 中断', () => {
           });
           // 限流器 Redis store 故障时 passOnStoreError=false → next(err) 500；lockout requireRedis → 503；均属拒绝放行
           expect([401, 429, 503, 500]).toContain(loginRes.status);
+          // 500 仅当 API 仍存活（后续健康检查 200）时才视为受控拒绝，而非整机崩溃
+          const aliveAfterLogin = await getHealth();
+          expect(aliveAfterLogin.status).toBe(200);
+          expect(aliveAfterLogin.redis).toBe(false);
         },
         { settleMs: 0 },
       );
