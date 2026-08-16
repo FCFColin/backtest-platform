@@ -18,6 +18,7 @@ vi.mock('../../../packages/backend/src/config/index.js', () => ({
     GO_DATA_SERVICE_URL: 'http://127.0.0.1:15003',
   }),
   validateConfig: vi.fn(),
+  USAGE_METRIC: { BACKTEST: 'backtest' },
 }));
 
 vi.mock('../../../packages/backend/src/db/pool.js', () => ({
