@@ -108,29 +108,30 @@ export async function executeTacticalBacktest(
     endDate,
   );
 
-  const tacticalResult = await callEngineStrict<{
-    portfolio: PortfolioResult;
-    signalHistory: TacticalBacktestResult['signalHistory'];
-  }>(
-    '/api/engine/tactical-backtest',
-    {
-      strategy,
-      priceData,
-      dates,
+  const [tacticalResult, benchmarkResult] = await Promise.all([
+    callEngineStrict<{
+      portfolio: PortfolioResult;
+      signalHistory: TacticalBacktestResult['signalHistory'];
+    }>(
+      '/api/engine/tactical-backtest',
+      {
+        strategy,
+        priceData,
+        dates,
+        startingValue,
+        rebalanceFrequency,
+      },
+      tacticalBacktestResultSchema,
+    ),
+    runBenchmarkBacktest({
+      allTickers,
+      startDate,
+      endDate,
       startingValue,
       rebalanceFrequency,
-    },
-    tacticalBacktestResultSchema,
-  );
-
-  const benchmarkResult = await runBenchmarkBacktest({
-    allTickers,
-    startDate,
-    endDate,
-    startingValue,
-    rebalanceFrequency,
-    priceData,
-  });
+      priceData,
+    }),
+  ]);
 
   return {
     data: {
