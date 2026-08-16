@@ -21,4 +21,4 @@ SQLite 单文件无法跨 Pod 共享（K8s 2 副本无法安全扩展），写�
 
 - (+) 解除水平扩展阻塞，获得连接池/全文搜索/流复制/企业运维生态
 - (-) 引入 PostgreSQL 运维依赖，开发环境需 docker-compose
-- 后续：数据量 > 100GB 时考虑 TimescaleDB
+- 修订（2026-08）：行情表已采用 TimescaleDB（timescale/timescaledb:2.17.2-pg16），prices 建 hypertable + 压缩 + prices_monthly CAGG（migrations/001），满足时序扩容需求而非待 >100GB 再评估
