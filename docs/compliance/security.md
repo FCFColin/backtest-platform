@@ -2,7 +2,7 @@
 
 ## 1. 入侵检测与防范
 
-异常登录检测: 登录失败 5 次/15min → 锁 15min；IP 失败 10 次/h → 封锁 1h；异地登录 >500km 突变 → 告警；非工作时间(02-06)管理员登录 → 告警。
+异常登录检测: 登录失败 5 次/15min → 锁 15min（用户名）；IP 5min 10 次 → 封 1h（ANOMALY_LOGIN_* 可配）；登录限流每用户 10 次/15min；异地登录 >500km 突变 → 告警；非工作时间(02-06)管理员登录 → 告警。
 
 | 层级   | 措施                      | 实现                                                        |
 | ------ | ------------------------- | ----------------------------------------------------------- |
@@ -23,7 +23,7 @@
 
 > 上表为容器内端口；主机访问经 docker-compose 映射为 15001/15003/15004（见 [ARCHITECTURE.md §4](../ARCHITECTURE.md#4-服务与端口)）。
 
-通信加密: 客户端→nginx ingress TLS 强制；API→PG/Redis TLS 强制(生产)。网络隔离: K8s NetworkPolicy 默认拒绝；pg_hba.conf 限制来源。多可用区: K8s 跨 2+ AZ；PG 主+流复制跨 AZ；Redis Sentinel 跨 AZ。
+通信加密: 客户端→nginx ingress TLS 强制；API→PG/Redis TLS 强制(生产)。网络隔离: K8s NetworkPolicy 默认拒绝（k8s/network-policies/）；pg_hba.conf 限制来源。高可用现状: PG 单副本（k8s 未做流复制，见 k8s/postgres.yaml）；Redis Sentinel 3 节点（docker-compose）；K8s 跨 AZ 部署未落地。
 
 ## 3. 安全开发（SDL）
 

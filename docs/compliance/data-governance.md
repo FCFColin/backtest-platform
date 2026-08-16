@@ -8,10 +8,10 @@
 | L3 高         | 商业损失/隐私违规 | 用户信息、组织财务、回测策略    | RLS+审计+TLS           |
 | L2 中 / L1 低 | 有限影响 / 公开   | 回测结果、组合配置 / 行情、指数 | RLS+TLS / 无特殊       |
 
-PII 字段: username(明文,删除时匿名化)、password_hash(argon2id)、last_login_at。不收集 email/电话/地址（数据最小化）。
+PII 字段: username(明文,删除时匿名化)、email(注册/邮箱验证/组织邀请)、password_hash(argon2id)、last_login_at。不收集电话/地址（数据最小化）。
 
-生命周期: 用户活跃期保留；删除时 anonymizeUser(保留引用)或 deleteUser(硬删除)；Refresh Token TTL 7d；审计日志 180d；备份 7 份。
-GDPR: 被遗忘权(anonymize/delete)、最小化(仅 username+hash)、可追溯(HMAC 审计)、凭证保护(argon2id+TLS)。
+生命周期: 用户活跃期保留；删除时 anonymizeUser(保留引用；硬删除已退役，见 ADR-016)；Refresh Token TTL 7d；审计日志 180d；备份 7 份。
+GDPR: 被遗忘权(anonymize)、最小化(username+email+hash)、可追溯(HMAC 审计)、凭证保护(argon2id+TLS)。
 
 ## 2. 加密策略
 
@@ -31,12 +31,12 @@ GDPR: 被遗忘权(anonymize/delete)、最小化(仅 username+hash)、可追溯(
 ## 4. 认证与会话
 
 JWT / x-api-key / Idempotency-Key / break-glass 模型见 ADR-007。
-会话: Access 15min / Refresh 7d / 空闲 30min / 绝对 24h；同用户最多 5 个活跃 Refresh Token；MFA/TOTP 未实施（users.mfa_secret/mfa_backup_codes 列为遗留死列，见 ADR-013）。
+会话: Access 15min / Refresh 7d / 空闲超时（readonly 30min、analyst 1h）；绝对 24h 与活跃 Refresh Token 数量上限尚未实施。MFA/TOTP 未实施（users.mfa_secret/mfa_backup_codes 列为遗留死列，见 ADR-013）。
 密码: 至少 12 位（无字符类/轮换/历史约束）；锁定: 5 次失败锁 15min, IP 10 次/5min 封 1h（ANOMALY_LOGIN_* 可配）。
 
 ## 5. 备份与恢复
 
-方案与 RTO/RPO 目标：WAL-G 每日全量+实时 WAL 保留 7 份、Redis RDB、K8s Secret；恢复流程：`bash scripts/backup-restore.sh LATEST`、PITR 用 recovery_target_time、pg_verifybackup + WAL 完整性验证。
+方案与 RTO/RPO 目标：WAL-G 每日全量+实时 WAL 保留 7 份、Redis RDB、K8s Secret；恢复流程：`bash scripts/backup-restore.sh LATEST`、PITR 用 recovery_target_time、pg_verifybackup + WAL 完整性验证。（当前仅 docker-compose 落地 wal-g+ofelia 每日备份与 7 份保留；k8s 生产未落地 PITR，见 k8s/postgres.yaml。）
 
 ## 6. 等保对照
 
