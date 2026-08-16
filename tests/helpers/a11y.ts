@@ -5,7 +5,7 @@ export async function expectA11y(
   page: Page,
   options?: {
     scope?: Locator;
-    rules?: string[];
+    disable?: string[];
   },
 ) {
   const builder = new AxeBuilder({ page });
@@ -14,8 +14,8 @@ export async function expectA11y(
     builder.include(options.scope);
   }
 
-  if (options?.rules) {
-    builder.disableRules(options.rules);
+  if (options?.disable) {
+    builder.disableRules(options.disable);
   }
 
   const { violations } = await builder.analyze();

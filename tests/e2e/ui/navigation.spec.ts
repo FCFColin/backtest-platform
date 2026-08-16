@@ -15,7 +15,7 @@ test.describe('导航栏交互', () => {
     await expect(page.getByText(/基础参数|Basic Parameters/).first()).toBeVisible({
       timeout: 1_000,
     });
-    await expectA11y(page, { rules: ['region', 'color-contrast'] });
+    await expectA11y(page, { disable: ['region', 'color-contrast'] });
   });
 
   test('T10: 导航到优化页', async ({ page }) => {
@@ -23,13 +23,13 @@ test.describe('导航栏交互', () => {
     await nav.getByRole('button', { name: /优化|Optimize/ }).click();
     await page.getByRole('menuitem', { name: /组合优化|Portfolio Optimization/ }).click();
     await expect(page).toHaveURL(/\/optimizer/, { timeout: 15_000 });
-    await expectA11y(page, { rules: ['region', 'color-contrast'] });
+    await expectA11y(page, { disable: ['region', 'color-contrast'] });
   });
 
   test('T11: 导航到数据引擎', async ({ page }) => {
     const nav = page.getByRole('navigation');
     await nav.getByRole('link', { name: /数据引擎|Data Engine/ }).click();
     await expect(page).toHaveURL(/\/data-engine/, { timeout: 15_000 });
-    await expectA11y(page, { rules: ['region', 'color-contrast'] });
+    await expectA11y(page, { disable: ['region', 'color-contrast'] });
   });
 });
