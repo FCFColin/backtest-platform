@@ -76,16 +76,8 @@ router.post(
   submitQueueJob({
     type: 'grid-search',
     onQueueDown: 'sync-fallback',
+    statusUrl: (jobId) => `/api/v1/jobs/${jobId}`,
     fallback: (body) => executeGridSearch(body as Record<string, unknown>),
-    respond202: (res, jobId) =>
-      res.status(202).json({
-        type: 'https://httpstatuses.com/202',
-        title: 'Accepted',
-        status: 202,
-        detail: 'Grid search task submitted',
-        jobId,
-        statusUrl: `/api/v1/jobs/${jobId}`,
-      }),
     logMsg: '[tactical-grid] 网格搜索失败',
     code: 'GRID_SEARCH_ERROR',
     endpoint: 'tactical-grid',

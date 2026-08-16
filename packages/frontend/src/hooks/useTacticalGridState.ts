@@ -81,8 +81,8 @@ export function useTacticalGridState(t: TFunction): TacticalGridState {
       });
       const json = await res.json();
       if (!res.ok || json.success === false) throw new Error(extractApiErrorDetail(json));
-      if (res.status === 202 && json.statusUrl) {
-        const polled = await pollJobStatus(json.statusUrl, new AbortController().signal, null);
+      if (res.status === 202 && json.data?.statusUrl) {
+        const polled = await pollJobStatus(json.data.statusUrl, new AbortController().signal, null);
         return polled.data as TacticalGridResponse;
       }
       return json.data as TacticalGridResponse;
