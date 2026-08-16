@@ -75,6 +75,7 @@ export async function anonymizeUser(id: string): Promise<boolean> {
            mfa_backup_codes = NULL,
            mfa_enabled = FALSE,
            is_active = false,
+           is_platform_admin = FALSE,
            updated_at = NOW()
      WHERE id = $1`,
     [id, anonymizedUsername],
