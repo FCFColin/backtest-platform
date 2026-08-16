@@ -2,6 +2,7 @@ package provider
 
 import (
 	"errors"
+	"math"
 	"reflect"
 	"testing"
 )
@@ -217,6 +218,7 @@ func TestSanitizePrices(t *testing.T) {
 		{"swaps high low", []DailyPrice{{Date: "2024-01-01", Open: 100, High: 90, Low: 110, Close: 105, Volume: 1000}}, []DailyPrice{{Date: "2024-01-01", Open: 100, High: 110, Low: 90, Close: 105, Volume: 1000}}},
 		{"clamps open close", []DailyPrice{{Date: "2024-01-01", Open: 50, High: 100, Low: 80, Close: 60, Volume: 1000}}, []DailyPrice{{Date: "2024-01-01", Open: 80, High: 100, Low: 80, Close: 80, Volume: 1000}}},
 		{"negative volume", []DailyPrice{{Date: "2024-01-01", Open: 100, High: 110, Low: 90, Close: 105, Volume: -500}}, []DailyPrice{{Date: "2024-01-01", Open: 100, High: 110, Low: 90, Close: 105, Volume: 0}}},
+		{"drops NaN close", []DailyPrice{{Date: "2024-01-01", Open: 100, High: 110, Low: 90, Close: math.NaN(), Volume: 1000}, {Date: "2024-01-02", Open: 101, High: 111, Low: 91, Close: 106, Volume: 1000}}, []DailyPrice{{Date: "2024-01-02", Open: 101, High: 111, Low: 91, Close: 106, Volume: 1000}}},
 		{"already valid", []DailyPrice{{Date: "2024-01-01", Open: 95, High: 110, Low: 90, Close: 105, Volume: 1000}}, []DailyPrice{{Date: "2024-01-01", Open: 95, High: 110, Low: 90, Close: 105, Volume: 1000}}},
 	}
 	for _, c := range cases {

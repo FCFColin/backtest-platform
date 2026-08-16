@@ -173,6 +173,8 @@ func (ds *DataStore) fetchAndStoreFromProvider(ctx context.Context, ticker, star
 		return nil, fmt.Errorf("provider 无数据返回: %s", ticker)
 	}
 	slog.Info("从 provider 实时获取数据成功", "ticker", ticker, "provider", providerName, "count", len(dailyPrices))
+	// 返回给调用方与落库共用同一份净化数据，避免读路径透出与 DB CHECK 不一致的脏值
+	dailyPrices = provider.SanitizePrices(dailyPrices)
 	if err := ds.writeGoPricesToDB(ctx, ticker, dailyPrices); err != nil {
 		slog.Warn("写入数据库失败（不影响返回）", "ticker", ticker, "error", err)
 	}
@@ -194,7 +196,6 @@ func (ds *DataStore) writeGoPricesToDB(ctx context.Context, ticker string, price
 	if ds.pool == nil {
 		return fmt.Errorf("数据库未连接")
 	}
-	prices = provider.SanitizePrices(prices)
 	batch := &pgx.Batch{}
 	batch.Queue(`
 		INSERT INTO tickers (ticker) VALUES ($1)

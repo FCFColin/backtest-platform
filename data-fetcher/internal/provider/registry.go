@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/sony/gobreaker"
 	"log/slog"
+	"math"
 	"strings"
 	"time"
 )
@@ -103,11 +104,15 @@ func NewBaseProvider(name string, opts httpclient.Options) BaseProvider {
 
 func (b BaseProvider) Name() string { return b.NameStr }
 
-// SanitizePrices 修复脏 OHLC 数据（akshare/部分数据源偶发 high<low、open/close 越界、负成交量），
+// SanitizePrices 修复脏 OHLC 数据（akshare/部分数据源偶发 high<low、open/close 越界、负成交量、NaN），
 // 保证满足 prices 表 CHECK 约束；worker 与实时回填两条写库路径共用。
+// 非有限价格（NaN/±Inf）无法修复语义，直接丢弃该日，避免静默污染引擎输入。
 func SanitizePrices(prices []DailyPrice) []DailyPrice {
 	valid := make([]DailyPrice, 0, len(prices))
 	for _, p := range prices {
+		if !isFinitePrice(p) {
+			continue
+		}
 		if p.High < p.Low {
 			p.High, p.Low = p.Low, p.High
 		}
@@ -129,6 +134,13 @@ func SanitizePrices(prices []DailyPrice) []DailyPrice {
 		valid = append(valid, p)
 	}
 	return valid
+}
+
+func isFinitePrice(p DailyPrice) bool {
+	return !math.IsNaN(p.Open) && !math.IsInf(p.Open, 0) &&
+		!math.IsNaN(p.High) && !math.IsInf(p.High, 0) &&
+		!math.IsNaN(p.Low) && !math.IsInf(p.Low, 0) &&
+		!math.IsNaN(p.Close) && !math.IsInf(p.Close, 0)
 }
 
 func NewProviderBreaker(name string, maxRequests uint32) *gobreaker.CircuitBreaker {
