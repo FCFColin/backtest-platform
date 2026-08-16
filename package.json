@@ -4,6 +4,9 @@
   "version": "0.4.1",
   "license": "MIT",
   "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "turbo run dev",
     "dev:all": "node scripts/dev.mjs",
