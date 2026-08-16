@@ -19,11 +19,16 @@ const (
 	regMaxAttempts     = 20
 	projIterations     = 500
 	subsetLimit        = 15
+	// 协方差为 O(n²) 内存 + O(n³) 求逆，frontier 逐点重求逆；200 标的已覆盖真实组合并封顶最坏负载
+	maxTickers = 200
 )
 
 func prepareInputs(tickers []string, priceData map[string]map[string]float64) ([]float64, [][]float64, error) {
 	if len(tickers) == 0 {
 		return nil, nil, engineutil.NewInputError("tickers 不能为空")
+	}
+	if len(tickers) > maxTickers {
+		return nil, nil, engineutil.NewInputError("标的数 %d 超过上限 %d", len(tickers), maxTickers)
 	}
 	mu, sigma, err := computeReturnCovariance(tickers, priceData)
 	if err != nil {

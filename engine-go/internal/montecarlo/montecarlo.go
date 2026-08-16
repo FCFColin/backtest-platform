@@ -30,17 +30,14 @@ func RunMonteCarlo(ctx context.Context, req MonteCarloRequest) (*MonteCarloResul
 	if len(dailyReturns) < mcTradingDays {
 		return nil, engineutil.NewInputError("历史数据不足：需要至少1年(%d天)的日收益率，实际%d天", mcTradingDays, len(dailyReturns))
 	}
-	select {
-	case <-ctx.Done():
+	if ctx.Err() != nil {
 		return nil, ctx.Err()
-	default:
 	}
 	totalDays := req.MCParams.NumYears * mcTradingDays
 	paths := runSimulations(ctx, dailyReturns, totalDays, req.MCParams.NumSimulations, req.MCParams, req.Params.StartingValue)
-	select {
-	case <-ctx.Done():
-		return nil, ctx.Err() // 取消时 goroutine 可能留下 nil path，禁止继续计算
-	default:
+	// 取消时 goroutine 可能留下 nil path，禁止继续计算
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
 	}
 	percentiles := computePercentiles(paths, totalDays)
 	successProb := computeSuccessProbability(paths, req.MCParams.SuccessThreshold, req.Params.StartingValue)
