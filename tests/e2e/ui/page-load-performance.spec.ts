@@ -62,6 +62,33 @@ test.describe('页面加载性能预算', () => {
     expect(metrics!.ttfb).toBeLessThan(TTBF_BUDGET_MS);
     expect(metrics!.load).toBeLessThan(LOAD_BUDGET_MS);
   });
+
+  test('P4: 首页 CLS < 0.1', async ({ page }) => {
+    await page.goto('/', { waitUntil: 'load' });
+
+    const cls = await page.evaluate(
+      () =>
+        new Promise<number>((resolve) => {
+          let cls = 0;
+          try {
+            const po = new PerformanceObserver((list) => {
+              for (const entry of list.getEntries()) {
+                if (!entry.hadRecentInput) cls += entry.value;
+              }
+            });
+            po.observe({ type: 'layout-shift', buffered: true });
+          } catch {
+            resolve(-1);
+            return;
+          }
+          setTimeout(() => resolve(Math.round(cls * 10000) / 10000), 3000);
+        }),
+    );
+
+    console.log(`[perf] CLS: ${cls} (budget: <0.1)`);
+    expect(cls).toBeGreaterThanOrEqual(0);
+    expect(cls).toBeLessThan(0.1);
+  });
 });
 
 test.describe('页面导航性能预算', () => {

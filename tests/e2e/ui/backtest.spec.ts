@@ -16,6 +16,8 @@ test.describe('回测页面', () => {
     await expect(page.getByText(/基础参数|Basic Parameters/).first()).toBeVisible({
       timeout: 1_000,
     });
+    // 起始资金默认值 10000 且输入有效（C-005 语义：首页默认可运行）
+    await expect(page.locator('#bp-start-val')).toHaveValue('10000', { timeout: 1_000 });
   });
 
   test('T1: 默认回测 — VTI 60% + BND 40%', async ({ page }) => {
