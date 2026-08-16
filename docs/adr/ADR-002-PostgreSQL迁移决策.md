@@ -17,6 +17,8 @@ SQLite 单文件无法跨 Pod 共享（K8s 2 副本无法安全扩展），写�
 - 不选 MongoDB（关系模型更适合金融时序数据，需 ACID）
 - 不选 SQLite+共享存储（NFS 上 WAL 不可靠）
 
+> 修订（2026-08，ADR-018）：迁移改为 forward-only（仅 up SQL，删除 rollbackSchema 与 down 文件），DB 回滚走备份恢复，对齐行业实践。
+
 ## Consequences
 
 - (+) 解除水平扩展阻塞，获得连接池/全文搜索/流复制/企业运维生态

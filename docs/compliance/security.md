@@ -23,18 +23,18 @@
 
 > 上表为容器内端口；主机访问经 docker-compose 映射为 15001/15003/15004（见 [ARCHITECTURE.md §4](../ARCHITECTURE.md#4-服务与端口)）。
 
-通信加密: 客户端→nginx ingress TLS 强制；API→PG/Redis TLS 强制(生产)。网络隔离: K8s NetworkPolicy 默认拒绝（k8s/network-policies/）；pg_hba.conf 限制来源。高可用现状: PG 单副本（k8s 未做流复制，见 k8s/postgres.yaml）；Redis Sentinel 3 节点（docker-compose）；K8s 跨 AZ 部署未落地。
+通信加密: 客户端→nginx ingress TLS 强制；API→PG TLS 强制(生产，rejectUnauthorized)；Redis 仅 URL 协议为 `rediss:` 时启用 TLS（redisClient.ts）。网络隔离: K8s NetworkPolicy 默认拒绝（k8s/network-policies/）；pg_hba.conf 限制来源。高可用现状: PG 单副本（k8s 未做流复制，见 k8s/postgres.yaml）；Redis Sentinel 3 节点（docker-compose）；K8s 跨 AZ 部署未落地。
 
 ## 3. 安全开发（SDL）
 
 需求(威胁建模, PR 含安全考量) → 设计(ADR 审查) → 编码(ESLint+golangci-lint) → 测试(CI) → 部署(Trivy 镜像扫描)。
 
-| CI 门禁                      | 检查                                                | 阻断 |
-| ---------------------------- | --------------------------------------------------- | ---- |
-| lint / check / deadcode      | ESLint + tsc + 死代码检测                           | 阻断 |
-| migration-check / contract   | 迁移可回滚（check-migrations）/ 契约测试            | 阻断 |
-| unit-tests / critical-verify | 覆盖率门禁（check-coverage）/ CRITICAL 修复验证脚本 | 阻断 |
-| pre-commit（husky）          | gitleaks 密钥扫描（未安装即拒绝）                   | 阻断 |
+| CI 门禁                      | 检查                                                              | 阻断 |
+| ---------------------------- | ----------------------------------------------------------------- | ---- |
+| lint / check / deadcode      | ESLint + tsc + 死代码检测                                         | 阻断 |
+| migration-check / contract   | 迁移完整性（check-migrations，forward-only 见 ADR-018）/ 契约测试 | 阻断 |
+| unit-tests / critical-verify | 覆盖率门禁（check-coverage）/ CRITICAL 修复验证脚本               | 阻断 |
+| pre-commit（husky）          | gitleaks 密钥扫描（未安装即拒绝）                                 | 阻断 |
 
 ## 4. 漏洞管理
 
@@ -54,7 +54,7 @@
 | 常规 | 功能/依赖/配置       | PR review+CI       | 工作日 10-18   |
 | 紧急 | hotfix/安全修复      | 口头审批，事后补录 | 随时           |
 
-回滚: Docker <1min；K8s rollout undo <2min；DB rollbackSchema(N) <5min。
+回滚: Docker <1min；K8s rollout undo <2min；DB 恢复走备份（backup-restore.sh，WAL/全量，见 ADR-018）。
 
 ## 6. 事件处置流程
 
@@ -80,9 +80,9 @@ SBOM: CI nightly 自动 CycloneDX, 覆盖 5 镜像, 保留 30 天。处置: 用�
 
 总分 91/100（通过, ≥75）。扣分: 数据行级敏感标记(-1)、WAF 规则(-1)、主机防病毒(-1)、DDoS 本地(-2)、服务间 mTLS(-1)、网络监控(-1)。
 
-| 条款              | 要求                                                 | 状态 |
-| ----------------- | ---------------------------------------------------- | ---- |
-| 8.1.1 / 8.1.2     | 物理安全(云厂商) / 通信完整保密(TLS 1.2+)            | OK   |
-| 8.1.3.1 / 8.1.3.4 | 边界访问控制·入侵防范·审计 / 攻击检测·告警·漏洞扫描  | OK   |
-| 8.1.5.1 / 8.1.5.2 | 资产清单·责任·变更管理 / 安全开发规范·审查·测试·漏洞 | OK   |
-| 8.1.5.3 / 8.1.5.5 | 变更审批·测试·回滚 / 事件检测·报告·处置·追溯         | OK   |
+| 条款              | 要求                                                                | 状态 |
+| ----------------- | ------------------------------------------------------------------- | ---- |
+| 8.1.1 / 8.1.2     | 物理安全(云厂商) / 通信完整保密(TLS 1.2+)                           | OK   |
+| 8.1.3.1 / 8.1.3.4 | 边界访问控制·入侵防范·审计 / 攻击检测·告警·漏洞扫描                 | OK   |
+| 8.1.5.1 / 8.1.5.2 | 资产清单·责任·变更管理 / 安全开发规范·审查·测试·漏洞                | OK   |
+| 8.1.5.3 / 8.1.5.5 | 变更审批·测试·回滚（备份恢复，见 ADR-018）/ 事件检测·报告·处置·追溯 | OK   |
