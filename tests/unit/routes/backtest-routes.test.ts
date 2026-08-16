@@ -296,7 +296,15 @@ const mockSignalResult = {
   equityCurve: [{ date: '2020-01-01', value: 10000 }],
 };
 
-describe.each([
+interface SignalCase {
+  path: string;
+  data: Record<string, Record<string, number>>;
+  engineResult: Record<string, unknown>;
+  validReq: () => Record<string, unknown>;
+  validation: Array<[string, () => Record<string, unknown>]>;
+}
+
+describe.each<SignalCase>([
   {
     path: '/api/v1/signal/analyze',
     data: { SPY: { '2020-01-01': 300.0, '2020-01-02': 301.0 } },
@@ -545,7 +553,16 @@ describe('backtestRoutes - GET /api/v1/backtest/runs/:jobId — 状态查询', (
     warnings: [],
     dateRange: { start: '2024-01-01', end: '2024-06-30' },
   };
-  it.each([
+  type RunStatusExpectation = {
+    id?: unknown;
+    status: string;
+    progress?: number;
+    result?: unknown;
+    error?: string;
+    noResult?: boolean;
+    noError?: boolean;
+  };
+  it.each<[string, Record<string, unknown>, RunStatusExpectation]>([
     [
       'completed 状态返回 200 + 结果',
       {
@@ -584,15 +601,16 @@ describe('backtestRoutes - GET /api/v1/backtest/runs/:jobId — 状态查询', (
   ])('%s', async (_n, job, expected) => {
     queueMocks.getJob.mockResolvedValue(createMockJob(job));
     const { res, json } = await get(`${getServer().url}/api/v1/backtest/runs/${job.id}`);
+    const data = json.data as unknown as RunStatusExpectation;
     expect(res.status).toBe(200);
     expect(json.success).toBe(true);
-    expect(json.data.id).toBe(job.id);
-    expect(json.data.status).toBe(expected.status);
-    if (expected.progress !== undefined) expect(json.data.progress).toBe(expected.progress);
-    if (expected.result !== undefined) expect(json.data.result).toEqual(expected.result);
-    if (expected.error !== undefined) expect(json.data.error).toBe(expected.error);
-    if (expected.noResult) expect(json.data.result).toBeUndefined();
-    if (expected.noError) expect(json.data.error).toBeUndefined();
+    expect(data.id).toBe(job.id);
+    expect(data.status).toBe(expected.status);
+    if (expected.progress !== undefined) expect(data.progress).toBe(expected.progress);
+    if (expected.result !== undefined) expect(data.result).toEqual(expected.result);
+    if (expected.error !== undefined) expect(data.error).toBe(expected.error);
+    if (expected.noResult) expect(data.result).toBeUndefined();
+    if (expected.noError) expect(data.error).toBeUndefined();
   });
   it('任务不存在时返回 404', async () => {
     queueMocks.getJob.mockResolvedValue(null);
