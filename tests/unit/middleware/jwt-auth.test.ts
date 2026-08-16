@@ -50,6 +50,7 @@ async function expectJwtAuth401(
   headers: Record<string, unknown>,
   code?: string,
   mw = jwtAuth,
+  status = 401,
 ): Promise<void> {
   const { req, res, next } = mockReqRes({ headers });
   await new Promise<void>((resolve) => {
@@ -63,9 +64,9 @@ async function expectJwtAuth401(
   });
   expect(next).not.toHaveBeenCalled();
   if (code) {
-    expectProblem(res, code, 401);
+    expectProblem(res, code, status);
   } else {
-    expect(res.status).toHaveBeenCalledWith(401);
+    expect(res.status).toHaveBeenCalledWith(status);
     expect(res.header).toHaveBeenCalledWith('Content-Type', 'application/problem+json');
   }
 }
@@ -396,7 +397,7 @@ describe('jwtAuth RS256 路径（PEM 加载与签发）', () => {
     expect(r).not.toBeNull();
     expect(r!.accessToken).toBeTruthy();
   });
-  it('getUserById 失败时 jwtAuth 应拒绝访问', async () => {
+  it('getUserById 失败时 jwtAuth 应 fail-closed 返回 503（而非 401 假报停用）', async () => {
     const mod = await reloadJwtAuthModule();
     const { getUserById: g } =
       await import('../../../packages/backend/src/repositories/userRepo.js');
@@ -404,8 +405,9 @@ describe('jwtAuth RS256 路径（PEM 加载与签发）', () => {
     vi.mocked(g).mockRejectedValueOnce(new Error('db error'));
     await expectJwtAuth401(
       { authorization: `Bearer ${await mod.generateToken('user-db-error', 'admin')}` },
-      undefined,
+      'AUTH_SERVICE_UNAVAILABLE',
       mod.jwtAuth,
+      503,
     );
   });
 });

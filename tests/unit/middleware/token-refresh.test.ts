@@ -146,10 +146,10 @@ describe('Refresh Token 生命周期与 Redis', () => {
     extra?.(t);
     vi.useRealTimers();
   });
-  it('DB 异常应拒绝刷新', async () => {
+  it('DB 异常应传播 RedisUnavailableError（503，而非 401 假报账号停用）', async () => {
     const t = await generateRefreshToken('db-fail-user', 'admin');
     vi.mocked(getUserById).mockRejectedValueOnce(new Error('database unavailable'));
-    expect(await refreshAccessToken(t)).toBeNull();
+    await expect(refreshAccessToken(t)).rejects.toThrow(RedisUnavailableError);
   });
   it('成员资格已移除时应拒绝刷新并撤销 refresh family（P1#1）', async () => {
     const t = await generateRefreshToken('removed-member', 'admin', undefined, {
@@ -230,7 +230,7 @@ describe('isUserSessionValid 与 isAccessTokenRevokedForUser', () => {
     expect(await isUserSessionValid('dev-user')).toBe(true);
     expect(getUserById).not.toHaveBeenCalled();
   });
-  it('活跃用户有效；停用/不存在/异常用户无效', async () => {
+  it('活跃用户有效；停用/不存在无效；DB 异常应传播（fail-closed）', async () => {
     mockUser();
     expect(await isUserSessionValid('active-user')).toBe(true);
     mockUser(false, 'readonly');
@@ -238,9 +238,9 @@ describe('isUserSessionValid 与 isAccessTokenRevokedForUser', () => {
     vi.mocked(getUserById).mockResolvedValueOnce(null);
     expect(await isUserSessionValid('nonexistent-user')).toBe(false);
     vi.mocked(getUserById).mockRejectedValueOnce(new Error('DB error'));
-    expect(await isUserSessionValid('error-user')).toBe(false);
+    await expect(isUserSessionValid('error-user')).rejects.toThrow('DB error');
     vi.mocked(getUserById).mockRejectedValueOnce(new Error('empty id'));
-    expect(await isUserSessionValid('')).toBe(false);
+    await expect(isUserSessionValid('')).rejects.toThrow('empty id');
   });
   it('未记录撤销或 iat 晚于撤销时间应返回 false，早于则 true，且撤销检查走 Redis get', async () => {
     expect(await isAccessTokenRevokedForUser('unrevoked-user', 1000)).toBe(false);

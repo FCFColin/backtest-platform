@@ -14,13 +14,9 @@ import type { OrgRole } from '@backtest/shared/types/org';
 const SYSTEM_USER_IDS = new Set(['dev-user']);
 export async function isUserSessionValid(userId: string): Promise<boolean> {
   if (SYSTEM_USER_IDS.has(userId)) return true;
-  try {
-    const user = await getUserById(userId);
-    return user !== null && user.isActive;
-  } catch (err) {
-    logger.warn({ err: String(err), userId }, '[jwtAuth] 用户状态查询失败，拒绝会话');
-    return false;
-  }
+  // DB 故障时向上抛（jwtAuth/refresh 的调用方 catch 后映射 503），不得吞成 401 假报"账号停用"
+  const user = await getUserById(userId);
+  return user !== null && user.isActive;
 }
 
 interface RefreshTokenEntry {
@@ -40,6 +36,8 @@ interface TokenFamilyEntry {
 const REFRESH_TOKEN_EXPIRES_IN_SEC = config.JWT_REFRESH_TTL;
 const REFRESH_TOKEN_PREFIX = 'refresh_token:';
 const TOKEN_FAMILY_PREFIX = 'token_family:';
+// 并发/重放同一 RT 时，winner 写 used 标记到 loser 检测之间的窗口留出宽限期，避免多标签页并发刷新误判为窃取
+const REUSE_GRACE_MS = 2_000;
 
 export const redisKeys = {
   // refresh token 仅存 sha256（防 Redis 泄露即会话接管，与 API key/invitation 一致）
@@ -228,17 +226,19 @@ async function refreshAccessTokenRedis(
   const usedKey = redisKeys.usedRefreshToken(tokenHash);
   await appRedis.set(
     usedKey,
-    JSON.stringify({ familyId: entry.familyId }),
+    JSON.stringify({ familyId: entry.familyId, consumedAt: Date.now() }),
     'EX',
     REFRESH_TOKEN_EXPIRES_IN_SEC,
   );
   return issueRotatedTokens(entry);
 }
 async function checkReuseAndRevoke(refreshToken: string): Promise<null> {
-  const used = await readEntry<{ familyId: string }>(
+  const used = await readEntry<{ familyId: string; consumedAt?: number }>(
     redisKeys.usedRefreshToken(sha256Hex(refreshToken)),
   );
   if (!used) return null;
+  // 宽限期内视为良性并发刷新（同 token 的另一个请求先到），不吊销
+  if (Date.now() - (used.consumedAt ?? 0) < REUSE_GRACE_MS) return null;
   logger.warn(
     { familyId: used.familyId },
     '[jwtAuth] 检测到 Refresh Token 复用！撤销整个 Token Family',

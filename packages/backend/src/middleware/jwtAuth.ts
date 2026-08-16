@@ -65,13 +65,15 @@ export async function verifyToken(token: string): Promise<JwtPayload | null> {
     try {
       const alg: 'RS256' | 'HS256' = config.JWT_ALGORITHM === 'HS256' ? 'HS256' : 'RS256';
       const key = alg === 'RS256' ? await getOrCachePublicKey() : await getOrCacheHS256Key();
+      let payload: JwtPayload;
       try {
-        const { payload } = await jwtVerify(token, key, { algorithms: [alg] });
-        return validateJwtPayload(payload, alg, span);
+        ({ payload } = await jwtVerify(token, key, { algorithms: [alg] }));
       } catch {
         span.setAttribute('verify.result', 'failed');
         return null;
       }
+      // validateJwtPayload 内的 Redis/DB 异常不得吞成 401，须向上传播触发 503（authenticateWithBearer catch）
+      return validateJwtPayload(payload, alg, span);
     } finally {
       span.end();
     }
