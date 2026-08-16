@@ -89,12 +89,14 @@ router.patch(
     'ORG_MEMBER_ROLE_UPDATE_FAILED',
     async (req, res, tenantId) => {
       if (!requireUuidParam(res, req.params.userId)) return;
+      // 越权防护：仅租户 owner（或平台管理员）可授予 owner 角色，admin 提升自己/他人为 owner 即夺权
+      const targetRole = (req.body as { role: 'owner' | 'admin' | 'analyst' | 'readonly' }).role;
+      if (targetRole === 'owner' && req.user?.org_role !== 'owner' && !req.user?.platform_admin) {
+        sendProblem(res, 403, 'OWNER_ONLY_OPERATION');
+        return;
+      }
       // P1#1（安全审计）：角色变更后吊销目标用户全部会话，防止旧角色/旧凭证残留
-      const outcome = await updateMemberRole(
-        tenantId,
-        req.params.userId,
-        (req.body as { role: 'owner' | 'admin' | 'analyst' | 'readonly' }).role,
-      );
+      const outcome = await updateMemberRole(tenantId, req.params.userId, targetRole);
       if (outcome === 'ok') await revokeAllUserSessions(req.params.userId);
       sendMemberOutcome(res, outcome, { updated: true });
     },
