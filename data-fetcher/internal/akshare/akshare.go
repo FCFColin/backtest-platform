@@ -1,3 +1,4 @@
+// Package akshare 直连东方财富 push2his 行情接口（akshare 库的底层数据源），非官方 akshare 库。
 package akshare
 
 import (

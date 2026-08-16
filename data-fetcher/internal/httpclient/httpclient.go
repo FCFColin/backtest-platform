@@ -111,7 +111,8 @@ func parseRetryAfter(headers http.Header) time.Duration {
 func (c *Client) Get(url string, extraHeaders ...map[string]string) ([]byte, error) {
 	var lastErr error
 	for attempt := 0; attempt < c.maxRetries; attempt++ {
-		if attempt > 0 {
+		// 429 已在 doGet 内按 Retry-After 等待，跳过外层退避避免双重等待
+		if attempt > 0 && !errors.Is(lastErr, errRateLimited) {
 			base := time.Duration(attempt*attempt) * time.Second
 			jitter := time.Duration(rand.Int64N(int64(base)/2 + 1))
 			slog.Info(c.serviceName+" 重试", "attempt", attempt+1, "backoff_ms", (base + jitter).Milliseconds())

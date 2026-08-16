@@ -1,6 +1,7 @@
 package twelvedata
 
 import (
+	"cmp"
 	"data-fetcher/internal/httpclient"
 	"data-fetcher/internal/provider"
 	"data-fetcher/internal/providerutil"
@@ -8,6 +9,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"slices"
 	"time"
 )
 
@@ -96,5 +98,7 @@ func parseTimeSeries(body []byte, startDate, endDate string) ([]provider.DailyPr
 			Low:  providerutil.ParseStringFloat(v.Low), Close: close,
 			Volume: providerutil.ParseStringInt(v.Volume), AdjustedClose: close})
 	}
+	// twelvedata 返回降序（最新在前），与 finnhub/akshare 的升序契约对齐，避免实时抓取响应顺序漂移
+	slices.SortFunc(prices, func(a, b provider.DailyPrice) int { return cmp.Compare(a.Date, b.Date) })
 	return prices, nil
 }
