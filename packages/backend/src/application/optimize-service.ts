@@ -10,7 +10,7 @@ import { buildEngineParams } from './backtest/backtestEngineUtils.js';
 import {
   preparePriceDataAndWarnings,
   filterPriceData,
-  portfolioToEngineBody,
+  portfolioToDomain,
   calculateDateRange,
   loadMacroData,
   type MacroData,
@@ -125,7 +125,7 @@ async function runBacktestGroups(
     const btResult = await callEngineStrict<BacktestResult>(
       '/api/engine/backtest',
       {
-        portfolios: portfolios.map(portfolioToEngineBody),
+        portfolios: portfolios.map((p) => portfolioToDomain(p).toEngineBody()),
         priceData,
         ...macro,
         params: buildEngineParams(buildBacktestParameters(parameters, capital)),

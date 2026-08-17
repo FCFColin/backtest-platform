@@ -43,7 +43,8 @@ export interface DateRangeInfo {
   clamped: boolean;
   missingTickers?: string[];
 }
-interface PortfolioBacktestPrep {
+export interface PortfolioBacktestPrep {
+  domainPortfolios: DomainPortfolio[];
   allTickers: Set<string>;
 }
 
@@ -63,16 +64,20 @@ export function preparePortfolioBacktest(
   if (!isValidDate(parameters.startDate) || !isValidDate(parameters.endDate))
     throw new ValidationError('Invalid date format, expected YYYY-MM-DD');
   const domainPortfolios = portfolios.map(portfolioToDomain);
-  const allTickers = new Set<string>();
-  let totalAssets = 0;
-  for (const portfolio of domainPortfolios) {
-    for (const ticker of portfolio.tickers) allTickers.add(ticker);
-    totalAssets += portfolio.holdingCount;
-  }
+  const allTickers = new Set(domainPortfolios.flatMap((p) => p.tickers));
+  const totalAssets = domainPortfolios.reduce((s, p) => s + p.holdingCount, 0);
   if (portfolios.length > MAX_TICKERS || totalAssets > MAX_TICKERS)
     throw new ValidationError(`Portfolio or asset count exceeds limit (max ${MAX_TICKERS})`);
   if (parameters.benchmarkTicker) allTickers.add(parameters.benchmarkTicker);
-  return { allTickers };
+  return { domainPortfolios, allTickers };
+}
+
+export function clampParametersToDataRange<
+  T extends Pick<BacktestParameters, 'startDate' | 'endDate'>,
+>(parameters: T, effectiveStartDate: string, effectiveEndDate: string): T {
+  return effectiveStartDate !== parameters.startDate || effectiveEndDate !== parameters.endDate
+    ? { ...parameters, startDate: effectiveStartDate, endDate: effectiveEndDate }
+    : parameters;
 }
 
 /** 根据 priceData 识别无效 ticker，填充 warnings。 */
@@ -90,14 +95,6 @@ export function collectInvalidTickerWarnings(
   if (invalidTickers.length > 0)
     warnings.push({ code: 'TICKER_NOT_FOUND', tickers: invalidTickers });
   return invalidTickers;
-}
-
-export function clampParametersToDataRange<
-  T extends Pick<BacktestParameters, 'startDate' | 'endDate'>,
->(parameters: T, effectiveStartDate: string, effectiveEndDate: string): T {
-  return effectiveStartDate !== parameters.startDate || effectiveEndDate !== parameters.endDate
-    ? { ...parameters, startDate: effectiveStartDate, endDate: effectiveEndDate }
-    : parameters;
 }
 
 export function collectDomainTickers(
@@ -153,7 +150,7 @@ export function calculateDateRange(
     actual: { start: effectiveStartDate, end: effectiveEndDate },
     clamped,
   };
-  if (missingTickers && missingTickers.length > 0) range.missingTickers = missingTickers;
+  if (missingTickers?.length) range.missingTickers = missingTickers;
   return range;
 }
 
@@ -168,6 +165,8 @@ export async function preparePriceDataAndWarnings(
   effectiveStartDate: string;
   effectiveEndDate: string;
   allTickers: Set<string>;
+  degraded: boolean;
+  degradedWarning?: string;
 }> {
   const warnings: Warning[] = [];
   const result = await withTimeout(
@@ -198,6 +197,8 @@ export async function preparePriceDataAndWarnings(
     effectiveStartDate,
     effectiveEndDate,
     allTickers,
+    degraded: result.degraded,
+    degradedWarning: result.degradedWarning,
   };
 }
 

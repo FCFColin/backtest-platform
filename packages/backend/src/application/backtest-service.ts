@@ -11,13 +11,8 @@ import {
   backtestCacheKey,
   setBacktestResultCache,
 } from './backtest/backtestResultUtils.js';
-import type {
-  BacktestExecutionParams,
-  BacktestExecutionResult,
-  Warning,
-  DateRangeInfo,
-} from './backtest-helpers.js';
 import type { Portfolio, BacktestParameters, BacktestResult } from '@backtest/shared';
+import type { Portfolio as DomainPortfolio } from '../domain/aggregates/portfolio.js';
 import {
   preparePortfolioBacktest,
   preparePriceDataAndWarnings,
@@ -27,6 +22,10 @@ import {
   filterPriceData,
   calculateDateRange,
   clampParametersToDataRange,
+  type BacktestExecutionParams,
+  type BacktestExecutionResult,
+  type Warning,
+  type DateRangeInfo,
 } from './backtest-helpers.js';
 
 const tracer = trace.getTracer('backtest-platform', '1.0.0');
@@ -40,7 +39,7 @@ export async function runPortfolioBacktest(opts: {
 }): Promise<{ result: unknown; warnings: Warning[]; dateRange: DateRangeInfo }> {
   const { portfolios, parameters, tenantId, onProgress } = opts;
   onProgress?.(5);
-  const { allTickers } = preparePortfolioBacktest(portfolios, parameters);
+  const { domainPortfolios, allTickers } = preparePortfolioBacktest(portfolios, parameters);
   onProgress?.(10);
   const [
     { priceData, effectiveStartDate, effectiveEndDate, warnings, invalidTickers },
@@ -56,13 +55,16 @@ export async function runPortfolioBacktest(opts: {
     effectiveEndDate,
   );
   const { result } = await withTimeout(
-    runBacktest({
-      portfolios,
-      parameters: effectiveParameters,
-      priceData,
-      cpiData,
-      exchangeRates,
-    }),
+    runBacktest(
+      {
+        portfolios,
+        parameters: effectiveParameters,
+        priceData,
+        cpiData,
+        exchangeRates,
+      },
+      domainPortfolios,
+    ),
     config.BACKTEST_SYNC_TIMEOUT_MS,
     'portfolio-backtest',
   );
@@ -85,9 +87,10 @@ export async function runPortfolioBacktest(opts: {
 /** @throws {EngineUnavailableError} ADR-008 */
 export async function runBacktest(
   params: BacktestExecutionParams,
+  preBuiltDomainPortfolios?: DomainPortfolio[],
 ): Promise<BacktestExecutionResult> {
   const { portfolios, parameters, priceData, cpiData, exchangeRates } = params;
-  const domainPortfolios = portfolios.map(portfolioToDomain);
+  const domainPortfolios = preBuiltDomainPortfolios ?? portfolios.map(portfolioToDomain);
   return tracer.startActiveSpan('BacktestApplicationService.runBacktest', async (span) => {
     try {
       const allTickers = collectDomainTickers(domainPortfolios, parameters.benchmarkTicker);
@@ -103,16 +106,15 @@ export async function runBacktest(
       );
       const filteredPriceData = filterPriceData(priceData, allTickers);
       span.setAttribute('cache_hit', Object.keys(filteredPriceData).length === allTickers.size);
-      const engineBody = {
-        portfolios: domainPortfolios.map((p) => p.toEngineBody()),
-        priceData: filteredPriceData,
-        params: buildEngineParams(parameters),
-        cpiData,
-        exchangeRates,
-      };
       const result = await callEngineStrict<BacktestResult>(
         '/api/engine/backtest',
-        engineBody,
+        {
+          portfolios: domainPortfolios.map((p) => p.toEngineBody()),
+          priceData: filteredPriceData,
+          params: buildEngineParams(parameters),
+          cpiData,
+          exchangeRates,
+        },
         backtestResultSchema,
       );
       logger.info('Backtest completed');

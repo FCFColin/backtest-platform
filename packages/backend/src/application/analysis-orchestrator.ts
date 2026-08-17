@@ -5,7 +5,6 @@
   BacktestParameters,
 } from '@backtest/shared/types/index';
 import type { LETFRequest } from '@backtest/shared';
-import { fetchHistoryData } from '../infrastructure/dataFacade.js';
 import { callEngineStrict } from '../utils/engineClient.js';
 import {
   analysisResultSchema,
@@ -53,7 +52,7 @@ export async function runAnalysis(
   );
 
   const engineData = result as { assets?: unknown[]; correlations?: unknown[][] };
-  const data: Record<string, unknown> = engineData?.assets
+  const data = engineData?.assets
     ? { tickers: engineData.assets, correlations: engineData.correlations || [] }
     : { ...result };
   return { data, warnings, dateRange };
@@ -81,13 +80,13 @@ async function runAnalysisWithFetch<T>(
   startDate: string,
   endDate: string,
   run: (priceData: Record<string, Record<string, number>>) => Promise<T>,
-): Promise<DegradedResult<T>> {
-  const {
-    data: priceData,
-    degraded,
-    degradedWarning,
-  } = await fetchHistoryData(tickers, startDate, endDate);
-  return { data: await run(priceData), degraded, degradedWarning };
+): Promise<DegradedResult<T> & { warnings: Warning[] }> {
+  const { priceData, warnings, degraded, degradedWarning } = await preparePriceDataAndWarnings(
+    tickers,
+    startDate,
+    endDate,
+  );
+  return { data: await run(priceData), warnings, degraded, degradedWarning };
 }
 
 export function validatePcaRequest(req: PCARequest): string[] {

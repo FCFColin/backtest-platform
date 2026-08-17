@@ -3,8 +3,7 @@ import { callEngineStrict } from '../utils/engineClient.js';
 import { monteCarloResultSchema } from '../schemas/engineSchemas.js';
 import { buildEngineParams } from './backtest/backtestEngineUtils.js';
 import {
-  collectDomainTickers,
-  portfolioToDomain,
+  preparePortfolioBacktest,
   preparePriceDataAndWarnings,
   filterPriceData,
   loadMacroData,
@@ -23,13 +22,10 @@ export async function runMonteCarlo(
   parameters: BacktestParameters,
   mcParams?: Record<string, unknown>,
 ): Promise<{ data: unknown; warnings: Warning[]; dateRange: DateRangeInfo }> {
-  const domainPortfolios = portfolioList.map(portfolioToDomain);
-  const allTickers = collectDomainTickers(domainPortfolios, '');
-  const tickers = Array.from(allTickers);
+  const { domainPortfolios, allTickers } = preparePortfolioBacktest(portfolioList, parameters);
   const { priceData, warnings, invalidTickers, effectiveStartDate, effectiveEndDate } =
-    await preparePriceDataAndWarnings(tickers, parameters.startDate, parameters.endDate);
+    await preparePriceDataAndWarnings(Array.from(allTickers), parameters.startDate, parameters.endDate);
 
-  const sanitizedMcParams = sanitizeMcParams(mcParams);
   const { cpiData, exchangeRates } = await loadMacroData(parameters);
 
   const effectiveParameters = clampParametersToDataRange(
@@ -39,7 +35,6 @@ export async function runMonteCarlo(
   );
 
   const limit = pLimit(ENGINE_CONCURRENCY_LIMIT);
-  const filteredPriceData = filterPriceData(priceData, allTickers);
   const results = await Promise.all(
     domainPortfolios.map((dp) =>
       limit(() =>
@@ -47,11 +42,11 @@ export async function runMonteCarlo(
           '/api/engine/monte-carlo',
           {
             portfolio: dp.toEngineBody(),
-            priceData: filteredPriceData,
+            priceData: filterPriceData(priceData, allTickers),
             params: buildEngineParams(effectiveParameters),
             cpiData,
             exchangeRates,
-            mcParams: sanitizedMcParams,
+            mcParams: sanitizeMcParams(mcParams),
           },
           monteCarloResultSchema,
         ),
