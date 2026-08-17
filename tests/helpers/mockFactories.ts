@@ -40,7 +40,6 @@ const CONFIG_DEFAULTS: Record<string, unknown> = {
   EMAIL_FROM: 'Backtest Platform <no-reply@backtest.local>',
 };
 
-/** 测试可读写的 config 面；测试直接做运算/比较的属性给出具体类型，其余保持 unknown */
 export interface ConfigMocks extends Record<string, unknown> {
   NODE_ENV: string;
   JWT_SECRET: string;

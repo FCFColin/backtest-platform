@@ -1,4 +1,5 @@
 ﻿import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type { NextFunction } from 'express';
 import { generateKeyPair, jwtVerify } from 'jose';
 import {
   setupJwtAuthTestMocks,
@@ -9,14 +10,15 @@ import {
   decodePayload,
 } from '../../helpers/authFixtures.js';
 import {
-  createJwtAuthMockRequest,
-  createJwtAuthMockResponse,
-  createJwtAuthMockNext,
+  createMockRequest,
+  createMockResponse,
+  createMockNext,
   awaitMiddleware,
 } from '../../helpers/expressMocks.js';
 import { expectProblem } from '../../helpers/routeAssertions.js';
 import { sha256Hex } from '../../../packages/backend/src/utils/crypto.js';
 import type { TenantContext } from '../../../packages/backend/src/middleware/authShared.js';
+import type { AuthenticatedRequest } from '../../../packages/backend/src/middleware/authShared.js';
 import type { VerifiedApiKey } from '../../../packages/backend/src/infrastructure/apiKeyVerifier.js';
 import {
   mocks,
@@ -43,9 +45,9 @@ redisMocks.useRedisSuccess();
 
 function mockReqRes(reqInit: Record<string, unknown> = {}) {
   return {
-    req: createJwtAuthMockRequest(reqInit),
-    res: createJwtAuthMockResponse(),
-    next: createJwtAuthMockNext(),
+    req: createMockRequest(reqInit) as unknown as AuthenticatedRequest,
+    res: createMockResponse(),
+    next: createMockNext() as unknown as NextFunction,
   };
 }
 async function expectAuthRejected(

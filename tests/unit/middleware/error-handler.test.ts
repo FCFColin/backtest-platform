@@ -145,7 +145,6 @@ describe('errorHandler', () => {
     errorHandler(error, createMockRequest({ path: '/api/backtest' }), res, createMockNext());
     expectProblem(res, code, status);
   });
-
 });
 
 describe('notFoundHandler', () => {

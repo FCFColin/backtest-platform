@@ -597,7 +597,12 @@ describe('backtestRoutes - GET /api/v1/backtest/runs/:jobId — 状态查询', (
     ],
     [
       'delayed 状态映射为 queued',
-      { id: 'job-delayed', data: { type: 'optimizer', tenantId: 'tenant-456' }, state: 'delayed', progress: 0 },
+      {
+        id: 'job-delayed',
+        data: { type: 'optimizer', tenantId: 'tenant-456' },
+        state: 'delayed',
+        progress: 0,
+      },
       { status: 'queued' },
     ],
     [

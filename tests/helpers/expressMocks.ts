@@ -91,8 +91,3 @@ export async function awaitMiddleware(
     }),
   );
 }
-
-export const createJwtAuthMockRequest = (o: Record<string, unknown> = {}) =>
-  createMockRequest(o) as unknown as AuthenticatedRequest;
-export const createJwtAuthMockResponse = () => createMockResponse();
-export const createJwtAuthMockNext = () => createMockNext() as unknown as NextFunction;

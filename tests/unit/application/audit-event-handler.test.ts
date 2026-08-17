@@ -11,7 +11,10 @@ vi.mock('../../../packages/backend/src/application/auditStorageService.js', () =
   writeAuditLog: vi.fn().mockResolvedValue('audit-1'),
 }));
 
-import { handleAuditEvent, AUDIT_EVENT_TYPE } from '../../../packages/backend/src/application/auditEventHandler.js';
+import {
+  handleAuditEvent,
+  AUDIT_EVENT_TYPE,
+} from '../../../packages/backend/src/application/auditEventHandler.js';
 import type { AuditEventInput } from '../../../packages/backend/src/application/auditEventHandler.js';
 import { writeAuditLog } from '../../../packages/backend/src/application/auditStorageService.js';
 
