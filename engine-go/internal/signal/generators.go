@@ -22,10 +22,10 @@ func detectCrossSignals(data []PricePoint, prevVals, curVals, prices []float64) 
 }
 func generateMaSignals(ind string, prices []float64, data []PricePoint, safePeriod int) []SignalPoint {
 	var ma []float64
-	if ind == "sma" {
-		ma = indicators.CalcSMA(prices, safePeriod)
-	} else {
+	if ind == "ema" {
 		ma = indicators.CalcEMA(prices, safePeriod)
+	} else {
+		ma = indicators.CalcSMA(prices, safePeriod)
 	}
 	return detectCrossSignals(data, prices, ma, prices)
 }

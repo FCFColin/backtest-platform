@@ -91,11 +91,11 @@ func computePortfolioDailyReturns(portfolio MCPortfolioInput, priceData PriceDat
 		dates[i] = d.Format("2006-01-02")
 	}
 	returns := engineutil.WeightedDailyReturns(tickers, weights, priceData, dates, true, true)
-	// Drag 为年化百分比，按日复利摊薄（与 engine/backtest.go 口径一致，勿用原始百分比直减）
+	// Drag 为年化百分比，按日复利摊薄后以乘法作用于收益率（与 engine/backtest.go 的 holdings *= dailyDrag 口径一致）
 	if portfolio.Drag > 0 {
-		dailyDrag := 1 - math.Pow(1-portfolio.Drag/100.0, 1.0/float64(mcTradingDays))
+		dailyDragFactor := math.Pow(1-portfolio.Drag/100.0, 1.0/float64(mcTradingDays))
 		for i := range returns {
-			returns[i] -= dailyDrag
+			returns[i] = (1+returns[i])*dailyDragFactor - 1
 		}
 	}
 	return returns, nil
