@@ -40,6 +40,7 @@ import workspaceRoutes from './routes/workspaceRoutes.js';
 import platformRoutes from './routes/platformRoutes.js';
 import healthRoutes from './routes/healthRoutes.js';
 import { errorHandler, notFoundHandler, requestTimeout } from './middleware/errorHandler.js';
+import { sendProblem } from './utils/errors.js';
 import { buildCspHeader } from './utils/csp.js';
 import { brotliCompress, createEarlyHintsMiddleware } from './middleware/brotliCompress.js';
 import { setupOpenApiUi } from './middleware/miscMiddleware.js';
@@ -117,7 +118,7 @@ app.use(brotliCompress);
 app.post('/api/v1/billing/webhook', express.raw({ type: 'application/json' }), (req, res) => {
   billingWebhookHandler(req, res).catch((err) => {
     logger.error({ err }, '[app] Stripe webhook handler unhandled rejection');
-    if (!res.headersSent) res.status(500).json({ received: false });
+    if (!res.headersSent) sendProblem(res, 500, 'STRIPE_WEBHOOK_ERROR');
   });
 });
 

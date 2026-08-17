@@ -42,7 +42,7 @@ const sdk = new NodeSDK({
       '@opentelemetry/instrumentation-dns': { enabled: true },
       '@opentelemetry/instrumentation-http': {
         ignoreIncomingRequestHook: (request: { url?: string }) =>
-          IGNORE_INSTRUMENTED_PATHS.includes(request.url ?? ''),
+          IGNORE_INSTRUMENTED_PATHS.includes(new URL(request.url ?? '/').pathname),
       },
       '@opentelemetry/instrumentation-express': {
         ignoreLayers: [(name: string) => IGNORE_INSTRUMENTED_PATHS.includes(name)],

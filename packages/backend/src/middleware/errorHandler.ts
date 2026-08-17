@@ -33,7 +33,7 @@ export function errorHandler(error: Error, req: Request, res: Response, _next: N
 }
 
 export function notFoundHandler(req: Request, res: Response): void {
-  logger.info({ method: req.method, path: req.path }, '[app] 404 未匹配路由');
+  logger.debug({ method: req.method, path: req.path }, '[app] 404 未匹配路由');
   sendProblem(res, 404, 'NOT_FOUND');
 }
 

@@ -83,7 +83,13 @@ export async function fetchGoJson(
   path: string,
   orgId?: string,
 ): Promise<{ success: boolean; data?: unknown; degraded?: boolean }> {
-  const parsed = JSON.parse(await callGoDataService(path, orgId));
+  const raw = await callGoDataService(path, orgId);
+  let parsed: Record<string, unknown>;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error(`Go data service returned non-JSON response: ${raw.slice(0, 200)}`);
+  }
   return {
     success: Boolean(parsed.success),
     data: parsed.data,

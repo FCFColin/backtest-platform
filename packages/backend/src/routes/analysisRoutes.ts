@@ -120,7 +120,7 @@ analysisRouter.post(
   ),
 );
 
-const VALID_CALC_TYPES = ['cagr', 'swr', 'frontier'];
+const VALID_CALC_TYPES = Object.keys(calculatorResultSchema);
 analysisRouter.post(
   '/calculators/:type',
   ...computeMiddleware(Permission.BACKTEST_RUN),

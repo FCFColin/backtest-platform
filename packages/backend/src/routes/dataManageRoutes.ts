@@ -84,8 +84,8 @@ router.get(
     async (req: Request, res: Response): Promise<void> => {
       const tickers = await getTickerList();
       const total = tickers.length;
-      const page = Math.max(1, parseInt(req.query.page as string, 10) || 1);
-      const limit = Math.min(200, Math.max(1, parseInt(req.query.limit as string, 10) || 50));
+      const page = Math.max(1, Number(req.query.page) || 1);
+      const limit = Math.min(200, Math.max(1, Number(req.query.limit) || 50));
       const totalPages = Math.ceil(total / limit);
       const start = (page - 1) * limit;
       res.json({

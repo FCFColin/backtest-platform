@@ -8,6 +8,7 @@ import type {
 import { recordCacheHit } from '../../utils/metrics.js';
 import { appRedis, getRedisHealth } from '../../infrastructure/redisClient.js';
 import { silentRedis } from '../../infrastructure/redisGuard.js';
+import { backtestResultSchema } from '../../schemas/engineSchemas.js';
 
 export const MAX_SYNC_CHART_POINTS = 400;
 const MAX_CHART_POINTS = 800;
@@ -141,17 +142,14 @@ export async function setBacktestResultCache(key: string, result: BacktestResult
 export async function getBacktestResultCache(key: string): Promise<BacktestResult | null> {
   evictExpired();
   const entry = cache.get(key);
-  if (entry) {
-    if (Date.now() > entry.expiresAt) {
-      cache.delete(key);
-    } else {
-      // 命中后删除重插，维持 Map 插入序 = LRU 序，便于 getCache 最早淘汰冷条目
-      cache.delete(key);
-      cache.set(key, entry);
-      recordCacheHit('backtest_result_cache', true);
-      return entry.result;
-    }
+  if (entry && Date.now() <= entry.expiresAt) {
+    // LRU：删除后重插维持 Map 插入序，便于淘汰冷条目
+    cache.delete(key);
+    cache.set(key, entry);
+    recordCacheHit('backtest_result_cache', true);
+    return entry.result;
   }
+  if (entry) cache.delete(key);
   if (!(await getRedisHealth())) {
     recordCacheHit('backtest_result_cache', false);
     return null;
@@ -162,7 +160,12 @@ export async function getBacktestResultCache(key: string): Promise<BacktestResul
     { key },
   );
   if (raw) {
-    const result = JSON.parse(raw) as BacktestResult;
+    const parsed = backtestResultSchema.safeParse(JSON.parse(raw));
+    if (!parsed.success) {
+      recordCacheHit('backtest_result_cache', false);
+      return null;
+    }
+    const result = parsed.data as BacktestResult;
     if (!cache.has(key)) cache.set(key, { result, expiresAt: Date.now() + TTL_MS });
     recordCacheHit('backtest_result_cache', true);
     return result;
