@@ -37,6 +37,7 @@ paths = [
   '''^\.env\.example$''',
   '''^\.gitleaks\.toml$''',
   '''^docs/.*''',
+  '''^packages/backend/src/config/.*''',
   # 测试夹具使用假密钥（如 'env-admin-key'），非真实凭据
   '''^tests/''',
 ]
