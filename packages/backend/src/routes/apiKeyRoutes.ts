@@ -4,7 +4,8 @@ import { z } from 'zod';
 import { validate } from '../middleware/miscMiddleware.js';
 import { sendProblem } from '../utils/errors.js';
 import { logger } from '../utils/logger.js';
-import { jwtAuth, auditLog, type AuthenticatedRequest } from '../middleware/jwtAuth.js';
+import { jwtAuth, type AuthenticatedRequest } from '../middleware/jwtAuth.js';
+import { auditLog } from '../middleware/auditMiddleware.js';
 import { crudMiddleware } from '../middleware/middlewareChains.js';
 import { Permission, requirePlatformAdmin } from '../middleware/rbac.js';
 import {

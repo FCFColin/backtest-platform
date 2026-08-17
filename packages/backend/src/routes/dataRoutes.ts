@@ -2,49 +2,22 @@ import { Router, type Request, type Response } from 'express';
 import { fetchCpiForRoute, SYNTHETIC_TICKERS } from '../infrastructure/dataServices.js';
 import { sendProblem } from '../utils/errors.js';
 import { crudRouteHandler, sendData, sendDegraded } from './routeUtils.js';
-import { getReadPool } from '../db/pool.js';
-import { rowMapper, toIso } from '../repositories/rowMapper.js';
 import { createTtlCache } from '../utils/ttlCache.js';
 import { callService } from '../utils/httpClient.js';
 import { config } from '../config/index.js';
-
-interface RecentUpdateRow {
-  ticker: string;
-  name: string;
-  lastBarDate: string | null;
-  updatedAt: string | null;
-}
-const mapRecentUpdate = rowMapper<RecentUpdateRow>({
-  ticker: 'ticker',
-  name: 'name',
-  lastBarDate: 'last_bar_date',
-  updatedAt: (r) => toIso(r.updated_at),
-});
+import {
+  queryMeta,
+  queryFamaFrenchFactors,
+  queryTickerMeta,
+  queryRecentUpdates,
+} from '../repositories/dataRepo.js';
 
 const tickerMetaCache = createTtlCache<unknown>(300_000);
 const metaCache = createTtlCache<object>(30 * 60 * 1000);
 
-const META_SQL = `SELECT
-  (SELECT MAX(date) FROM prices) AS "lastUpdated",
-  (SELECT MIN(date) FROM prices) AS "earliestDate",
-  (SELECT COUNT(*) FROM tickers) AS "tickerCount",
-  (SELECT reltuples::bigint FROM pg_class WHERE oid = 'prices'::regclass) AS "dataPointCount"`;
-
-function buildMetaData(row: Record<string, unknown> = {}): Record<string, unknown> {
-  return {
-    lastUpdated: row.lastUpdated ?? null,
-    tickerCount: Number(row.tickerCount) || 0,
-    earliestDate: row.earliestDate ?? null,
-    dataPointCount: Number(row.dataPointCount) || 0,
-  };
-}
-
-const EMPTY_META = { lastUpdated: null, tickerCount: 0, earliestDate: null, dataPointCount: 0 };
-
 export async function warmMetaCache(): Promise<void> {
   try {
-    const result = await getReadPool().query(META_SQL);
-    metaCache.set('meta', buildMetaData(result.rows[0]));
+    metaCache.set('meta', await queryMeta());
   } catch {
     /* 预热失败不影响启动 */
   }
@@ -100,12 +73,11 @@ router.get(
         return;
       }
       try {
-        const result = await getReadPool().query(META_SQL);
-        const data = buildMetaData(result.rows[0]);
+        const data = await queryMeta();
         metaCache.set('meta', data);
         sendData(res, data);
       } catch {
-        sendDegraded(res, EMPTY_META, '数据元信息暂不可用，返回空快照');
+        sendDegraded(res, {}, '数据元信息暂不可用，返回空快照');
       }
     },
     { logMsg: 'Data meta fetch error', code: 'DATA_META_ERROR', endpoint: 'data-meta' },
@@ -117,9 +89,7 @@ router.get(
   crudRouteHandler(
     async (_req: Request, res: Response): Promise<void> => {
       try {
-        const { rows } = await getReadPool().query(
-          'SELECT date, mkt_rf, smb, hml, rf FROM fama_french_factors ORDER BY date',
-        );
+        const rows = await queryFamaFrenchFactors();
         res.set('Cache-Control', 'public, max-age=3600');
         sendData(res, rows);
       } catch {
@@ -161,25 +131,13 @@ router.get(
         return;
       }
       try {
-        const { rows } = await getReadPool().query(
-          'SELECT t.ticker, t.category AS name, t.market, t.exchange, MIN(p.date) AS earliest FROM tickers t LEFT JOIN prices p ON p.ticker = t.ticker WHERE t.ticker = $1 GROUP BY t.ticker',
-          [ticker],
-        );
-        if (rows.length === 0) {
+        const data = await queryTickerMeta(ticker);
+        if (!data) {
           sendProblem(res, 404, 'TICKER_NOT_FOUND', 'Not Found', {
             detail: `ticker ${ticker} 未知`,
           });
           return;
         }
-        const row = rows[0];
-        const data = {
-          ticker: row.ticker,
-          name: row.name || row.ticker,
-          exchange: row.exchange || (row.market === 'cn' ? 'SSE/SZSE' : 'NYSE'),
-          currency: row.market === 'cn' ? 'CNY' : 'USD',
-          earliestDate: row.earliest ?? null,
-          isSynthetic: false,
-        };
         tickerMetaCache.set(ticker, data);
         res.set('Cache-Control', 'public, max-age=60');
         sendData(res, data);
@@ -198,19 +156,8 @@ router.get(
   crudRouteHandler(
     async (req: Request, res: Response): Promise<void> => {
       const limit = Math.min(50, Math.max(1, parseInt(String(req.query.limit ?? '10'), 10) || 10));
-      const result = await getReadPool().query(
-        `SELECT t.ticker,
-                COALESCE(t.category, t.ticker) AS name,
-                MAX(p.date)::text        AS last_bar_date,
-                MAX(t.updated_at)        AS updated_at
-         FROM tickers t
-         LEFT JOIN prices p ON p.ticker = t.ticker
-         GROUP BY t.ticker, t.category
-         ORDER BY MAX(t.updated_at) DESC NULLS LAST
-         LIMIT $1`,
-        [limit],
-      );
-      sendData(res, result.rows.map(mapRecentUpdate));
+      const rows = await queryRecentUpdates(limit);
+      sendData(res, rows);
     },
     {
       logMsg: 'Recent updates fetch error',

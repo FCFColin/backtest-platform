@@ -23,7 +23,7 @@ import {
   switchOrgSchema,
   registerSchema,
   verifyEmailSchema,
-} from '../schemas/tactical.js';
+} from '../schemas/auth.js';
 import {
   verifyUser,
   registerUser,
@@ -48,14 +48,13 @@ import {
   type Membership,
 } from '../application/org/membershipService.js';
 
-const RT_COOKIE_BASE = {
+const RT_BASE = {
   httpOnly: true,
   secure: config.NODE_ENV === 'production',
   sameSite: 'strict' as const,
   path: '/api/v1/auth',
 };
-const RT_COOKIE_SET = { ...RT_COOKIE_BASE, maxAge: authConfig.JWT_REFRESH_TTL * 1000 };
-const RT_COOKIE_CLEAR = { ...RT_COOKIE_BASE };
+const RT_SET = { ...RT_BASE, maxAge: authConfig.JWT_REFRESH_TTL * 1000 };
 
 async function issueSession(
   res: Response,
@@ -64,7 +63,7 @@ async function issueSession(
   tenant?: TenantContext,
 ): Promise<string> {
   const accessToken = await generateToken(userId, role, tenant);
-  res.cookie(RT_COOKIE, await generateRefreshToken(userId, role, undefined, tenant), RT_COOKIE_SET);
+  res.cookie(RT_COOKIE, await generateRefreshToken(userId, role, undefined, tenant), RT_SET);
   return accessToken;
 }
 
@@ -77,6 +76,26 @@ const orgSummary = (m: Membership) => ({
   role: m.role,
 });
 
+/** 平台管理员 → 默认 org 成员 → role 覆盖（ADR-009），login 与 switch-org 共用 */
+async function resolveOrgContext(userId: string) {
+  const platformAdmin = await isPlatformAdmin(userId);
+  const membership = await resolveDefaultOrg(userId);
+  if (!membership)
+    return {
+      platformAdmin,
+      effectiveRole: undefined as Role | undefined,
+      tenant: platformAdmin ? ({ platformAdmin } as TenantContext) : undefined,
+      membership: null,
+    };
+  const effectiveRole = orgRoleToGlobalRole(membership.role);
+  const tenant: TenantContext = {
+    tenantId: membership.orgId,
+    orgRole: membership.role,
+    platformAdmin,
+  };
+  return { platformAdmin, effectiveRole, tenant, membership };
+}
+
 const router = Router();
 
 router.post(
@@ -86,14 +105,16 @@ router.post(
     async (req, res) => {
       const { username, password } = req.body;
       const clientIp = req.ip ?? '';
-      const ipBlockTtl = await isIpBlocked(clientIp); // P0-05：IP 维度撞库检测（等保三级 8.1.4 b)）
+      const [ipBlockTtl, lockRemaining] = await Promise.all([
+        isIpBlocked(clientIp),
+        isLockedOut(username),
+      ]);
       if (ipBlockTtl > 0) {
         logger.warn({ clientIp: 'hidden', ipBlockTtl }, '[auth] IP 被封锁，拒绝登录');
         res.set('Retry-After', String(ipBlockTtl));
         sendProblem(res, 429, 'IP_BLOCKED');
         return;
       }
-      const lockRemaining = await isLockedOut(username);
       if (lockRemaining > 0) {
         logger.warn({ username }, '[auth] 账户锁定中，拒绝登录尝试');
         sendProblem(res, 429, 'ACCOUNT_LOCKED');
@@ -101,28 +122,19 @@ router.post(
       }
       const user = await verifyUser(username, password); // 内部 argon2id 常量时间比较，不存在时仍哈希防时序攻击
       if (!user) {
-        // Security (T-12)：账号 + IP 维度记录失败用于锁定计数
-        await recordFailure(username);
-        await recordIpFailure(clientIp);
+        await Promise.all([recordFailure(username), recordIpFailure(clientIp)]);
         sendProblem(res, 401, 'INVALID_CREDENTIALS');
         return;
       }
       await clearFailures(username);
       // 多租户上下文（ADR-009）：org 成员角色覆盖全局角色（owner→admin）
-      const platformAdmin = await isPlatformAdmin(user.id);
-      const membership = await resolveDefaultOrg(user.id);
-      let effectiveRole = user.role;
-      let tenant: TenantContext | undefined = platformAdmin ? { platformAdmin } : undefined;
-      if (membership) {
-        effectiveRole = orgRoleToGlobalRole(membership.role);
-        tenant = { tenantId: membership.orgId, orgRole: membership.role, platformAdmin };
-      }
-      const accessToken = await issueSession(res, user.id, effectiveRole, tenant);
+      const { platformAdmin, effectiveRole, tenant, membership } = await resolveOrgContext(user.id);
+      const accessToken = await issueSession(res, user.id, effectiveRole ?? user.role, tenant);
       logger.info(
         {
           userId: user.id,
           username: user.username,
-          role: effectiveRole,
+          role: effectiveRole ?? user.role,
           tenantId: membership?.orgId,
           platformAdmin,
         },
@@ -132,11 +144,11 @@ router.post(
         success: true,
         data: {
           accessToken,
-          role: effectiveRole,
+          role: effectiveRole ?? user.role,
           userId: user.id,
           org: membership ? orgSummary(membership) : null,
           idleTimeoutMs:
-            (effectiveRole === 'analyst'
+            ((effectiveRole ?? user.role) === 'analyst'
               ? authConfig.SESSION_IDLE_TIMEOUT_ANALYST_SEC
               : authConfig.SESSION_IDLE_TIMEOUT_READONLY_SEC) * 1000,
         },
@@ -152,33 +164,27 @@ router.post(
   crudRouteHandler(
     async (req, res) => {
       const { username, password, email, orgName } = req.body;
-
-      const existing = await getUserByEmail(email);
-      if (existing) {
+      if (await getUserByEmail(email)) {
         sendProblem(res, 409, 'EMAIL_TAKEN');
         return;
       }
-
       let userId = '';
       try {
         userId = await registerUser(username, password, email, orgName);
       } catch (err) {
-        // 23505 = PG unique_violation（并发重复注册的竞态，注册前检查无法覆盖）
         if ((err as { code?: string }).code === '23505') {
           sendProblem(res, 409, 'ACCOUNT_CONFLICT');
           return;
-        }
+        } // 23505 = PG unique_violation
         logger.error({ err: String(err) }, '[auth] 注册失败');
         sendProblem(res, 500, 'REGISTER_FAILED');
         return;
       }
-
       try {
         await sendVerificationEmail(email, await issueEmailVerificationToken(userId));
       } catch (err) {
         logger.warn({ err: String(err), userId }, '[auth] 验证邮件发送失败');
       }
-
       logger.info({ userId }, '[auth] 注册成功');
       res.status(201).json({
         success: true,
@@ -217,11 +223,11 @@ router.post(
       }
       const result = await refreshAccessToken(refreshToken);
       if (!result) {
-        res.clearCookie(RT_COOKIE, RT_COOKIE_CLEAR);
+        res.clearCookie(RT_COOKIE, RT_BASE);
         sendProblem(res, 401, 'INVALID_REFRESH_TOKEN');
         return;
-      } // 无效 RT：清 Cookie，避免浏览器持有过期凭证
-      res.cookie(RT_COOKIE, result.refreshToken, RT_COOKIE_SET);
+      }
+      res.cookie(RT_COOKIE, result.refreshToken, RT_SET);
       res.json({ success: true, data: { accessToken: result.accessToken } });
     },
     { logMsg: 'Token refresh error', code: 'REFRESH_ERROR', endpoint: 'auth-refresh' },
@@ -237,7 +243,7 @@ router.delete(
         await revokeRefreshToken(refreshToken);
         logger.info('[auth] Refresh Token 已撤销');
       }
-      res.clearCookie(RT_COOKIE, RT_COOKIE_CLEAR); // 无论 RT 是否存在都清除，避免浏览器残留过期凭证
+      res.clearCookie(RT_COOKIE, RT_BASE);
       res.json({ success: true, data: null });
     },
     { logMsg: 'Logout error', code: 'LOGOUT_ERROR', endpoint: 'auth-logout' },
@@ -246,15 +252,16 @@ router.delete(
 
 router.get('/me', jwtAuth, (req: AuthenticatedRequest, res: Response) => {
   if (!requireUser(req, res)) return;
+  const u = req.user;
   res.json({
     success: true,
     data: {
-      userId: req.user.sub,
-      role: req.user.role,
-      tenantId: req.user.tenant_id ?? null,
-      orgRole: req.user.org_role ?? null,
-      platformAdmin: req.user.platform_admin === true,
-      exp: req.user.exp,
+      userId: u.sub,
+      role: u.role,
+      tenantId: u.tenant_id ?? null,
+      orgRole: u.org_role ?? null,
+      platformAdmin: u.platform_admin === true,
+      exp: u.exp,
     },
   });
 });
@@ -265,10 +272,12 @@ router.get(
   crudRouteHandler(
     async (req, res): Promise<void> => {
       if (!requireUser(req, res)) return;
-      const memberships = await getUserMemberships(req.user.sub);
       res.json({
         success: true,
-        data: { activeOrgId: req.user.tenant_id ?? null, orgs: memberships.map(orgSummary) },
+        data: {
+          activeOrgId: req.user.tenant_id ?? null,
+          orgs: (await getUserMemberships(req.user.sub)).map(orgSummary),
+        },
       });
     },
     { logMsg: 'List user orgs error', code: 'ORG_LIST_ERROR', endpoint: 'auth-orgs' },
@@ -283,11 +292,10 @@ router.post(
   crudRouteHandler(
     async (req, res): Promise<void> => {
       if (!requireUser(req, res)) return;
-      const { orgId } = req.body;
-      const membership = await getMembership(req.user.sub, orgId);
+      const membership = await getMembership(req.user.sub, req.body.orgId);
       if (!membership) {
         logger.warn(
-          { userId: hashUserId(req.user.sub), orgId },
+          { userId: hashUserId(req.user.sub), orgId: req.body.orgId },
           '[auth] switch-org 拒绝：非该组织成员',
         );
         sendProblem(res, 403, 'NOT_A_MEMBER');
@@ -305,7 +313,10 @@ router.post(
         platformAdmin,
       };
       const accessToken = await issueSession(res, req.user.sub, role, tenant);
-      logger.info({ userId: hashUserId(req.user.sub), orgId, role }, '[auth] 切换活跃组织成功');
+      logger.info(
+        { userId: hashUserId(req.user.sub), orgId: req.body.orgId, role },
+        '[auth] 切换活跃组织成功',
+      );
       res.json({ success: true, data: { accessToken, role, org: orgSummary(membership) } });
     },
     { logMsg: 'Switch org error', code: 'SWITCH_ORG_ERROR', endpoint: 'auth-switch-org' },

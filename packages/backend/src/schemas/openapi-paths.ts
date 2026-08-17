@@ -2,14 +2,12 @@
 import { z } from 'zod';
 import { OpenApiGeneratorV3 } from '@asteasolutions/zod-to-openapi';
 import { OpenAPIRegistry, extendZodWithOpenApi } from '@asteasolutions/zod-to-openapi';
+import { loginPasswordSchema, registerSchema } from './auth.js';
+import { createAnnouncementSchema, errorReportSchema } from './platform.js';
 import {
-  loginPasswordSchema,
-  registerSchema,
   tacticalBacktestSchema,
   tacticalWhatIfSchema,
   tacticalGridSearchSchema,
-  createAnnouncementSchema,
-  errorReportSchema,
 } from './tactical.js';
 import {
   portfolioBodySchema,

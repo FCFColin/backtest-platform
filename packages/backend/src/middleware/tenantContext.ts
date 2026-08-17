@@ -5,12 +5,22 @@ import { sendProblem } from '../utils/errors.js';
 import { logger } from '../utils/logger.js';
 import { isUuid } from '../utils/misc.js';
 
-export function resolveTenant(req: AuthenticatedRequest, _res: Response, next: NextFunction): void {
+export function resolveTenant(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
   const tenantId = req.user?.tenant_id;
   if (typeof tenantId === 'string' && isUuid(tenantId)) {
     req.tenantId = tenantId;
-  } else if (tenantId) {
-    logger.warn({ path: req.path }, '[tenantContext] JWT tenant_id 格式非法，已忽略');
+    return next();
+  }
+  if (tenantId) {
+    if (req.user?.platform_admin) {
+      logger.warn(
+        { path: req.path },
+        '[tenantContext] JWT tenant_id 格式非法，已忽略（platform_admin 放行）',
+      );
+      return next();
+    }
+    sendProblem(res, 400, 'INVALID_TENANT');
+    return;
   }
   next();
 }

@@ -5,11 +5,10 @@ import { loadExchangeRatesFromDb } from '../db/macroData.js';
 import { ValidationError } from '../utils/errors.js';
 import { DomainValidationError } from '../domain/value-objects/index.js';
 import { MAX_TICKERS } from '@backtest/shared/constants';
-import type { Portfolio, BacktestParameters, BacktestResult, PriceData } from '@backtest/shared';
+import type { Portfolio, BacktestParameters, PriceData } from '@backtest/shared';
 import { Portfolio as DomainPortfolio } from '../domain/aggregates/portfolio.js';
 
 // 领域异常翻译：domain 层抛 DomainValidationError（无 HTTP 语义），application 层统一翻译为 ValidationError（HTTP 422）
-
 export function translateDomainError<T>(fn: () => T): T {
   try {
     return fn();
@@ -27,9 +26,6 @@ export interface BacktestExecutionParams {
   cpiData?: Record<string, number>;
   exchangeRates?: Record<string, number>;
 }
-export interface BacktestExecutionResult {
-  result: BacktestResult;
-}
 export interface Warning {
   code: string;
   message?: string;
@@ -43,10 +39,6 @@ export interface DateRangeInfo {
   clamped: boolean;
   missingTickers?: string[];
 }
-export interface PortfolioBacktestPrep {
-  domainPortfolios: DomainPortfolio[];
-  allTickers: Set<string>;
-}
 
 export function portfolioToDomain(raw: Portfolio): DomainPortfolio {
   return translateDomainError(() => DomainPortfolio.fromDTO(raw));
@@ -56,11 +48,10 @@ export function portfolioToEngineBody(raw: Portfolio): Record<string, unknown> {
   return portfolioToDomain(raw).toEngineBody();
 }
 
-/** 校验日期格式与 ticker 数量，收集回测所需标的集合。 */
 export function preparePortfolioBacktest(
   portfolios: Portfolio[],
   parameters: BacktestParameters,
-): PortfolioBacktestPrep {
+): { domainPortfolios: DomainPortfolio[]; allTickers: Set<string> } {
   if (!isValidDate(parameters.startDate) || !isValidDate(parameters.endDate))
     throw new ValidationError('Invalid date format, expected YYYY-MM-DD');
   const domainPortfolios = portfolios.map(portfolioToDomain);
@@ -132,7 +123,6 @@ function inferDateRangeFromData(
   return minDate && maxDate ? { min: minDate, max: maxDate } : null;
 }
 
-// effective 日期由 preparePriceDataAndWarnings 已从数据推断，避免对 priceData 二次全量扫描
 export function calculateDateRange(
   startDate: string,
   endDate: string,
@@ -216,6 +206,50 @@ export async function loadMacroData(
     : {};
   const exchangeRates = baseCurrency === 'cny' ? await loadExchangeRatesFromDb() : {};
   return { cpiData, exchangeRates };
+}
+
+export interface PreparedBacktestContext {
+  domainPortfolios: DomainPortfolio[];
+  allTickers: Set<string>;
+  priceData: Record<string, Record<string, number>>;
+  cpiData: Record<string, number>;
+  exchangeRates: Record<string, number>;
+  effectiveParameters: BacktestParameters;
+  warnings: Warning[];
+  invalidTickers: string[];
+  effectiveStartDate: string;
+  effectiveEndDate: string;
+  degraded: boolean;
+  degradedWarning?: string;
+}
+
+export async function prepareBacktestContext(
+  portfolios: Portfolio[],
+  parameters: BacktestParameters,
+): Promise<PreparedBacktestContext> {
+  const { domainPortfolios, allTickers } = preparePortfolioBacktest(portfolios, parameters);
+  const [price, macro] = await Promise.all([
+    preparePriceDataAndWarnings(Array.from(allTickers), parameters.startDate, parameters.endDate),
+    loadMacroData(parameters),
+  ]);
+  return {
+    domainPortfolios,
+    allTickers,
+    priceData: price.priceData,
+    cpiData: macro.cpiData,
+    exchangeRates: macro.exchangeRates,
+    effectiveParameters: clampParametersToDataRange(
+      parameters,
+      price.effectiveStartDate,
+      price.effectiveEndDate,
+    ),
+    warnings: price.warnings,
+    invalidTickers: price.invalidTickers,
+    effectiveStartDate: price.effectiveStartDate,
+    effectiveEndDate: price.effectiveEndDate,
+    degraded: price.degraded,
+    degradedWarning: price.degradedWarning,
+  };
 }
 
 // 与 Go 引擎 MCSimParams 保持一致（engine-go/internal/montecarlo/types.go），seed 固定种子使模拟可复现

@@ -14,16 +14,12 @@ import {
 import type { Portfolio, BacktestParameters, BacktestResult } from '@backtest/shared';
 import type { Portfolio as DomainPortfolio } from '../domain/aggregates/portfolio.js';
 import {
-  preparePortfolioBacktest,
-  preparePriceDataAndWarnings,
-  loadMacroData,
+  prepareBacktestContext,
   portfolioToDomain,
   collectDomainTickers,
   filterPriceData,
   calculateDateRange,
-  clampParametersToDataRange,
   type BacktestExecutionParams,
-  type BacktestExecutionResult,
   type Warning,
   type DateRangeInfo,
 } from './backtest-helpers.js';
@@ -39,37 +35,24 @@ export async function runPortfolioBacktest(opts: {
 }): Promise<{ result: unknown; warnings: Warning[]; dateRange: DateRangeInfo }> {
   const { portfolios, parameters, tenantId, onProgress } = opts;
   onProgress?.(5);
-  const { domainPortfolios, allTickers } = preparePortfolioBacktest(portfolios, parameters);
-  onProgress?.(10);
-  const [
-    { priceData, effectiveStartDate, effectiveEndDate, warnings, invalidTickers },
-    { cpiData, exchangeRates },
-  ] = await Promise.all([
-    preparePriceDataAndWarnings(Array.from(allTickers), parameters.startDate, parameters.endDate),
-    loadMacroData(parameters),
-  ]);
+  const ctx = await prepareBacktestContext(portfolios, parameters);
   onProgress?.(30);
-  const effectiveParameters = clampParametersToDataRange(
-    parameters,
-    effectiveStartDate,
-    effectiveEndDate,
-  );
   const { result } = await withTimeout(
     runBacktest(
       {
         portfolios,
-        parameters: effectiveParameters,
-        priceData,
-        cpiData,
-        exchangeRates,
+        parameters: ctx.effectiveParameters,
+        priceData: ctx.priceData,
+        cpiData: ctx.cpiData,
+        exchangeRates: ctx.exchangeRates,
       },
-      domainPortfolios,
+      ctx.domainPortfolios,
     ),
     config.BACKTEST_SYNC_TIMEOUT_MS,
     'portfolio-backtest',
   );
   onProgress?.(90);
-  const cacheKey = backtestCacheKey(portfolios, effectiveParameters, tenantId);
+  const cacheKey = backtestCacheKey(portfolios, ctx.effectiveParameters, tenantId);
   void setBacktestResultCache(cacheKey, result).catch((err) =>
     logger.error({ err, cacheKey }, '[backtest-service] Failed to set backtest result cache'),
   );
@@ -77,18 +60,18 @@ export async function runPortfolioBacktest(opts: {
   const dateRange = calculateDateRange(
     parameters.startDate,
     parameters.endDate,
-    effectiveStartDate,
-    effectiveEndDate,
-    invalidTickers,
+    ctx.effectiveStartDate,
+    ctx.effectiveEndDate,
+    ctx.invalidTickers,
   );
-  return { result: compressBacktestResultForSync(result), warnings, dateRange };
+  return { result: compressBacktestResultForSync(result), warnings: ctx.warnings, dateRange };
 }
 
 /** @throws {EngineUnavailableError} ADR-008 */
 export async function runBacktest(
   params: BacktestExecutionParams,
   preBuiltDomainPortfolios?: DomainPortfolio[],
-): Promise<BacktestExecutionResult> {
+): Promise<{ result: BacktestResult }> {
   const { portfolios, parameters, priceData, cpiData, exchangeRates } = params;
   const domainPortfolios = preBuiltDomainPortfolios ?? portfolios.map(portfolioToDomain);
   return tracer.startActiveSpan('BacktestApplicationService.runBacktest', async (span) => {

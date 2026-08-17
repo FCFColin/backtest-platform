@@ -1,6 +1,7 @@
 import type { Portfolio, BacktestResult, BacktestParameters } from '@backtest/shared/types';
 import { z } from 'zod';
 import { callEngineStrict } from '../utils/engineClient.js';
+import { ValidationError } from '../utils/errors.js';
 import {
   optimizeResultSchema,
   frontierResultSchema,
@@ -14,8 +15,9 @@ import {
   calculateDateRange,
   loadMacroData,
   type MacroData,
+  type Warning,
+  type DateRangeInfo,
 } from './backtest-helpers.js';
-import type { Warning, DateRangeInfo } from './backtest-helpers.js';
 import { logger } from '../utils/logger.js';
 import {
   MAX_OPTIMIZER_COMBINATIONS,
@@ -116,7 +118,7 @@ async function runBacktestGroups(
     const portfolios: Portfolio[] = group.map((c, idx) => ({
       id: `opt-${idx}`,
       name: c.frequency === 'threshold' ? `threshold-${c.threshold}` : c.frequency,
-      assets: portfolio.assets.map((a) => ({ ticker: a.ticker, weight: a.weight })),
+      assets: portfolio.assets,
       rebalanceFrequency: c.frequency,
       rebalanceThreshold: c.threshold,
       rebalanceOffset: 0,
@@ -155,17 +157,15 @@ async function runBacktestGroups(
 }
 
 export async function executeOptimization(body: Record<string, unknown>): Promise<{
-  success: boolean;
-  data?: Record<string, unknown>;
+  data: Record<string, unknown>;
   warnings?: Warning[];
   dateRange?: DateRangeInfo;
-  error?: string;
 }> {
   const startTime = Date.now();
   const req = body as unknown as OptimizeRequest;
   const { portfolio, parameterSpace, parameters, objective, constraints } = req;
   const validationError = validateOptimizeRequest(req);
-  if (validationError) return { success: false, error: validationError };
+  if (validationError) throw new ValidationError(validationError);
   const allTickers = new Set(portfolio.assets.map((a) => a.ticker));
   if (parameters.benchmarkTicker) allTickers.add(parameters.benchmarkTicker);
   const { priceData, warnings, invalidTickers, effectiveStartDate, effectiveEndDate } =
@@ -175,15 +175,14 @@ export async function executeOptimization(body: Record<string, unknown>): Promis
       parameters.endDate,
     );
   if (invalidTickers.length > 0)
-    return { success: false, error: `以下标的代码无效：${invalidTickers.join(', ')}` };
+    throw new ValidationError(`以下标的代码无效：${invalidTickers.join(', ')}`);
   const macro = await loadMacroData(parameters);
   const combos = buildCombinations(parameterSpace);
-  if (combos.length === 0) return { success: false, error: '参数空间为空，请检查范围与步长' };
+  if (combos.length === 0) throw new ValidationError('参数空间为空，请检查范围与步长');
   if (combos.length > MAX_OPTIMIZER_COMBINATIONS)
-    return {
-      success: false,
-      error: `参数组合数 ${combos.length} 超过上限 ${MAX_OPTIMIZER_COMBINATIONS}，请缩小参数空间`,
-    };
+    throw new ValidationError(
+      `参数组合数 ${combos.length} 超过上限 ${MAX_OPTIMIZER_COMBINATIONS}，请缩小参数空间`,
+    );
   logger.info(`[backtest-optimizer] 开始优化：${combos.length} 个组合，目标=${objective}`);
   const { items } = await runBacktestGroups(combos, portfolio, parameters, priceData, macro);
   const filtered = filterByConstraints(items, constraints);
@@ -206,7 +205,6 @@ export async function executeOptimization(body: Record<string, unknown>): Promis
     effectiveEndDate,
   );
   return {
-    success: true,
     data: {
       results: filtered,
       best: computed?.best ?? null,

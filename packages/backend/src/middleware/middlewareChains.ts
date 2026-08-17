@@ -1,11 +1,7 @@
 import type { RequestHandler } from 'express';
-import {
-  optionalJwtAuth,
-  assignGuestReadonly,
-  jwtAuth,
-  auditLog,
-  idempotencyKey,
-} from './jwtAuth.js';
+import { optionalJwtAuth, assignGuestReadonly, jwtAuth } from './jwtAuth.js';
+import { auditLog } from './auditMiddleware.js';
+import { idempotencyKey } from './idempotency.js';
 import { resolveTenant, requireTenant } from './tenantContext.js';
 import { requirePermission, requirePlatformAdmin, Permission } from './rbac.js';
 import { enforceQuota } from './quota.js';

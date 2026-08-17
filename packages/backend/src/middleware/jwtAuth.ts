@@ -17,8 +17,17 @@ import {
 } from './authShared.js';
 import { getOrCachePublicKey, getOrCacheHS256Key } from './jwtSigner.js';
 
-export * from './authShared.js';
-export * from './jwtSigner.js';
+export {
+  type AuthenticatedRequest,
+  type TenantedRequest,
+  type JwtPayload,
+  type Role,
+  type OrgRole,
+  type TenantContext,
+  RT_COOKIE,
+  hashUserId,
+} from './authShared.js';
+export { generateToken } from './jwtSigner.js';
 
 export function requireUser(
   req: AuthenticatedRequest,
@@ -219,8 +228,4 @@ export {
   refreshAccessToken,
   revokeRefreshToken,
   revokeAllUserSessions,
-  isAccessTokenRevokedForUser,
-  isUserSessionValid,
 } from './tokenStore.js';
-export { auditLog } from './auditMiddleware.js';
-export { idempotencyKey } from './idempotency.js';

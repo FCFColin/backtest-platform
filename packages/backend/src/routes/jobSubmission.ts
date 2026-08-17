@@ -22,7 +22,6 @@ interface SubmitQueueJobConfig {
   detail?: string;
   jobStatus?: string;
   fallback?: (body: unknown) => Promise<{
-    success: boolean;
     data?: unknown;
     degraded?: boolean;
     degradedWarning?: string;
@@ -33,27 +32,27 @@ interface SubmitQueueJobConfig {
   endpoint: string;
 }
 
-/** 队列不可用时同步兜底：成功返回 200 + 结果（含 degraded 透传），失败落 400 GRID_BAD_REQUEST */
+/** 队列不可用时同步兜底：成功返回 200 + 结果（含 degraded 透传），异常落 400 GRID_BAD_REQUEST */
 async function runSyncFallback(
   cfg: SubmitQueueJobConfig,
   req: Request,
   res: Response,
 ): Promise<void> {
-  const result = await withTimeout(
-    cfg.fallback!(req.body),
-    config.SYNC_COMPUTE_TIMEOUT_MS,
-    cfg.endpoint,
-  );
-  if (!result.success) {
+  try {
+    const result = await withTimeout(
+      cfg.fallback!(req.body),
+      config.SYNC_COMPUTE_TIMEOUT_MS,
+      cfg.endpoint,
+    );
+    res.json({
+      success: true,
+      data: result.data,
+      ...(result.degraded ? { degraded: true } : {}),
+      ...(result.degradedWarning ? { degradedWarning: result.degradedWarning } : {}),
+    });
+  } catch {
     sendProblem(res, 400, 'GRID_BAD_REQUEST');
-    return;
   }
-  res.json({
-    success: true,
-    data: result.data,
-    ...(result.degraded ? { degraded: true } : {}),
-    ...(result.degradedWarning ? { degradedWarning: result.degradedWarning } : {}),
-  });
 }
 
 export function submitQueueJob(cfg: SubmitQueueJobConfig): RequestHandler {

@@ -2,6 +2,7 @@
 import { logger, sanitizeLog } from '../utils/logger.js';
 import { callEngineStrict } from '../utils/engineClient.js';
 import { tacticalGridResultSchema } from '../schemas/engineSchemas.js';
+import { ValidationError } from '../utils/errors.js';
 import {
   MAX_GRID_COMBINATIONS,
   validateGridSearchRequest,
@@ -13,15 +14,13 @@ export { MAX_GRID_COMBINATIONS, countCombinations };
 
 export type TacticalGridRequest = GridSearchDomainRequest;
 
-export async function executeGridSearch(request: TacticalGridRequest): Promise<{
-  success: boolean;
-  data?: Record<string, unknown>;
-  error?: string;
-}> {
+export async function executeGridSearch(
+  request: TacticalGridRequest,
+): Promise<Record<string, unknown>> {
   const startTime = Date.now();
 
   const validationError = validateGridSearchRequest(request);
-  if (validationError) return { success: false, error: validationError };
+  if (validationError) throw new ValidationError(validationError);
 
   const {
     indicator,
@@ -39,19 +38,16 @@ export async function executeGridSearch(request: TacticalGridRequest): Promise<{
 
   const totalCombinations = countCombinations(param1Range, param2Range);
 
-  if (totalCombinations > MAX_GRID_COMBINATIONS) {
-    return {
-      success: false,
-      error: `参数组合过多(${totalCombinations})，请缩小参数范围（上限${MAX_GRID_COMBINATIONS}）`,
-    };
-  }
+  if (totalCombinations > MAX_GRID_COMBINATIONS)
+    throw new ValidationError(
+      `参数组合过多(${totalCombinations})，请缩小参数范围（上限${MAX_GRID_COMBINATIONS}）`,
+    );
 
   const tradingTicker = tickers[0].toUpperCase();
   const { data: priceData } = await fetchHistoryData([tradingTicker], startDate, endDate);
 
-  if (!priceData[tradingTicker] || Object.keys(priceData[tradingTicker]).length === 0) {
-    return { success: false, error: `未找到 ${tradingTicker} 的价格数据` };
-  }
+  if (!priceData[tradingTicker] || Object.keys(priceData[tradingTicker]).length === 0)
+    throw new ValidationError(`未找到 ${tradingTicker} 的价格数据`);
 
   const datePriceMap = priceData[tradingTicker];
   const dates = Object.keys(datePriceMap)
@@ -59,9 +55,7 @@ export async function executeGridSearch(request: TacticalGridRequest): Promise<{
     .filter((d) => d >= startDate && d <= endDate);
   const prices = dates.map((d) => datePriceMap[d]);
 
-  if (dates.length < 10) {
-    return { success: false, error: '有效交易日不足，无法运行网格搜索' };
-  }
+  if (dates.length < 10) throw new ValidationError('有效交易日不足，无法运行网格搜索');
 
   const response = await callEngineStrict(
     '/api/engine/tactical-grid-search',
@@ -79,5 +73,5 @@ export async function executeGridSearch(request: TacticalGridRequest): Promise<{
     `[tactical-grid] 网格搜索完成: ${totalCombinations}个组合, 耗时${Date.now() - startTime}ms`,
   );
 
-  return { success: true, data: response as Record<string, unknown> };
+  return response as Record<string, unknown>;
 }

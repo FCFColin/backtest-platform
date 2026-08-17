@@ -20,7 +20,7 @@ import { save } from '../repositories/backtestRunRepo.js';
 import { getOrgPlanLimit } from '../application/billing/planLimitsService.js';
 import { appRedis } from '../infrastructure/redisClient.js';
 import { logger } from '../utils/logger.js';
-import { errorMessage, UpstreamProblemError } from '../utils/errors.js';
+import { errorMessage, UpstreamProblemError, ValidationError } from '../utils/errors.js';
 import type { Job } from 'bullmq';
 
 const inflightKey = (tenantId: string): string => `inflight:${tenantId}`;
@@ -83,6 +83,10 @@ async function handleEngineError(
   type: string,
 ): Promise<BacktestJobResult> {
   await releaseJobClaim(jobId, type);
+  if (err instanceof ValidationError) {
+    logger.warn({ jobId, code: err.errorCode }, '[worker] 校验失败，永久失败');
+    return { status: 'failed', error: err.message };
+  }
   if (err instanceof UpstreamProblemError) {
     logger.warn({ jobId, status: err.status, code: err.code }, '[worker] 引擎 4xx，永久失败');
     return { status: 'failed', error: err.detail };
@@ -92,9 +96,7 @@ async function handleEngineError(
   throw err;
 }
 
-type JobHandler = (
-  payload: unknown,
-) => Promise<{ success: boolean; data?: Record<string, unknown>; error?: string }>;
+type JobHandler = (payload: unknown) => Promise<Record<string, unknown>>;
 
 const JOB_HANDLERS: Record<string, JobHandler> = {
   optimizer: executeOptimization as JobHandler,
@@ -146,15 +148,10 @@ async function dispatchJob(job: Job<BacktestJobData>): Promise<BacktestJobResult
 
     const handler = JOB_HANDLERS[type];
     if (handler) {
-      const result = await handler(payload);
-      if (result.success && result.data) {
-        await markJobProcessed(jobId, type, result.data);
-        await persistRunIfTenant(job, 'completed', result.data);
-        return { status: 'completed', result: result.data };
-      }
-      await persistRunIfTenant(job, 'failed');
-      await releaseJobClaim(jobId, type);
-      return { status: 'failed', error: result.error };
+      const data = await handler(payload);
+      await markJobProcessed(jobId, type, data);
+      await persistRunIfTenant(job, 'completed', data);
+      return { status: 'completed', result: data };
     }
 
     await releaseJobClaim(jobId, type);
@@ -163,8 +160,7 @@ async function dispatchJob(job: Job<BacktestJobData>): Promise<BacktestJobResult
   } catch (err) {
     if (err instanceof DelayedError) throw err;
     await persistRunIfTenant(job, 'failed');
-    const failed = await handleEngineError(err, jobId, type);
-    return failed;
+    return handleEngineError(err, jobId, type);
   }
 }
 

@@ -3,13 +3,10 @@ import { callEngineStrict } from '../utils/engineClient.js';
 import { monteCarloResultSchema } from '../schemas/engineSchemas.js';
 import { buildEngineParams } from './backtest/backtestEngineUtils.js';
 import {
-  preparePortfolioBacktest,
-  preparePriceDataAndWarnings,
+  prepareBacktestContext,
   filterPriceData,
-  loadMacroData,
   sanitizeMcParams,
   calculateDateRange,
-  clampParametersToDataRange,
 } from './backtest-helpers.js';
 import type { Portfolio, BacktestParameters } from '@backtest/shared/types';
 import type { Warning, DateRangeInfo } from './backtest-helpers.js';
@@ -22,31 +19,20 @@ export async function runMonteCarlo(
   parameters: BacktestParameters,
   mcParams?: Record<string, unknown>,
 ): Promise<{ data: unknown; warnings: Warning[]; dateRange: DateRangeInfo }> {
-  const { domainPortfolios, allTickers } = preparePortfolioBacktest(portfolioList, parameters);
-  // prettier-ignore
-  const { priceData, warnings, invalidTickers, effectiveStartDate, effectiveEndDate } =
-    await preparePriceDataAndWarnings(Array.from(allTickers), parameters.startDate, parameters.endDate);
-
-  const { cpiData, exchangeRates } = await loadMacroData(parameters);
-
-  const effectiveParameters = clampParametersToDataRange(
-    parameters,
-    effectiveStartDate,
-    effectiveEndDate,
-  );
+  const ctx = await prepareBacktestContext(portfolioList, parameters);
 
   const limit = pLimit(ENGINE_CONCURRENCY_LIMIT);
   const results = await Promise.all(
-    domainPortfolios.map((dp) =>
+    ctx.domainPortfolios.map((dp) =>
       limit(() =>
         callEngineStrict(
           '/api/engine/monte-carlo',
           {
             portfolio: dp.toEngineBody(),
-            priceData: filterPriceData(priceData, allTickers),
-            params: buildEngineParams(effectiveParameters),
-            cpiData,
-            exchangeRates,
+            priceData: filterPriceData(ctx.priceData, ctx.allTickers),
+            params: buildEngineParams(ctx.effectiveParameters),
+            cpiData: ctx.cpiData,
+            exchangeRates: ctx.exchangeRates,
             mcParams: sanitizeMcParams(mcParams),
           },
           monteCarloResultSchema,
@@ -60,10 +46,10 @@ export async function runMonteCarlo(
   const dateRange = calculateDateRange(
     parameters.startDate,
     parameters.endDate,
-    effectiveStartDate,
-    effectiveEndDate,
-    invalidTickers.length > 0 ? invalidTickers : undefined,
+    ctx.effectiveStartDate,
+    ctx.effectiveEndDate,
+    ctx.invalidTickers.length > 0 ? ctx.invalidTickers : undefined,
   );
 
-  return { data, warnings, dateRange };
+  return { data, warnings: ctx.warnings, dateRange };
 }
