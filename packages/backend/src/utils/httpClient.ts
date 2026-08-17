@@ -16,11 +16,8 @@ function parseUpstreamProblem(status: number, body: string): UpstreamProblemErro
     };
     if (parsed.code) code = parsed.code;
     if (parsed.title) title = parsed.title;
-    if (parsed.detail) {
-      detail = parsed.detail;
-    } else if (parsed.error) {
-      detail = parsed.error;
-    }
+    if (parsed.detail) detail = parsed.detail;
+    else if (parsed.error) detail = parsed.error;
   } catch {
     /* ignore parse error */
   }

@@ -38,39 +38,30 @@ export function brotliCompress(req: Request, res: Response, next: NextFunction):
       return;
     }
 
+    const fallback = () => { originalWrite(body); originalEnd(); };
+    const applyEncoding = (encoding: string, buf: Buffer) => {
+      res.removeHeader('Content-Length');
+      res.setHeader('Content-Encoding', encoding);
+      res.setHeader('Vary', 'Accept-Encoding');
+      originalWrite(buf);
+      originalEnd();
+    };
     if (acceptBrotli) {
       zlib.brotliCompress(
         body,
         { params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 6 } },
         (err, compressed) => {
-          if (err) {
-            originalWrite(body);
-            originalEnd();
-            return;
-          }
-          res.removeHeader('Content-Length');
-          res.setHeader('Content-Encoding', 'br');
-          res.setHeader('Vary', 'Accept-Encoding');
-          originalWrite(compressed);
-          originalEnd();
+          if (err) { fallback(); return; }
+          applyEncoding('br', compressed);
         },
       );
     } else if (acceptGzip) {
       zlib.gzip(body, { level: 6 }, (err, compressed) => {
-        if (err) {
-          originalWrite(body);
-          originalEnd();
-          return;
-        }
-        res.removeHeader('Content-Length');
-        res.setHeader('Content-Encoding', 'gzip');
-        res.setHeader('Vary', 'Accept-Encoding');
-        originalWrite(compressed);
-        originalEnd();
+        if (err) { fallback(); return; }
+        applyEncoding('gzip', compressed);
       });
     } else {
-      originalWrite(body);
-      originalEnd();
+      fallback();
     }
   } as unknown as Response['end'];
   next();

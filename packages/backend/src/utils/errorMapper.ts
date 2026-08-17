@@ -10,21 +10,16 @@ export function translateToProblem(res: Response, error: unknown): boolean {
     sendProblem(res, 503, 'ENGINE_UNAVAILABLE', undefined, {
       headers: { 'Retry-After': String(error.retryAfterSeconds) },
     });
-    return true;
-  }
-  if (error instanceof UpstreamProblemError) {
-    sendProblem(res, error.status, error.code);
-    return true;
-  }
-  if (error instanceof ApplicationError) {
+  } else if (error instanceof UpstreamProblemError) {
+    sendProblem(res, error.status, error.code, error.title, { detail: error.detail });
+  } else if (error instanceof ApplicationError) {
     sendProblem(res, error.statusCode, error.errorCode, error.errorTitle, {
       detail: error.message,
     });
-    return true;
-  }
-  if (error instanceof TimeoutError) {
+  } else if (error instanceof TimeoutError) {
     sendProblem(res, 503, 'COMPUTE_TIMEOUT');
-    return true;
+  } else {
+    return false;
   }
-  return false;
+  return true;
 }

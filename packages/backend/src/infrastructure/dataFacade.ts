@@ -91,13 +91,6 @@ async function fetchFromGoWithDegradation(
   return { degraded: false };
 }
 
-function logInvalidTickers(invalidTickers: string[]): void {
-  if (invalidTickers.length === 0) return;
-  logger.warn(
-    `[dataService] fetchHistoryData: 忽略 ${invalidTickers.length} 个非法 ticker: ${invalidTickers.join(', ')}`,
-  );
-}
-
 function applyCachedHistory(
   cached: unknown,
   tickersToFetch: string[],
@@ -130,7 +123,8 @@ async function fetchHistoryDataImpl(
   span.setAttribute('valid_ticker_count', validTickers.length);
   span.setAttribute('unknown_ticker_count', unknownTickers.length);
 
-  logInvalidTickers(invalidTickers);
+  if (invalidTickers.length > 0)
+    logger.warn(`[dataService] fetchHistoryData: 忽略 ${invalidTickers.length} 个非法 ticker: ${invalidTickers.join(', ')}`);
 
   const totalFetchable = validTickers.length + unknownTickers.length;
   if (totalFetchable === 0) {
