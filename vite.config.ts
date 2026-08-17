@@ -44,8 +44,12 @@ const frontendAlias: Record<string, string> = {
 
 function zustandEsmResolver(): Plugin {
   const esm = feNm('zustand/esm');
+  // esm 入口以裸路径引用兄弟模块（zustand/vanilla 等），rollup 解析 symlink 实路径时无法命中导出映射，此处显式映射
   const map: Record<string, string> = {
     zustand: 'index.mjs',
+    'zustand/vanilla': 'vanilla.mjs',
+    'zustand/vanilla/shallow': 'vanilla/shallow.mjs',
+    'zustand/react': 'react.mjs',
     'zustand/react/shallow': 'react/shallow.mjs',
   };
   return {
@@ -110,7 +114,7 @@ export default defineConfig(async () => {
           resolve: {
             alias: {
               ...sharedTypeAliases,
-              '@': path.resolve(projectRoot, './packages/frontend/src'),
+              '@': path.resolve(projectRoot, 'packages/frontend/src'),
               ...Object.fromEntries(
                 [
                   'express',
@@ -152,7 +156,6 @@ export default defineConfig(async () => {
               ...frontendAlias,
               zustand: feNm('zustand'),
               '@testing-library/react': feNm('@testing-library/react'),
-              '@': path.resolve(projectRoot, './packages/frontend/src'),
               'react-router': path.resolve(projectRoot, 'tests/mocks/react-router.tsx'),
             },
           },
@@ -182,6 +185,8 @@ export default defineConfig(async () => {
           'packages/frontend/src/utils/**/*.{ts,tsx}',
         ],
         exclude: [
+          'dist-ssr/**',
+          '*.config.{js,ts,cjs,mjs}',
           'packages/frontend/src/**/*.d.ts',
           'packages/frontend/src/**/*.test.{ts,tsx}',
           'packages/frontend/src/store/{index,types}.ts',
@@ -213,6 +218,8 @@ export default defineConfig(async () => {
       exclude: ['zustand'],
     },
     build: {
+      // outDir 相对 root（仓库根）解析；收归包目录以匹配 turbo 的 dist/** 输出契约（缓存生效）
+      outDir: 'packages/frontend/dist',
       target: 'esnext',
       modulePreload: true,
       cssCodeSplit: false,

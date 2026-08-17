@@ -28,7 +28,7 @@
 | 场景              | 策略                                     | 响应                                |
 | ----------------- | ---------------------------------------- | ----------------------------------- |
 | 引擎不可用        | fail-closed(ADR-008)                     | 503 + Retry-After, 无 degraded 字段 |
-| PostgreSQL 不可用 | 降级到 Go 数据服务(缺失 ticker 实时抓取) | degraded: true + degradedWarning    |
+| PostgreSQL 不可用 | 缺失 ticker 时降级到 Go 数据服务实时抓取 | degraded: true + degradedWarning    |
 | Redis 不可用      | fail-closed                              | 503(认证/限流), 跳过缓存(数据)      |
 
 ## 4. 服务与端口

@@ -5,7 +5,7 @@
     routes/          路由层（healthRoutes, dataRoutes, backtestRoutes, authRoutes 等）
     application/     应用服务（billing/, org/, auth/, backtest-service, orchestrator）
     infrastructure/  基础设施（dataFacade, dataQuery, dataCache, outboxWriter, redisClient）
-    domain/          领域层（aggregates/, events/, services/, value-objects/）
+    domain/          领域层（aggregates/, services/, value-objects/）
     middleware/      中间件（auth, rbac, rateLimiter, idempotencyKey）
     repositories/    仓储层（withTenant RLS）    schemas/  Zod 验证
     config/          配置（env, index, limits）   db/  连接池与迁移
@@ -32,9 +32,10 @@
 | adminRoutes               | /api/v1/admin                                         | adminMiddleware + adminLimiter(30/min)                                    |
 | orgRoutes / billingRoutes | /api/v1/orgs, /billing                                | jwtAuth + resolveTenant (+requireTenant)                                  |
 
-> computeMiddleware(p) = jwtAuth → resolveTenant → requireTenant → requirePermission(p) → enforceQuota → auditLog
+> computeMiddleware(p) = jwtAuth → resolveTenant → requireTenant → requirePermission(p) → idempotencyKey → enforceQuota → auditLog
 > crudMiddleware(p) = jwtAuth → resolveTenant → requireTenant → requirePermission(p)
-> adminMiddleware() = jwtAuth → resolveTenant → requirePermission(ADMIN_ACCESS) → auditLog → 幂等
+> adminMiddleware() = jwtAuth → resolveTenant → requirePermission(ADMIN_ACCESS) → idempotencyKey → auditLog
+> submitQueueJob（jobSubmission.ts）: 异步提交工厂，backtestRoutes 与 jobRoutes 的队列端点共用（queue.add + 失败处理骨架）
 
 ## 4. 中间件链
 
@@ -56,7 +57,7 @@
 
 ## 6. 领域层 (domain/)
 
-- aggregates/portfolio.ts: fromDTO + validateWeightSum 不变量（Run 聚合根已退役, ADR-012）；events/events.ts: 通用 DomainEvent + 调度器（仅 AuditEvent, ADR-005 现状确认）
+- aggregates/portfolio.ts: fromDTO + validateWeightSum 不变量（Run 聚合根已退役, ADR-012）
 - services/ grid-search, optimizer-domain；value-objects/ ticker, weight
 
 ## 7. Outbox 模式 (ADR-005)

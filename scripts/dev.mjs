@@ -213,7 +213,7 @@ await ensureInfrastructure();
 await ensureEngineGo();
 ensureDataFetcher();
 
-if (!existsSync('dist/index.html')) {
+if (!existsSync('packages/frontend/dist/index.html')) {
   console.log('[dev] 首次启动：构建前端产物（约 30–60s，仅一次）…');
   execSync(`${npxCmd} vite build`, { stdio: 'inherit', env, shell: isWin });
 }

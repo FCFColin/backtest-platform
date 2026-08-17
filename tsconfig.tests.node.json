@@ -2,6 +2,7 @@
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
     "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
     "types": ["node", "vitest/globals", "vite/client"],
     "paths": {
       "@/*": ["./packages/frontend/src/*"],
@@ -18,12 +19,16 @@
   },
   "include": [
     "tests/unit/**/*.test.ts",
+    "tests/unit/**/*.test.tsx",
     "tests/integration/**/*.test.ts",
     "tests/contract/**/*.test.ts",
-    "tests/property/**/*.{test,pbt}.ts",
+    "tests/property/**/*.test.ts",
+    "tests/property/**/*.pbt.ts",
     "tests/chaos/**/*.test.ts",
     "tests/helpers/**/*.ts",
-    "tests/mocks/**/*.{ts,tsx}",
+    "tests/helpers/**/*.tsx",
+    "tests/mocks/**/*.ts",
+    "tests/mocks/**/*.tsx",
     "tests/setup-browser.ts",
     "packages/shared"
   ]

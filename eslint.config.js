@@ -11,8 +11,8 @@ import globals from 'globals';
 export default tseslint.config(
   {
     ignores: [
-      'dist/**',
-      'dist-ssr/**',
+      '**/dist/**',
+      '**/dist-ssr/**',
       '.dev-logs/**',
       'packages/backend/dist/**',
       'node_modules/**',

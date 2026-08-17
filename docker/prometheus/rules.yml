@@ -18,7 +18,7 @@ groups:
         labels: { severity: critical, service: api, category: resilience }
         annotations:
           summary: 'Circuit breaker open ({{ $labels.name }})'
-          description: 'DADR-016: check downstream dependency health.'
+          description: 'Circuit breaker open; check downstream dependency health.'
           runbook_url: 'https://backtest.platform/runbooks/platform-alerts#circuit-breaker-open'
       - alert: PostgresDown
         expr: pg_up == 0

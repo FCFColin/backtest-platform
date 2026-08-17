@@ -1,7 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
 // 端口单一来源：与 vite.config.ts / packages/backend/src/config/env.ts 对齐。
-// baseURL 指向后端 API 端口——E2E 走后端 SERVE_STATIC（FRONTEND_DIST_DIR=dist）
+// baseURL 指向后端 API 端口——E2E 走后端 SERVE_STATIC（FRONTEND_DIST_DIR 默认指向包目录 dist）
 // 托管生产构建前端，验证完整生产链路而非 vite dev。
 const API_PORT = process.env.API_PORT ?? '15001';
 

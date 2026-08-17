@@ -237,7 +237,7 @@ services:
         DATA_FETCHER_PORT: '5003',
         GIN_MODE: release,
         DATA_SERVICE_AUTH_TOKEN: '${DATA_SERVICE_AUTH_TOKEN:-dev-data-service-auth-token}',
-        DATABASE_URL: 'postgresql://backtest:backtest@postgres:5432/backtest',
+        DATABASE_URL: 'postgresql://backtest_app:backtest_app_dev@postgres:5432/backtest',
       }
     healthcheck:
       <<: *hc-wget

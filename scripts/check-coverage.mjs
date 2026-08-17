@@ -12,7 +12,7 @@ const GLOBAL_THRESHOLDS = { lines: 80, functions: 80, statements: 80, branches: 
 const coveragePath = resolve(projectRoot, 'coverage/vitest/coverage-summary.json');
 if (!existsSync(coveragePath))
   fail(
-    `覆盖率数据缺失（未找到 coverage-summary.json，已检查: ${coveragePath}）。请先运行 pnpm test:unit`,
+    `覆盖率数据缺失（未找到 coverage-summary.json，已检查: ${coveragePath}）。请先运行 pnpm test:coverage:check`,
   );
 
 let summary;
@@ -108,6 +108,8 @@ for (const [fileKey, data] of Object.entries(summary)) {
   if (data.lines.pct < MIN_LINE_COVERAGE)
     failures.push({ file: f, linePct: data.lines.pct, threshold: MIN_LINE_COVERAGE });
 }
+
+if (checkedCount === 0) fail('未检查任何文件（ALLOWED_PREFIXES 可能与 coverage-summary 键不匹配）');
 
 console.log('\n[coverage-check] 覆盖率门控检查');
 console.log('\n  全局门槛:');

@@ -9,16 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - feat(frontend): 货币切换支持（DollarInput ¥/$）+ 图表工具打磨（tooltip 转义、坐标轴首尾刻度、dataZoom 主题化、品牌色）+ admin/表单可访问性完善（aria-label、年份截断）
 - refactor(frontend): ticker 标签输入、图表空态/参考线、signal 结果面板、portfolio 编辑器 props 契约、tactical 参数共享类型收编
+- refactor(frontend): UI 组件令牌化与 InfoTooltip 复用收敛
 - fix(worker): 数据更新全部失败时抛错触发重试/DLQ（S16）
-- test: 移除失效 stub 键收敛 mock 样板
+- fix(backend)：引擎成功指标移至契约校验通过后记录（校验失败不双计）；计算端点输入规模上限收紧（MC 模拟/年数、优化迭代、有效前沿点数）
+- fix(frontend)：月度热力图月份标签走 i18n（移除硬编码英文缩写）
+- test：回测路由引擎契约断言收紧（tickers/correlations 全等）；e2e fuzz 错误判定收窄为运行期错误文案、a11y 断言参数语义修正；组合权重校验工具单元覆盖；测试样板收敛
+- chore(ci)：覆盖率检查脚本容错（前缀匹配 startsWith、无数据文件降级警告）
 - 治理收尾：verify 拆分出 verify-static（C-015 ADR 一致性/C-016 CHANGELOG/C-017 迁移/C-019 前端死代码等纯静态检查），CI 的 `--skip-db --skip-frontend` 不再使其失效；run-all 仅聚合本次运行脚本的结果并清理过期 audit 生成物
 - 配置/文档对齐：tsconfig paths 收敛单一通配、vite 死 glob 清理、env 默认 DB 用户降权为最小权限 backtest_app、.env.example 权威源指引、React 19 版本对齐、ops-guide/security 端口与键名修正
 - 治理收尾（ADR-017）：退役 CI 从不执行的 verify-backend/verify-frontend 脚本（RLS/迁移由集成测试+静态检查承担），run-all 移除 --skip-db/--skip-frontend 分支；CLS 与起始资金默认值断言并入 E2E（page-load-performance P4、backtest beforeEach）
-- fix(backend)：引擎成功指标移至契约校验通过后记录（校验失败不双计）；计算端点输入规模上限收紧（MC 模拟/年数、优化迭代、有效前沿点数）
-- fix(frontend)：月度热力图月份标签走 i18n（移除硬编码英文缩写）
-- refactor(frontend)：UI 组件令牌化与 InfoTooltip 复用收敛
-- test：回测路由引擎契约断言收紧（tickers/correlations 全等）；e2e fuzz 错误判定收窄为运行期错误文案、a11y 断言参数语义修正；组合权重校验工具单元覆盖；测试样板收敛
-- chore(ci)：覆盖率检查脚本容错（前缀匹配 startsWith、无数据文件降级警告）
+- 治理收尾（ADR-013~018）：退役死 schema、未实现引擎字段、data-fetcher 独立 worker CLI、零消费者认证/用户管理出口、悬空 verify 脚本；迁移 forward-only 退役回滚机制
+
+- chore(adr): ADR-018 迁移 forward-only，退役回滚机制；文档对齐（deep-dive/application-layer-contract 移除 events/ 引用）；docker-compose data-fetcher 降权至 backtest_app
 
 ## [0.4.1] - 2026-08-09
 

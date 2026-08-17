@@ -30,5 +30,5 @@ apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata: { name: worker-pdb }
 spec:
-  maxUnavailable: 0
+  minAvailable: 1
   selector: { matchLabels: { app: backtest-worker } }

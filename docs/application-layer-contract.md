@@ -36,5 +36,5 @@ domain 层**不得** import `utils/errors.js`（反向依赖）。
 ```
 application/   backtest/montecarlo/optimize/tactical/grid service + analysis/signal orchestrator + 审计/计费服务
 services/      仅 backtestWs.ts（其余服务已并入 application/，ADR-012）
-domain/        aggregates/ value-objects/ services/ events/
+domain/        aggregates/ value-objects/ services/
 ```

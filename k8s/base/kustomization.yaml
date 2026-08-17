@@ -21,21 +21,10 @@ resources:
   - ../ingress.yaml
   - ../postgres.yaml
   - ../redis.yaml
-  - ../mtls-issuer.yaml
   - ../prometheus-rules.yaml
   - ../alertmanager-deployment.yaml
   - ../network-policies/
 patchesJson6902:
-  - target: { group: cert-manager.io, version: v1, kind: Issuer, name: backtest-ca-issuer }
-    patch: |
-      - op: replace
-        path: /metadata/namespace
-        value: cert-manager
-  - target: { group: cert-manager.io, version: v1, kind: Certificate, name: backtest-ca }
-    patch: |
-      - op: replace
-        path: /metadata/namespace
-        value: cert-manager
   - target:
       {
         group: monitoring.coreos.com,
