@@ -50,25 +50,15 @@ export function brotliCompress(req: Request, res: Response, next: NextFunction):
       originalEnd();
     };
     if (acceptBrotli) {
+      // prettier-ignore
       zlib.brotliCompress(
         body,
         { params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 6 } },
-        (err, compressed) => {
-          if (err) {
-            fallback();
-            return;
-          }
-          applyEncoding('br', compressed);
-        },
+        (err, compressed) => { if (err) { fallback(); return; } applyEncoding('br', compressed); },
       );
     } else if (acceptGzip) {
-      zlib.gzip(body, { level: 6 }, (err, compressed) => {
-        if (err) {
-          fallback();
-          return;
-        }
-        applyEncoding('gzip', compressed);
-      });
+      // prettier-ignore
+      zlib.gzip(body, { level: 6 }, (err, compressed) => { if (err) { fallback(); return; } applyEncoding('gzip', compressed); });
     } else {
       fallback();
     }

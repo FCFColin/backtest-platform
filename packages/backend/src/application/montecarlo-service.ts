@@ -23,12 +23,9 @@ export async function runMonteCarlo(
   mcParams?: Record<string, unknown>,
 ): Promise<{ data: unknown; warnings: Warning[]; dateRange: DateRangeInfo }> {
   const { domainPortfolios, allTickers } = preparePortfolioBacktest(portfolioList, parameters);
+  // prettier-ignore
   const { priceData, warnings, invalidTickers, effectiveStartDate, effectiveEndDate } =
-    await preparePriceDataAndWarnings(
-      Array.from(allTickers),
-      parameters.startDate,
-      parameters.endDate,
-    );
+    await preparePriceDataAndWarnings(Array.from(allTickers), parameters.startDate, parameters.endDate);
 
   const { cpiData, exchangeRates } = await loadMacroData(parameters);
 
