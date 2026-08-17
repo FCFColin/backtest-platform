@@ -68,13 +68,18 @@ export function ToolSeoCard({ subtitle, desc, features, related, relatedLabel }:
   return (
     <Card className="mb-3 p-5">
       {subtitle && <h2 className="mb-3 text-h3 font-medium text-fg-secondary">{subtitle}</h2>}
-      {typeof desc === 'string'
-        ? desc.split('\n\n').filter(Boolean).map((paragraph, i) => (
+      {typeof desc === 'string' ? (
+        desc
+          .split('\n\n')
+          .filter(Boolean)
+          .map((paragraph, i) => (
             <p key={i} className="mb-3 text-body leading-relaxed text-fg-secondary last:mb-5">
               {paragraph}
             </p>
           ))
-        : <div className="mb-5 text-body leading-relaxed text-fg-secondary">{desc}</div>}
+      ) : (
+        <div className="mb-5 text-body leading-relaxed text-fg-secondary">{desc}</div>
+      )}
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {features.map((feature) => (
           <div key={feature.title} className="min-w-0">

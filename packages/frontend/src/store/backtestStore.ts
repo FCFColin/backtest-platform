@@ -66,7 +66,6 @@ export async function pollJobStatus(
 const setIfCurrent = (set: SetFn, requestId: number, patch: Partial<BacktestState>) => {
   if (requestId === currentRequestId) set(patch);
 };
-// 任何参数/组合变更都会使已有结果过期，集中标记避免各 mutation 遗漏
 const stale = <T>(patch: T): T & { resultsStale: true } => ({ ...patch, resultsStale: true });
 async function runBacktestAction(set: SetFn, get: GetFn): Promise<void> {
   const requestId = ++currentRequestId;
@@ -101,7 +100,6 @@ async function runBacktestAction(set: SetFn, get: GetFn): Promise<void> {
     if (!response.ok) throw new Error(extractApiErrorDetail(json));
     if (json.success === false) {
       useToastStore.getState().addToast('error', extractApiErrorDetail(json));
-      // 保留上一次结果，避免失败清空已有分析
       set({ error: extractApiErrorDetail(json) });
       return;
     }
@@ -118,7 +116,6 @@ async function runBacktestAction(set: SetFn, get: GetFn): Promise<void> {
     }
   } catch (error) {
     if (requestId !== currentRequestId) return;
-    // 保留上一次结果，失败仅展示错误横幅
     set({ error: handleBacktestError(error) });
   } finally {
     clearTimeout(timeoutId);

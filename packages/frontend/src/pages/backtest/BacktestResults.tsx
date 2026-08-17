@@ -133,7 +133,11 @@ function TabBar() {
             key={tab.key}
             variant={activeTab === tab.key ? 'secondary' : 'ghost'}
             size="sm"
-            className={activeTab === tab.key ? 'shrink-0 text-brand border-b-2 border-brand rounded-b-none' : 'shrink-0'}
+            className={
+              activeTab === tab.key
+                ? 'shrink-0 text-brand border-b-2 border-brand rounded-b-none'
+                : 'shrink-0'
+            }
             aria-pressed={activeTab === tab.key}
             onClick={() => selectTab(tab.key)}
           >

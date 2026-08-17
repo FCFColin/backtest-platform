@@ -26,7 +26,11 @@ export function SegmentedControl<T extends string | number>({
         : 'text-fg-tertiary'
     }`;
   return (
-    <div className="inline-flex bg-hover rounded-md p-0.5 gap-0.5" role="radiogroup" aria-label={ariaLabel}>
+    <div
+      className="inline-flex bg-hover rounded-md p-0.5 gap-0.5"
+      role="radiogroup"
+      aria-label={ariaLabel}
+    >
       {options.map((opt, i) => (
         <button
           key={String(opt.value)}
