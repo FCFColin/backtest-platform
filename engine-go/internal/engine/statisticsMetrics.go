@@ -495,3 +495,39 @@ func CalcPWRAllYears(annualReturns []float64) (pwr10y, swr10y, pwr20y, swr20y, p
 	}
 	return
 }
+
+type benchmarkMetrics struct {
+	Beta, Alpha, RSquared, TrackingError, InformationRatio float64
+	UpsideCapture, DownsideCapture, CaptureSpread         float64
+	BenchmarkCorrelation                                  float64
+	UpsideCorrelation, DownsideCorrelation                float64
+	UpsideBeta, DownsideBeta                              float64
+	Treynor, M2, AlphaDaily, ActiveReturn                 float64
+}
+
+func computeBenchmarkMetrics(portfolioReturns, benchmarkReturns []float64, cagr, benchmarkCagr float64) benchmarkMetrics {
+	beta := CalcBeta(portfolioReturns, benchmarkReturns)
+	alpha := CalcAlpha(cagr, beta, benchmarkCagr)
+	trackingErr := CalcTrackingError(portfolioReturns, benchmarkReturns)
+	upsideDaily := CalcCaptureRatio(portfolioReturns, benchmarkReturns, true)
+	downsideDaily := CalcCaptureRatio(portfolioReturns, benchmarkReturns, false)
+	return benchmarkMetrics{
+		Beta:                 beta,
+		Alpha:                alpha,
+		RSquared:             CalcRSquared(portfolioReturns, benchmarkReturns),
+		TrackingError:        trackingErr,
+		InformationRatio:     CalcInformationRatio(alpha, trackingErr),
+		UpsideCapture:        upsideDaily,
+		DownsideCapture:      downsideDaily,
+		CaptureSpread:        upsideDaily - downsideDaily,
+		BenchmarkCorrelation: CalcCorrelation(portfolioReturns, benchmarkReturns),
+		UpsideCorrelation:    CalcConditionalCorr(portfolioReturns, benchmarkReturns, true),
+		DownsideCorrelation:  CalcConditionalCorr(portfolioReturns, benchmarkReturns, false),
+		UpsideBeta:           CalcConditionalBeta(portfolioReturns, benchmarkReturns, true),
+		DownsideBeta:         CalcConditionalBeta(portfolioReturns, benchmarkReturns, false),
+		Treynor:              CalcTreynor(cagr, beta),
+		M2:                   CalcM2(CalcSharpe(cagr, CalcAnnualizedStdev(benchmarkReturns)), CalcAnnualizedStdev(benchmarkReturns)),
+		AlphaDaily:           CalcAlphaDaily(portfolioReturns, benchmarkReturns, beta),
+		ActiveReturn:         cagr - benchmarkCagr,
+	}
+}

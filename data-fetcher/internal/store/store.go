@@ -30,6 +30,11 @@ type SearchResult struct {
 	Name   string `json:"name"`
 	Market string `json:"market"`
 }
+type CPIEntry struct {
+	Date  string  `json:"date"`
+	Value float64 `json:"value"`
+}
+
 type DataStore struct {
 	pool *pgxpool.Pool
 	reg  *provider.Registry
@@ -247,4 +252,22 @@ func (ds *DataStore) SearchTickers(ctx context.Context, query string, limit int)
 		return nil, fmt.Errorf("迭代搜索结果失败: %w", err)
 	}
 	return results, nil
+}
+func (ds *DataStore) GetCPI(ctx context.Context, country string) ([]CPIEntry, error) {
+	rows, err := ds.pool.Query(ctx, `SELECT date, value FROM cpi_data WHERE country = $1 ORDER BY date`, country)
+	if err != nil {
+		return nil, fmt.Errorf("%w: 查询CPI失败: %v", ErrDBQuery, err)
+	}
+	defer rows.Close()
+	var entries []CPIEntry
+	for rows.Next() {
+		var e CPIEntry
+		var date time.Time
+		if err := rows.Scan(&date, &e.Value); err != nil {
+			return nil, fmt.Errorf("%w: 扫描CPI行失败: %v", ErrDBQuery, err)
+		}
+		e.Date = date.Format("2006-01-02")
+		entries = append(entries, e)
+	}
+	return entries, rows.Err()
 }

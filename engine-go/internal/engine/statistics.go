@@ -51,7 +51,6 @@ func CalculateStatisticsFromRequest(req StatisticsRequest) Statistics {
 	stdevDailyRaw := mathutil.Std(req.DailyReturns)
 	stdevDaily := stdevDailyRaw * math.Sqrt(tradingDaysPerYear)
 	rfDaily := RiskFreeDaily()
-	rfMonthly := RiskFreeMonthly()
 	dd := CalcMaxDrawdown(req.Values)
 	ulcerIdx := CalcUlcerIndex(req.Values)
 	sortino := CalcSortino(cagr, req.DailyReturns)
@@ -60,26 +59,9 @@ func CalculateStatisticsFromRequest(req StatisticsRequest) Statistics {
 	if finalValue > 0 {
 		mwrr = CalcMWRR(append(append([]Cashflow{}, req.MwrrCashflows...), Cashflow{Value: finalValue, Time: years}))
 	}
-	beta, alpha, rSq, trackingErr, infoRatio, upsideDaily, downsideDaily := 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
-	benchmarkCorrelation, upsideCorr, downsideCorr, upsideBetaVal, downsideBetaVal, treynor, m2, alphaDaily, activeReturn := 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+	var bm benchmarkMetrics
 	if len(req.BenchmarkDailyReturns) >= 2 && req.BenchmarkCagr != nil {
-		bench := req.BenchmarkDailyReturns
-		beta = CalcBeta(req.DailyReturns, bench)
-		alpha = CalcAlpha(cagr, beta, *req.BenchmarkCagr)
-		rSq = CalcRSquared(req.DailyReturns, bench)
-		trackingErr = CalcTrackingError(req.DailyReturns, bench)
-		infoRatio = CalcInformationRatio(alpha, trackingErr)
-		upsideDaily = CalcCaptureRatio(req.DailyReturns, bench, true)
-		downsideDaily = CalcCaptureRatio(req.DailyReturns, bench, false)
-		benchmarkCorrelation = CalcCorrelation(req.DailyReturns, bench)
-		upsideCorr = CalcConditionalCorr(req.DailyReturns, bench, true)
-		downsideCorr = CalcConditionalCorr(req.DailyReturns, bench, false)
-		upsideBetaVal = CalcConditionalBeta(req.DailyReturns, bench, true)
-		downsideBetaVal = CalcConditionalBeta(req.DailyReturns, bench, false)
-		treynor = CalcTreynor(cagr, beta)
-		m2 = CalcM2(sharpe, CalcAnnualizedStdev(bench))
-		alphaDaily = CalcAlphaDaily(req.DailyReturns, bench, beta)
-		activeReturn = cagr - *req.BenchmarkCagr
+		bm = computeBenchmarkMetrics(req.DailyReturns, req.BenchmarkDailyReturns, cagr, *req.BenchmarkCagr)
 	}
 	totalReturn := CalcTotalReturn(req.StartingValue, finalValue)
 	pctPosDays := ratioPositive(req.DailyReturns)
@@ -107,13 +89,12 @@ func CalculateStatisticsFromRequest(req StatisticsRequest) Statistics {
 	avgDailyGain, avgDailyLoss, gainLossRatioDaily := CalcAvgGainLoss(req.DailyReturns)
 	avgMonthlyGain, avgMonthlyLoss, gainLossRatioMonthly := CalcAvgGainLoss(req.MonthlyReturnValues)
 	avgAnnualGain, avgAnnualLoss, gainLossRatioAnnual := CalcAvgGainLoss(req.AnnualReturnValues)
-	captureSpread := upsideDaily - downsideDaily
 	return Statistics{
 		CAGR: cagr, MWRR: mwrr, Stdev: stdevDaily, Sharpe: sharpe, Sortino: sortino, MaxDrawdown: dd.MaxDrawdown, MaxDrawdownDuration: dd.MaxDrawdownDuration,
 		BestYear: maxAnnualRet, WorstYear: minAnnualRet, AvgYear: avgAnnual, TotalReturn: totalReturn,
 		MaxMonthlyReturn: MaxValue(req.MonthlyReturnValues), MinMonthlyReturn: MinValue(req.MonthlyReturnValues), AvgDrawdown: CalcAvgDrawdown(req.Values), UlcerIndex: ulcerIdx,
-		Calmar: CalcCalmar(cagr, dd.MaxDrawdown), UlcerPerformanceIndex: CalcUPI(cagr, ulcerIdx), Beta: beta, Alpha: alpha, RSquared: rSq,
-		TrackingError: trackingErr, InformationRatio: infoRatio, UpsideCapture: upsideDaily, DownsideCapture: downsideDaily,
+		Calmar: CalcCalmar(cagr, dd.MaxDrawdown), UlcerPerformanceIndex: CalcUPI(cagr, ulcerIdx), Beta: bm.Beta, Alpha: bm.Alpha, RSquared: bm.RSquared,
+		TrackingError: bm.TrackingError, InformationRatio: bm.InformationRatio, UpsideCapture: bm.UpsideCapture, DownsideCapture: bm.DownsideCapture,
 		MaxDailyReturn: maxDailyRet, MinDailyReturn: minDailyRet, PWR: pwr,
 		Var: vaRByFrequency(freqs, CalcVaR), Cvar: vaRByFrequency(freqs, CalcCVaR),
 		Skewness: skewByFrequency(freqs, CalcSkewness), ExcessKurtosis: skewByFrequency(freqs, CalcExcessKurtosis),
@@ -122,12 +103,12 @@ func CalculateStatisticsFromRequest(req StatisticsRequest) Statistics {
 		StdevAnnual: mathutil.Std(req.AnnualReturnValues), StdevMonthly: mathutil.Std(req.MonthlyReturnValues) * math.Sqrt(12), StdevMonthlyRaw: mathutil.Std(req.MonthlyReturnValues),
 		StdevDaily: stdevDaily, StdevDailyRaw: stdevDailyRaw,
 		DownsideDeviation: mathutil.DownsideDeviation(req.DailyReturns, rfDaily) * math.Sqrt(tradingDaysPerYear), DownsideDeviationDailyRaw: mathutil.DownsideDeviation(req.DailyReturns, rfDaily),
-		DownsideDeviationMonthly: mathutil.DownsideDeviation(req.MonthlyReturnValues, rfMonthly) * math.Sqrt(12), DownsideDeviationMonthlyRaw: mathutil.DownsideDeviation(req.MonthlyReturnValues, rfMonthly),
+		DownsideDeviationMonthly: mathutil.DownsideDeviation(req.MonthlyReturnValues, RiskFreeMonthly()) * math.Sqrt(12), DownsideDeviationMonthlyRaw: mathutil.DownsideDeviation(req.MonthlyReturnValues, RiskFreeMonthly()),
 		DownsideDeviationAnnual: mathutil.DownsideDeviation(req.AnnualReturnValues, riskFreeRate), DrawdownRecoveryFactor: CalcDrawdownRecoveryFactor(totalReturn, dd.MaxDrawdown),
-		M2: m2, Treynor: treynor, BenchmarkCorrelation: benchmarkCorrelation, UpsideCorrelation: upsideCorr, DownsideCorrelation: downsideCorr,
-		UpsideBeta: upsideBetaVal, DownsideBeta: downsideBetaVal, AlphaDaily: alphaDaily, AlphaAnnualized: alpha,
-		CaptureSpread: captureSpread,
-		ActiveReturn:  activeReturn, PctPositiveMonths: pctPosMonths, PctPositiveYears: pctPosYears, MaxAnnualReturn: maxAnnualRet, MinAnnualReturn: minAnnualRet,
+		M2: bm.M2, Treynor: bm.Treynor, BenchmarkCorrelation: bm.BenchmarkCorrelation, UpsideCorrelation: bm.UpsideCorrelation, DownsideCorrelation: bm.DownsideCorrelation,
+		UpsideBeta: bm.UpsideBeta, DownsideBeta: bm.DownsideBeta, AlphaDaily: bm.AlphaDaily, AlphaAnnualized: bm.Alpha,
+		CaptureSpread: bm.CaptureSpread,
+		ActiveReturn:  bm.ActiveReturn, PctPositiveMonths: pctPosMonths, PctPositiveYears: pctPosYears, MaxAnnualReturn: maxAnnualRet, MinAnnualReturn: minAnnualRet,
 		AvgDailyGain: avgDailyGain, AvgDailyLoss: avgDailyLoss, GainLossRatioDaily: gainLossRatioDaily,
 		AvgMonthlyGain: avgMonthlyGain, AvgMonthlyLoss: avgMonthlyLoss, GainLossRatioMonthly: gainLossRatioMonthly,
 		AvgAnnualGain: avgAnnualGain, AvgAnnualLoss: avgAnnualLoss, GainLossRatioAnnual: gainLossRatioAnnual,

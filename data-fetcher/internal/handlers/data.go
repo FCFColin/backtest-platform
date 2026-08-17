@@ -13,7 +13,6 @@ import (
 	"regexp"
 	"strings"
 	"sync"
-	"time"
 )
 
 var tickerPattern = regexp.MustCompile(`^[A-Z0-9._-]{1,20}$`)
@@ -145,36 +144,16 @@ func HandleCPI(ds *store.DataStore) gin.HandlerFunc {
 			sharedhttp.NewProblem(c, http.StatusBadRequest, "VALIDATION_ERROR", "Validation Error", "目前仅支持美国(us)和中国(cn)CPI数据")
 			return
 		}
-		rows, err := ds.Pool().Query(c.Request.Context(), `
-			SELECT date, value FROM cpi_data
-			WHERE country = $1
-			ORDER BY date
-		`, strings.ToUpper(country))
+		data, err := ds.GetCPI(c.Request.Context(), strings.ToUpper(country))
 		if err != nil {
 			sharedhttp.NewProblem(c, http.StatusInternalServerError, "CPI_QUERY_FAILED", "CPI Query Failed", "查询CPI数据失败")
 			return
 		}
-		defer rows.Close()
-		type cpiEntry struct {
-			Date  string  `json:"date"`
-			Value float64 `json:"value"`
-		}
-		var cpiData []cpiEntry
-		for rows.Next() {
-			var e cpiEntry
-			var date time.Time
-			if err := rows.Scan(&date, &e.Value); err != nil {
-				sharedhttp.NewProblem(c, http.StatusInternalServerError, "CPI_PARSE_FAILED", "CPI Parse Failed", "解析CPI数据失败")
-				return
-			}
-			e.Date = date.Format("2006-01-02")
-			cpiData = append(cpiData, e)
-		}
-		if len(cpiData) == 0 {
+		if len(data) == 0 {
 			sharedhttp.NewProblem(c, http.StatusNotFound, "DATA_NOT_FOUND", "Data Not Found", "CPI数据不存在: "+country)
 			return
 		}
-		c.JSON(http.StatusOK, gin.H{"success": true, "data": cpiData})
+		c.JSON(http.StatusOK, gin.H{"success": true, "data": data})
 	}
 }
 func HandleHealth(ds *store.DataStore) gin.HandlerFunc {
