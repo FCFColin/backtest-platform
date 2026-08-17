@@ -7,11 +7,30 @@ on:
 
 permissions:
   contents: write
-  packages: read
+  packages: write
 
 jobs:
+  build-and-push:
+    name: Build & Push Docker Images
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Login to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+      - name: Build and push API
+        run: docker build -f Dockerfile.backend -t ghcr.io/${{ github.repository }}/api:${{ github.ref_name }} --push .
+      - name: Build and push data-fetcher
+        run: docker build -f data-fetcher/Dockerfile -t ghcr.io/${{ github.repository }}/data-fetcher:${{ github.ref_name }} --push .
+      - name: Build and push engine-go
+        run: docker build -f engine-go/Dockerfile -t ghcr.io/${{ github.repository }}/engine-go:${{ github.ref_name }} --push .
+      - name: Build and push worker
+        run: docker build -f docker/worker/Dockerfile -t ghcr.io/${{ github.repository }}/worker:${{ github.ref_name }} --push .
+      - name: Build and push frontend
+        run: docker build -f Dockerfile.frontend -t ghcr.io/${{ github.repository }}/frontend:${{ github.ref_name }} --push .
+
   release-notes:
     name: GitHub Release
+    needs: build-and-push
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262

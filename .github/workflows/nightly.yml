@@ -161,13 +161,19 @@ jobs:
           sarif_file: trivy-results.sarif
       - name: Security gate (block on CRITICAL/HIGH)
         if: always()
+        env:
+          OUTCOME_API: ${{ steps.trivy-api.outcome }}
+          OUTCOME_DATA: ${{ steps.trivy-data-fetcher.outcome }}
+          OUTCOME_ENGINE: ${{ steps.trivy-engine.outcome }}
+          OUTCOME_WORKER: ${{ steps.trivy-worker.outcome }}
+          OUTCOME_FRONTEND: ${{ steps.trivy-frontend.outcome }}
         run: |
-          if [ "${{ steps.trivy-api.outcome }}" = "failure" ] || \
-             [ "${{ steps.trivy-data-fetcher.outcome }}" = "failure" ] || \
-             [ "${{ steps.trivy-engine.outcome }}" = "failure" ] || \
-             [ "${{ steps.trivy-worker.outcome }}" = "failure" ] || \
-             [ "${{ steps.trivy-frontend.outcome }}" = "failure" ]; then
-            echo "::error::Trivy 发现 CRITICAL/HIGH 可修复漏洞，阻断"
+          if [ "$OUTCOME_API" = "failure" ] || \
+             [ "$OUTCOME_DATA" = "failure" ] || \
+             [ "$OUTCOME_ENGINE" = "failure" ] || \
+             [ "$OUTCOME_WORKER" = "failure" ] || \
+             [ "$OUTCOME_FRONTEND" = "failure" ]; then
+            echo "::error::Trivy CRITICAL/HIGH findings — blocked"
             exit 1
           fi
 
@@ -284,6 +290,7 @@ jobs:
       - name: Install scc
         run: |
           curl -sL https://github.com/boyter/scc/releases/download/v3.7.0/scc_Linux_x86_64.tar.gz -o scc.tar.gz
+          echo "38c292dc5d7405b96a4698032a4e8e8e37b71cd38e3b87c4e6a6f7c2805ef8f4  scc.tar.gz" | sha256sum -c -
           mkdir -p /tmp/scc
           tar -xzf scc.tar.gz -C /tmp/scc
           echo "/tmp/scc" >> $GITHUB_PATH
