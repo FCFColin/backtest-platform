@@ -72,7 +72,7 @@ function EquityCurveSection({ equityCurve: data }: EquityCurveSectionProps) {
       data={chartData}
       series={[{ dataKey: 'value', legendName: t('Equity') }]}
       referenceY={10000}
-      tooltipValueFormatter={(v) => [`$${v.toLocaleString()}`, t('Equity')]}
+      tooltipValueFormatter={(v) => [fmtAmount(v), t('Equity')]}
       tooltipLabelFormatter={(label) => `${t('Date')}: ${label}`}
     />
   );
@@ -215,7 +215,7 @@ export function MultiSignalResultsPanel({
             data={equityChartData}
             series={[{ dataKey: 'value', legendName: t('Aggregated Equity') }]}
             referenceY={10000}
-            tooltipValueFormatter={(v) => [`$${v.toLocaleString()}`, t('Equity')]}
+            tooltipValueFormatter={(v) => [fmtAmount(v), t('Equity')]}
             tooltipLabelFormatter={(label) => `${t('Date')}: ${label}`}
           />
         </ResultsSection>

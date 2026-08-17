@@ -64,7 +64,7 @@
   color-scheme: dark;
   --app: 224 15% 5%;
   --surface: 222 14% 8%;
-  --elevated: 222 13% 10%;
+  --elevated: 222 13% 12%;
   --input-bg: 220 13% 13%;
   --hover: 222 13% 16%;
 
@@ -85,6 +85,7 @@
   --brand: 214 100% 52%;
   --brand-hover: 214 100% 48%;
   --brand-active: 214 100% 44%;
+  --brand-fg: 0 0% 98%;
 
   --chart-1: 214 100% 60%;
   --chart-2: 38 92% 50%;

@@ -217,6 +217,7 @@ export default function BacktestPage() {
   return (
     <>
       <BacktestHero />
+      <div className="page-container border-t border-border-subtle" />
       <ComputeToolShell config={config} state={state} />
     </>
   );

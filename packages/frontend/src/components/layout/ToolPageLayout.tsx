@@ -49,47 +49,32 @@ export function ToolPageLayout({
       </Card>
       {afterParams}
       {results && (
-        <Card id="results" className="scroll-mt-32 p-5">
+        <div id="results" className="scroll-mt-32">
           <div className="w-full">{results}</div>
-        </Card>
+        </div>
       )}
     </div>
   );
 }
-interface ToolSeoFeature {
-  title: string;
-  desc: string;
-}
-interface ToolSeoRelatedLink {
-  title: string;
-  href: string;
-}
 interface ToolSeoCardProps {
   subtitle?: string;
   desc: ReactNode;
-  features: ToolSeoFeature[];
-  related?: ToolSeoRelatedLink[];
+  features: { title: string; desc: string }[];
+  related?: { title: string; href: string }[];
   relatedLabel?: string;
 }
 export function ToolSeoCard({ subtitle, desc, features, related, relatedLabel }: ToolSeoCardProps) {
   const { t } = useTranslation();
-  const renderDesc = () => {
-    if (typeof desc === 'string') {
-      return desc
-        .split('\n\n')
-        .filter(Boolean)
-        .map((paragraph, i) => (
-          <p key={i} className="mb-3 text-body leading-relaxed text-fg-secondary last:mb-5">
-            {paragraph}
-          </p>
-        ));
-    }
-    return <div className="mb-5 text-body leading-relaxed text-fg-secondary">{desc}</div>;
-  };
   return (
     <Card className="mb-3 p-5">
       {subtitle && <h2 className="mb-3 text-h3 font-medium text-fg-secondary">{subtitle}</h2>}
-      {renderDesc()}
+      {typeof desc === 'string'
+        ? desc.split('\n\n').filter(Boolean).map((paragraph, i) => (
+            <p key={i} className="mb-3 text-body leading-relaxed text-fg-secondary last:mb-5">
+              {paragraph}
+            </p>
+          ))
+        : <div className="mb-5 text-body leading-relaxed text-fg-secondary">{desc}</div>}
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {features.map((feature) => (
           <div key={feature.title} className="min-w-0">

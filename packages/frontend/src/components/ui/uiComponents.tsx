@@ -168,8 +168,13 @@ const alertVariants = cva(
 export const Alert = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement> & VariantProps<typeof alertVariants>
->(({ className, variant, role = 'alert', ...props }, ref) => (
-  <div ref={ref} role={role} className={cn(alertVariants({ variant }), className)} {...props} />
+>(({ className, variant, role, ...props }, ref) => (
+  <div
+    ref={ref}
+    role={role ?? (variant === 'destructive' ? 'alert' : 'status')}
+    className={cn(alertVariants({ variant }), className)}
+    {...props}
+  />
 ));
 export const AlertDescription = wrapPrimitive(
   'div',
@@ -396,12 +401,6 @@ export const TabsTrigger = wrapPrimitive(
 );
 export const TabsContent = wrapPrimitive(TabsPrimitive.Content, 'mt-2', 'TabsContent');
 
-const Tooltip = ({ children }: { children: ReactNode }) => (
-  <TooltipPrimitive.Provider delayDuration={200}>
-    <TooltipPrimitive.Root>{children}</TooltipPrimitive.Root>
-  </TooltipPrimitive.Provider>
-);
-const TooltipTrigger = TooltipPrimitive.Trigger;
 const TooltipContent = React.forwardRef<
   React.ElementRef<typeof TooltipPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof TooltipPrimitive.Content>
@@ -420,21 +419,14 @@ const TooltipContent = React.forwardRef<
   </TooltipPrimitive.Portal>
 ));
 TooltipContent.displayName = 'TooltipContent';
-export function InfoTooltip({ description }: { description: string }) {
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Info
-          className="size-3 shrink-0 cursor-help text-fg-tertiary"
-          aria-label={description}
-          tabIndex={0}
-          role="img"
-        />
-      </TooltipTrigger>
-      <TooltipContent>{description}</TooltipContent>
-    </Tooltip>
-  );
-}
+export const InfoTooltip = ({ description }: { description: string }) => (
+  <TooltipPrimitive.Root>
+    <TooltipPrimitive.Trigger asChild>
+      <Info className="size-3 shrink-0 cursor-help text-fg-tertiary" aria-label={description} tabIndex={0} role="img" />
+    </TooltipPrimitive.Trigger>
+    <TooltipContent>{description}</TooltipContent>
+  </TooltipPrimitive.Root>
+);
 interface LoadingButtonProps extends ButtonProps {
   isLoading: boolean;
   loadingText?: string;
@@ -463,7 +455,7 @@ export function LoadingButton({
   );
 }
 
-const SPINNER_SIZES: Record<number, string> = { 4: 'size-4', 5: 'size-5', 8: 'h-8 w-8' };
+const SPINNER_SIZES: Record<number, string> = { 4: 'size-4', 5: 'size-5', 6: 'size-6', 8: 'size-8' };
 export function Spinner({ size = 5, className }: { size?: number; className?: string }) {
   return (
     <div

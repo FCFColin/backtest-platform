@@ -3,11 +3,13 @@ interface SegmentedControlProps<T extends string | number> {
   options: { value: T; label: ReactNode }[];
   value: T;
   onChange: (value: T) => void;
+  'aria-label'?: string;
 }
 export function SegmentedControl<T extends string | number>({
   options,
   value,
   onChange,
+  'aria-label': ariaLabel,
 }: SegmentedControlProps<T>) {
   const refs = useRef<Array<HTMLButtonElement | null>>([]);
   const focusAt = (i: number) =>
@@ -24,7 +26,7 @@ export function SegmentedControl<T extends string | number>({
         : 'text-fg-tertiary'
     }`;
   return (
-    <div className="inline-flex bg-hover rounded-md p-0.5 gap-0.5" role="radiogroup">
+    <div className="inline-flex bg-hover rounded-md p-0.5 gap-0.5" role="radiogroup" aria-label={ariaLabel}>
       {options.map((opt, i) => (
         <button
           key={String(opt.value)}

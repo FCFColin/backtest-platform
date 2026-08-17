@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
+import * as TooltipPrimitive from '@radix-ui/react-tooltip';
 import { OfflineBanner } from '@/components/stateDisplay';
 import Navbar from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
@@ -48,7 +49,7 @@ export default function AppShell() {
   }, []);
   useIdleTimeout(idleTimeoutMs, isAuthenticated);
   return (
-    <>
+    <TooltipPrimitive.Provider delayDuration={200}>
       <OfflineBanner />
       <a
         href="#main-content"
@@ -71,6 +72,6 @@ export default function AppShell() {
         <AppRoutes />
       </main>
       {!isAdmin && <Footer />}
-    </>
+    </TooltipPrimitive.Provider>
   );
 }
