@@ -31,6 +31,13 @@ regex = '''ADMIN_API_KEY\s*=\s*"?([^"'\r\n]{8,})"?'''
 secretGroup = 1
 keywords = ["ADMIN_API_KEY"]
 
+[[rules]]
+id = "jwt-secret"
+description = "JWT Secret"
+regex = '''JWT_SECRET\s*=\s*"?([^"'\r\n]{8,})"?'''
+secretGroup = 1
+keywords = ["JWT_SECRET"]
+
 [allowlist]
 description = "Allowlisted paths"
 paths = [
