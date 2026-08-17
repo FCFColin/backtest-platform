@@ -124,15 +124,15 @@ function expressToOpenApiPath(exprPath: string): string {
   return normalizePath(exprPath.replace(/:(\w+)/g, '{$1}'));
 }
 
-// tenantCrudRoutes 合成路径：按 router.use('子路径', ...) 块推导真实子前缀与 update 支持，
-// 而非凭空生成 '/' 与 '/{id}'（后者在非根挂载下产生不存在的假路径）。
+// tenantCrudRoutes 合成路径：按 router.use('子路径', ...)/crudMount('子路径', ...) 块推导真实
+// 子前缀与 update 支持，而非凭空生成 '/' 与 '/{id}'（后者在非根挂载下产生不存在的假路径）。
 function factoryRoutesFromFile(
   content: string,
   specPrefix: string,
 ): Array<{ method: string; path: string }> {
   if (!content.includes('tenantCrudRoutes(')) return [];
   const routes: Array<{ method: string; path: string }> = [];
-  const blockRegex = /router\.use\(\s*['"`]([^'"`]+)['"`][\s\S]*?\)\s*;/g;
+  const blockRegex = /(?:router\.use|crudMount)\(\s*['"`]([^'"`]+)['"`][\s\S]*?\)\s*;/g;
   let match: RegExpExecArray | null;
   while ((match = blockRegex.exec(content)) !== null) {
     const base = normalizePath(specPrefix + match[1]);

@@ -11,45 +11,36 @@ vi.mock('../../../packages/backend/src/application/auditStorageService.js', () =
   writeAuditLog: vi.fn().mockResolvedValue('audit-1'),
 }));
 
-import { AuditEventHandler } from '../../../packages/backend/src/application/auditEventHandler.js';
+import { handleAuditEvent, AUDIT_EVENT_TYPE } from '../../../packages/backend/src/application/auditEventHandler.js';
+import type { AuditEventInput } from '../../../packages/backend/src/application/auditEventHandler.js';
 import { writeAuditLog } from '../../../packages/backend/src/application/auditStorageService.js';
-import type { DomainEvent } from '../../../packages/backend/src/domain/events/events.js';
 
-function makeEvent(payload: Record<string, unknown> = {}): DomainEvent {
+function makeInput(payload: Record<string, unknown> = {}): AuditEventInput {
   return {
-    eventType: 'AuditEvent',
-    aggregateType: 'audit',
-    aggregateId: 'unknown',
-    payload: {
-      timestamp: '2026-01-01T00:00:00Z',
-      method: 'POST',
-      path: '/api/v1/backtest',
-      userId: 'u1',
-      orgId: 'org-1',
-      ip: '127.0.0.1',
-      userAgent: 'test',
-      statusCode: 200,
-      result: 'success',
-      ...payload,
-    },
-    occurredAt: new Date('2026-01-01T00:00:00Z'),
+    timestamp: '2026-01-01T00:00:00Z',
+    method: 'POST',
+    path: '/api/v1/backtest',
+    userId: 'u1',
+    orgId: 'org-1',
+    ip: '127.0.0.1',
+    userAgent: 'test',
+    statusCode: 200,
+    result: 'success',
+    ...payload,
   };
 }
 
-describe('AuditEventHandler', () => {
-  let handler: AuditEventHandler;
-
+describe('handleAuditEvent', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    handler = new AuditEventHandler();
   });
 
-  it('应订阅 AuditEvent 事件类型', () => {
-    expect(handler.eventType).toBe('AuditEvent');
+  it('事件类型常量应为 AuditEvent', () => {
+    expect(AUDIT_EVENT_TYPE).toBe('AuditEvent');
   });
 
-  it('handle 应经 withTenant 写入 writeAuditLog（action 由 method 映射）', async () => {
-    await handler.handle(makeEvent({ __outboxEventId: 'outbox-1' }));
+  it('应经 withTenant 写入 writeAuditLog（action 由 method 映射）', async () => {
+    await handleAuditEvent(makeInput({ __outboxEventId: 'outbox-1' }));
 
     expect(writeAuditLog).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -66,13 +57,13 @@ describe('AuditEventHandler', () => {
   });
 
   it('PUT/PATCH/DELETE 应映射为 UPDATE/DELETE', async () => {
-    await handler.handle(makeEvent({ method: 'PUT' }));
+    await handleAuditEvent(makeInput({ method: 'PUT' }));
     expect(writeAuditLog).toHaveBeenCalledWith(
       expect.objectContaining({ action: 'UPDATE' }),
       {},
       undefined,
     );
-    await handler.handle(makeEvent({ method: 'DELETE' }));
+    await handleAuditEvent(makeInput({ method: 'DELETE' }));
     expect(writeAuditLog).toHaveBeenCalledWith(
       expect.objectContaining({ action: 'DELETE' }),
       {},
@@ -81,7 +72,7 @@ describe('AuditEventHandler', () => {
   });
 
   it('缺少 orgId 时跳过持久化并告警', async () => {
-    await handler.handle(makeEvent({ orgId: null }));
+    await handleAuditEvent(makeInput({ orgId: null }));
 
     expect(writeAuditLog).not.toHaveBeenCalled();
     expect(loggerMocks.warn).toHaveBeenCalled();
@@ -90,6 +81,6 @@ describe('AuditEventHandler', () => {
   it('writeAuditLog 抛错时应向外传播（供 outbox 消费端重试）', async () => {
     vi.mocked(writeAuditLog).mockRejectedValueOnce(new Error('db down'));
 
-    await expect(handler.handle(makeEvent())).rejects.toThrow('db down');
+    await expect(handleAuditEvent(makeInput())).rejects.toThrow('db down');
   });
 });

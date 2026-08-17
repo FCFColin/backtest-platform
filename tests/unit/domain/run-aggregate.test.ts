@@ -1,13 +1,7 @@
 import '../../helpers/loggerMock.js';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { loggerMocks } from '../../helpers/loggerFixture.js';
+import { describe, it, expect } from 'vitest';
 import { Portfolio } from '../../../packages/backend/src/domain/aggregates/portfolio.js';
 import { Ticker, Weight } from '../../../packages/backend/src/domain/value-objects/index.js';
-import { DomainEventDispatcher } from '../../../packages/backend/src/domain/events/events.js';
-import type {
-  DomainEvent,
-  EventHandler,
-} from '../../../packages/backend/src/domain/events/events.js';
 
 function makeHolding(ticker: string, weight: number) {
   return { ticker: Ticker.create(ticker), weight: Weight.create(weight) };
@@ -96,107 +90,5 @@ describe('Ticker.toString', () => {
     ['小写输入应返回大写字符串', 'msft', 'MSFT'],
   ])('%s', (_n, input, expected) => {
     expect(Ticker.create(input).toString()).toBe(expected);
-  });
-});
-
-function createEvent(eventType: string, aggregateId = 'portfolio-1'): DomainEvent {
-  return {
-    eventType,
-    aggregateType: 'Portfolio',
-    aggregateId,
-    payload: { foo: 'bar' },
-    occurredAt: new Date('2026-01-01T00:00:00Z'),
-  };
-}
-function createHandler(eventType: string, fail = false): EventHandler {
-  return {
-    eventType,
-    handle: vi.fn(async () => {
-      if (fail) throw new Error('handler failure');
-    }),
-  };
-}
-
-describe('DomainEventDispatcher', () => {
-  let dispatcher: DomainEventDispatcher;
-
-  beforeEach(() => {
-    vi.clearAllMocks();
-    dispatcher = new DomainEventDispatcher();
-  });
-
-  it('register() 应添加处理器，使 dispatch 能调用到它', async () => {
-    const handler = createHandler('TestEvent');
-    dispatcher.register(handler);
-    const event = createEvent('TestEvent');
-    await dispatcher.dispatch(event);
-    expect(handler.handle).toHaveBeenCalledTimes(1);
-    expect(handler.handle).toHaveBeenCalledWith(event);
-  });
-  it('dispatch() 无注册处理器时应正常返回，不抛错', async () => {
-    await expect(dispatcher.dispatch(createEvent('UnregisteredEvent'))).resolves.toBeUndefined();
-    expect(loggerMocks.info).toHaveBeenCalledWith(
-      expect.objectContaining({ eventType: 'UnregisteredEvent' }),
-      'No handlers registered for event',
-    );
-  });
-  it('dispatch() 单个处理器失败时不应阻塞其他处理器，但应向上传播错误', async () => {
-    const failingHandler = createHandler('TestEvent', true);
-    const successHandler = createHandler('TestEvent');
-    dispatcher.register(failingHandler);
-    dispatcher.register(successHandler);
-    await expect(dispatcher.dispatch(createEvent('TestEvent'))).rejects.toThrow(
-      'Event dispatch failed for TestEvent',
-    );
-    expect(failingHandler.handle).toHaveBeenCalledTimes(1);
-    expect(successHandler.handle).toHaveBeenCalledTimes(1);
-    expect(loggerMocks.error).toHaveBeenCalledWith(
-      expect.objectContaining({ eventType: 'TestEvent' }),
-      'Event handler failed',
-    );
-    expect(loggerMocks.warn).toHaveBeenCalledWith(
-      expect.objectContaining({ eventType: 'TestEvent', errorCount: 1 }),
-      'Some event handlers failed',
-    );
-  });
-  it.each([
-    ['同一事件类型的多个处理器均应被调用', 3, null],
-    [
-      'register 同一事件类型多次注册应累积处理器',
-      2,
-      expect.objectContaining({ eventType: 'MultiEvent', handlerCount: 2 }),
-    ],
-  ])('%s', async (_n, count, logExpect) => {
-    const handlers = Array.from({ length: count }, () => createHandler('MultiEvent'));
-    handlers.forEach((h) => dispatcher.register(h));
-    const event = createEvent('MultiEvent');
-    await dispatcher.dispatch(event);
-    for (const h of handlers) {
-      expect(h.handle).toHaveBeenCalledTimes(1);
-      expect(h.handle).toHaveBeenCalledWith(event);
-    }
-    if (logExpect)
-      expect(loggerMocks.info).toHaveBeenCalledWith(logExpect, 'Dispatching domain event');
-  });
-  it('dispatch() 应只调用对应事件类型的处理器，不调用其他类型', async () => {
-    const targetHandler = createHandler('TargetEvent');
-    const otherHandler = createHandler('OtherEvent');
-    dispatcher.register(targetHandler);
-    dispatcher.register(otherHandler);
-    await dispatcher.dispatch(createEvent('TargetEvent'));
-    expect(targetHandler.handle).toHaveBeenCalledTimes(1);
-    expect(otherHandler.handle).not.toHaveBeenCalled();
-  });
-  it('dispatch() 所有处理器均失败时应记录警告并向上抛出 AggregateError', async () => {
-    dispatcher.register(createHandler('AllFailEvent', true));
-    dispatcher.register(createHandler('AllFailEvent', true));
-    await expect(dispatcher.dispatch(createEvent('AllFailEvent'))).rejects.toThrow(
-      'Event dispatch failed for AllFailEvent',
-    );
-    expect(loggerMocks.error).toHaveBeenCalledTimes(2);
-    expect(loggerMocks.warn).toHaveBeenCalledWith(
-      expect.objectContaining({ eventType: 'AllFailEvent', errorCount: 2 }),
-      'Some event handlers failed',
-    );
   });
 });

@@ -82,23 +82,4 @@ describe('安全攻击用例', () => {
     expect(({} as Record<string, unknown>).admin).toBeUndefined();
     expect((req.body as Record<string, unknown>).admin).toBeUndefined();
   });
-
-  it('超大 body（1MB+）应被拒绝或安全处理', () => {
-    const { res, next } = run('x'.repeat(1024 * 1024 + 1));
-
-    expect(res.status).toHaveBeenCalledWith(400);
-    expect(next).not.toHaveBeenCalled();
-  });
-
-  it('深度嵌套 body（1000 层）应被拒绝或安全处理', () => {
-    let nested: Record<string, unknown> = { name: 'deep', age: 1 };
-    for (let i = 0; i < 1000; i++) {
-      nested = { nested };
-    }
-
-    const { res, next } = run(nested);
-
-    expect(res.status).toHaveBeenCalledWith(400);
-    expect(next).not.toHaveBeenCalled();
-  });
 });

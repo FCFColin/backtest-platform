@@ -20,7 +20,9 @@ import {
   errorHandler,
   notFoundHandler,
 } from '../../../packages/backend/src/middleware/errorHandler.js';
+import { expectProblem } from '../../helpers/routeAssertions.js';
 import { DataNotFoundError } from '../../../packages/backend/src/utils/errors.js';
+import { TimeoutError } from '../../../packages/backend/src/utils/misc.js';
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -37,18 +39,17 @@ describe('errorHandler', () => {
     errorHandler(error, req, res, next);
 
     expect(res.status).toHaveBeenCalledWith(500);
-    expect(res.json).toHaveBeenCalledWith(
-      expect.objectContaining({
-        success: false,
-        error: expect.objectContaining({
-          type: 'https://backtest.platform/errors/INTERNAL_ERROR',
-          title: 'INTERNAL_ERROR',
-          status: 500,
-          code: 'INTERNAL_ERROR',
-          detail: undefined,
-        }),
-      }),
-    );
+    const body = (res.json as unknown as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    expect(body).toMatchObject({
+      success: false,
+      error: {
+        type: 'https://backtest.platform/errors/INTERNAL_ERROR',
+        title: 'INTERNAL_ERROR',
+        status: 500,
+        code: 'INTERNAL_ERROR',
+      },
+    });
+    expect(body.error.detail).toBeUndefined();
   });
 
   it('生产环境应隐藏错误消息（通用消息）', () => {
@@ -60,15 +61,12 @@ describe('errorHandler', () => {
 
     errorHandler(error, req, res, next);
 
-    expect(res.json).toHaveBeenCalledWith(
-      expect.objectContaining({
-        success: false,
-        error: expect.objectContaining({
-          title: 'INTERNAL_ERROR',
-          detail: undefined,
-        }),
-      }),
-    );
+    const body = (res.json as unknown as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    expect(body).toMatchObject({
+      success: false,
+      error: { title: 'INTERNAL_ERROR' },
+    });
+    expect(body.error.detail).toBeUndefined();
   });
 
   it('应遵循 RFC 7807 格式', () => {
@@ -129,17 +127,25 @@ describe('errorHandler', () => {
     );
   });
 
-  it('错误消息超过 200 字符应截断', () => {
-    const req = createMockRequest({});
+  it.each<[string, Error, number, string]>([
+    [
+      'TimeoutError 应映射为 503 COMPUTE_TIMEOUT',
+      new TimeoutError('engine exceeded budget'),
+      503,
+      'COMPUTE_TIMEOUT',
+    ],
+    [
+      'body-parser 超大实体应映射为 413 PAYLOAD_TOO_LARGE',
+      Object.assign(new Error('too large'), { type: 'entity.too.large', status: 413 }),
+      413,
+      'PAYLOAD_TOO_LARGE',
+    ],
+  ])('%s', (_name, error, status, code) => {
     const res = createMockResponse();
-    const next = createMockNext();
-    const error = new Error('x'.repeat(500));
-
-    errorHandler(error, req, res, next);
-
-    const callArgs = (res.json as unknown as ReturnType<typeof vi.fn>).mock.calls[0][0];
-    expect(callArgs.error.detail).toBeUndefined();
+    errorHandler(error, createMockRequest({ path: '/api/backtest' }), res, createMockNext());
+    expectProblem(res, code, status);
   });
+
 });
 
 describe('notFoundHandler', () => {
@@ -169,7 +175,7 @@ describe('notFoundHandler', () => {
 
     notFoundHandler(req, res);
 
-    expect(loggerMocks.info).toHaveBeenCalledWith(
+    expect(loggerMocks.debug).toHaveBeenCalledWith(
       { method: 'POST', path: '/api/unknown' },
       '[app] 404 未匹配路由',
     );

@@ -58,28 +58,16 @@ describe('sendProblem', () => {
     const res = createMockRes();
     sendProblem(res as unknown as Response, 500, 'INTERNAL', '内部错误');
 
-    expect(res.json).toHaveBeenCalledWith(
-      expect.objectContaining({
-        success: false,
-        error: expect.objectContaining({
-          instance: undefined,
-        }),
-      }),
-    );
+    const body = res.json.mock.calls[0][0] as { error: { instance?: string } };
+    expect(body.error.instance).toBeUndefined();
   });
 
   it('detail 缺省时应传入 undefined', () => {
     const res = createMockRes('/api/test');
     sendProblem(res as unknown as Response, 422, 'VALIDATION', '校验失败');
 
-    expect(res.json).toHaveBeenCalledWith(
-      expect.objectContaining({
-        success: false,
-        error: expect.objectContaining({
-          detail: undefined,
-        }),
-      }),
-    );
+    const body = res.json.mock.calls[0][0] as { error: { detail?: string } };
+    expect(body.error.detail).toBeUndefined();
   });
 
   it('type 字段应基于 code 拼接 URL', () => {

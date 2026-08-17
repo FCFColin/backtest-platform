@@ -1,7 +1,5 @@
 import '../../helpers/loggerMock.js';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { Portfolio, BacktestParameters } from '@backtest/shared';
-import { engineMocks } from '../../helpers/engineFixture.js';
 import {
   mockParameters,
   mockPortfolio as portfolioFixture,
@@ -11,14 +9,9 @@ import {
   mockPortfolioResult,
   mockBacktestStats,
 } from '../../helpers/storeFixtures.js';
-import {
-  preparePortfolioBacktest,
-  collectInvalidTickerWarnings,
-} from '../../../packages/backend/src/application/backtest-helpers.js';
-import type { Warning } from '../../../packages/backend/src/application/backtest-helpers.js';
-import { MAX_TICKERS } from '../../../packages/shared/constants.js';
 
 vi.mock('../../../packages/backend/src/utils/engineClient.js', () => engineMocks);
+import { engineMocks } from '../../helpers/engineFixture.js';
 import { runBacktest } from '../../../packages/backend/src/application/backtest-service.js';
 
 const mockPortfolio = portfolioFixture();
@@ -76,103 +69,5 @@ describe('runBacktest', () => {
         priceData: mockPriceData,
       }),
     ).rejects.toThrow();
-  });
-});
-
-function makePortfolio(id: string, tickers: string[]): Portfolio {
-  return {
-    id,
-    name: id,
-    assets: tickers.map((t) => ({ ticker: t, weight: 100 / tickers.length })),
-    rebalanceFrequency: 'none',
-  };
-}
-const baseParams: BacktestParameters = {
-  startDate: '2020-01-02',
-  endDate: '2020-12-31',
-  startingValue: 10000,
-  benchmarkTicker: '',
-  adjustForInflation: false,
-  rollingWindowMonths: 12,
-};
-describe('preparePortfolioBacktest', () => {
-  it('合法输入应收集全部 ticker 并包含 benchmark', () => {
-    const { allTickers } = preparePortfolioBacktest([makePortfolio('p1', ['AAPL', 'MSFT'])], {
-      ...baseParams,
-      benchmarkTicker: 'SPY',
-    });
-    expect(allTickers.has('AAPL')).toBe(true);
-    expect(allTickers.has('MSFT')).toBe(true);
-    expect(allTickers.has('SPY')).toBe(true);
-  });
-
-  it.each<[keyof BacktestParameters, string]>([
-    ['startDate', '2020/01/02'],
-    ['endDate', 'not-a-date'],
-  ])('%s 非法日期应抛出 422 可映射错误', (field, value) => {
-    expect(() =>
-      preparePortfolioBacktest([makePortfolio('p1', ['AAPL'])], {
-        ...baseParams,
-        [field]: value,
-      } as BacktestParameters),
-    ).toThrow('Invalid date format');
-  });
-
-  it.each<[string, Portfolio[]]>([
-    [
-      `组合数超过 ${MAX_TICKERS} 应拒绝`,
-      Array.from({ length: MAX_TICKERS + 1 }, (_, i) => makePortfolio(`p${i}`, ['AAPL'])),
-    ],
-    [
-      `资产总数超过 ${MAX_TICKERS} 应拒绝（单组合多标的）`,
-      [
-        makePortfolio(
-          'p1',
-          Array.from({ length: MAX_TICKERS + 1 }, (_, i) => `T${i}`),
-        ),
-      ],
-    ],
-  ])('%s', (_title, portfolios) => {
-    expect(() => preparePortfolioBacktest(portfolios, baseParams)).toThrow(`max ${MAX_TICKERS}`);
-  });
-  it('空组合列表应返回空 ticker 集合', () => {
-    expect(preparePortfolioBacktest([], baseParams).allTickers.size).toBe(0);
-  });
-});
-describe('collectInvalidTickerWarnings', () => {
-  it.each([
-    [
-      '缺失价格序列应写入 warnings',
-      new Set(['AAPL', 'GHOST']),
-      { AAPL: { '2020-01-02': 100 } },
-      ['GHOST'],
-      { code: 'TICKER_NOT_FOUND', tickers: ['GHOST'] },
-    ],
-    [
-      '空对象序列应视为无效 ticker',
-      new Set(['EMPTY']),
-      { EMPTY: {} },
-      ['EMPTY'],
-      { code: 'TICKER_NOT_FOUND', tickers: ['EMPTY'] },
-    ],
-    [
-      '全部有效时不应追加 warning',
-      new Set(['AAPL']),
-      { AAPL: { '2020-01-02': 150.5 } },
-      [],
-      undefined,
-    ],
-    [
-      '恶意 ticker 名仍应被识别为无数据（不崩溃）',
-      new Set(["'; DROP TABLE prices; --"]),
-      {},
-      ["'; DROP TABLE prices; --"],
-      { code: 'TICKER_NOT_FOUND', tickers: ["'; DROP TABLE prices; --"] },
-    ],
-  ])('%s', (_n, tickers, priceData, expectedList, expectedWarning) => {
-    const warnings: Warning[] = [];
-    const result = collectInvalidTickerWarnings(tickers, priceData, warnings);
-    expect(result).toEqual(expectedList);
-    if (expectedWarning) expect(warnings[0]).toEqual(expectedWarning);
   });
 });

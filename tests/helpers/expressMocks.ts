@@ -24,6 +24,7 @@ export interface MockResponse {
   header: ReturnType<typeof vi.fn>;
   get: ReturnType<typeof vi.fn>;
   statusCode: number;
+  body: unknown;
   headersSent: boolean;
   _finishCallback?: () => void;
   [key: string]: unknown;
@@ -45,9 +46,15 @@ export function createMockRequest(overrides: MockRequestOverrides = {}): Request
 }
 
 export function createMockResponse(): MockResponse & Response {
-  return {
-    status: vi.fn().mockReturnThis(),
-    json: vi.fn().mockReturnThis(),
+  const res = {
+    status: vi.fn((code: number) => {
+      res.statusCode = code;
+      return res;
+    }),
+    json: vi.fn((body: unknown) => {
+      res.body = body;
+      return res;
+    }),
     send: vi.fn().mockReturnThis(),
     end: vi.fn().mockReturnThis(),
     set: vi.fn().mockReturnThis(),
@@ -56,6 +63,7 @@ export function createMockResponse(): MockResponse & Response {
     statusCode: 200,
     headersSent: false,
   } as unknown as MockResponse & Response;
+  return res;
 }
 
 export function createMockNext(): ReturnType<typeof vi.fn> {

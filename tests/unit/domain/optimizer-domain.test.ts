@@ -169,6 +169,10 @@ describe('objectiveValue', () => {
   ])('%s', (_n, objective, expected) => {
     expect(objectiveValue(item, objective as never)).toBe(expected);
   });
+
+  it('未知 objective 抛错而非静默回落 maxCagr', () => {
+    expect(() => objectiveValue(item, 'hack-objective' as never)).toThrow('未知优化目标');
+  });
 });
 
 describe('MAX_OPTIMIZER_COMBINATIONS', () => {

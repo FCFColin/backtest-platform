@@ -118,6 +118,14 @@ describe('collectInvalidTickerWarnings', () => {
     expect(collectInvalidTickerWarnings(new Set(['AAPL', 'BND']), priceData, warnings)).toEqual([]);
     expect(warnings).toEqual([]);
   });
+
+  it('恶意 ticker 名仍应被识别为无数据（不崩溃）', () => {
+    const warnings: Warning[] = [];
+    const malicious = "'; DROP TABLE prices; --";
+    const invalid = collectInvalidTickerWarnings(new Set([malicious]), {}, warnings);
+    expect(invalid).toEqual([malicious]);
+    expect(warnings).toEqual([{ code: 'TICKER_NOT_FOUND', tickers: [malicious] }]);
+  });
 });
 
 describe('clampParametersToDataRange', () => {

@@ -37,7 +37,6 @@ import {
   useListState,
   usePolling,
   useTickerMeta,
-  useAnnouncements,
   useOrgAuth,
   useSetterState,
   useAssetList,
@@ -194,21 +193,6 @@ describe('useTickerMeta', () => {
       vi.advanceTimersByTime(300);
     });
     expect(result.current).toBeNull();
-  });
-});
-
-describe('useAnnouncements', () => {
-  beforeEach(() => {
-    apiFetchMock.mockReset();
-    localStorage.clear();
-  });
-
-  it('API 失败时应返回空列表', async () => {
-    apiFetchMock.mockRejectedValue(new Error('network'));
-    const { result } = renderHook(() => useAnnouncements());
-    await act(async () => {
-      await vi.waitFor(() => expect(result.current.announcements).toEqual([]), { timeout: 2000 });
-    });
   });
 });
 

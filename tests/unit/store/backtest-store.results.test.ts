@@ -9,7 +9,6 @@ import {
   setResultsWith,
   mockFetch,
 } from '../../helpers/backtestStoreFixtures.js';
-import { normalizeBacktestResult } from '../../../packages/frontend/src/store/backtestHelpers.js';
 import { useBacktestStore } from '../../../packages/frontend/src/store/backtestStore.js';
 import type { BacktestSeriesField } from '../../../packages/frontend/src/store/types.js';
 import { mockBacktestResult, mockPortfolioResult } from '../../helpers/storeFixtures.js';
@@ -261,88 +260,5 @@ describe('enrichSeries', () => {
     const p = S().results!.portfolios as any[];
     expect(p[0].rollingReturns).toEqual([{ date: '2020-01-02', value: 0.12 }]);
     expect(p[1].rollingReturns).toEqual([]);
-  });
-});
-const STATS = {
-  cagr: 0.1,
-  stdev: 0.2,
-  sharpe: 0.5,
-  sortino: 0.6,
-  maxDrawdown: 0.3,
-  maxDrawdownDuration: 5,
-  mwrr: 0.1,
-  bestYear: 0.2,
-  worstYear: -0.1,
-  avgYear: 0.1,
-};
-describe('normalizeBacktestResult', () => {
-  it.each([null, undefined])('returns empty structure for %s input', (input) => {
-    const r = normalizeBacktestResult(input);
-    expect(r.portfolios).toEqual([]);
-    expect(r.correlations).toEqual([]);
-    expect(r.benchmarkGrowth).toEqual([]);
-  });
-  it('fills missing arrays in portfolio', () => {
-    expect(
-      normalizeBacktestResult({ portfolios: [{ name: 'Test', statistics: STATS }] }).portfolios[0],
-    ).toMatchObject({
-      growthCurve: [],
-      drawdownCurve: [],
-      annualReturns: [],
-      monthlyReturns: [],
-      rollingReturns: [],
-      allocationHistory: [],
-      drawdownEpisodes: [],
-    });
-  });
-  it('passes through full data', () => {
-    const input = {
-      portfolios: [
-        {
-          name: 'Test',
-          growthCurve: [{ date: '2020-01-02', value: 10000 }],
-          drawdownCurve: [{ date: '2020-01-02', drawdown: 0 }],
-          annualReturns: [{ year: 2020, value: 0.1 }],
-          monthlyReturns: [{ month: '2020-01', value: 0.01 }],
-          rollingReturns: [{ date: '2020-01-02', value: 0.12 }],
-          allocationHistory: [{ date: '2020-01-02', allocations: {} }],
-          drawdownEpisodes: [
-            {
-              start: '2020-01-02',
-              end: '2020-03-01',
-              peak: 10000,
-              trough: 9000,
-              recovery: '2020-06-01',
-            },
-          ],
-          statistics: STATS,
-        },
-      ],
-      correlations: [[1]],
-      assetTickers: ['VTI', 'BND'],
-      assetCorrelations: [
-        [1, 0.6],
-        [0.6, 1],
-      ],
-      benchmarkGrowth: [{ date: '2020-01-02', value: 10000 }],
-    };
-    const r = normalizeBacktestResult(input);
-    expect(r.portfolios[0]).toMatchObject(input.portfolios[0]);
-    expect(r).toMatchObject({
-      correlations: [[1]],
-      assetTickers: ['VTI', 'BND'],
-      assetCorrelations: [
-        [1, 0.6],
-        [0.6, 1],
-      ],
-      benchmarkGrowth: input.benchmarkGrowth,
-    });
-  });
-  it('handles portfolio with null statistics', () => {
-    expect(
-      normalizeBacktestResult({
-        portfolios: [{ name: 'Test', statistics: null as unknown as Record<string, never> }],
-      }).portfolios[0].statistics,
-    ).toEqual({});
   });
 });

@@ -4,7 +4,7 @@ import { createMockClient } from '../../helpers/mockFactories.js';
 import { loggerMocks } from '../../helpers/loggerFixture.js';
 import '../../helpers/loggerMock.js';
 
-const eventMocks = vi.hoisted(() => ({ dispatch: vi.fn(async () => {}) }));
+const eventMocks = vi.hoisted(() => ({ handleAuditEvent: vi.fn(async () => {}) }));
 const clientMock = vi.hoisted(() => ({
   connect: vi.fn().mockResolvedValue(undefined),
   query: vi.fn().mockResolvedValue({ rows: [] }),
@@ -12,8 +12,9 @@ const clientMock = vi.hoisted(() => ({
   on: vi.fn(),
 }));
 
-vi.mock('../../../packages/backend/src/domain/events/events.js', () => ({
-  eventDispatcher: { dispatch: eventMocks.dispatch },
+vi.mock('../../../packages/backend/src/application/auditEventHandler.js', () => ({
+  AUDIT_EVENT_TYPE: 'AuditEvent',
+  handleAuditEvent: eventMocks.handleAuditEvent,
 }));
 vi.mock('pg', () => ({
   default: { Client: vi.fn(() => clientMock), Pool: vi.fn() },
@@ -107,9 +108,9 @@ describe('OutboxPublisher', () => {
       expect(sql).toContain('ORDER BY created_at ASC');
       expect(sql).toContain('LIMIT 100');
       expect(sql).toContain('FOR UPDATE SKIP LOCKED');
-      expect(eventMocks.dispatch).not.toHaveBeenCalled();
+      expect(eventMocks.handleAuditEvent).not.toHaveBeenCalled();
     });
-    it('应将每个事件路由到 eventDispatcher.dispatch', async () => {
+    it('应将 AuditEvent 路由到 handleAuditEvent（透传 __outboxEventId），其他类型跳过', async () => {
       mockPool.__clientQuery
         .mockResolvedValueOnce({ rows: [] }) // BEGIN
         .mockResolvedValueOnce({
@@ -127,20 +128,10 @@ describe('OutboxPublisher', () => {
         .mockResolvedValueOnce({ rows: [] }) // UPDATE processed_at
         .mockResolvedValueOnce({ rows: [] }); // COMMIT
       await publisher.handleNotification();
-      expect(eventMocks.dispatch).toHaveBeenCalledTimes(2);
-      expect(eventMocks.dispatch).toHaveBeenNthCalledWith(1, {
-        eventType: 'BacktestCompleted',
-        aggregateType: 'BacktestSession',
-        aggregateId: 'backtest-1700000000000',
-        payload: { totalReturn: 0.2, maxDrawdown: 0.15, __outboxEventId: 1 },
-        occurredAt: new Date('2024-01-01T00:00:00Z'),
-      });
-      expect(eventMocks.dispatch).toHaveBeenNthCalledWith(2, {
-        eventType: 'AuditEvent',
-        aggregateType: 'audit',
-        aggregateId: 'user-123',
-        payload: { action: 'login', __outboxEventId: 2 },
-        occurredAt: new Date('2024-01-01T00:00:00Z'),
+      expect(eventMocks.handleAuditEvent).toHaveBeenCalledTimes(1);
+      expect(eventMocks.handleAuditEvent).toHaveBeenNthCalledWith(1, {
+        action: 'login',
+        __outboxEventId: 2,
       });
     });
     it('处理成功后应更新 processed_at = NOW()', async () => {
@@ -154,8 +145,10 @@ describe('OutboxPublisher', () => {
       expect(calls[updateIdx][1]).toEqual([[42]]);
     });
     it('handler 失败时不应标记为已处理（不调用 UPDATE）', async () => {
-      queueClientTxn(mockPool.__clientQuery, { rows: [createOutboxRow({ id: 99 })] });
-      eventMocks.dispatch.mockRejectedValueOnce(new Error('handler boom'));
+      queueClientTxn(mockPool.__clientQuery, {
+        rows: [createOutboxRow({ id: 99, event_type: 'AuditEvent' })],
+      });
+      eventMocks.handleAuditEvent.mockRejectedValueOnce(new Error('handler boom'));
       await publisher.handleNotification();
       expect(
         mockPool.__clientQuery.mock.calls.some((c) =>
@@ -168,7 +161,7 @@ describe('OutboxPublisher', () => {
     it.each([
       [
         'payload 为字符串时应 JSON.parse 后再分发',
-        { id: 1, payload: '{"foo":"bar"}' },
+        { id: 1, event_type: 'AuditEvent', payload: '{"foo":"bar"}' },
         { foo: 'bar', __outboxEventId: 1 },
       ],
       ['SELECT 查询失败时应记录错误且不抛出', null, null],
@@ -183,11 +176,9 @@ describe('OutboxPublisher', () => {
       await expect(publisher.handleNotification()).resolves.toBeUndefined();
       if (rowOrErr === null) {
         expect(loggerMocks.error).toHaveBeenCalled();
-        expect(eventMocks.dispatch).not.toHaveBeenCalled();
+        expect(eventMocks.handleAuditEvent).not.toHaveBeenCalled();
       } else {
-        expect(eventMocks.dispatch).toHaveBeenCalledWith(
-          expect.objectContaining({ payload: expectedPayload }),
-        );
+        expect(eventMocks.handleAuditEvent).toHaveBeenCalledWith(expectedPayload);
       }
     });
   });

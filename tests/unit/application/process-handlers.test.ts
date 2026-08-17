@@ -54,11 +54,6 @@ vi.mock('../../../packages/backend/src/utils/metrics.js', () => ({
   registerTimescaleMetrics: vi.fn(),
 }));
 
-vi.mock('../../../packages/backend/src/domain/events/events.js', () => ({
-  eventDispatcher: { register: vi.fn() },
-  DomainEventDispatcher: vi.fn(),
-}));
-
 vi.mock('../../../packages/backend/src/queues/queueDefinitions.js', () => ({
   createAuditExportWorker: vi.fn(() => ({
     close: vi.fn().mockResolvedValue(undefined),

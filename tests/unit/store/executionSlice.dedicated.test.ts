@@ -185,27 +185,3 @@ describe('P0-02 executionSlice dedicated — 分支覆盖', () => {
     expect(store().results).not.toBeNull();
   });
 });
-
-describe('P0-02 executionSlice — loadFromShare & getShareableState', () => {
-  beforeEach(() => {
-    mockFetch.mockReset();
-    setupStore();
-  });
-
-  it('loadFromShare 设置组合+参数+重置结果', () => {
-    const portfolios = [mockPortfolio({ id: 'p2', name: 'New Portfolio' })];
-    const parameters = mockBacktestParams({ startDate: '2020-01-01' });
-    store().loadFromShare({ portfolios, parameters });
-    const state = store();
-    expect(state.portfolios).toHaveLength(1);
-    expect(state.portfolios[0].name).toBe('New Portfolio');
-    expect(state.results).toBeNull();
-    expect(state.hasLoadedFromShare).toBe(true);
-  });
-
-  it('getShareableState 返回当前 portfolios + parameters', () => {
-    const shareable = store().getShareableState();
-    expect(shareable.portfolios).toBeDefined();
-    expect(shareable.parameters).toBeDefined();
-  });
-});

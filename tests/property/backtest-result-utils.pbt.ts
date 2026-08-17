@@ -18,7 +18,7 @@ function makePortfolio(n: number): PortfolioResult {
   return {
     name: 'P',
     growthCurve: curve,
-    drawdownCurve: curve.map((p) => ({ date: p.date, value: -p.value })),
+    drawdownCurve: curve.map((p) => ({ date: p.date, drawdown: -p.value })),
     rollingReturns: curve.map((p) => ({ date: p.date, return: 0.01 })),
     annualReturns: [],
     monthlyReturns: [],
@@ -71,7 +71,10 @@ describe('PBT: compressBacktestResult 降采样不变量', () => {
 
   it('benchmarkGrowth 也应被压缩', () => {
     check([fc.integer({ min: 101, max: 1000 })], (n) => {
-      const bench = Array.from({ length: n }, (_, i) => 100 + i);
+      const bench = Array.from({ length: n }, (_, i) => ({
+        date: `2020-${String(i).padStart(2, '0')}-01`,
+        value: 100 + i,
+      }));
       const result = compressBacktestResult({ ...makeResult(10), benchmarkGrowth: bench }, 50);
       expect(result.benchmarkGrowth!.length).toBeLessThanOrEqual(50);
     });
@@ -91,22 +94,25 @@ describe('PBT: compressBacktestResult 降采样不变量', () => {
 
 describe('PBT: backtestCacheKey 确定性与唯一性', () => {
   const portfolioArb = fc.record({
-    id: fc.option(fc.string()),
-    name: fc.option(fc.string()),
+    id: fc.string({ minLength: 1 }),
+    name: fc.string({ minLength: 1 }),
     assets: fc.array(fc.record({ ticker: fc.string({ minLength: 1 }), weight: fc.float() })),
-    rebalanceFrequency: fc.string(),
-  });
+    rebalanceFrequency: fc.constantFrom('monthly', 'quarterly', 'yearly'),
+  }) as unknown as fc.Arbitrary<import('@backtest/shared').Portfolio>;
 
   const paramsArb = fc.record({
     startDate: fc.string(),
     endDate: fc.string(),
-    startingValue: fc.option(fc.float()),
-  });
+    startingValue: fc.float(),
+    adjustForInflation: fc.boolean(),
+    rollingWindowMonths: fc.integer({ min: 0, max: 60 }),
+    benchmarkTicker: fc.string(),
+  }) as unknown as fc.Arbitrary<import('@backtest/shared').BacktestParameters>;
 
   const keyArbs = [
     fc.array(portfolioArb, { minLength: 1 }),
     paramsArb,
-    fc.option(fc.string()),
+    fc.option(fc.string()).map((v) => v ?? undefined),
   ] as const;
 
   it('相同输入应产生相同 key', () => {

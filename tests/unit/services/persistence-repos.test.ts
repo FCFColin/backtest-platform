@@ -154,8 +154,8 @@ describe('backtestRunRepo', () => {
   });
   it.each([
     [9999, 200, '上限钳制为 200'],
-    [-5, 1, '负值下限钳制为 1'],
-    [0, 1, '0 应钳制为 1'],
+    [-5, 0, '负值下限钳制为 0（防 PG LIMIT 负数=无上限）'],
+    [0, 0, '0 原样传递（LIMIT 0 = 空页）'],
   ])('listRuns %s', async (limit, expected) => {
     dbMocks.query.mockResolvedValueOnce({ rows: [runRow()] });
     await listRuns(TENANT, limit);

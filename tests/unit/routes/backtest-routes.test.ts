@@ -567,6 +567,7 @@ describe('backtestRoutes - GET /api/v1/backtest/runs/:jobId — 状态查询', (
       'completed 状态返回 200 + 结果',
       {
         id: 'job-done',
+        data: { type: 'optimizer', tenantId: 'tenant-456' },
         state: 'completed',
         progress: 100,
         returnvalue: { status: 'completed', result: completedResult },
@@ -575,23 +576,35 @@ describe('backtestRoutes - GET /api/v1/backtest/runs/:jobId — 状态查询', (
     ],
     [
       'failed 状态返回 200 + 错误信息',
-      { id: 'job-failed', state: 'failed', progress: 30, failedReason: 'Engine timeout after 90s' },
+      {
+        id: 'job-failed',
+        data: { type: 'optimizer', tenantId: 'tenant-456' },
+        state: 'failed',
+        progress: 30,
+        failedReason: 'Engine timeout after 90s',
+      },
       { status: 'failed', error: 'Job execution failed', noResult: true },
     ],
     [
       'running 状态返回 200 + 进度',
-      { id: 'job-running', state: 'active', progress: 45 },
+      {
+        id: 'job-running',
+        data: { type: 'optimizer', tenantId: 'tenant-456' },
+        state: 'active',
+        progress: 45,
+      },
       { status: 'running', progress: 45, noResult: true, noError: true },
     ],
     [
       'delayed 状态映射为 queued',
-      { id: 'job-delayed', state: 'delayed', progress: 0 },
+      { id: 'job-delayed', data: { type: 'optimizer', tenantId: 'tenant-456' }, state: 'delayed', progress: 0 },
       { status: 'queued' },
     ],
     [
       'returnvalue 为 failed 时返回 error',
       {
         id: 'job-rv-failed',
+        data: { type: 'optimizer', tenantId: 'tenant-456' },
         state: 'completed',
         progress: 100,
         returnvalue: { status: 'failed', error: 'Parameter validation failed' },

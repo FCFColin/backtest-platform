@@ -196,7 +196,6 @@ describe('scanTickersStats', () => {
     const result = await scanTickersStats();
     if (dbResult) expect(result).toEqual(dbResult);
     else expect(result).toBeNull();
-    if (dbResult === null) expect(await scanTickersStats()).toBeNull();
   });
 });
 

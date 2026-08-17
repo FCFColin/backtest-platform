@@ -28,28 +28,14 @@ vi.mock('../../../packages/backend/src/utils/metrics.js', () => ({
   getPrometheusRegister: vi.fn(() => ({ contentType: 'text/plain', metrics: vi.fn() })),
 }));
 import type { Request } from 'express';
-import { enforceQuota } from '../../../packages/backend/src/middleware/quota.js';
-import { createMockResponse, type MockResponse } from '../../helpers/expressMocks.js';
-import type { Response } from 'express';
+import { enforceQuota, enforceOrgActive } from '../../../packages/backend/src/middleware/quota.js';
+import { createMockResponse } from '../../helpers/expressMocks.js';
+import { expectProblem } from '../../helpers/routeAssertions.js';
 
 const TENANT = '11111111-1111-1111-1111-111111111111';
 
-function mockRes(): MockResponse & Response {
-  const res = {
-    ...createMockResponse(),
-    statusCode: 200,
-    status: vi.fn((c: number) => {
-      res.statusCode = c;
-      return res;
-    }),
-    header: vi.fn(() => res),
-    json: vi.fn(() => res),
-    send: vi.fn(() => res),
-  } as unknown as MockResponse & Response;
-  return res;
-}
 async function callQuota(req: Record<string, unknown>) {
-  const res = mockRes();
+  const res = createMockResponse();
   const next = vi.fn();
   await enforceQuota('backtest')({ body: {}, ...req } as unknown as Request, res, next);
   return { res, next };
@@ -74,10 +60,7 @@ describe('enforceQuota', () => {
 
   it('普通用户无租户上下文时 fail-closed 返回 400 NO_ACTIVE_TENANT（不得绕过配额）', async () => {
     const { res, next } = await callQuota({ user: {} });
-    expect(res.status).toHaveBeenCalledWith(400);
-    expect(res.json).toHaveBeenCalledWith(
-      expect.objectContaining({ error: expect.objectContaining({ code: 'NO_ACTIVE_TENANT' }) }),
-    );
+    expectProblem(res, 'NO_ACTIVE_TENANT', 400);
     expect(next).not.toHaveBeenCalled();
     expect(mocks.getOrg).not.toHaveBeenCalled();
   });
@@ -122,10 +105,12 @@ describe('enforceQuota', () => {
     if (org.plan === 'enterprise') expect(mocks.getMonthlyUsage).not.toHaveBeenCalled();
   });
 
-  it.each<[string, () => void, string]>([
+  it.each<[string, () => void, number, string, string]>([
     [
       'P0-04: getOrg 抛错时 fail-closed 返回 503（不放行）',
       () => mocks.getOrg.mockRejectedValueOnce(new Error('DB error')),
+      503,
+      'SERVICE_TEMPORARILY_UNAVAILABLE',
       'org_query_failed',
     ],
     [
@@ -134,9 +119,18 @@ describe('enforceQuota', () => {
         mocks.getOrg.mockResolvedValueOnce({ plan: 'free' });
         mocks.getMonthlyUsage.mockRejectedValueOnce(new Error('usage check failed'));
       },
+      503,
+      'SERVICE_TEMPORARILY_UNAVAILABLE',
       'usage_check_failed',
     ],
-  ])('%s', async (_name, setup, reason) => {
+    [
+      '组织停用时返回 402 ORG_SUSPENDED（不放行）并计量',
+      () => mocks.getOrg.mockResolvedValueOnce({ status: 'suspended' }),
+      402,
+      'ORG_SUSPENDED',
+      'org_suspended',
+    ],
+  ])('%s', async (_name, setup, status, code, reason) => {
     setup();
     const { res, next } = await callQuota({
       tenantId: TENANT,
@@ -144,10 +138,46 @@ describe('enforceQuota', () => {
       body: { tickers: ['A'] },
       path: '/x',
     });
-    expect(res.status).toHaveBeenCalledWith(503);
+    expectProblem(res, code, status);
     expect(next).not.toHaveBeenCalled();
     expect(mocks.quotaEnforcementFailures.inc).toHaveBeenCalledWith(
-      expect.objectContaining({ reason }),
+      expect.objectContaining({ quota_key: 'backtest', reason }),
+    );
+  });
+});
+
+describe('enforceOrgActive', () => {
+  async function callOrgActive(req: Record<string, unknown>) {
+    const res = createMockResponse();
+    const next = vi.fn();
+    enforceOrgActive()({ body: {}, ...req } as unknown as Request, res, next);
+    // getOrgStatus 在内部 async 调用中执行，冲刷微任务后再断言
+    await new Promise((r) => setTimeout(r, 0));
+    return { res, next };
+  }
+
+  it.each([
+    ['平台管理员免查组织直接放行', { user: { platform_admin: true } }, undefined, 0],
+    ['无租户上下文放行（后续路由自带鉴权）', { user: {} }, undefined, 0],
+    ['组织正常时放行', { tenantId: TENANT, user: {} }, { plan: 'pro' }, 1],
+  ])('%s', async (_n, req, org, getOrgCalls) => {
+    if (org) mocks.getOrg.mockResolvedValueOnce(org);
+    const { next } = await callOrgActive(req);
+    expect(next).toHaveBeenCalled();
+    expect(mocks.getOrg).toHaveBeenCalledTimes(getOrgCalls);
+  });
+
+  it.each([
+    ['组织停用→402', { status: 'suspended' }, 402, 'ORG_SUSPENDED', 'org_suspended'],
+    ['组织查询失败→503', 'error', 503, 'SERVICE_TEMPORARILY_UNAVAILABLE', 'org_query_failed'],
+  ])('%s', async (_n, org, status, code, reason) => {
+    if (org === 'error') mocks.getOrg.mockRejectedValueOnce(new Error('DB error'));
+    else mocks.getOrg.mockResolvedValueOnce(org);
+    const { res, next } = await callOrgActive({ tenantId: TENANT, user: {} });
+    expectProblem(res, code, status);
+    expect(next).not.toHaveBeenCalled();
+    expect(mocks.quotaEnforcementFailures.inc).toHaveBeenCalledWith(
+      expect.objectContaining({ quota_key: 'org_active', reason }),
     );
   });
 });

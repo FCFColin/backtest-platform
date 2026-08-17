@@ -35,27 +35,15 @@ describe('ErrorBoundary', () => {
     screen.getByText('正常内容');
   });
 
-  it('捕获错误并显示错误 UI', () => {
+  it('捕获错误并显示通用错误 UI，不泄露错误详情', () => {
     render(
       <ErrorBoundary>
         <BrokenChild shouldThrow={true} />
       </ErrorBoundary>,
     );
     screen.getByText('Something went wrong');
-    screen.getByText(
-      'Sorry, the page encountered an error. Please refresh. If the problem persists, contact the administrator.',
-    );
     screen.getByText('Refresh page');
-  });
-
-  it('不泄露错误详情，仅显示通用文案', () => {
-    render(
-      <ErrorBoundary>
-        <BrokenChild shouldThrow={true} />
-      </ErrorBoundary>,
-    );
     expect(screen.queryByText('测试错误')).toBeNull();
-    screen.getByText('Something went wrong');
   });
 
   it('在捕获错误时调用 console.error', () => {

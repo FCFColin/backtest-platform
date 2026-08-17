@@ -22,10 +22,6 @@ const helpersMocks = vi.hoisted(() => ({
   collectDomainTickers: vi.fn(),
 }));
 
-const eventMocks = vi.hoisted(() => ({
-  dispatch: vi.fn(async () => {}),
-}));
-
 const cacheMocks = vi.hoisted(() => ({
   backtestCacheKey: vi.fn(),
   setBacktestResultCache: vi.fn(async () => {}),
@@ -62,10 +58,6 @@ vi.mock('../../../packages/backend/src/application/backtest-helpers.js', () => (
 }));
 
 vi.mock('../../../packages/backend/src/utils/engineClient.js', () => engineMocks);
-
-vi.mock('../../../packages/backend/src/domain/events/events.js', () => ({
-  eventDispatcher: { dispatch: eventMocks.dispatch },
-}));
 
 vi.mock('../../../packages/backend/src/db/pool.js', () => ({}));
 

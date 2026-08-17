@@ -87,8 +87,16 @@ const GOAL_REQ: GoalOptimizerRequest = {
   ],
 };
 const mockEngine = (r: unknown) => engineMocks.callEngineStrict.mockResolvedValue(r);
-const mockFetchData = (d: unknown, dg = false) =>
+const mockFetchData = (d: unknown, dg = false) => {
   dataMocks.fetchHistoryData.mockResolvedValue({ data: d, degraded: dg });
+  helpersMocks.preparePriceDataAndWarnings.mockResolvedValue({
+    priceData: d,
+    warnings: [],
+    degraded: dg,
+    degradedWarning: undefined,
+    invalidTickers: [],
+  });
+};
 
 describe('analysis-service', () => {
   beforeEach(() => vi.clearAllMocks());
@@ -228,7 +236,7 @@ describe('analysis-service', () => {
     mockFetchData(data);
     mockEngine(result);
     expect((await fn()).data).toBe(result);
-    expect(dataMocks.fetchHistoryData).toHaveBeenCalled();
+    expect(helpersMocks.preparePriceDataAndWarnings).toHaveBeenCalled();
     expect(engineMocks.callEngineStrict).toHaveBeenCalled();
   });
 
@@ -236,7 +244,7 @@ describe('analysis-service', () => {
     await expect(
       executeGoalOptimizeWithFetch({ ...GOAL_REQ, assets: [{ ticker: '', weight: 100 }] }),
     ).rejects.toThrow('Please add at least one valid ticker');
-    expect(dataMocks.fetchHistoryData).not.toHaveBeenCalled();
+    expect(helpersMocks.preparePriceDataAndWarnings).not.toHaveBeenCalled();
   });
 
   describe('runAnalysis', () => {

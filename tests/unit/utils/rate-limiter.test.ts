@@ -33,6 +33,7 @@ import {
   adminLimiter,
   loginLimiter,
 } from '../../../packages/backend/src/utils/rateLimiter.js';
+import { createMockResponse, type MockResponse } from '../../helpers/expressMocks.js';
 
 interface LimiterOptions {
   keyGenerator?: (req: Request) => string;
@@ -56,27 +57,15 @@ function makeRequest(overrides: Record<string, unknown> = {}): Request {
     ...overrides,
   } as unknown as Request;
 }
-function makeResponse(): Response & { statusCode: number; body: unknown } {
-  const res = {
-    status: vi.fn().mockReturnThis(),
-    header: vi.fn().mockReturnThis(),
-    json: vi.fn().mockReturnThis(),
-    statusCode: 200,
-    body: null as unknown,
-  };
-  res.json = vi.fn((body: unknown) => {
-    res.body = body;
-    return res;
-  });
-  return res as unknown as Response & { statusCode: number; body: unknown };
-}
 function callMiddleware(middleware: LimiterHandler): {
-  res: ReturnType<typeof makeResponse>;
+  res: MockResponse & Response;
   next: ReturnType<typeof vi.fn>;
 } {
-  const res = makeResponse();
+  const req = makeRequest();
+  const res = createMockResponse();
+  (res as Record<string, unknown>).req = req;
   const next = vi.fn();
-  middleware(makeRequest(), res, next);
+  middleware(req, res, next);
   return { res, next };
 }
 function encodeJwtPayload(payload: object): string {
