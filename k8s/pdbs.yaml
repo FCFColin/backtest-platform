@@ -1,34 +1,24 @@
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata: { name: api-pdb }
-spec:
-  minAvailable: 1
-  selector: { matchLabels: { app: api } }
+spec: { minAvailable: 1, selector: { matchLabels: { app: api } } }
 ---
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata: { name: engine-go-pdb }
-spec:
-  minAvailable: 1
-  selector: { matchLabels: { app: engine-go } }
+spec: { minAvailable: 1, selector: { matchLabels: { app: engine-go } } }
 ---
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata: { name: frontend-pdb }
-spec:
-  minAvailable: 1
-  selector: { matchLabels: { app: frontend } }
+spec: { minAvailable: 1, selector: { matchLabels: { app: frontend } } }
 ---
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata: { name: data-fetcher-pdb }
-spec:
-  minAvailable: 1
-  selector: { matchLabels: { app: data-fetcher } }
+spec: { minAvailable: 1, selector: { matchLabels: { app: data-fetcher } } }
 ---
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata: { name: worker-pdb }
-spec:
-  minAvailable: 1
-  selector: { matchLabels: { app: backtest-worker } }
+spec: { minAvailable: 1, selector: { matchLabels: { app: backtest-worker } } }
