@@ -419,15 +419,11 @@ const TooltipContent = React.forwardRef<
   </TooltipPrimitive.Portal>
 ));
 TooltipContent.displayName = 'TooltipContent';
+// prettier-ignore
 export const InfoTooltip = ({ description }: { description: string }) => (
   <TooltipPrimitive.Root>
     <TooltipPrimitive.Trigger asChild>
-      <Info
-        className="size-3 shrink-0 cursor-help text-fg-tertiary"
-        aria-label={description}
-        tabIndex={0}
-        role="img"
-      />
+      <Info className="size-3 shrink-0 cursor-help text-fg-tertiary" aria-label={description} tabIndex={0} role="img" />
     </TooltipPrimitive.Trigger>
     <TooltipContent>{description}</TooltipContent>
   </TooltipPrimitive.Root>
@@ -460,12 +456,8 @@ export function LoadingButton({
   );
 }
 
-const SPINNER_SIZES: Record<number, string> = {
-  4: 'size-4',
-  5: 'size-5',
-  6: 'size-6',
-  8: 'size-8',
-};
+// prettier-ignore
+const SPINNER_SIZES: Record<number, string> = { 4: 'size-4', 5: 'size-5', 6: 'size-6', 8: 'size-8' };
 export function Spinner({ size = 5, className }: { size?: number; className?: string }) {
   return (
     <div

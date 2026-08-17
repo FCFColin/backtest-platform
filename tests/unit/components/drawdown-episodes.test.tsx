@@ -19,34 +19,11 @@ const makeEpisode = (overrides: Partial<DrawdownEpisode> = {}): DrawdownEpisode 
   ...overrides,
 });
 
+// prettier-ignore
 const episodes: DrawdownEpisode[] = [
-  makeEpisode({
-    depth: -0.25,
-    peakDate: '2020-02-19',
-    troughDate: '2020-03-23',
-    recoveryDate: '2020-08-18',
-    totalTimeDurationDays: 181,
-    timeToTrough: 33,
-    recoveryTime: 148,
-  }),
-  makeEpisode({
-    depth: -0.12,
-    peakDate: '2022-01-03',
-    troughDate: '2022-06-16',
-    recoveryDate: '2022-08-10',
-    totalTimeDurationDays: 219,
-    timeToTrough: 164,
-    recoveryTime: 55,
-  }),
-  makeEpisode({
-    depth: -0.05,
-    peakDate: '2023-07-31',
-    troughDate: '2023-10-27',
-    recoveryDate: '2023-12-12',
-    totalTimeDurationDays: 134,
-    timeToTrough: 88,
-    recoveryTime: 46,
-  }),
+  makeEpisode({ depth: -0.25, peakDate: '2020-02-19', troughDate: '2020-03-23', recoveryDate: '2020-08-18', totalTimeDurationDays: 181, timeToTrough: 33, recoveryTime: 148 }),
+  makeEpisode({ depth: -0.12, peakDate: '2022-01-03', troughDate: '2022-06-16', recoveryDate: '2022-08-10', totalTimeDurationDays: 219, timeToTrough: 164, recoveryTime: 55 }),
+  makeEpisode({ depth: -0.05, peakDate: '2023-07-31', troughDate: '2023-10-27', recoveryDate: '2023-12-12', totalTimeDurationDays: 134, timeToTrough: 88, recoveryTime: 46 }),
 ];
 
 describe('DrawdownEpisodes', () => {
