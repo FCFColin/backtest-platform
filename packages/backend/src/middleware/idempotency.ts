@@ -47,7 +47,7 @@ function finalize(redisKey: string, ctx: IdemCtx, statusCode: number, body: unkn
   );
 }
 
-// principal 优先用户 id（sub）而非租户 id；有租户时叠加前缀（同用户跨组织不串）；匿名共享 sub='guest' 按 IP 隔离幂等桶。
+// scoped by user > tenant > IP（匿名 sub='guest' 按 IP 隔离）
 function scopedRedisKey(req: Request, key: string): string {
   const user = (req as AuthenticatedRequest).user;
   const principal =

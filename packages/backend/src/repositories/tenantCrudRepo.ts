@@ -39,15 +39,19 @@ export function createTenantCrudRepo<TRecord, TInput>(cfg: TenantCrudConfig<TRec
       ),
     );
   return {
-      list: async (tenantId: string, limit = 50, offset = 0): Promise<TRecord[]> =>
-        withTenantReadOnly(tenantId, (client) =>
-          queryMany(
-            client,
-            `SELECT ${selectCols} FROM ${table} WHERE tenant_id = $1 ORDER BY ${orderBy} LIMIT $2 OFFSET $3`,
-            [tenantId, (sanitizeLimit ?? defaultSanitizeLimit)(limit), Math.max(0, Math.trunc(offset))],
-            mapRow,
-          ),
+    list: async (tenantId: string, limit = 50, offset = 0): Promise<TRecord[]> =>
+      withTenantReadOnly(tenantId, (client) =>
+        queryMany(
+          client,
+          `SELECT ${selectCols} FROM ${table} WHERE tenant_id = $1 ORDER BY ${orderBy} LIMIT $2 OFFSET $3`,
+          [
+            tenantId,
+            (sanitizeLimit ?? defaultSanitizeLimit)(limit),
+            Math.max(0, Math.trunc(offset)),
+          ],
+          mapRow,
         ),
+      ),
     get,
     create: async (tenantId: string, ownerUserId: string | null, input: TInput): Promise<TRecord> =>
       withTenant(tenantId, async (client) => {

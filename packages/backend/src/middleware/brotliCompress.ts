@@ -38,7 +38,10 @@ export function brotliCompress(req: Request, res: Response, next: NextFunction):
       return;
     }
 
-    const fallback = () => { originalWrite(body); originalEnd(); };
+    const fallback = () => {
+      originalWrite(body);
+      originalEnd();
+    };
     const applyEncoding = (encoding: string, buf: Buffer) => {
       res.removeHeader('Content-Length');
       res.setHeader('Content-Encoding', encoding);
@@ -51,13 +54,19 @@ export function brotliCompress(req: Request, res: Response, next: NextFunction):
         body,
         { params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 6 } },
         (err, compressed) => {
-          if (err) { fallback(); return; }
+          if (err) {
+            fallback();
+            return;
+          }
           applyEncoding('br', compressed);
         },
       );
     } else if (acceptGzip) {
       zlib.gzip(body, { level: 6 }, (err, compressed) => {
-        if (err) { fallback(); return; }
+        if (err) {
+          fallback();
+          return;
+        }
         applyEncoding('gzip', compressed);
       });
     } else {

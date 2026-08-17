@@ -115,6 +115,7 @@ app.use(corsOptions);
 
 app.use(brotliCompress);
 
+// Stripe 需 raw body 做 HMAC 签名验证，必须在 express.json() 之前挂载
 app.post('/api/v1/billing/webhook', express.raw({ type: 'application/json' }), (req, res) => {
   billingWebhookHandler(req, res).catch((err) => {
     logger.error({ err }, '[app] Stripe webhook handler unhandled rejection');
@@ -166,7 +167,7 @@ app.use('/api/v1', platformRoutes);
 
 setupOpenApiUi(app);
 
-// 静态文件 — 只匹配 /assets/ 等非 HTML 路径（HTML 由 SSR 或 SPA fallback 处理）
+// 静态文件 + SSR：只在 production 或 SERVE_STATIC 时挂载
 if (config.NODE_ENV === 'production' || config.SERVE_STATIC) {
   app.use((req, res, next) => {
     if (req.path.startsWith('/assets/') || req.path === '/favicon.svg') {
@@ -177,9 +178,6 @@ if (config.NODE_ENV === 'production' || config.SERVE_STATIC) {
       next();
     }
   });
-}
-
-if (config.NODE_ENV === 'production' || config.SERVE_STATIC) {
   const { ssrMiddleware } = await import('./ssrMiddleware.js');
   // ssrMiddleware 总在内部兜底 sendFile(SPA)，故无需第二条路由
   app.get(/^\/(?!api\/)(?!assets\/)(?!favicon)/, ssrMiddleware);

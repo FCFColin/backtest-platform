@@ -50,6 +50,13 @@ server.listen(PORT, async () => {
         () =>
           fetch(`${config.GO_ENGINE_URL}/api/engine/health`, { signal: AbortSignal.timeout(3000) }),
       ],
+      [
+        'Outbox 消费器',
+        async () => {
+          outboxConsumer = createOutboxConsumer(getPool());
+          await outboxConsumer.start();
+        },
+      ],
     ];
     for (const [name, fn] of preheats) {
       try {
@@ -63,14 +70,6 @@ server.listen(PORT, async () => {
     await warmMetaCache();
   } catch (err) {
     logger.warn({ err }, '[startup] 非关键初始化失败，服务继续运行');
-  }
-  try {
-    // P3-05：通过工厂创建 Outbox 消费器——CDC_KAFKA_ENABLED=true 走 Kafka CDC，
-    // 否则走 LISTEN/NOTIFY（默认，零额外依赖）。详见 ADR-005。
-    outboxConsumer = createOutboxConsumer(getPool());
-    await outboxConsumer.start();
-  } catch (err) {
-    logger.warn({ err }, '[startup] Outbox 消费器启动失败');
   }
 });
 

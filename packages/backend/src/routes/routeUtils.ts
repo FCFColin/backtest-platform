@@ -43,7 +43,6 @@ export function requireUuidParam(res: Response, id: string | undefined): boolean
 
 type Job = NonNullable<Awaited<ReturnType<typeof backtestQueue.getJob>>>;
 
-// BullMQ 状态归一化：backtest/runs 与 jobs/:id 两个状态端点共用同一状态词表
 function mapJobState(bullmqState: string): 'queued' | 'running' | 'completed' | 'failed' {
   if (bullmqState === 'completed') return 'completed';
   if (bullmqState === 'failed') return 'failed';
@@ -51,7 +50,6 @@ function mapJobState(bullmqState: string): 'queued' | 'running' | 'completed' | 
   return 'running';
 }
 
-// 两个状态端点唯一契约：字段/状态词表/worker 返回解包一次收敛（前端 pollJobStatus 消费 status/result/error）
 export function buildJobStatus(job: Job, state: string): Record<string, unknown> {
   const data: Record<string, unknown> = {
     id: job.id,
@@ -99,11 +97,6 @@ interface RouteErrorConfig {
 
 const recordEndpointError = (endpoint?: string) =>
   endpoint && recordBacktestRequest(endpoint, 'sync', 'error');
-const recordDegraded = (endpoint?: string) => {
-  if (!endpoint) return;
-  recordBacktestRequest(endpoint, 'sync', 'error');
-  recordDegradedResponse(endpoint, 'engine_unavailable');
-};
 
 type RouteHandlerFn = (req: AuthenticatedRequest, res: Response) => Promise<void>;
 
@@ -113,8 +106,10 @@ function baseHandler(fn: RouteHandlerFn, errorConfig: RouteErrorConfig): Request
       await fn(req as AuthenticatedRequest, res);
     } catch (error) {
       if (translateToProblem(res, error)) {
-        if (error instanceof EngineUnavailableError) recordDegraded(errorConfig.endpoint);
-        else recordEndpointError(errorConfig.endpoint);
+        if (error instanceof EngineUnavailableError && errorConfig.endpoint) {
+          recordBacktestRequest(errorConfig.endpoint, 'sync', 'error');
+          recordDegradedResponse(errorConfig.endpoint, 'engine_unavailable');
+        } else recordEndpointError(errorConfig.endpoint);
         return;
       }
       recordEndpointError(errorConfig.endpoint);
@@ -137,13 +132,6 @@ type SyncComputeOpts = {
   recordSuccess?: boolean;
   logMsg?: string;
 };
-
-// 服务返回 { data, degraded? } 形态时（与 dataRoutes 的 sendDegraded 契约一致），
-// 在响应顶层透出 degraded，供前端 apiClient 全局提示（ADR-008 数据降级可观测性）。
-// 判别依据：plainCompute 服务统一返回 DegradedResult（恒带 degraded key）；引擎 envelope 只有 success/data。
-function isBacktestResult(r: unknown): r is BacktestResult {
-  return typeof r === 'object' && r !== null && 'data' in r && 'degraded' in r;
-}
 
 function buildBacktestResponse(result: BacktestResult): Record<string, unknown> {
   const response: Record<string, unknown> = { success: true, data: result.data };
@@ -173,8 +161,11 @@ function syncCompute(
       res.json(
         opts.shape
           ? opts.shape(result)
-          : isBacktestResult(result)
-            ? buildBacktestResponse(result)
+          : typeof result === 'object' &&
+              result !== null &&
+              'data' in result &&
+              'degraded' in result
+            ? buildBacktestResponse(result as BacktestResult)
             : { success: true, data: result },
       );
       logger.info(`[${metric}] completed in ${Date.now() - startTime}ms`);
@@ -285,7 +276,9 @@ export function tenantCrudRoutes<T>(service: TenantCrudRepo<T>, cfg: TenantCrudC
   const update = h('update', async (req, res) => {
     const tenantId = tenantOf(req, res);
     if (!tenantId || !requireUuidParam(res, req.params.id)) return;
-    const updated = await service.update!(tenantId, req.params.id, req.body);
+    const updated = service.update
+      ? await service.update(tenantId, req.params.id, req.body)
+      : await service.get(tenantId, req.params.id);
     if (!updated) return sendProblem(res, 404, cfg.notFoundCode);
     sendData(res, updated);
   });

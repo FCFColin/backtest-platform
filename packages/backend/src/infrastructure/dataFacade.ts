@@ -124,13 +124,13 @@ async function fetchHistoryDataImpl(
   span.setAttribute('unknown_ticker_count', unknownTickers.length);
 
   if (invalidTickers.length > 0)
-    logger.warn(`[dataService] fetchHistoryData: 忽略 ${invalidTickers.length} 个非法 ticker: ${invalidTickers.join(', ')}`);
+    logger.warn(
+      `[dataService] 忽略 ${invalidTickers.length} 个非法 ticker: ${invalidTickers.join(', ')}`,
+    );
 
   const totalFetchable = validTickers.length + unknownTickers.length;
   if (totalFetchable === 0) {
-    logger.warn(
-      `[dataService] fetchHistoryData: 全部 ${tickers.length} 个 ticker 非法，返回空结果`,
-    );
+    logger.warn(`[dataService] 全部 ${tickers.length} 个 ticker 非法，返回空结果`);
     return { data: result, degraded: false };
   }
 

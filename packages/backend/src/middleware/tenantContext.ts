@@ -15,7 +15,6 @@ export function resolveTenant(req: AuthenticatedRequest, _res: Response, next: N
   next();
 }
 
-/** 类型守卫：断言 req.tenantId 非空。 */
 export function hasTenant(req: AuthenticatedRequest): req is TenantedRequest {
   return typeof req.tenantId === 'string' && req.tenantId.length > 0;
 }

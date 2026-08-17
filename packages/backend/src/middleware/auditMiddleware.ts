@@ -26,10 +26,6 @@ export async function writeOutboxEvent(
       payload: auditEntry,
       eventId,
     });
-    logger.debug(
-      { middleware: 'auditLog', transactional: !!client },
-      '[auditLog] outbox 事件写入成功',
-    );
   } catch (err) {
     if (client) {
       logger.error(

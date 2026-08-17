@@ -39,7 +39,6 @@ async function ensureSharedSubscriber(): Promise<IORedis> {
       for (const ws of clients) if (ws.readyState === WebSocket.OPEN) ws.send(message);
     });
     sharedSubscriber = sub;
-    logger.info('[ws] 共享 Redis 订阅连接已创建');
     return sub;
   })();
   return subscriberInitPromise;
@@ -110,10 +109,9 @@ function rejectHandshake(socket: Duplex, statusCode: number, reason: string): vo
   socket.destroy();
 }
 
-function handleConnection(ws: WebSocket, jobId: string, userId: string): void {
+function handleConnection(ws: WebSocket, jobId: string, _userId: string): void {
   wsConnectionsActive.inc();
   const channel = `${PROGRESS_CHANNEL_PREFIX}${jobId}`;
-  logger.info({ jobId, userId }, '[ws] 连接已建立，注册到共享订阅');
   let cleaned = false;
   const cleanup = (): void => {
     if (cleaned) return;
@@ -121,10 +119,7 @@ function handleConnection(ws: WebSocket, jobId: string, userId: string): void {
     wsConnectionsActive.dec();
     unsubscribeChannel(channel, ws);
   };
-  ws.on('close', () => {
-    logger.info({ jobId, userId }, '[ws] 连接已关闭，取消 channel 注册');
-    cleanup();
-  });
+  ws.on('close', cleanup);
   ws.on('error', (err) => {
     logger.warn({ err: String(err), jobId }, '[ws] 连接异常');
     cleanup();
@@ -175,6 +170,5 @@ export function setupBacktestWebSocket(server: Server): WebSocketServer {
         rejectHandshake(socket, 503, 'Service Unavailable');
       });
   });
-  logger.info('[ws] Backtest WebSocket 服务端已挂载 (/api/v1/ws/runs/:jobId)');
   return wss;
 }

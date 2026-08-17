@@ -59,9 +59,6 @@ function collectProductionErrors(): string[] {
   return errors;
 }
 
-/**
- * @throws {Error} 当必需配置缺失时抛出，错误信息包含全部校验失败项
- */
 export function validateConfig(): void {
   const errors: string[] = collectProductionErrors();
 

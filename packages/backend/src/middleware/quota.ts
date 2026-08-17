@@ -1,4 +1,3 @@
-// ADR-010 / P0-04: 组织查询失败时 fail-closed 503（防免费用户绕过）；月度用量以 usage_counters（DB 权威）为准
 import { type Response, type NextFunction, type RequestHandler } from 'express';
 import { sendProblem } from '../utils/errors.js';
 import { logger } from '../utils/logger.js';
@@ -31,7 +30,6 @@ function extractTickerCount(body: unknown): number {
 type OrgStatus =
   { ok: true; plan: string | null } | { ok: false; reason: 'org_suspended' | 'org_query_failed' };
 
-// 组织状态（plan + suspended）查询，enforceQuota 与 enforceOrgActive 共用；查询失败 fail-closed（P0-04）
 async function getOrgStatus(tenantId: string): Promise<OrgStatus> {
   try {
     const org = await getOrg(tenantId);
@@ -84,13 +82,11 @@ export function enforceQuota(metric: string) {
       return;
     }
     const tenantId = req.tenantId;
-    // 平台管理员无组织归属，仍享受豁免（break-glass）
     if (req.user?.platform_admin === true) {
       next();
       return;
     }
     if (!tenantId) {
-      // 无组织归属的普通用户（注册后未被分配 / 已被移出组织）不得绕过配额
       sendProblem(res, 400, 'NO_ACTIVE_TENANT', 'No active tenant', {
         detail: 'No active organization context for quota enforcement.',
       });
@@ -121,17 +117,11 @@ export function enforceQuota(metric: string) {
         }
       }
 
-      // 计数为尽力而为：配额判定读的是判定前写入的 DB 计数，异步写失败只可能多放行少量用量，
-      // 不构成越权/超额安全面；await 会为每次计算请求串行加一次 DB+Redis 往返延迟，故不阻塞
+      // 计数尽力而为：fire-and-forget 不阻塞请求（异步写失败不构成越权面）
       void recordUsage(tenantId, metric, 1, { path: req.path });
       next();
     } catch (err) {
-      // P0-04：用量校验失败时 fail-closed（返回 503，不是 next()）
-      logger.error(
-        { err: String(err), tenantId, metric },
-        '[quota] 配额校验失败：fail-closed 返回 503',
-      );
-
+      logger.error({ err: String(err), tenantId, metric }, '[quota] usage check failed, 503');
       quotaEnforcementFailures.inc({ quota_key: metric, reason: 'usage_check_failed' });
 
       sendProblem(res, 503, 'SERVICE_TEMPORARILY_UNAVAILABLE', 'Service temporarily unavailable', {
