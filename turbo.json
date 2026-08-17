@@ -25,6 +25,11 @@
       "outputs": [],
       "cache": true
     },
+    "test": {
+      "dependsOn": ["^build"],
+      "outputs": [],
+      "cache": true
+    },
     "dev": {
       "cache": false,
       "persistent": true

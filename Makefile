@@ -8,7 +8,7 @@
 
 .DEFAULT_GOAL := help
 .PHONY: help install dev up down check lint test test-unit bench audit simplify deadcode \
-        go-test go-vet fmt
+        go-test go-vet go-test-engine go-test-data fmt
 
 help: ## 显示所有可用命令
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
@@ -38,8 +38,20 @@ test: ## 全部测试（vitest）
 test-unit: ## 单元测试
 	pnpm run test:unit
 
+# ---- Go（engine-go / data-fetcher / go-shared）----
+go-test-engine: ## Go 竞态测试（engine-go）
+	cd engine-go && go test -race ./...
+
+go-test-data: ## Go 竞态测试（data-fetcher）
+	cd data-fetcher && go test -race ./...
+
+go-test: go-test-engine go-test-data ## Go 竞态测试（全部）
+
+go-vet: ## Go 静态检查
+	cd engine-go && go vet ./...; cd data-fetcher && go vet ./...; cd packages/go-shared && go vet ./...
+
 bench: ## Go 性能基准（engine-go + data-fetcher）
-	cd engine-go && go test -bench=. -benchmem ./... && cd ../data-fetcher && go test -bench=. -benchmem ./...
+	cd engine-go && go test -bench=. -benchmem ./...; cd data-fetcher && go test -bench=. -benchmem ./...
 
 audit: ## 供应链审计（prod 依赖漏洞阻断）
 	pnpm run audit:supply
@@ -49,13 +61,6 @@ simplify: ## 重复代码检测（jscpd）
 
 deadcode: ## 死代码检测（knip）
 	pnpm run deadcode
-
-# ---- Go（engine-go / data-fetcher）----
-go-test: ## Go 竞态测试
-	cd engine-go && go test -race ./... && cd ../data-fetcher && go test -race ./...
-
-go-vet: ## Go 静态检查
-	cd engine-go && go vet ./... && cd ../data-fetcher && go vet ./...
 
 fmt: ## 格式化（prettier，等价 pnpm format）
 	pnpm run format
