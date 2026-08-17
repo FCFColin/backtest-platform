@@ -8,10 +8,14 @@ interface TenantCrudConfig<TRecord, TInput> {
   insertCols: string;
   updateSet: string | ((input: TInput) => string);
   mapRow: (row: Record<string, unknown>) => TRecord;
-  sanitizeLimit: (limit: number) => number;
+  sanitizeLimit?: (limit: number) => number;
   toInsert: (tenantId: string, ownerUserId: string | null, input: TInput) => unknown[];
   toUpdate: (id: string, input: TInput) => unknown[];
 }
+
+// 下限 0 防负值 → PG LIMIT -1 = 无上限；上限 200 统一分页封顶（LIMIT 0 = 空页，合法）
+const defaultSanitizeLimit = (limit: number): number =>
+  Math.min(Math.max(0, Math.trunc(limit)), 200);
 
 export function createTenantCrudRepo<TRecord, TInput>(cfg: TenantCrudConfig<TRecord, TInput>) {
   const {
@@ -35,15 +39,15 @@ export function createTenantCrudRepo<TRecord, TInput>(cfg: TenantCrudConfig<TRec
       ),
     );
   return {
-    list: async (tenantId: string, limit = 50, offset = 0): Promise<TRecord[]> =>
-      withTenantReadOnly(tenantId, (client) =>
-        queryMany(
-          client,
-          `SELECT ${selectCols} FROM ${table} WHERE tenant_id = $1 ORDER BY ${orderBy} LIMIT $2 OFFSET $3`,
-          [tenantId, sanitizeLimit(limit), Math.max(0, Math.trunc(offset))],
-          mapRow,
+      list: async (tenantId: string, limit = 50, offset = 0): Promise<TRecord[]> =>
+        withTenantReadOnly(tenantId, (client) =>
+          queryMany(
+            client,
+            `SELECT ${selectCols} FROM ${table} WHERE tenant_id = $1 ORDER BY ${orderBy} LIMIT $2 OFFSET $3`,
+            [tenantId, (sanitizeLimit ?? defaultSanitizeLimit)(limit), Math.max(0, Math.trunc(offset))],
+            mapRow,
+          ),
         ),
-      ),
     get,
     create: async (tenantId: string, ownerUserId: string | null, input: TInput): Promise<TRecord> =>
       withTenant(tenantId, async (client) => {

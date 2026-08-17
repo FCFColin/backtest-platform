@@ -12,14 +12,10 @@ import { createOutboxConsumer } from './infrastructure/outboxPublisher.js';
 import { registerTimescaleMetrics, registerQueueMetrics } from './utils/metrics.js';
 import { backtestQueue } from './queues/backtestQueue.js';
 import { dataUpdateQueue } from './queues/queueDefinitions.js';
-import { eventDispatcher } from './domain/events/events.js';
-import { AuditEventHandler } from './application/auditEventHandler.js';
 // P3-05：OutboxConsumer 接口类型——由 createOutboxConsumer 工厂按 CDC_KAFKA_ENABLED 选择实现
 import type { OutboxConsumer } from './infrastructure/outboxPublisher.js';
 
 validateConfig();
-
-eventDispatcher.register(new AuditEventHandler());
 
 let outboxConsumer: OutboxConsumer | null = null;
 const PORT = config.API_PORT;
@@ -92,7 +88,11 @@ const shutdown = createShutdownOnce({
     // 先断开活动 WS 客户端：Node 的 server.close() 不回收 upgrade 后的 socket，
     // 不关掉它们 close 回调永不触发（优雅停机会一直挂到超时强杀）。
     backtestWs.close();
-    await new Promise<void>((resolve) => server.close(() => resolve()));
+    await new Promise<void>((resolve) => {
+      server.close(() => resolve());
+      // keep-alive 空闲连接会让 close 回调等自然超时，显式回收保证优雅关闭按时完成
+      server.closeAllConnections();
+    });
     appRedis.disconnect();
     if (outboxConsumer) {
       await outboxConsumer.stop();

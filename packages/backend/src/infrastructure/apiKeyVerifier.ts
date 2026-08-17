@@ -21,7 +21,11 @@ interface ApiKeyCandidate {
   org_id: string | null;
   is_platform_admin: boolean;
   key_hash_argon2: string | null;
+  last_used_at: Date | string | null;
 }
+
+// last_used_at 仅作审计用途：每请求写一次 DB 是写放大，60s 内不重复 touch
+const LAST_USED_TOUCH_INTERVAL_MS = 60_000;
 
 export async function markApiKeyRevoked(keyId: string): Promise<void> {
   const key = `${APIKEY_REVOKED_PREFIX}${keyId}`;
@@ -73,7 +77,7 @@ export async function verifyApiKey(plaintext: string): Promise<VerifiedApiKey | 
   const keyHash = sha256Hex(plaintext);
   const pool = getPool();
   const { rows } = await pool.query<ApiKeyCandidate>(
-    `SELECT id, org_id, is_platform_admin, key_hash_argon2
+    `SELECT id, org_id, is_platform_admin, key_hash_argon2, last_used_at
        FROM api_keys
       WHERE key_hash = $1
         AND revoked_at IS NULL
@@ -103,14 +107,17 @@ export async function verifyApiKey(plaintext: string): Promise<VerifiedApiKey | 
     return null;
   }
 
-  const touch = candidate.org_id
-    ? withTenant(candidate.org_id, (client) =>
-        client.query('UPDATE api_keys SET last_used_at = NOW() WHERE id = $1', [keyId]),
-      )
-    : Promise.resolve();
-  void touch.catch((err) =>
-    logger.warn({ err: String(err), keyId }, '[apiKeyService] last_used_at 更新失败'),
-  );
+  const staleLastUsed =
+    !candidate.last_used_at ||
+    Date.now() - new Date(candidate.last_used_at).getTime() > LAST_USED_TOUCH_INTERVAL_MS;
+  if (candidate.org_id && staleLastUsed) {
+    const touch = withTenant(candidate.org_id, (client) =>
+      client.query('UPDATE api_keys SET last_used_at = NOW() WHERE id = $1', [keyId]),
+    );
+    void touch.catch((err) =>
+      logger.warn({ err: String(err), keyId }, '[apiKeyService] last_used_at 更新失败'),
+    );
+  }
 
   return {
     orgId: candidate.org_id,

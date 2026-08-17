@@ -1,4 +1,5 @@
 import { config } from './env.js';
+import { DEFAULT_SECRETS } from './assertNoDefaultSecrets.js';
 
 export { config, authConfig } from './env.js';
 
@@ -8,7 +9,7 @@ import { logger } from '../utils/logger.js';
 
 function validateJwtConfig(): string[] {
   const errors: string[] = [];
-  if (config.JWT_SECRET === 'dev-only-jwt-secret-change-in-production') {
+  if (config.JWT_SECRET === DEFAULT_SECRETS.JWT_SECRET) {
     errors.push('JWT_SECRET 在生产环境必须修改默认值，请通过环境变量设置');
   } else if (config.JWT_ALGORITHM === 'HS256' && config.JWT_SECRET.length < 32) {
     errors.push('JWT_SECRET 在生产环境（HS256）长度必须 >= 32 字符以保证足够熵');
@@ -24,11 +25,11 @@ function validateJwtConfig(): string[] {
 
 function validateServiceTokens(): string[] {
   const errors: string[] = [];
-  if (!config.ENGINE_AUTH_TOKEN || config.ENGINE_AUTH_TOKEN === 'dev-engine-auth-token')
+  if (!config.ENGINE_AUTH_TOKEN || config.ENGINE_AUTH_TOKEN === DEFAULT_SECRETS.ENGINE_AUTH_TOKEN)
     errors.push('ENGINE_AUTH_TOKEN 在生产环境必须设置为非默认的强随机值（>= 32 字符）');
   if (
     !config.DATA_SERVICE_AUTH_TOKEN ||
-    config.DATA_SERVICE_AUTH_TOKEN === 'dev-data-service-auth-token'
+    config.DATA_SERVICE_AUTH_TOKEN === DEFAULT_SECRETS.DATA_SERVICE_AUTH_TOKEN
   )
     errors.push('DATA_SERVICE_AUTH_TOKEN 在生产环境必须设置为非默认的强随机值（>= 32 字符）');
   return errors;
@@ -67,15 +68,15 @@ export function validateConfig(): void {
   if (config.NODE_ENV !== 'production') {
     const devWarnings: Array<{ condition: boolean; message: string }> = [
       {
-        condition: config.ENGINE_AUTH_TOKEN === 'dev-engine-auth-token',
+        condition: config.ENGINE_AUTH_TOKEN === DEFAULT_SECRETS.ENGINE_AUTH_TOKEN,
         message: 'ENGINE_AUTH_TOKEN 使用开发默认值，请勿在生产环境使用',
       },
       {
-        condition: config.DATA_SERVICE_AUTH_TOKEN === 'dev-data-service-auth-token',
+        condition: config.DATA_SERVICE_AUTH_TOKEN === DEFAULT_SECRETS.DATA_SERVICE_AUTH_TOKEN,
         message: 'DATA_SERVICE_AUTH_TOKEN 使用开发默认值，请勿在生产环境使用',
       },
       {
-        condition: config.JWT_SECRET === 'dev-only-jwt-secret-change-in-production',
+        condition: config.JWT_SECRET === DEFAULT_SECRETS.JWT_SECRET,
         message: 'JWT_SECRET 使用开发默认值，请勿在生产环境使用',
       },
       {

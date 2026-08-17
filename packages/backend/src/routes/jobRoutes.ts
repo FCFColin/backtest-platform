@@ -77,7 +77,7 @@ router.post(
     type: 'grid-search',
     onQueueDown: 'sync-fallback',
     statusUrl: (jobId) => `/api/v1/jobs/${jobId}`,
-    fallback: (body) => executeGridSearch(body as Record<string, unknown>),
+    fallback: (body) => executeGridSearch(body as TacticalGridRequest),
     logMsg: '[tactical-grid] 网格搜索失败',
     code: 'GRID_SEARCH_ERROR',
     endpoint: 'tactical-grid',

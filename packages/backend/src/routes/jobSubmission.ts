@@ -3,7 +3,7 @@
  * grid 的 GRID_TOO_MANY_COMBINATIONS 预校验保留在各路由声明处。
  */
 import { randomUUID } from 'node:crypto';
-import type { RequestHandler } from 'express';
+import type { Request, RequestHandler, Response } from 'express';
 import { backtestQueue, type BacktestJobData } from '../queues/backtestQueue.js';
 import type { AuthenticatedRequest } from '../middleware/jwtAuth.js';
 import { crudRouteHandler, ownerOf } from './routeUtils.js';
@@ -21,11 +21,39 @@ interface SubmitQueueJobConfig {
   retryAfter?: string;
   detail?: string;
   jobStatus?: string;
-  fallback?: (body: unknown) => Promise<{ success: boolean; data?: unknown }>;
+  fallback?: (body: unknown) => Promise<{
+    success: boolean;
+    data?: unknown;
+    degraded?: boolean;
+    degradedWarning?: string;
+  }>;
   metric?: string;
   logMsg: string;
   code: string;
   endpoint: string;
+}
+
+/** 队列不可用时同步兜底：成功返回 200 + 结果（含 degraded 透传），失败落 400 GRID_BAD_REQUEST */
+async function runSyncFallback(
+  cfg: SubmitQueueJobConfig,
+  req: Request,
+  res: Response,
+): Promise<void> {
+  const result = await withTimeout(
+    cfg.fallback!(req.body),
+    config.SYNC_COMPUTE_TIMEOUT_MS,
+    cfg.endpoint,
+  );
+  if (!result.success) {
+    sendProblem(res, 400, 'GRID_BAD_REQUEST');
+    return;
+  }
+  res.json({
+    success: true,
+    data: result.data,
+    ...(result.degraded ? { degraded: true } : {}),
+    ...(result.degradedWarning ? { degradedWarning: result.degradedWarning } : {}),
+  });
 }
 
 export function submitQueueJob(cfg: SubmitQueueJobConfig): RequestHandler {
@@ -57,16 +85,7 @@ export function submitQueueJob(cfg: SubmitQueueJobConfig): RequestHandler {
         if (cfg.metric) recordBacktestRequest(cfg.metric, 'async', 'success');
       } catch (queueError) {
         if (cfg.onQueueDown === 'sync-fallback') {
-          const result = await withTimeout(
-            cfg.fallback!(req.body),
-            config.SYNC_COMPUTE_TIMEOUT_MS,
-            cfg.endpoint,
-          );
-          if (result.success) {
-            res.json({ success: true, data: result.data });
-            return;
-          }
-          sendProblem(res, 400, 'GRID_BAD_REQUEST');
+          await runSyncFallback(cfg, req, res);
           return;
         }
         if (cfg.metric) recordBacktestRequest(cfg.metric, 'async', 'queue_error');

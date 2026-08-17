@@ -35,9 +35,10 @@ export const crudMiddleware = (permission: Permission) => [
 ];
 export const readOnlyAuth: RequestHandler[] = [optionalJwtAuth, assignGuestReadonly];
 
-// 写面链：鉴权 + 租户解析 + 权限门槛 + 审计 + 幂等键，admin/platform-admin 复用同构链
+// 写面链：鉴权 + 租户解析 + 权限门槛 + 幂等键 + 审计，admin/platform-admin 复用同构链；
+// 幂等前置（与 computeChain 一致）：重放请求在审计前短路返回，避免重复审计
 function writeChain(auth: RequestHandler): RequestHandler[] {
-  return [jwtAuth, resolveTenant, auth, auditLog, idempotencyKey];
+  return [jwtAuth, resolveTenant, auth, idempotencyKey, auditLog];
 }
 export const adminMiddleware = () => writeChain(requirePermission(Permission.ADMIN_ACCESS));
 export const platformAdminMiddleware = () => writeChain(requirePlatformAdmin);

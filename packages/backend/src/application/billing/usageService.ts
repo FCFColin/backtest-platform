@@ -2,6 +2,7 @@
 import { withTenant } from '../../db/pool.js';
 import { appRedis } from '../../infrastructure/redisClient.js';
 import { logger } from '../../utils/logger.js';
+import { usageWriteFailures } from '../../utils/metrics.js';
 import { currentPeriod } from './planLimitsService.js';
 
 function counterKey(orgId: string, period: string, metric: string): string {
@@ -31,6 +32,7 @@ export async function recordUsage(
     });
   } catch (err) {
     logger.error({ err: String(err), orgId, metric }, '[usageService] 记录用量失败');
+    usageWriteFailures.inc({ metric });
   }
   try {
     const key = counterKey(orgId, period, metric);

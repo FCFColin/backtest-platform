@@ -7,6 +7,27 @@ interface SendProblemOptions {
   headers?: Record<string, string>;
 }
 
+/** RFC 7807 信封单一构造点：sendProblem/限流 message 共用，杜绝多轨漂移。 */
+export function problemBody(
+  code: string,
+  status: number,
+  title?: string,
+  detail?: string,
+  instance?: string,
+): Record<string, unknown> {
+  return {
+    success: false,
+    error: {
+      type: `https://backtest.platform/errors/${code}`,
+      title: title ?? code,
+      status,
+      code,
+      ...(detail !== undefined ? { detail } : {}),
+      ...(instance !== undefined ? { instance } : {}),
+    },
+  };
+}
+
 export function errorMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
@@ -103,16 +124,5 @@ export function sendProblem(
       r.header(key, value);
     }
   }
-  const body: Record<string, unknown> = {
-    success: false,
-    error: {
-      type: `https://backtest.platform/errors/${code}`,
-      title: title ?? code,
-      status,
-      code,
-      detail,
-      instance: res.req?.path,
-    },
-  };
-  r.json(body);
+  r.json(problemBody(code, status, title, detail, res.req?.path));
 }

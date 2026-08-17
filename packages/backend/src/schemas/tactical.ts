@@ -1,5 +1,6 @@
 ﻿import { z } from 'zod';
 import { ALL_REBALANCE_FREQUENCIES, TECHNICAL_INDICATORS } from '@backtest/shared/constants';
+import { tickerWeightSchema } from './analysisSchemas.js';
 
 export const loginPasswordSchema = z.object({
   username: z.string().min(1, '用户名不能为空').max(100).trim(),
@@ -67,14 +68,7 @@ const tradingSignalSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
   conditions: z.array(signalConditionSchema).min(1),
-  targetWeights: z
-    .array(
-      z.object({
-        ticker: z.string().min(1),
-        weight: z.number(),
-      }),
-    )
-    .min(1),
+  targetWeights: z.array(tickerWeightSchema).min(1),
 });
 
 const tacticalStrategySchema = z.object({

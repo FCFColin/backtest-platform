@@ -48,12 +48,12 @@ const repo = createTenantCrudRepo<TacticalConfigRecord, TacticalConfigInput>({
   insertCols: 'tenant_id, user_id, name, description, config',
   updateSet: (input) => {
     let idx = 2;
-    return FIELDS.filter(([k]) => input[k] !== undefined)
-      .map(([, col]) => `${col} = $${idx++}`)
-      .join(', ');
+    const cols = FIELDS.filter(([k]) => input[k] !== undefined).map(
+      ([, col]) => `${col} = $${idx++}`,
+    );
+    return cols.length > 0 ? `${cols.join(', ')}, updated_at = NOW()` : '';
   },
   mapRow,
-  sanitizeLimit: (limit) => Math.min(limit, 200),
   toInsert: (tenantId, ownerUserId, input) => [
     tenantId,
     ownerUserId,

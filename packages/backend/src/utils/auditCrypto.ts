@@ -2,7 +2,7 @@ import crypto from 'crypto';
 import { config } from '../config/index.js';
 import { logger } from './logger.js';
 
-// HMAC-SHA256 审计签名/校验单一实现（auditMiddleware 与 auditStorageService 共用）；AUDIT_HMAC_KEY 缺失时 fail-closed（D2-010）
+// HMAC-SHA256 审计签名/校验单一实现（auditMiddleware 与 auditStorageService 共用）；AUDIT_HMAC_KEY 缺失时降级为不签名（仅生产 validateConfig 强制），签名仅用于篡改检测不作授权凭据
 export function signAuditEntry(payload: string): string {
   const key = config.AUDIT_HMAC_KEY;
   if (!key) {

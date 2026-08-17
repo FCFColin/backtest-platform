@@ -48,7 +48,6 @@ const repo = createTenantCrudRepo<BacktestRunRecord, BacktestRunInput>({
   table: 'backtest_runs',
   selectCols: 'id, name, request, result, status, owner_user_id, created_at',
   orderBy: 'created_at DESC',
-  sanitizeLimit: (limit) => Math.min(Math.max(1, Math.trunc(limit)), 200),
   insertCols: 'tenant_id, owner_user_id, name, request, result, status',
   updateSet: 'name = $2, request = $3::jsonb, result = $4::jsonb, status = $5',
   mapRow,
@@ -85,6 +84,7 @@ export async function save(
          name = EXCLUDED.name,
          result = EXCLUDED.result,
          status = EXCLUDED.status
+       WHERE backtest_runs.tenant_id = EXCLUDED.tenant_id
        RETURNING id, name, request, result, status, owner_user_id, created_at`,
       [
         input.id,

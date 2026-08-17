@@ -145,6 +145,10 @@ const COUNTER_DEFS = {
     help: 'Total number of audit outbox event write failures (non-transactional path)',
     labels: [],
   },
+  usage_write_failures_total: {
+    help: 'Total number of usage recording DB write failures (quota/BI loss, fail-open)',
+    labels: ['metric'],
+  },
   dlq_transfers_total: {
     help: 'Total jobs transferred to a dead letter queue (final failure)',
     labels: ['queue'],
@@ -159,6 +163,7 @@ export const engineUnavailableTotal = ctr.engine_unavailable_total;
 export const authIpLockoutCounter = ctr.auth_ip_lockout_total;
 export const quotaEnforcementFailures = ctr.quota_enforcement_failures_total;
 export const auditOutboxWriteFailures = ctr.audit_outbox_write_failures_total;
+export const usageWriteFailures = ctr.usage_write_failures_total;
 export const recordDlqTransfer = (queue: string): void =>
   ctr.dlq_transfers_total.inc({ queue: sanitizeMetricLabel(queue) });
 
@@ -324,11 +329,20 @@ const KNOWN_LABEL_SETS = {
 } as const;
 const ID_SEGMENT_RE = /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$|^\d{6,}$/i;
 const seenLabels = new Set<string>();
+// 达到基数上限后周期性清空：避免新 label 永久落入 [other]（老序列被清只是降级为新 label）
+let seenLabelsResetAt = Date.now();
+const LABEL_SET_TTL_MS = 60 * 60 * 1000;
 
 function boundedLabel(scope: string, raw: string): string {
   const key = `${scope}\u0000${raw}`;
   if (seenLabels.has(key)) return raw;
-  if (!raw || seenLabels.size >= LABEL_CARDINALITY_CAP) return OTHER_LABEL;
+  if (!raw || seenLabels.size >= LABEL_CARDINALITY_CAP) {
+    if (Date.now() - seenLabelsResetAt >= LABEL_SET_TTL_MS) {
+      seenLabelsResetAt = Date.now();
+      seenLabels.clear();
+    }
+    return OTHER_LABEL;
+  }
   seenLabels.add(key);
   return raw;
 }

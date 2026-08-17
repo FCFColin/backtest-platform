@@ -1,5 +1,4 @@
 import type { GridParamRange } from '@backtest/shared/types/tactical';
-import { numericRange } from '../../utils/misc.js';
 
 export const MAX_GRID_COMBINATIONS = 200;
 
@@ -30,10 +29,10 @@ export function validateGridSearchRequest(request: GridSearchDomainRequest): str
 }
 
 // 与 numericRange 实际生成数保持一致（step 精度取整影响真实组合数）
-function countRangeValues(range: GridParamRange): number {
-  if (range.step <= 0) return 1;
-  if (range.min > range.max) return 0;
-  return numericRange(range.min, range.max, range.step).length;
+function countRangeValues({ min, max, step }: GridParamRange): number {
+  if (step <= 0 || min > max) return step <= 0 ? 1 : 0;
+  const f = 10 ** (String(step).split('.')[1]?.length ?? 0);
+  return Math.floor((Math.round(max * f) - Math.round(min * f)) / Math.round(step * f)) + 1;
 }
 
 export function countCombinations(param1: GridParamRange, param2: GridParamRange): number {

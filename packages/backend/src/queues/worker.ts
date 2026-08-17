@@ -12,7 +12,7 @@ import {
 } from './queueUtils.js';
 import { executeOptimization } from '../application/optimize-service.js';
 import { runPortfolioBacktest } from '../application/backtest-service.js';
-import { executeGridSearch } from '../application/grid-application-service.js';
+import { executeGridSearch, type TacticalGridRequest } from '../application/grid-application-service.js';
 import { save } from '../repositories/backtestRunRepo.js';
 import { getOrgPlanLimit } from '../application/billing/planLimitsService.js';
 import { appRedis } from '../infrastructure/redisClient.js';
@@ -95,7 +95,7 @@ type JobHandler = (
 
 const JOB_HANDLERS: Record<string, JobHandler> = {
   optimizer: executeOptimization as JobHandler,
-  'grid-search': executeGridSearch as JobHandler,
+  'grid-search': ((payload: unknown) => executeGridSearch(payload as TacticalGridRequest)) as JobHandler,
 };
 
 async function dispatchJob(job: Job<BacktestJobData>): Promise<BacktestJobResult> {

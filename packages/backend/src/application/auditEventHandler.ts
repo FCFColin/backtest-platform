@@ -2,7 +2,8 @@ import { logger } from '../utils/logger.js';
 import { withTenant } from '../db/pool.js';
 import { writeAuditLog } from './auditStorageService.js';
 import type { AuditAction } from './auditStorageService.js';
-import type { EventHandler, DomainEvent } from '../domain/events/events.js';
+
+export const AUDIT_EVENT_TYPE = 'AuditEvent';
 
 const METHOD_ACTION: Record<string, AuditAction> = {
   POST: 'CREATE',
@@ -11,37 +12,46 @@ const METHOD_ACTION: Record<string, AuditAction> = {
   DELETE: 'DELETE',
 };
 
-export class AuditEventHandler implements EventHandler {
-  readonly eventType = 'AuditEvent';
+export interface AuditEventInput {
+  orgId?: unknown;
+  userId?: unknown;
+  method?: unknown;
+  path?: unknown;
+  ip?: unknown;
+  statusCode?: unknown;
+  result?: unknown;
+  userAgent?: unknown;
+  timestamp?: unknown;
+  __outboxEventId?: unknown;
+}
 
-  async handle(event: DomainEvent): Promise<void> {
-    const p = event.payload;
-    const orgId = typeof p.orgId === 'string' ? p.orgId : null;
-    if (!orgId) {
-      logger.warn(
-        { aggregateId: event.aggregateId },
-        '[AuditEventHandler] 事件缺少 orgId，跳过持久化（仅 pino 日志）',
-      );
-      return;
-    }
-    const method = typeof p.method === 'string' ? p.method : '';
-    const outboxEventId = typeof p.__outboxEventId === 'string' ? p.__outboxEventId : null;
-    const entry = {
-      eventType: 'AuditEvent',
-      userId: typeof p.userId === 'string' ? p.userId : null,
-      orgId,
-      ipAddress: typeof p.ip === 'string' ? p.ip : null,
-      action: METHOD_ACTION[method] ?? 'READ',
-      resourceType: typeof p.path === 'string' ? p.path : null,
-      resourceId: null,
-      payload: {
-        method,
-        statusCode: p.statusCode,
-        result: p.result,
-        userAgent: p.userAgent,
-        timestamp: p.timestamp,
-      },
-    };
-    await withTenant(orgId, (client) => writeAuditLog(entry, client, outboxEventId ?? undefined));
+/** 审计事件唯一消费者（P3-05）：由 outbox 消费端直接调用；失败向上抛供 outbox 不置 processed 重试。 */
+export async function handleAuditEvent(input: AuditEventInput): Promise<void> {
+  const orgId = typeof input.orgId === 'string' ? input.orgId : null;
+  if (!orgId) {
+    logger.warn(
+      { outboxEventId: input.__outboxEventId },
+      '[audit] 事件缺少 orgId，跳过持久化（仅 pino 日志）',
+    );
+    return;
   }
+  const method = typeof input.method === 'string' ? input.method : '';
+  const outboxEventId = typeof input.__outboxEventId === 'string' ? input.__outboxEventId : null;
+  const entry = {
+    eventType: AUDIT_EVENT_TYPE,
+    userId: typeof input.userId === 'string' ? input.userId : null,
+    orgId,
+    ipAddress: typeof input.ip === 'string' ? input.ip : null,
+    action: METHOD_ACTION[method] ?? 'READ',
+    resourceType: typeof input.path === 'string' ? input.path : null,
+    resourceId: null,
+    payload: {
+      method,
+      statusCode: input.statusCode,
+      result: input.result,
+      userAgent: input.userAgent,
+      timestamp: input.timestamp,
+    },
+  };
+  await withTenant(orgId, (client) => writeAuditLog(entry, client, outboxEventId ?? undefined));
 }

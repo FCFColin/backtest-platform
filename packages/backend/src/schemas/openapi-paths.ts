@@ -153,19 +153,21 @@ function reg(opts: RegPathOpts): void {
   if (opts.params) request.params = opts.params;
   if (opts.query) request.query = opts.query;
   if (opts.body) request.body = { content: { 'application/json': { schema: opts.body } } };
+  // operation 级 security 显式标注（protected=BearerAuth，公开=[]），不依赖全局继承，
+  // 避免公开端点（health/announcements/errors/auth 等）被顶层 BearerAuth 误标注为需认证
   const security =
     opts.security === true
       ? [{ BearerAuth: [] }]
       : opts.security === 'apiKey'
         ? [{ ApiKeyAuth: [] }]
-        : undefined;
+        : [];
   registry.registerPath({
     method: opts.method,
     path: opts.path,
     summary: opts.summary,
     tags: [opts.tag],
     ...(opts.description ? { description: opts.description } : {}),
-    ...(security ? { security } : {}),
+    security,
     ...(Object.keys(request).length ? { request } : {}),
     responses: buildResponses(opts),
   });
@@ -519,6 +521,5 @@ export function generateOpenApiDocument() {
     },
     servers: [{ url: 'http://localhost:15001/api/v1', description: '本地开发环境' }],
     tags: TAGS.map((name) => ({ name })),
-    security: [{ BearerAuth: [] }],
   });
 }

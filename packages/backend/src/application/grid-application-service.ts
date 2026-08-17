@@ -13,13 +13,12 @@ export { MAX_GRID_COMBINATIONS, countCombinations };
 
 export type TacticalGridRequest = GridSearchDomainRequest;
 
-export async function executeGridSearch(body: Record<string, unknown>): Promise<{
+export async function executeGridSearch(request: TacticalGridRequest): Promise<{
   success: boolean;
   data?: Record<string, unknown>;
   error?: string;
 }> {
   const startTime = Date.now();
-  const request = body as unknown as TacticalGridRequest;
 
   const validationError = validateGridSearchRequest(request);
   if (validationError) return { success: false, error: validationError };

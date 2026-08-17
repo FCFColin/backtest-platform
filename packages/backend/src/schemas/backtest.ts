@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { extendZodWithOpenApi } from '@asteasolutions/zod-to-openapi';
 import { MAX_TICKERS, ALL_REBALANCE_FREQUENCIES } from '@backtest/shared/constants';
 import { isValidTicker } from '../utils/tickerValidation.js';
-import { assetSchema } from './analysisSchemas.js';
+import { assetSchema, tickerWeightSchema } from './analysisSchemas.js';
 import { paramRangeSchema } from './tactical.js';
 import type { BacktestOptimizerRequest } from '../domain/services/optimizer-domain.js';
 
@@ -178,14 +178,7 @@ export const backtestRunBodySchema = z.object({
 export const backtestOptimizerSchema = z.object({
   portfolio: z.object({
     name: z.string().optional(),
-    assets: z
-      .array(
-        z.object({
-          ticker: z.string().min(1),
-          weight: z.number(),
-        }),
-      )
-      .min(1, '组合至少需要一个资产'),
+    assets: z.array(tickerWeightSchema).min(1, '组合至少需要一个资产'),
   }),
   parameterSpace: z.object({
     rebalanceFrequencies: z.array(z.enum(ALL_REBALANCE_FREQUENCIES)).min(1),

@@ -57,7 +57,6 @@ const repo = createTenantCrudRepo<PortfolioRecord, PortfolioInput>({
   table: 'portfolios',
   selectCols: 'id, name, assets, rebalance_frequency, owner_user_id, created_at, updated_at',
   orderBy: 'updated_at DESC',
-  sanitizeLimit: (limit) => Math.min(limit, 200),
   insertCols: 'tenant_id, owner_user_id, name, assets, rebalance_frequency',
   updateSet: 'name = $2, assets = $3::jsonb, rebalance_frequency = $4, updated_at = NOW()',
   mapRow,

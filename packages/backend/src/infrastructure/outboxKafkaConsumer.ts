@@ -3,10 +3,8 @@
 // 权衡：kafkajs 运行时动态 import，未安装时降级 no-op；不更新 outbox.processed_at（写回会被 Debezium 再捕获形成反馈环），
 import { config } from '../config/index.js';
 import { logger } from '../utils/logger.js';
-import { eventDispatcher } from '../domain/events/events.js';
+import { AUDIT_EVENT_TYPE, handleAuditEvent } from '../application/auditEventHandler.js';
 import type { OutboxConsumer } from './outbox.js';
-
-const TOPIC_PREFIX = 'backtest.';
 
 // 消息形态（Outbox Event Router SMT 展平后）：topic=backtest.<aggregate_type>，key=aggregate_id，
 interface KafkaLike {
@@ -110,9 +108,8 @@ export class OutboxKafkaConsumer implements OutboxConsumer {
     }
   }
 
-  private async handleMessage(payload: KafkaMessage): Promise<void> {
-    const { topic, message } = payload;
-    const aggregateType = topic.startsWith(TOPIC_PREFIX) ? topic.slice(TOPIC_PREFIX.length) : topic;
+  private async handleMessage(msg: KafkaMessage): Promise<void> {
+    const { topic, message } = msg;
     const aggregateId = message.key ? message.key.toString('utf8') : '';
     const eventPayload = this.parsePayload(message.value);
     const eventType =
@@ -121,7 +118,6 @@ export class OutboxKafkaConsumer implements OutboxConsumer {
       this.extractHeader(message, '__event_type') ??
       (typeof eventPayload.eventType === 'string' ? eventPayload.eventType : null) ??
       (typeof eventPayload.event_type === 'string' ? eventPayload.event_type : null);
-    const occurredAt = message.timestamp ? new Date(Number(message.timestamp)) : new Date();
     if (!eventType) {
       logger.warn(
         { module: 'outboxKafkaConsumer', topic, aggregateId },
@@ -136,14 +132,16 @@ export class OutboxKafkaConsumer implements OutboxConsumer {
         : typeof eventPayload.outboxId === 'string'
           ? eventPayload.outboxId
           : null;
-    await eventDispatcher.dispatch({
-      eventType,
-      aggregateType,
-      aggregateId,
-      payload:
-        outboxEventId === null ? eventPayload : { ...eventPayload, __outboxEventId: outboxEventId },
-      occurredAt,
-    });
+    const auditInput =
+      outboxEventId === null ? eventPayload : { ...eventPayload, __outboxEventId: outboxEventId };
+    if (eventType !== AUDIT_EVENT_TYPE) {
+      logger.warn(
+        { module: 'outboxKafkaConsumer', topic, eventType, aggregateId },
+        'Kafka outbox event 无消费者，跳过',
+      );
+      return;
+    }
+    await handleAuditEvent(auditInput);
     logger.info(
       { module: 'outboxKafkaConsumer', topic, eventType, aggregateId },
       'Kafka outbox event consumed',

@@ -103,7 +103,9 @@ export async function queryPricesFromDb(
       const range =
         (await computeCommonDateRange(validTickers, hasUnknownTickers)) ??
         (hasUnknownTickers ? { start: DEFAULT_START_DATE, end: toDateStr(new Date()) } : null);
-      if (range) [s, e] = [range.start, range.end];
+      // 无区间（标的在 DB 无任何数据）：视为缺失而非 DB 降级，避免空区间查询抛错产生假 dbDegraded
+      if (!range) return { result: {}, missing: validTickers, dbDegraded: false };
+      [s, e] = [range.start, range.end];
     }
     if (validTickers.length === 0 && hasUnknownTickers)
       return { result: {}, missing: [], dbDegraded: false };

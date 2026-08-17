@@ -125,7 +125,6 @@ export function objectiveValue(
       return it.sharpe;
     case 'maxSortino':
       return it.sortino;
-    default:
-      return it.cagr;
   }
+  throw new Error(`未知优化目标: ${String(objective)}`);
 }

@@ -2,9 +2,9 @@ import pg from 'pg';
 import client from 'prom-client';
 import { logger } from '../utils/logger.js';
 import { getPrometheusRegister } from '../utils/metrics.js';
-import { eventDispatcher } from '../domain/events/events.js';
 import { config } from '../config/index.js';
 import pLimit from 'p-limit';
+import { AUDIT_EVENT_TYPE, handleAuditEvent } from '../application/auditEventHandler.js';
 import { OutboxKafkaConsumer } from './outboxKafkaConsumer.js';
 import type { OutboxConsumer } from './outbox.js';
 
@@ -123,18 +123,20 @@ export class OutboxPublisher {
   }
 
   private async routeEvent(event: OutboxEventRow): Promise<void> {
+    if (event.event_type !== AUDIT_EVENT_TYPE) {
+      moduleLog(
+        'warn',
+        { eventType: event.event_type, eventId: event.id },
+        'Outbox event 无消费者，跳过',
+      );
+      return;
+    }
     const payload =
       typeof event.payload === 'string'
         ? JSON.parse(event.payload)
         : (event.payload as Record<string, unknown>);
-    await eventDispatcher.dispatch({
-      eventType: event.event_type,
-      aggregateType: event.aggregate_type,
-      aggregateId: event.aggregate_id,
-      // 透传 outbox 行 id 供消费端幂等（ADR-005）：重复投递不再重复落库
-      payload: { ...payload, __outboxEventId: event.id },
-      occurredAt: new Date(event.created_at),
-    });
+    // 透传 outbox 行 id 供消费端幂等（ADR-005）：重复投递不再重复落库
+    await handleAuditEvent({ ...payload, __outboxEventId: event.id });
   }
 
   async stop(): Promise<void> {

@@ -3,6 +3,9 @@ import nodemailer, { type Transporter } from 'nodemailer';
 import { config } from '../config/index.js';
 import { logger } from '../utils/logger.js';
 
+// 邮件头注入防护：subject 由用户可控输入拼接，CR/LF 会破坏 header（SMTP header injection）
+const sanitizeHeader = (v: string): string => v.replace(/[\r\n]+/g, ' ').trim();
+
 let transporter: Transporter | null = null;
 
 function getTransporter(): Transporter | null {
@@ -65,7 +68,7 @@ export async function sendInvitationEmail(
   const link = `${config.APP_BASE_URL}/accept-invite?token=${encodeURIComponent(token)}`;
   await sendMail({
     to,
-    subject: `你被邀请加入组织 ${orgName} · Backtest Platform`,
+    subject: `你被邀请加入组织 ${sanitizeHeader(orgName)} · Backtest Platform`,
     text: `你被邀请加入组织「${orgName}」。请点击以下链接接受邀请（7 天内有效）：\n\n${link}\n\n若你尚无账户，请先注册后再打开此链接。`,
   });
 }

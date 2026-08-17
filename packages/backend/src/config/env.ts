@@ -65,7 +65,7 @@ const serverConfig = {
   APP_BASE_URL: str(process.env.APP_BASE_URL, 'http://localhost:15173'),
   PROJECT_ROOT,
   MIGRATIONS_DIR: path.resolve(PROJECT_ROOT, 'migrations'),
-  FRONTEND_DIST_DIR: path.resolve(PROJECT_ROOT, 'dist'),
+  FRONTEND_DIST_DIR: path.resolve(PROJECT_ROOT, 'packages/frontend/dist'),
   OTEL_EXPORTER_OTLP_ENDPOINT: str(process.env.OTEL_EXPORTER_OTLP_ENDPOINT, ''),
   OTEL_EXPORTER_OTLP_METRICS_ENDPOINT: str(process.env.OTEL_EXPORTER_OTLP_METRICS_ENDPOINT, ''),
 };

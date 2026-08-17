@@ -7,7 +7,7 @@ import { appRedis, getRedisHealth } from '../infrastructure/redisClient.js';
 import { logger } from '../utils/logger.js';
 import { sha256Hex } from './crypto.js';
 import { getPrometheusRegister } from './metrics.js';
-import { RedisUnavailableError } from './errors.js';
+import { RedisUnavailableError, problemBody, sendProblem } from './errors.js';
 import { RT_COOKIE } from '../middleware/authShared.js';
 
 const rateLimiterRedisUnavailableCounter = new client.Counter({
@@ -118,16 +118,7 @@ function authRateLimitKey(req: Request): string {
 }
 
 function buildRateLimitMessage(code: string, detail?: string) {
-  return {
-    success: false,
-    error: {
-      type: `https://backtest.platform/errors/${code}`,
-      title: code,
-      status: 429,
-      code,
-      ...(detail ? { detail } : {}),
-    },
-  };
+  return problemBody(code, 429, undefined, detail);
 }
 
 interface LimiterOptions {
@@ -141,21 +132,10 @@ interface LimiterOptions {
 }
 
 function createDenyAllLimiter(code: string, detail: string): RequestHandler {
-  return (req: Request, res: Response, _next: NextFunction) => {
-    res
-      .status(503)
-      .header('Content-Type', 'application/problem+json')
-      .json({
-        success: false,
-        error: {
-          type: `https://backtest.platform/errors/${code}`,
-          title: code,
-          status: 503,
-          code,
-          detail: `Rate limiter unavailable: ${detail}. Redis is required for distributed rate limiting.`,
-          instance: req.path,
-        },
-      });
+  return (_req: Request, res: Response, _next: NextFunction) => {
+    sendProblem(res, 503, code, undefined, {
+      detail: `Rate limiter unavailable: ${detail}. Redis is required for distributed rate limiting.`,
+    });
   };
 }
 
