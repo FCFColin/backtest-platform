@@ -19,8 +19,10 @@ import {
   createDefaultCondition,
 } from './TacticalUtils';
 import type { TradingSignal, SignalCondition } from '@backtest/shared/types/tactical';
+
 type TacticalPageState = ReturnType<typeof useTacticalPageState>;
 type Weight = { ticker: string; weight: number };
+
 function CompactSelect({
   value,
   onChange,
@@ -99,7 +101,7 @@ function ConditionRow({
   canRemove: boolean;
 }) {
   const { t } = useTranslation();
-  const indicatorDesc = INDICATOR_OPTIONS.find((o) => o.value === cond.indicator)?.description;
+  const desc = INDICATOR_OPTIONS.find((o) => o.value === cond.indicator)?.description;
   return (
     <div className="flex flex-wrap items-center gap-2">
       <CompactSelect
@@ -110,7 +112,7 @@ function ConditionRow({
         className="w-[130px]"
         label={t('Metric')}
       />
-      {indicatorDesc && <InfoTooltip description={t(indicatorDesc)} />}
+      {desc && <InfoTooltip description={t(desc)} />}
       <AffixInput
         type="number"
         aria-label={t('Period')}
