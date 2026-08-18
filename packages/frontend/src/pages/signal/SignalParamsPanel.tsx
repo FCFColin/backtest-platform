@@ -16,52 +16,7 @@ import type {
   UseDualSignalStateResult,
   UseSignalAnalyzerStateResult,
 } from './signalState.js';
-
 const INDICATORS = ['SMA', 'EMA', 'RSI', 'MACD', 'Bollinger'] as const;
-
-interface TickerFieldProps {
-  value: string;
-  onChange: (v: string) => void;
-  placeholder?: string;
-}
-export function TickerField({ value, onChange, placeholder }: TickerFieldProps) {
-  const { t } = useTranslation();
-  const id = useId();
-  return (
-    <LabeledField htmlFor={id} label={t('Ticker')}>
-      <Input
-        id={id}
-        type="text"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder ?? t('e.g. SPY')}
-      />
-    </LabeledField>
-  );
-}
-
-interface NumberFieldProps {
-  label: string;
-  value: number;
-  min?: number;
-  onChange: (value: number) => void;
-}
-function NumberField({ label, value, min, onChange }: NumberFieldProps) {
-  const id = useId();
-  return (
-    <LabeledField htmlFor={id} label={label}>
-      <Input
-        id={id}
-        type="number"
-        className="font-mono tabular-nums"
-        value={value}
-        min={min}
-        onChange={(e) => onChange(Number(e.target.value))}
-      />
-    </LabeledField>
-  );
-}
-
 export function IndicatorSelect({
   value,
   onChange,
@@ -88,44 +43,22 @@ export function IndicatorSelect({
     </Select>
   );
 }
-
-interface RunAnalysisButtonProps {
-  isLoading: boolean;
-  onClick: () => void;
-  text?: string;
-  loadingText?: string;
-}
-export function RunAnalysisButton({
-  isLoading,
-  onClick,
-  text,
-  loadingText,
-}: RunAnalysisButtonProps) {
-  const { t } = useTranslation();
-  return (
-    <RunButton
-      isLoading={isLoading}
-      onClick={onClick}
-      label={text ?? t('Run Analysis')}
-      loadingLabel={loadingText ?? t('Analyzing...')}
-      className="w-full sm:w-auto"
-    />
-  );
-}
-
-const COMBINATION_METHODS: { value: 'and' | 'or' | 'xor'; label: string }[] = [
-  { value: 'and', label: 'signal.dual.combinationAnd' },
-  { value: 'or', label: 'signal.dual.combinationOr' },
-  { value: 'xor', label: 'signal.dual.combinationXor' },
+const COMBINATION_METHODS = [
+  { value: 'and' as const, label: 'signal.dual.combinationAnd' },
+  { value: 'or' as const, label: 'signal.dual.combinationOr' },
+  { value: 'xor' as const, label: 'signal.dual.combinationXor' },
 ];
-
-interface SignalCfgFieldsProps {
+function SignalCfgFields({
+  cfg,
+  onChange,
+}: {
   cfg: SignalCfg;
   onChange: (cfg: SignalCfg) => void;
-}
-function SignalCfgFields({ cfg, onChange }: SignalCfgFieldsProps) {
+}) {
   const { t } = useTranslation();
   const indId = useId();
+  const periodId = useId();
+  const thresholdId = useId();
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
       <LabeledField htmlFor={indId} label={t('Technical Indicator')}>
@@ -135,21 +68,28 @@ function SignalCfgFields({ cfg, onChange }: SignalCfgFieldsProps) {
           id={indId}
         />
       </LabeledField>
-      <NumberField
-        label={t('Period')}
-        value={cfg.period}
-        min={2}
-        onChange={(v) => onChange({ ...cfg, period: v })}
-      />
-      <NumberField
-        label={t('Threshold')}
-        value={cfg.threshold}
-        onChange={(v) => onChange({ ...cfg, threshold: v })}
-      />
+      <LabeledField htmlFor={periodId} label={t('Period')}>
+        <Input
+          id={periodId}
+          type="number"
+          className="font-mono tabular-nums"
+          value={cfg.period}
+          min={2}
+          onChange={(e) => onChange({ ...cfg, period: Number(e.target.value) })}
+        />
+      </LabeledField>
+      <LabeledField htmlFor={thresholdId} label={t('Threshold')}>
+        <Input
+          id={thresholdId}
+          type="number"
+          className="font-mono tabular-nums"
+          value={cfg.threshold}
+          onChange={(e) => onChange({ ...cfg, threshold: Number(e.target.value) })}
+        />
+      </LabeledField>
     </div>
   );
 }
-
 function CombinationAndDateFields({ state }: { state: UseDualSignalStateResult }) {
   const { t } = useTranslation();
   const {
@@ -163,6 +103,7 @@ function CombinationAndDateFields({ state }: { state: UseDualSignalStateResult }
     setEndDate,
   } = state;
   const combId = useId();
+  const tickerId = useId();
   const startId = useId();
   const endId = useId();
   return (
@@ -184,13 +125,20 @@ function CombinationAndDateFields({ state }: { state: UseDualSignalStateResult }
           </SelectContent>
         </Select>
       </LabeledField>
-      <TickerField value={ticker} onChange={setTicker} />
+      <LabeledField htmlFor={tickerId} label={t('Ticker')}>
+        <Input
+          id={tickerId}
+          type="text"
+          value={ticker}
+          onChange={(e) => setTicker(e.target.value)}
+          placeholder={t('e.g. SPY')}
+        />
+      </LabeledField>
       <DateField id={startId} label={t('Start Date')} value={startDate} onChange={setStartDate} />
       <DateField id={endId} label={t('End Date')} value={endDate} onChange={setEndDate} />
     </div>
   );
 }
-
 export function DualSignalParamsPanel({ state }: { state: UseDualSignalStateResult }) {
   const { t } = useTranslation();
   const { cfg1, cfg2, isLoading, setCfg1, setCfg2, runAnalysis } = state;
@@ -208,22 +156,29 @@ export function DualSignalParamsPanel({ state }: { state: UseDualSignalStateResu
         <SectionHeader title={t('Combination Method')} variant="h3" />
         <CombinationAndDateFields state={state} />
       </section>
-      <RunAnalysisButton isLoading={isLoading} onClick={runAnalysis} />
+      <RunButton
+        isLoading={isLoading}
+        onClick={runAnalysis}
+        label={t('Run Analysis')}
+        loadingLabel={t('Analyzing...')}
+        className="w-full sm:w-auto"
+      />
     </div>
   );
 }
-
-const SIGNAL_TYPES: { value: SignalType; label: string }[] = [
-  { value: 'entry', label: 'signal.analyzer.signalTypeEntry' },
-  { value: 'exit', label: 'signal.analyzer.signalTypeExit' },
-  { value: 'both', label: 'signal.analyzer.signalTypeBoth' },
+const SIGNAL_TYPES = [
+  { value: 'entry' as SignalType, label: 'signal.analyzer.signalTypeEntry' },
+  { value: 'exit' as SignalType, label: 'signal.analyzer.signalTypeExit' },
+  { value: 'both' as SignalType, label: 'signal.analyzer.signalTypeBoth' },
 ];
-
 function IndicatorConfigSection({ state }: { state: UseSignalAnalyzerStateResult }) {
   const { t } = useTranslation();
   const { ticker, setTicker, indicator, setIndicator, period, setPeriod, threshold, setThreshold } =
     state;
   const indId = useId();
+  const tickerId = useId();
+  const periodId = useId();
+  const thresholdId = useId();
   return (
     <section className="flex flex-col gap-2">
       <SectionHeader
@@ -234,12 +189,37 @@ function IndicatorConfigSection({ state }: { state: UseSignalAnalyzerStateResult
         variant="h3"
       />
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <TickerField value={ticker} onChange={setTicker} />
+        <LabeledField htmlFor={tickerId} label={t('Ticker')}>
+          <Input
+            id={tickerId}
+            type="text"
+            value={ticker}
+            onChange={(e) => setTicker(e.target.value)}
+            placeholder={t('e.g. SPY')}
+          />
+        </LabeledField>
         <LabeledField htmlFor={indId} label={t('Technical Indicator')}>
           <IndicatorSelect value={indicator} onChange={setIndicator} id={indId} />
         </LabeledField>
-        <NumberField label={t('Period')} value={period} min={2} onChange={setPeriod} />
-        <NumberField label={t('Threshold')} value={threshold} onChange={setThreshold} />
+        <LabeledField htmlFor={periodId} label={t('Period')}>
+          <Input
+            id={periodId}
+            type="number"
+            className="font-mono tabular-nums"
+            value={period}
+            min={2}
+            onChange={(e) => setPeriod(Number(e.target.value))}
+          />
+        </LabeledField>
+        <LabeledField htmlFor={thresholdId} label={t('Threshold')}>
+          <Input
+            id={thresholdId}
+            type="number"
+            className="font-mono tabular-nums"
+            value={threshold}
+            onChange={(e) => setThreshold(Number(e.target.value))}
+          />
+        </LabeledField>
       </div>
       <FieldDescription>
         {t(
@@ -249,7 +229,6 @@ function IndicatorConfigSection({ state }: { state: UseSignalAnalyzerStateResult
     </section>
   );
 }
-
 function SignalConfigSection({ state }: { state: UseSignalAnalyzerStateResult }) {
   const { t } = useTranslation();
   const { signalType, setSignalType, startDate, setStartDate, endDate, setEndDate } = state;
@@ -280,14 +259,20 @@ function SignalConfigSection({ state }: { state: UseSignalAnalyzerStateResult })
     </section>
   );
 }
-
 export function SignalAnalyzerParamsPanel({ state }: { state: UseSignalAnalyzerStateResult }) {
+  const { t } = useTranslation();
   const { isLoading, runAnalysis } = state;
   return (
     <div className="flex flex-col gap-5">
       <IndicatorConfigSection state={state} />
       <SignalConfigSection state={state} />
-      <RunAnalysisButton isLoading={isLoading} onClick={runAnalysis} />
+      <RunButton
+        isLoading={isLoading}
+        onClick={runAnalysis}
+        label={t('Run Analysis')}
+        loadingLabel={t('Analyzing...')}
+        className="w-full sm:w-auto"
+      />
     </div>
   );
 }

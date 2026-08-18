@@ -13,14 +13,16 @@ import { DEFAULT_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
 import { normalizeTicker } from '@/utils/ticker';
 
 export type SignalDir = 'buy' | 'sell' | null;
-function buildSignalRequest(
-  ticker: string,
-  cfg: Pick<SignalAnalysisRequest, 'indicator' | 'period' | 'threshold'>,
-  signalType: SignalType,
-  startDate: string,
-  endDate: string,
-): SignalAnalysisRequest {
-  return { ticker: normalizeTicker(ticker), ...cfg, startDate, endDate, signalType };
+export interface SignalCfg {
+  indicator: string;
+  period: number;
+  threshold: number;
+}
+export interface SignalItem {
+  id: number;
+  indicator: string;
+  period: number;
+  threshold: number;
 }
 export interface DualSignalResponse {
   signal1: SignalAnalysisResult;
@@ -43,11 +45,15 @@ export interface ResultsPanelProps<T> {
   error: string | null;
   isLoading: boolean;
 }
-export interface SignalItem {
-  id: number;
-  indicator: string;
-  period: number;
-  threshold: number;
+
+function buildSignalRequest(
+  ticker: string,
+  cfg: Pick<SignalAnalysisRequest, 'indicator' | 'period' | 'threshold'>,
+  signalType: SignalType,
+  startDate: string,
+  endDate: string,
+): SignalAnalysisRequest {
+  return { ticker: normalizeTicker(ticker), ...cfg, startDate, endDate, signalType };
 }
 
 type AnalyzerState = {
@@ -78,11 +84,6 @@ export function useSignalAnalyzerState() {
   );
 }
 
-export interface SignalCfg {
-  indicator: string;
-  period: number;
-  threshold: number;
-}
 type DualState = {
   cfg1: SignalCfg;
   cfg2: SignalCfg;

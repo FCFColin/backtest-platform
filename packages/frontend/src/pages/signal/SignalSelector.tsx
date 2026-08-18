@@ -3,21 +3,19 @@ import { useTranslation } from 'react-i18next';
 import { Plus, X } from 'lucide-react';
 import { Button, Input, Label, RadioGroup, RadioGroupItem } from '@/components/ui/uiComponents';
 import { Field, FieldLabel, FieldDescription } from '@/components/form/Field';
-import { DateField } from '@/components/form/sharedFields';
-import { IndicatorSelect, RunAnalysisButton, TickerField } from './SignalParamsPanel.js';
-import type { UseMultiSignalStateResult } from './signalState.js';
-import type { AggregationMethod, SignalItem } from './signalState.js';
-const AGGREGATION_METHODS: { value: AggregationMethod; label: string }[] = [
-  { value: 'weighted', label: 'signal.multi.aggregationWeighted' },
-  { value: 'voting', label: 'signal.multi.aggregationVoting' },
-  { value: 'rank', label: 'signal.multi.aggregationRank' },
+import { DateField, LabeledField, RunButton } from '@/components/form/sharedFields';
+import { IndicatorSelect } from './SignalParamsPanel.js';
+import type { AggregationMethod, SignalItem, UseMultiSignalStateResult } from './signalState.js';
+const AGG: { value: AggregationMethod; label: string; desc: string }[] = [
+  {
+    value: 'weighted',
+    label: 'signal.multi.aggregationWeighted',
+    desc: 'signal.multi.descWeighted',
+  },
+  { value: 'voting', label: 'signal.multi.aggregationVoting', desc: 'signal.multi.descVoting' },
+  { value: 'rank', label: 'signal.multi.aggregationRank', desc: 'signal.multi.descRank' },
 ];
-const AGGREGATION_DESC: Record<AggregationMethod, string> = {
-  weighted: 'signal.multi.descWeighted',
-  voting: 'signal.multi.descVoting',
-  rank: 'signal.multi.descRank',
-};
-const ROW_INPUT_CLS = 'h-9 w-16 font-mono tabular-nums';
+const ROW_CLS = 'h-9 w-16 font-mono tabular-nums';
 function SignalRow({
   signal: s,
   idx,
@@ -47,7 +45,7 @@ function SignalRow({
       />
       <Input
         type="number"
-        className={ROW_INPUT_CLS}
+        className={ROW_CLS}
         value={s.period}
         min={2}
         title={t('Period')}
@@ -55,7 +53,7 @@ function SignalRow({
       />
       <Input
         type="number"
-        className={ROW_INPUT_CLS}
+        className={ROW_CLS}
         value={s.threshold}
         title={t('Threshold')}
         onChange={(e) => onUpdateSignal(s.id, { threshold: Number(e.target.value) })}
@@ -64,7 +62,7 @@ function SignalRow({
         <Input
           type="number"
           step="0.1"
-          className={`${ROW_INPUT_CLS} w-[72px]`}
+          className={`${ROW_CLS} w-[72px]`}
           value={weight}
           title={t('Weight')}
           onChange={(e) => onUpdateWeight(idx, Number(e.target.value))}
@@ -139,7 +137,7 @@ function AggregationSection({ state }: { state: UseMultiSignalStateResult }) {
           onValueChange={(v) => setAggregationMethod(v as AggregationMethod)}
           className="grid grid-cols-3 gap-3"
         >
-          {AGGREGATION_METHODS.map((m) => {
+          {AGG.map((m) => {
             const id = `agg-${m.value}`;
             return (
               <div key={m.value} className="flex items-center gap-2">
@@ -149,7 +147,9 @@ function AggregationSection({ state }: { state: UseMultiSignalStateResult }) {
             );
           })}
         </RadioGroup>
-        <FieldDescription>{t(AGGREGATION_DESC[aggregationMethod])}</FieldDescription>
+        <FieldDescription>
+          {t(AGG.find((m) => m.value === aggregationMethod)!.desc)}
+        </FieldDescription>
       </Field>
     </section>
   );
@@ -157,13 +157,22 @@ function AggregationSection({ state }: { state: UseMultiSignalStateResult }) {
 function BacktestParamsSection({ state }: { state: UseMultiSignalStateResult }) {
   const { t } = useTranslation();
   const { ticker, startDate, endDate, setTicker, setStartDate, setEndDate } = state;
+  const tickerId = useId();
   const startId = useId();
   const endId = useId();
   return (
     <section className="flex flex-col gap-2">
       <h3 className="text-h3 text-fg">{t('Backtest Parameters')}</h3>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <TickerField value={ticker} onChange={setTicker} />
+        <LabeledField htmlFor={tickerId} label={t('Ticker')}>
+          <Input
+            id={tickerId}
+            type="text"
+            value={ticker}
+            onChange={(e) => setTicker(e.target.value)}
+            placeholder={t('e.g. SPY')}
+          />
+        </LabeledField>
         <DateField id={startId} label={t('Start Date')} value={startDate} onChange={setStartDate} />
         <DateField id={endId} label={t('End Date')} value={endDate} onChange={setEndDate} />
       </div>
@@ -171,13 +180,19 @@ function BacktestParamsSection({ state }: { state: UseMultiSignalStateResult }) 
   );
 }
 export function MultiSignalParamsPanel({ state }: { state: UseMultiSignalStateResult }) {
-  const { isLoading, runAnalysis } = state;
+  const { t } = useTranslation();
   return (
     <div className="flex flex-col gap-5">
       <SignalListSection state={state} />
       <AggregationSection state={state} />
       <BacktestParamsSection state={state} />
-      <RunAnalysisButton isLoading={isLoading} onClick={runAnalysis} />
+      <RunButton
+        isLoading={state.isLoading}
+        onClick={state.runAnalysis}
+        label={t('Run Analysis')}
+        loadingLabel={t('Analyzing...')}
+        className="w-full sm:w-auto"
+      />
     </div>
   );
 }
