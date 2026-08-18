@@ -351,20 +351,24 @@ describe('jwtAuth RS256 路径（PEM 加载与签发）', () => {
   });
   it('开发模式无密钥配置时应自动生成密钥对并完成签发验证', async () => {
     const mod = await reloadJwtAuthModule();
+    const { getOrCachePrivateKey, getOrCachePublicKey } =
+      await import('../../../packages/backend/src/middleware/jwtSigner.js');
     const t = await mod.generateToken('dev-user-rs', 'admin');
     const p = await mod.verifyToken(t);
     expect(p!.sub).toBe('dev-user-rs');
-    expect(await mod.getOrCachePrivateKey()).toBeTruthy();
-    expect(await mod.getOrCachePublicKey()).toBeTruthy();
+    expect(await getOrCachePrivateKey()).toBeTruthy();
+    expect(await getOrCachePublicKey()).toBeTruthy();
   });
   it('生产环境内联 PEM 应签发并验证 access token（含公钥 jwtVerify）', async () => {
     await setupRsaKeys('production');
     const mod = await reloadJwtAuthModule();
+    const { getOrCachePublicKey } =
+      await import('../../../packages/backend/src/middleware/jwtSigner.js');
     const t = await mod.generateToken('rs256-user', 'admin');
     const p = await mod.verifyToken(t);
     expect(p!.sub).toBe('rs256-user');
     expect(p!.role).toBe('admin');
-    const { payload } = await jwtVerify(t, await mod.getOrCachePublicKey(), {
+    const { payload } = await jwtVerify(t, await getOrCachePublicKey(), {
       algorithms: ['RS256'],
     });
     expect(payload.sub).toBe('rs256-user');
@@ -382,18 +386,22 @@ describe('jwtAuth RS256 路径（PEM 加载与签发）', () => {
       throw new Error('ENOENT');
     });
     const mod = await reloadJwtAuthModule();
+    const { getOrCachePublicKey } =
+      await import('../../../packages/backend/src/middleware/jwtSigner.js');
     const t = await mod.generateToken('file-pem-user', 'readonly');
     expect(t.split('.')).toHaveLength(3);
     expect(fsMocks.readFileSync).toHaveBeenCalledWith('/secrets/private.pem', 'utf-8');
-    await mod.getOrCachePublicKey();
+    await getOrCachePublicKey();
     expect(fsMocks.readFileSync).toHaveBeenCalledWith('/secrets/public.pem', 'utf-8');
   });
   it('生产环境缺少 RSA 密钥应拒绝签发与验证', async () => {
     resetRsaConfig();
     mocks.config.NODE_ENV = 'production';
     const mod = await reloadJwtAuthModule();
+    const { getOrCachePublicKey } =
+      await import('../../../packages/backend/src/middleware/jwtSigner.js');
     await expect(mod.generateToken('prod-user', 'admin')).rejects.toThrow(/JWT_PRIVATE_KEY/);
-    await expect(mod.getOrCachePublicKey()).rejects.toThrow(/JWT_PUBLIC_KEY/);
+    await expect(getOrCachePublicKey()).rejects.toThrow(/JWT_PUBLIC_KEY/);
   });
   it('RS256 refresh token 生命周期应完整', async () => {
     const mod = await reloadJwtAuthModule();

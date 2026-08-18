@@ -5,7 +5,7 @@ import {
   METRIC_FORMAT,
   RESULT_TABS,
 } from '../../../packages/frontend/src/pages/monte-carlo/monteCarloUtils.js';
-import { loadInBacktesterAction } from '../../../packages/frontend/src/pages/optimizer/optimizerApi.js';
+import { loadInBacktesterAction } from '../../../packages/frontend/src/pages/optimizer/OptimizerUtils.js';
 
 const makeSetters = () => ({
   setPortfolioMode: vi.fn(),

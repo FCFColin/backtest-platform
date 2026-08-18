@@ -13,13 +13,16 @@ import {
   recordEngineUnavailable,
   registerCircuitBreakerMetrics,
   registerSemaphoreMetrics,
-  resetMetrics,
   getPrometheusRegister,
   recordFrontendWebVital,
   recordFrontendApiCall,
   recordFrontendComponentRender,
   recordFrontendPageLoad,
 } from '../../../packages/backend/src/utils/metrics.js';
+
+function resetMetrics(): void {
+  getPrometheusRegister().resetMetrics();
+}
 
 describe('指标对象导出', () => {
   it.each<[string, unknown, string]>([

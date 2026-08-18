@@ -34,13 +34,11 @@ vi.mock('../../../packages/frontend/src/utils/apiClient', () => ({
 }));
 
 import {
-  useListState,
   usePolling,
   useTickerMeta,
   useOrgAuth,
   useSetterState,
   useAssetList,
-  useReducedMotion,
   useChartAnimation,
   useAdminFetch,
   useComputeTool,
@@ -69,37 +67,6 @@ function stubMatchMedia(matches: boolean) {
   );
   return { mq, listeners };
 }
-
-describe('useListState', () => {
-  it('应初始化为传入数组', () => {
-    const { result } = renderHook(() => useListState([1, 2], () => 0));
-    expect(result.current.items).toEqual([1, 2]);
-  });
-
-  it('addItem 应追加默认值', () => {
-    const { result } = renderHook(() => useListState([1], () => 42));
-    act(() => result.current.addItem());
-    expect(result.current.items).toEqual([1, 42]);
-  });
-
-  it('removeItem 应删除指定索引', () => {
-    const { result } = renderHook(() => useListState([1, 2, 3], () => 0));
-    act(() => result.current.removeItem(1));
-    expect(result.current.items).toEqual([1, 3]);
-  });
-
-  it('removeItem 不应低于 minLength', () => {
-    const { result } = renderHook(() => useListState([1], () => 0, 1));
-    act(() => result.current.removeItem(0));
-    expect(result.current.items).toEqual([1]);
-  });
-
-  it('updateItem 应更新指定索引', () => {
-    const { result } = renderHook(() => useListState([{ x: 1 }], () => ({ x: 0 })));
-    act(() => result.current.updateItem(0, (prev) => ({ x: prev.x + 10 })));
-    expect(result.current.items[0]).toEqual({ x: 11 });
-  });
-});
 
 describe('usePolling', () => {
   beforeEach(() => vi.useFakeTimers());
@@ -232,16 +199,8 @@ describe('useAssetList', () => {
   });
 });
 
-describe('useReducedMotion / useChartAnimation', () => {
+describe('useChartAnimation', () => {
   afterEach(() => vi.unstubAllGlobals());
-
-  it('应响应 prefers-reduced-motion 变更并通知图表动画', () => {
-    const { listeners } = stubMatchMedia(false);
-    const { result } = renderHook(() => useReducedMotion());
-    expect(result.current).toBe(false);
-    act(() => listeners.forEach((cb) => cb({ matches: true })));
-    expect(result.current).toBe(true);
-  });
 
   it('useChartAnimation 应随大数据集/减动偏好关闭动画', () => {
     stubMatchMedia(true);

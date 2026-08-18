@@ -108,5 +108,9 @@ export function resetRsaConfig(): void {
 /** 重新加载 jwtAuth 模块 */
 export async function reloadJwtAuthModule() {
   vi.resetModules();
-  return import('../../../packages/backend/src/middleware/jwtAuth.js');
+  const [jwtAuth, jwtSigner] = await Promise.all([
+    import('../../../packages/backend/src/middleware/jwtAuth.js'),
+    import('../../../packages/backend/src/middleware/jwtSigner.js'),
+  ]);
+  return { ...jwtSigner, ...jwtAuth };
 }

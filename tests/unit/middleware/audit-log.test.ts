@@ -29,7 +29,7 @@ vi.mock('../../../packages/backend/src/db/pool.js', () => ({
   getPool: () => ({ query: poolMocks.query }),
 }));
 
-import { auditLog } from '../../../packages/backend/src/middleware/jwtAuth.js';
+import { auditLog } from '../../../packages/backend/src/middleware/auditMiddleware.js';
 import { writeOutboxEvent } from '../../../packages/backend/src/middleware/auditMiddleware.js';
 import { verifyAuditEntry } from '../../../packages/backend/src/utils/auditCrypto.js';
 import { config } from '../../../packages/backend/src/config/index.js';

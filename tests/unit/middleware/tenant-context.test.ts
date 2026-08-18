@@ -23,7 +23,6 @@ describe('resolveTenant', () => {
 
   it.each<[string, Record<string, unknown>]>([
     ['无 tenant_id', { user: { sub: 'u1' } }],
-    ['非法 tenant_id 格式', { user: { tenant_id: 'not-a-uuid' } }],
     ['无 user', {}],
   ])('%s 应软放行且不设置 req.tenantId', (_name, user) => {
     const req = { ...user, path: '/x' } as unknown as AuthenticatedRequest;
@@ -31,6 +30,20 @@ describe('resolveTenant', () => {
     resolveTenant(req, createMockResponse(), next);
     expect(req.tenantId).toBeUndefined();
     expect(next).toHaveBeenCalledOnce();
+  });
+
+  it('非法 tenant_id 格式应返回 400 INVALID_TENANT', () => {
+    const req = {
+      user: { tenant_id: 'not-a-uuid' },
+      path: '/x',
+    } as unknown as AuthenticatedRequest;
+    const next = vi.fn();
+    const res = createMockResponse();
+    resolveTenant(req, res, next);
+    expect(req.tenantId).toBeUndefined();
+    expect(next).not.toHaveBeenCalled();
+    expect(res.statusCode).toBe(400);
+    expect((res.body as { error: { code?: string } }).error.code).toBe('INVALID_TENANT');
   });
 });
 

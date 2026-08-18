@@ -40,8 +40,18 @@ vi.mock('../../../packages/frontend/src/components/PortfolioEditor.js', () => ({
   default: () => <div data-testid="portfolio-editor" />,
 }));
 vi.mock('../../../packages/frontend/src/store/backtestStore.js', () => ({
-  useBacktestStore: (selector: (s: { isLoading: boolean; portfolios: unknown[] }) => unknown) =>
-    selector({ isLoading: false, portfolios: pageState.portfolios }),
+  useBacktestStore: (
+    selector: (s: {
+      isLoading: boolean;
+      portfolios: unknown[];
+      setHasLoadedFromShare: () => void;
+    }) => unknown,
+  ) =>
+    selector({
+      isLoading: false,
+      portfolios: pageState.portfolios,
+      setHasLoadedFromShare: vi.fn(),
+    }),
 }));
 vi.mock('../../../packages/frontend/src/pages/backtest/BacktestResults.js', () => ({
   ResultsContent: () => <div data-testid="backtest-results" />,

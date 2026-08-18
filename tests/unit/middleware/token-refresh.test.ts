@@ -29,10 +29,12 @@ import {
   refreshAccessToken,
   revokeRefreshToken,
   revokeAllUserSessions,
+} from '../../../packages/backend/src/middleware/jwtAuth.js';
+import {
   isUserSessionValid,
   isAccessTokenRevokedForUser,
-  idempotencyKey,
-} from '../../../packages/backend/src/middleware/jwtAuth.js';
+} from '../../../packages/backend/src/middleware/tokenStore.js';
+import { idempotencyKey } from '../../../packages/backend/src/middleware/idempotency.js';
 redisMocks.useRedisSuccess();
 
 beforeEach(() => {

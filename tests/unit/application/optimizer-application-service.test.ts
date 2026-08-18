@@ -84,15 +84,11 @@ describe('executeOptimization', () => {
     ],
     ['缺少回测日期范围', validBody({ parameters: { startDate: undefined } }), '缺少回测日期范围'],
   ])('返回错误：%s', async (_n, body, expected) => {
-    const result = await executeOptimization(body);
-    expect(result.success).toBe(false);
-    expect(result.error).toBe(expected);
+    await expect(executeOptimization(body)).rejects.toThrow(expected);
   });
   it('ticker 数据不存在时应返回错误', async () => {
     mocks.fetchHistoryData.mockResolvedValueOnce({ data: { AAPL: {} }, degraded: false });
-    const result = await executeOptimization(validBody());
-    expect(result.success).toBe(false);
-    expect(result.error).toBe('以下标的代码无效：AAPL');
+    await expect(executeOptimization(validBody())).rejects.toThrow('以下标的代码无效：AAPL');
   });
   it('有效请求应返回成功并包含 results/best', async () => {
     mocks.fetchHistoryData.mockResolvedValueOnce(mockPriceDataResponse());
@@ -124,7 +120,6 @@ describe('executeOptimization', () => {
     });
 
     const result = await executeOptimization(validBody());
-    expect(result.success).toBe(true);
     const data = result.data as Record<string, unknown>;
     expect(Array.isArray(data.results)).toBe(true);
     expect((data.results as unknown[]).length).toBe(2);

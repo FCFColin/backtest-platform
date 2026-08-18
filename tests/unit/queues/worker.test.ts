@@ -96,50 +96,36 @@ describe('processBacktestJob - 任务分发', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
-  it.each<[string, BacktestJobData['type'], unknown, 'completed' | 'failed', string | undefined]>([
+  it.each<[string, BacktestJobData['type'], unknown]>([
     [
       'grid-search 成功时返回 completed',
       'grid-search',
       { success: true, data: { totalCombinations: 4, topResults: [] } },
-      'completed',
-      undefined,
     ],
     [
-      'grid-search 返回失败时返回 failed 并释放 claim',
+      'grid-search 返回 success:false 时仍将完整结果作为 result',
       'grid-search',
       { success: false, error: '参数组合过多(250)，请缩小参数范围（上限200）' },
-      'failed',
-      '参数组合过多',
     ],
     [
       'optimizer 成功时返回 completed',
       'optimizer',
       { success: true, data: { results: [], totalCombinations: 10 } },
-      'completed',
-      undefined,
     ],
     [
-      'optimizer 返回失败时返回 failed 并释放 claim',
+      'optimizer 返回 success:false 时仍将完整结果作为 result',
       'optimizer',
       { success: false, error: '优化失败' },
-      'failed',
-      '优化失败',
     ],
-  ])('%s', async (_n, type, mockResult, status, errorPart) => {
+  ])('%s', async (_n, type, mockResult) => {
     const target = type === 'optimizer' ? executeOptimization : executeGridSearch;
     if (mockResult instanceof Error) vi.mocked(target).mockRejectedValueOnce(mockResult);
     else vi.mocked(target).mockResolvedValueOnce(mockResult as never);
     const job = makeJob({ type, payload: { indicator: 'sma' } } as BacktestJobData);
     const result = await processBacktestJob(job);
     expect(target).toHaveBeenCalledWith(job.data.payload);
-    expect(result.status).toBe(status);
-    if (status === 'completed') {
-      expect(result.result).toEqual((mockResult as { data: unknown }).data);
-    } else {
-      expect(result.error).toContain(errorPart);
-      expect(releaseJobClaim).toHaveBeenCalledWith('job-1', type);
-      expect(markJobProcessed).not.toHaveBeenCalled();
-    }
+    expect(result.status).toBe('completed');
+    expect(result.result).toEqual(mockResult);
   });
   it('handler 抛瞬时错误（非 4xx）时应释放 claim 并重抛以触发 BullMQ 重试', async () => {
     const err = new Error('Redis 连接失败');
@@ -191,9 +177,15 @@ describe('processBacktestJob - 任务分发', () => {
     vi.mocked(tryClaimJobProcessing).mockResolvedValueOnce('in_progress');
     mockOptSuccess();
     const result = await processBacktestJob(makeJob({ type: 'optimizer', payload: {} }));
-    expect(result).toEqual<BacktestJobResult>({ status: 'completed', result: { ok: 1 } });
+    expect(result).toEqual<BacktestJobResult>({
+      status: 'completed',
+      result: { success: true, data: { ok: 1 } },
+    });
     expect(executeOptimization).toHaveBeenCalled();
-    expect(markJobProcessed).toHaveBeenCalledWith('job-1', 'optimizer', { ok: 1 });
+    expect(markJobProcessed).toHaveBeenCalledWith('job-1', 'optimizer', {
+      success: true,
+      data: { ok: 1 },
+    });
   });
   it.each([
     [
@@ -310,7 +302,7 @@ describe('processBacktestJob - 任务分发', () => {
     expect(save).toHaveBeenCalledWith(TENANT, expect.objectContaining({ id: 'job-1' }));
     expect(createRun).not.toHaveBeenCalled();
   });
-  it('handler 返回失败时仍将失败状态落库（run.fail）', async () => {
+  it('handler 返回 success:false 时仍将完整结果落库', async () => {
     mockOrg('pro');
     vi.mocked(appRedis.incr).mockResolvedValueOnce(1);
     vi.mocked(executeGridSearch).mockResolvedValueOnce({ success: false, error: '参数组合过多' });
@@ -319,8 +311,8 @@ describe('processBacktestJob - 任务分发', () => {
     );
     const run = vi.mocked(save).mock.calls[0][1];
     expect(run.id).toBe('job-1');
-    expect(run.status).toBe('failed');
-    expect(run.result).toBeNull();
+    expect(run.status).toBe('completed');
+    expect(run.result).toEqual({ success: false, error: '参数组合过多' });
   });
 });
 describe('shutdownWorker（优雅关闭）', () => {

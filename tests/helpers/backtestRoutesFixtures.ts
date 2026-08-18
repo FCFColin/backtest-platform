@@ -27,68 +27,112 @@ export interface BacktestMockHandles {
   portfolioToDomain: MockFn;
 }
 
+interface ServiceMockConfig {
+  mockFn: MockFn;
+  enginePath: string;
+  extractTickers: (...args: unknown[]) => string[];
+  extractStartDate: (...args: unknown[]) => string;
+  extractEndDate: (...args: unknown[]) => string;
+  buildEnginePayload?: (...args: unknown[]) => Record<string, unknown>;
+  multiPortfolio?: boolean;
+  capIterations?: boolean;
+  /** 对引擎返回值做后处理（如 assets→tickers 映射） */
+  transformResult?: (result: unknown) => unknown;
+  /** 是否用标准 { data, warnings, dateRange } 包装返回值 */
+  wrapResult?: boolean;
+}
+
+function configureServiceMock(m: BacktestMockHandles, config: ServiceMockConfig): void {
+  config.mockFn.mockImplementation(async (...args: unknown[]) => {
+    const tickers = config.extractTickers(...args);
+    const startDate = config.extractStartDate(...args);
+    const endDate = config.extractEndDate(...args);
+    await m.fetchHistoryData(tickers, startDate, endDate);
+
+    if (config.multiPortfolio) {
+      const portfolios = args[0] as unknown[];
+      const mcParams = args[2] as object | undefined;
+      const results = await Promise.all(
+        portfolios.map(() => m.callEngineStrict(config.enginePath, { mcParams })),
+      );
+      return {
+        data: portfolios.length === 1 ? results[0] : results,
+        warnings: [],
+        dateRange: undefined,
+      };
+    }
+
+    let payload = config.buildEnginePayload ? config.buildEnginePayload(...args) : { tickers };
+    if (config.capIterations) {
+      const numIterations = args[4] as number | undefined;
+      payload = {
+        ...payload,
+        numIterations: numIterations ? Math.min(numIterations, 100000) : 10000,
+      };
+    }
+
+    const result = await m.callEngineStrict(config.enginePath, payload);
+    const raw = (result as { data?: Record<string, unknown> })?.data ?? result;
+    const value = config.transformResult ? config.transformResult(raw) : raw;
+    if (config.wrapResult) return { data: value, warnings: [], dateRange: undefined };
+    return value;
+  });
+}
+
 export function configureAnalysisMocks(m: BacktestMockHandles): void {
-  m.runAnalysis.mockImplementation(async (tickers: string[], parameters: unknown) => {
-    const params = parameters as { startDate: string; endDate: string };
-    await m.fetchHistoryData(tickers, params.startDate, params.endDate);
-    const result = await m.callEngineStrict('/api/engine/analysis', { tickers });
-    const engineData = result as { assets?: unknown[]; correlations?: unknown[][] };
-    return {
-      data: engineData?.assets
-        ? { tickers: engineData.assets, correlations: engineData.correlations || [] }
-        : result,
-      warnings: [],
-      dateRange: undefined,
-    };
+  configureServiceMock(m, {
+    mockFn: m.runAnalysis,
+    enginePath: '/api/engine/analysis',
+    extractTickers: (tickers) => tickers as string[],
+    extractStartDate: (_t, params) => (params as { startDate: string }).startDate,
+    extractEndDate: (_t, params) => (params as { endDate: string }).endDate,
+    buildEnginePayload: (tickers) => ({ tickers }),
+    transformResult: (r) => {
+      const d = r as { assets?: unknown[]; correlations?: unknown[][] };
+      return d?.assets ? { tickers: d.assets, correlations: d.correlations || [] } : r;
+    },
+    wrapResult: true,
   });
 }
 
 export function configureMonteCarloMocks(m: BacktestMockHandles): void {
-  m.runMonteCarlo.mockImplementation(
-    async (portfolioList: unknown[], _parameters: unknown, mcParams?: object) => {
-      const results = await Promise.all(
-        (portfolioList as unknown[]).map(() =>
-          m.callEngineStrict('/api/engine/monte-carlo', { mcParams }),
-        ),
-      );
-      return {
-        data: portfolioList.length === 1 ? results[0] : results,
-        warnings: [],
-        dateRange: undefined,
-      };
-    },
-  );
+  configureServiceMock(m, {
+    mockFn: m.runMonteCarlo,
+    enginePath: '/api/engine/monte-carlo',
+    extractTickers: () => [],
+    extractStartDate: () => '',
+    extractEndDate: () => '',
+    multiPortfolio: true,
+    wrapResult: true,
+  });
 }
 
 export function configureOptimizationMocks(m: BacktestMockHandles): void {
-  const extractData = (result: unknown) =>
-    (result as { data?: Record<string, unknown> })?.data ?? result;
-  m.runOptimization.mockImplementation(
-    async (
-      tickers: string[],
-      objective: string,
-      constraints: object,
-      parameters: { startDate: string; endDate: string },
-      numIterations?: number,
-    ) => {
-      const cappedIterations = numIterations ? Math.min(numIterations, 100000) : 10000;
-      await m.fetchHistoryData(tickers, parameters.startDate, parameters.endDate);
-      return extractData(
-        await m.callEngineStrict('/api/engine/optimize', {
-          tickers,
-          objective,
-          constraints,
-          numIterations: cappedIterations,
-        }),
-      );
-    },
-  );
-  m.runEfficientFrontier.mockImplementation(
-    async (tickers: string[], parameters: { startDate: string; endDate: string }) => {
-      await m.fetchHistoryData(tickers, parameters.startDate, parameters.endDate);
-      return extractData(await m.callEngineStrict('/api/engine/efficient-frontier', {}));
-    },
-  );
+  const extractOptDates = (...args: unknown[]) => {
+    const params = args[3] as { startDate: string; endDate: string };
+    return params;
+  };
+  configureServiceMock(m, {
+    mockFn: m.runOptimization,
+    enginePath: '/api/engine/optimize',
+    extractTickers: (...args) => args[0] as string[],
+    extractStartDate: (...a) => extractOptDates(...a).startDate,
+    extractEndDate: (...a) => extractOptDates(...a).endDate,
+    buildEnginePayload: (...args) => ({
+      tickers: args[0],
+      objective: args[1],
+      constraints: args[2],
+    }),
+    capIterations: true,
+  });
+  configureServiceMock(m, {
+    mockFn: m.runEfficientFrontier,
+    enginePath: '/api/engine/efficient-frontier',
+    extractTickers: (...args) => args[0] as string[],
+    extractStartDate: (_t, p) => (p as { startDate: string }).startDate,
+    extractEndDate: (_t, p) => (p as { endDate: string }).endDate,
+    buildEnginePayload: () => ({}),
+  });
 }
 
 export function configureTickerHelpersMocks(m: BacktestMockHandles): void {

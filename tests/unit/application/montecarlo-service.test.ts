@@ -82,11 +82,10 @@ describe('runMonteCarlo', () => {
     await runMonteCarlo([mockPortfolio], mockParameters);
 
     expect(dataFacadeMocks.fetchHistoryData).toHaveBeenCalledWith(
-      ['AAPL', 'BND'],
+      ['AAPL', 'BND', 'SPY'],
       '2020-01-02',
       '2020-12-31',
     );
-    expect(helpersMocks.loadMacroData).toHaveBeenCalledWith(mockParameters);
   });
 
   it('callEngineStrict 收到正确 endpoint + 完整 body', async () => {
@@ -99,7 +98,7 @@ describe('runMonteCarlo', () => {
         AAPL: { '2020-01-02': 100, '2020-12-31': 200 },
         BND: { '2020-01-02': 50, '2020-12-31': 60 },
       },
-      cpiData: { '2020-01-01': 258.8 },
+      cpiData: {},
       exchangeRates: {},
       mcParams: { numSimulations: 200 },
     });

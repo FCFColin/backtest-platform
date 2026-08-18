@@ -1,8 +1,5 @@
 ﻿import { describe, it, expect } from 'vitest';
-import {
-  loginPasswordSchema,
-  registerSchema,
-} from '../../../packages/backend/src/schemas/tactical.js';
+import { loginPasswordSchema, registerSchema } from '../../../packages/backend/src/schemas/auth.js';
 
 describe('loginPasswordSchema', () => {
   it.each([

@@ -1,6 +1,6 @@
 import '../../helpers/loggerMock.js';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { BacktestParameters } from '@backtest/shared';
+
 import { engineMocks } from '../../helpers/engineFixture.js';
 import {
   mockParameters as parametersFixture,
@@ -13,9 +13,7 @@ import {
 } from '../../helpers/storeFixtures.js';
 
 const helpersMocks = vi.hoisted(() => ({
-  preparePortfolioBacktest: vi.fn(),
-  preparePriceDataAndWarnings: vi.fn(),
-  loadMacroData: vi.fn(),
+  prepareBacktestContext: vi.fn(),
   calculateDateRange: vi.fn(),
   filterPriceData: vi.fn(),
   portfolioToDomain: vi.fn(),
@@ -40,21 +38,11 @@ const configMocks = vi.hoisted(() => ({
 }));
 
 vi.mock('../../../packages/backend/src/application/backtest-helpers.js', () => ({
-  preparePortfolioBacktest: helpersMocks.preparePortfolioBacktest,
-  preparePriceDataAndWarnings: helpersMocks.preparePriceDataAndWarnings,
-  loadMacroData: helpersMocks.loadMacroData,
+  prepareBacktestContext: helpersMocks.prepareBacktestContext,
   calculateDateRange: helpersMocks.calculateDateRange,
   filterPriceData: helpersMocks.filterPriceData,
   portfolioToDomain: helpersMocks.portfolioToDomain,
   collectDomainTickers: helpersMocks.collectDomainTickers,
-  clampParametersToDataRange: (
-    parameters: Pick<BacktestParameters, 'startDate' | 'endDate'>,
-    effectiveStartDate: string,
-    effectiveEndDate: string,
-  ) =>
-    effectiveStartDate !== parameters.startDate || effectiveEndDate !== parameters.endDate
-      ? { ...parameters, startDate: effectiveStartDate, endDate: effectiveEndDate }
-      : parameters,
 }));
 
 vi.mock('../../../packages/backend/src/utils/engineClient.js', () => engineMocks);
@@ -97,35 +85,32 @@ const mockBacktestResult = mockBacktestResultFixture({
   ],
 });
 
-const priceDataResult = (overrides: Record<string, unknown> = {}) => ({
-  priceData: { AAPL: { '2020-01-02': 100 }, SPY: { '2020-01-02': 300 } },
-  warnings: [],
-  invalidTickers: [],
-  allTickers: new Set(['AAPL', 'SPY']),
-  effectiveStartDate: '2020-01-02',
-  effectiveEndDate: '2020-12-31',
-  ...overrides,
-});
 describe('runPortfolioBacktest', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    helpersMocks.preparePortfolioBacktest.mockReturnValue({
+    helpersMocks.prepareBacktestContext.mockResolvedValue({
+      domainPortfolios: [{ toEngineBody: () => ({}) }],
       allTickers: new Set(['AAPL', 'SPY']),
+      priceData: { AAPL: { '2020-01-02': 100 }, SPY: { '2020-01-02': 300 } },
+      cpiData: {},
+      exchangeRates: {},
+      effectiveParameters: mockParameters,
       warnings: [],
+      invalidTickers: [],
+      effectiveStartDate: '2020-01-02',
+      effectiveEndDate: '2020-12-31',
+      degraded: false,
     });
-    helpersMocks.preparePriceDataAndWarnings.mockResolvedValue(priceDataResult());
-    helpersMocks.loadMacroData.mockResolvedValue({ cpiData: {}, exchangeRates: {} });
-    helpersMocks.calculateDateRange.mockReturnValue({
-      startDate: '2020-01-02',
-      endDate: '2020-12-31',
-      tradingDays: 252,
-    });
+    helpersMocks.collectDomainTickers.mockReturnValue(new Set(['AAPL', 'SPY']));
     helpersMocks.filterPriceData.mockReturnValue({
       AAPL: { '2020-01-02': 100 },
       SPY: { '2020-01-02': 300 },
     });
-    helpersMocks.portfolioToDomain.mockReturnValue({ toEngineBody: () => ({}) });
-    helpersMocks.collectDomainTickers.mockReturnValue(new Set(['AAPL', 'SPY']));
+    helpersMocks.calculateDateRange.mockReturnValue({
+      requested: { start: '2020-01-02', end: '2020-12-31' },
+      actual: { start: '2020-01-02', end: '2020-12-31' },
+      clamped: false,
+    });
 
     engineMocks.callEngineStrict.mockResolvedValue(mockBacktestResult);
     compressMocks.compressBacktestResultForSync.mockReturnValue(mockBacktestResult);
@@ -136,12 +121,10 @@ describe('runPortfolioBacktest', () => {
     runPortfolioBacktest({ portfolios: [mockPortfolio], parameters: mockParameters, ...opts });
   it('应完成完整编排流程：调用引擎、压缩、withTimeout 包装并返回结果', async () => {
     const result = await run();
-    expect(helpersMocks.preparePortfolioBacktest).toHaveBeenCalledWith(
+    expect(helpersMocks.prepareBacktestContext).toHaveBeenCalledWith(
       [mockPortfolio],
       mockParameters,
     );
-    expect(helpersMocks.preparePriceDataAndWarnings).toHaveBeenCalled();
-    expect(helpersMocks.loadMacroData).toHaveBeenCalledWith(mockParameters);
     expect(engineMocks.callEngineStrict).toHaveBeenCalledTimes(1);
     expect(compressMocks.compressBacktestResultForSync).toHaveBeenCalledWith(mockBacktestResult);
     expect(result.result).toBe(mockBacktestResult);
@@ -165,22 +148,40 @@ describe('runPortfolioBacktest', () => {
     );
   });
   it('数据降级时应返回 DATA_DEGRADED 警告', async () => {
-    helpersMocks.preparePriceDataAndWarnings.mockResolvedValue(
-      priceDataResult({
-        warnings: [{ code: 'DATA_DEGRADED', message: 'Go 数据服务降级' }],
-      }),
-    );
+    helpersMocks.prepareBacktestContext.mockResolvedValue({
+      domainPortfolios: [{ toEngineBody: () => ({}) }],
+      allTickers: new Set(['AAPL', 'SPY']),
+      priceData: { AAPL: { '2020-01-02': 100 }, SPY: { '2020-01-02': 300 } },
+      cpiData: {},
+      exchangeRates: {},
+      effectiveParameters: mockParameters,
+      warnings: [{ code: 'DATA_DEGRADED', message: 'Go 数据服务降级' }],
+      invalidTickers: [],
+      effectiveStartDate: '2020-01-02',
+      effectiveEndDate: '2020-12-31',
+      degraded: true,
+    });
     const result = await run();
     expect(result.warnings).toContainEqual({ code: 'DATA_DEGRADED', message: 'Go 数据服务降级' });
   });
   it('日期范围调整时应使用 effective 日期调用引擎', async () => {
-    helpersMocks.preparePriceDataAndWarnings.mockResolvedValue(
-      priceDataResult({
-        priceData: { AAPL: { '2020-01-03': 101 } },
-        effectiveStartDate: '2020-01-03',
-        effectiveEndDate: '2020-12-30',
-      }),
-    );
+    helpersMocks.prepareBacktestContext.mockResolvedValue({
+      domainPortfolios: [{ toEngineBody: () => ({}) }],
+      allTickers: new Set(['AAPL', 'SPY']),
+      priceData: { AAPL: { '2020-01-03': 101 }, SPY: { '2020-01-03': 301 } },
+      cpiData: {},
+      exchangeRates: {},
+      effectiveParameters: {
+        ...mockParameters,
+        startDate: '2020-01-03',
+        endDate: '2020-12-30',
+      },
+      warnings: [],
+      invalidTickers: [],
+      effectiveStartDate: '2020-01-03',
+      effectiveEndDate: '2020-12-30',
+      degraded: false,
+    });
     await run();
     expect(engineMocks.callEngineStrict.mock.calls[0][1].params).toBeDefined();
   });

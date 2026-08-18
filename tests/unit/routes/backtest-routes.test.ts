@@ -19,6 +19,12 @@ import {
 import { mockBacktestResult } from '../../helpers/storeFixtures.js';
 import analysisRoutes from '../../../packages/backend/src/routes/analysisRoutes.js';
 import { jobRoutes } from '../../../packages/backend/src/routes/jobRoutes.js';
+import {
+  describeEngineRouteTests,
+  describeSignalRouteTests,
+  type EngineCase,
+  type SignalCase,
+} from '../../helpers/routeTestDsl.js';
 
 const get = (url: string, headers?: Record<string, string>) =>
   reqJson(url, 'GET', undefined, headers).then(({ res, body }) => ({ res, json: body }));
@@ -30,18 +36,6 @@ const portfolioJobServer = () => (
 );
 
 const manyTickers = Array.from({ length: 51 }, (_, i) => `T${i}`);
-
-interface EngineCase {
-  name: string;
-  path: string;
-  enginePath: string;
-  errorCode: string;
-  logOnError: boolean;
-  result: Record<string, unknown>;
-  validBody: () => Record<string, unknown>;
-  invalidBodies: Array<[string, Record<string, unknown>]>;
-  specials: Array<[string, (url: string, c: EngineCase) => Promise<void> | void]>;
-}
 
 const engineCases: EngineCase[] = [
   {
@@ -242,41 +236,14 @@ const engineCases: EngineCase[] = [
   },
 ];
 
-describe.each(engineCases)('backtestRoutes - POST $path', (c) => {
-  const getServer = withServer(() => {
+describeEngineRouteTests({
+  startServer: (c) => () => {
     m.callEngineStrict.mockResolvedValue(c.result);
     return startEngineRouteServer(backtestRoutes, m);
-  });
-  it('有效参数应调用引擎并返回 200', async () => {
-    const { res, json } = await postJson(`${getServer().url}${c.path}`, c.validBody());
-    expect(res.status).toBe(200);
-    expect(json.success).toBe(true);
-    expect(m.callEngineStrict).toHaveBeenCalledTimes(1);
-    expect(m.callEngineStrict.mock.calls[0][0]).toBe(c.enginePath);
-  });
-  it('引擎抛错应返回 500', async () => {
-    m.callEngineStrict.mockRejectedValue(new Error('engine boom'));
-    const { res, json } = await postJson(`${getServer().url}${c.path}`, c.validBody());
-    expect(res.status).toBe(500);
-    expect(json.error.code).toBe(c.errorCode);
-    if (c.logOnError) expect(loggerMocks.error).toHaveBeenCalled();
-  });
-  it('引擎不可用应 fail-closed 返回 503', async () => {
-    m.callEngineStrict.mockRejectedValue(new EngineUnavailableErrorStub());
-    const { res, json } = await postJson(`${getServer().url}${c.path}`, c.validBody());
-    expect(res.status).toBe(503);
-    expect(res.headers.get('retry-after')).toBe('30');
-    expect(json.error.code).toBe('ENGINE_UNAVAILABLE');
-  });
-  it.each(c.invalidBodies)('%s 应返回 400 且不调用引擎', async (_n, body) => {
-    const { res } = await postJson(`${getServer().url}${c.path}`, body);
-    expect(res.status).toBe(400);
-    expect(m.callEngineStrict).not.toHaveBeenCalled();
-  });
-  it.each(c.specials)('%s', async (_n, fn) => {
-    await fn(`${getServer().url}${c.path}`, c);
-  });
-});
+  },
+  unavailableError: EngineUnavailableErrorStub,
+  mocks: () => ({ callEngineStrict: m.callEngineStrict, loggerError: loggerMocks.error }),
+})(engineCases);
 
 function createSignalConfig(ticker = 'SPY') {
   return {
@@ -296,15 +263,7 @@ const mockSignalResult = {
   equityCurve: [{ date: '2020-01-01', value: 10000 }],
 };
 
-interface SignalCase {
-  path: string;
-  data: Record<string, Record<string, number>>;
-  engineResult: Record<string, unknown>;
-  validReq: () => Record<string, unknown>;
-  validation: Array<[string, () => Record<string, unknown>]>;
-}
-
-describe.each<SignalCase>([
+const signalCases: SignalCase[] = [
   {
     path: '/api/v1/signal/analyze',
     data: { SPY: { '2020-01-01': 300.0, '2020-01-02': 301.0 } },
@@ -354,38 +313,17 @@ describe.each<SignalCase>([
       ['缺少 aggregationMethod', () => ({ signals: [createSignalConfig('SPY')] })],
     ],
   },
-])('signalRoutes - POST $path', (c) => {
-  const getServer = withServer(() => {
+];
+
+describeSignalRouteTests({
+  startServer: (c) => () => {
     vi.clearAllMocks();
     m.fetchHistoryData.mockResolvedValue({ data: c.data, degraded: false });
     m.callEngineStrict.mockResolvedValue(c.engineResult);
     return startExpressApp((app) => app.use('/api/v1', analysisRoutes));
-  });
-
-  it('有效参数应返回分析结果', async () => {
-    const { res, json } = await postJson(`${getServer().url}${c.path}`, c.validReq());
-    expect(res.status).toBe(200);
-    expect(json.success).toBe(true);
-    expect(json.data.signals).toHaveLength(1);
-    expect(m.callEngineStrict).toHaveBeenCalledTimes(1);
-  });
-  it.each(c.validation)('%s 应返回 400（zod 校验失败）', async (_n, getReq) => {
-    const { res } = await postJson(`${getServer().url}${c.path}`, getReq());
-    expect(res.status).toBe(400);
-    expect(m.callEngineStrict).not.toHaveBeenCalled();
-  });
-  it('价格数据缺失时应返回 404', async () => {
-    m.fetchHistoryData.mockResolvedValue({ data: { SPY: {} }, degraded: false });
-    const { res, json } = await postJson(`${getServer().url}${c.path}`, c.validReq());
-    expect(res.status).toBe(404);
-    expect(json.error.code).toBe('DATA_NOT_FOUND');
-  });
-  it('引擎抛错时应返回 500', async () => {
-    m.callEngineStrict.mockRejectedValueOnce(new Error('signal engine error'));
-    const { res } = await postJson(`${getServer().url}${c.path}`, c.validReq());
-    expect(res.status).toBe(500);
-  });
-});
+  },
+  mocks: () => ({ callEngineStrict: m.callEngineStrict, fetchHistoryData: m.fetchHistoryData }),
+})(signalCases);
 
 describe('backtestRoutes - POST /api/v1/backtest/portfolio', () => {
   const getServer = withServer(portfolioJobServer);
@@ -399,8 +337,8 @@ describe('backtestRoutes - POST /api/v1/backtest/portfolio', () => {
     expect(json.data).toMatchObject({
       jobId: 'job-test-001',
       status: 'queued',
-      portfolios: undefined,
     });
+    expect(json.data).not.toHaveProperty('portfolios');
     expect(json.data.statusUrl).toContain('/api/v1/backtest/runs/');
     expect(queueMocks.add).toHaveBeenCalledTimes(1);
   });
@@ -779,6 +717,8 @@ describe('jobRoutes - GET /api/v1/jobs/:id', () => {
     );
     const { res, json } = await get(`${getServer().url}/api/v1/jobs/job-active`);
     expect(res.status).toBe(200);
-    expect(json.data).toMatchObject({ status: 'running', result: undefined, error: undefined });
+    expect(json.data).toMatchObject({ status: 'running' });
+    expect(json.data).not.toHaveProperty('result');
+    expect(json.data).not.toHaveProperty('error');
   });
 });
