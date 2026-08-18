@@ -14,7 +14,6 @@ import {
 } from '@/lib/pricing';
 import { Button, Card } from '@/components/ui/uiComponents';
 import { cn } from '@/lib/utils';
-
 const PLAN_ICONS: Record<string, ComponentType<{ className?: string }>> = { Star, Zap, Crown };
 interface Plan {
   id: string;
@@ -70,10 +69,10 @@ export default function PricingPage() {
 function ComparisonTable() {
   const { t } = useTranslation();
   const rows = COMPARISON_ROWS as ComparisonRowEntry[];
-  const th = (recommended?: boolean) =>
-    cn('px-3 py-2.5 text-center font-semibold', recommended ? 'text-brand' : 'text-fg-tertiary');
-  const td = (recommended?: boolean) =>
-    cn('px-3 py-2.5 text-center', recommended ? 'font-semibold text-brand' : 'text-fg-tertiary');
+  const th = (rec?: boolean) =>
+    cn('px-3 py-2.5 text-center font-semibold', rec ? 'text-brand' : 'text-fg-tertiary');
+  const td = (rec?: boolean) =>
+    cn('px-3 py-2.5 text-center', rec ? 'font-semibold text-brand' : 'text-fg-tertiary');
   return (
     <div className="mt-4">
       <div className="mb-3 text-h2">{t('Plan Comparison')}</div>
@@ -120,6 +119,7 @@ function PricingNotice() {
   );
 }
 function PlanCard({ plan }: { plan: Plan }) {
+  const { t } = useTranslation();
   const rec = plan.recommended;
   return (
     <div
@@ -128,7 +128,11 @@ function PlanCard({ plan }: { plan: Plan }) {
         rec ? 'border-2 border-brand bg-brand/10' : 'border border-border-subtle bg-hover',
       )}
     >
-      {rec && <RecommendedBadge />}
+      {rec && (
+        <div className="absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-brand px-3.5 py-1 text-label-tiny font-bold text-brand-fg">
+          {t('Recommended')}
+        </div>
+      )}
       <div className={cn('mb-2 flex items-center gap-2', rec ? 'text-brand' : 'text-fg-tertiary')}>
         {plan.icon}
         <span className="text-h2">{plan.name}</span>
@@ -163,7 +167,6 @@ function PlanCard({ plan }: { plan: Plan }) {
   );
 }
 function PlanCta({ plan }: { plan: Plan }) {
-  // 与 BillingPage 同源：org.plan 为当前生效套餐（未登录视为 free）
   const isCurrent = useAuthStore((s) => s.org?.plan ?? 'free') === plan.id;
   const isAuth = useAuthStore((s) => s.user !== null);
   const cls = cn(
@@ -186,13 +189,5 @@ function PlanCta({ plan }: { plan: Plan }) {
         </Link>
       )}
     </Button>
-  );
-}
-function RecommendedBadge() {
-  const { t } = useTranslation();
-  return (
-    <div className="absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-brand px-3.5 py-1 text-label-tiny font-bold text-brand-fg">
-      {t('Recommended')}
-    </div>
   );
 }

@@ -5,29 +5,12 @@ import { useAdminFetch, usePolling } from '../../hooks/miscHooks.js';
 import { KpiCard, ServiceStatusBadge } from '../../components/admin/AdminLayout.js';
 import { Button, Card, Progress } from '../../components/ui/uiComponents.js';
 import { buildServiceHealths, type ServiceHealthView } from '../../utils/adminStats.js';
-interface SystemResource {
-  memoryMB: number;
-  heapUsedMB: number;
-  heapTotalMB: number;
-  uptime: string;
-  uptimeSeconds: number;
-}
-interface DataDirectory {
-  totalSizeMB: number;
-  tickerCount: number;
-  totalDataPoints: number;
-}
-interface MonitorData {
-  services: ServiceHealthView[];
-  system: SystemResource;
-  dataDir: DataDirectory;
-}
-const defaultMonitorData: MonitorData = {
+const defaultData = {
   services: buildServiceHealths({}),
   system: { memoryMB: 0, heapUsedMB: 0, heapTotalMB: 0, uptime: '-', uptimeSeconds: 0 },
   dataDir: { totalSizeMB: 0, tickerCount: 0, totalDataPoints: 0 },
 };
-function buildMonitorData(d: Record<string, unknown>, services: ServiceHealthView[]): MonitorData {
+function buildData(d: Record<string, unknown>, services: ServiceHealthView[]) {
   const mem = d.memory as Record<string, number> | undefined;
   const up = d.uptime as Record<string, unknown> | undefined;
   const dd = d.data_directory as Record<string, number> | undefined;
@@ -54,26 +37,19 @@ export default function SystemMonitor() {
     data,
     loading,
     lastRefresh,
-    fetch: fetchMonitorData,
+    fetch: refresh,
   } = useAdminFetch(
     '/api/v1/admin/system',
-    (d) => buildMonitorData(d, buildServiceHealths(d)),
-    defaultMonitorData,
+    (d) => buildData(d, buildServiceHealths(d)),
+    defaultData,
     'SystemMonitor',
   );
-  usePolling(fetchMonitorData, 10000, { enabled: autoRefresh, deps: [autoRefresh] });
-  const memBars = [
-    {
-      label: t('Heap Used'),
-      valueMB: data.system.heapUsedMB,
-      totalMB: data.system.heapTotalMB,
-    },
-  ];
+  usePolling(refresh, 10000, { enabled: autoRefresh, deps: [autoRefresh] });
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Button variant="secondary" onClick={fetchMonitorData} disabled={loading}>
+          <Button variant="secondary" onClick={refresh} disabled={loading}>
             <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
             {t('Refresh')}
           </Button>
@@ -116,29 +92,29 @@ export default function SystemMonitor() {
       <Card className="p-4">
         <h2 className="mb-4 text-sm font-semibold text-fg">{t('Service Health')}</h2>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          {data.services.map((service) => (
-            <Card key={service.name} className="p-4">
+          {data.services.map((svc) => (
+            <Card key={svc.name} className="p-4">
               <div className="mb-3 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Server className="h-4 w-4 text-fg-tertiary" />
-                  <span className="font-medium text-fg-secondary">{t(service.name)}</span>
+                  <span className="font-medium text-fg-secondary">{t(svc.name)}</span>
                 </div>
-                <ServiceStatusBadge status={service.status} variant="pill" size="sm" />
+                <ServiceStatusBadge status={svc.status} variant="pill" size="sm" />
               </div>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-fg-tertiary">{t('Latency')}</span>
-                  <span className="font-medium text-fg-secondary">{service.latency}ms</span>
+                  <span className="font-medium text-fg-secondary">{svc.latency}ms</span>
                 </div>
-                {service.version && (
+                {svc.version && (
                   <div className="flex justify-between">
                     <span className="text-fg-tertiary">{t('Version')}</span>
-                    <span className="font-medium text-fg-secondary">{service.version}</span>
+                    <span className="font-medium text-fg-secondary">{svc.version}</span>
                   </div>
                 )}
-                {service.message && (
+                {svc.message && (
                   <div className="mt-2 rounded bg-elevated p-2">
-                    <p className="text-xs text-fg-tertiary">{service.message}</p>
+                    <p className="text-xs text-fg-tertiary">{svc.message}</p>
                   </div>
                 )}
               </div>
@@ -149,18 +125,21 @@ export default function SystemMonitor() {
       <Card className="p-4">
         <h2 className="mb-4 text-sm font-semibold text-fg">{t('Memory Usage')}</h2>
         <div className="space-y-4">
-          {memBars.map((bar) => {
-            const pct = bar.totalMB > 0 ? Math.min((bar.valueMB / bar.totalMB) * 100, 100) : 0;
+          {(() => {
+            const pct =
+              data.system.heapTotalMB > 0
+                ? Math.min((data.system.heapUsedMB / data.system.heapTotalMB) * 100, 100)
+                : 0;
             return (
-              <div key={bar.label}>
+              <div>
                 <div className="mb-1 flex items-center justify-between text-sm">
-                  <span className="text-fg-secondary">{bar.label}</span>
-                  <span className="font-medium text-fg">{bar.valueMB} MB</span>
+                  <span className="text-fg-secondary">{t('Heap Used')}</span>
+                  <span className="font-medium text-fg">{data.system.heapUsedMB} MB</span>
                 </div>
                 <Progress value={pct} />
               </div>
             );
-          })}
+          })()}
         </div>
         <div className="mt-4 grid grid-cols-2 gap-4">
           <div className="rounded-lg border border-border-subtle p-3">

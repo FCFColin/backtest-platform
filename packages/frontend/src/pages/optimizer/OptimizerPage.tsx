@@ -6,6 +6,7 @@ import { OptimizerResults } from './OptimizerResults.js';
 import { useOptimizerState } from './OptimizerUtils.js';
 import type { EfficientFrontierState } from './OptimizerUtils.js';
 import { ComputeToolShell, type ComputeToolConfig } from '../../components/shells/index.js';
+import { TOOL_LINKS } from '../../components/shells/constants.js';
 function OptimizerParamsWrapper({ state }: { state: EfficientFrontierState }) {
   return <OptimizerParams s={state} />;
 }
@@ -35,10 +36,10 @@ const config: ComputeToolConfig<EfficientFrontierState> = {
     { titleKey: 'goalOptimizer.seo.outputTitle', descKey: 'optimizer.seoOutputDesc' },
   ],
   relatedTools: [
-    { titleKey: 'nav.portfolioBacktest', href: '/' },
-    { titleKey: 'nav.efficientFrontier', href: '/efficient-frontier' },
-    { titleKey: 'nav.assetAnalysis', href: '/analysis' },
-    { titleKey: 'nav.monteCarlo', href: '/monte-carlo' },
+    TOOL_LINKS.backtest,
+    TOOL_LINKS.efficientF,
+    TOOL_LINKS.analysis,
+    TOOL_LINKS.monteCarlo,
   ],
   hideParamsTitle: true,
   presets: buildPresets,

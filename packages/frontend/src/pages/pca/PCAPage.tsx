@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { EChartsOption } from 'echarts';
 import { type PCAResult } from '@backtest/shared';
 import { Card, AffixInput } from '@/components/ui/uiComponents';
 import { CollapsibleSection } from '@/components/cards.js';
@@ -9,21 +8,14 @@ import { useComputeTool } from '../../hooks/miscHooks.js';
 import { apiPostJSON } from '@/utils/apiClient';
 import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
 import { getCorrelationColor, getPortfolioColor } from '@/lib/chart-theme.js';
-import EChart from '@/components/charts/EChart.js';
-import {
-  axisTooltipFormatter,
-  categoryAxis,
-  getCorrelationTextColor,
-  tooltipOption,
-  valueYAxis,
-} from '@/components/charts/chartUtils.js';
+import { getCorrelationTextColor } from '@/components/charts/chartUtils.js';
 import { TimeSeriesLineChart } from '@/components/charts/TimeSeriesLineChart.js';
 import { MatrixHeatmap } from '@/components/charts/tables.js';
 import { Field, FieldLabel, FieldDescription } from '../../components/form/Field.js';
 import { DateField, RunButton } from '../../components/form/sharedFields.js';
 import { TickerTagInput } from '../../components/form/TickerTagInput.js';
 import { ComputeToolShell, type ComputeToolConfig } from '../../components/shells/index.js';
-import { XYScatterChart } from '@/components/charts/sharedChartContent.js';
+import { XYScatterChart, BarChartContent } from '@/components/charts/sharedChartContent.js';
 function usePcaPageState() {
   const { t } = useTranslation();
   const [tickers, setTickers] = useState(['SPY', 'TLT', 'GLD', 'QQQ']);
@@ -124,28 +116,17 @@ function PCAParamsPanel({ state: s }: { state: PCAState }) {
 }
 function EigenvalueBarChart({ data }: { data: { component: string; eigenvalue: number }[] }) {
   const { t } = useTranslation();
-  const option: EChartsOption = {
-    grid: { top: 20, right: 40, bottom: 20, left: 80 },
-    xAxis: categoryAxis(data.map((d) => d.component)),
-    yAxis: valueYAxis({ formatter: (v: number) => v.toFixed(2) }),
-    tooltip: tooltipOption(
-      axisTooltipFormatter(undefined, (v) => [v.toFixed(4), t('Eigenvalues')]),
-    ),
-    series: [
-      {
-        type: 'bar',
-        name: t('Eigenvalues'),
-        data: data.map((d) => ({
-          value: d.eigenvalue,
-          itemStyle: { color: getPortfolioColor(0), borderRadius: [2, 2, 0, 0] },
-        })),
-        barMaxWidth: 60,
-      },
-    ],
-  };
   return (
     <Card className="p-4">
-      <EChart option={option} height={300} ariaLabel={t('Eigenvalues')} />
+      <BarChartContent
+        data={data.map((d) => ({ component: d.component, Eigenvalue: d.eigenvalue }))}
+        seriesNames={[t('Eigenvalues')]}
+        xDataKey="component"
+        height={300}
+        yTickFormatter={(v) => v.toFixed(2)}
+        tooltipValueFormatter={(v) => [v.toFixed(4), t('Eigenvalues')]}
+        showLegend={false}
+      />
     </Card>
   );
 }
@@ -207,25 +188,30 @@ function PCAScatterChart({ data }: { data: { pc1: number; pc2: number }[] }) {
 function PCAResultsPanel({ state: s }: { state: PCAState }) {
   const { results, error, isLoading } = s;
   const { t } = useTranslation();
-  const eigenvalueData = useMemo(() => {
-    if (!results) return [];
-    return results.eigenvalues.map((val, idx) => ({
-      component: `PC${idx + 1}`,
-      eigenvalue: +val.toFixed(4),
-    }));
-  }, [results]);
-  const cumulativeData = useMemo(() => {
-    if (!results) return [];
-    return results.cumulativeVariance.map((val, idx) => ({
-      component: `PC${idx + 1}`,
-      cumulative: +(val * 100).toFixed(2),
-    }));
-  }, [results]);
+  const eigenvalueData = useMemo(
+    () =>
+      results
+        ? results.eigenvalues.map((val, idx) => ({
+            component: `PC${idx + 1}`,
+            eigenvalue: +val.toFixed(4),
+          }))
+        : [],
+    [results],
+  );
+  const cumulativeData = useMemo(
+    () =>
+      results
+        ? results.cumulativeVariance.map((val, idx) => ({
+            component: `PC${idx + 1}`,
+            cumulative: +(val * 100).toFixed(2),
+          }))
+        : [],
+    [results],
+  );
   const scatterData = useMemo(() => {
     if (!results || results.scores.length === 0) return [];
-    const raw = results.scores;
-    const step = Math.max(1, Math.ceil(raw.length / 400));
-    return raw
+    const step = Math.max(1, Math.ceil(results.scores.length / 400));
+    return results.scores
       .filter((_, i) => i % step === 0)
       .map((row) => ({
         pc1: +row[0].toFixed(4),

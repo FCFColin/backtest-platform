@@ -17,7 +17,8 @@ import {
   TabFallback,
   type ComputeToolConfig,
 } from '../../components/shells/index.js';
-import { MiniStatCard } from '../../components/cards.js';
+import { TOOL_LINKS } from '../../components/shells/constants.js';
+import { MetricsGrid } from '@/components/ui/MetricsGrid';
 import { fmtAmount, fmtPct } from '@/utils/format';
 import { SimpleTable, type SimpleTableColumn } from '@/components/tables.js';
 import { McParamsPanel } from './MonteCarloParams.js';
@@ -43,7 +44,7 @@ const MonteCarloScenariosTab = lazyNamed(
   () => import('./MonteCarloScenariosTab.js'),
   'MonteCarloScenariosTab',
 );
-export function StatsGrid({
+function StatsGrid({
   r,
   startingValue,
   numSimulations,
@@ -54,23 +55,24 @@ export function StatsGrid({
 }) {
   const { t } = useTranslation();
   return (
-    <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-      <MiniStatCard
-        label={t('Median Final Value')}
-        value={fmtAmount(r.statistics.medianFinalValue * startingValue)}
-      />
-      <MiniStatCard
-        label={t('Mean Final Value')}
-        value={fmtAmount(r.statistics.meanFinalValue * startingValue)}
-      />
-      <MiniStatCard
-        label={t('Capital Preservation')}
-        value={fmtPct(r.statistics.successRate, 1)}
-        color="hsl(var(--success))"
-      />
-      <MiniStatCard
-        label={t('Simulation Count')}
-        value={`${r.perPathMetrics?.length ?? numSimulations}`}
+    <div className="mb-5">
+      <MetricsGrid
+        metrics={[
+          {
+            label: t('Median Final Value'),
+            value: fmtAmount(r.statistics.medianFinalValue * startingValue),
+          },
+          {
+            label: t('Mean Final Value'),
+            value: fmtAmount(r.statistics.meanFinalValue * startingValue),
+          },
+          {
+            label: t('Capital Preservation'),
+            value: fmtPct(r.statistics.successRate, 1),
+            color: 'hsl(var(--success))',
+          },
+          { label: t('Simulation Count'), value: `${r.perPathMetrics?.length ?? numSimulations}` },
+        ]}
       />
     </div>
   );
@@ -131,6 +133,11 @@ function ResultsDisplay({
   onTabChange: (tab: ResultTab) => void;
 }) {
   const { t } = useTranslation();
+  const Tab = ({ v, children }: { v: string; children: React.ReactNode }) => (
+    <TabsContent value={v}>
+      <Suspense fallback={<TabFallback />}>{children}</Suspense>
+    </TabsContent>
+  );
   return (
     <div key={label}>
       {portfolioMode === 2 && <ResultsHeading label={label} colorIdx={colorIdx} />}
@@ -147,31 +154,23 @@ function ResultsDisplay({
           <TabsContent value="summary">
             <MonteCarloSummaryTab r={r} startingValue={startingValue} />
           </TabsContent>
-          <TabsContent value="range">
-            <Suspense fallback={<TabFallback />}>
-              <MonteCarloRangeTab r={r} startingValue={startingValue} />
-            </Suspense>
-          </TabsContent>
-          <TabsContent value="success">
-            <Suspense fallback={<TabFallback />}>
-              <MonteCarloSuccessTab r={r} />
-            </Suspense>
-          </TabsContent>
-          <TabsContent value="distributions">
-            <Suspense fallback={<TabFallback />}>
-              <MonteCarloDistributionsTab
-                r={r}
-                distMetric={distMetric}
-                setDistMetric={setDistMetric}
-                startingValue={startingValue}
-              />
-            </Suspense>
-          </TabsContent>
-          <TabsContent value="scenarios">
-            <Suspense fallback={<TabFallback />}>
-              <MonteCarloScenariosTab r={r} startingValue={startingValue} />
-            </Suspense>
-          </TabsContent>
+          <Tab v="range">
+            <MonteCarloRangeTab r={r} startingValue={startingValue} />
+          </Tab>
+          <Tab v="success">
+            <MonteCarloSuccessTab r={r} />
+          </Tab>
+          <Tab v="distributions">
+            <MonteCarloDistributionsTab
+              r={r}
+              distMetric={distMetric}
+              setDistMetric={setDistMetric}
+              startingValue={startingValue}
+            />
+          </Tab>
+          <Tab v="scenarios">
+            <MonteCarloScenariosTab r={r} startingValue={startingValue} />
+          </Tab>
         </div>
       </Tabs>
     </div>
@@ -193,6 +192,18 @@ function MonteCarloResultsPanel({ s }: { s: McState }) {
     setDistMetric,
   } = s;
   const { t } = useTranslation();
+  const displayProps = (r: MonteCarloResult, idx: number) => ({
+    r,
+    label: portfolios[idx].name,
+    colorIdx: idx,
+    portfolioMode,
+    activeTab,
+    startingValue,
+    numSimulations,
+    distMetric,
+    setDistMetric,
+    onTabChange: setActiveTab,
+  });
   return (
     <ResultsShell
       error={error}
@@ -204,35 +215,11 @@ function MonteCarloResultsPanel({ s }: { s: McState }) {
       onRetry={s.runSimulation}
     >
       <div className="flex flex-col gap-6">
-        {results1 && (
-          <ResultsDisplay
-            r={results1}
-            label={portfolios[0].name}
-            colorIdx={0}
-            portfolioMode={portfolioMode}
-            activeTab={activeTab}
-            startingValue={startingValue}
-            numSimulations={numSimulations}
-            distMetric={distMetric}
-            setDistMetric={setDistMetric}
-            onTabChange={setActiveTab}
-          />
-        )}
+        {results1 && <ResultsDisplay {...displayProps(results1, 0)} />}
         {results2 && (
           <>
             <Separator />
-            <ResultsDisplay
-              r={results2}
-              label={portfolios[1].name}
-              colorIdx={1}
-              portfolioMode={portfolioMode}
-              activeTab={activeTab}
-              startingValue={startingValue}
-              numSimulations={numSimulations}
-              distMetric={distMetric}
-              setDistMetric={setDistMetric}
-              onTabChange={setActiveTab}
-            />
+            <ResultsDisplay {...displayProps(results2, 1)} />
           </>
         )}
       </div>
@@ -247,10 +234,10 @@ const config: ComputeToolConfig<McState> = {
     { titleKey: 'monteCarlo.seoOutput', descKey: 'monteCarlo.seoOutputDesc' },
   ],
   relatedTools: [
-    { titleKey: 'nav.portfolioBacktest', href: '/' },
-    { titleKey: 'nav.portfolioOptimize', href: '/optimizer' },
-    { titleKey: 'nav.efficientFrontier', href: '/efficient-frontier' },
-    { titleKey: 'nav.assetAnalysis', href: '/analysis' },
+    TOOL_LINKS.backtest,
+    TOOL_LINKS.optimizer,
+    TOOL_LINKS.efficientF,
+    TOOL_LINKS.analysis,
   ],
   presets: buildPresets,
   params: ({ state }: { state: McState }) => <McParamsPanel s={state} />,

@@ -5,52 +5,6 @@ import type { ReactNode } from 'react';
 import { StaticPageShell } from '@/components/layout/ToolPageLayout.js';
 import helpData from './help/helpData.json';
 type Section = 'methodology' | 'data' | 'faq';
-interface FaqItem {
-  q: string;
-  a: string;
-}
-interface DataSource {
-  name: string;
-  scope: string;
-  note: string;
-}
-interface MetricStatic {
-  name: string;
-  formula: string;
-  i18nKey: string;
-}
-export default function HelpPage() {
-  const { t } = useTranslation();
-  const [section, setSection] = useState<Section>('methodology');
-  const tabs: { key: Section; label: string; icon: ReactNode }[] = [
-    {
-      key: 'methodology',
-      label: t('Methodology'),
-      icon: <Calculator className="size-4" />,
-    },
-    { key: 'data', label: t('Data Source'), icon: <Database className="size-4" /> },
-    { key: 'faq', label: t('FAQ'), icon: <HelpCircle className="size-4" /> },
-  ];
-  return (
-    <StaticPageShell title={t('Help Center')}>
-      <div className="mb-6 flex gap-2 border-b-2 border-border-subtle pb-3">
-        {tabs.map((tab) => (
-          <button
-            key={tab.key}
-            onClick={() => setSection(tab.key)}
-            className={`flex items-center gap-1.5 rounded-lg px-4 py-2 text-label font-semibold transition-colors ${section === tab.key ? 'bg-brand/10 text-brand' : 'text-fg-tertiary hover:text-fg-secondary'}`}
-          >
-            {tab.icon}
-            {tab.label}
-          </button>
-        ))}
-      </div>
-      {section === 'methodology' && <MethodologySection />}
-      {section === 'data' && <DataSection />}
-      {section === 'faq' && <FaqSection />}
-    </StaticPageShell>
-  );
-}
 function HelpSection({
   icon,
   title,
@@ -71,13 +25,6 @@ function HelpSection({
       {description && (
         <div className="mb-5 text-body leading-loose text-fg-secondary">{description}</div>
       )}
-      {children}
-    </div>
-  );
-}
-function HelpGrid({ children }: { children: ReactNode }) {
-  return (
-    <div className="mb-6 grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(280px,1fr))]">
       {children}
     </div>
   );
@@ -133,11 +80,9 @@ function RebalancingModesInfo() {
 }
 function MethodologySection() {
   const { t } = useTranslation();
-  const metrics = (helpData.metrics as MetricStatic[]).map((m) => ({
-    name: m.name,
-    formula: m.formula,
-    fullName: t(m.i18nKey),
-  }));
+  const metrics = (helpData.metrics as { name: string; formula: string; i18nKey: string }[]).map(
+    (m) => ({ name: m.name, formula: m.formula, fullName: t(m.i18nKey) }),
+  );
   return (
     <HelpSection
       icon={<BookOpen className="size-6 text-brand" />}
@@ -146,18 +91,30 @@ function MethodologySection() {
         'This platform uses time-weighted returns (TWR) for backtesting, supporting both periodic and threshold rebalancing modes. All returns are compounded as log returns and converted to annualized metrics.',
       )}
     >
-      <HelpGrid>
+      <div className="mb-6 grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(280px,1fr))]">
         {metrics.map((m) => (
-          <MetricCard key={m.name} name={m.name} fullName={m.fullName} formula={m.formula} />
+          <div key={m.name} className="rounded-lg bg-input-bg p-4">
+            <div className="mb-1.5 flex items-baseline gap-2">
+              <span className="text-h3 font-bold text-brand">{m.name}</span>
+              <span className="text-caption text-fg-tertiary">{m.fullName}</span>
+            </div>
+            <div className="overflow-x-auto rounded bg-elevated px-2.5 py-1.5 font-mono text-caption text-fg">
+              {m.formula}
+            </div>
+          </div>
         ))}
-      </HelpGrid>
+      </div>
       <RebalancingModesInfo />
     </HelpSection>
   );
 }
 function DataSection() {
   const { t } = useTranslation();
-  const sources = t('help.data.sources', { returnObjects: true }) as DataSource[];
+  const sources = t('help.data.sources', { returnObjects: true }) as {
+    name: string;
+    scope: string;
+    note: string;
+  }[];
   return (
     <HelpSection
       icon={<Database className="size-6 text-brand" />}
@@ -166,7 +123,7 @@ function DataSection() {
         'The platform supports multiple data sources. Historical market data is cached in PostgreSQL to reduce upstream API calls on repeat queries.',
       )}
     >
-      <HelpGrid>
+      <div className="mb-6 grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(280px,1fr))]">
         {sources.map((s) => (
           <div key={s.name} className="rounded-lg bg-input-bg p-4">
             <div className="mb-1 text-body font-semibold text-fg">{s.name}</div>
@@ -174,7 +131,7 @@ function DataSection() {
             <div className="text-caption text-fg-tertiary">{s.note}</div>
           </div>
         ))}
-      </HelpGrid>
+      </div>
       <HelpInfoBox
         icon={<TrendingUp className="size-4 text-success" />}
         title={t('Data Update Strategy')}
@@ -188,7 +145,7 @@ function DataSection() {
 }
 function FaqSection() {
   const { t } = useTranslation();
-  const faqs = t('help.faq.items', { returnObjects: true }) as FaqItem[];
+  const faqs = t('help.faq.items', { returnObjects: true }) as { q: string; a: string }[];
   return (
     <HelpSection icon={<HelpCircle className="size-6 text-brand" />} title={t('FAQ')}>
       <div className="flex flex-col gap-3">
@@ -197,27 +154,6 @@ function FaqSection() {
         ))}
       </div>
     </HelpSection>
-  );
-}
-function MetricCard({
-  name,
-  fullName,
-  formula,
-}: {
-  name: string;
-  fullName: string;
-  formula: string;
-}) {
-  return (
-    <div className="rounded-lg bg-input-bg p-4">
-      <div className="mb-1.5 flex items-baseline gap-2">
-        <span className="text-h3 font-bold text-brand">{name}</span>
-        <span className="text-caption text-fg-tertiary">{fullName}</span>
-      </div>
-      <div className="overflow-x-auto rounded bg-elevated px-2.5 py-1.5 font-mono text-caption text-fg">
-        {formula}
-      </div>
-    </div>
   );
 }
 function FaqItemRow({ q, a }: { q: string; a: string }) {
@@ -236,5 +172,33 @@ function FaqItemRow({ q, a }: { q: string; a: string }) {
       </button>
       {open && <div className="px-4 py-3 text-label leading-relaxed text-fg-secondary">{a}</div>}
     </div>
+  );
+}
+export default function HelpPage() {
+  const { t } = useTranslation();
+  const [section, setSection] = useState<Section>('methodology');
+  const tabs: { key: Section; label: string; icon: ReactNode }[] = [
+    { key: 'methodology', label: t('Methodology'), icon: <Calculator className="size-4" /> },
+    { key: 'data', label: t('Data Source'), icon: <Database className="size-4" /> },
+    { key: 'faq', label: t('FAQ'), icon: <HelpCircle className="size-4" /> },
+  ];
+  return (
+    <StaticPageShell title={t('Help Center')}>
+      <div className="mb-6 flex gap-2 border-b-2 border-border-subtle pb-3">
+        {tabs.map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => setSection(tab.key)}
+            className={`flex items-center gap-1.5 rounded-lg px-4 py-2 text-label font-semibold transition-colors ${section === tab.key ? 'bg-brand/10 text-brand' : 'text-fg-tertiary hover:text-fg-secondary'}`}
+          >
+            {tab.icon}
+            {tab.label}
+          </button>
+        ))}
+      </div>
+      {section === 'methodology' && <MethodologySection />}
+      {section === 'data' && <DataSection />}
+      {section === 'faq' && <FaqSection />}
+    </StaticPageShell>
   );
 }

@@ -15,6 +15,7 @@ import { pollJobStatus } from '@/store/backtestStore.js';
 import { useAssetList } from '../../hooks/miscHooks.js';
 import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
 import { normalizeTicker } from '@/utils/ticker';
+
 export type { Objective };
 export const OBJECTIVE_SORT_KEY: Record<Objective, keyof OptimizeResultItem> = {
   maxCagr: 'cagr',
@@ -22,17 +23,15 @@ export const OBJECTIVE_SORT_KEY: Record<Objective, keyof OptimizeResultItem> = {
   maxSharpe: 'sharpe',
   maxSortino: 'sortino',
 };
-const pctCol = (key: keyof OptimizeResultItem, label: string): TableColumn<OptimizeResultItem> => ({
+const mkCol = (
+  key: keyof OptimizeResultItem,
+  label: string,
+  fmt: (v: number) => string,
+): TableColumn<OptimizeResultItem> => ({
   key,
   label,
   sortValue: (r) => r[key] as number,
-  render: (r) => fmtPct(r[key] as number),
-});
-const numCol = (key: keyof OptimizeResultItem, label: string): TableColumn<OptimizeResultItem> => ({
-  key,
-  label,
-  sortValue: (r) => r[key] as number,
-  render: (r) => fmtNum(r[key] as number),
+  render: (r) => fmt(r[key] as number),
 });
 export const TABLE_COLUMNS: TableColumn<OptimizeResultItem>[] = [
   {
@@ -56,12 +55,12 @@ export const TABLE_COLUMNS: TableColumn<OptimizeResultItem>[] = [
     sortValue: (r) => r.initialCapital,
     render: (r) => fmtAmount(r.initialCapital),
   },
-  pctCol('cagr', i18n.t('stats.cagr')),
-  pctCol('maxDrawdown', i18n.t('Max Drawdown')),
-  pctCol('stdev', i18n.t('Volatility')),
-  numCol('sharpe', i18n.t('Sharpe')),
-  numCol('sortino', 'Sortino'),
-  numCol('calmar', 'Calmar'),
+  mkCol('cagr', i18n.t('stats.cagr'), fmtPct),
+  mkCol('maxDrawdown', i18n.t('Max Drawdown'), fmtPct),
+  mkCol('stdev', i18n.t('Volatility'), fmtPct),
+  mkCol('sharpe', i18n.t('Sharpe'), fmtNum),
+  mkCol('sortino', 'Sortino', fmtNum),
+  mkCol('calmar', 'Calmar', fmtNum),
 ];
 export interface OptimizerFormState {
   thrMin: string;
@@ -114,6 +113,7 @@ export interface ComparisonTableSectionProps {
   results: OptimizeResultItem[];
   objective: Objective;
 }
+
 const DEFAULT_FORM: OptimizerFormState = {
   thrMin: '5',
   thrMax: '20',
@@ -259,7 +259,6 @@ export function useOptimizerState(): BacktestOptimizerState {
       });
       const json = await res.json();
       if (!res.ok || json.success === false) throw new Error(extractApiErrorDetail(json));
-      // 端点走队列（submitQueueJob），202 + statusUrl 时轮询直至完成
       const data = (
         json.data?.statusUrl
           ? (await pollJobStatus(json.data.statusUrl, new AbortController().signal, null)).data

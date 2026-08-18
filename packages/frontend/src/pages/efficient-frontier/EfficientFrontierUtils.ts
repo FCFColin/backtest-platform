@@ -1,10 +1,15 @@
 import { useMemo, useState } from 'react';
 import i18n from '@/i18n/index.js';
 import { useNavigate } from 'react-router';
-import { useAsyncAction, useOptimizerLikeState, useSetterState } from '../../hooks/miscHooks.js';
+import { useAsyncAction, useSetterState } from '../../hooks/miscHooks.js';
 import { apiFetch, apiPostJSON } from '@/utils/apiClient';
 import type { EfficientFrontierResult, EfficientFrontierPoint } from '@backtest/shared';
-import { buildBacktestParameters, buildSinglePortfolioBody } from '@/utils/constants';
+import {
+  buildBacktestParameters,
+  buildSinglePortfolioBody,
+  DEFAULT_BACKTEST_START_DATE,
+  DEFAULT_END_DATE,
+} from '@/utils/constants';
 export type SolveSpeed = 'ultrafast' | 'fast' | 'medium' | 'slow';
 export type FrontierSolver = 'markowitz' | 'nsga2';
 export type ReturnObjective = 'maxCagr' | 'minVolatility';
@@ -28,14 +33,11 @@ function buildPortfolioData(
       ticker,
       weight: Math.round(weight * 10000) / 100,
     })),
-    {
-      id: `portfolio-${Date.now()}-1`,
-      rebalanceFrequency: rebalanceFrequency || 'quarterly',
-    },
+    { id: `portfolio-${Date.now()}-1`, rebalanceFrequency: rebalanceFrequency || 'quarterly' },
     buildBacktestParameters(startDate, endDate),
   );
 }
-interface FetchFrontierParams {
+async function fetchFrontier(params: {
   validTickers: string[];
   numPoints: number;
   solveSpeed: SolveSpeed;
@@ -46,8 +48,7 @@ interface FetchFrontierParams {
   solver: FrontierSolver;
   startDate: string;
   endDate: string;
-}
-async function fetchFrontier(params: FetchFrontierParams): Promise<EfficientFrontierResult> {
+}): Promise<EfficientFrontierResult> {
   return apiPostJSON<EfficientFrontierResult>(
     '/api/v1/backtest/efficient-frontier',
     {
@@ -84,8 +85,8 @@ async function fetchCorrelations(
     body: JSON.stringify(btBody),
   });
   if (!btRes.ok) return null;
-  const btJson = await btRes.json();
-  const btData = btJson.data ?? btJson;
+  const btJson = await btRes.json(),
+    btData = btJson.data ?? btJson;
   if (btData.assetTickers && btData.assetCorrelations)
     return { tickers: btData.assetTickers, matrix: btData.assetCorrelations };
   return null;
@@ -119,14 +120,24 @@ function computeFrontierDerivedData(results: EfficientFrontierResult | null) {
         return row;
       })
     : [];
-  const allAssetTickers = results?.frontier.length ? Object.keys(results.frontier[0].weights) : [];
-  return { maxSharpe, sharpeRange, scatterData, allocationData, allAssetTickers };
+  return {
+    maxSharpe,
+    sharpeRange,
+    scatterData,
+    allocationData,
+    allAssetTickers: results?.frontier.length ? Object.keys(results.frontier[0].weights) : [],
+  };
 }
 function useEfficientFrontierStateInner() {
   const navigate = useNavigate();
   const [tickers, setTickers] = useState(['VTI', 'VXUS', 'BND', 'TLT']);
-  const { startDate, setStartDate, endDate, setEndDate, results, setResults } =
-    useOptimizerLikeState<EfficientFrontierResult>();
+  const { startDate, setStartDate, endDate, setEndDate, results, setResults } = useSetterState({
+    startDate: DEFAULT_BACKTEST_START_DATE,
+    endDate: DEFAULT_END_DATE,
+    isLoading: false,
+    error: null as string | null,
+    results: null as EfficientFrontierResult | null,
+  });
   const s = useSetterState({
     numPoints: 20,
     solveSpeed: 'fast' as SolveSpeed,

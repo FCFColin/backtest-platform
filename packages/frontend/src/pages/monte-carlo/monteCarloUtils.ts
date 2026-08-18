@@ -15,7 +15,6 @@ import {
   DEFAULT_60_40_ASSETS,
   buildBacktestParameters,
 } from '@/utils/constants';
-
 export type PortfolioMode = 1 | 2;
 type SimMode = 'standard' | 'frontier';
 export interface PortfolioState {
@@ -80,25 +79,23 @@ function usePortfolioOperations(
   portfolios: PortfolioState[],
   setPortfolios: (v: PortfolioState[]) => void,
 ) {
-  const updatePortfolio = (idx: number, patch: Partial<PortfolioState>) =>
+  const update = (idx: number, patch: Partial<PortfolioState>) =>
     setPortfolios(portfolios.map((p, i) => (i === idx ? { ...p, ...patch } : p)));
-  const addAsset = (pIdx: number) =>
-    updatePortfolio(pIdx, { assets: [...portfolios[pIdx].assets, { ticker: '', weight: 0 }] });
-  const removeAsset = (pIdx: number, aIdx: number) =>
-    updatePortfolio(pIdx, { assets: portfolios[pIdx].assets.filter((_, i) => i !== aIdx) });
-  const updateAsset = (
-    pIdx: number,
-    aIdx: number,
-    field: 'ticker' | 'weight',
-    val: string | number,
-  ) =>
-    updatePortfolio(pIdx, {
-      assets: portfolios[pIdx].assets.map((a, i) => (i === aIdx ? { ...a, [field]: val } : a)),
-    });
-  const getTotalWeight = (pIdx: number) =>
-    portfolios[pIdx].assets.reduce((s, a) => s + (a.weight || 0), 0);
-  const isComplete = (pIdx: number) => getTotalWeight(pIdx) === 100;
-  return { updatePortfolio, addAsset, removeAsset, updateAsset, getTotalWeight, isComplete };
+  return {
+    updatePortfolio: update,
+    addAsset: (pIdx: number) =>
+      update(pIdx, { assets: [...portfolios[pIdx].assets, { ticker: '', weight: 0 }] }),
+    removeAsset: (pIdx: number, aIdx: number) =>
+      update(pIdx, { assets: portfolios[pIdx].assets.filter((_, i) => i !== aIdx) }),
+    updateAsset: (pIdx: number, aIdx: number, field: 'ticker' | 'weight', val: string | number) =>
+      update(pIdx, {
+        assets: portfolios[pIdx].assets.map((a, i) => (i === aIdx ? { ...a, [field]: val } : a)),
+      }),
+    getTotalWeight: (pIdx: number) =>
+      portfolios[pIdx].assets.reduce((s, a) => s + (a.weight || 0), 0),
+    isComplete: (pIdx: number) =>
+      portfolios[pIdx].assets.reduce((s, a) => s + (a.weight || 0), 0) === 100,
+  };
 }
 const validatePortfolios = (
   portfolios: PortfolioState[],
@@ -173,14 +170,13 @@ function useMcSetters(): typeof MC_INITIAL & {
 type McSetters = ReturnType<typeof useMcSetters>;
 type PortfolioOps = ReturnType<typeof usePortfolioOperations>;
 async function executeSimulation(s: McSetters, ops: PortfolioOps): Promise<void> {
-  const validationError = validatePortfolios(s.portfolios, s.portfolioMode, ops.isComplete);
-  if (validationError) {
-    s.setError(validationError);
+  const err = validatePortfolios(s.portfolios, s.portfolioMode, ops.isComplete);
+  if (err) {
+    s.setError(err);
     return;
   }
   s.setIsLoading(true);
   s.setError(null);
-  // 失败时 ResultsShell 以错误横幅整块替换结果区（不会保留旧结果）
   const reqBody = {
     parameters: buildBacktestParameters(s.startDate, s.endDate, {
       startingValue: s.startingValue,
@@ -261,14 +257,11 @@ export function buildFanChartData(r: MonteCarloResult, startingValue: number): F
 }
 export function buildTerminalHistogram(r: MonteCarloResult, startingValue: number) {
   const metrics = r.perPathMetrics;
-  if (!metrics || metrics.length === 0) {
+  if (!metrics || metrics.length === 0)
     return { data: [], p5Val: 0, p50Val: 0, p95Val: 0, p5Label: '', p50Label: '', p95Label: '' };
-  }
   const vals = metrics.map((m) => m.finalValue * startingValue);
   const { bins, labelFor } = buildBinData(vals, 25, dollarKFormatter);
-  const p5Val = percentile(vals, 0.05);
-  const p50Val = percentile(vals, 0.5);
-  const p95Val = percentile(vals, 0.95);
+  const [p5Val, p50Val, p95Val] = [0.05, 0.5, 0.95].map((f) => percentile(vals, f));
   return {
     data: bins,
     p5Val,
@@ -290,18 +283,17 @@ function sampleMonths(len: number) {
   }
   return out;
 }
-function buildBinData(vals: number[], binCount: number, formatBin: (v: number) => string) {
-  const min = Math.min(...vals);
-  const binWidth = (Math.max(...vals) - min) / binCount || 1;
+function buildBinData(vals: number[], binCount: number, fmt: (v: number) => string) {
+  const min = Math.min(...vals),
+    binWidth = (Math.max(...vals) - min) / binCount || 1;
   const bins = Array.from({ length: binCount }, (_, i) => ({
-    range: formatBin(min + i * binWidth),
+    range: fmt(min + i * binWidth),
     count: 0,
     minVal: min + i * binWidth,
   }));
-  for (const v of vals) {
+  for (const v of vals)
     bins[Math.min(binCount - 1, Math.max(0, Math.floor((v - min) / binWidth)))].count++;
-  }
-  const labelFor = (val: number) => formatBin(Math.floor((val - min) / binWidth) * binWidth + min);
+  const labelFor = (val: number) => fmt(Math.floor((val - min) / binWidth) * binWidth + min);
   return { bins, labelFor };
 }
 const BIN_FORMATTERS: Record<DistMetric, (v: number) => string> = {
@@ -322,16 +314,15 @@ export function buildSummaryData(r: MonteCarloResult, startingValue: number, t: 
   const labels = metricLabels(t);
   return (Object.keys(METRIC_FORMAT) as DistMetric[]).map((key) => {
     const vals = metricValues(metrics, key, startingValue);
-    const p = (frac: number) => percentile(vals, frac);
-    const m = mean(vals);
-    const s = std(vals);
-    const fmt = METRIC_FORMAT[key];
+    const p = (f: number) => percentile(vals, f),
+      m = mean(vals),
+      s = std(vals),
+      fmt = METRIC_FORMAT[key];
     const values: Record<string, string> = { Std: key === 'finalValue' ? fmtAmount(s) : fmtNum(s) };
-    for (const [name, frac] of SUMMARY_QUANTILES) {
+    for (const [name, frac] of SUMMARY_QUANTILES)
       values[name] = fmt(
         frac === -1 ? m : frac === 0 ? Math.min(...vals) : frac === 1 ? Math.max(...vals) : p(frac),
       );
-    }
     return { metric: labels[key], key, values };
   });
 }
@@ -353,8 +344,8 @@ export function buildDistHistogram(
   const vals = metricValues(metrics, metric, startingValue);
   if (vals.length === 0) return { data: [], medianLabel: '', meanLabel: '' };
   const { bins, labelFor } = buildBinData(vals, 40, BIN_FORMATTERS[metric]);
-  const medianVal = percentile(vals, 0.5);
-  const meanVal = mean(vals);
+  const medianVal = percentile(vals, 0.5),
+    meanVal = mean(vals);
   return {
     data: bins,
     medianLabel: labelFor(medianVal),

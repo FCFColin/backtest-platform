@@ -10,27 +10,27 @@ export function SWRCalculator() {
   const [retirementYears, setRetirementYears] = useState(30);
   const [successTarget, setSuccessTarget] = useState(95);
   const swr = useMemo(() => {
-    const mu = expectedReturn / 100;
-    const sigma = volatility / 100;
-    const T = retirementYears;
-    const pTarget = successTarget / 100;
-    const zScore = 1.645 + (pTarget - 0.95) * 10 * 0.842;
-    const baseRate = mu - 0.5 * sigma * sigma;
-    const safetyMargin = (zScore * sigma) / Math.sqrt(T);
-    const estimatedSWR = Math.max(0, baseRate - safetyMargin);
-    return Math.min(estimatedSWR, 0.1);
+    const mu = expectedReturn / 100,
+      sigma = volatility / 100,
+      T = retirementYears,
+      pTarget = successTarget / 100;
+    return Math.min(
+      Math.max(
+        mu - 0.5 * sigma * sigma - ((1.645 + (pTarget - 0.95) * 10 * 0.842) * sigma) / Math.sqrt(T),
+        0,
+      ),
+      0.1,
+    );
   }, [expectedReturn, volatility, retirementYears, successTarget]);
-  const portfolioSurvival = useMemo(() => {
-    const wr = swr;
-    const pts: Array<{ year: number; ratio: number }> = [];
-    let ratio = 1;
-    for (let t = 1; t <= retirementYears; t++) {
-      ratio = ratio * (1 + expectedReturn / 100) * (1 - wr);
-      pts.push({ year: t, ratio });
+  const pts = useMemo(() => {
+    const out: Array<{ year: number; ratio: number }> = [];
+    let r = 1;
+    for (let i = 1; i <= retirementYears; i++) {
+      r = r * (1 + expectedReturn / 100) * (1 - swr);
+      out.push({ year: i, ratio: r });
     }
-    return pts;
+    return out;
   }, [swr, expectedReturn, retirementYears]);
-  const annualWithdrawal = String(Math.round(swr * 1_000_000));
   return (
     <CalcCard
       icon={ShieldAlert}
@@ -71,20 +71,18 @@ export function SWRCalculator() {
       ]}
       rows={[
         { label: t('Estimated SWR'), value: fmtPct(swr), tone: 'brand' },
-        { label: t('Annual Withdrawal (per $1M)'), value: annualWithdrawal, tone: 'success' },
+        {
+          label: t('Annual Withdrawal (per $1M)'),
+          value: String(Math.round(swr * 1_000_000)),
+          tone: 'success',
+        },
       ]}
-      chart={<SWRChart data={portfolioSurvival} />}
+      chart={<SWRChart data={pts} />}
       info={t(
         'Formula: SWR ≈ (Expected Return - Risk Premium × Volatility²) / (1 + Risk Premium × Volatility²)',
       )}
     />
   );
-}
-interface AllocationRiskComputation {
-  portfolioVol: number;
-  diversificationBenefit: number;
-  riskContributionStock: number;
-  riskContributionBond: number;
 }
 function computeAllocationRisk(
   stockPct: number,
@@ -92,21 +90,20 @@ function computeAllocationRisk(
   stockVol: number,
   bondVol: number,
   correlation: number,
-): AllocationRiskComputation {
-  const wS = stockPct / 100;
-  const wB = bondPct / 100;
-  const sS = stockVol / 100;
-  const sB = bondVol / 100;
-  const rho = correlation;
-  const portfolioVol = Math.sqrt(
-    wS * wS * sS * sS + wB * wB * sB * sB + 2 * wS * wB * rho * sS * sB,
-  );
-  const diversificationBenefit = wS * sS + wB * sB - portfolioVol;
-  const riskContributionStock =
-    (wS * wS * sS * sS + wS * wB * rho * sS * sB) / (portfolioVol * portfolioVol);
-  const riskContributionBond =
-    (wB * wB * sB * sB + wS * wB * rho * sS * sB) / (portfolioVol * portfolioVol);
-  return { portfolioVol, diversificationBenefit, riskContributionStock, riskContributionBond };
+) {
+  const wS = stockPct / 100,
+    wB = bondPct / 100,
+    sS = stockVol / 100,
+    sB = bondVol / 100,
+    rho = correlation;
+  const pV = Math.sqrt(wS * wS * sS * sS + wB * wB * sB * sB + 2 * wS * wB * rho * sS * sB);
+  const pV2 = pV * pV;
+  return {
+    portfolioVol: pV,
+    diversificationBenefit: wS * sS + wB * sB - pV,
+    riskContributionStock: (wS * wS * sS * sS + wS * wB * rho * sS * sB) / pV2,
+    riskContributionBond: (wB * wB * sB * sB + wS * wB * rho * sS * sB) / pV2,
+  };
 }
 export function AssetAllocationRiskCalculator() {
   const { t } = useTranslation();

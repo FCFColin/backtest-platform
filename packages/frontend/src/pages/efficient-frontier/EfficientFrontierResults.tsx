@@ -1,6 +1,6 @@
 ﻿import { useTranslation } from 'react-i18next';
 import { ArrowRight } from 'lucide-react';
-import { type EfficientFrontierPoint, type EfficientFrontierResult } from '@backtest/shared';
+import { type EfficientFrontierPoint } from '@backtest/shared';
 import { getPortfolioColor } from '@/lib/chart-theme.js';
 import { ErrorBanner } from '@/components/stateDisplay';
 import { ResultsShell } from '@/components/resultsShell';
@@ -14,29 +14,10 @@ import { FrontierParams } from './EfficientFrontierParams.js';
 import type { ReturnObjective, FrontierSolver } from './EfficientFrontierParams.js';
 import { useEfficientFrontierState, type FrontierState } from './EfficientFrontierUtils.js';
 import { ComputeToolShell, type ComputeToolConfig } from '../../components/shells/index.js';
+import { TOOL_LINKS } from '../../components/shells/constants.js';
 import { MiniStatCard } from '../../components/cards.js';
+import { MetricsGrid } from '@/components/ui/MetricsGrid';
 import { fmtPct } from '@/utils/format';
-export interface FrontierResultsProps {
-  results: EfficientFrontierResult;
-  scatterData: Array<{
-    expectedVolatility: number;
-    expectedReturn: number;
-    sharpeRatio: number;
-  }>;
-  sharpeRange: { min: number; max: number };
-  maxSharpe: EfficientFrontierPoint | undefined;
-  allocationData: Record<string, number | string>[];
-  allAssetTickers: string[];
-  correlations: { tickers: string[]; matrix: number[][] } | null;
-  correlationError: string | null;
-  selectedPoint: EfficientFrontierPoint | null;
-  rebalanceFrequency: string;
-  allowCash: boolean;
-  returnObjective: ReturnObjective;
-  solver: FrontierSolver;
-  onSelectPoint: (p: EfficientFrontierPoint) => void;
-  onLoadInBacktester: (p?: EfficientFrontierPoint) => void;
-}
 function WeightBar({ ticker, weight, color }: { ticker: string; weight: number; color: string }) {
   return (
     <div className="flex items-center gap-2">
@@ -81,25 +62,22 @@ export function LoadInBacktesterButton({
     </Button>
   );
 }
-const COLOR_SUCCESS = 'hsl(var(--success))';
-const COLOR_WARNING = 'hsl(var(--warning))';
-const COLOR_BRAND = 'hsl(var(--brand))';
-const COLOR_FG_SECONDARY = 'hsl(var(--fg-secondary))';
-const COLOR_FG_TERTIARY = 'hsl(var(--fg-tertiary))';
+const COLORS = {
+  success: 'hsl(var(--success))',
+  warning: 'hsl(var(--warning))',
+  brand: 'hsl(var(--brand))',
+  fgSec: 'hsl(var(--fg-secondary))',
+  fgTer: 'hsl(var(--fg-tertiary))',
+} as const;
 function PointStats({ p }: { p: EfficientFrontierPoint }) {
   const { t } = useTranslation();
-  const stats = [
-    { key: 'Expected Return', value: fmtPct(p.expectedReturn), color: COLOR_SUCCESS },
-    {
-      key: 'Expected Volatility',
-      value: fmtPct(p.expectedVolatility),
-      color: COLOR_WARNING,
-    },
-    { key: 'Sharpe Ratio', value: p.sharpeRatio.toFixed(2), color: COLOR_BRAND },
-  ];
   return (
     <div className="flex flex-col gap-2">
-      {stats.map((s) => (
+      {[
+        { key: 'Expected Return', value: fmtPct(p.expectedReturn), color: COLORS.success },
+        { key: 'Expected Volatility', value: fmtPct(p.expectedVolatility), color: COLORS.warning },
+        { key: 'Sharpe Ratio', value: p.sharpeRatio.toFixed(2), color: COLORS.brand },
+      ].map((s) => (
         <MiniStatCard
           key={s.key}
           className="bg-elevated p-2.5"
@@ -160,38 +138,39 @@ function ParamsSummary({
 }: {
   rebalanceFrequency: string;
   allowCash: boolean;
-  returnObjective: FrontierResultsProps['returnObjective'];
-  solver: FrontierResultsProps['solver'];
+  returnObjective: ReturnObjective;
+  solver: FrontierSolver;
 }) {
   const { t } = useTranslation();
   return (
     <div>
       <h3 className="mb-3 mt-6 text-h3 font-semibold text-fg">{t('Parameters Summary')}</h3>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <MiniStatCard
-          label={t('Rebalancing Frequency')}
-          value={
-            t(`efficientFrontier.rebalanceFreq.${rebalanceFrequency}`, { defaultValue: '' }) ||
-            rebalanceFrequency
-          }
-          color={COLOR_FG_SECONDARY}
-        />
-        <MiniStatCard
-          label={t('Allow Cash Allocation')}
-          value={allowCash ? t('Yes') : t('No')}
-          color={allowCash ? COLOR_SUCCESS : COLOR_FG_TERTIARY}
-        />
-        <MiniStatCard
-          label={t('Return Objective')}
-          value={returnObjective === 'maxCagr' ? t('Max CAGR') : t('Min Vol')}
-          color={COLOR_FG_SECONDARY}
-        />
-        <MiniStatCard
-          label={t('Solver')}
-          value={t(`efficientFrontier.solver.${solver}`, { defaultValue: solver })}
-          color={COLOR_FG_SECONDARY}
-        />
-      </div>
+      <MetricsGrid
+        metrics={[
+          {
+            label: t('Rebalancing Frequency'),
+            value:
+              t(`efficientFrontier.rebalanceFreq.${rebalanceFrequency}`, { defaultValue: '' }) ||
+              rebalanceFrequency,
+            color: COLORS.fgSec,
+          },
+          {
+            label: t('Allow Cash Allocation'),
+            value: allowCash ? t('Yes') : t('No'),
+            color: allowCash ? COLORS.success : COLORS.fgTer,
+          },
+          {
+            label: t('Return Objective'),
+            value: returnObjective === 'maxCagr' ? t('Max CAGR') : t('Min Vol'),
+            color: COLORS.fgSec,
+          },
+          {
+            label: t('Solver'),
+            value: t(`efficientFrontier.solver.${solver}`, { defaultValue: solver }),
+            color: COLORS.fgSec,
+          },
+        ]}
+      />
     </div>
   );
 }
@@ -267,16 +246,9 @@ const config: ComputeToolConfig<FrontierState> = {
       titleKey: 'efficientFrontier.seo.visualizationTitle',
       descKey: 'efficientFrontier.seo.visualizationDesc',
     },
-    {
-      titleKey: 'Constraints',
-      descKey: 'efficientFrontier.seo.constraintsDesc',
-    },
+    { titleKey: 'Constraints', descKey: 'efficientFrontier.seo.constraintsDesc' },
   ],
-  relatedTools: [
-    { titleKey: 'nav.portfolioBacktest', href: '/' },
-    { titleKey: 'nav.portfolioOptimize', href: '/optimizer' },
-    { titleKey: 'nav.assetAnalysis', href: '/analysis' },
-  ],
+  relatedTools: [TOOL_LINKS.backtest, TOOL_LINKS.optimizer, TOOL_LINKS.analysis],
   params: FrontierParams,
   results: FrontierResultsView,
 };

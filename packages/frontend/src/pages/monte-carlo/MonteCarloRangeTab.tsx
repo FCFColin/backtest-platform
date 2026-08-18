@@ -24,13 +24,13 @@ import {
 function FanChart({ data }: { data: FanDataPoint[] }) {
   const { t } = useTranslation();
   const months = data.map((d) => String(d.month));
-  const series: Array<{ dataKey: 'band5_95' | 'band25_75'; opacity: number; name: string }> = [
+  const bands: Array<{ dataKey: 'band5_95' | 'band25_75'; opacity: number; name: string }> = [
     { dataKey: 'band5_95', opacity: 0.08, name: t('monteCarlo.fanChart.band5_95') },
     { dataKey: 'band25_75', opacity: 0.18, name: t('monteCarlo.fanChart.band25_75') },
   ];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 需要动态构造堆叠 band 系列
   const seriesArr: any[] = [];
-  series.forEach((band) => {
+  bands.forEach((band) => {
     seriesArr.push(
       {
         type: 'line',
@@ -144,17 +144,13 @@ export function MonteCarloSuccessTab({ r }: { r: MonteCarloResult }) {
   const { t } = useTranslation();
   const data = buildSuccessData(r);
   if (data.length === 0) return <NoDataCard />;
-  const successLines: Array<{
+  const lines: Array<{
     key: 'survival' | 'capitalPreservation' | 'profit';
     color: string;
     nameKey: string;
   }> = [
     { key: 'survival', color: getPortfolioColor(2), nameKey: 'monteCarlo.results.survivalProb' },
-    {
-      key: 'capitalPreservation',
-      color: getPortfolioColor(0),
-      nameKey: 'Capital Preservation',
-    },
+    { key: 'capitalPreservation', color: getPortfolioColor(0), nameKey: 'Capital Preservation' },
     { key: 'profit', color: getPortfolioColor(1), nameKey: 'monteCarlo.results.profitProb' },
   ];
   return (
@@ -171,7 +167,7 @@ export function MonteCarloSuccessTab({ r }: { r: MonteCarloResult }) {
         legendPosition="top"
         tooltipFormatter={(v) => `${v}%`}
         ariaLabel={t('Success Probability')}
-        series={successLines.map((l) => ({
+        series={lines.map((l) => ({
           name: t(l.nameKey),
           dataKey: l.key,
           color: l.color,

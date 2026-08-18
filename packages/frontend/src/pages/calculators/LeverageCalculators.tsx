@@ -9,13 +9,11 @@ export function LeverageDecayCalculator() {
   const [leverage, setLeverage] = useState(3);
   const [years, setYears] = useState(10);
   const result = useMemo(() => {
-    const sigma = baseVol / 100;
-    const l = leverage;
+    const sigma = baseVol / 100,
+      l = leverage;
     const volDrag = ((l * l - l) * sigma * sigma) / 2;
-    // 复利累加：与 info 文案公式一致（年化拖累逐年复利）
     const totalDecay = 1 - Math.pow(1 - volDrag, years);
-    const effectiveReturn = -totalDecay;
-    return { volDrag, totalDecay, effectiveReturn };
+    return { volDrag, totalDecay, effectiveReturn: -totalDecay };
   }, [baseVol, leverage, years]);
   return (
     <CalcCard
@@ -67,13 +65,12 @@ export function LeverageETFCalculator() {
   const [leverage, setLeverage] = useState(2);
   const [borrowSpread, setBorrowSpread] = useState(1);
   const result = useMemo(() => {
-    const mu = baseCagr / 100;
-    const sigma = baseVol / 100;
-    const l = leverage;
-    const rBorrow = borrowSpread / 100;
+    const mu = baseCagr / 100,
+      sigma = baseVol / 100,
+      l = leverage,
+      rBorrow = borrowSpread / 100;
     const levCagr = l * mu - (l - 1) * rBorrow - ((l * l - l) * sigma * sigma) / 2;
-    const levVol = l * sigma;
-    return { levCagr, levVol };
+    return { levCagr, levVol: l * sigma };
   }, [baseCagr, baseVol, leverage, borrowSpread]);
   return (
     <CalcCard
@@ -96,10 +93,7 @@ export function LeverageETFCalculator() {
       rows={[
         { label: t('Leveraged CAGR'), value: fmtPct(result.levCagr), tone: 'brand' },
         { label: t('Leveraged Volatility'), value: fmtPct(result.levVol), tone: 'warning' },
-        {
-          label: t('Leveraged Sharpe'),
-          value: (result.levCagr / result.levVol).toFixed(3),
-        },
+        { label: t('Leveraged Sharpe'), value: (result.levCagr / result.levVol).toFixed(3) },
       ]}
     />
   );
@@ -110,14 +104,14 @@ export function KellyLeverageCalculator() {
   const [baseVol, setBaseVol] = useState(15);
   const [riskFree, setRiskFree] = useState(4);
   const result = useMemo(() => {
-    const mu = baseCagr / 100;
-    const sigma = baseVol / 100;
-    const rf = riskFree / 100;
-    const kelly = (mu - rf) / (sigma * sigma);
-    const halfKelly = kelly / 2;
-    const optimalCagr = rf + kelly * (mu - rf) - (kelly * kelly * sigma * sigma) / 2;
-    const halfKellyCagr = rf + halfKelly * (mu - rf) - (halfKelly * halfKelly * sigma * sigma) / 2;
-    return { kelly, halfKelly, optimalCagr, halfKellyCagr };
+    const mu = baseCagr / 100,
+      sigma = baseVol / 100,
+      rf = riskFree / 100;
+    const kelly = (mu - rf) / (sigma * sigma),
+      halfKelly = kelly / 2;
+    const optCagr = rf + kelly * (mu - rf) - (kelly * kelly * sigma * sigma) / 2;
+    const halfCagr = rf + halfKelly * (mu - rf) - (halfKelly * halfKelly * sigma * sigma) / 2;
+    return { kelly, halfKelly, optimalCagr: optCagr, halfKellyCagr: halfCagr };
   }, [baseCagr, baseVol, riskFree]);
   return (
     <CalcCard
@@ -139,16 +133,10 @@ export function KellyLeverageCalculator() {
     />
   );
 }
-interface OptionLeverageComputation {
-  leverage: number;
-  delta: number;
-  intrinsic: number;
-  timeValue: number;
-}
 function erf(x: number): number {
-  const sign = x < 0 ? -1 : 1;
-  const a = Math.abs(x);
-  const t = 1 / (1 + 0.3275911 * a);
+  const sign = x < 0 ? -1 : 1,
+    a = Math.abs(x),
+    t = 1 / (1 + 0.3275911 * a);
   const y =
     1 -
     ((((1.061405429 * t - 1.453152027) * t + 1.421413741) * t - 0.284496736) * t + 0.254829592) *
@@ -159,20 +147,19 @@ function erf(x: number): number {
 function normCdf(x: number): number {
   return 0.5 * (1 + erf(x / Math.SQRT2));
 }
-// Black-Scholes 看涨期权 delta（r=0 简化），杠杆 = delta × S / P
 function computeOptionLeverage(
   spotPrice: number,
   strikePrice: number,
   optionPrice: number,
   impliedVol: number,
   daysToExpiry: number,
-): OptionLeverageComputation {
+) {
   if (optionPrice <= 0 || spotPrice <= 0)
     return { leverage: 0, delta: 0, intrinsic: 0, timeValue: 0 };
   const intrinsic = Math.max(spotPrice - strikePrice, 0);
   const timeValue = optionPrice - intrinsic;
-  const sigma = impliedVol / 100;
-  const sqrtT = Math.sqrt(daysToExpiry / 365);
+  const sigma = impliedVol / 100,
+    sqrtT = Math.sqrt(daysToExpiry / 365);
   const d1 =
     sigma > 0 && sqrtT > 0 && strikePrice > 0
       ? (Math.log(spotPrice / strikePrice) + (sigma * sigma * (daysToExpiry / 365)) / 2) /

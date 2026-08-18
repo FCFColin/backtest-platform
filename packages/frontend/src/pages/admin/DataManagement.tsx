@@ -35,7 +35,7 @@ interface DataStats {
 }
 
 const TABLE_COLS = ['Data Source', 'Type', 'Status', 'Record Count', 'Last Updated'];
-const defaultDataSources: DataSource[] = (
+const defaultSources: DataSource[] = (
   [
     ['Go Data Service', 'api'],
     ['Local Cache', 'local'],
@@ -47,47 +47,42 @@ const defaultDataSources: DataSource[] = (
   recordCount: 0,
   lastUpdated: '-',
 }));
-const defaultDataStats: DataStats = {
+const defaultStats: DataStats = {
   totalTickers: 0,
   totalDataPoints: 0,
   dateRange: { earliest: '-', latest: '-' },
   totalSizeMB: 0,
   marketBreakdown: {},
 };
-const getYearDiff = (start: string, end: string) =>
-  Math.round(
-    (new Date(end).getTime() - new Date(start).getTime()) / (365.25 * 24 * 60 * 60 * 1000),
-  );
+const yearDiff = (s: string, e: string) =>
+  Math.round((new Date(e).getTime() - new Date(s).getTime()) / (365.25 * 24 * 60 * 60 * 1000));
 
 function buildDataStats(d: Record<string, unknown>): DataStats {
   const s = d.stats as Record<string, unknown> | undefined;
   const u = d.universe as Record<string, unknown> | undefined;
-  const dq = s?.data_quality as Record<string, number> | undefined;
-  const dateRanges = (s?.date_ranges as { earliest: string; latest: string }) || {
-    earliest: '-',
-    latest: '-',
-  };
   return {
     totalTickers: (u?.total as number) || 0,
-    totalDataPoints: dq?.total_data_points || 0,
-    totalSizeMB: dq?.total_size_mb || 0,
-    dateRange: dateRanges,
+    totalDataPoints:
+      (s?.data_quality as Record<string, number> | undefined)?.total_data_points || 0,
+    totalSizeMB: (s?.data_quality as Record<string, number> | undefined)?.total_size_mb || 0,
+    dateRange: (s?.date_ranges as { earliest: string; latest: string }) || {
+      earliest: '-',
+      latest: '-',
+    },
     marketBreakdown: parseMarketBreakdown(s?.by_market as Record<string, unknown> | undefined),
   };
 }
-function buildSources(stats: DataStats): DataSource[] {
-  const latest = stats.dateRange.latest || '-';
+
+function buildSources(st: DataStats): DataSource[] {
+  const latest = st.dateRange.latest || '-';
   const upd = (i: number, patch: Partial<DataSource>) => ({
-    ...defaultDataSources[i],
+    ...defaultSources[i],
     ...patch,
     lastUpdated: latest,
   });
   return [
-    upd(0, { status: 'active', recordCount: stats.totalDataPoints }),
-    upd(1, {
-      status: stats.totalTickers > 0 ? 'active' : 'inactive',
-      recordCount: stats.totalTickers,
-    }),
+    upd(0, { status: 'active', recordCount: st.totalDataPoints }),
+    upd(1, { status: st.totalTickers > 0 ? 'active' : 'inactive', recordCount: st.totalTickers }),
   ];
 }
 
@@ -135,15 +130,15 @@ function ActionBar({
               ? 'text-success border-success/25 bg-success/15 hover:bg-success/25 hover:text-success'
               : undefined
           }
-          onClick={() => {
-            if (a.method === 'PUT')
-              confirmAction(
-                t('Full update refetches all market data. Continue?'),
-                () => onAction(a.url, a.method, a.label),
-                true,
-              );
-            else onAction(a.url, a.method, a.label);
-          }}
+          onClick={() =>
+            a.method === 'PUT'
+              ? confirmAction(
+                  t('Full update refetches all market data. Continue?'),
+                  () => onAction(a.url, a.method, a.label),
+                  true,
+                )
+              : onAction(a.url, a.method, a.label)
+          }
         >
           <a.icon className="h-4 w-4" /> {a.label}
         </Button>
@@ -171,39 +166,39 @@ function DataSourceTable({ sources }: { sources: DataSource[] }) {
             </tr>
           </thead>
           <tbody>
-            {sources.map((source) => {
-              const status =
-                source.status === 'active'
+            {sources.map((src) => {
+              const st =
+                src.status === 'active'
                   ? 'healthy'
-                  : source.status === 'inactive'
+                  : src.status === 'inactive'
                     ? 'down'
                     : 'unknown';
               const last =
-                typeof source.lastUpdated === 'string' && source.lastUpdated.includes('T')
-                  ? source.lastUpdated.replace('T', ' ').slice(0, 19)
-                  : source.lastUpdated;
+                typeof src.lastUpdated === 'string' && src.lastUpdated.includes('T')
+                  ? src.lastUpdated.replace('T', ' ').slice(0, 19)
+                  : src.lastUpdated;
               return (
-                <tr key={source.name} className="border-b border-border-subtle last:border-0">
+                <tr key={src.name} className="border-b border-border-subtle last:border-0">
                   <td className="py-2.5">
                     <div className="flex items-center gap-2">
-                      {source.type === 'api' ? (
+                      {src.type === 'api' ? (
                         <Globe className="h-4 w-4 text-brand" />
                       ) : (
                         <FileSpreadsheet className="h-4 w-4 text-success" />
                       )}
-                      <span className="font-medium text-fg-secondary">{t(source.name)}</span>
+                      <span className="font-medium text-fg-secondary">{t(src.name)}</span>
                     </div>
                   </td>
                   <td className="py-2.5">
                     <span className="rounded-full bg-elevated px-2 py-0.5 text-xs text-fg-secondary">
-                      {t(source.type === 'api' ? 'API' : 'Local')}
+                      {t(src.type === 'api' ? 'API' : 'Local')}
                     </span>
                   </td>
                   <td className="py-2.5">
-                    <ServiceStatusBadge status={status} />
+                    <ServiceStatusBadge status={st} />
                   </td>
                   <td className="py-2.5 text-fg-tertiary">
-                    {source.recordCount > 0 ? source.recordCount.toLocaleString() : '-'}
+                    {src.recordCount > 0 ? src.recordCount.toLocaleString() : '-'}
                   </td>
                   <td className="py-2.5 text-fg-tertiary">{last}</td>
                 </tr>
@@ -218,9 +213,11 @@ function DataSourceTable({ sources }: { sources: DataSource[] }) {
 
 function MarketAndDateSection({ stats }: { stats: DataStats }) {
   const { t } = useTranslation();
+  const mkt = Object.keys(stats.marketBreakdown).length > 0;
+  const hasDate = stats.dateRange.earliest !== '-';
   return (
     <>
-      {Object.keys(stats.marketBreakdown).length > 0 && (
+      {mkt && (
         <Card className="p-4">
           <h2 className="mb-4 text-sm font-semibold text-fg">{t('Market Ticker Count')}</h2>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
@@ -235,7 +232,7 @@ function MarketAndDateSection({ stats }: { stats: DataStats }) {
           </div>
         </Card>
       )}
-      {stats.dateRange.earliest !== '-' && (
+      {hasDate && (
         <Card className="p-4">
           <h2 className="mb-4 text-sm font-semibold text-fg">{t('Data Coverage Range')}</h2>
           <div className="mb-1 flex justify-between text-xs text-fg-tertiary">
@@ -244,7 +241,7 @@ function MarketAndDateSection({ stats }: { stats: DataStats }) {
           </div>
           <p className="text-xs text-fg-tertiary">
             {t('Covers {{years}} years', {
-              years: getYearDiff(stats.dateRange.earliest, stats.dateRange.latest),
+              years: yearDiff(stats.dateRange.earliest, stats.dateRange.latest),
             })}
           </p>
         </Card>
@@ -264,7 +261,7 @@ function StatsGrid({ stats }: { stats: DataStats }) {
     },
     {
       label: t('Total Data Points'),
-      value: stats.totalDataPoints > 0 ? `${(stats.totalDataPoints / 1000000).toFixed(1)}M` : '-',
+      value: stats.totalDataPoints > 0 ? `${(stats.totalDataPoints / 1e6).toFixed(1)}M` : '-',
       icon: <Database className="h-5 w-5" />,
       color: 'green' as const,
     },
@@ -295,8 +292,8 @@ function StatsGrid({ stats }: { stats: DataStats }) {
 
 export default function DataManagement() {
   const { t } = useTranslation();
-  const [sources, setSources] = useState<DataSource[]>(defaultDataSources);
-  const [stats, setStats] = useState<DataStats>(defaultDataStats);
+  const [sources, setSources] = useState<DataSource[]>(defaultSources);
+  const [stats, setStats] = useState<DataStats>(defaultStats);
   const [loading, setLoading] = useState(false);
   const [actionMsg, setActionMsg] = useState('');
   const actionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -307,41 +304,41 @@ export default function DataManagement() {
     },
     [],
   );
+
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await apiFetch('/api/v1/data/manage/stats');
-      const json = await res.json();
+      const json = await (await apiFetch('/api/v1/data/manage/stats')).json();
       if (json.success && json.data) {
-        const newStats = buildDataStats(json.data);
-        setStats(newStats);
-        setSources(buildSources(newStats));
+        const ns = buildDataStats(json.data);
+        setStats(ns);
+        setSources(buildSources(ns));
       }
     } catch (e) {
       reportError(e, { component: 'DataManagement', action: 'fetchData' });
       useToastStore.getState().addToast('error', t('Failed to load statistics'));
     }
     try {
-      const goRes = await apiFetch('/api/v1/data/health');
-      const goOk = goRes.ok;
-      const goSource = (s: DataSource): DataSource =>
+      const goOk = (await apiFetch('/api/v1/data/health')).ok;
+      const patch = (s: DataSource): DataSource =>
         goOk
           ? { ...s, status: 'active', lastUpdated: new Date().toISOString().slice(0, 19) }
           : { ...s, status: 'inactive' };
-      setSources((prev) => prev.map((s, i) => (i === 0 ? goSource(s) : s)));
+      setSources((prev) => prev.map((s, i) => (i === 0 ? patch(s) : s)));
     } catch {
       setSources((prev) => prev.map((s, i) => (i === 0 ? { ...s, status: 'inactive' } : s)));
     }
     setLoading(false);
   }, [t]);
+
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
   const doAction = async (url: string, method: string, label: string) => {
     setActionMsg(t('{{label}} in progress...', { label }));
     try {
-      const res = await apiFetch(url, { method });
-      const json = await res.json();
+      const json = await (await apiFetch(url, { method })).json();
       setActionMsg(
         json.success
           ? t('{{label}} triggered', { label })
@@ -353,6 +350,7 @@ export default function DataManagement() {
     }
     actionTimerRef.current = setTimeout(() => setActionMsg(''), 5000);
   };
+
   return (
     <div className="space-y-6">
       <ActionBar

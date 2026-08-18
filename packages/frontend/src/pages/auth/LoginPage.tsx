@@ -7,6 +7,7 @@ import { useAuthStore } from '@/store/authStore';
 import { ErrorBanner } from '@/components/stateDisplay';
 import { Checkbox, Button, LoadingButton } from '@/components/ui/uiComponents';
 import AuthPageLayout, { AuthFormField } from '@/components/auth/formFields';
+
 const loginSchema = z.object({
   username: z.string().min(1, 'auth.login.usernameRequired'),
   password: z.string().min(1, 'auth.login.passwordRequired'),
@@ -29,6 +30,7 @@ function firstZodErrorKey<T>(result: ReturnType<z.ZodType<T>['safeParse']>): str
   const firstIssue = result.error.issues[0];
   return firstIssue ? (firstIssue.message as string) : null;
 }
+
 export default function LoginPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -64,7 +66,7 @@ export default function LoginPage() {
       footer={
         <>
           {t('Dont have an account?')}
-          <Link to="/signup" className="text-brand">
+          <Link to="/signup" className="text-brand hover:underline">
             {t('Sign Up')}
           </Link>
         </>
@@ -98,6 +100,7 @@ export default function LoginPage() {
     </AuthPageLayout>
   );
 }
+
 function TermsCheckbox({
   accepted,
   onChange,
@@ -126,6 +129,7 @@ function TermsCheckbox({
     </label>
   );
 }
+
 function SignupSuccess({ email }: { email: string }) {
   const { t } = useTranslation();
   return (
@@ -147,6 +151,7 @@ function SignupSuccess({ email }: { email: string }) {
     </AuthPageLayout>
   );
 }
+
 export function SignupPage() {
   const { t } = useTranslation();
   const register = useAuthStore((s) => s.register);
@@ -178,9 +183,7 @@ export function SignupPage() {
     const ok = await register(payload);
     if (ok) setDone(true);
   };
-  if (done) {
-    return <SignupSuccess email={email} />;
-  }
+  if (done) return <SignupSuccess email={email} />;
   return (
     <AuthPageLayout
       icon={<UserPlus className="w-5 h-5" />}
@@ -189,7 +192,7 @@ export function SignupPage() {
       footer={
         <>
           {t('Already have an account?')}
-          <Link to="/login" className="text-brand">
+          <Link to="/login" className="text-brand hover:underline">
             {t('Log In')}
           </Link>
         </>

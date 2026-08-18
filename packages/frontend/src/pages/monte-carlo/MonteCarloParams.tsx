@@ -42,12 +42,6 @@ function PortfolioHeader({
   onUpdate: (patch: Partial<PortfolioState>) => void;
 }) {
   const { t } = useTranslation();
-  const rebalanceItems = [
-    { value: 'yearly', labelKey: 'Annual' },
-    { value: 'quarterly', labelKey: 'Quarterly' },
-    { value: 'monthly', labelKey: 'Monthly' },
-    { value: 'none', labelKey: 'monteCarlo.params.rebalanceNone' },
-  ];
   return (
     <div className="flex flex-wrap items-center gap-2">
       <Input
@@ -63,9 +57,14 @@ function PortfolioHeader({
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          {rebalanceItems.map((r) => (
-            <SelectItem key={r.value} value={r.value}>
-              {t(r.labelKey)}
+          {[
+            ['yearly', 'Annual'],
+            ['quarterly', 'Quarterly'],
+            ['monthly', 'Monthly'],
+            ['none', 'monteCarlo.params.rebalanceNone'],
+          ].map(([v, k]) => (
+            <SelectItem key={v} value={v}>
+              {t(k)}
             </SelectItem>
           ))}
         </SelectContent>
@@ -75,16 +74,15 @@ function PortfolioHeader({
 }
 function PortfolioModeToggle({ s }: { s: McState }) {
   const { t } = useTranslation();
-  const { portfolioMode, setPortfolioMode } = s;
   return (
     <Field>
       <FieldLabel>{t('Portfolio Count')}</FieldLabel>
       <SegmentedControl<PortfolioMode>
-        value={portfolioMode}
-        onChange={setPortfolioMode}
-        options={([1, 2] as PortfolioMode[]).map((mode) => ({
-          value: mode,
-          label: t('Mode {{mode}}', { mode }),
+        value={s.portfolioMode}
+        onChange={s.setPortfolioMode}
+        options={([1, 2] as PortfolioMode[]).map((m) => ({
+          value: m,
+          label: t('Mode {{mode}}', { mode: m }),
         }))}
       />
     </Field>
@@ -94,7 +92,6 @@ function PortfolioConfigSection({ s }: { s: McState }) {
   const { t } = useTranslation();
   const { portfolios, portfolioMode, ...ops } = s;
   const cardStyle = { width: '100%', maxWidth: 'none', minWidth: 0, display: 'block' } as const;
-  const range = portfolioMode === 2 ? [0, 1] : [0];
   return (
     <section className="flex flex-col gap-3">
       <SectionHeader
@@ -103,7 +100,7 @@ function PortfolioConfigSection({ s }: { s: McState }) {
       />
       <PortfolioModeToggle s={s} />
       <div className="flex flex-col gap-3">
-        {range.map((idx) => (
+        {(portfolioMode === 2 ? [0, 1] : [0]).map((idx) => (
           <PortfolioEditor
             key={idx}
             singleMode
@@ -127,23 +124,27 @@ function PortfolioConfigSection({ s }: { s: McState }) {
     </section>
   );
 }
-type FieldKind = 'number' | 'text' | 'date';
-interface FieldConfig {
-  labelKey: string;
-  value: string | number;
-  onChange: (v: string) => void;
-  type?: FieldKind;
-  prefix?: string;
-  suffixKey?: string;
-  placeholder?: string;
-}
-function BasicField({ t, cfg }: { t: TFunction; cfg: FieldConfig }) {
-  const inputId = useId();
+function BasicField({
+  t,
+  cfg,
+}: {
+  t: TFunction;
+  cfg: {
+    labelKey: string;
+    value: string | number;
+    onChange: (v: string) => void;
+    type?: 'number' | 'text' | 'date';
+    prefix?: string;
+    suffixKey?: string;
+    placeholder?: string;
+  };
+}) {
+  const id = useId();
   return (
     <Field>
-      <FieldLabel htmlFor={inputId}>{t(cfg.labelKey)}</FieldLabel>
+      <FieldLabel htmlFor={id}>{t(cfg.labelKey)}</FieldLabel>
       <AffixInput
-        id={inputId}
+        id={id}
         type={cfg.type ?? 'text'}
         value={cfg.value}
         onChange={(e) => cfg.onChange(e.target.value)}
@@ -157,50 +158,40 @@ function BasicField({ t, cfg }: { t: TFunction; cfg: FieldConfig }) {
 function SimParamsSection({ s }: { s: McState }) {
   const { t } = useTranslation();
   const prefix = useSettingsStore((s) => (s.currency === 'cny' ? '¥' : '$'));
-  const fields: FieldConfig[] = [
-    {
-      labelKey: 'Start Date',
-      value: s.startDate,
-      onChange: s.setStartDate,
-      type: 'date',
-    },
-    {
-      labelKey: 'End Date',
-      value: s.endDate,
-      onChange: s.setEndDate,
-      type: 'date',
-    },
+  const fields = [
+    { labelKey: 'Start Date', value: s.startDate, onChange: s.setStartDate, type: 'date' as const },
+    { labelKey: 'End Date', value: s.endDate, onChange: s.setEndDate, type: 'date' as const },
     {
       labelKey: 'monteCarlo.params.simYears',
       value: s.numYears,
-      onChange: (v) => s.setNumYears(Number(v)),
-      type: 'number',
+      onChange: (v: string) => s.setNumYears(Number(v)),
+      type: 'number' as const,
     },
     {
       labelKey: 'Simulation Count',
       value: s.numSimulations,
-      onChange: (v) => s.setNumSimulations(Number(v)),
-      type: 'number',
+      onChange: (v: string) => s.setNumSimulations(Number(v)),
+      type: 'number' as const,
     },
     {
       labelKey: 'Initial Capital',
       value: s.startingValue,
-      onChange: (v) => s.setStartingValue(Number(v)),
-      type: 'number',
+      onChange: (v: string) => s.setStartingValue(Number(v)),
+      type: 'number' as const,
       prefix,
     },
     {
       labelKey: 'monteCarlo.params.minBlock',
       value: s.minBlock,
-      onChange: (v) => s.setMinBlock(Number(v)),
-      type: 'number',
+      onChange: (v: string) => s.setMinBlock(Number(v)),
+      type: 'number' as const,
       suffixKey: 'y',
     },
     {
       labelKey: 'monteCarlo.params.maxBlock',
       value: s.maxBlock,
-      onChange: (v) => s.setMaxBlock(Number(v)),
-      type: 'number',
+      onChange: (v: string) => s.setMaxBlock(Number(v)),
+      type: 'number' as const,
       suffixKey: 'y',
     },
     {
@@ -226,7 +217,6 @@ function SimParamsSection({ s }: { s: McState }) {
 }
 function BuildModeSection({ s }: { s: McState }) {
   const { t } = useTranslation();
-  const { simMode, setSimMode } = s;
   const modes = [
     {
       value: 'standard' as const,
@@ -243,21 +233,21 @@ function BuildModeSection({ s }: { s: McState }) {
     <section className="flex flex-col gap-3">
       <SectionHeader title={t('Build Mode')} info={t('Choose standard mode or frontier mode')} />
       <div className="flex flex-col gap-2">
-        {modes.map((opt) => (
+        {modes.map((o) => (
           <label
-            key={opt.value}
+            key={o.value}
             className="flex cursor-pointer items-center gap-2 text-label text-fg-secondary"
           >
             <input
               type="radio"
               name="simMode"
-              value={opt.value}
-              checked={simMode === opt.value}
-              onChange={() => setSimMode(opt.value)}
+              value={o.value}
+              checked={s.simMode === o.value}
+              onChange={() => s.setSimMode(o.value)}
               className="size-4 cursor-pointer accent-brand"
             />
-            <span>{opt.label}</span>
-            <span className="text-caption text-fg-tertiary">{opt.desc}</span>
+            <span>{o.label}</span>
+            <span className="text-caption text-fg-tertiary">{o.desc}</span>
           </label>
         ))}
       </div>
@@ -266,8 +256,7 @@ function BuildModeSection({ s }: { s: McState }) {
 }
 function DualGoalSection({ s }: { s: McState }) {
   const { t } = useTranslation();
-  const { goal1, setGoal1, goal2, setGoal2, goalWeight, setGoalWeight } = s;
-  const goalOptions = buildGoalOptions(t);
+  const opts = buildGoalOptions(t);
   return (
     <section className="flex flex-col gap-3">
       <SectionHeader
@@ -277,14 +266,14 @@ function DualGoalSection({ s }: { s: McState }) {
         )}
       />
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <SelectField label={t('Goal 1')} value={goal1} onChange={setGoal1} options={goalOptions} />
-        <SelectField label={t('Goal 2')} value={goal2} onChange={setGoal2} options={goalOptions} />
+        <SelectField label={t('Goal 1')} value={s.goal1} onChange={s.setGoal1} options={opts} />
+        <SelectField label={t('Goal 2')} value={s.goal2} onChange={s.setGoal2} options={opts} />
       </div>
       <Field>
         <div className="flex items-center justify-between">
           <FieldLabel>{t('Goal 1 Weight')}</FieldLabel>
           <span className="font-mono text-caption tabular-nums text-fg">
-            {goalWeight}% : {100 - goalWeight}%
+            {s.goalWeight}% : {100 - s.goalWeight}%
           </span>
         </div>
         <input
@@ -292,8 +281,8 @@ function DualGoalSection({ s }: { s: McState }) {
           min={0}
           max={100}
           step={5}
-          value={goalWeight}
-          onChange={(e) => setGoalWeight(Number(e.target.value))}
+          value={s.goalWeight}
+          onChange={(e) => s.setGoalWeight(Number(e.target.value))}
           className="w-full cursor-pointer accent-brand"
         />
       </Field>
@@ -302,7 +291,6 @@ function DualGoalSection({ s }: { s: McState }) {
 }
 function McParamsPanel({ s }: { s: McState }) {
   const { t } = useTranslation();
-  const { simMode } = s;
   const [showExtras, setShowExtras] = useState(false);
   useEffect(() => {
     const id = requestAnimationFrame(() => setShowExtras(true));
@@ -315,7 +303,7 @@ function McParamsPanel({ s }: { s: McState }) {
         <>
           <SimParamsSection s={s} />
           <BuildModeSection s={s} />
-          {simMode === 'frontier' && <DualGoalSection s={s} />}
+          {s.simMode === 'frontier' && <DualGoalSection s={s} />}
         </>
       )}
       <RunButton

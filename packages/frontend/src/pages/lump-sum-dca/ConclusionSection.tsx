@@ -76,10 +76,15 @@ function StatsTable({ results, fmtPct, fmtNum, fmtMoney }: FmtFns & { results: C
         r[row.key] != null ? fmtVal(row.key, r[row.key] as number) : '\u2014',
     })),
   ];
-  const data = STATS_ROWS.filter(
-    (row) => results.some((res) => res[row.key] != null) || REQUIRED_KEYS.has(row.key),
+  return (
+    <SimpleTable
+      columns={columns}
+      data={STATS_ROWS.filter(
+        (row) => results.some((res) => res[row.key] != null) || REQUIRED_KEYS.has(row.key),
+      )}
+      rowKey={(row) => row.key}
+    />
   );
-  return <SimpleTable columns={columns} data={data} rowKey={(row) => row.key} />;
 }
 function ConclStatCard({
   title,
@@ -109,12 +114,10 @@ function ConclusionText({
   fmtPct,
   fmtMoney,
   finalValueDiffPct,
-}: {
-  lsWins: boolean;
-  ls: CompareResult;
-  dca: CompareResult;
-  finalValueDiffPct: number;
-} & Pick<FmtFns, 'fmtPct' | 'fmtMoney'>) {
+}: { lsWins: boolean; ls: CompareResult; dca: CompareResult; finalValueDiffPct: number } & Pick<
+  FmtFns,
+  'fmtPct' | 'fmtMoney'
+>) {
   const { t } = useTranslation();
   return (
     <div className="text-body leading-relaxed text-fg-secondary">

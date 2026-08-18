@@ -3,17 +3,18 @@ import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams, useNavigate } from 'react-router';
 import { Loader2, CheckCircle2, XCircle, UserPlus, LogIn } from 'lucide-react';
 import { apiFetch } from '@/utils/apiClient';
-import AuthPageLayout from '@/components/auth/formFields';
-import { BrandIconBadge } from '@/components/auth/formFields';
+import AuthPageLayout, { BrandIconBadge } from '@/components/auth/formFields';
 import { useAuthStore } from '@/store/authStore';
 import { ErrorBanner } from '@/components/stateDisplay';
 import { Button } from '@/components/ui/uiComponents';
-type Status = 'pending' | 'success' | 'error';
+
 const STATUS_ICONS = {
   pending: <Loader2 className="w-10 h-10 animate-spin text-brand" />,
   success: <CheckCircle2 className="w-10 h-10 text-success" />,
   error: <XCircle className="w-10 h-10 text-danger" />,
-};
+} as const;
+type Status = keyof typeof STATUS_ICONS;
+
 export default function VerifyEmailPage() {
   const { t } = useTranslation();
   const [params] = useSearchParams();

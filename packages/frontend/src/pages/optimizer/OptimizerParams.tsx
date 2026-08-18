@@ -13,7 +13,6 @@ import {
 } from '@/components/form/sharedFields';
 import type { EfficientFrontierState, SolverType } from './OptimizerUtils.js';
 import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
-
 const OBJECTIVES = [
   { value: 'maxSharpe', labelKey: 'backtest.optimizer.maxSharpe' },
   { value: 'minVolatility', labelKey: 'Minimize Volatility' },
@@ -23,7 +22,6 @@ const SOLVERS = [
   { value: 'markowitz', labelKey: 'optimizer.solverMarkowitz' },
   { value: 'ga', labelKey: 'optimizer.solverGA' },
 ] as const;
-
 const DATE_FIELDS = [
   {
     id: 'opt-start-date',
@@ -52,7 +50,6 @@ const WEIGHT_FIELDS = [
     set: (s: EfficientFrontierState, v: number) => s.setMaxWeight(v),
   },
 ];
-
 function SolverSettings({ s }: { s: EfficientFrontierState }) {
   const { t } = useTranslation();
   const allHistory = s.startDate === '' && s.endDate === '';
@@ -125,7 +122,6 @@ function SolverSettings({ s }: { s: EfficientFrontierState }) {
     </section>
   );
 }
-
 function ConstraintField({
   label,
   checked,
@@ -157,7 +153,6 @@ function ConstraintField({
     </Field>
   );
 }
-
 function HistoricalConstraints({ s }: { s: EfficientFrontierState }) {
   const { t } = useTranslation();
   const fields = [
@@ -201,7 +196,6 @@ function HistoricalConstraints({ s }: { s: EfficientFrontierState }) {
     </CollapsibleSection>
   );
 }
-
 function AdvancedConstraints({ s }: { s: EfficientFrontierState }) {
   const { t } = useTranslation();
   const fields = [
@@ -217,13 +211,7 @@ function AdvancedConstraints({ s }: { s: EfficientFrontierState }) {
       setter: s.setMinSortino,
       step: 0.01,
     },
-    {
-      labelKey: 'Max Avg DD',
-      value: s.maxAvgDD,
-      setter: s.setMaxAvgDD,
-      percent: true,
-      step: 0.1,
-    },
+    { labelKey: 'Max Avg DD', value: s.maxAvgDD, setter: s.setMaxAvgDD, percent: true, step: 0.1 },
     { labelKey: 'optimizer.maxHoldings', value: s.maxHoldings, setter: s.setMaxHoldings, min: 2 },
     {
       labelKey: 'optimizer.minWeightToInclude',
@@ -259,7 +247,6 @@ function AdvancedConstraints({ s }: { s: EfficientFrontierState }) {
     </CollapsibleSection>
   );
 }
-
 export function OptimizerParams({ s }: { s: EfficientFrontierState }) {
   const { t } = useTranslation();
   const running = s.isLoading || s.isCalculatingStats;

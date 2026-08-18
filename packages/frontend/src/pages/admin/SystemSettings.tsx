@@ -9,12 +9,7 @@ import { Field, FieldLabel } from '../../components/form/Field.js';
 import { useConfirmDialog } from '../../components/confirmDialog.js';
 import { buildServiceHealths, type ServiceHealthView } from '../../utils/adminStats.js';
 import { ServiceStatusTable } from '../../components/admin/AdminLayout.js';
-interface AppConfig {
-  services: ServiceHealthView[];
-  nodeEnv: string;
-  nodeVersion: string;
-}
-const DEFAULT_CONFIG: AppConfig = {
+const DEFAULT_CONFIG = {
   services: buildServiceHealths({}),
   nodeEnv: 'development',
   nodeVersion: '-',
@@ -31,7 +26,7 @@ function ServiceConfigSection({ services }: { services: ServiceHealthView[] }) {
     </Card>
   );
 }
-function RuntimeEnvSection({ config }: { config: AppConfig }) {
+function RuntimeEnvSection({ config }: { config: { nodeVersion: string; nodeEnv: string } }) {
   const { t } = useTranslation();
   return (
     <Card className="p-4">
@@ -56,10 +51,7 @@ function RuntimeEnvSection({ config }: { config: AppConfig }) {
     </Card>
   );
 }
-interface DataManagementProps {
-  onClearCache: () => void;
-}
-function DataManagementSection({ onClearCache }: DataManagementProps) {
+function DataManagementSection({ onClearCache }: { onClearCache: () => void }) {
   const { t } = useTranslation();
   return (
     <Card className="p-4">
@@ -107,14 +99,14 @@ function ArchitectureSection() {
 }
 export default function SystemSettings() {
   const { t } = useTranslation();
-  const [config, setConfig] = useState<AppConfig>(DEFAULT_CONFIG);
+  const [config, setConfig] = useState(DEFAULT_CONFIG);
   const [loading, setLoading] = useState(false);
   const [saveMsg, setSaveMsg] = useState('');
   const [confirmDialog, confirm] = useConfirmDialog();
-  const clearMsgTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(
     () => () => {
-      if (clearMsgTimerRef.current) clearTimeout(clearMsgTimerRef.current);
+      if (timerRef.current) clearTimeout(timerRef.current);
     },
     [],
   );
@@ -124,9 +116,8 @@ export default function SystemSettings() {
       const res = await apiFetch('/api/v1/admin/stats');
       if (res.ok) {
         const json = await res.json();
-        if (json.success && json.data) {
+        if (json.success && json.data)
           setConfig((prev) => ({ ...prev, services: buildServiceHealths(json.data) }));
-        }
       }
     } catch (e) {
       reportError(e, { component: 'SystemSettings', action: 'fetchConfig' });
@@ -153,7 +144,7 @@ export default function SystemSettings() {
         } catch {
           setSaveMsg(t('Request failed'));
         }
-        clearMsgTimerRef.current = setTimeout(() => setSaveMsg(''), 5000);
+        timerRef.current = setTimeout(() => setSaveMsg(''), 5000);
       },
       true,
     );

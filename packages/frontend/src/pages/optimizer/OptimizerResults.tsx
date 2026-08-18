@@ -21,7 +21,7 @@ import { XYScatterChart } from '@/components/charts/sharedChartContent.js';
 import { ChartEmptyState } from '@/components/stateDisplay.js';
 import { rowsFromMeta } from '../../components/statistics-table/columns.js';
 import type { StatRow } from '../../components/statistics-table/types.js';
-const METRICS_KEYS = [
+const METRICS_ROWS: StatRow[] = rowsFromMeta([
   'cagr',
   'stdev',
   'maxDrawdown',
@@ -31,50 +31,38 @@ const METRICS_KEYS = [
   'calmar',
   'ulcerIndex',
   'ulcerPerformanceIndex',
-] as const;
-const METRICS_ROWS: StatRow[] = rowsFromMeta(METRICS_KEYS);
+]);
 function ConstraintsSummary({ s }: { s: EfficientFrontierState }) {
   const { t } = useTranslation();
-  const cards: Array<{ show?: boolean; label: string; value: string }> = [
-    { label: t('Min Weight'), value: `${s.minWeight}%` },
-    { label: t('Max Weight'), value: `${s.maxWeight}%` },
-    { label: t('T-Bill Rate'), value: `${s.tbillRate}%` },
-    {
-      label: t('Allow Short Selling'),
-      value: s.allowShort ? t('Yes') : t('No'),
-    },
-    {
-      show: s.enableMinCagr && s.minCagr !== '',
-      label: t('Min CAGR'),
-      value: `${s.minCagr}%`,
-    },
-    { show: s.minSharpe !== '', label: t('Min Sharpe'), value: s.minSharpe },
-    { show: s.minSortino !== '', label: t('Min Sortino'), value: s.minSortino },
-    {
-      show: s.enableMaxVol && s.maxVol !== '',
-      label: t('Max Vol'),
-      value: `${s.maxVol}%`,
-    },
-    {
-      show: s.enableMaxDD && s.maxMaxDD !== '',
-      label: t('Max Max DD'),
-      value: `${s.maxMaxDD}%`,
-    },
-    { show: s.maxAvgDD !== '', label: t('Max Avg DD'), value: `${s.maxAvgDD}%` },
-    { show: s.maxHoldings !== '', label: t('Max Holdings'), value: s.maxHoldings },
-    {
-      show: s.minWeightToInclude !== '',
-      label: t('Min Inclusion Weight'),
-      value: `${s.minWeightToInclude}%`,
-    },
-    {
-      label: t('Solver'),
-      value: s.solver === 'markowitz' ? t('optimizer.solverMarkowitz') : t('optimizer.solverGA'),
-    },
-  ];
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-      {cards
+      {[
+        { label: t('Min Weight'), value: `${s.minWeight}%` },
+        { label: t('Max Weight'), value: `${s.maxWeight}%` },
+        { label: t('T-Bill Rate'), value: `${s.tbillRate}%` },
+        { label: t('Allow Short Selling'), value: s.allowShort ? t('Yes') : t('No') },
+        { show: s.enableMinCagr && s.minCagr !== '', label: t('Min CAGR'), value: `${s.minCagr}%` },
+        { show: s.minSharpe !== '', label: t('Min Sharpe'), value: s.minSharpe },
+        { show: s.minSortino !== '', label: t('Min Sortino'), value: s.minSortino },
+        { show: s.enableMaxVol && s.maxVol !== '', label: t('Max Vol'), value: `${s.maxVol}%` },
+        {
+          show: s.enableMaxDD && s.maxMaxDD !== '',
+          label: t('Max Max DD'),
+          value: `${s.maxMaxDD}%`,
+        },
+        { show: s.maxAvgDD !== '', label: t('Max Avg DD'), value: `${s.maxAvgDD}%` },
+        { show: s.maxHoldings !== '', label: t('Max Holdings'), value: s.maxHoldings },
+        {
+          show: s.minWeightToInclude !== '',
+          label: t('Min Inclusion Weight'),
+          value: `${s.minWeightToInclude}%`,
+        },
+        {
+          label: t('Solver'),
+          value:
+            s.solver === 'markowitz' ? t('optimizer.solverMarkowitz') : t('optimizer.solverGA'),
+        },
+      ]
         .filter((c) => c.show !== false)
         .map((c, i) => (
           <MiniStatCard key={i} variant="border" label={c.label} value={c.value} />
@@ -134,11 +122,13 @@ function MetricsTable({
 }) {
   const { t } = useTranslation();
   const getVal = (key: keyof Statistics, fmt: StatRow['fmt']): string => {
-    const val = backtestStats ? backtestStats[key] : undefined;
+    const val = backtestStats?.[key];
     if (val != null) return fmt === 'pct' ? fmtPct(val as number) : fmtNum(val as number);
-    if (!backtestStats && key === 'cagr') return fmtPct(results.expectedReturn);
-    if (!backtestStats && key === 'stdev') return fmtPct(results.expectedVolatility);
-    if (!backtestStats && key === 'sharpe') return fmtNum(results.sharpeRatio);
+    if (!backtestStats) {
+      if (key === 'cagr') return fmtPct(results.expectedReturn);
+      if (key === 'stdev') return fmtPct(results.expectedVolatility);
+      if (key === 'sharpe') return fmtNum(results.sharpeRatio);
+    }
     return '\u2014';
   };
   const columns: SimpleTableColumn<StatRow>[] = [
@@ -195,13 +185,11 @@ function FrontierChart({
 }
 export function OptimizerResults({ s }: { s: EfficientFrontierState }) {
   const { t } = useTranslation();
-  const weightBarData = Object.entries(s.results?.optimalWeights ?? {}).map(
-    ([ticker, weight], i) => ({
-      ticker,
-      weight: Number((weight * 100).toFixed(1)),
-      fill: getPortfolioColor(i),
-    }),
-  );
+  const wData = Object.entries(s.results?.optimalWeights ?? {}).map(([ticker, weight], i) => ({
+    ticker,
+    weight: Number((weight * 100).toFixed(1)),
+    fill: getPortfolioColor(i),
+  }));
   return (
     <ResultsShell
       error={s.error}
@@ -225,7 +213,7 @@ export function OptimizerResults({ s }: { s: EfficientFrontierState }) {
               </Button>
             }
           >
-            <WeightBarChart data={weightBarData} />
+            <WeightBarChart data={wData} />
           </ChartCard>
           <section>
             <div className="mb-3 text-h3 font-semibold text-fg">

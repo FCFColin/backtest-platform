@@ -31,10 +31,7 @@ export default function OrgMembersPage() {
   }, [load]);
   return (
     <StandardPageShell
-      config={{
-        titleKey: 'Org Members',
-        headerExtra: <Users className="w-5 h-5 text-brand" />,
-      }}
+      config={{ titleKey: 'Org Members', headerExtra: <Users className="w-5 h-5 text-brand" /> }}
     >
       <Card className="p-6 mt-7">
         <p className="text-label text-fg-tertiary mb-4">
@@ -69,13 +66,17 @@ export default function OrgMembersPage() {
     </StandardPageShell>
   );
 }
-interface RoleSelectProps {
+function RoleSelect({
+  value,
+  disabled,
+  onChange,
+  className,
+}: {
   value: string;
   disabled?: boolean;
   onChange: (role: Role) => void;
   className?: string;
-}
-function RoleSelect({ value, disabled, onChange, className }: RoleSelectProps) {
+}) {
   return (
     <select
       value={value}
@@ -91,14 +92,19 @@ function RoleSelect({ value, disabled, onChange, className }: RoleSelectProps) {
     </select>
   );
 }
-interface MemberTableProps {
+function MemberTable({
+  members,
+  isAdmin,
+  busy,
+  onChangeRole,
+  onRemoveMember,
+}: {
   members: Member[];
   isAdmin: boolean;
   busy: boolean;
   onChangeRole: (userId: string, role: string) => void;
   onRemoveMember: (userId: string) => void;
-}
-function MemberTable({ members, isAdmin, busy, onChangeRole, onRemoveMember }: MemberTableProps) {
+}) {
   const { t } = useTranslation();
   const [confirmDialog, confirm] = useConfirmDialog();
   return (
@@ -145,9 +151,7 @@ function MemberTable({ members, isAdmin, busy, onChangeRole, onRemoveMember }: M
                     <button
                       onClick={() =>
                         confirm(
-                          t('Remove member {{name}}? This cannot be undone.', {
-                            name: m.username,
-                          }),
+                          t('Remove member {{name}}? This cannot be undone.', { name: m.username }),
                           () => onRemoveMember(m.userId),
                           true,
                         )
@@ -216,12 +220,15 @@ function InviteDialog({
     </div>
   );
 }
-interface InvitationTableProps {
+function InvitationTable({
+  invitations,
+  busy,
+  onRevokeInvite,
+}: {
   invitations: Invitation[];
   busy: boolean;
   onRevokeInvite: (id: string) => void;
-}
-function InvitationTable({ invitations, busy, onRevokeInvite }: InvitationTableProps) {
+}) {
   const { t } = useTranslation();
   const [confirmDialog, confirm] = useConfirmDialog();
   return (

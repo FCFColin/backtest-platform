@@ -9,7 +9,7 @@ import {
   type XYScatterSeriesSpec,
 } from '@/components/charts/sharedChartContent.js';
 import { sharpeToColor } from './EfficientFrontierUtils.js';
-import { LoadInBacktesterButton, type FrontierResultsProps } from './EfficientFrontierResults.js';
+import { LoadInBacktesterButton } from './EfficientFrontierResults.js';
 function FrontierScatterChartInner({
   scatterData,
   sharpeRange,
@@ -18,7 +18,7 @@ function FrontierScatterChartInner({
   onSelectPoint,
   height,
 }: {
-  scatterData: FrontierResultsProps['scatterData'];
+  scatterData: Array<{ expectedVolatility: number; expectedReturn: number; sharpeRatio: number }>;
   sharpeRange: { min: number; max: number };
   maxSharpe: EfficientFrontierPoint | undefined;
   frontier: EfficientFrontierPoint[];
@@ -71,7 +71,7 @@ export function FrontierScatterChart({
   onSelectPoint,
   onLoadInBacktester,
 }: {
-  scatterData: FrontierResultsProps['scatterData'];
+  scatterData: Array<{ expectedVolatility: number; expectedReturn: number; sharpeRatio: number }>;
   sharpeRange: { min: number; max: number };
   maxSharpe: EfficientFrontierPoint | undefined;
   frontier: EfficientFrontierPoint[];

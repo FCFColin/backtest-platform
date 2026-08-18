@@ -1,17 +1,99 @@
 import { useTranslation } from 'react-i18next';
 import { fmtPct, fmtNum } from '@/utils/format';
 import { cn } from '@/lib/utils';
-import { Card, PortfolioLabel } from '@/components/ui/uiComponents';
+import { Card, PortfolioLabel, badgeVariants } from '@/components/ui/uiComponents';
 import { CollapsibleSection, StatCard } from '@/components/cards.js';
 import { ResultsShell } from '@/components/resultsShell.js';
-import { FACTOR_COLORS } from './factorRegressionUtils.js';
+import { FACTOR_COLORS, FACTOR_OPTIONS } from './factorRegressionUtils.js';
 import type { FactorRegressionResult } from './factorRegressionUtils.js';
 import { ComputeToolShell, type ComputeToolConfig } from '../../components/shells/index.js';
 import {
   useFactorRegressionState,
   type FactorRegressionState,
 } from '@/hooks/useFactorRegressionState.js';
-import { FactorRegressionParamsPanel } from './FactorRegressionParams.js';
+import { AllHistoryCheckbox } from '@/components/params/toolFields.js';
+import PortfolioEditor from '../../components/PortfolioEditor.js';
+import { Field, FieldLabel } from '../../components/form/Field.js';
+import { DateField, RunButton } from '@/components/form/sharedFields';
+function FactorSelector({
+  selectedFactors,
+  onToggle,
+}: {
+  selectedFactors: string[];
+  onToggle: (key: string) => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <div className="flex flex-wrap gap-2">
+      {FACTOR_OPTIONS.map((opt) => {
+        const active = selectedFactors.includes(opt.key);
+        return (
+          <button
+            key={opt.key}
+            type="button"
+            onClick={() => onToggle(opt.key)}
+            aria-pressed={active}
+            className={badgeVariants({
+              variant: active ? 'asset' : 'secondary',
+              size: 'sm',
+              className: 'cursor-pointer',
+            })}
+          >
+            {t(opt.label)}
+            <span className="font-normal opacity-70">({t(opt.desc)})</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+function FactorRegressionParamsPanel({ state: s }: { state: FactorRegressionState }) {
+  const { t } = useTranslation();
+  return (
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <Field className="col-span-full">
+        <AllHistoryCheckbox
+          startDate={s.startDate}
+          endDate={s.endDate}
+          onStartDateChange={s.setStartDate}
+          onEndDateChange={s.setEndDate}
+          label={t('All History')}
+        />
+      </Field>
+      <DateField
+        id="fr-start-date"
+        label={t('Start Date')}
+        value={s.startDate}
+        onChange={s.setStartDate}
+      />
+      <DateField id="fr-end-date" label={t('End Date')} value={s.endDate} onChange={s.setEndDate} />
+      <div className="col-span-full">
+        <Field>
+          <FieldLabel>{t('Factor Selection (Multi-select)')}</FieldLabel>
+          <FactorSelector selectedFactors={s.selectedFactors} onToggle={s.toggleFactor} />
+        </Field>
+      </div>
+      <div className="col-span-full">
+        <PortfolioEditor
+          singleMode
+          assets={s.assets}
+          totalWeight={s.totalWeight}
+          onAdd={s.addAsset}
+          onRemove={s.removeAsset}
+          onUpdate={s.updateAsset}
+        />
+      </div>
+      <div className="col-span-full">
+        <RunButton
+          isLoading={s.isLoading}
+          onClick={s.runRegression}
+          label={t('Run Analysis')}
+          loadingLabel={t('Running regression...')}
+        />
+      </div>
+    </div>
+  );
+}
 function RegressionRow({
   label,
   color,
@@ -59,12 +141,11 @@ function ResidualsChart({ residuals }: { residuals: number[] }) {
         {residuals.map((r, i) => {
           const x = 10 + (i / (residuals.length - 1)) * 780;
           const barHeight = (Math.abs(r) / 0.04) * 90;
-          const y = r >= 0 ? 100 - barHeight : 100;
           return (
             <rect
               key={i}
               x={x - 1}
-              y={y}
+              y={r >= 0 ? 100 - barHeight : 100}
               width={2}
               height={barHeight}
               fill={r >= 0 ? 'hsl(var(--success))' : 'hsl(var(--danger))'}
@@ -219,14 +300,8 @@ const config: ComputeToolConfig<FactorRegressionState> = {
   titleKey: 'factorRegression.title',
   seoDescKey: 'factorRegression.seo.desc',
   seoFeatures: [
-    {
-      titleKey: 'analysis.seoAnalyzable',
-      descKey: 'factorRegression.seo.desc',
-    },
-    {
-      titleKey: 'factorRegression.seo.factorTitle',
-      descKey: 'factorRegression.seo.factorDesc',
-    },
+    { titleKey: 'analysis.seoAnalyzable', descKey: 'factorRegression.seo.desc' },
+    { titleKey: 'factorRegression.seo.factorTitle', descKey: 'factorRegression.seo.factorDesc' },
   ],
   relatedTools: [
     { titleKey: 'nav.portfolioBacktest', href: '/' },

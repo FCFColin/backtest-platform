@@ -1,4 +1,4 @@
-﻿import { useEffect, useRef, lazy, Suspense, type ReactNode } from 'react';
+﻿import { useEffect, useRef, Suspense, type ReactNode } from 'react';
 import { useTranslation, Trans } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router';
 import { MoreHorizontal } from 'lucide-react';
@@ -36,48 +36,47 @@ import {
   toStatsRecord,
   createEmptyStatistics,
 } from '@backtest/shared';
-const GrowthChart = lazyNamed(() => import('@/components/charts/GrowthChart'), 'GrowthChart');
-const DrawdownChart = lazyNamed(
-  () => import('@/components/charts/drawdownCharts'),
-  'DrawdownChart',
-);
-const DrawdownEpisodes = lazyNamed(
-  () => import('@/components/results/DrawdownEpisodes'),
-  'DrawdownEpisodes',
-);
-const YearlyReturnsTable = lazyNamed(
-  () => import('@/components/results/YearlyReturnsTable'),
-  'YearlyReturnsTable',
-);
-const UnderwaterCurve = lazyNamed(
-  () => import('@/components/charts/drawdownCharts'),
-  'UnderwaterCurve',
-);
-const TelltaleChart = lazyNamed(() => import('@/components/charts/analysis'), 'TelltaleChart');
-const RiskReturnScatter = lazyNamed(
-  () => import('@/components/charts/riskReturn'),
-  'RiskReturnScatter',
-);
-const SeasonalityChart = lazyNamed(
-  () => import('@/components/charts/analysis'),
-  'SeasonalityChart',
-);
-const RegressionChart = lazy(() => import('@/components/charts/RegressionChart'));
-const PortfolioAllocationChart = lazyNamed(
-  () => import('@/components/charts/portfolioCharts'),
-  'PortfolioAllocationChart',
-);
-const PortfolioPiesChart = lazyNamed(
-  () => import('@/components/charts/portfolioCharts'),
-  'default',
-);
-const RollingReturnChart = lazy(() => import('@/components/charts/rolling'));
-const AnnualReturnChart = lazy(() => import('@/components/charts/AnnualReturnChart'));
-const MonthlyHeatmap = lazyNamed(() => import('@/components/charts/analysis'), 'MonthlyHeatmap');
-const CorrelationWithBeta = lazy(() => import('@/components/charts/CorrelationHeatmapChart'));
-const CustomMetricsTable = lazy(() => import('@/components/CustomMetricsTable'));
-const CashflowsLog = lazy(() => import('@/components/CashflowsLog'));
-const TurnoverTaxReport = lazy(() => import('@/components/TurnoverTaxReport'));
+const L = {
+  GrowthChart: lazyNamed(() => import('@/components/charts/GrowthChart'), 'GrowthChart'),
+  DrawdownChart: lazyNamed(() => import('@/components/charts/drawdownCharts'), 'DrawdownChart'),
+  DrawdownEpisodes: lazyNamed(
+    () => import('@/components/results/DrawdownEpisodes'),
+    'DrawdownEpisodes',
+  ),
+  YearlyReturnsTable: lazyNamed(
+    () => import('@/components/results/YearlyReturnsTable'),
+    'YearlyReturnsTable',
+  ),
+  UnderwaterCurve: lazyNamed(() => import('@/components/charts/drawdownCharts'), 'UnderwaterCurve'),
+  TelltaleChart: lazyNamed(() => import('@/components/charts/analysis'), 'TelltaleChart'),
+  RiskReturnScatter: lazyNamed(() => import('@/components/charts/riskReturn'), 'RiskReturnScatter'),
+  SeasonalityChart: lazyNamed(() => import('@/components/charts/analysis'), 'SeasonalityChart'),
+  RegressionChart: lazyNamed(
+    () => import('@/components/charts/RegressionChart'),
+    'RegressionChart',
+  ),
+  PortfolioAllocationChart: lazyNamed(
+    () => import('@/components/charts/portfolioCharts'),
+    'PortfolioAllocationChart',
+  ),
+  PortfolioPiesChart: lazyNamed(() => import('@/components/charts/portfolioCharts'), 'default'),
+  RollingReturnChart: lazyNamed(() => import('@/components/charts/rolling'), 'RollingReturnChart'),
+  AnnualReturnChart: lazyNamed(
+    () => import('@/components/charts/AnnualReturnChart'),
+    'AnnualReturnChart',
+  ),
+  MonthlyHeatmap: lazyNamed(() => import('@/components/charts/analysis'), 'MonthlyHeatmap'),
+  CorrelationWithBeta: lazyNamed(
+    () => import('@/components/charts/CorrelationHeatmapChart'),
+    'CorrelationWithBeta',
+  ),
+  CustomMetricsTable: lazyNamed(
+    () => import('@/components/CustomMetricsTable'),
+    'CustomMetricsTable',
+  ),
+  CashflowsLog: lazyNamed(() => import('@/components/CashflowsLog'), 'CashflowsLog'),
+  TurnoverTaxReport: lazyNamed(() => import('@/components/TurnoverTaxReport'), 'TurnoverTaxReport'),
+};
 const ALL_TABS = [
   { key: 'summary', labelKey: 'tabs.summary' },
   { key: 'myMetrics', labelKey: 'My Metrics' },
@@ -107,6 +106,28 @@ const mapDrawdown = (pf: PortfolioResult[]) =>
     name: p.name,
     drawdownCurve: (p.drawdownCurve ?? []).map((pt) => ({ date: pt.date, drawdown: pt.drawdown })),
   }));
+const TabBtn = ({
+  tab,
+  active,
+  onClick,
+}: {
+  tab: { key: string; labelKey: string };
+  active: boolean;
+  onClick: () => void;
+}) => {
+  const { t } = useTranslation();
+  return (
+    <Button
+      variant={active ? 'secondary' : 'ghost'}
+      size="sm"
+      className={active ? 'shrink-0 text-brand border-b-2 border-brand rounded-b-none' : 'shrink-0'}
+      aria-pressed={active}
+      onClick={onClick}
+    >
+      {t(tab.labelKey)}
+    </Button>
+  );
+};
 function TabBar() {
   const { t } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -129,20 +150,12 @@ function TabBar() {
     <div className="flex items-center justify-between gap-2 border-b border-border-subtle pb-2 mb-3">
       <div className="flex items-center gap-1 overflow-x-auto">
         {ALL_TABS.filter((tab) => PRIMARY_TABS.has(tab.key)).map((tab) => (
-          <Button
+          <TabBtn
             key={tab.key}
-            variant={activeTab === tab.key ? 'secondary' : 'ghost'}
-            size="sm"
-            className={
-              activeTab === tab.key
-                ? 'shrink-0 text-brand border-b-2 border-brand rounded-b-none'
-                : 'shrink-0'
-            }
-            aria-pressed={activeTab === tab.key}
+            tab={tab}
+            active={activeTab === tab.key}
             onClick={() => selectTab(tab.key)}
-          >
-            {t(tab.labelKey)}
-          </Button>
+          />
         ))}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -167,34 +180,35 @@ function TabBar() {
     </div>
   );
 }
-type TabCtx = {
-  pf: PortfolioResult[];
-  pfs: Portfolio[];
-  baseCurrency: string | undefined;
-  r: {
-    assetTickers?: string[];
-    assetCorrelations?: number[][];
-    correlations?: number[][];
-    portfolios?: PortfolioResult[];
-    benchmarkGrowth?: TimeSeriesPoint[];
-  };
-};
-const TAB_RENDERERS: Record<string, (c: TabCtx) => ReactNode> = {
+const TAB_RENDERERS: Record<
+  string,
+  (c: {
+    pf: PortfolioResult[];
+    pfs: Portfolio[];
+    baseCurrency: string | undefined;
+    r: {
+      assetTickers?: string[];
+      assetCorrelations?: number[][];
+      correlations?: number[][];
+      portfolios?: PortfolioResult[];
+      benchmarkGrowth?: TimeSeriesPoint[];
+    };
+  }) => ReactNode
+> = {
   summary: ({ pf, baseCurrency }) => {
-    const firstPf = pf[0];
-    const annualReturns = firstPf?.annualReturns ?? [];
-    const positiveYears = annualReturns.filter((r) => r.return > 0).length;
+    const f = pf[0];
+    const ar = f?.annualReturns ?? [];
     return (
       <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-4 items-start">
         <SummarySidebar
-          stats={firstPf?.statistics ?? createEmptyStatistics()}
-          name={firstPf?.name}
+          stats={f?.statistics ?? createEmptyStatistics()}
+          name={f?.name}
           color={getPortfolioColor(0)}
-          totalYears={annualReturns.length}
-          positiveYears={positiveYears}
+          totalYears={ar.length}
+          positiveYears={ar.filter((r) => r.return > 0).length}
         />
         <div className="space-y-4 min-w-0">
-          <GrowthChart
+          <L.GrowthChart
             portfolios={pf.map((p) => ({
               id: p.name,
               name: p.name,
@@ -202,40 +216,40 @@ const TAB_RENDERERS: Record<string, (c: TabCtx) => ReactNode> = {
             }))}
             currency={baseCurrency}
           />
-          <DrawdownChart portfolios={mapDrawdown(pf)} />
+          <L.DrawdownChart portfolios={mapDrawdown(pf)} />
           <StatisticsTable
             {...COMMON_STATS_PROPS(pf)}
             currency={baseCurrency}
             extendedTable={<ExtendedMetricsTable {...COMMON_STATS_PROPS(pf)} />}
           />
           <WithdrawalRatesCard portfolios={pf} />
-          <DrawdownEpisodes episodes={firstPf?.drawdownEpisodes ?? []} />
+          <L.DrawdownEpisodes episodes={f?.drawdownEpisodes ?? []} />
         </div>
       </div>
     );
   },
-  myMetrics: ({ pf }) => <CustomMetricsTable portfolios={pf} />,
+  myMetrics: ({ pf }) => <L.CustomMetricsTable portfolios={pf} />,
   returns: ({ pf }) => (
     <>
-      <AnnualReturnChart portfolios={pf} />
+      <L.AnnualReturnChart portfolios={pf} />
       {pf.map((x) => (
-        <MonthlyHeatmap key={x.name} portfolio={x} />
+        <L.MonthlyHeatmap key={x.name} portfolio={x} />
       ))}
     </>
   ),
   yearlyReturns: ({ pf, r }) => (
-    <YearlyReturnsTable portfolios={pf} benchmarkGrowth={r?.benchmarkGrowth} />
+    <L.YearlyReturnsTable portfolios={pf} benchmarkGrowth={r?.benchmarkGrowth} />
   ),
-  drawdown: ({ pf }) => <UnderwaterCurve portfolios={mapDrawdown(pf)} />,
-  rolling: ({ pf }) => <RollingReturnChart portfolios={pf} />,
-  seasonality: ({ pf }) => <SeasonalityChart portfolios={pf} />,
-  riskReturn: ({ pf }) => <RiskReturnScatter portfolios={pf} />,
-  cashflows: () => <CashflowsLog parameters={useBacktestStore.getState().parameters} />,
+  drawdown: ({ pf }) => <L.UnderwaterCurve portfolios={mapDrawdown(pf)} />,
+  rolling: ({ pf }) => <L.RollingReturnChart portfolios={pf} />,
+  seasonality: ({ pf }) => <L.SeasonalityChart portfolios={pf} />,
+  riskReturn: ({ pf }) => <L.RiskReturnScatter portfolios={pf} />,
+  cashflows: () => <L.CashflowsLog parameters={useBacktestStore.getState().parameters} />,
   rebalancing: ({ pfs }) => <RebalancingStats portfolios={pfs} />,
-  turnover: ({ pf }) => <TurnoverTaxReport portfolios={pf} />,
+  turnover: ({ pf }) => <L.TurnoverTaxReport portfolios={pf} />,
   allocation: ({ pf, pfs }) => (
-    <PortfolioAllocationChart
-      portfolios={(pf ?? []).map(
+    <L.PortfolioAllocationChart
+      portfolios={pf.map(
         (rp, idx) =>
           ({
             name: rp.name,
@@ -246,17 +260,17 @@ const TAB_RENDERERS: Record<string, (c: TabCtx) => ReactNode> = {
       )}
     />
   ),
-  pies: ({ pfs }) => <PortfolioPiesChart portfolios={pfs} />,
+  pies: ({ pfs }) => <L.PortfolioPiesChart portfolios={pfs} />,
   correlation: ({ pf, r }) => (
-    <CorrelationWithBeta
+    <L.CorrelationWithBeta
       portfolios={pf}
       assetTickers={r?.assetTickers}
       assetCorrelations={r?.assetCorrelations}
       portfolioCorrelations={r?.correlations}
     />
   ),
-  telltale: ({ pf }) => <TelltaleChart portfolios={pf} />,
-  regression: ({ pf }) => <RegressionChart portfolios={pf} />,
+  telltale: ({ pf }) => <L.TelltaleChart portfolios={pf} />,
+  regression: ({ pf }) => <L.RegressionChart portfolios={pf} />,
 };
 function exportResultsCSV(results: BacktestResult) {
   const pf = results?.portfolios?.[0];
@@ -299,12 +313,15 @@ export function ResultsContent() {
       document.getElementById('results')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     prevHasResults.current = hasResults;
   }, [hasResults]);
+  const TAB_SERIES = {
+    rolling: ['rollingReturns'],
+    turnover: ['allocationHistory'],
+    allocation: ['allocationHistory'],
+    summary: ['drawdownEpisodes'],
+  } as const;
   useEffect(() => {
-    if (!results) return;
-    if (activeTab === 'rolling') void enrichSeries(['rollingReturns']);
-    else if (activeTab === 'turnover' || activeTab === 'allocation')
-      void enrichSeries(['allocationHistory']);
-    else if (activeTab === 'summary') void enrichSeries(['drawdownEpisodes']);
+    const series = TAB_SERIES[activeTab as keyof typeof TAB_SERIES];
+    if (results && series) void enrichSeries(series as never);
   }, [activeTab, results, enrichSeries]);
   if (!hasResults) {
     return (
@@ -322,7 +339,6 @@ export function ResultsContent() {
       </ResultsShell>
     );
   }
-  const renderer = TAB_RENDERERS[activeTab];
   return (
     <div className="space-y-4">
       {error && <ErrorBanner message={error} className="mb-2" />}
@@ -341,25 +357,21 @@ export function ResultsContent() {
       )}
       <ResultsActionBar
         timeRange={computeTimeRange(results)}
-        onExport={(format) => {
-          if (format === 'json')
-            downloadJSON(results, dateSuffixedFilename('backtest-results', 'json'));
-          else exportResultsCSV(results);
-        }}
+        onExport={(format) =>
+          format === 'json'
+            ? downloadJSON(results, dateSuffixedFilename('backtest-results', 'json'))
+            : exportResultsCSV(results)
+        }
       />
       <Card className="p-5">
         <TabBar />
         <Suspense fallback={<TabFallback />}>
-          {renderer && (
-            <>
-              {renderer({
-                pf: results.portfolios,
-                pfs: portfolios,
-                baseCurrency,
-                r: results as TabCtx['r'],
-              })}
-            </>
-          )}
+          {TAB_RENDERERS[activeTab]?.({
+            pf: results.portfolios,
+            pfs: portfolios,
+            baseCurrency,
+            r: results as never,
+          })}
         </Suspense>
       </Card>
       <p className="text-xs text-fg-tertiary">
@@ -368,20 +380,18 @@ export function ResultsContent() {
     </div>
   );
 }
-interface RebalancingStatsProps {
+function RebalancingStats({
+  portfolios,
+}: {
   portfolios: Array<
     Pick<
       Portfolio,
       'name' | 'rebalanceFrequency' | 'rebalanceThreshold' | 'rebalanceOffset' | 'rebalanceBands'
     >
   >;
-}
-function RebalancingStats({ portfolios }: RebalancingStatsProps) {
+}) {
   const { t } = useTranslation();
-  const hasData =
-    portfolios.length > 0 &&
-    portfolios.some((p) => p.rebalanceFrequency && p.rebalanceFrequency !== 'none');
-  if (!hasData)
+  if (!portfolios.some((p) => p.rebalanceFrequency && p.rebalanceFrequency !== 'none'))
     return (
       <ChartCard title={t('Rebalancing')}>
         <ChartEmptyState message={t('No data')} />

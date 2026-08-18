@@ -20,6 +20,7 @@ import {
   TabFallback,
   type ComputeToolConfig,
 } from '../../components/shells/index.js';
+import { TOOL_LINKS } from '../../components/shells/constants.js';
 import { useComputeTool, useSetterState } from '../../hooks/miscHooks.js';
 import { fmtPct, fmtNum } from '@/utils/format';
 import { SimpleTable, type SimpleTableColumn } from '@/components/tables.js';
@@ -46,10 +47,9 @@ function useAnalysisPageState() {
     setResults,
     runCompute: runAnalysis,
   } = useComputeTool<AssetAnalysisResult>(
-    async () => {
-      const validTickers = tickers.filter(Boolean).map(normalizeTicker);
-      return fetchAnalysisResult(
-        validTickers,
+    async () =>
+      fetchAnalysisResult(
+        tickers.filter(Boolean).map(normalizeTicker),
         {
           startDate: s.startDate,
           endDate: s.endDate,
@@ -58,20 +58,10 @@ function useAnalysisPageState() {
           correlationWindow: s.correlationWindow,
         },
         t,
-      );
-    },
+      ),
     () => (tickers.filter(Boolean).length > 0 ? null : t('Please enter at least one ticker')),
   );
-  return {
-    tickers,
-    ...s,
-    isLoading,
-    error,
-    results,
-    setTickers,
-    setResults,
-    runAnalysis,
-  };
+  return { tickers, ...s, isLoading, error, results, setTickers, setResults, runAnalysis };
 }
 const OverviewCharts = lazyNamed(
   () => import('../../components/charts/analysis.js'),
@@ -119,7 +109,6 @@ function CorrelationsBetaTab({
   ]);
   const tickers = results.tickers.map((tk) => tk.ticker);
   const { betaMatrix } = useAnalysisData(results);
-  // 按所选 pair 重算滚动相关（此前恒用前两只标的，选择器只改标签不改数据）
   const rollingCorrData = useMemo(
     () => computePairRollingCorrelation(results.tickers, rollingPair, correlationWindow),
     [results, rollingPair, correlationWindow],
@@ -198,11 +187,7 @@ const config: ComputeToolConfig<AnalysisPageState> = {
     { titleKey: 'analysis.seoAnalyzable', descKey: 'analysis.seoDesc' },
     { titleKey: 'analysis.seoViewable', descKey: 'analysis.seoViewableDesc' },
   ],
-  relatedTools: [
-    { titleKey: 'nav.portfolioBacktest', href: '/' },
-    { titleKey: 'nav.portfolioOptimize', href: '/optimizer' },
-    { titleKey: 'nav.efficientFrontier', href: '/efficient-frontier' },
-  ],
+  relatedTools: [TOOL_LINKS.backtest, TOOL_LINKS.optimizer, TOOL_LINKS.efficientF],
   params: ({ state }) => <AnalysisParamsPanel {...state} />,
   results: AnalysisResultsPanel,
 };
@@ -230,10 +215,14 @@ export const StatsTable = memo(function StatsTable({
   tickers: AssetAnalysisResult['tickers'];
 }) {
   const { t } = useTranslation();
-  const fmt = (v: number | undefined, f: StatRow['fmt']) => {
-    if (f === 'duration') return v == null ? '—' : `${v} ${t('days')}`;
-    return f === 'pct' ? fmtPct(v) : fmtNum(v, 2);
-  };
+  const fmt = (v: number | undefined, f: StatRow['fmt']) =>
+    f === 'duration'
+      ? v == null
+        ? '—'
+        : `${v} ${t('days')}`
+      : f === 'pct'
+        ? fmtPct(v)
+        : fmtNum(v, 2);
   const rows = STATS_COLUMNS.filter((c) => tickers.some((tk) => tk.statistics[c.key] != null));
   const columns: SimpleTableColumn<StatRow>[] = [
     {

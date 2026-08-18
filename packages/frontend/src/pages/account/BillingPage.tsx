@@ -9,16 +9,15 @@ import { cn } from '@/lib/utils';
 import { BILLABLE_PLANS, planPrice, planPeriod } from '@/lib/pricing';
 import { Button, Card } from '@/components/ui/uiComponents';
 
-interface SubscriptionSummary {
-  plan: string;
-  status: string;
-  currentPeriodEnd: string | null;
-  cancelAtPeriodEnd: boolean;
-}
 interface BillingState {
   enabled: boolean;
   publishableKey: string | null;
-  subscription: SubscriptionSummary | null;
+  subscription: {
+    plan: string;
+    status: string;
+    currentPeriodEnd: string | null;
+    cancelAtPeriodEnd: boolean;
+  } | null;
 }
 interface PlanDef {
   id: 'pro' | 'enterprise';
@@ -26,6 +25,7 @@ interface PlanDef {
   price: string;
   features: string[];
 }
+
 const usePlans = (): PlanDef[] => {
   const { t } = useTranslation();
   return BILLABLE_PLANS.map((p) => ({
@@ -79,6 +79,7 @@ function PlanCard({
     </Card>
   );
 }
+
 function BillingContent({
   state,
   loading,
@@ -145,6 +146,7 @@ function BillingContent({
     </>
   );
 }
+
 function useBillingState() {
   const { t } = useTranslation();
   const [state, setState] = useState<BillingState | null>(null);
@@ -181,12 +183,17 @@ function useBillingState() {
       setBusy(false);
     }
   };
-  const checkout = (plan: 'pro' | 'enterprise') =>
-    postRedirect('/api/v1/billing/checkout', { plan }, 'account.billing.checkoutFailed');
-  const openPortal = () =>
-    postRedirect('/api/v1/billing/portal', {}, 'account.billing.portalFailed');
-  return { state, loading, busy, error, checkout, openPortal };
+  return {
+    state,
+    loading,
+    busy,
+    error,
+    checkout: (plan: 'pro' | 'enterprise') =>
+      postRedirect('/api/v1/billing/checkout', { plan }, 'account.billing.checkoutFailed'),
+    openPortal: () => postRedirect('/api/v1/billing/portal', {}, 'account.billing.portalFailed'),
+  };
 }
+
 export default function BillingPage() {
   const { t } = useTranslation();
   const { org, isAdmin } = useOrgAuth();
@@ -202,10 +209,7 @@ export default function BillingPage() {
     : '';
   return (
     <StandardPageShell
-      config={{
-        titleKey: 'Billing',
-        headerExtra: <CreditCard className="w-5 h-5 text-brand" />,
-      }}
+      config={{ titleKey: 'Billing', headerExtra: <CreditCard className="w-5 h-5 text-brand" /> }}
     >
       <Card className="p-6 mt-7">
         <p className="text-label text-fg-tertiary mb-4">

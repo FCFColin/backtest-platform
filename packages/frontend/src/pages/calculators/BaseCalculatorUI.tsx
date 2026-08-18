@@ -27,7 +27,15 @@ import {
   OptionLeverageCalculator,
 } from './LeverageCalculators.js';
 import { SWRCalculator, AssetAllocationRiskCalculator } from './SWRAndRiskCalculators.js';
-interface CalcFieldProps {
+export function Field({
+  label,
+  value,
+  onChange,
+  suffix,
+  min,
+  max,
+  step = 0.1,
+}: {
   label: string;
   value: number;
   onChange: (v: number) => void;
@@ -35,8 +43,7 @@ interface CalcFieldProps {
   min?: number;
   max?: number;
   step?: number;
-}
-export function Field({ label, value, onChange, suffix, min, max, step = 0.1 }: CalcFieldProps) {
+}) {
   const id = useId();
   return (
     <FieldShell>
@@ -63,12 +70,15 @@ const RESULT_TONE_CLASS: Record<ResultTone, string> = {
   muted: 'text-fg-secondary',
   default: 'text-fg',
 };
-interface ResultRowProps {
+function ResultRow({
+  label,
+  value,
+  tone = 'default',
+}: {
   label: ReactNode;
   value: ReactNode;
   tone?: ResultTone;
-}
-function ResultRow({ label, value, tone = 'default' }: ResultRowProps) {
+}) {
   return (
     <div className="flex items-center justify-between border-b border-border-subtle py-1.5 last:border-b-0">
       <span className="text-label text-fg-tertiary">{label}</span>
@@ -87,18 +97,17 @@ function InfoBox({ children }: { children: ReactNode }) {
     </div>
   );
 }
-interface CollapsibleCardProps {
-  icon: ElementType;
-  title: string;
-  defaultOpen?: boolean;
-  children: ReactNode;
-}
 function CollapsibleCard({
   icon: Icon,
   title,
   defaultOpen = false,
   children,
-}: CollapsibleCardProps) {
+}: {
+  icon: ElementType;
+  title: string;
+  defaultOpen?: boolean;
+  children: ReactNode;
+}) {
   const [open, setOpen] = useState(defaultOpen);
   return (
     <Card className="overflow-hidden bg-elevated">
@@ -127,18 +136,6 @@ function CollapsibleCard({
     </Card>
   );
 }
-interface CalcCardProps {
-  icon: ElementType;
-  title: string;
-  defaultOpen?: boolean;
-  cols?: 2 | 3;
-  fields?: CalcFieldProps[];
-  extra?: ReactNode;
-  rows?: { label: string; value: string; tone?: ResultTone }[];
-  rowsClassName?: string;
-  chart?: ReactNode;
-  info?: string;
-}
 export function CalcCard({
   icon,
   title,
@@ -150,7 +147,26 @@ export function CalcCard({
   rowsClassName = 'mt-3',
   chart,
   info,
-}: CalcCardProps) {
+}: {
+  icon: ElementType;
+  title: string;
+  defaultOpen?: boolean;
+  cols?: 2 | 3;
+  fields?: {
+    label: string;
+    value: number;
+    onChange: (v: number) => void;
+    suffix?: string;
+    min?: number;
+    max?: number;
+    step?: number;
+  }[];
+  extra?: ReactNode;
+  rows?: { label: string; value: string; tone?: ResultTone }[];
+  rowsClassName?: string;
+  chart?: ReactNode;
+  info?: string;
+}) {
   return (
     <CollapsibleCard icon={icon} title={title} defaultOpen={defaultOpen}>
       {fields.length > 0 && (

@@ -99,6 +99,7 @@ function AboutContent() {
     </div>
   );
 }
+
 function LimitsContent() {
   const { t } = useTranslation();
   const limits = (
@@ -123,6 +124,7 @@ function LimitsContent() {
     </div>
   );
 }
+
 function UpgradeContent() {
   const { t } = useTranslation();
   return (
@@ -135,22 +137,21 @@ function UpgradeContent() {
       <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(280px,1fr))]">
         {PLANS.map((p) => {
           const current = p.id === 'free';
-          const features = p.features.filter((f) => f.included).map((f) => t(f.key));
           return (
             <div
               key={p.id}
               className={`rounded-lg p-5 ${current ? 'border-2 border-brand bg-brand/10' : 'border border-border-subtle bg-input-bg'}`}
             >
               <div className="mb-1 text-h3 font-bold text-fg">{p.name}</div>
-              <div className="mb-4 text-h1 font-bold text-brand">
-                {`${planPrice(p, t)}${planPeriod(p, t)}`}
-              </div>
-              {features.map((f, i) => (
-                <div key={i} className="relative py-1 pl-4 text-label text-fg-secondary">
-                  <span className="absolute left-0 text-success">✓</span>
-                  {f}
-                </div>
-              ))}
+              <div className="mb-4 text-h1 font-bold text-brand">{`${planPrice(p, t)}${planPeriod(p, t)}`}</div>
+              {p.features
+                .filter((f) => f.included)
+                .map((f, i) => (
+                  <div key={i} className="relative py-1 pl-4 text-label text-fg-secondary">
+                    <span className="absolute left-0 text-success">✓</span>
+                    {t(f.key)}
+                  </div>
+                ))}
               {current && (
                 <div className="mt-4 rounded-lg bg-brand py-2 text-center text-label font-semibold text-brand-fg">
                   {t('Current Plan')}
@@ -163,14 +164,9 @@ function UpgradeContent() {
     </div>
   );
 }
+
 const ABOUT_TABS = [
-  {
-    key: 'about',
-    labelKey: 'About',
-    to: '/about',
-    titleKey: 'about.title',
-    C: AboutContent,
-  },
+  { key: 'about', labelKey: 'About', to: '/about', titleKey: 'about.title', C: AboutContent },
   {
     key: 'limits',
     labelKey: 'about.tabs.limits',
@@ -186,11 +182,11 @@ const ABOUT_TABS = [
     C: UpgradeContent,
   },
 ] as const;
+
 export function AboutPage({ section }: { section?: string }) {
   const { t } = useTranslation();
   const s = section || 'about';
   const tab = ABOUT_TABS.find((x) => x.key === s) ?? ABOUT_TABS[0];
-  const Content = tab.C;
   return (
     <StaticPageShell title={t(tab.titleKey)}>
       <div className="mb-6 flex gap-2 border-b-2 border-border-subtle pb-3">
@@ -204,25 +200,21 @@ export function AboutPage({ section }: { section?: string }) {
           </Link>
         ))}
       </div>
-      <Content />
+      <tab.C />
     </StaticPageShell>
   );
 }
 
 type ChangeType = 'added' | 'improved' | 'fixed';
-
 const CHANGE_META: Record<
   ChangeType,
   { labelKey: string; variant: 'success' | 'asset' | 'secondary'; icon: ReactNode }
 > = {
   added: { labelKey: 'Added', variant: 'success', icon: <Plus className="size-3" /> },
-  improved: {
-    labelKey: 'Improved',
-    variant: 'asset',
-    icon: <Wrench className="size-3" />,
-  },
+  improved: { labelKey: 'Improved', variant: 'asset', icon: <Wrench className="size-3" /> },
   fixed: { labelKey: 'Fixed', variant: 'secondary', icon: <Bug className="size-3" /> },
 };
+
 export function ChangelogPage() {
   const { t } = useTranslation();
   const raw = t('changelog.versions', { returnObjects: true }) as Record<
@@ -293,24 +285,12 @@ export function ChangelogPage() {
 
 const CONTACT_CLS =
   'flex items-center gap-3 rounded-xl border border-border bg-input-bg p-4 no-underline text-fg-secondary transition-colors hover:border-border-strong';
-function ContactCards() {
-  const { t } = useTranslation();
-  return (
-    <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
-      <a href="mailto:support@example.com" className={CONTACT_CLS}>
-        <Mail className="size-5 text-brand" />
-        <div>
-          <div className="text-body font-semibold">{t('Email Support')}</div>
-          <div className="text-caption text-fg-tertiary">support@example.com</div>
-        </div>
-      </a>
-    </div>
-  );
-}
+
 export function ContactPage() {
   const { t } = useTranslation();
   const [form, setForm] = useState({ name: '', email: '', message: '' });
   const addToast = useToastStore((s) => s.addToast);
+  const update = (k: 'name' | 'email' | 'message', v: string) => setForm((p) => ({ ...p, [k]: v }));
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     if (!form.name.trim() || !form.email.trim() || !form.message.trim()) {
@@ -322,6 +302,10 @@ export function ContactPage() {
     window.location.href = `mailto:support@example.com?subject=${subject}&body=${body}`;
     addToast('success', t('Opening mail client...'));
   };
+  const fields = [
+    { id: 'contact-name', key: 'name' as const, type: 'text', ph: 'contact.namePlaceholder' },
+    { id: 'contact-email', key: 'email' as const, type: 'email', ph: 'contact.emailPlaceholder' },
+  ];
   return (
     <StaticPageShell title={t('Contact Us')} cardClassName="max-w-3xl p-6">
       <p className="mb-6 text-fg-tertiary">
@@ -329,36 +313,29 @@ export function ContactPage() {
           'We welcome your feedback, suggestions, and bug reports. Please reach out via the following channels.',
         )}
       </p>
-      <ContactCards />
+      <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <a href="mailto:support@example.com" className={CONTACT_CLS}>
+          <Mail className="size-5 text-brand" />
+          <div>
+            <div className="text-body font-semibold">{t('Email Support')}</div>
+            <div className="text-caption text-fg-tertiary">support@example.com</div>
+          </div>
+        </a>
+      </div>
       <form onSubmit={handleSubmit}>
         <div className="mb-4 flex items-center gap-2 text-body font-semibold text-fg">
           <MessageSquare className="size-4" />
           {t('Send Feedback')}
         </div>
         <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {[
-            {
-              id: 'contact-name',
-              type: 'text',
-              value: form.name,
-              onChange: (v: string) => setForm((p) => ({ ...p, name: v })),
-              ph: 'contact.namePlaceholder',
-            },
-            {
-              id: 'contact-email',
-              type: 'email',
-              value: form.email,
-              onChange: (v: string) => setForm((p) => ({ ...p, email: v })),
-              ph: 'contact.emailPlaceholder',
-            },
-          ].map((f) => (
+          {fields.map((f) => (
             <Field key={f.id}>
               <FieldLabel htmlFor={f.id}>{t(f.ph)}</FieldLabel>
               <Input
                 id={f.id}
                 type={f.type}
-                value={f.value}
-                onChange={(e) => f.onChange(e.target.value)}
+                value={form[f.key]}
+                onChange={(e) => update(f.key, e.target.value)}
                 placeholder={t(f.ph)}
               />
             </Field>
@@ -371,7 +348,7 @@ export function ContactPage() {
           <textarea
             id="contact-message"
             value={form.message}
-            onChange={(e) => setForm((p) => ({ ...p, message: e.target.value }))}
+            onChange={(e) => update('message', e.target.value)}
             placeholder={t('Describe your feedback or issue...')}
             className="w-full resize-y rounded-md border border-border bg-input-bg px-3 py-2 text-body text-fg placeholder:text-fg-tertiary transition-colors hover:border-border-strong focus:border-brand focus:outline-none"
             style={{ minHeight: 120 }}
