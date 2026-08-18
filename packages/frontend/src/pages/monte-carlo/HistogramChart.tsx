@@ -9,7 +9,7 @@ import {
   valueYAxis,
 } from '@/components/charts/chartUtils.js';
 import { getPortfolioColor } from '@/lib/chart-theme.js';
-import { useReducedMotion } from '@/hooks/miscHooks.js';
+import { useMediaQuery } from '@/hooks/miscHooks.js';
 import EChart from '@/components/charts/EChart.js';
 
 export function NoDataCard() {
@@ -35,7 +35,7 @@ export function HistogramChart({
   referenceLines?: { label: string; color: string; value: string }[];
 }) {
   const { t } = useTranslation();
-  const reducedMotion = useReducedMotion();
+  const reducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
   if (data.length === 0) return <NoDataCard />;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 需要动态添加 markLine 属性
   const seriesArr: any[] = [
