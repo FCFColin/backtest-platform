@@ -2,7 +2,7 @@
 import { useTranslation } from 'react-i18next';
 import { type AssetAnalysisResult, type PortfolioResult } from '@backtest/shared';
 import { getPortfolioColor } from '@/lib/chart-theme.js';
-import { ScatterChartContent, XYScatterChart } from './sharedChartContent.js';
+import { XYScatterChart } from './sharedChartContent.js';
 import { ChartEmptyState } from '@/components/stateDisplay.js';
 import { type RiskMetricKey } from './chartUtils.js';
 import ChartCard from '../ChartCard.js';
@@ -15,15 +15,16 @@ interface ScatterPoint {
 }
 function RiskScatterChart({ data, riskLabel }: { data: ScatterPoint[]; riskLabel: string }) {
   return (
-    <ScatterChartContent
-      data={data}
-      xDataKey="risk"
-      yDataKey="cagr"
-      nameDataKey="name"
+    <XYScatterChart
+      xKey="risk"
+      yKey="cagr"
       xName={riskLabel}
       yName="CAGR"
       xLabel={`${riskLabel} (%)`}
       yLabel="CAGR (%)"
+      height={450}
+      margin={{ top: 20, right: 40, bottom: 60, left: 112 }}
+      labelFormatter={() => ''}
       tooltipFormatter={(value: number | string, name: string) =>
         name === 'risk'
           ? [`${typeof value === 'number' ? value.toFixed(2) : value}%`, riskLabel]
@@ -31,7 +32,9 @@ function RiskScatterChart({ data, riskLabel }: { data: ScatterPoint[]; riskLabel
             ? [`${typeof value === 'number' ? value.toFixed(2) : value}%`, 'CAGR']
             : [String(value), name]
       }
-      tooltipLabelFormatter={() => ''}
+      series={[
+        { data, nameKey: 'name', colorOf: (d: ScatterPoint) => getPortfolioColor(data.indexOf(d)) },
+      ]}
     />
   );
 }

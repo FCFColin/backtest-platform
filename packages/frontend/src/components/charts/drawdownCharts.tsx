@@ -16,7 +16,6 @@ import {
 import { totalMonths } from './chartUtils.js';
 import { SimpleAreaChart } from '@/components/charts/sharedChartContent.js';
 import { ChartEmptyState } from '@/components/stateDisplay.js';
-
 interface DrawdownChartProps {
   portfolios: Array<{
     id: string;
@@ -30,75 +29,58 @@ function useDrawdownData(portfolios: DrawdownChartProps['portfolios']) {
       portfolios.map((p) => ({
         key: p.id,
         rows: p.drawdownCurve,
-        value: (point: { date: string; drawdown: number }) => -Math.abs(point.drawdown),
+        value: (pt: { date: string; drawdown: number }) => -Math.abs(pt.drawdown),
       })),
     );
     return rows.length > DOWNSAMPLE_THRESHOLD ? downsample(rows, DOWNSAMPLE_TARGET) : rows;
   }, [portfolios]);
 }
-function useTotalMonths(chartData: Array<Record<string, string | number>>) {
-  return useMemo(() => totalMonths(chartData), [chartData]);
-}
-interface UnderwaterStats {
-  maxDrawdown: number;
-  underwaterPct: number;
-  longestDays: number;
-}
-function computeUnderwaterStats(curve: Array<{ date: string; drawdown: number }>): UnderwaterStats {
+function computeUnderwaterStats(curve: Array<{ date: string; drawdown: number }>) {
   if (curve.length === 0) return { maxDrawdown: 0, underwaterPct: 0, longestDays: 0 };
-  let maxDrawdown = 0,
-    underwaterCount = 0,
-    longestStreak = 0,
-    currentStreak = 0;
+  let maxDD = 0,
+    uwCount = 0,
+    longest = 0,
+    cur = 0;
   for (const pt of curve) {
     const dd = Math.abs(pt.drawdown);
-    if (dd > maxDrawdown) maxDrawdown = dd;
-    // 引擎回撤为 (peak-value)/peak 恒非负，> 0 即处于水下
+    if (dd > maxDD) maxDD = dd;
     if (pt.drawdown > 0) {
-      underwaterCount++;
-      currentStreak++;
-      if (currentStreak > longestStreak) longestStreak = currentStreak;
+      uwCount++;
+      cur++;
+      if (cur > longest) longest = cur;
     } else {
-      currentStreak = 0;
+      cur = 0;
     }
   }
-  return {
-    maxDrawdown,
-    underwaterPct: underwaterCount / curve.length,
-    longestDays: longestStreak,
-  };
+  return { maxDrawdown: maxDD, underwaterPct: uwCount / curve.length, longestDays: longest };
 }
-function StatsBar({ stats }: { stats: UnderwaterStats }) {
+function StatsBar({
+  stats,
+}: {
+  stats: { maxDrawdown: number; underwaterPct: number; longestDays: number };
+}) {
   const { t } = useTranslation();
+  const items = [
+    { label: t('Max Drawdown'), value: fmtPct(-stats.maxDrawdown), cls: 'text-danger' },
+    { label: t('Time Underwater'), value: fmtPct(stats.underwaterPct), cls: 'text-fg' },
+    {
+      label: t('Longest Underwater'),
+      value: t('{{count}} data points', { count: stats.longestDays }),
+      cls: 'text-fg',
+    },
+  ];
   return (
     <div className="px-6 pb-3 flex flex-wrap gap-4">
-      <div className="flex items-baseline gap-1.5">
-        <span className="text-label-tiny text-fg-tertiary">{t('Max Drawdown')}</span>
-        <span className="text-caption font-mono tabular-nums font-semibold text-danger">
-          {fmtPct(-stats.maxDrawdown)}
-        </span>
-      </div>
-      <div className="flex items-baseline gap-1.5">
-        <span className="text-label-tiny text-fg-tertiary">{t('Time Underwater')}</span>
-        <span className="text-caption font-mono tabular-nums font-semibold text-fg">
-          {fmtPct(stats.underwaterPct)}
-        </span>
-      </div>
-      <div className="flex items-baseline gap-1.5">
-        <span className="text-label-tiny text-fg-tertiary">{t('Longest Underwater')}</span>
-        <span className="text-caption font-mono tabular-nums font-semibold text-fg">
-          {t('{{count}} data points', { count: stats.longestDays })}
-        </span>
-      </div>
+      {items.map((it) => (
+        <div key={it.label} className="flex items-baseline gap-1.5">
+          <span className="text-label-tiny text-fg-tertiary">{it.label}</span>
+          <span className={`text-caption font-mono tabular-nums font-semibold ${it.cls}`}>
+            {it.value}
+          </span>
+        </div>
+      ))}
     </div>
   );
-}
-interface DrawdownAreaChartProps extends DrawdownChartProps {
-  title: string;
-  description?: string;
-  areaColor?: string;
-  tooltipLabelKey: string;
-  showStats?: boolean;
 }
 function DrawdownAreaChart({
   portfolios,
@@ -107,10 +89,16 @@ function DrawdownAreaChart({
   areaColor,
   tooltipLabelKey,
   showStats,
-}: DrawdownAreaChartProps) {
+}: DrawdownChartProps & {
+  title: string;
+  description?: string;
+  areaColor?: string;
+  tooltipLabelKey: string;
+  showStats?: boolean;
+}) {
   const { t } = useTranslation();
   const chartData = useDrawdownData(portfolios);
-  const totalMonths = useTotalMonths(chartData);
+  const tm = useMemo(() => totalMonths(chartData), [chartData]);
   const stats = useMemo(
     () => (showStats ? computeUnderwaterStats(portfolios[0]?.drawdownCurve ?? []) : null),
     [portfolios, showStats],
@@ -134,8 +122,8 @@ function DrawdownAreaChart({
           <SimpleAreaChart
             data={chartData}
             margin={{ ...CHART_MARGIN, left: 64, right: 8 }}
-            xTickFormatter={dateAxisTickFormatter(totalMonths)}
-            xTickInterval={SMART_DATE_INTERVAL(totalMonths)}
+            xTickFormatter={dateAxisTickFormatter(tm)}
+            xTickInterval={SMART_DATE_INTERVAL(tm)}
             yTickFormatter={(v: number) => fmtPct(v)}
             yDomain={['auto', 0]}
             areaColor={portfolios.length === 1 ? areaColor : undefined}

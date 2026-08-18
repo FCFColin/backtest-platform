@@ -41,7 +41,13 @@ const wrapPrimitive = <T extends WrapComp>(
     displayName ?? (Comp as { displayName?: string }).displayName ?? 'Primitive';
   return Wrapped;
 };
-
+const contentAnim =
+  'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=top]:slide-in-from-bottom-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2';
+const itemBase =
+  'relative flex cursor-pointer select-none items-center rounded-md text-body text-fg-secondary outline-none transition-colors duration-150 focus:bg-hover focus:text-fg data-[disabled]:pointer-events-none data-[disabled]:opacity-50';
+const CheckIndicator = ({ children }: { children: ReactNode }) => (
+  <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">{children}</span>
+);
 export const badgeVariants = cva(
   'inline-flex items-center gap-1.5 rounded-full border font-medium transition-colors',
   {
@@ -53,10 +59,7 @@ export const badgeVariants = cva(
         success: 'bg-success/10 border-success/20 text-success',
         danger: 'bg-danger/10 border-danger/20 text-danger',
       },
-      size: {
-        sm: 'h-6 px-2 text-label-tiny',
-        default: 'h-7 px-3 text-caption',
-      },
+      size: { sm: 'h-6 px-2 text-label-tiny', default: 'h-7 px-3 text-caption' },
     },
     defaultVariants: { variant: 'asset', size: 'default' },
   },
@@ -66,7 +69,6 @@ export interface BadgeProps
 export const Badge = ({ className, variant, size, ...props }: BadgeProps) => (
   <div className={cn(badgeVariants({ variant, size }), className)} {...props} />
 );
-
 export const buttonVariants = cva(
   'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg font-medium transition-colors duration-150 ease-out-quart disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0',
   {
@@ -110,7 +112,6 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     );
   },
 );
-
 export type InputProps = React.InputHTMLAttributes<HTMLInputElement>;
 export const Input = React.forwardRef<HTMLInputElement, InputProps>(
   ({ className, type, ...props }, ref) => (
@@ -126,7 +127,6 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
     />
   ),
 );
-
 interface AffixInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'prefix'> {
   prefix?: React.ReactNode;
   suffix?: React.ReactNode;
@@ -152,7 +152,6 @@ export const AffixInput = React.forwardRef<HTMLInputElement, AffixInputProps>(
     </div>
   ),
 );
-
 const alertVariants = cva(
   'relative w-full rounded-lg border px-4 py-3 text-sm [&>svg]:absolute [&>svg]:left-4 [&>svg]:top-4 [&>svg]:text-fg-tertiary [&>svg~*]:pl-7',
   {
@@ -181,12 +180,10 @@ export const AlertDescription = wrapPrimitive(
   'text-body text-fg-secondary [&_p]:leading-relaxed',
   'AlertDescription',
 );
-
 export const Card = wrapPrimitive('div', 'rounded-xl border border-border bg-surface', 'Card');
 export const CardHeader = wrapPrimitive('div', 'flex flex-col space-y-1.5 p-6 pb-5', 'CardHeader');
 export const CardTitle = wrapPrimitive('h2', 'text-h2 text-fg', 'CardTitle');
 export const CardContent = wrapPrimitive('div', 'p-6 pt-0', 'CardContent');
-
 export const Checkbox = wrapPrimitive(
   CheckboxPrimitive.Root,
   'peer h-4 w-4 shrink-0 rounded-sm border border-border-strong bg-input-bg transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-brand data-[state=checked]:border-brand data-[state=checked]:text-brand-fg',
@@ -197,7 +194,6 @@ export const Checkbox = wrapPrimitive(
     </CheckboxPrimitive.Indicator>
   ),
 );
-
 export const Collapsible = CollapsiblePrimitive.Root;
 export const CollapsibleTrigger = CollapsiblePrimitive.Trigger;
 export const CollapsibleContent = wrapPrimitive(
@@ -205,16 +201,8 @@ export const CollapsibleContent = wrapPrimitive(
   'overflow-hidden data-[state=open]:animate-accordion-down data-[state=closed]:animate-accordion-up',
   'CollapsibleContent',
 );
-
 export const DropdownMenu = DropdownMenuPrimitive.Root;
 export const DropdownMenuTrigger = DropdownMenuPrimitive.Trigger;
-const itemBase =
-  'relative flex cursor-pointer select-none items-center rounded-md text-body text-fg-secondary outline-none transition-colors duration-150 focus:bg-hover focus:text-fg data-[disabled]:pointer-events-none data-[disabled]:opacity-50';
-const contentAnim =
-  'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=top]:slide-in-from-bottom-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2';
-const CheckIndicator = ({ children }: { children: ReactNode }) => (
-  <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">{children}</span>
-);
 export const DropdownMenuContent = React.forwardRef<
   React.ElementRef<typeof DropdownMenuPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Content>
@@ -253,13 +241,11 @@ export const DropdownMenuCheckboxItem = wrapPrimitive(
     </>
   ),
 );
-
 export const Label = wrapPrimitive(
   LabelPrimitive.Root,
   'text-label font-medium text-fg-secondary leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70',
   'Label',
 );
-
 export const Progress = wrapPrimitive(
   ProgressPrimitive.Root,
   'relative h-2 w-full overflow-hidden bg-input-bg rounded-full',
@@ -271,7 +257,6 @@ export const Progress = wrapPrimitive(
     />
   ),
 );
-
 export const RadioGroup = wrapPrimitive(RadioGroupPrimitive.Root, 'grid gap-2', 'RadioGroup');
 export const RadioGroupItem = wrapPrimitive(
   RadioGroupPrimitive.Item,
@@ -283,7 +268,6 @@ export const RadioGroupItem = wrapPrimitive(
     </RadioGroupPrimitive.Indicator>
   ),
 );
-
 export const Select = SelectPrimitive.Root;
 export const SelectValue = SelectPrimitive.Value;
 export const SelectTrigger = wrapPrimitive(
@@ -299,17 +283,23 @@ export const SelectTrigger = wrapPrimitive(
     </>
   ),
 );
-const SelectScrollUpButton = wrapPrimitive(
+const makeSelectScrollButton = (
+  Primitive: typeof SelectPrimitive.ScrollUpButton,
+  Icon: typeof ChevronUp,
+  name: string,
+) =>
+  wrapPrimitive(Primitive, 'flex cursor-default items-center justify-center py-1', name, () => (
+    <Icon className="h-4 w-4 text-fg-tertiary" />
+  ));
+const SelectScrollUpButton = makeSelectScrollButton(
   SelectPrimitive.ScrollUpButton,
-  'flex cursor-default items-center justify-center py-1',
+  ChevronUp,
   'SelectScrollUpButton',
-  () => <ChevronUp className="h-4 w-4 text-fg-tertiary" />,
 );
-const SelectScrollDownButton = wrapPrimitive(
+const SelectScrollDownButton = makeSelectScrollButton(
   SelectPrimitive.ScrollDownButton,
-  'flex cursor-default items-center justify-center py-1',
+  ChevronDown,
   'SelectScrollDownButton',
-  () => <ChevronDown className="h-4 w-4 text-fg-tertiary" />,
 );
 const SelectContent = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Content>,
@@ -358,7 +348,6 @@ export const SelectItem = wrapPrimitive(
   ),
 );
 export { SelectContent };
-
 export const Separator = ({
   className,
   orientation = 'horizontal',
@@ -374,11 +363,9 @@ export const Separator = ({
     {...props}
   />
 );
-
 export const Skeleton = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
   <div className={cn('animate-pulse rounded-md bg-input-bg', className)} {...props} />
 );
-
 export const Switch = wrapPrimitive(
   SwitchPrimitive.Root,
   'peer inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border border-border bg-input-bg transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-brand data-[state=checked]:border-brand',
@@ -387,7 +374,6 @@ export const Switch = wrapPrimitive(
     <SwitchPrimitive.Thumb className="pointer-events-none block size-4 rounded-full bg-fg shadow-lg ring-0 transition-transform duration-150 ease-out-quart translate-x-0.5 data-[state=checked]:translate-x-[18px]" />
   ),
 );
-
 export const Tabs = TabsPrimitive.Root;
 export const TabsList = wrapPrimitive(
   TabsPrimitive.List,
@@ -400,7 +386,6 @@ export const TabsTrigger = wrapPrimitive(
   'TabsTrigger',
 );
 export const TabsContent = wrapPrimitive(TabsPrimitive.Content, 'mt-2', 'TabsContent');
-
 const TooltipContent = React.forwardRef<
   React.ElementRef<typeof TooltipPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof TooltipPrimitive.Content>
@@ -455,7 +440,6 @@ export function LoadingButton({
     </Button>
   );
 }
-
 // prettier-ignore
 const SPINNER_SIZES: Record<number, string> = { 4: 'size-4', 5: 'size-5', 6: 'size-6', 8: 'size-8' };
 export function Spinner({ size = 5, className }: { size?: number; className?: string }) {
@@ -469,7 +453,6 @@ export function Spinner({ size = 5, className }: { size?: number; className?: st
     />
   );
 }
-
 export function PortfolioDot({ color, className }: { color: string; className?: string }) {
   return (
     <span
@@ -478,7 +461,6 @@ export function PortfolioDot({ color, className }: { color: string; className?: 
     />
   );
 }
-
 export function PortfolioLabel({
   color,
   name,
@@ -495,7 +477,6 @@ export function PortfolioLabel({
     </span>
   );
 }
-
 export function MiniSelect<T extends string | number>({
   value,
   onChange,

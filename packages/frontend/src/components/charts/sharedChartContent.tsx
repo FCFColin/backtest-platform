@@ -21,7 +21,7 @@ import {
 type ChartDataPoint = Record<string, number | string | null>;
 
 const HEADER_DIV = '<div style="font-weight:600;margin-bottom:6px;color:hsl(var(--fg))">';
-// valueFormatter 第二参数传数据键（xKey/yKey）供单位分支判断；行标签回退为显示名
+// valueFormatter 第二参数传数据键供单位分支判断；行标签回退为显示名
 function scatterTooltip(
   xKey: string,
   yKey: string,
@@ -117,12 +117,12 @@ export function SimpleChart({
 }: SimpleChartProps) {
   const animated = useChartAnimation(data.length >= 100).isAnimationActive;
   const isArea = type === 'area';
-  const isCategory = xType !== 'number';
-  const showLegendFinal = showLegend ?? !isArea;
-  const showDataZoom = dataZoom === true && data.length >= 100;
+  const isCat = xType !== 'number';
+  const showLeg = showLegend ?? !isArea;
+  const showDz = dataZoom === true && data.length >= 100;
   const grid = chartGrid(margin, {
-    legendBottom: legendPosition === 'top' ? 0 : showLegendFinal ? 24 : 0,
-    dataZoomBottom: showDataZoom ? 28 : 0,
+    legendBottom: legendPosition === 'top' ? 0 : showLeg ? 24 : 0,
+    dataZoomBottom: showDz ? 28 : 0,
   });
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 需要动态添加 markLine 属性
   const seriesArr: any[] = series.map((s, i) => {
@@ -130,7 +130,7 @@ export function SimpleChart({
     return {
       name: s.name ?? s.dataKey,
       type: 'line',
-      data: isCategory
+      data: isCat
         ? data.map((d) => d[s.dataKey] ?? null)
         : data.map((d) => [Number(d[xDataKey]), d[s.dataKey] ?? null]),
       // 密集序列平滑无视觉失真；稀疏序列用直线如实反映月度跳变
@@ -157,7 +157,7 @@ export function SimpleChart({
     seriesArr[0].markLine = markLineData(referenceLines, 'hsl(var(--fg-tertiary))');
   const option: EChartsOption = {
     grid,
-    xAxis: isCategory
+    xAxis: isCat
       ? categoryAxis(
           data.map((d) => d[xDataKey] ?? ''),
           {
@@ -184,13 +184,13 @@ export function SimpleChart({
       max: yDomain[1] !== 'auto' ? yDomain[1] : undefined,
     }),
     tooltip: tooltipOption(axisTooltipFormatter(tooltipLabelFormatter, tooltipFormatter)),
-    legend: showLegendFinal
+    legend: showLeg
       ? legendPosition === 'top'
         ? chartLegend({ top: 0, formatter: legendFormatter })
-        : chartLegend({ bottom: showDataZoom ? 26 : 0, formatter: legendFormatter })
+        : chartLegend({ bottom: showDz ? 26 : 0, formatter: legendFormatter })
       : undefined,
     series: seriesArr as EChartsOption['series'],
-    dataZoom: showDataZoom
+    dataZoom: showDz
       ? [
           {
             type: 'slider',
@@ -250,7 +250,7 @@ export function BarChartContent({
   xTickInterval,
 }: BarChartContentProps) {
   const animated = useChartAnimation(data.length >= 100).isAnimationActive;
-  const singleSignColor = seriesNames.length === 1 && signColorSingleSeries;
+  const singleSign = seriesNames.length === 1 && signColorSingleSeries;
   const option: EChartsOption = {
     grid: { left: 80, right: 40, top: 20, bottom: 20 + (showLegend ? 24 : 0) },
     xAxis: categoryAxis(
@@ -266,12 +266,13 @@ export function BarChartContent({
     series: seriesNames.map((name, i) => ({
       type: 'bar',
       name,
+      barMaxWidth: 60,
       data: data.map((d) => {
         const v = Number(d[name]) || 0;
         return {
           value: v,
           itemStyle: {
-            color: singleSignColor
+            color: singleSign
               ? v >= 0
                 ? 'hsl(var(--success))'
                 : 'hsl(var(--danger))'
@@ -281,71 +282,10 @@ export function BarChartContent({
           },
         };
       }),
-      barMaxWidth: 60,
     })) as EChartsOption['series'],
     animation: animated,
   };
   return <EChart option={option} height={height} ariaLabel={seriesNames.join(', ')} />;
-}
-
-interface ScatterChartContentProps {
-  data: ChartDataPoint[];
-  xDataKey: string;
-  xName: string;
-  yDataKey: string;
-  yName: string;
-  xLabel?: string;
-  yLabel?: string;
-  nameDataKey?: string;
-  height?: number;
-  margin?: { top?: number; right?: number; bottom?: number; left?: number };
-  tooltipFormatter?: (value: number | string, name: string) => [string, string] | string;
-  tooltipLabelFormatter?: (label: string) => string;
-}
-export function ScatterChartContent({
-  data,
-  xDataKey,
-  xName,
-  yDataKey,
-  yName,
-  xLabel,
-  yLabel,
-  nameDataKey = 'name',
-  height = 450,
-  margin = { top: 20, right: 40, bottom: 60, left: 112 },
-  tooltipFormatter,
-  tooltipLabelFormatter,
-}: ScatterChartContentProps) {
-  const animated = useChartAnimation(data.length >= 100).isAnimationActive;
-  const fmt2 = (v: number) => Number(v).toFixed(2);
-  const option: EChartsOption = {
-    grid: chartGrid(margin),
-    xAxis: valueXAxis({ formatter: fmt2, name: xLabel ?? xName }),
-    yAxis: valueYAxis({ formatter: fmt2, name: yLabel ?? yName }),
-    tooltip: scatterTooltip(
-      xDataKey,
-      yDataKey,
-      xName,
-      yName,
-      tooltipLabelFormatter,
-      tooltipFormatter,
-    ),
-    series: [
-      {
-        type: 'scatter',
-        data: data.map((d, i) => ({
-          value: [Number(d[xDataKey]), Number(d[yDataKey])],
-          name: String(d[nameDataKey] ?? ''),
-          itemStyle: { color: getPortfolioColor(i) },
-        })),
-        symbolSize: 8,
-        label: scatterLabel(),
-        labelLayout: { hideOverlap: true },
-      },
-    ],
-    animation: animated,
-  };
-  return <EChart option={option} height={height} ariaLabel={`${xName} vs ${yName}`} />;
 }
 
 export interface XYScatterSeriesSpec {
@@ -409,7 +349,6 @@ export function XYScatterChart({
   const animated = useChartAnimation(
     series.reduce((n, s) => n + s.data.length, 0) >= 500,
   ).isAnimationActive;
-  const toStr = (v: number) => String(v);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 需要动态添加 markLine 和混合 scatter/line 系列
   const seriesArr: any[] = series.map((s, si) => {
     const minMax: { min: number; max: number } | null =
@@ -444,7 +383,7 @@ export function XYScatterChart({
   });
   if (referenceLines?.length && seriesArr[0])
     seriesArr[0].markLine = markLineData(referenceLines, 'hsl(var(--fg-tertiary))');
-  if (lines) {
+  if (lines)
     lines.forEach((l) =>
       seriesArr.push({
         type: 'line',
@@ -455,17 +394,11 @@ export function XYScatterChart({
         tooltip: { show: false },
       }),
     );
-  }
+  const fmt = (f?: (v: number) => string) => (f ?? String) as (v: number) => string;
   const option: EChartsOption = {
     grid: chartGrid(margin),
-    xAxis: valueXAxis({
-      formatter: (xTickFormatter ?? toStr) as (v: number) => string,
-      name: xLabel ?? xName,
-    }),
-    yAxis: valueYAxis({
-      formatter: (yTickFormatter ?? toStr) as (v: number) => string,
-      name: yLabel ?? yName,
-    }),
+    xAxis: valueXAxis({ formatter: fmt(xTickFormatter), name: xLabel ?? xName }),
+    yAxis: valueYAxis({ formatter: fmt(yTickFormatter), name: yLabel ?? yName }),
     tooltip: scatterTooltip(xKey, yKey, xName, yName, labelFormatter, tooltipFormatter),
     series: seriesArr as EChartsOption['series'],
     animation: animated,
