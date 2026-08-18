@@ -42,8 +42,7 @@ func HandleSearch(ds *store.DataStore) gin.HandlerFunc {
 			sharedhttp.NewProblem(c, http.StatusBadRequest, "VALIDATION_ERROR", "Validation Error", "缺少查询参数 q")
 			return
 		}
-		limit := 20
-		results, err := ds.SearchTickers(c.Request.Context(), query, limit)
+		results, err := ds.SearchTickers(c.Request.Context(), query, 20)
 		if err != nil {
 			sharedhttp.NewProblem(c, http.StatusInternalServerError, "SEARCH_FAILED", "Search Failed", "搜索失败: "+err.Error())
 			return
@@ -109,11 +108,14 @@ func HandleBatchPriceData(ds *store.DataStore) gin.HandlerFunc {
 		for _, ticker := range req.Tickers {
 			wg.Add(1)
 			go func(t string) {
-				defer func() {
-					if r := recover(); r != nil {
-						slog.Error("batch price data goroutine panic", "ticker", t, "panic", r)
-					}
-				}()
+			defer func() {
+				if r := recover(); r != nil {
+					slog.Error("batch price data goroutine panic", "ticker", t, "panic", r)
+					mu.Lock()
+					result[t] = map[string]interface{}{"error": fmt.Sprintf("内部错误: %v", r), "degraded": true}
+					mu.Unlock()
+				}
+			}()
 				defer wg.Done()
 				sem <- struct{}{}
 				defer func() { <-sem }()
@@ -166,13 +168,7 @@ func HandleHealth(ds *store.DataStore) gin.HandlerFunc {
 		if err := ds.Pool().QueryRow(c.Request.Context(), "SELECT COUNT(*) FROM prices").Scan(&priceCount); err != nil {
 			priceCount = 0
 		}
-		c.JSON(http.StatusOK, gin.H{
-			"status":       "ok",
-			"engine":       "go",
-			"version":      version.String,
-			"ticker_count": tickerCount,
-			"price_count":  priceCount,
-		})
+		c.JSON(http.StatusOK, gin.H{"status": "ok", "engine": "go", "version": version.String, "ticker_count": tickerCount, "price_count": priceCount})
 	}
 }
 
@@ -184,12 +180,7 @@ func HandleReady(p Pinger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if err := p.Ping(c.Request.Context()); err != nil {
 			slog.Warn("readiness 检查失败", "module", "handlers", "error", err)
-			c.JSON(http.StatusServiceUnavailable, gin.H{
-				"status":  "unavailable",
-				"engine":  "go",
-				"service": "data-fetcher",
-				"error":   err.Error(),
-			})
+			c.JSON(http.StatusServiceUnavailable, gin.H{"status": "unavailable", "engine": "go", "service": "data-fetcher", "error": err.Error()})
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"status": "ready", "engine": "go", "service": "data-fetcher"})
