@@ -73,5 +73,5 @@ export async function executeGridSearch(
     `[tactical-grid] 网格搜索完成: ${totalCombinations}个组合, 耗时${Date.now() - startTime}ms`,
   );
 
-  return response as Record<string, unknown>;
+  return { data: response };
 }

@@ -210,7 +210,6 @@ export const recordEngineCall = (result: 'success' | 'client_error' | 'unavailab
   engineCallsTotal.inc({ result });
 export const recordEngineUnavailable = (reason: string): void =>
   engineUnavailableTotal.inc({ reason: sanitizeMetricLabel(reason) });
-export const resetMetrics = (): void => register.resetMetrics();
 
 const TS_GAUGE_DEFS: Record<string, [string, string]> = {
   chunk_total: ['timescaledb_chunk_count', 'Total number of chunks in prices hypertable'],

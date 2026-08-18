@@ -7,9 +7,9 @@ import type { Request, RequestHandler, Response } from 'express';
 import { backtestQueue, type BacktestJobData } from '../queues/backtestQueue.js';
 import type { AuthenticatedRequest } from '../middleware/jwtAuth.js';
 import { crudRouteHandler, ownerOf } from './routeUtils.js';
-import { sendProblem } from '../utils/errors.js';
+import { sendProblem, ValidationError } from '../utils/errors.js';
 import { logger } from '../utils/logger.js';
-import { withTimeout } from '../utils/misc.js';
+import { TimeoutError, withTimeout } from '../utils/misc.js';
 import { config } from '../config/index.js';
 import { recordBacktestRequest } from '../utils/metrics.js';
 
@@ -50,8 +50,14 @@ async function runSyncFallback(
       ...(result.degraded ? { degraded: true } : {}),
       ...(result.degradedWarning ? { degradedWarning: result.degradedWarning } : {}),
     });
-  } catch {
-    sendProblem(res, 400, 'GRID_BAD_REQUEST');
+  } catch (err) {
+    if (err instanceof TimeoutError) {
+      sendProblem(res, 503, cfg.queueDownCode ?? 'GRID_TIMEOUT', 'Service temporarily unavailable');
+    } else if (err instanceof ValidationError) {
+      sendProblem(res, 400, 'GRID_BAD_REQUEST');
+    } else {
+      sendProblem(res, 500, cfg.code);
+    }
   }
 }
 
