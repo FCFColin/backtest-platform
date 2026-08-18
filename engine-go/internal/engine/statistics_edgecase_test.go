@@ -5,16 +5,6 @@ import (
 	"testing"
 )
 
-func assertNoPanic(t *testing.T, fn func()) {
-	t.Helper()
-	defer func() {
-		if r := recover(); r != nil {
-			t.Fatalf("panicked: %v", r)
-		}
-	}()
-	fn()
-}
-
 func TestRiskMetricEdgeCases(t *testing.T) {
 	var (
 		vaRReturns  = []float64{-0.03, -0.02, -0.01, 0, 0.01, 0.02, 0.03, 0.04}

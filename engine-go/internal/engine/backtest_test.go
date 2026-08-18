@@ -255,15 +255,14 @@ func TestRebalanceOffset(t *testing.T) {
 	for i, d := range dates {
 		tradingDates[i], _ = time.Parse("2006-01-02", d)
 	}
-	tests := []struct {
+	for _, tt := range []struct {
 		name     string
 		offset   int
 		wantDate string
 	}{
 		{"无偏移在周界当日再平衡", 0, "2023-01-09"},
 		{"偏移 3 延迟 3 个交易日后再平衡", 3, "2023-01-12"},
-	}
-	for _, tt := range tests {
+	} {
 		t.Run(tt.name, func(t *testing.T) {
 			pf := PortfolioInput{
 				Name:               "t",

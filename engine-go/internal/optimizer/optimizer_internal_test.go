@@ -8,12 +8,11 @@ import (
 )
 
 func TestInvertDense(t *testing.T) {
-	errorCases := []struct {
+	for _, tc := range []struct {
 		name   string
 		matrix [][]float64
 		errMsg string
-	}{{"奇异矩阵应报错", [][]float64{{1, 2}, {2, 4}}, "奇异矩阵应返回错误"}, {"空矩阵应报错", [][]float64{}, "空矩阵应返回错误"}}
-	for _, tc := range errorCases {
+	}{{"奇异矩阵应报错", [][]float64{{1, 2}, {2, 4}}, "奇异矩阵应返回错误"}, {"空矩阵应报错", [][]float64{}, "空矩阵应返回错误"}} {
 		t.Run(tc.name, func(t *testing.T) {
 			_, err := invertDense(tc.matrix)
 			if err == nil {
@@ -58,7 +57,7 @@ func TestInvertDense(t *testing.T) {
 	})
 }
 func TestIsPD(t *testing.T) {
-	tests := []struct {
+	for _, tt := range []struct {
 		name     string
 		matrix   [][]float64
 		expected bool
@@ -67,8 +66,7 @@ func TestIsPD(t *testing.T) {
 		{"对角正矩阵是正定的", [][]float64{{2, 0}, {0, 3}}, true},
 		{"有负特征值的矩阵不是正定的", [][]float64{{-1, 0}, {0, 1}}, false},
 		{"零矩阵不是正定的", [][]float64{{0, 0}, {0, 0}}, false},
-	}
-	for _, tt := range tests {
+	} {
 		t.Run(tt.name, func(t *testing.T) {
 			result := isPD(tt.matrix)
 			if result != tt.expected {
@@ -111,7 +109,7 @@ func TestPortfolioMetrics(t *testing.T) {
 	})
 }
 func TestSatisfiesConstraints(t *testing.T) {
-	tests := []struct {
+	for _, tt := range []struct {
 		name        string
 		weights     []float64
 		constraints Constraints
@@ -120,8 +118,7 @@ func TestSatisfiesConstraints(t *testing.T) {
 		{"无约束满足", []float64{0.5, 0.5}, Constraints{MinWeight: 0, MaxWeight: 1}, true},
 		{"低于最小权重", []float64{0.1, 0.9}, Constraints{MinWeight: 0.2, MaxWeight: 1}, false},
 		{"超过最大权重", []float64{0.9, 0.1}, Constraints{MinWeight: 0, MaxWeight: 0.8}, false},
-	}
-	for _, tt := range tests {
+	} {
 		t.Run(tt.name, func(t *testing.T) {
 			result := satisfiesConstraints(tt.weights, tt.constraints)
 			if result != tt.expected {
@@ -131,7 +128,7 @@ func TestSatisfiesConstraints(t *testing.T) {
 	}
 }
 func TestIsValidPortfolio(t *testing.T) {
-	tests := []struct {
+	for _, tt := range []struct {
 		name     string
 		weights  []float64
 		expected bool
@@ -140,8 +137,7 @@ func TestIsValidPortfolio(t *testing.T) {
 		{"权重和不为 1", []float64{0.5, 0.3}, false},
 		{"负权重", []float64{-0.1, 1.1}, false},
 		{"等权组合", []float64{0.333, 0.333, 0.334}, true},
-	}
-	for _, tt := range tests {
+	} {
 		t.Run(tt.name, func(t *testing.T) {
 			result := isValidPortfolio(tt.weights)
 			if result != tt.expected {
@@ -154,14 +150,13 @@ func TestSolveFrontierPoint(t *testing.T) {
 	mu := []float64{0.10, 0.05}
 	sigma := [][]float64{{0.04, 0.01}, {0.01, 0.02}}
 	c := Constraints{MinWeight: 0, MaxWeight: 1}
-	cases := []struct {
+	for _, tc := range []struct {
 		targetRet float64
 		want      []float64
 	}{
 		{0.08, []float64{0.6, 0.4}},
 		{0.095, []float64{0.9, 0.1}},
-	}
-	for _, tc := range cases {
+	} {
 		t.Run(fmt.Sprintf("targetRet=%.3f", tc.targetRet), func(t *testing.T) {
 			w := solveFrontierPoint(mu, sigma, tc.targetRet, c)
 			for i := range w {

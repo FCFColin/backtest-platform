@@ -5,35 +5,22 @@ import (
 	"testing"
 )
 
-func assertInt(t *testing.T, got, want int, label string) {
-	t.Helper()
-	if got != want {
-		t.Errorf("%s = %d, want %d", label, got, want)
-	}
-}
-func assertStr(t *testing.T, got, want, label string) {
-	t.Helper()
-	if got != want {
-		t.Errorf("%s = %q, want %q", label, got, want)
-	}
-}
 func TestDetectDrawdownEpisodes(t *testing.T) {
-	zeroCases := []struct {
+	for _, tc := range []struct {
 		name  string
 		curve []DataPoint
 	}{
 		{"insufficient data", []DataPoint{{Date: "2024-01-01", Value: 100}}},
 		{"monotonic up", []DataPoint{{Date: "2024-01-01", Value: 100}, {Date: "2024-01-02", Value: 110}, {Date: "2024-01-03", Value: 120}}},
 		{"drawdown below threshold ignored", []DataPoint{{Date: "2024-01-01", Value: 100}, {Date: "2024-01-02", Value: 105}, {Date: "2024-01-03", Value: 101}, {Date: "2024-01-04", Value: 106}}},
-	}
-	for _, tc := range zeroCases {
+	} {
 		t.Run(tc.name, func(t *testing.T) {
 			if got := detectDrawdownEpisodes(tc.curve); len(got) != 0 {
 				t.Errorf("expected 0 episodes, got %d", len(got))
 			}
 		})
 	}
-	singleCases := []struct {
+	for _, tc := range []struct {
 		name          string
 		curve         []DataPoint
 		depth         float64
@@ -47,8 +34,7 @@ func TestDetectDrawdownEpisodes(t *testing.T) {
 		{"unclosed drawdown at end", []DataPoint{{Date: "2024-01-01", Value: 100}, {Date: "2024-01-02", Value: 110}, {Date: "2024-01-03", Value: 90}, {Date: "2024-01-04", Value: 85}}, (110.0 - 85.0) / 110.0, "", "", "", true, 2},
 		{"trough updates within drawdown", []DataPoint{{Date: "2024-01-01", Value: 100}, {Date: "2024-01-02", Value: 110}, {Date: "2024-01-03", Value: 95}, {Date: "2024-01-04", Value: 85}, {Date: "2024-01-05", Value: 110}}, (110.0 - 85.0) / 110.0, "", "2024-01-04", "", false, 3},
 		{"long duration drawdown days not years", []DataPoint{{Date: "2024-01-01", Value: 100}, {Date: "2024-02-01", Value: 80}, {Date: "2024-03-01", Value: 70}, {Date: "2024-04-01", Value: 75}, {Date: "2024-05-01", Value: 90}, {Date: "2024-06-01", Value: 100}}, 0, "", "", "", false, 152},
-	}
-	for _, tc := range singleCases {
+	} {
 		t.Run(tc.name, func(t *testing.T) {
 			episodes := detectDrawdownEpisodes(tc.curve)
 			if len(episodes) != 1 {
@@ -142,7 +128,7 @@ func TestComputeDrawdownCurve(t *testing.T) {
 	}
 }
 func TestDaysBetween(t *testing.T) {
-	tests := []struct {
+	for _, tt := range []struct {
 		name string
 		d1   string
 		d2   string
@@ -154,13 +140,12 @@ func TestDaysBetween(t *testing.T) {
 		{"year boundary", "2023-12-31", "2024-01-01", 1},
 		{"reverse order", "2024-01-11", "2024-01-01", 10},
 		{"bad date", "not-a-date", "2024-01-01", 0},
-	}
-	for _, tt := range tests {
+	} {
 		t.Run(tt.name, func(t *testing.T) { assertInt(t, daysBetween(tt.d1, tt.d2), tt.want, "daysBetween") })
 	}
 }
 func TestDrawdownEpisodeFields(t *testing.T) {
-	cases := []struct {
+	for _, c := range []struct {
 		name  string
 		curve []DataPoint
 		check func(*testing.T, DrawdownEpisode)
@@ -209,8 +194,7 @@ func TestDrawdownEpisodeFields(t *testing.T) {
 				t.Errorf("UlcerDuring = %v, should be >= 0.1 for deep drawdown", ep.UlcerDuring)
 			}
 		}},
-	}
-	for _, c := range cases {
+	} {
 		t.Run(c.name, func(t *testing.T) {
 			episodes := detectDrawdownEpisodes(c.curve)
 			if len(episodes) != 1 {

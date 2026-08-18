@@ -200,13 +200,12 @@ func TestRunGridSearch_TopN(t *testing.T) {
 	}
 }
 func TestGenerateRange(t *testing.T) {
-	cases := []struct {
+	for _, tc := range []struct {
 		name                 string
 		minVal, maxVal, step float64
 		wantLen              int
 		wantFirst, wantLast  float64
-	}{{"正常范围", 1, 5, 1, 5, 1, 5}, {"step<=0返回单元素", 1, 5, 0, 1, 1, 1}, {"浮点步长", 0, 1, 0.5, 3, 0, 1}}
-	for _, tc := range cases {
+	}{{"正常范围", 1, 5, 1, 5, 1, 5}, {"step<=0返回单元素", 1, 5, 0, 1, 1, 1}, {"浮点步长", 0, 1, 0.5, 3, 0, 1}} {
 		t.Run(tc.name, func(t *testing.T) {
 			r := generateRange(tc.minVal, tc.maxVal, tc.step)
 			if len(r) != tc.wantLen {
@@ -220,12 +219,11 @@ func TestGenerateRange(t *testing.T) {
 }
 func TestGetObjectiveValue(t *testing.T) {
 	m := GridCombinationMetrics{CAGR: 0.1, MaxDrawdown: 0.2, Sharpe: 1.5}
-	cases := []struct {
+	for _, tc := range []struct {
 		name      string
 		objective string
 		want      float64
-	}{{"maxCAGR", "maxCAGR", 0.1}, {"minDrawdown取负", "minDrawdown", -0.2}, {"maxSharpe", "maxSharpe", 1.5}, {"未知目标默认CAGR", "unknown", 0.1}}
-	for _, tc := range cases {
+	}{{"maxCAGR", "maxCAGR", 0.1}, {"minDrawdown取负", "minDrawdown", -0.2}, {"maxSharpe", "maxSharpe", 1.5}, {"未知目标默认CAGR", "unknown", 0.1}} {
 		t.Run(tc.name, func(t *testing.T) {
 			if got := getObjectiveValue(m, tc.objective); got != tc.want {
 				t.Errorf("getObjectiveValue(%v) = %v, want %v", tc.objective, got, tc.want)

@@ -60,3 +60,22 @@ func LinearPriceData(ticker, startDate string, days int, startPrice, dailyGrowth
 	}
 	return map[string]map[string]float64{ticker: prices}
 }
+
+func VolatileAnnualReturns(n int) []float64 {
+	annualReturns := make([]float64, n)
+	for i := range annualReturns {
+		annualReturns[i] = 0.08
+	}
+	for i := 0; i < n; i += 5 {
+		annualReturns[i] = -0.15
+	}
+	return annualReturns
+}
+
+func UniformAnnualReturns(n int, rate float64) []float64 {
+	annualReturns := make([]float64, n)
+	for i := range annualReturns {
+		annualReturns[i] = rate
+	}
+	return annualReturns
+}

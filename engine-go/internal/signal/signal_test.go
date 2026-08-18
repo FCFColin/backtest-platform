@@ -170,62 +170,37 @@ func TestAnalyzeMultiSignal(t *testing.T) {
 }
 
 func TestPointInTimeWinRates(t *testing.T) {
-	cases := []struct {
+	for _, tc := range []struct {
 		name    string
 		signals []SignalPoint
 		want    map[string]float64
 	}{
-		{
-			name:    "空信号返回空胜率",
-			signals: nil,
-			want:    map[string]float64{},
-		},
-		{
-			name: "单笔盈利：胜率按成交后下一信号才生效",
-			signals: []SignalPoint{
-				{Date: "2024-01-02", Type: SignalBuy, Price: 100},
-				{Date: "2024-01-03", Type: SignalSell, Price: 110},
-			},
-			want: map[string]float64{"2024-01-02": 0.5, "2024-01-03": 0.5},
-		},
-		{
-			name: "两笔盈利后胜率 100%",
-			signals: []SignalPoint{
-				{Date: "2024-01-02", Type: SignalBuy, Price: 100},
-				{Date: "2024-01-03", Type: SignalSell, Price: 110},
-				{Date: "2024-01-04", Type: SignalBuy, Price: 110},
-				{Date: "2024-01-05", Type: SignalSell, Price: 115},
-			},
-			want: map[string]float64{"2024-01-02": 0.5, "2024-01-03": 0.5, "2024-01-04": 1.0, "2024-01-05": 1.0},
-		},
-		{
-			name: "一笔亏损后胜率 0%",
-			signals: []SignalPoint{
-				{Date: "2024-01-02", Type: SignalBuy, Price: 100},
-				{Date: "2024-01-03", Type: SignalSell, Price: 90},
-				{Date: "2024-01-04", Type: SignalBuy, Price: 90},
-				{Date: "2024-01-05", Type: SignalSell, Price: 95},
-			},
-			want: map[string]float64{"2024-01-02": 0.5, "2024-01-03": 0.5, "2024-01-04": 0.0, "2024-01-05": 0.0},
-		},
-		{
-			name: "无配对买入的卖出不计入交易",
-			signals: []SignalPoint{
-				{Date: "2024-01-02", Type: SignalSell, Price: 100},
-			},
-			want: map[string]float64{"2024-01-02": 0.5},
-		},
-		{
-			name: "连续买入以最近买入价为成本",
-			signals: []SignalPoint{
-				{Date: "2024-01-02", Type: SignalBuy, Price: 100},
-				{Date: "2024-01-03", Type: SignalBuy, Price: 120},
-				{Date: "2024-01-04", Type: SignalSell, Price: 110},
-			},
-			want: map[string]float64{"2024-01-02": 0.5, "2024-01-03": 0.5, "2024-01-04": 0.5},
-		},
-	}
-	for _, tc := range cases {
+		{"空信号返回空胜率", nil, map[string]float64{}},
+		{"单笔盈利：胜率按成交后下一信号才生效", []SignalPoint{
+			{Date: "2024-01-02", Type: SignalBuy, Price: 100},
+			{Date: "2024-01-03", Type: SignalSell, Price: 110},
+		}, map[string]float64{"2024-01-02": 0.5, "2024-01-03": 0.5}},
+		{"两笔盈利后胜率 100%", []SignalPoint{
+			{Date: "2024-01-02", Type: SignalBuy, Price: 100},
+			{Date: "2024-01-03", Type: SignalSell, Price: 110},
+			{Date: "2024-01-04", Type: SignalBuy, Price: 110},
+			{Date: "2024-01-05", Type: SignalSell, Price: 115},
+		}, map[string]float64{"2024-01-02": 0.5, "2024-01-03": 0.5, "2024-01-04": 1.0, "2024-01-05": 1.0}},
+		{"一笔亏损后胜率 0%", []SignalPoint{
+			{Date: "2024-01-02", Type: SignalBuy, Price: 100},
+			{Date: "2024-01-03", Type: SignalSell, Price: 90},
+			{Date: "2024-01-04", Type: SignalBuy, Price: 90},
+			{Date: "2024-01-05", Type: SignalSell, Price: 95},
+		}, map[string]float64{"2024-01-02": 0.5, "2024-01-03": 0.5, "2024-01-04": 0.0, "2024-01-05": 0.0}},
+		{"无配对买入的卖出不计入交易", []SignalPoint{
+			{Date: "2024-01-02", Type: SignalSell, Price: 100},
+		}, map[string]float64{"2024-01-02": 0.5}},
+		{"连续买入以最近买入价为成本", []SignalPoint{
+			{Date: "2024-01-02", Type: SignalBuy, Price: 100},
+			{Date: "2024-01-03", Type: SignalBuy, Price: 120},
+			{Date: "2024-01-04", Type: SignalSell, Price: 110},
+		}, map[string]float64{"2024-01-02": 0.5, "2024-01-03": 0.5, "2024-01-04": 0.5}},
+	} {
 		t.Run(tc.name, func(t *testing.T) {
 			got := pointInTimeWinRates(tc.signals)
 			if len(got) != len(tc.want) {

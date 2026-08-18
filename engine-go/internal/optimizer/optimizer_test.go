@@ -166,7 +166,7 @@ func TestComputeEfficientFrontier(t *testing.T) {
 	})
 }
 func TestComputeReturnCovariance(t *testing.T) {
-	errorCases := []struct {
+	for _, tc := range []struct {
 		name      string
 		tickers   []string
 		priceData map[string]map[string]float64
@@ -174,8 +174,7 @@ func TestComputeReturnCovariance(t *testing.T) {
 	}{
 		{"价格数据为空应报错", []string{"A"}, map[string]map[string]float64{"A": {}}, "空价格数据应返回错误"},
 		{"对齐后不足 2 天应报错", []string{"A", "B"}, map[string]map[string]float64{"A": {"2023-01-03": 100.0}, "B": {"2023-01-03": 50.0}}, "不足 2 天数据应返回错误"},
-	}
-	for _, tc := range errorCases {
+	} {
 		t.Run(tc.name, func(t *testing.T) {
 			_, _, err := computeReturnCovariance(tc.tickers, tc.priceData)
 			if err == nil {

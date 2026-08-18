@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"engine-go/internal/enginetest"
 	"fmt"
 	"math"
 	"testing"
@@ -55,10 +56,7 @@ func TestGoldenVaR(t *testing.T) {
 func TestGoldenPWR(t *testing.T) {
 	const r = 0.05
 	const n = 30
-	annualReturns := make([]float64, n)
-	for i := range annualReturns {
-		annualReturns[i] = r
-	}
+	annualReturns := enginetest.UniformAnnualReturns(n, r)
 	want := r * math.Pow(1+r, float64(n)) / (math.Pow(1+r, float64(n)) - 1)
 	got := CalcPWR(annualReturns)
 	assertFloatApprox(t, got, want, "PWR(5% x 30y) (annuity boundary)", 1e-6)
