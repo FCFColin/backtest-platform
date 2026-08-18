@@ -1,21 +1,19 @@
 import '../../helpers/loggerMock.js';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { engineMocks } from '../../helpers/engineFixture.js';
 import { loggerMocks } from '../../helpers/loggerFixture.js';
+import {
+  dataFacadeMocks,
+  mockEngine,
+  mockFetchHistoryData,
+  resetAppServiceMocks,
+} from '../../helpers/appServiceFixture.js';
 import type {
   SignalAnalysisRequest,
   DualSignalConfig,
   MultiSignalConfig,
 } from '@backtest/shared/types/signal.js';
 import type { TacticalStrategy } from '@backtest/shared/types/tactical.js';
-
-const dataMocks = vi.hoisted(() => ({ fetchHistoryData: vi.fn() }));
-
-vi.mock('../../../packages/backend/src/utils/engineClient.js', () => engineMocks);
-
-vi.mock('../../../packages/backend/src/infrastructure/dataFacade.js', () => ({
-  fetchHistoryData: dataMocks.fetchHistoryData,
-}));
 
 import {
   executeSignalAnalyze,
@@ -135,16 +133,14 @@ const signalCases = [
 ];
 
 describe('strategy-application-services', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
+  beforeEach(() => resetAppServiceMocks());
 
   describe.each(signalCases)(
     '$mode signal analyze',
     ({ mode, run, payload, history, errorMsg }) => {
       it('应使用正确参数调用引擎并返回结果', async () => {
-        dataMocks.fetchHistoryData.mockResolvedValue({ data: history, degraded: false });
-        engineMocks.callEngineStrict.mockResolvedValue(mockSignalResult);
+        mockFetchHistoryData(history);
+        mockEngine(mockSignalResult);
 
         const result = await run();
 
@@ -161,7 +157,7 @@ describe('strategy-application-services', () => {
       });
 
       it('无价格数据时应抛出错误', async () => {
-        dataMocks.fetchHistoryData.mockResolvedValue({ data: {}, degraded: false });
+        mockFetchHistoryData({});
 
         await expect(run()).rejects.toThrow(errorMsg);
       });
@@ -176,10 +172,7 @@ describe('strategy-application-services', () => {
         { ...multiReq.signals[1], ticker: 'MSFT' },
       ],
     };
-    dataMocks.fetchHistoryData.mockResolvedValue({
-      data: { AAPL: { '2020-01-02': 100 } },
-      degraded: false,
-    });
+    mockFetchHistoryData({ AAPL: { '2020-01-02': 100 } });
     await expect(executeMultiSignalAnalyze(req)).rejects.toThrow('MSFT');
   });
 
@@ -205,10 +198,6 @@ describe('strategy-application-services', () => {
       rebalanceFrequency: 'monthly' as const,
     };
 
-    function mockPriceData(data: Record<string, Record<string, number>>) {
-      dataMocks.fetchHistoryData.mockResolvedValue({ data, degraded: false });
-    }
-
     function emptyPortfolio(name: string) {
       return {
         name,
@@ -226,7 +215,7 @@ describe('strategy-application-services', () => {
     });
 
     it('executeTacticalBacktest 在有效数据下返回结果', async () => {
-      mockPriceData({ SPY: { '2020-01-01': 100, '2020-01-02': 101 } });
+      mockFetchHistoryData({ SPY: { '2020-01-01': 100, '2020-01-02': 101 } });
       engineMocks.callEngineStrict
         .mockResolvedValueOnce({ portfolio: emptyPortfolio('tactical'), signalHistory: [] })
         .mockResolvedValueOnce({ portfolios: [emptyPortfolio('bench')] });
@@ -237,7 +226,7 @@ describe('strategy-application-services', () => {
     });
 
     it('executeTacticalWhatIf 应返回信号状态与当前价格', async () => {
-      mockPriceData({ SPY: { '2020-01-01': 100, '2020-01-02': 101 } });
+      mockFetchHistoryData({ SPY: { '2020-01-01': 100, '2020-01-02': 101 } });
       engineMocks.callEngineStrict.mockResolvedValueOnce({
         signalHistory: [
           {
@@ -257,7 +246,7 @@ describe('strategy-application-services', () => {
     });
 
     it('benchmark 回测失败时应 fail-closed（ADR-008，不再降级为空结果）', async () => {
-      mockPriceData({ SPY: { '2020-01-01': 100, '2020-01-02': 101 } });
+      mockFetchHistoryData({ SPY: { '2020-01-01': 100, '2020-01-02': 101 } });
       engineMocks.callEngineStrict
         .mockResolvedValueOnce({ portfolio: emptyPortfolio('tactical'), signalHistory: [] })
         .mockRejectedValueOnce(new Error('benchmark error'));
@@ -284,7 +273,7 @@ describe('strategy-application-services', () => {
         msg: '交易日',
       },
     ])('$name', async ({ data, dates, msg }) => {
-      mockPriceData(data);
+      mockFetchHistoryData(data);
       await expect(
         executeTacticalBacktest({ ...backtestParams, startDate: dates[0], endDate: dates[1] }),
       ).rejects.toThrow(msg);
@@ -339,14 +328,17 @@ describe('strategy-application-services', () => {
     });
 
     it('returns error when price data not found', async () => {
-      dataMocks.fetchHistoryData.mockResolvedValueOnce({ data: { SPY: {} }, degraded: false });
+      dataFacadeMocks.fetchHistoryData.mockResolvedValueOnce({
+        data: { SPY: {} },
+        degraded: false,
+      });
       const result = await executeGridSearch(validBody());
       expect(result.success).toBe(false);
       expect(result.error).toBe('未找到 SPY 的价格数据');
     });
 
     it('returns error when trading days are fewer than required', async () => {
-      dataMocks.fetchHistoryData.mockResolvedValueOnce({
+      dataFacadeMocks.fetchHistoryData.mockResolvedValueOnce({
         data: {
           SPY: { '2020-01-01': 100, '2020-01-02': 101, '2020-01-03': 102 },
         },
@@ -362,8 +354,11 @@ describe('strategy-application-services', () => {
       for (let d = 1; d <= 15; d++) {
         prices[`2020-01-${String(d).padStart(2, '0')}`] = 100 + d;
       }
-      dataMocks.fetchHistoryData.mockResolvedValueOnce({ data: { SPY: prices }, degraded: false });
-      engineMocks.callEngineStrict.mockResolvedValueOnce({ result: 'ok', combinations: 20 });
+      dataFacadeMocks.fetchHistoryData.mockResolvedValueOnce({
+        data: { SPY: prices },
+        degraded: false,
+      });
+      mockEngine({ result: 'ok', combinations: 20 });
 
       const result = await executeGridSearch(validBody());
       expect(result.success).toBe(true);

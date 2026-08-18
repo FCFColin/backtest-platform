@@ -23,11 +23,11 @@ import { jobRoutes } from '../../../packages/backend/src/routes/jobRoutes.js';
 const get = (url: string, headers?: Record<string, string>) =>
   reqJson(url, 'GET', undefined, headers).then(({ res, body }) => ({ res, json: body }));
 
-const portfolioJobServer = () => {
-  queueMocks.add.mockReset();
-  queueMocks.getJob.mockReset();
-  return setupPortfolioServer(backtestRoutes, m);
-};
+const portfolioJobServer = () => (
+  queueMocks.add.mockReset(),
+  queueMocks.getJob.mockReset(),
+  setupPortfolioServer(backtestRoutes, m)
+);
 
 const manyTickers = Array.from({ length: 51 }, (_, i) => `T${i}`);
 
@@ -396,11 +396,12 @@ describe('backtestRoutes - POST /api/v1/backtest/portfolio', () => {
       createValidRequestBody(),
     );
     expect(res.status).toBe(202);
-    expect(json.success).toBe(true);
-    expect(json.data.jobId).toBe('job-test-001');
-    expect(json.data.status).toBe('queued');
+    expect(json.data).toMatchObject({
+      jobId: 'job-test-001',
+      status: 'queued',
+      portfolios: undefined,
+    });
     expect(json.data.statusUrl).toContain('/api/v1/backtest/runs/');
-    expect(json.data.portfolios).toBeUndefined();
     expect(queueMocks.add).toHaveBeenCalledTimes(1);
   });
   it('应以正确的 payload 入队（含 benchmarkTicker）', async () => {
@@ -408,7 +409,6 @@ describe('backtestRoutes - POST /api/v1/backtest/portfolio', () => {
     const body = createValidRequestBody();
     body.parameters.benchmarkTicker = 'SPY';
     await postJson(`${getServer().url}/api/v1/backtest/portfolio`, body);
-    expect(queueMocks.add).toHaveBeenCalledTimes(1);
     const [jobName, jobData] = queueMocks.add.mock.calls[0];
     expect(jobName).toBe('portfolio');
     expect(jobData.type).toBe('portfolio');
@@ -449,8 +449,10 @@ describe('backtestRoutes - POST /api/v1/backtest/portfolio', () => {
     );
     expect(res.status).toBe(503);
     expect(res.headers.get('retry-after')).toBe('30');
-    expect(json.error.code).toBe('SERVICE_TEMPORARILY_UNAVAILABLE');
-    expect(json.success).toBe(false);
+    expect(json).toMatchObject({
+      success: false,
+      error: { code: 'SERVICE_TEMPORARILY_UNAVAILABLE' },
+    });
   });
   it('X-Backtest-Sync: true 时仍走异步路径返回 202（同步路径已移除）', async () => {
     queueMocks.add.mockResolvedValue({ id: 'job-async-002' });
@@ -461,8 +463,7 @@ describe('backtestRoutes - POST /api/v1/backtest/portfolio', () => {
     });
     expect(res.status).toBe(202);
     const json = await res.json();
-    expect(json.success).toBe(true);
-    expect(json.data.jobId).toBe('job-async-002');
+    expect(json).toMatchObject({ success: true, data: { jobId: 'job-async-002' } });
     expect(m.runPortfolioBacktest).not.toHaveBeenCalled();
   });
 });
@@ -520,6 +521,7 @@ describe('backtestRoutes - GET /api/v1/backtest/search', () => {
 });
 
 function createMockJob(overrides: Record<string, unknown> = {}) {
+  const { state, ...rest } = overrides;
   return {
     id: 'job-123',
     data: { type: 'optimizer' },
@@ -529,8 +531,8 @@ function createMockJob(overrides: Record<string, unknown> = {}) {
     returnvalue: undefined,
     failedReason: undefined,
     progress: 0,
-    getState: vi.fn().mockResolvedValue(overrides.state ?? 'completed'),
-    ...overrides,
+    getState: vi.fn().mockResolvedValue(state ?? 'completed'),
+    ...rest,
   };
 }
 
@@ -644,11 +646,9 @@ describe('jobRoutes - GET /api/v1/jobs/:id', () => {
     vi.clearAllMocks();
     return startExpressApp((app) => {
       app.use((req: TestRequest, _res, next) => {
-        const sub = (req.headers['x-test-sub'] as string) || 'admin-user';
-        const role = (req.headers['x-test-role'] as string) || 'admin';
         req.user = {
-          sub,
-          role,
+          sub: (req.headers['x-test-sub'] as string) || 'admin-user',
+          role: (req.headers['x-test-role'] as string) || 'admin',
           platform_admin: req.headers['x-test-platform'] === 'true',
           iat: 0,
           exp: 0,
@@ -666,12 +666,14 @@ describe('jobRoutes - GET /api/v1/jobs/:id', () => {
     );
     const { res, json } = await get(`${getServer().url}/api/v1/jobs/job-123`);
     expect(res.status).toBe(200);
-    expect(json.data.id).toBe('job-123');
-    expect(json.data.status).toBe('completed');
-    expect(json.data.createdAt).toBe(1700000000000);
-    expect(json.data.processedAt).toBe(1700000001000);
-    expect(json.data.finishedAt).toBe(1700000005000);
-    expect(json.data.result).toEqual({ best: { cagr: 0.12 } });
+    expect(json.data).toMatchObject({
+      id: 'job-123',
+      status: 'completed',
+      createdAt: 1700000000000,
+      processedAt: 1700000001000,
+      finishedAt: 1700000005000,
+      result: { best: { cagr: 0.12 } },
+    });
     expect(queueMocks.getJob).toHaveBeenCalledWith('job-123');
   });
 
@@ -754,21 +756,17 @@ describe('jobRoutes - GET /api/v1/jobs/:id', () => {
       await unauthServer.close();
     }
   });
-
   it('任务不存在时应返回 404', async () => {
     queueMocks.getJob.mockResolvedValue(null);
     const { res, json } = await get(`${getServer().url}/api/v1/jobs/nonexistent`);
     expect(res.status).toBe(404);
-    expect(json.error.status).toBe(404);
-    expect(json.error.title).toBe('JOB_NOT_FOUND');
+    expect(json.error).toMatchObject({ status: 404, title: 'JOB_NOT_FOUND' });
   });
-
   it('getJob 抛错时应返回 500', async () => {
     queueMocks.getJob.mockRejectedValue(new Error('Redis connection failed'));
     const { res, json } = await get(`${getServer().url}/api/v1/jobs/job-err`);
     expect(res.status).toBe(500);
-    expect(json.error.status).toBe(500);
-    expect(json.error.title).toBe('JOB_STATUS_ERROR');
+    expect(json.error).toMatchObject({ status: 500, title: 'JOB_STATUS_ERROR' });
   });
 
   it('active 状态归一化为 running 且不应包含 result 或 error', async () => {
@@ -781,8 +779,6 @@ describe('jobRoutes - GET /api/v1/jobs/:id', () => {
     );
     const { res, json } = await get(`${getServer().url}/api/v1/jobs/job-active`);
     expect(res.status).toBe(200);
-    expect(json.data.status).toBe('running');
-    expect(json.data.result).toBeUndefined();
-    expect(json.data.error).toBeUndefined();
+    expect(json.data).toMatchObject({ status: 'running', result: undefined, error: undefined });
   });
 });

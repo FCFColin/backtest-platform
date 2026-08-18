@@ -550,8 +550,7 @@ describe('extended scenarios', () => {
         e.defaultDates ? '' : '2024-01-03',
       );
       expect(res.data).toEqual(e.data);
-      if (e.degraded !== undefined) expect(res.degraded).toBe(e.degraded);
-      else expect(res.degraded).toBe(false);
+      expect(res.degraded).toBe(e.degraded ?? false);
       if (e.warning !== undefined) expect(res.degradedWarning).toBe(e.warning);
       if (e.warningContains) expect(res.degradedWarning).toContain(e.warningContains);
       if (e.warningUndefined) expect(res.degradedWarning).toBeUndefined();

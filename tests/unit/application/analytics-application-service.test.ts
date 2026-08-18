@@ -1,18 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { PCARequest, GoalOptimizerRequest, LETFRequest } from '@backtest/shared';
-import '../../helpers/loggerMock.js';
-import { engineMocks } from '../../helpers/engineFixture.js';
+import {
+  mockEngine,
+  mockFetchHistoryData,
+  resetAppServiceMocks,
+} from '../../helpers/appServiceFixture.js';
 import { mockBacktestParams } from '../../helpers/storeFixtures.js';
 
-const dataMocks = vi.hoisted(() => ({ fetchHistoryData: vi.fn() }));
 const helpersMocks = vi.hoisted(() => ({
   preparePriceDataAndWarnings: vi.fn(),
   calculateDateRange: vi.fn(),
 }));
-vi.mock('../../../packages/backend/src/utils/engineClient.js', () => engineMocks);
-vi.mock('../../../packages/backend/src/infrastructure/dataFacade.js', () => ({
-  fetchHistoryData: dataMocks.fetchHistoryData,
-}));
+
 vi.mock('../../../packages/backend/src/application/backtest-helpers.js', () => ({
   preparePriceDataAndWarnings: helpersMocks.preparePriceDataAndWarnings,
   calculateDateRange: helpersMocks.calculateDateRange,
@@ -43,6 +42,7 @@ import {
   executeGoalOptimizeWithFetch,
 } from '../../../packages/backend/src/application/analysis-orchestrator.js';
 import { normalizeTickers } from '../../../packages/backend/src/application/backtest/backtestEngineUtils.js';
+import { engineMocks } from '../../helpers/engineFixture.js';
 import {
   analysisResultSchema,
   pcaResultSchema,
@@ -86,9 +86,9 @@ const GOAL_REQ: GoalOptimizerRequest = {
     { ticker: 'SPY', weight: 40 },
   ],
 };
-const mockEngine = (r: unknown) => engineMocks.callEngineStrict.mockResolvedValue(r);
+
 const mockFetchData = (d: unknown, dg = false) => {
-  dataMocks.fetchHistoryData.mockResolvedValue({ data: d, degraded: dg });
+  mockFetchHistoryData(d, dg);
   helpersMocks.preparePriceDataAndWarnings.mockResolvedValue({
     priceData: d,
     warnings: [],
@@ -99,7 +99,11 @@ const mockFetchData = (d: unknown, dg = false) => {
 };
 
 describe('analysis-service', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    resetAppServiceMocks();
+    helpersMocks.preparePriceDataAndWarnings.mockReset();
+    helpersMocks.calculateDateRange.mockReset();
+  });
 
   it.each([
     [

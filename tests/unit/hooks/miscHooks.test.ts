@@ -45,7 +45,6 @@ import {
   useAdminFetch,
   useComputeTool,
   useAnalysisState,
-  useOptimizerLikeState,
   useChartCalcWorker,
   useDataMeta,
 } from '../../../packages/frontend/src/hooks/miscHooks';
@@ -367,16 +366,6 @@ describe('useAnalysisState', () => {
   });
 });
 
-describe('useOptimizerLikeState', () => {
-  it('应提供默认日期与空结果', () => {
-    const { result } = renderHook(() => useOptimizerLikeState<{ x: number }>());
-    expect(typeof result.current.startDate).toBe('string');
-    expect(typeof result.current.endDate).toBe('string');
-    expect(result.current.results).toBeNull();
-    expect(result.current.isLoading).toBe(false);
-  });
-});
-
 describe('useDataMeta', () => {
   beforeEach(() => apiFetchMock.mockReset());
 
@@ -402,7 +391,6 @@ describe('useChartCalcWorker', () => {
     onmessage: ((e: WorkerMsg) => void) | null;
     terminate: ReturnType<typeof vi.fn>;
   };
-
   class FakeWorker {
     onmessage: ((e: WorkerMsg) => void) | null = null;
     posted: { id: number; type: string; payload: unknown[] }[] = [];
@@ -425,28 +413,23 @@ describe('useChartCalcWorker', () => {
     });
     expect(worker.posted).toHaveLength(1);
     expect(result.current.isPending).toBe(true);
-
     act(() => {
       worker.onmessage?.({ data: { id: 0, result: 42 } });
     });
     expect(result.current.data).toBe(42);
     expect(result.current.isPending).toBe(false);
-
     act(() => {
       worker.onmessage?.({ data: { id: 99, result: 1 } });
     });
     expect(result.current.data).toBe(42);
-
     rerender({ t: { type: 'rolling', payload: [1, 2] } });
     expect(worker.posted).toHaveLength(1);
-
     rerender({ t: { type: 'std', payload: [] } });
     expect(worker.posted).toHaveLength(2);
     act(() => {
       worker.onmessage?.({ data: { id: 1, error: 'boom' } });
     });
     expect(result.current.error).toBe('boom');
-
     unmount();
     expect(worker.terminate).toHaveBeenCalled();
   });

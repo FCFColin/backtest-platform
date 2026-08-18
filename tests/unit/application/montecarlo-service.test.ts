@@ -2,18 +2,18 @@ import '../../helpers/loggerMock.js';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { engineMocks } from '../../helpers/engineFixture.js';
 import {
+  dataFacadeMocks,
+  mockEngine,
+  mockFetchHistoryData,
+  resetAppServiceMocks,
+} from '../../helpers/appServiceFixture.js';
+import {
   mockParameters,
   mockPortfolio as portfolioFixture,
 } from '../../helpers/backtestFixtures.js';
 
-// 只挡 IO 边界，backtest-helpers 真实执行（避免 mock 重实现掩盖 helper 回归）
-const dataFacadeMocks = vi.hoisted(() => ({ fetchHistoryData: vi.fn() }));
 const helpersMocks = vi.hoisted(() => ({ loadMacroData: vi.fn() }));
 
-vi.mock('../../../packages/backend/src/utils/engineClient.js', () => engineMocks);
-vi.mock('../../../packages/backend/src/infrastructure/dataFacade.js', () => ({
-  fetchHistoryData: dataFacadeMocks.fetchHistoryData,
-}));
 vi.mock('../../../packages/backend/src/application/backtest-helpers.js', async (importOriginal) => {
   const actual =
     await importOriginal<
@@ -28,19 +28,16 @@ const mockPortfolio = portfolioFixture({ name: 'Test' });
 
 describe('runMonteCarlo', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
-    dataFacadeMocks.fetchHistoryData.mockResolvedValue({
-      data: {
-        AAPL: { '2020-01-02': 100, '2020-12-31': 200 },
-        BND: { '2020-01-02': 50, '2020-12-31': 60 },
-      },
-      degraded: false,
+    resetAppServiceMocks();
+    mockFetchHistoryData({
+      AAPL: { '2020-01-02': 100, '2020-12-31': 200 },
+      BND: { '2020-01-02': 50, '2020-12-31': 60 },
     });
     helpersMocks.loadMacroData.mockResolvedValue({
       cpiData: { '2020-01-01': 258.8 },
       exchangeRates: {},
     });
-    engineMocks.callEngineStrict.mockResolvedValue({ simulated: true });
+    mockEngine({ simulated: true });
   });
 
   it('单组合应返回 results[0]（非数组）', async () => {

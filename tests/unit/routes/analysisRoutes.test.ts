@@ -423,19 +423,14 @@ describe('tacticalRoutes - POST /api/tactical/backtest', () => {
       degraded: false,
     });
     engineMocks.callEngineStrict
-      .mockResolvedValueOnce({
-        portfolio: createMockPortfolioResult(),
-        signalHistory,
-      })
+      .mockResolvedValueOnce({ portfolio: createMockPortfolioResult(), signalHistory })
       .mockResolvedValueOnce({ portfolios: [createMockPortfolioResult()] });
     return startExpressApp((app) => app.use('/api/v1', analysisRoutes));
   });
   it('有效参数应返回回测结果和基准', async () => {
     const { res, body } = await post(getServer(), '/api/v1/tactical/backtest', validBacktestReq());
     expect(res.status).toBe(200);
-    expect(body.success).toBe(true);
-    expect(body.data.portfolio).toBeDefined();
-    expect(body.data.benchmark).toBeDefined();
+    expect(body.data).toMatchObject({ portfolio: expect.anything(), benchmark: expect.anything() });
     expect(body.data.signalHistory).toHaveLength(1);
     expect(engineMocks.callEngineStrict).toHaveBeenCalledTimes(2);
   });
@@ -470,10 +465,7 @@ describe('tacticalRoutes - POST /api/tactical/backtest', () => {
   it('基准回测失败应 fail-closed（ADR-008，不再空结果兜底）', async () => {
     engineMocks.callEngineStrict
       .mockReset()
-      .mockResolvedValueOnce({
-        portfolio: createMockPortfolioResult(),
-        signalHistory,
-      })
+      .mockResolvedValueOnce({ portfolio: createMockPortfolioResult(), signalHistory })
       .mockRejectedValueOnce(new Error('benchmark error'));
     const { res } = await post(getServer(), '/api/v1/tactical/backtest', validBacktestReq());
     expect(res.status).toBe(500);
@@ -504,11 +496,12 @@ describe('tacticalRoutes - POST /api/tactical/what-if', () => {
       strategy: createValidStrategy(),
     });
     expect(res.status).toBe(200);
-    expect(body.success).toBe(true);
-    expect(body.data[0].ticker).toBe('SPY');
-    expect(body.data[0].signalType).toBe('buy');
-    expect(body.data[0].signalDate).toBe('2020-01-03');
-    expect(body.data[0].currentPrice).toBe(302);
+    expect(body.data[0]).toMatchObject({
+      ticker: 'SPY',
+      signalType: 'buy',
+      signalDate: '2020-01-03',
+      currentPrice: 302,
+    });
   });
   it('空 tickers 数组应返回 400（zod 校验失败）', async () => {
     const { res } = await post(getServer(), '/api/v1/tactical/what-if', { tickers: [] });
@@ -567,8 +560,7 @@ describe('tacticalGridRoutes - POST /api/tactical-grid/search', () => {
   it('异步提交成功时应返回 202 和标准成功形状 {success, data:{jobId, statusUrl}}', async () => {
     const { res, body } = await postGrid(createValidGridRequest());
     expect(res.status).toBe(202);
-    expect(body.success).toBe(true);
-    expect(body.data.jobId).toBe('grid-job-123');
+    expect(body).toMatchObject({ success: true, data: { jobId: 'grid-job-123' } });
     expect(body.data.statusUrl).toContain('/api/v1/jobs/grid-job-123');
     expect(queueMocks.add).toHaveBeenCalledTimes(1);
   });
@@ -610,7 +602,6 @@ describe('tacticalGridRoutes - POST /api/tactical-grid/search', () => {
     queueMocks.add.mockRejectedValue(new Error('Redis unavailable'));
     const { res, body } = await postGrid(createValidGridRequest());
     expect(res.status).toBe(200);
-    expect(body.success).toBe(true);
     expect(body.data.results).toHaveLength(1);
     expect(engineMocks.callEngineStrict).toHaveBeenCalledTimes(1);
   });

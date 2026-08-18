@@ -80,8 +80,7 @@ describe('Refresh Token 生命周期与 Redis', () => {
     const family = JSON.parse(
       [...redisMocks.store.entries()].find(([k]) => k.startsWith('token_family:'))![1],
     );
-    expect(family.lastToken).toBe(sha256Hex(t));
-    expect(family.revoked).toBe(false);
+    expect(family).toMatchObject({ lastToken: sha256Hex(t), revoked: false });
     expect(redisMocks.sadd).toHaveBeenCalledWith(
       expect.stringContaining('user_families:user-1'),
       expect.any(String),
@@ -407,8 +406,8 @@ describe('idempotencyKey 中间件', () => {
     }
   });
   it('幂等结果写入失败应记录 warn 且不阻塞响应', async () => {
-    redisMocks.set.mockResolvedValueOnce('OK'); // claim 成功
-    redisMocks.set.mockRejectedValueOnce(new Error('redis set failed')); // 结果写入失败
+    redisMocks.set.mockResolvedValueOnce('OK');
+    redisMocks.set.mockRejectedValueOnce(new Error('redis set failed'));
     const { req, res, next } = createIdempotencyReqRes('redis-write-fail');
     idempotencyKey(req, res, next);
     await vi.waitFor(() => expect(next).toHaveBeenCalledTimes(1));
