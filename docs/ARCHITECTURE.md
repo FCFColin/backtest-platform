@@ -42,13 +42,13 @@
 
 ## 5. 顶层目录结构
 
-| 目录                                  | 内容                                         |
-| ------------------------------------- | -------------------------------------------- |
-| packages/frontend/, backend/, shared/ | React 前端 / Express API + 领域层 / 共享类型 |
-| engine-go/ / data-fetcher/            | Go 回测·MC·优化引擎 / Go 数据服务            |
-| packages/go-shared/                   | Go 共享包(observability)                     |
-| data/                                 | 运行期缓存（gitignored，非运行时降级源）     |
-| migrations/ / tests/                  | 版本化迁移 / 全量测试                        |
+| 目录                                  | 内容                                     |
+| ------------------------------------- | ---------------------------------------- |
+| `packages/{frontend,backend,shared}/` | React / Express API + 领域层 / 共享类型  |
+| `engine-go/` / `data-fetcher/`        | Go 回测引擎 / Go 数据服务                |
+| `data/`                               | 运行期缓存（gitignored，非运行时降级源） |
+
+> 详细目录结构见 [wiki/deep-dive.md](./wiki/deep-dive.md) §1。
 
 ## 6. 后端分层
 

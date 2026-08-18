@@ -1,45 +1,14 @@
 ﻿# 贡献指南
 
-## 搭建环境
-
-前置要求与常用命令见 `README.md`（快速启动）与 `AGENTS.md`（权威源为 package.json scripts 与 `.env.example`）。IDE 推荐 VS Code（项目推荐扩展）或 WebStorm / GoLand。
+前置要求与常用命令见 `README.md`（快速启动）与 `AGENTS.md`（权威源为 package.json scripts 与 `.env.example`）。IDE 推荐 VS Code 或 WebStorm / GoLand。
 
 ## PR 提交规范
 
-### 标题格式
+**标题**：与 Commit Message 一致：`<type>(<scope>): <description>`
 
-与 Commit Message 一致：`<type>(<scope>): <description>`
+**描述**：变更说明 + 变更类型（feat/fix/refactor/docs/test/chore）+ 关联 Issue + 测试情况 + 检查清单（lint 通过、有测试、无硬编码密钥）。
 
-### 描述模板
-
-```markdown
-## 变更说明
-
-<!-- 简要描述本次 PR 做了什么 -->
-
-## 变更类型
-
-- [ ] feat - [ ] fix - [ ] refactor - [ ] docs - [ ] test - [ ] chore
-
-## 关联 Issue
-
-<!-- Closes #xxx -->
-
-## 测试情况
-
-<!-- 说明如何验证本次变更 -->
-
-## 检查清单
-
-- [ ] 本地 lint / format 已通过
-- [ ] 新增代码有对应测试
-- [ ] 无硬编码密钥或敏感信息
-```
-
-### Review 要求
-
-- 所有 PR 至少需要 **1 人** Approve，CI 全部通过后方可合入
-- 大型重构（> 500 行变更）建议先提 Issue 讨论方案
+**Review**：至少 1 人 Approve + CI 全部通过；大型重构（>500 行）先提 Issue 讨论。
 
 ## 依赖管理
 
@@ -48,4 +17,4 @@
 | TypeScript | `pnpm-lock.yaml` | `pnpm install` |
 | Go         | `go.sum`         | `go mod tidy`  |
 
-新增依赖须在 PR 中说明理由，禁止引入带有已知安全漏洞的依赖版本。
+新增依赖须在 PR 中说明理由，禁止引入已知安全漏洞的依赖版本。
