@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { useId, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
@@ -13,7 +14,7 @@ import { TimeSeriesLineChart } from '@/components/charts/TimeSeriesLineChart.js'
 import ChartCard from '../../components/ChartCard.js';
 import { SortableTable, type TableColumn } from '../../components/tables.js';
 import { MetricsGrid } from '@/components/ui/MetricsGrid';
-import { ComputeToolShell, type ComputeToolConfig } from '../../components/shells/index.js';
+import { createComputeToolPage } from '../../components/shells/index.js';
 import { TOOL_LINKS } from '../../components/shells/constants.js';
 import { useComputeTool } from '../../hooks/miscHooks.js';
 import { apiPostJSON } from '@/utils/apiClient';
@@ -339,7 +340,7 @@ function LETFResultsWrapper({ state: s }: { state: LETFState }) {
     />
   );
 }
-const config: ComputeToolConfig<LETFState> = {
+export default createComputeToolPage(useLETFSlippageState, {
   titleKey: 'letf.title',
   seoDescKey: 'letf.seo.desc',
   seoFeatures: [
@@ -349,7 +350,4 @@ const config: ComputeToolConfig<LETFState> = {
   relatedTools: [TOOL_LINKS.backtest, TOOL_LINKS.analysis, TOOL_LINKS.pca],
   params: LETFParamsPanel,
   results: LETFResultsWrapper,
-};
-export default function LETFSlippagePage() {
-  return <ComputeToolShell config={config} state={useLETFSlippageState()} />;
-}
+});

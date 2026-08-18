@@ -1,5 +1,7 @@
-﻿import { useState, memo, lazy, Suspense, useMemo, type ReactNode } from 'react';
+﻿/* eslint-disable react-refresh/only-export-components */
+import { useState, memo, lazy, Suspense, useMemo, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { LineChart } from 'lucide-react';
 import { type AssetAnalysisResult } from '@backtest/shared';
 import { getPortfolioColor } from '@/lib/chart-theme.js';
@@ -11,15 +13,17 @@ import {
   TabsTrigger,
   TabsContent,
   PortfolioLabel,
+  AffixInput,
+  buttonVariants,
 } from '@/components/ui/uiComponents';
+import { Field } from '@/components/form/Field';
+import { LabeledField, DollarInput, RunButton, DateField } from '@/components/form/sharedFields';
+import { TickerTagInput } from '@/components/form/TickerTagInput.js';
+import { AllHistoryCheckbox } from '@/components/params/toolFields.js';
 import { useAnalysisData, computePairRollingCorrelation } from '../../hooks/useAnalysisData.js';
-import { TABS, fetchAnalysisResult } from './analysisUtils.js';
-import { AnalysisParamsPanel } from './AnalysisParams.js';
-import {
-  ComputeToolShell,
-  TabFallback,
-  type ComputeToolConfig,
-} from '../../components/shells/index.js';
+import { apiFetch } from '../../utils/apiClient.js';
+import { downsample } from '../../utils/format.js';
+import { createComputeToolPage, TabFallback } from '../../components/shells/index.js';
 import { TOOL_LINKS } from '../../components/shells/constants.js';
 import { useComputeTool, useSetterState } from '../../hooks/miscHooks.js';
 import { fmtPct, fmtNum } from '@/utils/format';
@@ -29,6 +33,202 @@ import type { StatRow } from '../../components/statistics-table/types.js';
 import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
 import { normalizeTicker } from '@/utils/ticker';
 import { lazyNamed } from '@/utils/lazyImport';
+import { cn } from '@/lib/utils';
+const TABS = [
+  { key: 'summary', labelKey: 'tabs.summary' },
+  { key: 'telltale', labelKey: 'tabs.telltale' },
+  { key: 'correlations', labelKey: 'tabs.correlationsBeta' },
+  { key: 'rolling', labelKey: 'tabs.rollingMetrics' },
+  { key: 'risk-return', labelKey: 'Risk vs Return' },
+  { key: 'returns', labelKey: 'tabs.returns' },
+] as const;
+function extractErrorDetail(j: Record<string, unknown>, fallback: string): string {
+  const err = j.error;
+  if (typeof err === 'object' && err && 'detail' in err)
+    return String((err as { detail?: string }).detail);
+  if (typeof err === 'string') return err;
+  return fallback;
+}
+function throwIfError(res: Response, json: Record<string, unknown>, failedMsg: string) {
+  if (!res.ok) throw new Error(extractErrorDetail(json, `HTTP ${res.status}`));
+  if (json.success === false) throw new Error(extractErrorDetail(json, failedMsg));
+}
+function wrapFetchError(e: unknown, timeoutMsg: string, networkMsg: string): Error {
+  if (e instanceof DOMException && e.name === 'AbortError') return new Error(timeoutMsg);
+  if (e instanceof TypeError && e.message.includes('fetch')) return new Error(networkMsg);
+  return e instanceof Error ? e : new Error(String(e));
+}
+async function fetchAnalysisResult(
+  validTickers: string[],
+  ctx: {
+    startDate: string;
+    endDate: string;
+    startingValue: number;
+    rollingWindow: number;
+    correlationWindow: number;
+  },
+  t: (k: string) => string,
+): Promise<AssetAnalysisResult> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 180_000);
+  try {
+    const res = await apiFetch('/api/v1/backtest/analysis', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      signal: controller.signal,
+      body: JSON.stringify({
+        tickers: validTickers,
+        parameters: {
+          startDate: ctx.startDate,
+          endDate: ctx.endDate,
+          startingValue: ctx.startingValue,
+          rollingWindowMonths: ctx.rollingWindow,
+          correlationWindowMonths: ctx.correlationWindow,
+          baseCurrency: 'usd',
+          cashflowLegs: [],
+          oneTimeCashflows: [],
+        },
+      }),
+    });
+    let json: Record<string, unknown>;
+    try {
+      json = await res.json();
+    } catch {
+      throw new Error(
+        t('Server response abnormal, please confirm backend service is running and retry'),
+      );
+    }
+    throwIfError(res, json, t('Analysis failed'));
+    const raw = (json.data ?? json) as Record<string, unknown>;
+    const tickers = (raw.tickers ?? raw.assets ?? []) as AssetAnalysisResult['tickers'];
+    for (const tk of tickers) {
+      if (tk.growthCurve && tk.growthCurve.length > 500)
+        tk.growthCurve = downsample(tk.growthCurve, 500);
+      if (tk.drawdownCurve && tk.drawdownCurve.length > 500)
+        tk.drawdownCurve = downsample(tk.drawdownCurve, 500);
+    }
+    return { tickers, correlations: (raw.correlations ?? []) as number[][] };
+  } catch (e) {
+    throw wrapFetchError(
+      e,
+      t('Connection timeout, please confirm backend service is running and retry'),
+      t('Network error: unable to connect to server, please confirm backend service is running'),
+    );
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+function MonthWindowField({
+  id,
+  label,
+  value,
+  onChange,
+  t,
+}: {
+  id: string;
+  label: string;
+  value: number;
+  onChange: (v: number) => void;
+  t: TFunction;
+}) {
+  return (
+    <LabeledField htmlFor={id} label={label}>
+      <AffixInput
+        id={id}
+        type="number"
+        className="pr-14"
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        suffix={t('months')}
+      />
+    </LabeledField>
+  );
+}
+function AnalysisParamsPanel(props: {
+  tickers: string[];
+  setTickers: (v: string[]) => void;
+  startDate: string;
+  setStartDate: (v: string) => void;
+  endDate: string;
+  setEndDate: (v: string) => void;
+  startingValue: number;
+  setStartingValue: (v: number) => void;
+  rollingWindow: number;
+  setRollingWindow: (v: number) => void;
+  correlationWindow: number;
+  setCorrelationWindow: (v: number) => void;
+  isLoading: boolean;
+  runAnalysis: () => void;
+}) {
+  const { t } = useTranslation();
+  const allHistory = props.startDate === '' && props.endDate === '';
+  return (
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 items-end">
+      <Field className="sm:col-span-2 lg:col-span-3">
+        <TickerTagInput
+          tickers={props.tickers.filter(Boolean)}
+          onChange={props.setTickers}
+          minCount={1}
+          placeholder={t('Enter symbol, e.g. SPY')}
+        />
+      </Field>
+      <AllHistoryCheckbox
+        startDate={props.startDate}
+        endDate={props.endDate}
+        onStartDateChange={props.setStartDate}
+        onEndDateChange={props.setEndDate}
+        label={t('All History')}
+      />
+      <DateField
+        id="analysis-start-date"
+        label={t('Start Date')}
+        value={props.startDate}
+        fallback={DEFAULT_BACKTEST_START_DATE}
+        onChange={props.setStartDate}
+        disabled={allHistory}
+      />
+      <DateField
+        id="analysis-end-date"
+        label={t('End Date')}
+        value={props.endDate}
+        fallback={DEFAULT_END_DATE}
+        onChange={props.setEndDate}
+        disabled={allHistory}
+      />
+      <LabeledField htmlFor="analysis-starting-value" label={t('Starting Value')}>
+        <DollarInput
+          id="analysis-starting-value"
+          type="number"
+          value={props.startingValue}
+          onChange={(e) => props.setStartingValue(Number(e.target.value))}
+        />
+      </LabeledField>
+      <MonthWindowField
+        id="analysis-rolling-window"
+        label={t('Rolling Window')}
+        value={props.rollingWindow}
+        onChange={props.setRollingWindow}
+        t={t}
+      />
+      <MonthWindowField
+        id="analysis-correlation-window"
+        label={t('Correlation Window')}
+        value={props.correlationWindow}
+        onChange={props.setCorrelationWindow}
+        t={t}
+      />
+      <div className="flex justify-end sm:col-span-1 lg:col-span-2">
+        <RunButton
+          isLoading={props.isLoading}
+          onClick={props.runAnalysis}
+          label={t('Run Analysis')}
+          loadingLabel={t('Analyzing...')}
+          className={cn(buttonVariants({ variant: 'primary', size: 'default' }), 'w-auto')}
+        />
+      </div>
+    </div>
+  );
+}
 function useAnalysisPageState() {
   const { t } = useTranslation();
   const [tickers, setTickers] = useState(['SPY', 'TLT', 'GLD']);
@@ -179,7 +379,7 @@ const AnalysisResultsPanel = memo(function AnalysisResultsPanel({
   );
 });
 type AnalysisPageState = ReturnType<typeof useAnalysisPageState>;
-const config: ComputeToolConfig<AnalysisPageState> = {
+export default createComputeToolPage(useAnalysisPageState, {
   titleKey: 'nav.assetAnalysis',
   seoDescKey: 'analysis.seoDesc',
   hideParamsTitle: true,
@@ -190,11 +390,7 @@ const config: ComputeToolConfig<AnalysisPageState> = {
   relatedTools: [TOOL_LINKS.backtest, TOOL_LINKS.optimizer, TOOL_LINKS.efficientF],
   params: ({ state }) => <AnalysisParamsPanel {...state} />,
   results: AnalysisResultsPanel,
-};
-export default function AnalysisPage() {
-  const s = useAnalysisPageState();
-  return <ComputeToolShell config={config} state={s} />;
-}
+});
 const STATS_KEYS = [
   'cagr',
   'maxDrawdown',

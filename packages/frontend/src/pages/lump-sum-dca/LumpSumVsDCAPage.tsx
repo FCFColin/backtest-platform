@@ -1,9 +1,11 @@
+import { useMemo, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Play } from 'lucide-react';
+import { Play, AlertTriangle, TrendingDown, TrendingUp } from 'lucide-react';
 import { ComputeToolShell, type ComputeToolConfig } from '@/components/shells/index.js';
 import {
   Card,
   AffixInput,
+  PortfolioLabel,
   Select,
   SelectTrigger,
   SelectValue,
@@ -14,10 +16,418 @@ import { Field, FieldLabel } from '@/components/form/Field';
 import { BasicParamsFields } from '../../components/BacktestParamsForm.js';
 import PortfolioEditor from '../../components/PortfolioEditor.js';
 import { LoadingButton } from '../../components/ui/uiComponents.js';
-import { useLumpSumVsDCAState } from '../../hooks/useLumpSumVsDCAState.js';
-import type { DcaFrequency, LumpSumVsDCAState } from '../../hooks/useLumpSumVsDCAState.js';
-import { LsDcaResultsCard } from './ConclusionSection.js';
-import { fmtPct, fmtNum } from '@/utils/format';
+import { fmtPct, fmtNum, mergeRowsByDate } from '@/utils/format';
+import { getPortfolioColor } from '@/lib/chart-theme.js';
+import { SimpleTable, type SimpleTableColumn } from '@/components/tables.js';
+import { TimeSeriesLineChart } from '@/components/charts/TimeSeriesLineChart.js';
+import type { TFunction } from 'i18next';
+import type { Statistics } from '@backtest/shared';
+import { useAsyncAction, useAssetList, useSetterState } from '@/hooks/miscHooks.js';
+import { apiFetch } from '@/utils/apiClient';
+import i18n from '../../i18n/index.js';
+import {
+  DEFAULT_BACKTEST_START_DATE,
+  DEFAULT_END_DATE,
+  DEFAULT_60_40_ASSETS,
+} from '@/utils/constants';
+import { validateAssetWeights } from '@/utils/validation';
+type DcaFrequency = 'monthly' | 'quarterly';
+interface CompareResult {
+  label: string;
+  cagr: number;
+  stdev: number;
+  maxDrawdown: number;
+  sharpe: number;
+  sortino: number;
+  calmar?: number;
+  maxDrawdownDuration?: number;
+  ulcerIndex?: number;
+  finalValue: number;
+  growthCurve: Array<{ date: string; value: number }>;
+}
+function extractStats(
+  stats: Statistics,
+): Pick<
+  CompareResult,
+  | 'cagr'
+  | 'stdev'
+  | 'maxDrawdown'
+  | 'sharpe'
+  | 'sortino'
+  | 'calmar'
+  | 'maxDrawdownDuration'
+  | 'ulcerIndex'
+> {
+  return {
+    cagr: stats?.cagr ?? 0,
+    stdev: stats?.stdev ?? 0,
+    maxDrawdown: stats?.maxDrawdown ?? 0,
+    sharpe: stats?.sharpe ?? 0,
+    sortino: stats?.sortino ?? 0,
+    calmar: stats?.calmar,
+    maxDrawdownDuration: stats?.maxDrawdownDuration,
+    ulcerIndex: stats?.ulcerIndex,
+  };
+}
+interface BacktestPortfolioResponse {
+  growthCurve?: Array<{ date: string; value: number }>;
+  statistics?: Statistics;
+}
+function toResult(p: BacktestPortfolioResponse, label: string): CompareResult {
+  const curve = p.growthCurve ?? [];
+  return {
+    label,
+    ...extractStats(p.statistics as Statistics),
+    finalValue: curve.length > 0 ? curve[curve.length - 1].value : 0,
+    growthCurve: curve,
+  };
+}
+async function fetchBacktest(body: unknown) {
+  const res = await apiFetch('/api/v1/backtest/portfolio', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  return res;
+}
+function useLumpSumVsDCAStateInner() {
+  const s = useSetterState({
+    startDate: DEFAULT_BACKTEST_START_DATE,
+    endDate: DEFAULT_END_DATE,
+    startingValue: 120000,
+    baseCurrency: 'usd' as 'usd' | 'cny',
+    adjustForInflation: false,
+    dcaFrequency: 'monthly' as DcaFrequency,
+    dcaPeriods: 12,
+    results: [] as CompareResult[],
+  });
+  const { isLoading, error, run, setError } = useAsyncAction();
+  return { ...s, isLoading, error, run, setError };
+}
+type LumpSumVsDCAStateInner = ReturnType<typeof useLumpSumVsDCAStateInner>;
+type LumpSumAsset = { ticker: string; weight: number };
+async function executeComparison(s: LumpSumVsDCAStateInner, validAssets: LumpSumAsset[]) {
+  const baseParams = {
+    startDate: s.startDate,
+    endDate: s.endDate,
+    startingValue: s.startingValue,
+    baseCurrency: s.baseCurrency,
+    adjustForInflation: s.adjustForInflation,
+    rollingWindowMonths: 12,
+    benchmarkTicker: '',
+    cashflowLegs: [],
+    oneTimeCashflows: [],
+  };
+  const portfolioDef = {
+    name: 'portfolio',
+    assets: validAssets,
+    rebalanceFrequency: 'quarterly' as const,
+    rebalanceOffset: 0,
+    drag: 0,
+  };
+  const lumpSumBody = {
+    portfolios: [{ ...portfolioDef, name: 'lumpSum' }],
+    parameters: { ...baseParams, startingValue: s.startingValue },
+  };
+  const contributionAmount = Math.round(s.startingValue / s.dcaPeriods);
+  const dcaBody = {
+    portfolios: [{ ...portfolioDef, name: 'dca' }],
+    parameters: {
+      ...baseParams,
+      startingValue: 0,
+      cashflowLegs: [
+        {
+          id: `dca-${Date.now()}`,
+          amount: contributionAmount,
+          type: 'contribution' as const,
+          frequency: s.dcaFrequency === 'monthly' ? ('monthly' as const) : ('quarterly' as const),
+        },
+      ],
+    },
+  };
+  const [lumpSumRes, dcaRes] = await Promise.all([
+    fetchBacktest(lumpSumBody),
+    fetchBacktest(dcaBody),
+  ]);
+  const lumpSumFailedMsg = i18n.t('Lump sum backtest failed');
+  const dcaFailedMsg = i18n.t('DCA backtest failed');
+  if (!lumpSumRes.ok) throw new Error(`${lumpSumFailedMsg}: HTTP ${lumpSumRes.status}`);
+  if (!dcaRes.ok) throw new Error(`${dcaFailedMsg}: HTTP ${dcaRes.status}`);
+  const lumpSumJson = await lumpSumRes.json();
+  const dcaJson = await dcaRes.json();
+  if (lumpSumJson.success === false) throw new Error(lumpSumJson.error || lumpSumFailedMsg);
+  if (dcaJson.success === false) throw new Error(dcaJson.error || dcaFailedMsg);
+  const lumpSumP = (lumpSumJson.data ?? lumpSumJson).portfolios?.[0];
+  const dcaP = (dcaJson.data ?? dcaJson).portfolios?.[0];
+  if (!lumpSumP) throw new Error(i18n.t('Lump sum has no result'));
+  if (!dcaP) throw new Error(i18n.t('DCA has no result'));
+  s.setResults([toResult(lumpSumP, i18n.t('Lump Sum')), toResult(dcaP, i18n.t('DCA'))]);
+}
+function useLumpSumVsDCAState(t: TFunction) {
+  const s = useLumpSumVsDCAStateInner();
+  const { assets, setAssets, addAsset, removeAsset, updateAsset, totalWeight } =
+    useAssetList<LumpSumAsset>([...DEFAULT_60_40_ASSETS], () => ({ ticker: '', weight: 0 }), 0);
+  const runComparison = () => {
+    const validAssets = assets.filter((a) => a.ticker.trim() !== '');
+    if (validAssets.length === 0) {
+      s.setError(t('Please add at least one ticker'));
+      return;
+    }
+    const weightErr = validateAssetWeights(assets);
+    if (weightErr) {
+      s.setError(weightErr);
+      return;
+    }
+    s.setResults([]);
+    s.run(() => executeComparison(s, validAssets));
+  };
+  return {
+    ...s,
+    assets,
+    setAssets,
+    addAsset,
+    removeAsset,
+    updateAsset,
+    totalWeight,
+    runComparison,
+  };
+}
+type LumpSumVsDCAState = ReturnType<typeof useLumpSumVsDCAState>;
+function GrowthCurveChart({
+  results,
+  fmtMoney,
+}: {
+  results: CompareResult[];
+  fmtMoney: (v: number) => string;
+}) {
+  const chartData = useMemo(
+    () =>
+      mergeRowsByDate(
+        results.map((r) => ({
+          key: r.label,
+          rows: r.growthCurve,
+          value: (p: { date: string; value: number }) => p.value,
+        })),
+      ),
+    [results],
+  );
+  return (
+    <TimeSeriesLineChart
+      data={chartData}
+      series={results.map((r, i) => ({
+        dataKey: r.label,
+        legendName: r.label,
+        color: getPortfolioColor(i),
+      }))}
+      tooltipValueFormatter={(v: number) => [fmtMoney(v), '']}
+    />
+  );
+}
+const STATS_ROWS = [
+  { key: 'finalValue' as const, label: 'lumpSumDca.stats.finalValue' },
+  { key: 'cagr' as const, label: 'stats.cagr' },
+  { key: 'stdev' as const, label: 'backtest.stdev' },
+  { key: 'maxDrawdown' as const, label: 'Max Drawdown' },
+  { key: 'sharpe' as const, label: 'backtest.sharpeRatio' },
+  { key: 'sortino' as const, label: 'lumpSumDca.stats.sortino' },
+  { key: 'calmar' as const, label: 'lumpSumDca.stats.calmar' },
+  { key: 'maxDrawdownDuration' as const, label: 'analysis.maxDrawdownDuration' },
+  { key: 'ulcerIndex' as const, label: 'analysis.ulcerIndex' },
+];
+const REQUIRED_KEYS = new Set(['finalValue', 'cagr', 'stdev', 'maxDrawdown', 'sharpe', 'sortino']);
+type FmtFns = {
+  fmtPct: (v: number) => string;
+  fmtNum: (v: number) => string;
+  fmtMoney: (v: number) => string;
+};
+function StatsTable({ results, fmtPct, fmtNum, fmtMoney }: FmtFns & { results: CompareResult[] }) {
+  const { t } = useTranslation();
+  const fmtVal = (key: string, v: number) => {
+    if (key === 'finalValue') return fmtMoney(v);
+    if (key === 'maxDrawdownDuration') return t('{{count}} days', { count: v });
+    if (['cagr', 'stdev', 'maxDrawdown'].includes(key)) return fmtPct(v);
+    return fmtNum(v);
+  };
+  const columns: SimpleTableColumn<(typeof STATS_ROWS)[number]>[] = [
+    {
+      key: 'metric',
+      label: t('Metric'),
+      render: (row) => <span className="text-fg-secondary">{t(row.label)}</span>,
+    },
+    ...results.map((r, idx) => ({
+      key: r.label,
+      label: <PortfolioLabel color={getPortfolioColor(idx)} name={r.label} />,
+      align: 'right' as const,
+      render: (row: (typeof STATS_ROWS)[number]) =>
+        r[row.key] != null ? fmtVal(row.key, r[row.key] as number) : '\u2014',
+    })),
+  ];
+  return (
+    <SimpleTable
+      columns={columns}
+      data={STATS_ROWS.filter(
+        (row) => results.some((res) => res[row.key] != null) || REQUIRED_KEYS.has(row.key),
+      )}
+      rowKey={(row) => row.key}
+    />
+  );
+}
+function ConclStatCard({
+  title,
+  value,
+  color,
+}: {
+  title: string;
+  value: ReactNode;
+  color?: string;
+}) {
+  return (
+    <div className="rounded-lg bg-elevated p-3">
+      <div className="mb-1 text-caption text-fg-tertiary">{title}</div>
+      <div
+        className="font-mono text-body font-semibold"
+        style={{ color: color ?? 'hsl(var(--fg-secondary))' }}
+      >
+        {value}
+      </div>
+    </div>
+  );
+}
+function ConclusionText({
+  lsWins,
+  ls,
+  dca,
+  fmtPct,
+  fmtMoney,
+  finalValueDiffPct,
+}: { lsWins: boolean; ls: CompareResult; dca: CompareResult; finalValueDiffPct: number } & Pick<
+  FmtFns,
+  'fmtPct' | 'fmtMoney'
+>) {
+  const { t } = useTranslation();
+  return (
+    <div className="text-body leading-relaxed text-fg-secondary">
+      {lsWins ? (
+        <>
+          {t('In the selected time range, ')}
+          <strong style={{ color: getPortfolioColor(0) }}>{t('Lump Sum')}</strong>
+          {t(
+            "has a higher final value ({{lsValue}} vs {{dcaValue}}), exceeding by {{pct}}%. However, Lump Sum's max drawdown ({{lsMdd}}) is typically larger than DCA's ({{dcaMdd}}), bearing greater psychological pressure in falling markets.",
+            {
+              lsValue: fmtMoney(ls.finalValue),
+              dcaValue: fmtMoney(dca.finalValue),
+              pct: finalValueDiffPct.toFixed(1),
+              lsMdd: fmtPct(ls.maxDrawdown),
+              dcaMdd: fmtPct(dca.maxDrawdown),
+            },
+          )}
+        </>
+      ) : (
+        <>
+          {t('In the selected time range, ')}
+          <strong style={{ color: getPortfolioColor(1) }}>{t('DCA')}</strong>
+          {t(
+            'has a higher final value ({{dcaValue}} vs {{lsValue}}), exceeding by {{pct}}%. DCA reduces average cost through batch purchases, achieving better returns in falling markets.',
+            {
+              dcaValue: fmtMoney(dca.finalValue),
+              lsValue: fmtMoney(ls.finalValue),
+              pct: finalValueDiffPct.toFixed(1),
+            },
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+function ConclusionAnalysis({
+  ls,
+  dca,
+  fmtPct,
+  fmtMoney,
+}: { ls: CompareResult; dca: CompareResult } & Pick<FmtFns, 'fmtPct' | 'fmtMoney'>) {
+  const { t } = useTranslation();
+  const lsWins = ls.finalValue > dca.finalValue;
+  const finalValueDiff = Math.abs(ls.finalValue - dca.finalValue);
+  const finalValueDiffPct = ls.finalValue > 0 ? (finalValueDiff / ls.finalValue) * 100 : 0;
+  const mddDiff = Math.abs(ls.maxDrawdown - dca.maxDrawdown);
+  return (
+    <div className="mb-5 rounded-lg bg-input-bg p-4">
+      <div className="mb-2.5 flex items-center gap-2">
+        {lsWins ? (
+          <TrendingUp className="size-5 text-success" />
+        ) : (
+          <TrendingDown className="size-5 text-brand" />
+        )}
+        <span className="text-body font-semibold text-fg">{t('Conclusion Analysis')}</span>
+      </div>
+      <div className="mb-3 grid grid-cols-3 gap-3">
+        <ConclStatCard
+          title={t('Winning Strategy')}
+          value={lsWins ? t('Lump Sum') : t('DCA')}
+          color={lsWins ? getPortfolioColor(0) : getPortfolioColor(1)}
+        />
+        <ConclStatCard
+          title={t('Final Value Difference')}
+          value={
+            <>
+              {fmtMoney(finalValueDiff)}{' '}
+              <span className="text-caption text-fg-tertiary">
+                ({finalValueDiffPct.toFixed(1)}%)
+              </span>
+            </>
+          }
+        />
+        <ConclStatCard title={t('Max Drawdown Difference')} value={fmtPct(mddDiff)} />
+      </div>
+      <ConclusionText
+        lsWins={lsWins}
+        ls={ls}
+        dca={dca}
+        fmtPct={fmtPct}
+        fmtMoney={fmtMoney}
+        finalValueDiffPct={finalValueDiffPct}
+      />
+    </div>
+  );
+}
+function RiskWarning({ lsWins }: { lsWins: boolean }) {
+  const { t } = useTranslation();
+  return (
+    <div className="mt-4 flex items-start gap-2.5 rounded-lg bg-input-bg p-3">
+      <AlertTriangle className="mt-0.5 size-4 shrink-0 text-warning" />
+      <div className="text-body leading-relaxed text-fg-tertiary">
+        <strong className="text-fg-secondary">{t('Risk Warning:')}</strong>
+        {lsWins
+          ? t(
+              'Although Lump Sum performs better in this historical period, this is a hindsight result. Lump Sum carries greater timing risk at entry; entering at market peaks may cause significant losses. While DCA has a lower final value, it reduces timing risk through staggered entries, suitable for investors with lower risk tolerance.',
+            )
+          : t(
+              'DCA performs better in this historical period, indicating the market experienced significant volatility or declines during this time. DCA reduces average cost through batch purchases, but if the market continues to rise, Lump Sum typically achieves higher returns. Investment decisions should consider personal risk tolerance and market judgment.',
+            )}
+        {t('Historical performance does not guarantee future returns.')}
+      </div>
+    </div>
+  );
+}
+function LsDcaResultsCard({ s, fmtPct, fmtNum, fmtMoney }: FmtFns & { s: LumpSumVsDCAState }) {
+  const { t } = useTranslation();
+  if (s.results.length !== 2) return null;
+  return (
+    <Card className="p-5">
+      <ConclusionAnalysis
+        ls={s.results[0]}
+        dca={s.results[1]}
+        fmtPct={fmtPct}
+        fmtMoney={fmtMoney}
+      />
+      <div className="mb-3 text-body font-semibold text-fg">{t('Growth Curve Comparison')}</div>
+      <GrowthCurveChart results={s.results} fmtMoney={fmtMoney} />
+      <div className="mb-3 mt-6 text-body font-semibold text-fg">{t('Statistics Comparison')}</div>
+      <StatsTable results={s.results} fmtPct={fmtPct} fmtNum={fmtNum} fmtMoney={fmtMoney} />
+      <RiskWarning lsWins={s.results[0].finalValue > s.results[1].finalValue} />
+    </Card>
+  );
+}
 function DcaParamsSection({
   dcaFrequency,
   setDcaFrequency,

@@ -1,7 +1,7 @@
-﻿import { useEffect, useRef, Suspense, type ReactNode } from 'react';
+﻿import { useEffect, useRef, useState, Suspense, type ReactNode } from 'react';
 import { useTranslation, Trans } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router';
-import { MoreHorizontal } from 'lucide-react';
+import { MoreHorizontal, Download } from 'lucide-react';
 import { useBacktestStore } from '@/store/backtestStore';
 import {
   Card,
@@ -11,22 +11,31 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   PortfolioLabel,
+  PortfolioDot,
 } from '@/components/ui/uiComponents';
 import {
   StatisticsTable,
   ExtendedMetricsTable,
   WithdrawalRatesCard,
 } from '@/components/statistics-table/StatisticsTable.js';
-import { ResultsActionBar } from '@/components/results/ResultsActionBar.js';
-import { SummarySidebar } from '@/components/results/SummarySidebar.js';
 import { getPortfolioColor } from '@/lib/chart-theme.js';
-import { downloadJSON, dateSuffixedFilename, downloadCSV } from '@/utils/format';
+import {
+  downloadJSON,
+  dateSuffixedFilename,
+  downloadCSV,
+  formatISODate,
+  fmtPct,
+  fmtNum,
+} from '@/utils/format';
 import { SimpleTable, type SimpleTableColumn } from '@/components/tables.js';
 import { TabFallback } from '@/components/shells';
 import ChartCard from '@/components/ChartCard.js';
 import { ResultsShell } from '@/components/resultsShell.js';
 import { ChartEmptyState, ErrorBanner } from '@/components/stateDisplay.js';
 import { lazyNamed } from '@/utils/lazyImport';
+import { cn } from '@/lib/utils';
+import { getColorClass } from '@/components/charts/chartUtils.js';
+import type { Statistics } from '@backtest/shared';
 import {
   type Portfolio,
   type PortfolioResult,
@@ -36,6 +45,156 @@ import {
   toStatsRecord,
   createEmptyStatistics,
 } from '@backtest/shared';
+function ResultsActionBar({
+  timeRange,
+  onExport,
+}: {
+  timeRange: { start: string; end: string; years: number };
+  onExport?: (format: 'csv' | 'json') => void;
+}) {
+  const { t } = useTranslation();
+  const [sticky, setSticky] = useState(false);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const observer = new IntersectionObserver(([entry]) => setSticky(!entry.isIntersecting), {
+      threshold: 0,
+    });
+    if (sentinelRef.current) observer.observe(sentinelRef.current);
+    return () => observer.disconnect();
+  }, []);
+  const years = Number.isInteger(timeRange.years) ? timeRange.years : +timeRange.years.toFixed(1);
+  return (
+    <>
+      <div ref={sentinelRef} className="h-0" />
+      <div
+        className={cn(
+          'transition-all duration-200',
+          sticky
+            ? 'sticky top-15 z-40 h-14 bg-sticky-bg/95 backdrop-blur-md border-b border-border shadow-md'
+            : 'h-14 bg-transparent border-b border-border-subtle',
+        )}
+      >
+        <div className="max-w-[1440px] mx-auto h-full px-6 flex items-center gap-4">
+          <div className="flex items-center gap-3">
+            <h2 className="text-h3">{t('Results')}</h2>
+            <span className="text-caption text-fg-tertiary font-mono tabular-nums">
+              {t('{{years}} yrs · {{start}} to {{end}}', {
+                years,
+                start: formatISODate(timeRange.start),
+                end: formatISODate(timeRange.end),
+              })}
+            </span>
+          </div>
+          <div className="flex-1" />
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="secondary" size="sm">
+                <Download className="h-4 w-4 mr-1.5" />
+                {t('Export')}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => onExport?.('csv')}>
+                {t('CSV (Data)')}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onExport?.('json')}>
+                {t('JSON (Full Config + Results)')}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
+    </>
+  );
+}
+const SUMMARY_METRIC_CONFIGS: [string, keyof Statistics, (v: number) => string, string][] = [
+  ['stats.cagr', 'cagr', fmtPct, 'summary-cagr'],
+  ['stats.totalReturn', 'totalReturn', fmtPct, 'summary-total-return'],
+  ['Max Drawdown', 'maxDrawdown', fmtPct, 'summary-max-drawdown'],
+  ['backtest.sharpeRatio', 'sharpe', fmtNum, 'summary-sharpe'],
+  ['lumpSumDca.stats.sortino', 'sortino', fmtNum, 'summary-sortino'],
+  ['summarySidebar.bestYear', 'bestYear', fmtPct, 'summary-best-year'],
+  ['summarySidebar.worstYear', 'worstYear', fmtPct, 'summary-worst-year'],
+];
+function SummarySidebar({
+  stats,
+  totalYears,
+  positiveYears,
+  name,
+  color,
+}: {
+  stats: Statistics;
+  totalYears: number;
+  positiveYears: number;
+  name?: string;
+  color?: string;
+}) {
+  const { t } = useTranslation();
+  const metrics = SUMMARY_METRIC_CONFIGS.map(([labelKey, key, format, testId]) => ({
+    labelKey,
+    value: format(stats[key] as number),
+    colorClass: getColorClass(stats[key] as number),
+    testId,
+  })).concat({
+    labelKey: 'summarySidebar.positiveYears',
+    value: `${positiveYears} / ${totalYears}`,
+    colorClass: 'text-fg',
+    testId: 'summary-positive-years',
+  });
+  return (
+    <>
+      <div
+        className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1 lg:hidden"
+        role="list"
+        aria-label={t('Key Metrics')}
+      >
+        {metrics.map((m) => (
+          <Card
+            key={m.labelKey}
+            role="listitem"
+            className="flex-shrink-0 min-w-[130px] p-3"
+            data-testid={m.testId}
+          >
+            <div className="text-label-tiny text-fg-tertiary mb-1 whitespace-nowrap">
+              {t(m.labelKey)}
+            </div>
+            <div className={cn('text-body font-mono tabular-nums font-semibold', m.colorClass)}>
+              {m.value}
+            </div>
+          </Card>
+        ))}
+      </div>
+      <Card className="hidden lg:block p-4 lg:sticky lg:top-15" data-testid="summary-sidebar">
+        <h3 className="text-h3 mb-3">{t('Key Metrics')}</h3>
+        {name && (
+          <div className="flex items-center gap-1.5 mb-3">
+            <PortfolioDot color={color ?? ''} className="shrink-0" />
+            <span className="text-caption text-fg-secondary truncate">{name}</span>
+          </div>
+        )}
+        <dl className="space-y-2.5">
+          {metrics.map((m) => (
+            <div
+              key={m.labelKey}
+              className="flex items-center justify-between gap-3"
+              data-testid={m.testId}
+            >
+              <dt className="text-caption text-fg-tertiary whitespace-nowrap">{t(m.labelKey)}</dt>
+              <dd
+                className={cn(
+                  'text-caption font-mono tabular-nums font-semibold text-right',
+                  m.colorClass,
+                )}
+              >
+                {m.value}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      </Card>
+    </>
+  );
+}
 const L = {
   GrowthChart: lazyNamed(() => import('@/components/charts/GrowthChart'), 'GrowthChart'),
   DrawdownChart: lazyNamed(() => import('@/components/charts/drawdownCharts'), 'DrawdownChart'),

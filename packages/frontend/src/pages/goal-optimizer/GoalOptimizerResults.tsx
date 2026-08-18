@@ -2,7 +2,10 @@ import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import type { GoalOptimizerResult } from '@backtest/shared';
 import { fmtPct, fmtAmount } from '@/utils/format';
-import { useGoalOptimizerState, type GoalOptimizerState } from '@/hooks/useGoalOptimizerState.js';
+import { useComputeTool, useAssetList, useSetterState } from '@/hooks/miscHooks.js';
+import { apiFetch } from '@/utils/apiClient';
+import i18n from '../../i18n/index.js';
+import { DEFAULT_60_40_ASSETS } from '@/utils/constants';
 import { ComputeToolShell, type ComputeToolConfig } from '../../components/shells/index.js';
 import { TOOL_LINKS } from '../../components/shells/constants.js';
 import { getPortfolioColor } from '@/lib/chart-theme.js';
@@ -12,7 +15,6 @@ import ChartCard from '@/components/ChartCard.js';
 import { Card, Progress, Input, AffixInput } from '@/components/ui/uiComponents';
 import { ResultsShell } from '@/components/resultsShell.js';
 import { MetricsGrid } from '@/components/ui/MetricsGrid';
-import { getProbColor } from './goalOptimizerUtils.js';
 import { Field, FieldLabel } from '@/components/form/Field.js';
 import { CollapsibleSection } from '@/components/cards.js';
 import {
@@ -22,6 +24,128 @@ import {
   RunButton,
 } from '@/components/form/sharedFields';
 import SinglePortfolioEditor from '@/components/PortfolioEditor.js';
+interface GoalAsset {
+  ticker: string;
+  weight: number;
+}
+function getProbColor(prob: number | undefined): string {
+  if (prob === undefined) return 'hsl(var(--fg))';
+  if (prob >= 0.7) return 'hsl(var(--success))';
+  if (prob >= 0.4) return getPortfolioColor(1);
+  return 'hsl(var(--danger))';
+}
+interface GoalInputs {
+  validAssets: GoalAsset[];
+  totalWeight: number;
+  targetAmount: number;
+  initialAmount: number;
+  years: number;
+  t: TFunction;
+}
+function validateGoalInputs(inputs: GoalInputs): string | null {
+  const { validAssets, totalWeight, targetAmount, initialAmount, years, t } = inputs;
+  if (validAssets.length === 0) return t('Please add at least one ticker');
+  if (totalWeight !== 100) return t('Total weight must equal 100%');
+  if (targetAmount <= 0 || initialAmount <= 0 || years <= 0)
+    return t('Target amount, initial amount, and time range must be positive');
+  return null;
+}
+interface GoalOptimizerState {
+  targetAmount: number;
+  setTargetAmount: (v: number) => void;
+  initialAmount: number;
+  setInitialAmount: (v: number) => void;
+  years: number;
+  setYears: (v: number) => void;
+  assets: GoalAsset[];
+  maxDrawdown: number | '';
+  setMaxDrawdown: (v: number | '') => void;
+  maxVolatility: number | '';
+  setMaxVolatility: (v: number | '') => void;
+  numSimulations: number;
+  setNumSimulations: (v: number) => void;
+  isLoading: boolean;
+  error: string | null;
+  results: GoalOptimizerResult | null;
+  addAsset: () => void;
+  removeAsset: (idx: number) => void;
+  updateAsset: (idx: number, field: 'ticker' | 'weight', val: string | number) => void;
+  totalWeight: number;
+  runOptimize: () => void;
+}
+function buildOptimizeConstraints(
+  maxDrawdown: number | '',
+  maxVolatility: number | '',
+): { maxDrawdown?: number; maxVolatility?: number } {
+  const constraints: { maxDrawdown?: number; maxVolatility?: number } = {};
+  if (maxDrawdown !== '') constraints.maxDrawdown = maxDrawdown / 100;
+  if (maxVolatility !== '') constraints.maxVolatility = maxVolatility / 100;
+  return constraints;
+}
+function useGoalOptimizerState(t: TFunction): GoalOptimizerState {
+  const s = useSetterState({
+    targetAmount: 1000000,
+    initialAmount: 100000,
+    years: 20,
+    maxDrawdown: '' as number | '',
+    maxVolatility: '' as number | '',
+    numSimulations: 1000,
+  });
+  const { assets, addAsset, removeAsset, updateAsset, totalWeight } = useAssetList<GoalAsset>(
+    [...DEFAULT_60_40_ASSETS],
+    () => ({ ticker: '', weight: 0 }),
+    1,
+  );
+  const validAssets = assets.filter((a) => a.ticker.trim());
+  const {
+    isLoading,
+    error,
+    results,
+    runCompute: runOptimize,
+  } = useComputeTool<GoalOptimizerResult>(
+    async () => {
+      const constraints = buildOptimizeConstraints(s.maxDrawdown, s.maxVolatility);
+      const res = await apiFetch('/api/v1/goal-optimizer/optimize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          targetAmount: s.targetAmount,
+          initialAmount: s.initialAmount,
+          years: s.years,
+          assets: validAssets,
+          constraints: Object.keys(constraints).length > 0 ? constraints : undefined,
+          numSimulations: s.numSimulations,
+        }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      if (json.success === false) throw new Error(json.error || i18n.t('Goal optimization failed'));
+      return json.data as GoalOptimizerResult;
+    },
+    () => {
+      return validateGoalInputs({
+        validAssets,
+        totalWeight,
+        targetAmount: s.targetAmount,
+        initialAmount: s.initialAmount,
+        years: s.years,
+        t,
+      });
+    },
+  );
+  return {
+    ...s,
+    assets,
+    addAsset,
+    removeAsset,
+    updateAsset,
+    totalWeight,
+    isLoading,
+    error,
+    results,
+    runOptimize,
+  };
+}
 const GRID = { top: 10, right: 20, bottom: 5, left: 60 };
 function targetReferenceLine(
   axis: 'x' | 'y',

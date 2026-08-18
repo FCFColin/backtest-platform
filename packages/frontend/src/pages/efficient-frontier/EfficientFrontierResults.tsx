@@ -1,23 +1,332 @@
-﻿import { useTranslation } from 'react-i18next';
+﻿/* eslint-disable react-refresh/only-export-components */
 import { ArrowRight } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { type EfficientFrontierPoint } from '@backtest/shared';
-import { getPortfolioColor } from '@/lib/chart-theme.js';
+import { getCorrelationColor, getPortfolioColor } from '@/lib/chart-theme.js';
+import { getCorrelationTextColor } from '@/components/charts/chartUtils.js';
+import { MatrixHeatmap } from '@/components/charts/tables.js';
+import {
+  SimpleChart,
+  XYScatterChart,
+  type XYScatterSeriesSpec,
+} from '@/components/charts/sharedChartContent.js';
+import { Checkbox, Input, AffixInput, Button } from '@/components/ui/uiComponents';
+import { Field as FieldShell, FieldLabel } from '@/components/form/Field';
+import { SectionHeader, SelectField, RunButton, DateField } from '@/components/form/sharedFields';
+import { AssetSelectionField, AllHistoryCheckbox } from '@/components/params/toolFields.js';
 import { ErrorBanner } from '@/components/stateDisplay';
 import { ResultsShell } from '@/components/resultsShell';
-import { Button } from '@/components/ui/uiComponents';
-import {
-  CorrelationMatrixView,
-  FrontierAllocations,
-  FrontierScatterChart,
-} from './EfficientFrontierCharts.js';
-import { FrontierParams } from './EfficientFrontierParams.js';
-import type { ReturnObjective, FrontierSolver } from './EfficientFrontierParams.js';
-import { useEfficientFrontierState, type FrontierState } from './EfficientFrontierUtils.js';
-import { ComputeToolShell, type ComputeToolConfig } from '../../components/shells/index.js';
-import { TOOL_LINKS } from '../../components/shells/constants.js';
 import { MiniStatCard } from '../../components/cards.js';
 import { MetricsGrid } from '@/components/ui/MetricsGrid';
 import { fmtPct } from '@/utils/format';
+import {
+  sharpeToColor,
+  useEfficientFrontierState,
+  type FrontierState,
+} from './EfficientFrontierUtils.js';
+import type { SolveSpeed, FrontierSolver, ReturnObjective } from './EfficientFrontierUtils.js';
+import { createComputeToolPage } from '../../components/shells/index.js';
+import { TOOL_LINKS } from '../../components/shells/constants.js';
+const solveSpeedOptions = (t: TFunction): { value: SolveSpeed; label: string }[] => [
+  { value: 'ultrafast', label: t('Ultra Fast') },
+  { value: 'fast', label: t('Fast') },
+  { value: 'medium', label: t('Medium') },
+  { value: 'slow', label: t('Slow') },
+];
+const rebalanceFreqOptions = (t: TFunction): { value: string; label: string }[] => [
+  { value: 'daily', label: t('Daily') },
+  { value: 'weekly', label: t('Weekly') },
+  { value: 'monthly', label: t('Monthly') },
+  { value: 'quarterly', label: t('Quarterly') },
+  { value: 'yearly', label: t('Annual') },
+];
+const returnObjOptions = (t: TFunction): { value: ReturnObjective; label: string }[] => [
+  { value: 'maxCagr', label: t('backtest.optimizer.maxCagr') },
+  { value: 'minVolatility', label: t('Minimize Volatility') },
+];
+const solverOptions = (t: TFunction): { value: FrontierSolver; label: string }[] => [
+  { value: 'markowitz', label: t('Markowitz') },
+  { value: 'nsga2', label: t('NSGA-II') },
+];
+function DateAndPointsGrid({ s }: { s: FrontierState }) {
+  const { t } = useTranslation();
+  return (
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <DateField label={t('Start Date')} value={s.startDate} onChange={s.setStartDate} />
+      <DateField label={t('End Date')} value={s.endDate} onChange={s.setEndDate} />
+      <FieldShell>
+        <FieldLabel>{t('Sample Points')}</FieldLabel>
+        <Input
+          type="number"
+          min={5}
+          max={100}
+          value={s.numPoints}
+          onChange={(e) => s.setNumPoints(Number(e.target.value))}
+        />
+      </FieldShell>
+      <FieldShell>
+        <AllHistoryCheckbox
+          startDate={s.startDate}
+          endDate={s.endDate}
+          onStartDateChange={s.setStartDate}
+          onEndDateChange={s.setEndDate}
+          label={t('All History')}
+        />
+      </FieldShell>
+    </div>
+  );
+}
+function AdvancedParamsGrid({ s }: { s: FrontierState }) {
+  const { t } = useTranslation();
+  return (
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <SelectField
+        label={t('Solve Speed')}
+        value={s.solveSpeed}
+        onChange={s.setSolveSpeed}
+        options={solveSpeedOptions(t)}
+      />
+      <FieldShell>
+        <FieldLabel>{t('Min Inclusion Weight')}</FieldLabel>
+        <AffixInput
+          type="number"
+          min={0}
+          max={100}
+          suffix="%"
+          value={s.minInclusionWeight}
+          onChange={(e) => s.setMinInclusionWeight(Number(e.target.value))}
+        />
+      </FieldShell>
+      <SelectField
+        label={t('Rebalancing Frequency')}
+        value={s.rebalanceFrequency}
+        onChange={s.setRebalanceFrequency}
+        options={rebalanceFreqOptions(t)}
+      />
+      <SelectField
+        label={t('Return Objective')}
+        value={s.returnObjective}
+        onChange={s.setReturnObjective}
+        options={returnObjOptions(t)}
+      />
+      <SelectField
+        label={t('Solver')}
+        value={s.solver}
+        onChange={s.setSolver}
+        options={solverOptions(t)}
+      />
+      <FieldShell>
+        <label className="flex h-10 cursor-pointer items-center gap-2 text-label text-fg-secondary">
+          <Checkbox checked={s.allowCash} onCheckedChange={(c) => s.setAllowCash(c === true)} />
+          <span>{t('Allow Cash Allocation')}</span>
+        </label>
+      </FieldShell>
+    </div>
+  );
+}
+function ParamsSection({ s }: { s: FrontierState }) {
+  const { t } = useTranslation();
+  return (
+    <section className="flex flex-col gap-4">
+      <SectionHeader title={t('Parameters')} />
+      <DateAndPointsGrid s={s} />
+      <AdvancedParamsGrid s={s} />
+    </section>
+  );
+}
+function FrontierParams({ state }: { state: FrontierState }) {
+  const { t } = useTranslation();
+  return (
+    <div className="flex flex-col gap-5">
+      <AssetSelectionField
+        tickers={state.tickers.filter(Boolean)}
+        onChange={state.setTickers}
+        minCount={2}
+        title={t('Ticker List')}
+      />
+      <ParamsSection s={state} />
+      <RunButton
+        isLoading={state.isLoading}
+        onClick={state.runFrontier}
+        label={t('Calculate Efficient Frontier')}
+        loadingLabel={t('Calculating...')}
+      />
+    </div>
+  );
+}
+function LoadInBacktesterButton({
+  onClick,
+  label,
+  size = 'md',
+}: {
+  onClick: () => void;
+  label: string;
+  size?: 'sm' | 'md';
+}) {
+  return (
+    <Button onClick={onClick} variant="ghost" size={size === 'sm' ? 'sm' : 'default'}>
+      <ArrowRight className={size === 'sm' ? 'size-3.5' : 'size-4'} />
+      {label}
+    </Button>
+  );
+}
+function FrontierScatterChartInner({
+  scatterData,
+  sharpeRange,
+  maxSharpe,
+  frontier,
+  onSelectPoint,
+  height,
+}: {
+  scatterData: Array<{ expectedVolatility: number; expectedReturn: number; sharpeRatio: number }>;
+  sharpeRange: { min: number; max: number };
+  maxSharpe: EfficientFrontierPoint | undefined;
+  frontier: EfficientFrontierPoint[];
+  onSelectPoint: (p: EfficientFrontierPoint) => void;
+  height: number;
+}) {
+  const { t } = useTranslation();
+  const scatterSeries: XYScatterSeriesSpec[] = scatterData.map((entry) => ({
+    data: [entry],
+    color: sharpeToColor(entry.sharpeRatio, sharpeRange.min, sharpeRange.max),
+    symbolSize: 6,
+  }));
+  if (maxSharpe) {
+    scatterSeries.push({
+      data: [
+        {
+          expectedVolatility: Number((maxSharpe.expectedVolatility * 100).toFixed(2)),
+          expectedReturn: Number((maxSharpe.expectedReturn * 100).toFixed(2)),
+          sharpeRatio: maxSharpe.sharpeRatio,
+        },
+      ],
+      color: getPortfolioColor(0),
+      symbol: 'star',
+      symbolSize: 12,
+    });
+  }
+  return (
+    <XYScatterChart
+      xKey="expectedVolatility"
+      yKey="expectedReturn"
+      xName={t('Volatility (%)')}
+      yName={t('Return (%)')}
+      zRange={[60, 60]}
+      height={height}
+      tooltipFormatter={(v: number) => `${v.toFixed(2)}%`}
+      series={scatterSeries}
+      onClick={({ seriesIndex }) => {
+        const p = seriesIndex !== undefined ? (frontier[seriesIndex] ?? maxSharpe) : undefined;
+        if (p) onSelectPoint(p);
+      }}
+    />
+  );
+}
+function FrontierScatterChart({
+  scatterData,
+  sharpeRange,
+  maxSharpe,
+  frontier,
+  onSelectPoint,
+  onLoadInBacktester,
+}: {
+  scatterData: Array<{ expectedVolatility: number; expectedReturn: number; sharpeRatio: number }>;
+  sharpeRange: { min: number; max: number };
+  maxSharpe: EfficientFrontierPoint | undefined;
+  frontier: EfficientFrontierPoint[];
+  onSelectPoint: (p: EfficientFrontierPoint) => void;
+  onLoadInBacktester: () => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <div>
+      <div className="mb-3 flex items-center justify-between">
+        <h3 className="text-h3 font-semibold text-fg">{t('nav.efficientFrontier')}</h3>
+        <LoadInBacktesterButton onClick={onLoadInBacktester} label={t('Load in backtester')} />
+      </div>
+      <FrontierScatterChartInner
+        scatterData={scatterData}
+        sharpeRange={sharpeRange}
+        maxSharpe={maxSharpe}
+        frontier={frontier}
+        onSelectPoint={onSelectPoint}
+        height={400}
+      />
+    </div>
+  );
+}
+function FrontierAllocations({
+  allocationData,
+  allAssetTickers,
+}: {
+  allocationData: Record<string, number | string>[];
+  allAssetTickers: string[];
+}) {
+  const { t } = useTranslation();
+  if (allocationData.length === 0 || allAssetTickers.length === 0) return null;
+  return (
+    <div>
+      <h3 className="mb-3 mt-6 text-h3 font-semibold text-fg">{t('Frontier Allocations')}</h3>
+      <SimpleChart
+        type="area"
+        data={allocationData}
+        xDataKey="point"
+        height={300}
+        xLabel={t('Frontier Point')}
+        yTickFormatter={(v: number) => `${v}%`}
+        yDomain={[0, 100]}
+        tooltipFormatter={(v: number) => `${v}%`}
+        showLegend={false}
+        series={allAssetTickers.map((ticker, i) => ({
+          dataKey: ticker,
+          color: getPortfolioColor(i),
+          stackId: '1',
+          areaOpacity: 0.8,
+        }))}
+      />
+      <div className="mt-2 flex flex-wrap justify-center gap-4">
+        {allAssetTickers.map((ticker, i) => (
+          <div key={ticker} className="flex items-center gap-1 text-caption">
+            <span
+              className="inline-block size-3 rounded"
+              style={{ backgroundColor: getPortfolioColor(i) }}
+            />
+            <span className="text-fg-tertiary">{ticker}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+function CorrelationMatrixView({
+  correlations,
+}: {
+  correlations: { tickers: string[]; matrix: number[][] } | null;
+}) {
+  const { t } = useTranslation();
+  if (!correlations || correlations.tickers.length < 2) return null;
+  return (
+    <div>
+      <h3 className="mb-3 mt-6 text-h3 font-semibold text-fg">{t('Correlation Matrix')}</h3>
+      <MatrixHeatmap
+        rowLabels={correlations.tickers}
+        columnLabels={correlations.tickers}
+        matrix={correlations.matrix}
+        getBackgroundColor={getCorrelationColor}
+        getTextColor={getCorrelationTextColor}
+        formatValue={(v) => v.toFixed(2)}
+      />
+    </div>
+  );
+}
+const COLORS = {
+  success: 'hsl(var(--success))',
+  warning: 'hsl(var(--warning))',
+  brand: 'hsl(var(--brand))',
+  fgSec: 'hsl(var(--fg-secondary))',
+  fgTer: 'hsl(var(--fg-tertiary))',
+} as const;
 function WeightBar({ ticker, weight, color }: { ticker: string; weight: number; color: string }) {
   return (
     <div className="flex items-center gap-2">
@@ -46,29 +355,6 @@ function WeightAllocation({ weights, title }: { weights: Record<string, number>;
     </div>
   );
 }
-export function LoadInBacktesterButton({
-  onClick,
-  label,
-  size = 'md',
-}: {
-  onClick: () => void;
-  label: string;
-  size?: 'sm' | 'md';
-}) {
-  return (
-    <Button onClick={onClick} variant="ghost" size={size === 'sm' ? 'sm' : 'default'}>
-      <ArrowRight className={size === 'sm' ? 'size-3.5' : 'size-4'} />
-      {label}
-    </Button>
-  );
-}
-const COLORS = {
-  success: 'hsl(var(--success))',
-  warning: 'hsl(var(--warning))',
-  brand: 'hsl(var(--brand))',
-  fgSec: 'hsl(var(--fg-secondary))',
-  fgTer: 'hsl(var(--fg-tertiary))',
-} as const;
 function PointStats({ p }: { p: EfficientFrontierPoint }) {
   const { t } = useTranslation();
   return (
@@ -238,7 +524,7 @@ function FrontierResultsView({ state }: { state: FrontierState }) {
     </ResultsShell>
   );
 }
-const config: ComputeToolConfig<FrontierState> = {
+export default createComputeToolPage(useEfficientFrontierState, {
   titleKey: 'nav.efficientFrontier',
   seoDescKey: 'efficientFrontier.seo.desc',
   seoFeatures: [
@@ -251,8 +537,4 @@ const config: ComputeToolConfig<FrontierState> = {
   relatedTools: [TOOL_LINKS.backtest, TOOL_LINKS.optimizer, TOOL_LINKS.analysis],
   params: FrontierParams,
   results: FrontierResultsView,
-};
-export default function EfficientFrontierPage() {
-  const s = useEfficientFrontierState();
-  return <ComputeToolShell config={config} state={s} />;
-}
+});

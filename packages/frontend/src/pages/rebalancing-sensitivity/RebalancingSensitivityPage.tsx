@@ -1,8 +1,9 @@
+/* eslint-disable react-refresh/only-export-components */
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { Loader2 } from 'lucide-react';
 import type { RebalanceFrequency } from '@backtest/shared';
-import { ComputeToolShell, type ComputeToolConfig } from '@/components/shells/index.js';
+import { createComputeToolPage } from '@/components/shells/index.js';
 import {
   REBALANCE_OPTIONS,
   TABS,
@@ -380,8 +381,7 @@ function RebalancingSensitivityParamsForm({ s }: { s: RebalancingState }) {
     </div>
   );
 }
-type RebalancingStateResult = ReturnType<typeof useRebalancingState>;
-const config: ComputeToolConfig<RebalancingStateResult> = {
+export default createComputeToolPage(useRebalancingState, {
   titleKey: 'nav.rebalancingSensitivity',
   seoDescKey: 'rebalancingSensitivity.seo.desc',
   seoFeatures: [
@@ -401,8 +401,4 @@ const config: ComputeToolConfig<RebalancingStateResult> = {
   ],
   params: ({ state }) => <RebalancingSensitivityParamsForm s={state} />,
   results: ({ state }) => <ResultsPanel s={state} />,
-};
-export default function RebalancingSensitivityPage() {
-  const s = useRebalancingState();
-  return <ComputeToolShell config={config} state={s} />;
-}
+});

@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { type PCAResult } from '@backtest/shared';
@@ -14,7 +15,7 @@ import { MatrixHeatmap } from '@/components/charts/tables.js';
 import { Field, FieldLabel, FieldDescription } from '../../components/form/Field.js';
 import { DateField, RunButton } from '../../components/form/sharedFields.js';
 import { TickerTagInput } from '../../components/form/TickerTagInput.js';
-import { ComputeToolShell, type ComputeToolConfig } from '../../components/shells/index.js';
+import { createComputeToolPage } from '../../components/shells/index.js';
 import { XYScatterChart, BarChartContent } from '@/components/charts/sharedChartContent.js';
 function usePcaPageState() {
   const { t } = useTranslation();
@@ -248,7 +249,7 @@ function PCAResultsPanel({ state: s }: { state: PCAState }) {
     </ResultsShell>
   );
 }
-const config: ComputeToolConfig<PCAState> = {
+export default createComputeToolPage(usePcaPageState, {
   titleKey: 'nav.pca',
   seoDescKey: 'pca.seo.desc',
   seoFeatures: [
@@ -262,8 +263,4 @@ const config: ComputeToolConfig<PCAState> = {
   ],
   params: PCAParamsPanel,
   results: PCAResultsPanel,
-};
-export default function PCAPage() {
-  const s = usePcaPageState();
-  return <ComputeToolShell config={config} state={s} />;
-}
+});

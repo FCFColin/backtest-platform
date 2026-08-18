@@ -104,6 +104,18 @@ function PresetsCard({ presets }: { presets: PresetButtonProps[] }) {
     </div>
   );
 }
+// eslint-disable-next-line react-refresh/only-export-components
+export function createComputeToolPage<S>(
+  usePageState: () => S,
+  config: ComputeToolConfig<S>,
+): React.ComponentType {
+  function Page() {
+    const state = usePageState();
+    return <ComputeToolShell config={config} state={state} />;
+  }
+  Page.displayName = config.titleKey;
+  return Page;
+}
 export function ComputeToolShell<S>({
   config,
   state,
