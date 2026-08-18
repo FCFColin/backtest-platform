@@ -14,7 +14,6 @@ import {
   MultiSignalPage,
   type PageName,
 } from './pageLoaders.js';
-
 const page = (name: PageName) => createElement(PAGE_LOADERS[name]);
 const LoginPage = lazyDefault(() => import('@/pages/auth/LoginPage'));
 const SignupPage = lazyNamed(() => import('@/pages/auth/LoginPage'), 'SignupPage');
@@ -43,7 +42,6 @@ const AdminDashboard = lazyDefault(() => import('@/pages/admin/AdminDashboard'))
 const SystemMonitor = lazyDefault(() => import('@/pages/admin/SystemMonitor'));
 const DataManagement = lazyDefault(() => import('@/pages/admin/DataManagement'));
 const SystemSettings = lazyDefault(() => import('@/pages/admin/SystemSettings'));
-
 function useRouteFallback() {
   const { t } = useTranslation();
   return (
@@ -53,7 +51,6 @@ function useRouteFallback() {
     </div>
   );
 }
-
 function withBoundary(element: ReactNode, routeName: string): ReactNode {
   return <RouteErrorBoundary routeName={routeName}>{element}</RouteErrorBoundary>;
 }
@@ -63,7 +60,6 @@ function protectedElement(element: ReactNode, routeName: string): ReactNode {
 function adminElement(element: ReactNode, routeName: string): ReactNode {
   return withBoundary(<ProtectedRoute requireAdmin>{element}</ProtectedRoute>, routeName);
 }
-
 interface RouteDef {
   path: string;
   element: ReactNode;
@@ -118,7 +114,6 @@ const ACCOUNT_ROUTES: RouteDef[] = [
   { path: '/org/members', element: <OrgMembersPage />, name: 'org-members' },
   { path: '/billing', element: <BillingPage />, name: 'billing' },
 ];
-
 function renderRoutes(routes: RouteDef[], protect = false): ReactNode[] {
   return routes.map((r) => (
     <Route
@@ -128,7 +123,6 @@ function renderRoutes(routes: RouteDef[], protect = false): ReactNode[] {
     />
   ));
 }
-
 const ROUTE_TITLES: Record<string, string> = {
   '/': 'nav.portfolioBacktest',
   '/analysis': 'nav.assetAnalysis',
@@ -172,7 +166,6 @@ const ROUTE_TITLES: Record<string, string> = {
   '/admin/settings': 'System Settings',
   '/*': 'Page Not Found',
 };
-
 function RouteChangeTracker(): null {
   const { t } = useTranslation();
   const location = useLocation();
@@ -183,7 +176,6 @@ function RouteChangeTracker(): null {
   }, [location, t]);
   return null;
 }
-
 export function AppRoutes() {
   const fallback = useRouteFallback();
   return (

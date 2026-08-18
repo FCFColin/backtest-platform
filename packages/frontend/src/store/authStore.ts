@@ -5,15 +5,12 @@ interface AsyncSlice {
   loading: boolean;
   error: string | null;
 }
-function asyncStart(): Partial<AsyncSlice> {
-  return { loading: true, error: null };
-}
-function asyncFail(error: unknown): Partial<AsyncSlice> {
-  return { loading: false, error: String(error) };
-}
-function asyncSuccess(): Partial<AsyncSlice> {
-  return { loading: false, error: null };
-}
+const asyncStart = (): Partial<AsyncSlice> => ({ loading: true, error: null });
+const asyncFail = (error: unknown): Partial<AsyncSlice> => ({
+  loading: false,
+  error: String(error),
+});
+const asyncSuccess = (): Partial<AsyncSlice> => ({ loading: false, error: null });
 async function withAsync<T>(set: SetFn, onFail: T, fn: () => Promise<T>): Promise<T> {
   set(asyncStart());
   try {
@@ -65,8 +62,7 @@ type GetFn = () => AuthState;
 async function fetchMe(): Promise<AuthUser | null> {
   const res = await apiFetch('/api/v1/auth/me', { silent: true });
   if (!res.ok) return null;
-  const body = await res.json();
-  const d = body?.data;
+  const d = (await res.json())?.data;
   if (!d) return null;
   return {
     userId: d.userId,
@@ -148,10 +144,7 @@ function acceptInviteAction(
 }
 async function logoutAction(set: SetFn): Promise<void> {
   try {
-    await fetch('/api/v1/auth/logout', {
-      method: 'DELETE',
-      credentials: 'include',
-    });
+    await fetch('/api/v1/auth/logout', { method: 'DELETE', credentials: 'include' });
   } catch {}
   clearTokens();
   set({ user: null, org: null, orgs: [], idleTimeoutMs: 0 });
@@ -180,8 +173,7 @@ async function loadOrgsAction(set: SetFn): Promise<void> {
     if (!res.ok) return;
     const body = await res.json();
     const orgs: OrgSummary[] = body?.data?.orgs ?? [];
-    const activeOrgId: string | null = body?.data?.activeOrgId ?? null;
-    const active = orgs.find((o) => o.orgId === activeOrgId) ?? null;
+    const active = orgs.find((o) => o.orgId === (body?.data?.activeOrgId ?? null)) ?? null;
     set((s) => ({ orgs, org: active ?? s.org }));
   } catch {}
 }
@@ -206,11 +198,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   loading: false,
   error: null,
   isAuthenticated: () => get().user !== null,
-  loginPassword: (username, password) => loginPasswordAction(set, get, username, password),
+  loginPassword: (u, p) => loginPasswordAction(set, get, u, p),
   register: (input) => registerAction(set, input),
-  acceptInvite: (token) => acceptInviteAction(set, get, token),
+  acceptInvite: (t) => acceptInviteAction(set, get, t),
   logout: () => logoutAction(set),
-  switchOrg: (orgId) => switchOrgAction(set, orgId),
+  switchOrg: (o) => switchOrgAction(set, o),
   loadOrgs: () => loadOrgsAction(set),
   init: () => initAction(set, get),
 }));

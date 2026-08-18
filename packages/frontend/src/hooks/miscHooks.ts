@@ -1,9 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import i18n from '@/i18n/index.js';
 import { apiFetch, apiPostJSON } from '@/utils/apiClient';
-import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
 import { useAuthStore } from '@/store/authStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { reportError } from '@/utils/errorReporter';
@@ -13,8 +11,7 @@ export function useOrgAuth() {
   const isAuthed = useAuthStore((s) => s.isAuthenticated());
   const org = useAuthStore((s) => s.org);
   const orgRole = useAuthStore((s) => s.user?.orgRole ?? null);
-  const isAdmin = orgRole === 'owner' || orgRole === 'admin';
-  return { isAuthed, org, orgRole, isAdmin };
+  return { isAuthed, org, orgRole, isAdmin: orgRole === 'owner' || orgRole === 'admin' };
 }
 
 export function useAsyncAction() {
@@ -39,29 +36,19 @@ export function useAsyncAction() {
   return { isLoading, error, run, reset, setError };
 }
 
-export function useListState<T>(initial: T[], makeDefault: () => T, minLength = 1) {
-  const [items, setItems] = useState<T[]>(() => initial);
-  const addItem = () => setItems((p) => [...p, makeDefault()]);
-  const removeItem = (i: number) =>
-    setItems((p) => (p.length > minLength ? p.filter((_, j) => j !== i) : p));
-  const updateItem = (i: number, u: (p: T) => T) =>
-    setItems((p) => p.map((item, j) => (j === i ? u(item) : item)));
-  return { items, setItems, addItem, removeItem, updateItem };
-}
-
-type SetterState<T> = T & {
-  [K in keyof T as `set${Capitalize<string & K>}`]: (v: T[K]) => void;
-};
+type SetterState<T> = T & { [K in keyof T as `set${Capitalize<string & K>}`]: (v: T[K]) => void };
 export function useSetterState<T extends Record<string, unknown>>(initial: T): SetterState<T> {
   const [state, setState] = useState(initial);
   const set =
     <K extends keyof T>(key: K) =>
     (v: T[K]) =>
-      setState((prev) => ({ ...prev, [key]: v }));
-  const setters = Object.fromEntries(
-    Object.keys(initial).map((k) => [`set${k[0].toUpperCase()}${k.slice(1)}`, set(k as keyof T)]),
-  ) as SetterState<T>;
-  return { ...state, ...setters } as SetterState<T>;
+      setState((p) => ({ ...p, [key]: v }));
+  return {
+    ...state,
+    ...Object.fromEntries(
+      Object.keys(initial).map((k) => [`set${k[0].toUpperCase()}${k.slice(1)}`, set(k as keyof T)]),
+    ),
+  } as SetterState<T>;
 }
 
 export function useAssetList<T extends { ticker: string; weight: number | string }>(
@@ -69,19 +56,19 @@ export function useAssetList<T extends { ticker: string; weight: number | string
   factory: () => T,
   minLength = 1,
 ) {
-  const { items, setItems, addItem, removeItem, updateItem } = useListState<T>(
-    defaults,
-    factory,
-    minLength,
-  );
-  const updateAsset = (i: number, field: keyof T, val: T[keyof T]) =>
-    updateItem(i, (prev) => ({ ...prev, [field]: val }));
+  const [items, setItems] = useState<T[]>(() => defaults);
+  const addItem = () => setItems((p) => [...p, factory()]);
+  const removeItem = (i: number) =>
+    setItems((p) => (p.length > minLength ? p.filter((_, j) => j !== i) : p));
+  const updateItem = (i: number, u: (p: T) => T) =>
+    setItems((p) => p.map((item, j) => (j === i ? u(item) : item)));
   return {
     assets: items,
     setAssets: setItems,
     addAsset: addItem,
     removeAsset: removeItem,
-    updateAsset,
+    updateAsset: (i: number, field: keyof T, val: T[keyof T]) =>
+      updateItem(i, (p) => ({ ...p, [field]: val })),
     totalWeight: items.reduce((sum, a) => sum + (Number(a.weight) || 0), 0),
   };
 }
@@ -99,13 +86,11 @@ export function useMediaQuery(query: string): boolean {
   return matches;
 }
 
-export function useReducedMotion(): boolean {
-  return useMediaQuery('(prefers-reduced-motion: reduce)');
-}
-
 export function useChartAnimation(isLargeDataset: boolean) {
-  const reducedMotion = useReducedMotion();
-  return { isAnimationActive: !isLargeDataset && !reducedMotion };
+  const prefersReducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
+  return {
+    isAnimationActive: !isLargeDataset && !prefersReducedMotion,
+  };
 }
 
 export function useTheme() {
@@ -148,7 +133,6 @@ export function useAdminFetch<T>(
   initial: T,
   componentName: string,
 ) {
-  const { t } = useTranslation();
   const [data, setData] = useState(initial);
   const [loading, setLoading] = useState(false);
   const [lastRefresh, setLastRefresh] = useState('');
@@ -164,7 +148,7 @@ export function useAdminFetch<T>(
       }
     } catch (error) {
       reportError(error, { component: componentName, action: 'fetch' });
-      useToastStore.getState().addToast('error', t('Load failed'));
+      useToastStore.getState().addToast('error', i18n.t('Load failed'));
     } finally {
       setLoading(false);
     }
@@ -209,16 +193,6 @@ export function useAnalysisState<S extends Record<string, unknown>, R>(
     () => validate(s),
   );
   return { ...s, isLoading, error, results, runAnalysis };
-}
-
-export function useOptimizerLikeState<TResults>() {
-  return useSetterState({
-    startDate: DEFAULT_BACKTEST_START_DATE,
-    endDate: DEFAULT_END_DATE,
-    isLoading: false,
-    error: null as string | null,
-    results: null as TResults | null,
-  });
 }
 
 interface TickerMeta {
@@ -298,34 +272,34 @@ const HEARTBEAT_MS = 60_000;
 export function useIdleTimeout(timeoutMs: number, enabled: boolean): void {
   const navigate = useNavigate();
   const logout = useAuthStore((s) => s.logout);
-  const lastActivityRef = useRef(Date.now());
-  const triggeredRef = useRef(false);
+  const lastActivity = useRef(Date.now());
+  const triggered = useRef(false);
   const resetActivity = useCallback(() => {
-    lastActivityRef.current = Date.now();
+    lastActivity.current = Date.now();
   }, []);
   const triggerTimeout = useCallback(async () => {
-    if (triggeredRef.current) return;
-    triggeredRef.current = true;
+    if (triggered.current) return;
+    triggered.current = true;
     await logout();
     navigate('/login?reason=session_expired', { replace: true });
   }, [logout, navigate]);
   const checkTimeout = useCallback(() => {
     if (!enabled || timeoutMs <= 0) return;
-    if (Date.now() - lastActivityRef.current >= timeoutMs) void triggerTimeout();
+    if (Date.now() - lastActivity.current >= timeoutMs) void triggerTimeout();
   }, [enabled, timeoutMs, triggerTimeout]);
   useEffect(() => {
     if (!enabled || timeoutMs <= 0) return;
-    triggeredRef.current = false;
-    lastActivityRef.current = Date.now();
+    triggered.current = false;
+    lastActivity.current = Date.now();
     ACTIVITY_EVENTS.forEach((e) => window.addEventListener(e, resetActivity, { passive: true }));
-    const handleVisibility = () => {
+    const onVis = () => {
       if (document.visibilityState === 'visible') checkTimeout();
     };
-    document.addEventListener('visibilitychange', handleVisibility);
+    document.addEventListener('visibilitychange', onVis);
     const timerId = setInterval(checkTimeout, HEARTBEAT_MS);
     return () => {
       ACTIVITY_EVENTS.forEach((e) => window.removeEventListener(e, resetActivity));
-      document.removeEventListener('visibilitychange', handleVisibility);
+      document.removeEventListener('visibilitychange', onVis);
       clearInterval(timerId);
     };
   }, [enabled, timeoutMs, resetActivity, checkTimeout]);
@@ -359,17 +333,20 @@ export function useAnnouncements() {
       const s = localStorage.getItem(READ_KEY);
       if (s) setReadIds(new Set(JSON.parse(s)));
     } catch {
-      // localStorage 数据损坏时忽略，视为未读
+      /* corrupted */
     }
   }, []);
   const list = announcements ?? [];
-  const unreadCount = list.filter((a) => !readIds.has(a.id)).length;
   const markAllRead = useCallback(() => {
     const all = new Set(announcements?.map((a) => a.id) ?? []);
     setReadIds(all);
     localStorage.setItem(READ_KEY, JSON.stringify([...all]));
   }, [announcements]);
-  return { announcements: list, unreadCount, markAllRead };
+  return {
+    announcements: list,
+    unreadCount: list.filter((a) => !readIds.has(a.id)).length,
+    markAllRead,
+  };
 }
 
 interface DataMeta {
@@ -394,7 +371,7 @@ function getPreloadedMeta(): DataMeta | null {
         dataPointCount: d.dataPointCount || 0,
       };
   } catch {
-    // 无有效预加载数据时忽略
+    /* no valid preload */
   }
   return null;
 }
@@ -421,8 +398,8 @@ export function useChartCalcWorker<T>(task: WorkerTask | null) {
   const [isPending, setIsPending] = useState(false);
   const workerRef = useRef<Worker | null>(null);
   const idRef = useRef(0);
-  const lastIdRef = useRef<number | null>(null);
-  const lastKeyRef = useRef('');
+  const lastId = useRef<number | null>(null);
+  const lastKey = useRef('');
   useEffect(() => {
     const w = new Worker(new URL('../workers/chartCalc.worker.ts', import.meta.url), {
       type: 'module',
@@ -430,12 +407,10 @@ export function useChartCalcWorker<T>(task: WorkerTask | null) {
     workerRef.current = w;
     let terminated = false;
     w.onmessage = (e: MessageEvent<{ id: number; result: T; error?: string }>) => {
-      if (terminated) return;
-      if (e.data.id !== lastIdRef.current) return;
+      if (terminated || e.data.id !== lastId.current) return;
       setIsPending(false);
-      if (e.data.error) {
-        setError(e.data.error);
-      } else {
+      if (e.data.error) setError(e.data.error);
+      else {
         setData(e.data.result);
         setError(null);
       }
@@ -449,11 +424,11 @@ export function useChartCalcWorker<T>(task: WorkerTask | null) {
   useEffect(() => {
     if (!task || !workerRef.current) return;
     const key = task.type + ':' + JSON.stringify(task.payload);
-    if (key === lastKeyRef.current) return;
-    lastKeyRef.current = key;
+    if (key === lastKey.current) return;
+    lastKey.current = key;
     setIsPending(true);
     const id = idRef.current++;
-    lastIdRef.current = id;
+    lastId.current = id;
     workerRef.current.postMessage({ id, type: task.type, payload: task.payload });
   }, [task]);
   return { data, isPending, error };
