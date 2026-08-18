@@ -10,7 +10,7 @@ import {
   mockFetch,
 } from '../../helpers/backtestStoreFixtures.js';
 import { useBacktestStore } from '../../../packages/frontend/src/store/backtestStore.js';
-import type { BacktestSeriesField } from '../../../packages/frontend/src/store/types.js';
+import type { BacktestSeriesField } from '../../../packages/frontend/src/store/backtestStore.js';
 import { mockBacktestResult, mockPortfolioResult } from '../../helpers/storeFixtures.js';
 import { mockPortfolio, mockBacktestParams } from '../../helpers/storeFixtures.js';
 

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { BacktestHero } from '../../../packages/frontend/src/pages/backtest/BacktestHero.js';
+import { BacktestHero } from '../../../packages/frontend/src/pages/backtest/BacktestPage.js';
 
 vi.mock('react-i18next', async () => {
   const { i18nMock, t } = await import('../../helpers/i18nMock.js');

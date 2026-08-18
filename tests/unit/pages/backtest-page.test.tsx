@@ -2,6 +2,11 @@ import { describe, it, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 
 vi.mock('react-i18next', async () => (await import('../../helpers/i18nMock.js')).i18nMock);
+vi.mock('react-router', () => ({
+  Link: ({ children, to }: { children: React.ReactNode; to: string }) => (
+    <a href={to}>{children}</a>
+  ),
+}));
 
 const pageState = vi.hoisted(() => ({
   portfolios: [{ name: 'SPY', assets: [] }] as unknown[],
@@ -41,9 +46,6 @@ vi.mock('../../../packages/frontend/src/store/backtestStore.js', () => ({
 vi.mock('../../../packages/frontend/src/pages/backtest/BacktestResults.js', () => ({
   ResultsContent: () => <div data-testid="backtest-results" />,
 }));
-vi.mock('../../../packages/frontend/src/pages/backtest/BacktestHero.js', () => ({
-  BacktestHero: () => <div data-testid="backtest-hero" />,
-}));
 
 import BacktestPage from '../../../packages/frontend/src/pages/backtest/BacktestPage.js';
 
@@ -54,7 +56,7 @@ describe('BacktestPage (smoke)', () => {
 
   it('happy path: 装配标题与全部面板 slot', async () => {
     render(<BacktestPage />);
-    screen.getByTestId('backtest-hero');
+    screen.getByTestId('page-hero');
     await waitFor(() => screen.getByTestId('backtest-params'));
     await waitFor(() => screen.getByTestId('portfolio-editor'));
     await waitFor(() => screen.getByTestId('backtest-run'));
@@ -64,6 +66,6 @@ describe('BacktestPage (smoke)', () => {
   it('edge path: 空组合状态下仍渲染标题不崩溃', () => {
     pageState.portfolios = [];
     render(<BacktestPage />);
-    screen.getByTestId('backtest-hero');
+    screen.getByTestId('page-hero');
   });
 });
