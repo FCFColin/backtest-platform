@@ -36,11 +36,11 @@ router.get(
   crudRouteHandler(
     async (req: Request, res: Response): Promise<void> => {
       const query = req.query.query as string | undefined;
-      const limit = parseInt((req.query.limit as string | undefined) ?? '', 10) || 10;
       if (!query || query.trim().length === 0) {
         sendProblem(res, 422, 'MISSING_PARAMS');
         return;
       }
+      const limit = parseInt((req.query.limit as string | undefined) ?? '', 10) || 10;
       const q = query.trim().toLowerCase();
       const results = await searchTickers(q, undefined, (req as AuthenticatedRequest).tenantId);
       const synthetic = SYNTHETIC_TICKERS.filter(
@@ -130,8 +130,11 @@ router.post(
       parameters: BacktestParameters;
       mcParams?: Record<string, unknown>;
     };
-    const portfolioList = (portfolios || (portfolio ? [portfolio] : undefined))!;
-    return runMonteCarlo(portfolioList, parameters, mcParams);
+    return runMonteCarlo(
+      (portfolios || (portfolio ? [portfolio] : undefined))!,
+      parameters,
+      mcParams,
+    );
   }),
 );
 

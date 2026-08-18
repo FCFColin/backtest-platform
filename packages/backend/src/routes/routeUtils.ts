@@ -133,19 +133,25 @@ type SyncComputeOpts = {
   logMsg?: string;
 };
 
-function buildBacktestResponse(result: BacktestResult): Record<string, unknown> {
-  const response: Record<string, unknown> = { success: true, data: result.data };
-  if (result.warnings && result.warnings.length > 0)
-    response.warnings = result.warnings.map((w: Warning | string): Warning =>
+function buildBacktestResponse({
+  data,
+  warnings,
+  dateRange,
+  degraded,
+  degradedWarning,
+}: BacktestResult): Record<string, unknown> {
+  const resp: Record<string, unknown> = { success: true, data };
+  if (warnings && warnings.length > 0)
+    resp.warnings = warnings.map((w: Warning | string): Warning =>
       typeof w === 'string' ? { code: 'WARNING', message: w } : w,
     );
-  if (result.dateRange) response.dateRange = result.dateRange;
-  if (result.degraded) response.degraded = true;
-  if (result.degradedWarning) response.degradedWarning = result.degradedWarning;
-  return response;
+  if (dateRange) resp.dateRange = dateRange;
+  if (degraded) resp.degraded = true;
+  if (degradedWarning) resp.degradedWarning = degradedWarning;
+  return resp;
 }
 
-function syncCompute(
+export function plainCompute(
   metric: string,
   code: string,
   fn: (req: AuthenticatedRequest) => Promise<unknown>,
@@ -174,15 +180,13 @@ function syncCompute(
   );
 }
 
-export const plainCompute = syncCompute;
-
 export function computeRoute(
   metric: string,
   logMsg: string,
   code: string,
   fn: (req: AuthenticatedRequest) => Promise<BacktestResult>,
 ): RequestHandler {
-  return syncCompute(metric, code, fn, {
+  return plainCompute(metric, code, fn, {
     logMsg,
     recordSuccess: true,
     shape: (r) => buildBacktestResponse(r as BacktestResult),

@@ -94,11 +94,10 @@ function extractJobId(req: IncomingMessage): string | null {
 // 仅接受 sec-websocket-protocol 通道传凭证，query token 会落入代理与访问日志（泄密面）
 function extractToken(req: IncomingMessage): string | null {
   const proto = req.headers['sec-websocket-protocol'];
-  if (typeof proto === 'string') {
-    for (const part of proto.split(',')) {
-      const trimmed = part.trim();
-      if (trimmed.startsWith('bearer.')) return trimmed.slice(7);
-    }
+  if (typeof proto !== 'string') return null;
+  for (const part of proto.split(',')) {
+    const trimmed = part.trim();
+    if (trimmed.startsWith('bearer.')) return trimmed.slice(7);
   }
   return null;
 }
@@ -140,7 +139,7 @@ export function setupBacktestWebSocket(server: Server): WebSocketServer {
   const wss = new WebSocketServer({ noServer: true });
   server.on('upgrade', (req, socket, head) => {
     const jobId = extractJobId(req);
-    if (jobId === null) return; // 非进度端点：放行
+    if (jobId === null) return;
     const token = extractToken(req);
     if (!token) {
       logger.warn({ jobId }, '[ws] 握手缺少 JWT 凭证');
@@ -165,7 +164,6 @@ export function setupBacktestWebSocket(server: Server): WebSocketServer {
         wss.handleUpgrade(req, socket, head, (ws) => handleConnection(ws, jobId, payload.sub));
       })
       .catch((err) => {
-        // verifyToken/getJob 抛错 = JWT/Redis/BullMQ 内部故障，非凭证无效（401 由内层分支处理），fail-closed 503（ADR-008）
         logger.warn({ err: String(err), jobId }, '[ws] 握手内部服务异常');
         rejectHandshake(socket, 503, 'Service Unavailable');
       });

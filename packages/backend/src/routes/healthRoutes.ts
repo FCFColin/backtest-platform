@@ -108,21 +108,17 @@ router.get('/ready', async (_req: Request, res: Response) => {
     ]);
 
     if (!goEngineOk) {
-      sendProblem(res, 503, 'ENGINE_UNAVAILABLE', undefined, {
-        headers: { 'Retry-After': '30' },
-      });
+      sendProblem(res, 503, 'ENGINE_UNAVAILABLE', undefined, { headers: { 'Retry-After': '30' } });
       return;
     }
-
     if (!dbOk) {
       sendProblem(res, 503, 'DATABASE_UNAVAILABLE');
       return;
     }
 
     const sentinelOk =
-      sentinelHealth.isMaster === null
-        ? true
-        : sentinelHealth.isMaster && (sentinelHealth.connectedSlaves ?? 0) >= 1;
+      sentinelHealth.isMaster === null ||
+      (sentinelHealth.isMaster && (sentinelHealth.connectedSlaves ?? 0) >= 1);
     if (!sentinelOk) {
       sendProblem(res, 503, 'REDIS_SENTINEL_NO_MASTER', undefined, {
         headers: { 'Retry-After': '30' },
@@ -136,9 +132,7 @@ router.get('/ready', async (_req: Request, res: Response) => {
       data: {
         status: 'ok',
         timestamp: new Date().toISOString(),
-        engine: {
-          go: goEngineOk,
-        },
+        engine: { go: goEngineOk },
         dependencies: {
           database: dbOk,
           redis: redisOk,

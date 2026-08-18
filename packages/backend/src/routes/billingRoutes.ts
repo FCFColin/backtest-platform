@@ -119,11 +119,9 @@ export async function billingWebhookHandler(req: Request, res: Response): Promis
     res.status(400).json({ received: false, error: 'invalid signature' });
     return;
   }
-
   // P2-4: 事件幂等去重——检查是否已处理过该 Stripe 事件
   try {
-    const isNew = await isStripeEventNew(event.id);
-    if (!isNew) {
+    if (!(await isStripeEventNew(event.id))) {
       logger.info(
         { eventId: event.id, type: event.type },
         '[billingRoutes] Stripe event already processed, skipping',
@@ -137,7 +135,6 @@ export async function billingWebhookHandler(req: Request, res: Response): Promis
       '[billingRoutes] Event dedup check failed, processing anyway',
     );
   }
-
   try {
     await handleWebhookEvent(event);
   } catch (err) {

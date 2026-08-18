@@ -11,34 +11,32 @@ import { crudRouteHandler } from './routeUtils.js';
 
 const router = Router();
 
-function defaultTickerStats(): DbMarketStats {
-  return {
-    total_cached: 0,
-    by_market: {},
-    by_type: {},
-    by_exchange: {},
-    date_ranges: { earliest: null, latest: null },
-    by_decade: {},
-    by_year_count: {},
-    coverage: {
-      tickers_with_5y_plus: 0,
-      tickers_with_10y_plus: 0,
-      tickers_with_20y_plus: 0,
-      avg_data_points: 0,
-      median_data_points: 0,
-    },
-    data_quality: {
-      with_adj_close: 0,
-      with_dividends: 0,
-      with_splits: 0,
-      total_data_points: 0,
-      total_size_mb: 0,
-    },
-    recent_updates: [],
-    sample_tickers: {},
-    generated_at: '',
-  };
-}
+const defaultTickerStats = (): DbMarketStats => ({
+  total_cached: 0,
+  by_market: {},
+  by_type: {},
+  by_exchange: {},
+  date_ranges: { earliest: null, latest: null },
+  by_decade: {},
+  by_year_count: {},
+  coverage: {
+    tickers_with_5y_plus: 0,
+    tickers_with_10y_plus: 0,
+    tickers_with_20y_plus: 0,
+    avg_data_points: 0,
+    median_data_points: 0,
+  },
+  data_quality: {
+    with_adj_close: 0,
+    with_dividends: 0,
+    with_splits: 0,
+    total_data_points: 0,
+    total_size_mb: 0,
+  },
+  recent_updates: [],
+  sample_tickers: {},
+  generated_at: '',
+});
 
 function collectSystemSnapshot() {
   const m = process.memoryUsage();
@@ -75,26 +73,24 @@ function buildStatsResponseData({
   backtestHistory: BacktestRunRecord[];
   system: ReturnType<typeof collectSystemSnapshot>;
 }) {
+  const { total_cached, data_quality: dq, date_ranges, by_market, by_type, coverage } = tickerStats;
   const { rss_mb, heap_used_mb, heap_total_mb, external_mb } = system.memory;
   return {
     services: { go_engine: engineHealth, go_data_service: goHealth },
     data_stats: {
-      total_tickers: tickerStats.total_cached,
-      total_size_mb: tickerStats.data_quality.total_size_mb,
-      total_data_points: tickerStats.data_quality.total_data_points,
-      date_range: {
-        earliest: tickerStats.date_ranges.earliest,
-        latest: tickerStats.date_ranges.latest,
-      },
+      total_tickers: total_cached,
+      total_size_mb: dq.total_size_mb,
+      total_data_points: dq.total_data_points,
+      date_range: { earliest: date_ranges.earliest, latest: date_ranges.latest },
       universe_total: universeStats.total,
       universe_updated_at: universeStats.updated_at,
-      by_market: tickerStats.by_market,
-      by_type: tickerStats.by_type,
-      coverage: tickerStats.coverage,
+      by_market,
+      by_type,
+      coverage,
       data_quality: {
-        with_adj_close: tickerStats.data_quality.with_adj_close,
-        with_dividends: tickerStats.data_quality.with_dividends,
-        with_splits: tickerStats.data_quality.with_splits,
+        with_adj_close: dq.with_adj_close,
+        with_dividends: dq.with_dividends,
+        with_splits: dq.with_splits,
       },
     },
     system: {

@@ -49,10 +49,11 @@ analysisRouter.post(
     async (req) => executePcaAnalyzeWithFetch(req.body as PCARequest),
     {
       startLog: (req) => {
-        const cleanTickers = (req.body as PCARequest).tickers
+        const b = req.body as PCARequest;
+        return `[PCA] 开始分析: tickers=${b.tickers
           .map((t: string) => String(t).trim().toUpperCase())
-          .filter(Boolean);
-        return `[PCA] 开始分析: tickers=${cleanTickers.join(',')}, range=${(req.body as PCARequest).startDate}~${(req.body as PCARequest).endDate}`;
+          .filter(Boolean)
+          .join(',')}, range=${b.startDate}~${b.endDate}`;
       },
     },
   ),
@@ -85,11 +86,11 @@ analysisRouter.post(
     async (req) => executeGoalOptimizeWithFetch(req.body as GoalOptimizerRequest),
     {
       startLog: (req) => {
-        const request = req.body as GoalOptimizerRequest;
-        const tickers = request.assets
+        const r = req.body as GoalOptimizerRequest;
+        const tickers = r.assets
           .filter((a) => a.ticker?.trim())
           .map((a) => a.ticker.trim().toUpperCase());
-        return `[GoalOptimizer] target=${request.targetAmount}, assets=${tickers.map((t) => sanitizeLog(t)).join(',')}`;
+        return `[GoalOptimizer] target=${r.targetAmount}, assets=${tickers.map((t) => sanitizeLog(t)).join(',')}`;
       },
     },
   ),
@@ -176,28 +177,16 @@ const SIGNAL_RUNNERS: Record<SignalMode, (body: never) => Promise<DegradedResult
   multi: executeMultiSignalAnalyze,
 };
 
-function logSignalContext(mode: SignalMode, body: Record<string, unknown>): void {
-  switch (mode) {
-    case 'analyze':
-      logger.info(
-        `[signal/analyze] ticker=${body.ticker} indicator=${body.indicator} period=${body.period}`,
-      );
-      break;
-    case 'dual': {
-      const cfg1 = (body as { signal1?: { indicator?: string } }).signal1;
-      const cfg2 = (body as { signal2?: { indicator?: string } }).signal2;
-      logger.info(
-        `[signal/dual] s1=${cfg1?.indicator} s2=${cfg2?.indicator} method=${body.combinationMethod}`,
-      );
-      break;
-    }
-    case 'multi': {
-      const configs = (body as { signals?: unknown[] }).signals;
-      logger.info(`[signal/multi] count=${configs?.length} method=${body.aggregationMethod}`);
-      break;
-    }
-  }
-}
+const signalContext: Record<SignalMode, (body: Record<string, unknown>) => string> = {
+  analyze: (b) => `ticker=${b.ticker} indicator=${b.indicator} period=${b.period}`,
+  dual: (b) => {
+    const s1 = (b as { signal1?: { indicator?: string } }).signal1;
+    const s2 = (b as { signal2?: { indicator?: string } }).signal2;
+    return `s1=${s1?.indicator} s2=${s2?.indicator} method=${b.combinationMethod}`;
+  },
+  multi: (b) =>
+    `count=${(b as { signals?: unknown[] })?.signals?.length} method=${b.aggregationMethod}`,
+};
 
 function registerSignalRoute(mode: SignalMode, path: string, schema: z.ZodTypeAny) {
   analysisRouter.post(
@@ -208,7 +197,7 @@ function registerSignalRoute(mode: SignalMode, path: string, schema: z.ZodTypeAn
       `signal-${mode}`,
       `SIGNAL_${mode.toUpperCase()}_ERROR`,
       async (req) => {
-        logSignalContext(mode, req.body as Record<string, unknown>);
+        logger.info(`[signal/${mode}] ${signalContext[mode](req.body as Record<string, unknown>)}`);
         return SIGNAL_RUNNERS[mode](req.body as never);
       },
       { logMsg: `[signal/${mode}] 信号分析失败` },

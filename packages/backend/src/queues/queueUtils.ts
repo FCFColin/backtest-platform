@@ -28,9 +28,9 @@ export function createDeadLetterQueue(sourceQueueName: string): Queue<DlqJobData
       removeOnFail: false,
     },
   });
-  dlq.on('error', (err) => {
-    logger.error({ module: 'dlqConfig', dlqName, err: err.message }, 'DLQ connection error');
-  });
+  dlq.on('error', (err) =>
+    logger.error({ module: 'dlqConfig', dlqName, err: err.message }, 'DLQ connection error'),
+  );
   logger.info({ module: 'dlqConfig', dlqName, sourceQueueName }, 'Dead letter queue created');
   return dlq;
 }
@@ -97,10 +97,7 @@ const PROCESSED_TTL_SEC = 24 * 60 * 60;
 type JobClaimResult = 'claimed' | 'already_processed' | 'in_progress';
 
 // 幂等 key 带 job type：BullMQ 自增 jobId 在计数器重置后会复用（如 Redis 恢复），
-function idemKeys(
-  jobId: string,
-  type: string,
-): { processingKey: string; processedKey: string; resultKey: string } {
+function idemKeys(jobId: string, type: string) {
   const scope = `${type}:${jobId}`;
   return {
     processingKey: PROCESSING_PREFIX + scope,

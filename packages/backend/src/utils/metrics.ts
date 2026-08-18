@@ -6,36 +6,26 @@ const register = new client.Registry();
 client.collectDefaultMetrics({ register });
 
 // 注册幂等：连接池重建/模块热载时重复注册同名指标会抛错，复用已注册实例
-const gauge = (name: string, help: string, labelNames: string[] = []): client.Gauge => {
-  const existing = register.getSingleMetric(name);
+function ensureMetric<T extends client.Gauge | client.Counter | client.Histogram>(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- prom-client 构造签名不兼容泛型约束
+  Ctor: new (...args: any[]) => T,
+  cfg: Record<string, unknown>,
+): T {
   return (
-    (existing as client.Gauge | undefined) ??
-    new client.Gauge({ name, help, labelNames, registers: [register] })
+    (register.getSingleMetric(cfg.name as string) as T | undefined) ??
+    new Ctor({ ...cfg, registers: [register] })
   );
-};
-const counter = (
-  name: string,
-  help: string,
-  labelNames: readonly string[] = [],
-): client.Counter => {
-  const existing = register.getSingleMetric(name);
-  return (
-    (existing as client.Counter | undefined) ??
-    new client.Counter({ name, help, labelNames: [...labelNames], registers: [register] })
-  );
-};
+}
+const gauge = (name: string, help: string, labelNames: string[] = []): client.Gauge =>
+  ensureMetric(client.Gauge, { name, help, labelNames });
+const counter = (name: string, help: string, labelNames: readonly string[] = []): client.Counter =>
+  ensureMetric(client.Counter, { name, help, labelNames: [...labelNames] });
 const histogram = (
   name: string,
   help: string,
   labelNames: string[],
   buckets: number[],
-): client.Histogram => {
-  const existing = register.getSingleMetric(name);
-  return (
-    (existing as client.Histogram | undefined) ??
-    new client.Histogram({ name, help, labelNames, buckets, registers: [register] })
-  );
-};
+): client.Histogram => ensureMetric(client.Histogram, { name, help, labelNames, buckets });
 
 function startSampler(fn: () => void | Promise<void>, intervalMs: number): void {
   void fn();

@@ -77,53 +77,44 @@ export function enforceOrgActive(): RequestHandler {
 
 export function enforceQuota(metric: string) {
   return async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
-    if (req.method === 'GET') {
+    if (req.method === 'GET' || req.user?.platform_admin === true) {
       next();
       return;
     }
-    const tenantId = req.tenantId;
-    if (req.user?.platform_admin === true) {
-      next();
-      return;
-    }
-    if (!tenantId) {
+    if (!req.tenantId) {
       sendProblem(res, 400, 'NO_ACTIVE_TENANT', 'No active tenant', {
         detail: 'No active organization context for quota enforcement.',
       });
       return;
     }
-
     try {
-      const status = await getOrgStatus(tenantId);
+      const status = await getOrgStatus(req.tenantId);
       if (!status.ok) {
         quotaEnforcementFailures.inc({ quota_key: metric, reason: status.reason });
         sendOrgProblem(res, status.reason);
         return;
       }
-
       const limits = getPlanLimits(status.plan);
-
-      const tickerCount = extractTickerCount(req.body);
-      if (tickerCount > limits.maxTickers) {
+      if (extractTickerCount(req.body) > limits.maxTickers) {
         sendProblem(res, 422, 'TICKERS_LIMIT_EXCEEDED');
         return;
       }
-
       if (Number.isFinite(limits.backtestsPerMonth)) {
-        const used = await getMonthlyUsage(tenantId, metric);
+        const used = await getMonthlyUsage(req.tenantId, metric);
         if (used >= limits.backtestsPerMonth) {
           sendProblem(res, 402, 'QUOTA_EXCEEDED');
           return;
         }
       }
-
       // 计数尽力而为：fire-and-forget 不阻塞请求（异步写失败不构成越权面）
-      void recordUsage(tenantId, metric, 1, { path: req.path });
+      void recordUsage(req.tenantId, metric, 1, { path: req.path });
       next();
     } catch (err) {
-      logger.error({ err: String(err), tenantId, metric }, '[quota] usage check failed, 503');
+      logger.error(
+        { err: String(err), tenantId: req.tenantId, metric },
+        '[quota] usage check failed, 503',
+      );
       quotaEnforcementFailures.inc({ quota_key: metric, reason: 'usage_check_failed' });
-
       sendProblem(res, 503, 'SERVICE_TEMPORARILY_UNAVAILABLE', 'Service temporarily unavailable', {
         detail: 'Service temporarily unavailable. Please try again later.',
         headers: { 'Retry-After': '30' },
