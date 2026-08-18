@@ -141,7 +141,10 @@ export async function fetchMissingFromGoService(
           success,
           data,
           degraded: tickerDegraded,
-        } = await fetchGoJson(`/api/data/price/${ticker}?start=${startDate}&end=${endDate}`, orgId);
+        } = await fetchGoJson(
+          `/api/data/price/${encodeURIComponent(ticker)}?start=${startDate}&end=${endDate}`,
+          orgId,
+        );
         if (success && Array.isArray(data)) {
           // 清洗脏值：NaN/Inf/非正价格与空日期不入缓存，避免坏数据穿透到引擎（与 Go SanitizePrices 互补）
           const priceMap: Record<string, number> = {};
