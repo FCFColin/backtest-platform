@@ -6,8 +6,6 @@
     "types": ["node", "vitest/globals", "vite/client"],
     "paths": {
       "@/*": ["./packages/frontend/src/*"],
-      "@backtest/shared": ["./packages/shared/types/index.ts"],
-      "@backtest/shared/*": ["./packages/shared/*"],
       "*": [
         "./packages/backend/node_modules/@types/*",
         "./packages/frontend/node_modules/@types/*",

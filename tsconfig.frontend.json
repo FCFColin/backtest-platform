@@ -4,8 +4,6 @@
     "lib": ["ES2020", "DOM", "DOM.Iterable"],
     "jsx": "react-jsx",
     "paths": {
-      "@backtest/shared": ["./packages/shared/types/index.ts"],
-      "@backtest/shared/*": ["./packages/shared/*"],
       "@/*": ["./packages/frontend/src/*"]
     },
     "types": []
