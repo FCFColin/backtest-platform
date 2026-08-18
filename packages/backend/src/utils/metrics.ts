@@ -52,10 +52,10 @@ const GAUGE_DEFS = {
 const gauges = Object.fromEntries(
   Object.entries(GAUGE_DEFS).map(([n, [h, l]]) => [n, gauge(n, h, [...l])]),
 ) as Record<keyof typeof GAUGE_DEFS, client.Gauge>;
-export const eventLoopLagSeconds = gauges.node_eventloop_lag_seconds;
-export const circuitBreakerState = gauges.circuit_breaker_state;
-export const dataServiceSemaphoreAvailable = gauges.data_service_semaphore_permits_available;
-export const dataServiceSemaphoreTotal = gauges.data_service_semaphore_permits_max;
+const eventLoopLagSeconds = gauges.node_eventloop_lag_seconds;
+const circuitBreakerState = gauges.circuit_breaker_state;
+const dataServiceSemaphoreAvailable = gauges.data_service_semaphore_permits_available;
+const dataServiceSemaphoreTotal = gauges.data_service_semaphore_permits_max;
 export const apiKeysStaleCount = gauges.api_keys_stale_count;
 const bullmqQueueSize = gauges.bullmq_queue_size;
 const eventLoopMonitor = monitorEventLoopDelay({ resolution: 20 });
@@ -148,8 +148,8 @@ const ctr = Object.fromEntries(
   Object.entries(COUNTER_DEFS).map(([name, def]) => [name, counter(name, def.help, def.labels)]),
 ) as Record<keyof typeof COUNTER_DEFS, client.Counter>;
 export const httpRequestsTotal = ctr.http_requests_total;
-export const engineCallsTotal = ctr.go_engine_calls_total;
-export const engineUnavailableTotal = ctr.engine_unavailable_total;
+const engineCallsTotal = ctr.go_engine_calls_total;
+const engineUnavailableTotal = ctr.engine_unavailable_total;
 export const authIpLockoutCounter = ctr.auth_ip_lockout_total;
 export const quotaEnforcementFailures = ctr.quota_enforcement_failures_total;
 export const auditOutboxWriteFailures = ctr.audit_outbox_write_failures_total;

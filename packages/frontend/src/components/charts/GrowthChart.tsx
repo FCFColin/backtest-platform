@@ -10,13 +10,7 @@ import {
   SMART_DATE_INTERVAL,
   getPortfolioColor,
 } from '@/lib/chart-theme.js';
-import {
-  formatCurrency,
-  downsample,
-  DOWNSAMPLE_THRESHOLD,
-  DOWNSAMPLE_TARGET,
-  mergeRowsByDate,
-} from '@/utils/format.js';
+import { formatCurrency, maybeDownsample, mergeRowsByDate } from '@/utils/format.js';
 import { cn } from '@/lib/utils.js';
 const TIME_RANGES = ['1Y', '5Y', '10Y', 'MAX'] as const;
 function GrowthHeader({
@@ -208,7 +202,7 @@ export function GrowthChart({
       cutoff.setFullYear(cutoff.getFullYear() - parseInt(timeRange));
       data = chartData.filter((d) => new Date(String(d.date)) >= cutoff);
     }
-    return data.length > DOWNSAMPLE_THRESHOLD ? downsample(data, DOWNSAMPLE_TARGET) : data;
+    return maybeDownsample(data);
   }, [chartData, timeRange]);
   return (
     <div className="bg-surface border border-border rounded-xl">

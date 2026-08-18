@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { type PortfolioResult } from '@backtest/shared';
 import ChartCard from '../ChartCard.js';
 import { getPortfolioColor } from '@/lib/chart-theme.js';
-import { downsample, DOWNSAMPLE_THRESHOLD, DOWNSAMPLE_TARGET } from '../../utils/format.js';
+import { maybeDownsample } from '../../utils/format.js';
 import { XYScatterChart } from './sharedChartContent.js';
 import { TimeSeriesLineChart } from './TimeSeriesLineChart.js';
 import { SimpleTable, type SimpleTableColumn } from '../tables.js';
@@ -172,10 +172,7 @@ function RegressionPanel({
 }) {
   const { t } = useTranslation();
   const color = getPortfolioColor(colorIdx);
-  const scatterPoints =
-    reg.points.length > DOWNSAMPLE_THRESHOLD
-      ? downsample(reg.points, DOWNSAMPLE_TARGET)
-      : reg.points;
+  const scatterPoints = maybeDownsample(reg.points);
   return (
     <ChartCard
       title={t('{{baseName}} vs {{targetName}}', { baseName, targetName: reg.name })}

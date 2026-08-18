@@ -15,7 +15,7 @@ export enum Permission {
   STRATEGY_MANAGE = 'strategy:manage',
 }
 
-export const ROLE_PERMISSIONS: Record<Role, Set<Permission>> = {
+const ROLE_PERMISSIONS: Record<Role, Set<Permission>> = {
   admin: new Set(Object.values(Permission)),
   analyst: new Set([
     Permission.BACKTEST_RUN,

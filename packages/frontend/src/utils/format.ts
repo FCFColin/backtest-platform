@@ -69,6 +69,10 @@ export function downsample<T>(data: T[], maxPoints = DOWNSAMPLE_TARGET): T[] {
   return result;
 }
 
+export function maybeDownsample<T>(data: T[]): T[] {
+  return data.length > DOWNSAMPLE_THRESHOLD ? downsample(data) : data;
+}
+
 export function mean(arr: number[]): number {
   return arr.length === 0 ? 0 : arr.reduce((s, v) => s + v, 0) / arr.length;
 }

@@ -20,7 +20,7 @@ import {
 import { translateDomainError, type DegradedResult } from './backtest-helpers.js';
 import { toDateStr, todayStr } from '../utils/misc.js';
 
-export function collectTickers(strategy: TacticalStrategy): string[] {
+function collectTickers(strategy: TacticalStrategy): string[] {
   return Array.from(new Set(strategy.signals.flatMap((s) => s.targetWeights.map((w) => w.ticker))));
 }
 

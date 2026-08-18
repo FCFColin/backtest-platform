@@ -18,7 +18,6 @@ import {
   portfolioToDomain,
   collectDomainTickers,
   filterPriceData,
-  calculateDateRange,
   type BacktestExecutionParams,
   type Warning,
   type DateRangeInfo,
@@ -57,14 +56,11 @@ export async function runPortfolioBacktest(opts: {
     logger.error({ err, cacheKey }, '[backtest-service] Failed to set backtest result cache'),
   );
   onProgress?.(100);
-  const dateRange = calculateDateRange(
-    parameters.startDate,
-    parameters.endDate,
-    ctx.effectiveStartDate,
-    ctx.effectiveEndDate,
-    ctx.invalidTickers,
-  );
-  return { result: compressBacktestResultForSync(result), warnings: ctx.warnings, dateRange };
+  return {
+    result: compressBacktestResultForSync(result),
+    warnings: ctx.warnings,
+    dateRange: ctx.dateRange,
+  };
 }
 
 /** @throws {EngineUnavailableError} ADR-008 */

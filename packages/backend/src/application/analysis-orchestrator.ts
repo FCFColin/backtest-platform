@@ -17,15 +17,18 @@ import { buildEngineParams } from './backtest/backtestEngineUtils.js';
 import { ValidationError } from '../utils/errors.js';
 import { toDateStr, todayStr } from '../utils/misc.js';
 import { ensurePriceDataExists, normalizeTickers } from './backtest/backtestEngineUtils.js';
-import { calculateDateRange, preparePriceDataAndWarnings } from './backtest-helpers.js';
+import { preparePriceDataAndWarnings } from './backtest-helpers.js';
 import type { Warning, DateRangeInfo, DegradedResult } from './backtest-helpers.js';
 
 export async function runAnalysis(
   tickers: string[],
   parameters: BacktestParameters,
 ): Promise<{ data: Record<string, unknown>; warnings: Warning[]; dateRange: DateRangeInfo }> {
-  const { priceData, warnings, invalidTickers, effectiveStartDate, effectiveEndDate } =
-    await preparePriceDataAndWarnings(tickers, parameters.startDate, parameters.endDate);
+  const { priceData, warnings, invalidTickers, dateRange } = await preparePriceDataAndWarnings(
+    tickers,
+    parameters.startDate,
+    parameters.endDate,
+  );
   if (Object.keys(priceData).length === 0) {
     throw new ValidationError(`Price data unavailable for all tickers: ${tickers.join(', ')}`);
   }
@@ -41,14 +44,6 @@ export async function runAnalysis(
       params: buildEngineParams(parameters),
     },
     analysisResultSchema,
-  );
-
-  const dateRange = calculateDateRange(
-    parameters.startDate,
-    parameters.endDate,
-    effectiveStartDate,
-    effectiveEndDate,
-    invalidTickers.length ? invalidTickers : undefined,
   );
 
   const engineData = result as { assets?: unknown[]; correlations?: unknown[][] };
@@ -89,7 +84,7 @@ async function runAnalysisWithFetch<T>(
   return { data: await run(priceData), warnings, degraded, degradedWarning };
 }
 
-export function validatePcaRequest(req: PCARequest): string[] {
+function validatePcaRequest(req: PCARequest): string[] {
   if (!Array.isArray(req.tickers) || req.tickers.length === 0) {
     throw new ValidationError('Missing or invalid field: tickers (must be a non-empty array)');
   }
@@ -142,7 +137,7 @@ export async function executeLetfAnalyzeWithFetch(req: LETFRequest) {
   );
 }
 
-export function validateGoalOptimizerAssets(request: GoalOptimizerRequest): string[] {
+function validateGoalOptimizerAssets(request: GoalOptimizerRequest): string[] {
   const validAssets = request.assets.filter((a) => a.ticker && a.ticker.trim());
   if (validAssets.length === 0) {
     throw new ValidationError('Please add at least one valid ticker');

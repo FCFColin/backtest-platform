@@ -12,7 +12,6 @@ import {
   preparePriceDataAndWarnings,
   filterPriceData,
   portfolioToDomain,
-  calculateDateRange,
   loadMacroData,
   type MacroData,
   type Warning,
@@ -39,8 +38,11 @@ async function runCompute(
   bodyExtra: Record<string, unknown>,
   schema: z.ZodType<unknown>,
 ): Promise<{ data: Record<string, unknown>; warnings: Warning[]; dateRange: DateRangeInfo }> {
-  const { priceData, warnings, invalidTickers, allTickers, effectiveStartDate, effectiveEndDate } =
-    await preparePriceDataAndWarnings(tickers, parameters.startDate, parameters.endDate);
+  const { priceData, warnings, allTickers, dateRange } = await preparePriceDataAndWarnings(
+    tickers,
+    parameters.startDate,
+    parameters.endDate,
+  );
   const result = await callEngineStrict<Record<string, unknown>>(
     path,
     {
@@ -49,13 +51,6 @@ async function runCompute(
       ...bodyExtra,
     },
     schema,
-  );
-  const dateRange = calculateDateRange(
-    parameters.startDate,
-    parameters.endDate,
-    effectiveStartDate,
-    effectiveEndDate,
-    invalidTickers,
   );
   return { data: result, warnings, dateRange };
 }
@@ -168,12 +163,11 @@ export async function executeOptimization(body: Record<string, unknown>): Promis
   if (validationError) throw new ValidationError(validationError);
   const allTickers = new Set(portfolio.assets.map((a) => a.ticker));
   if (parameters.benchmarkTicker) allTickers.add(parameters.benchmarkTicker);
-  const { priceData, warnings, invalidTickers, effectiveStartDate, effectiveEndDate } =
-    await preparePriceDataAndWarnings(
-      Array.from(allTickers),
-      parameters.startDate,
-      parameters.endDate,
-    );
+  const { priceData, warnings, invalidTickers, dateRange } = await preparePriceDataAndWarnings(
+    Array.from(allTickers),
+    parameters.startDate,
+    parameters.endDate,
+  );
   if (invalidTickers.length > 0)
     throw new ValidationError(`以下标的代码无效：${invalidTickers.join(', ')}`);
   const macro = await loadMacroData(parameters);
@@ -197,12 +191,6 @@ export async function executeOptimization(body: Record<string, unknown>): Promis
   }
   logger.info(
     `[backtest-optimizer] 优化完成：${combos.length} 组合，${filtered.length} 通过过滤，耗时 ${Date.now() - startTime}ms`,
-  );
-  const dateRange = calculateDateRange(
-    parameters.startDate,
-    parameters.endDate,
-    effectiveStartDate,
-    effectiveEndDate,
   );
   return {
     data: {

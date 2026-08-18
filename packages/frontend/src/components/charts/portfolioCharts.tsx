@@ -2,7 +2,7 @@
 import type { TFunction } from 'i18next';
 import type { EChartsOption } from 'echarts';
 import { type Portfolio } from '@backtest/shared';
-import { downsample, DOWNSAMPLE_THRESHOLD, DOWNSAMPLE_TARGET } from '../../utils/format.js';
+import { maybeDownsample } from '../../utils/format.js';
 import { DATE_TICK_FORMATTER, getPortfolioColor } from '@/lib/chart-theme.js';
 import { tooltipOption, tooltipRow } from './chartUtils.js';
 import { SimpleChart } from './sharedChartContent.js';
@@ -137,7 +137,7 @@ function AllocationHistoryChart({
     for (let i = 0; i < assets.length; i++) entry[assets[i].ticker] = (snap.weights[i] ?? 0) * 100;
     return entry;
   });
-  const chartData = data.length > DOWNSAMPLE_THRESHOLD ? downsample(data, DOWNSAMPLE_TARGET) : data;
+  const chartData = maybeDownsample(data);
   return (
     <ChartCard title={t('Portfolio Allocation')} data={data} csvFilename="portfolio-allocation">
       <AllocationAreaChart

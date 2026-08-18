@@ -6,7 +6,7 @@ import { getHeatColor } from '@/lib/chart-theme.js';
 import { BarChartContent } from './sharedChartContent.js';
 import { ChartEmptyState } from '@/components/stateDisplay.js';
 import { TimeSeriesLineChart } from './TimeSeriesLineChart.js';
-import { downsample, DOWNSAMPLE_THRESHOLD, DOWNSAMPLE_TARGET } from '../../utils/format.js';
+import { maybeDownsample } from '../../utils/format.js';
 import { useAnalysisData } from '../../hooks/useAnalysisData.js';
 import { DrawdownChart } from './drawdownCharts.js';
 import { CorrelationMatrixTable } from './tables.js';
@@ -84,8 +84,7 @@ function computeTelltaleData(
     (a.date as string).localeCompare(b.date as string),
   );
   return {
-    chartData:
-      merged.length > DOWNSAMPLE_THRESHOLD ? downsample(merged, DOWNSAMPLE_TARGET) : merged,
+    chartData: maybeDownsample(merged),
     labels,
     title,
     emptyMessage: null,

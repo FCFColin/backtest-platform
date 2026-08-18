@@ -5,12 +5,7 @@ import { TRADING_DAYS_PER_YEAR } from '@backtest/shared/constants';
 import { MiniSelect, Spinner } from '@/components/ui/uiComponents';
 import { TimeSeriesLineChart } from './TimeSeriesLineChart.js';
 import { useChartCalcWorker, type WorkerTask } from '../../hooks/miscHooks.js';
-import {
-  mergePortfolioSeries,
-  downsample,
-  DOWNSAMPLE_THRESHOLD,
-  DOWNSAMPLE_TARGET,
-} from '../../utils/format.js';
+import { mergePortfolioSeries, maybeDownsample } from '../../utils/format.js';
 import ChartCard from '../ChartCard.js';
 import { LoadingState } from '@/components/stateDisplay';
 export const RollingCorrelationChart = memo(function RollingCorrelationChart({
@@ -172,10 +167,7 @@ export default function RollingReturnChart({ portfolios }: { portfolios: Portfol
     (pt) => pt.date,
     (pt) => +(pt.return * 100).toFixed(2),
   );
-  const chartData =
-    mergedData.length > DOWNSAMPLE_THRESHOLD
-      ? downsample(mergedData, DOWNSAMPLE_TARGET)
-      : mergedData;
+  const chartData = maybeDownsample(mergedData);
   return (
     <ChartCard title={t('Rolling Return')} data={mergedData} csvFilename="rolling-return">
       <TimeSeriesLineChart

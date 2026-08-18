@@ -44,11 +44,7 @@ export function portfolioToDomain(raw: Portfolio): DomainPortfolio {
   return translateDomainError(() => DomainPortfolio.fromDTO(raw));
 }
 
-export function portfolioToEngineBody(raw: Portfolio): Record<string, unknown> {
-  return portfolioToDomain(raw).toEngineBody();
-}
-
-export function preparePortfolioBacktest(
+function preparePortfolioBacktest(
   portfolios: Portfolio[],
   parameters: BacktestParameters,
 ): { domainPortfolios: DomainPortfolio[]; allTickers: Set<string> } {
@@ -63,16 +59,18 @@ export function preparePortfolioBacktest(
   return { domainPortfolios, allTickers };
 }
 
-export function clampParametersToDataRange<
-  T extends Pick<BacktestParameters, 'startDate' | 'endDate'>,
->(parameters: T, effectiveStartDate: string, effectiveEndDate: string): T {
+function clampParametersToDataRange<T extends Pick<BacktestParameters, 'startDate' | 'endDate'>>(
+  parameters: T,
+  effectiveStartDate: string,
+  effectiveEndDate: string,
+): T {
   return effectiveStartDate !== parameters.startDate || effectiveEndDate !== parameters.endDate
     ? { ...parameters, startDate: effectiveStartDate, endDate: effectiveEndDate }
     : parameters;
 }
 
 /** 根据 priceData 识别无效 ticker，填充 warnings。 */
-export function collectInvalidTickerWarnings(
+function collectInvalidTickerWarnings(
   allTickers: Set<string>,
   priceData: Record<string, unknown>,
   warnings: Warning[],
@@ -144,11 +142,7 @@ export function calculateDateRange(
   return range;
 }
 
-export async function preparePriceDataAndWarnings(
-  tickers: string[],
-  startDate: string,
-  endDate: string,
-): Promise<{
+export type PriceDataResult = {
   priceData: Record<string, Record<string, number>>;
   warnings: Warning[];
   invalidTickers: string[];
@@ -157,7 +151,14 @@ export async function preparePriceDataAndWarnings(
   allTickers: Set<string>;
   degraded: boolean;
   degradedWarning?: string;
-}> {
+  dateRange: DateRangeInfo;
+};
+
+export async function preparePriceDataAndWarnings(
+  tickers: string[],
+  startDate: string,
+  endDate: string,
+): Promise<PriceDataResult> {
   const warnings: Warning[] = [];
   const result = await withTimeout(
     fetchHistoryData(tickers, startDate, endDate),
@@ -180,6 +181,13 @@ export async function preparePriceDataAndWarnings(
       code: 'DATA_DEGRADED',
       message: result.degradedWarning || '数据服务降级，部分数据可能缺失',
     });
+  const dateRange = calculateDateRange(
+    startDate,
+    endDate,
+    effectiveStartDate,
+    effectiveEndDate,
+    invalidTickers.length > 0 ? invalidTickers : undefined,
+  );
   return {
     priceData: result.data,
     warnings,
@@ -189,6 +197,7 @@ export async function preparePriceDataAndWarnings(
     allTickers,
     degraded: result.degraded,
     degradedWarning: result.degradedWarning,
+    dateRange,
   };
 }
 
@@ -208,7 +217,7 @@ export async function loadMacroData(
   return { cpiData, exchangeRates };
 }
 
-export interface PreparedBacktestContext {
+interface PreparedBacktestContext {
   domainPortfolios: DomainPortfolio[];
   allTickers: Set<string>;
   priceData: Record<string, Record<string, number>>;
@@ -221,6 +230,7 @@ export interface PreparedBacktestContext {
   effectiveEndDate: string;
   degraded: boolean;
   degradedWarning?: string;
+  dateRange: DateRangeInfo;
 }
 
 export async function prepareBacktestContext(
@@ -249,6 +259,7 @@ export async function prepareBacktestContext(
     effectiveEndDate: price.effectiveEndDate,
     degraded: price.degraded,
     degradedWarning: price.degradedWarning,
+    dateRange: price.dateRange,
   };
 }
 

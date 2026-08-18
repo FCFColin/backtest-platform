@@ -12,7 +12,7 @@ const WRITE_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 function hashApiKey(apiKey: string | undefined): string {
   return apiKey ? sha256Hex(apiKey).slice(0, 16) : 'anonymous';
 }
-export async function writeOutboxEvent(
+async function writeOutboxEvent(
   auditEntry: Record<string, unknown>,
   client?: PoolClient,
 ): Promise<void> {

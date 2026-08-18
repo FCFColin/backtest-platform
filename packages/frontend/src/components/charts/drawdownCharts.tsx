@@ -6,13 +6,7 @@ import {
   CHART_MARGIN,
   getPortfolioColor,
 } from '@/lib/chart-theme.js';
-import {
-  fmtPct,
-  downsample,
-  DOWNSAMPLE_THRESHOLD,
-  DOWNSAMPLE_TARGET,
-  mergeRowsByDate,
-} from '@/utils/format.js';
+import { fmtPct, maybeDownsample, mergeRowsByDate } from '@/utils/format.js';
 import { totalMonths } from './chartUtils.js';
 import { SimpleAreaChart } from '@/components/charts/sharedChartContent.js';
 import { ChartEmptyState } from '@/components/stateDisplay.js';
@@ -32,7 +26,7 @@ function useDrawdownData(portfolios: DrawdownChartProps['portfolios']) {
         value: (pt: { date: string; drawdown: number }) => -Math.abs(pt.drawdown),
       })),
     );
-    return rows.length > DOWNSAMPLE_THRESHOLD ? downsample(rows, DOWNSAMPLE_TARGET) : rows;
+    return maybeDownsample(rows);
   }, [portfolios]);
 }
 function computeUnderwaterStats(curve: Array<{ date: string; drawdown: number }>) {

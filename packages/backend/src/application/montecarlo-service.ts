@@ -2,12 +2,7 @@
 import { callEngineStrict } from '../utils/engineClient.js';
 import { monteCarloResultSchema } from '../schemas/engineSchemas.js';
 import { buildEngineParams } from './backtest/backtestEngineUtils.js';
-import {
-  prepareBacktestContext,
-  filterPriceData,
-  sanitizeMcParams,
-  calculateDateRange,
-} from './backtest-helpers.js';
+import { prepareBacktestContext, filterPriceData, sanitizeMcParams } from './backtest-helpers.js';
 import type { Portfolio, BacktestParameters } from '@backtest/shared/types';
 import type { Warning, DateRangeInfo } from './backtest-helpers.js';
 
@@ -43,13 +38,5 @@ export async function runMonteCarlo(
 
   const data = portfolioList.length === 1 ? results[0] : results;
 
-  const dateRange = calculateDateRange(
-    parameters.startDate,
-    parameters.endDate,
-    ctx.effectiveStartDate,
-    ctx.effectiveEndDate,
-    ctx.invalidTickers.length > 0 ? ctx.invalidTickers : undefined,
-  );
-
-  return { data, warnings: ctx.warnings, dateRange };
+  return { data, warnings: ctx.warnings, dateRange: ctx.dateRange };
 }
