@@ -4,28 +4,27 @@ import { useTranslation } from 'react-i18next';
 import { useEffect, useState } from 'react';
 import { useDataMeta } from '@/hooks/miscHooks.js';
 import { cn } from '@/lib/utils';
-interface FooterLinkDef {
-  to?: string;
-  href?: string;
-  label: string;
-}
 const LINK_CLASS =
-  'text-caption text-fg-secondary transition-colors duration-150 ease-out-quart hover:text-fg';
+  'text-caption text-fg-secondary transition-colors duration-150 ease-out-quart hover:text-fg hover:underline';
 const BUILD_HASH = import.meta.env.VITE_BUILD_HASH ?? 'dev';
-function FooterLink({ to, href, label }: FooterLinkDef) {
-  if (to)
-    return (
-      <Link to={to} className={LINK_CLASS}>
-        {label}
-      </Link>
-    );
-  return (
+function FooterLink({ to, href, label }: { to?: string; href?: string; label: string }) {
+  return to ? (
+    <Link to={to} className={LINK_CLASS}>
+      {label}
+    </Link>
+  ) : (
     <a href={href} className={LINK_CLASS}>
       {label}
     </a>
   );
 }
-function FooterSection({ title, links }: { title: string; links: FooterLinkDef[] }) {
+function FooterSection({
+  title,
+  links,
+}: {
+  title: string;
+  links: Array<{ to?: string; href?: string; label: string }>;
+}) {
   return (
     <div>
       <h2 className="text-label-tiny text-fg-tertiary mb-3">{title}</h2>

@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ToolSeoCard, ToolPageLayout } from '../layout/ToolPageLayout.js';
 import { Loader2 } from 'lucide-react';
+
 export function TabFallback() {
   return (
     <div className="flex justify-center py-12">
@@ -148,10 +149,7 @@ export function ComputeToolShell<S>({
               title: t(f.titleKey),
               desc: t(f.descKey),
             }))}
-            related={config.relatedTools?.map((r) => ({
-              title: t(r.titleKey),
-              href: r.href,
-            }))}
+            related={config.relatedTools?.map((r) => ({ title: t(r.titleKey), href: r.href }))}
           />
         )}
       </div>

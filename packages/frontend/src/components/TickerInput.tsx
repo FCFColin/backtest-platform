@@ -152,8 +152,8 @@ export default function TickerInput({ value, onChange, placeholder, className }:
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
-  const handleSelect = (suggestion: TickerSuggestion) => {
-    onChange(suggestion.ticker);
+  const handleSelect = (s: TickerSuggestion) => {
+    onChange(s.ticker);
     setSuggestions([]);
     setSelectedIndex(-1);
     setFocused(false);

@@ -25,11 +25,8 @@ export const RollingCorrelationChart = memo(function RollingCorrelationChart({
   rollingCorrData: Array<{ date: string; value: number }>;
 }) {
   const { t } = useTranslation();
-  const seriesName = `${tickers[rollingPair[0]]} vs ${tickers[rollingPair[1]]}`;
-  const data = rollingCorrData.map((d) => ({
-    date: d.date,
-    [seriesName]: +d.value.toFixed(4),
-  }));
+  const sn = `${tickers[rollingPair[0]]} vs ${tickers[rollingPair[1]]}`;
+  const data = rollingCorrData.map((d) => ({ date: d.date, [sn]: +d.value.toFixed(4) }));
   return (
     <ChartCard
       title={t('Rolling Correlation')}
@@ -53,7 +50,7 @@ export const RollingCorrelationChart = memo(function RollingCorrelationChart({
     >
       <TimeSeriesLineChart
         data={data}
-        series={[seriesName]}
+        series={[sn]}
         height={300}
         defaultStrokeWidth={1.5}
         tooltipValueFormatter={(v) => [v.toFixed(4), t('Correlation')]}
@@ -87,11 +84,11 @@ function RollingLineChart({
   metric: string;
   t: (k: string) => string;
 }) {
-  const seriesTickers = metric !== 'excess' ? results.tickers : results.tickers.slice(1);
+  const tickers = metric !== 'excess' ? results.tickers : results.tickers.slice(1);
   return (
     <TimeSeriesLineChart
       data={chartData}
-      series={seriesTickers.map((tk) => tk.ticker)}
+      series={tickers.map((tk) => tk.ticker)}
       height={400}
       defaultStrokeWidth={1.5}
       yTickFormatter={isPct ? (v) => `${v.toFixed(0)}%` : (v) => v.toFixed(1)}
@@ -167,10 +164,7 @@ export const RollingMetricsChart = memo(function RollingMetricsChart({
     </ChartCard>
   );
 });
-interface RollingReturnChartProps {
-  portfolios: PortfolioResult[];
-}
-export default function RollingReturnChart({ portfolios }: RollingReturnChartProps) {
+export default function RollingReturnChart({ portfolios }: { portfolios: PortfolioResult[] }) {
   const { t } = useTranslation();
   const mergedData = mergePortfolioSeries(
     portfolios,

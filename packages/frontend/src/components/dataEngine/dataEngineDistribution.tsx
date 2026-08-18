@@ -21,20 +21,18 @@ export function Panel({
 }
 const BAR_FILL = 'hsl(var(--chart-1))';
 const DECADE_ORDER = ['1960s', '1970s', '1980s', '1990s', '2000s', '2010s', '2020s'];
-function sortAgeBucketEntries(entries: [string, number][]): [string, number][] {
-  return [...entries].sort((a, b) => {
+const sortAgeBucketEntries = (entries: [string, number][]): [string, number][] =>
+  [...entries].sort((a, b) => {
     const am = a[0].match(/^(\d+)/);
     const bm = b[0].match(/^(\d+)/);
     return (am ? parseInt(am[1], 10) : 999) - (bm ? parseInt(bm[1], 10) : 999);
   });
-}
-function sortDecadeEntries(entries: [string, number][]): [string, number][] {
-  return [...entries].sort((a, b) => {
+const sortDecadeEntries = (entries: [string, number][]): [string, number][] =>
+  [...entries].sort((a, b) => {
     const ai = DECADE_ORDER.indexOf(a[0]);
     const bi = DECADE_ORDER.indexOf(b[0]);
     return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
   });
-}
 function DistributionRow({
   label,
   count,
@@ -44,14 +42,14 @@ function DistributionRow({
   count: number;
   maxCount: number;
 }) {
-  const barPct = maxCount > 0 ? (count / maxCount) * 100 : 0;
+  const pct = maxCount > 0 ? (count / maxCount) * 100 : 0;
   return (
     <div className="mb-1.5">
       <div className="mb-1 flex justify-between text-label">
         <span className="text-fg-secondary">{label}</span>
         <span className="font-mono tabular-nums text-fg-tertiary">{fmt(count)}</span>
       </div>
-      <Progress value={barPct} />
+      <Progress value={pct} />
     </div>
   );
 }
@@ -63,20 +61,18 @@ export function MarketDistributionCard({
   universe: UniverseStats | null;
 }) {
   const { t } = useTranslation();
-  const marketEntries = stats.by_market ? Object.entries(stats.by_market) : [];
-  const maxCount =
-    marketEntries.length > 0 ? Math.max(...marketEntries.map(([, d]) => d.count)) : 0;
-  const labelOf = (market: string) =>
-    market === 'US' ? t('US Stocks') : market === 'CN' ? t('CN Stocks') : market;
+  const entries = stats.by_market ? Object.entries(stats.by_market) : [];
+  const max = entries.length > 0 ? Math.max(...entries.map(([, d]) => d.count)) : 0;
+  const labelOf = (m: string) => (m === 'US' ? t('US Stocks') : m === 'CN' ? t('CN Stocks') : m);
   return (
     <Panel title={t('By Market')}>
-      {marketEntries.map(([market, data]) => (
+      {entries.map(([market, data]) => (
         <div key={market} className="mb-2.5">
           <div className="mb-1 flex justify-between text-label">
             <span className="font-semibold text-fg-secondary">{labelOf(market)}</span>
             <span className="font-mono tabular-nums text-fg-tertiary">{fmt(data.count)}</span>
           </div>
-          <Progress value={maxCount > 0 ? (data.count / maxCount) * 100 : 0} />
+          <Progress value={max > 0 ? (data.count / max) * 100 : 0} />
           <div className="mt-[3px] flex gap-3 text-caption text-fg-tertiary">
             <span>
               {t('Stock')} {fmt(data.stocks)}
@@ -115,7 +111,7 @@ export function ExchangeDistributionCard({ stats }: { stats: Stats }) {
         .sort((a, b) => b[1] - a[1])
         .slice(0, 10)
     : [];
-  const maxCount = entries.length > 0 ? Math.max(...entries.map(([, c]) => c)) : 0;
+  const max = entries.length > 0 ? Math.max(...entries.map(([, c]) => c)) : 0;
   return (
     <Panel title={t('By Exchange (Top 10)')}>
       {entries.map(([exchange, count]) => (
@@ -123,7 +119,7 @@ export function ExchangeDistributionCard({ stats }: { stats: Stats }) {
           key={exchange}
           label={exchange || t('Unknown')}
           count={count}
-          maxCount={maxCount}
+          maxCount={max}
         />
       ))}
     </Panel>

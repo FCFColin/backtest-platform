@@ -17,7 +17,6 @@ interface CorrelationWithBetaProps {
   portfolioCorrelations?: number[][];
 }
 const ROLLING_WINDOWS = [20, 60, 120, 252];
-
 function BetaTable({ betaData, baseName }: { betaData: BetaRow[]; baseName: string }) {
   const { t } = useTranslation();
   if (betaData.length === 0) return null;
@@ -58,7 +57,7 @@ function RollingCorrelationControls({
   const setA = (i: number) =>
     onSelectPair(selectedPair ? [i, selectedPair[1]] : [i, i === 0 ? 1 : 0]);
   const setB = (j: number) => onSelectPair(selectedPair ? [selectedPair[0], j] : [0, j]);
-  const pairOptions = portfolios.map((p, idx) => ({ value: idx, label: p.name }));
+  const pairOpts = portfolios.map((p, idx) => ({ value: idx, label: p.name }));
   return (
     <div className="flex flex-wrap items-center gap-3 mb-3">
       <span className="flex items-center gap-1.5">
@@ -67,7 +66,7 @@ function RollingCorrelationControls({
           aria-label={t('charts.correlation.portfolioA')}
           value={selectedPair?.[0] ?? 0}
           onChange={setA}
-          options={pairOptions}
+          options={pairOpts}
           width={110}
         />
       </span>
@@ -77,7 +76,7 @@ function RollingCorrelationControls({
           aria-label={t('charts.correlation.portfolioB')}
           value={selectedPair?.[1] ?? 1}
           onChange={setB}
-          options={pairOptions}
+          options={pairOpts}
           width={110}
         />
       </span>

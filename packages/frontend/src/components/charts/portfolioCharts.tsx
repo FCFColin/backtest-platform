@@ -9,36 +9,33 @@ import { SimpleChart } from './sharedChartContent.js';
 import { ChartEmptyState } from '@/components/stateDisplay.js';
 import EChart from './EChart.js';
 import ChartCard from '../ChartCard.js';
-
-interface PortfolioPiesChartProps {
+const emptyDataCard = (t: TFunction) => (
+  <ChartCard>
+    <ChartEmptyState message={t('No data')} />
+  </ChartCard>
+);
+export default function PortfolioPiesChart({
+  portfolios,
+}: {
   portfolios: Array<Pick<Portfolio, 'name' | 'assets'>>;
-}
-function emptyDataCard(t: TFunction) {
-  return (
-    <ChartCard>
-      <ChartEmptyState message={t('No data')} />
-    </ChartCard>
-  );
-}
-export default function PortfolioPiesChart({ portfolios }: PortfolioPiesChartProps) {
+}) {
   const { t } = useTranslation();
   if (portfolios.length === 0) return emptyDataCard(t);
-  const portfoliosWithAssets = portfolios.filter((p) => p.assets && p.assets.length > 0);
-  if (portfoliosWithAssets.length === 0) {
+  const pwa = portfolios.filter((p) => p.assets && p.assets.length > 0);
+  if (pwa.length === 0)
     return (
       <ChartCard title={t('Allocation Pies')}>
         <ChartEmptyState message={t('No assets')} />
       </ChartCard>
     );
-  }
-  const pieWidth = portfoliosWithAssets.length <= 2 ? 50 : 33;
-  const exportData = portfoliosWithAssets.flatMap((p) =>
+  const pieWidth = pwa.length <= 2 ? 50 : 33;
+  const exportData = pwa.flatMap((p) =>
     p.assets.map((a) => ({ portfolio: p.name, ticker: a.ticker, weight: a.weight })),
   );
   return (
     <ChartCard title={t('Allocation Pies')} data={exportData} csvFilename="portfolio-pies">
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px' }}>
-        {portfoliosWithAssets.map((portfolio) => {
+        {pwa.map((portfolio) => {
           const pieData = portfolio.assets.map((a, idx) => ({
             name: a.ticker,
             value: a.weight,
@@ -50,10 +47,7 @@ export default function PortfolioPiesChart({ portfolios }: PortfolioPiesChartPro
                 tooltipRow(p.marker, p.name, `${p.value}%`),
               'item',
             ),
-            legend: {
-              bottom: 0,
-              textStyle: { color: 'hsl(var(--fg-tertiary))', fontSize: 12 },
-            },
+            legend: { bottom: 0, textStyle: { color: 'hsl(var(--fg-tertiary))', fontSize: 12 } },
             series: [
               {
                 type: 'pie',
@@ -90,14 +84,10 @@ export default function PortfolioPiesChart({ portfolios }: PortfolioPiesChartPro
     </ChartCard>
   );
 }
-
 type AllocationPortfolio = Pick<Portfolio, 'name' | 'assets'> & {
   growthCurve: Array<{ date: string; value: number }>;
   allocationHistory?: Array<{ date: string; weights: number[] }>;
 };
-interface PortfolioAllocationChartProps {
-  portfolios: AllocationPortfolio[];
-}
 function AllocationAreaChart({
   data,
   assets,
@@ -142,11 +132,9 @@ function AllocationHistoryChart({
   allocationHistory: NonNullable<AllocationPortfolio['allocationHistory']>;
 }) {
   const { t } = useTranslation();
-  const data = allocationHistory.map((snapshot) => {
-    const entry: Record<string, string | number> = { date: snapshot.date };
-    for (let i = 0; i < assets.length; i++) {
-      entry[assets[i].ticker] = (snapshot.weights[i] ?? 0) * 100;
-    }
+  const data = allocationHistory.map((snap) => {
+    const entry: Record<string, string | number> = { date: snap.date };
+    for (let i = 0; i < assets.length; i++) entry[assets[i].ticker] = (snap.weights[i] ?? 0) * 100;
     return entry;
   });
   const chartData = data.length > DOWNSAMPLE_THRESHOLD ? downsample(data, DOWNSAMPLE_TARGET) : data;
@@ -169,17 +157,16 @@ function InitialWeightChart({
   growthCurve: Array<{ date: string; value: number }>;
 }) {
   const { t } = useTranslation();
-  const sampled = growthCurve.filter((_, i) => i % 20 === 0);
-  const data = sampled.map((point) => {
-    const entry: Record<string, string | number> = { date: point.date };
-    for (const asset of assets) entry[asset.ticker] = asset.weight;
-    return entry;
-  });
+  const data = growthCurve
+    .filter((_, i) => i % 20 === 0)
+    .map((pt) => {
+      const entry: Record<string, string | number> = { date: pt.date };
+      for (const a of assets) entry[a.ticker] = a.weight;
+      return entry;
+    });
   if (data.length === 0) {
-    const entry: Record<string, string | number> = {
-      date: t('Start Date'),
-    };
-    for (const asset of assets) entry[asset.ticker] = asset.weight;
+    const entry: Record<string, string | number> = { date: t('Start Date') };
+    for (const a of assets) entry[a.ticker] = a.weight;
     data.push(entry);
   }
   return (
@@ -199,21 +186,18 @@ function InitialWeightChart({
     </ChartCard>
   );
 }
-export function PortfolioAllocationChart({ portfolios }: PortfolioAllocationChartProps) {
+export function PortfolioAllocationChart({ portfolios }: { portfolios: AllocationPortfolio[] }) {
   const { t } = useTranslation();
   if (portfolios.length === 0) return emptyDataCard(t);
-  const firstPortfolio = portfolios[0];
-  const assets = firstPortfolio.assets;
-  if (assets.length === 0) {
+  const { assets } = portfolios[0];
+  if (assets.length === 0)
     return (
       <ChartCard title={t('Portfolio Allocation')}>
         <ChartEmptyState message={t('No assets')} />
       </ChartCard>
     );
-  }
-  const allocationHistory = firstPortfolio.allocationHistory;
-  if (allocationHistory && allocationHistory.length > 0) {
-    return <AllocationHistoryChart assets={assets} allocationHistory={allocationHistory} />;
-  }
-  return <InitialWeightChart assets={assets} growthCurve={firstPortfolio.growthCurve || []} />;
+  const alloc = portfolios[0].allocationHistory;
+  if (alloc && alloc.length > 0)
+    return <AllocationHistoryChart assets={assets} allocationHistory={alloc} />;
+  return <InitialWeightChart assets={assets} growthCurve={portfolios[0].growthCurve || []} />;
 }

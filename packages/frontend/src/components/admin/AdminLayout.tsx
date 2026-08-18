@@ -19,14 +19,8 @@ import {
 import { Card, CardHeader, CardContent, Badge, type BadgeProps } from '../ui/uiComponents.js';
 import { cn } from '../../lib/utils.js';
 import type { ServiceHealthView } from '../../utils/adminStats.js';
+
 type KpiColor = 'blue' | 'green' | 'purple' | 'orange' | 'red';
-interface KpiCardProps {
-  label: string;
-  value: ReactNode;
-  icon?: ReactNode;
-  color?: KpiColor;
-  subtitle?: string;
-}
 const COLOR_CLASSES: Record<KpiColor, string> = {
   blue: 'bg-brand/10 text-brand',
   green: 'bg-success/10 text-success',
@@ -34,7 +28,19 @@ const COLOR_CLASSES: Record<KpiColor, string> = {
   orange: 'bg-warning/10 text-warning',
   red: 'bg-danger/10 text-danger',
 };
-export function KpiCard({ label, value, icon, color = 'blue', subtitle }: KpiCardProps) {
+export function KpiCard({
+  label,
+  value,
+  icon,
+  color = 'blue',
+  subtitle,
+}: {
+  label: string;
+  value: ReactNode;
+  icon?: ReactNode;
+  color?: KpiColor;
+  subtitle?: string;
+}) {
   return (
     <Card>
       <CardHeader className="flex-row items-center gap-3 space-y-0 p-4 pb-2">
@@ -49,17 +55,11 @@ export function KpiCard({ label, value, icon, color = 'blue', subtitle }: KpiCar
   );
 }
 type ServiceStatus = 'healthy' | 'degraded' | 'down' | 'unknown';
-type BadgeVariant = NonNullable<BadgeProps['variant']>;
-interface ServiceStatusBadgeProps {
-  status: ServiceStatus;
-  variant?: 'pill' | 'dot';
-  size?: 'sm' | 'md';
-}
 const STATUS_CONFIG: Record<
   ServiceStatus,
   {
     icon: typeof CheckCircle;
-    badgeVariant: BadgeVariant;
+    badgeVariant: NonNullable<BadgeProps['variant']>;
     overrideClassName?: string;
     labelKey: string;
   }
@@ -91,7 +91,11 @@ export function ServiceStatusBadge({
   status,
   variant = 'pill',
   size = 'sm',
-}: ServiceStatusBadgeProps) {
+}: {
+  status: ServiceStatus;
+  variant?: 'pill' | 'dot';
+  size?: 'sm' | 'md';
+}) {
   const { t } = useTranslation();
   const config = STATUS_CONFIG[status];
   const Icon = config.icon;
@@ -154,10 +158,9 @@ export default function AdminLayout() {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
-  const currentItem = SIDEBAR_ITEMS.find((item) => {
-    if (item.end) return location.pathname === '/admin';
-    return location.pathname.startsWith(item.to);
-  });
+  const currentItem = SIDEBAR_ITEMS.find((item) =>
+    item.end ? location.pathname === '/admin' : location.pathname.startsWith(item.to),
+  );
   const currentLabel = currentItem ? t(currentItem.labelKey) : t('Admin Console');
   return (
     <div className="flex h-dvh overflow-hidden bg-app">

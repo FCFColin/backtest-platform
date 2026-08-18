@@ -4,12 +4,6 @@ import { X } from 'lucide-react';
 import { Badge, Button, Input } from '@/components/ui/uiComponents';
 import { cn } from '@/lib/utils';
 import { normalizeTicker } from '@/utils/ticker';
-interface TickerTagInputProps {
-  tickers: string[];
-  onChange: (tickers: string[]) => void;
-  minCount?: number;
-  placeholder?: string;
-}
 function TickerChips({
   tickers,
   onRemove,
@@ -49,9 +43,14 @@ export function TickerTagInput({
   onChange,
   minCount = 2,
   placeholder,
-}: TickerTagInputProps) {
+}: {
+  tickers: string[];
+  onChange: (tickers: string[]) => void;
+  minCount?: number;
+  placeholder?: string;
+}) {
   const { t } = useTranslation();
-  const resolvedPlaceholder = placeholder ?? t('Enter a ticker and press Enter to add...');
+  const ph = placeholder ?? t('Enter a ticker and press Enter to add...');
   const [input, setInput] = useState('');
   const [error, setError] = useState<string | null>(null);
   const addTicker = (raw: string): boolean => {
@@ -76,9 +75,8 @@ export function TickerTagInput({
     if (e.key === 'Enter' || e.key === ',') {
       e.preventDefault();
       if (addTicker(input)) setInput('');
-    } else if (e.key === 'Backspace' && input === '' && tickers.length > 0) {
+    } else if (e.key === 'Backspace' && input === '' && tickers.length > 0)
       removeTicker(tickers.length - 1);
-    }
   };
   const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
     e.preventDefault();
@@ -114,13 +112,10 @@ export function TickerTagInput({
           onBlur={() => {
             if (addTicker(input)) setInput('');
           }}
-          placeholder={tickers.length === 0 ? resolvedPlaceholder : ''}
-          aria-label={resolvedPlaceholder}
+          placeholder={tickers.length === 0 ? ph : ''}
+          aria-label={ph}
           aria-invalid={error !== null}
-          className={cn(
-            'h-7 min-w-[140px] flex-1 border-0 bg-transparent px-1 shadow-none',
-            'focus-visible:ring-0 focus:border-0 focus:ring-0',
-          )}
+          className="h-7 min-w-[140px] flex-1 border-0 bg-transparent px-1 shadow-none focus-visible:ring-0 focus:border-0 focus:ring-0"
         />
       </div>
       {error && (

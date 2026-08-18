@@ -12,6 +12,9 @@ import { DrawdownChart } from './drawdownCharts.js';
 import { CorrelationMatrixTable } from './tables.js';
 import ChartCard from '../ChartCard.js';
 import { GrowthChart } from './GrowthChart.js';
+
+type TFn = ReturnType<typeof useTranslation>['t'];
+
 export const OverviewCharts = memo(function OverviewCharts({
   results,
   StatsTable,
@@ -34,52 +37,50 @@ export const OverviewCharts = memo(function OverviewCharts({
     </div>
   );
 });
-interface TelltaleChartProps {
-  portfolios?: PortfolioResult[];
-  results?: AssetAnalysisResult;
-}
-type NamedCurve = { name: string; growthCurve: Array<{ date: string; value: number }> };
-function buildDateMap(benchMap: Map<string, number>, comparisons: NamedCurve[]) {
-  const dateMap = new Map<string, Record<string, number | string>>();
-  for (const { name, growthCurve } of comparisons)
+
+function buildDateMap(
+  bench: Map<string, number>,
+  comps: { name: string; growthCurve: { date: string; value: number }[] }[],
+) {
+  const dm = new Map<string, Record<string, number | string>>();
+  for (const { name, growthCurve } of comps)
     for (const { date, value } of growthCurve) {
-      const benchVal = benchMap.get(date);
-      if (!benchVal) continue;
-      const ratio = +(value / benchVal).toFixed(6);
-      const row = dateMap.get(date);
-      if (row) row[name] = ratio;
-      else dateMap.set(date, { date, [name]: ratio });
+      const bv = bench.get(date);
+      if (!bv) continue;
+      const r = dm.get(date);
+      if (r) r[name] = +(value / bv).toFixed(6);
+      else dm.set(date, { date, [name]: +(value / bv).toFixed(6) });
     }
-  return dateMap;
+  return dm;
 }
+
 function computeTelltaleData(
   portfolios: PortfolioResult[] | undefined,
   results: AssetAnalysisResult | undefined,
-  t: ReturnType<typeof useTranslation>['t'],
+  t: TFn,
 ) {
   const isResults = !!results;
-  const source = isResults ? results!.tickers : (portfolios ?? []);
-  const toNamed = (s: (typeof source)[0]) => ({
+  const src = isResults ? results!.tickers : (portfolios ?? []);
+  const toNamed = (s: (typeof src)[0]) => ({
     name: 'ticker' in s ? s.ticker : s.name,
     growthCurve: s.growthCurve,
   });
-  const benchmark = source[0] ? toNamed(source[0]) : undefined;
-  const comparisons = source.slice(1).map(toNamed);
-  const labels = comparisons.map((c) => c.name);
+  const bench = src[0] ? toNamed(src[0]) : undefined;
+  const comps = src.slice(1).map(toNamed);
+  const labels = comps.map((c) => c.name);
   const title = isResults
     ? `${t('Telltale Chart — Relative')} ${results!.tickers[0].ticker}`
     : t('Telltale Chart');
-  if (!benchmark || comparisons.length < 1)
+  if (!bench || comps.length < 1)
     return {
       chartData: [],
       labels,
       title,
       emptyMessage: t('At least 2 assets required to display telltale chart'),
     };
-  const benchMap = new Map<string, number>();
-  for (const { date, value } of benchmark.growthCurve) benchMap.set(date, value);
-  const dateMap = buildDateMap(benchMap, comparisons);
-  const merged = [...dateMap.values()].sort((a, b) =>
+  const bm = new Map<string, number>();
+  for (const { date, value } of bench.growthCurve) bm.set(date, value);
+  const merged = [...buildDateMap(bm, comps).values()].sort((a, b) =>
     (a.date as string).localeCompare(b.date as string),
   );
   return {
@@ -90,15 +91,15 @@ function computeTelltaleData(
     emptyMessage: null,
   };
 }
+
 function TelltaleChartView({
   chartData,
   labels,
-  t,
 }: {
-  chartData: Array<Record<string, number | string>>;
+  chartData: Record<string, number | string>[];
   labels: string[];
-  t: ReturnType<typeof useTranslation>['t'];
 }) {
+  const { t } = useTranslation();
   return (
     <TimeSeriesLineChart
       data={chartData}
@@ -107,8 +108,8 @@ function TelltaleChartView({
       yTickFormatter={(v: number) => v.toFixed(3)}
       yLabel={t('Relative Ratio')}
       tooltipValueFormatter={(value: number, name: string) => {
-        const numValue = typeof value === 'number' && isFinite(value) ? value : 0;
-        return [numValue.toFixed(3), name];
+        const n = typeof value === 'number' && isFinite(value) ? value : 0;
+        return [n.toFixed(3), name];
       }}
       tooltipLabelFormatter={(label: string) => `${t('Date')}: ${label}`}
       referenceY={1}
@@ -117,44 +118,49 @@ function TelltaleChartView({
     />
   );
 }
-export function TelltaleChart({ portfolios, results }: TelltaleChartProps) {
+
+export function TelltaleChart({
+  portfolios,
+  results,
+}: {
+  portfolios?: PortfolioResult[];
+  results?: AssetAnalysisResult;
+}) {
   const { t } = useTranslation();
   const { chartData, labels, title, emptyMessage } = useMemo(
     () => computeTelltaleData(portfolios, results, t),
     [portfolios, results, t],
   );
-  if (emptyMessage) {
+  if (emptyMessage)
     return (
       <ChartCard title={title}>
         <ChartEmptyState message={emptyMessage} />
       </ChartCard>
     );
-  }
   return (
     <ChartCard title={title} data={chartData} csvFilename="telltale">
-      <TelltaleChartView chartData={chartData} labels={labels} t={t} />
+      <TelltaleChartView chartData={chartData} labels={labels} />
     </ChartCard>
   );
 }
+
 const MONTH_LABELS = 'Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec'.split(' ');
-interface MonthlySeries {
-  name: string;
-  monthlyReturns: Array<{ year: number; month: number; return: number }>;
-}
-function HeatmapTable({ data }: { data: Array<{ year: number; months: (number | null)[] }> }) {
+
+function HeatmapTable({ data }: { data: { year: number; months: (number | null)[] }[] }) {
   const { t } = useTranslation();
+  const mn = (n: number) => t('Month {{n}}', { n });
   return (
     <div className="overflow-x-auto">
       <table className="border-collapse">
         <thead>
           <tr>
             <th className="px-2 py-1 text-label-tiny font-medium text-left w-10 text-fg-tertiary" />
-            {Array.from({ length: 12 }, (_, i) => i + 1).map((n) => (
+            {Array.from({ length: 12 }, (_, i) => (
               <th
-                key={n}
+                key={i + 1}
                 className="px-1 py-1 text-label-tiny font-medium text-center min-w-[36px] text-fg-tertiary"
               >
-                {t('Month {{n}}', { n })}
+                {mn(i + 1)}
               </th>
             ))}
           </tr>
@@ -165,12 +171,12 @@ function HeatmapTable({ data }: { data: Array<{ year: number; months: (number | 
               <td className="px-2 py-0.5 text-label-tiny font-medium text-fg-secondary">
                 {row.year}
               </td>
-              {row.months.map((val, mIdx) => (
+              {row.months.map((val, mi) => (
                 <td
-                  key={mIdx}
+                  key={mi}
                   className="px-0.5 py-0.5 text-center cursor-default"
                   style={{ backgroundColor: getHeatColor(val) }}
-                  title={`${row.year} ${t('Month {{n}}', { n: mIdx + 1 })}: ${val !== null ? val.toFixed(2) : '-'}%`}
+                  title={`${row.year} ${mn(mi + 1)}: ${val !== null ? val.toFixed(2) : '-'}%`}
                 >
                   <span
                     className="text-micro inline-block w-[34px] leading-[24px]"
@@ -192,91 +198,86 @@ function HeatmapTable({ data }: { data: Array<{ year: number; months: (number | 
     </div>
   );
 }
-interface HeatmapRow {
-  year: number;
-  months: (number | null)[];
-}
-function buildHeatmapData(series: MonthlySeries): HeatmapRow[] {
-  const yearMap = new Map<number, (number | null)[]>();
-  for (const mr of series.monthlyReturns ?? []) {
-    if (!yearMap.has(mr.year)) yearMap.set(mr.year, Array(12).fill(null));
-    yearMap.get(mr.year)![mr.month - 1] = +(mr.return * 100).toFixed(2);
+
+function buildHeatmapData(s: {
+  monthlyReturns?: { year: number; month: number; return: number }[];
+}) {
+  const ym = new Map<number, (number | null)[]>();
+  for (const mr of s.monthlyReturns ?? []) {
+    if (!ym.has(mr.year)) ym.set(mr.year, Array(12).fill(null));
+    ym.get(mr.year)![mr.month - 1] = +(mr.return * 100).toFixed(2);
   }
-  return Array.from(yearMap.entries())
+  return Array.from(ym.entries())
     .sort(([a], [b]) => a - b)
     .map(([year, months]) => ({ year, months }));
 }
-interface MonthlyHeatmapProps {
+
+export const MonthlyHeatmap = memo(function MonthlyHeatmap({
+  results,
+  portfolio,
+}: {
   results?: AssetAnalysisResult;
   portfolio?: PortfolioResult;
-}
-function MonthlyHeatmapImpl({ results, portfolio }: MonthlyHeatmapProps) {
+}) {
   const { t } = useTranslation();
-  const series: MonthlySeries[] = useMemo(() => {
-    if (results) {
-      return results.tickers.map((tk) => ({
-        name: tk.ticker,
-        monthlyReturns: tk.monthlyReturns,
-      }));
-    }
-    if (portfolio) {
-      return [{ name: portfolio.name, monthlyReturns: portfolio.monthlyReturns }];
-    }
+  const series: {
+    name: string;
+    monthlyReturns: { year: number; month: number; return: number }[];
+  }[] = useMemo(() => {
+    if (results)
+      return results.tickers.map((tk) => ({ name: tk.ticker, monthlyReturns: tk.monthlyReturns }));
+    if (portfolio) return [{ name: portfolio.name, monthlyReturns: portfolio.monthlyReturns }];
     return [];
   }, [results, portfolio]);
-  const multiTicker = series.length > 1;
-  const [selected, setSelected] = useState(0);
-  const currentIdx = multiTicker ? Math.min(selected, series.length - 1) : 0;
-  const current = series[currentIdx];
-  const heatmapData = useMemo(() => (current ? buildHeatmapData(current) : []), [current]);
+  const multi = series.length > 1;
+  const [sel, setSel] = useState(0);
+  const idx = multi ? Math.min(sel, series.length - 1) : 0;
+  const cur = series[idx];
+  const hm = useMemo(() => (cur ? buildHeatmapData(cur) : []), [cur]);
   const title = portfolio
     ? t('{{name}} Monthly Returns Heatmap', { name: portfolio.name })
     : t('Monthly Returns Heatmap');
   // CSV 表头保留英文月份缩写：导出数据面向机器消费，不随界面语言切换（显示层走 t('Month {{n}}')）
-  const exportData = heatmapData.map((row) => ({
-    year: row.year,
-    ...Object.fromEntries(MONTH_LABELS.map((m, i) => [m, row.months[i] ?? ''])),
+  const exportData = hm.map((r) => ({
+    year: r.year,
+    ...Object.fromEntries(MONTH_LABELS.map((m, i) => [m, r.months[i] ?? ''])),
   }));
   return (
     <ChartCard
       title={title}
       data={exportData}
-      csvFilename={`monthly-return-${current?.name ?? 'data'}`}
+      csvFilename={`monthly-return-${cur?.name ?? 'data'}`}
       headerExtra={
-        multiTicker ? (
+        multi ? (
           <MiniSelect
             aria-label={t('Portfolio')}
-            value={currentIdx}
-            onChange={setSelected}
+            value={idx}
+            onChange={setSel}
             options={series.map((s, i) => ({ value: i, label: s.name }))}
             width={100}
           />
         ) : undefined
       }
     >
-      {heatmapData.length === 0 ? (
+      {hm.length === 0 ? (
         <ChartEmptyState message={t('No monthly return data available')} />
       ) : (
-        <HeatmapTable data={heatmapData} />
+        <HeatmapTable data={hm} />
       )}
     </ChartCard>
   );
-}
-export const MonthlyHeatmap = memo(MonthlyHeatmapImpl);
-interface SeasonalityChartProps {
-  portfolios: PortfolioResult[];
-}
-export function SeasonalityChart({ portfolios }: SeasonalityChartProps) {
+});
+
+export function SeasonalityChart({ portfolios }: { portfolios: PortfolioResult[] }) {
   const { t } = useTranslation();
-  if (portfolios.length === 0) {
+  if (portfolios.length === 0)
     return (
       <ChartCard title={t('Seasonality')}>
         <ChartEmptyState message={t('No data')} />
       </ChartCard>
     );
-  }
-  const monthLabels = Array.from({ length: 12 }, (_, i) => t('Month {{n}}', { n: i + 1 }));
-  const data = computeSeasonalityData(portfolios, monthLabels);
+  const ml = Array.from({ length: 12 }, (_, i) => t('Month {{n}}', { n: i + 1 }));
+  const data = computeSeasonalityData(portfolios, ml);
   return (
     <ChartCard title={t('Seasonality')} data={data} csvFilename="seasonality">
       <BarChartContent
@@ -293,20 +294,20 @@ export function SeasonalityChart({ portfolios }: SeasonalityChartProps) {
     </ChartCard>
   );
 }
+
 function computeSeasonalityData(portfolios: PortfolioResult[], monthLabels: string[]) {
-  const monthData: Record<number, Record<string, { sum: number; count: number }>> = {};
-  for (let m = 1; m <= 12; m++) monthData[m] = {};
-  for (const p of portfolios) {
-    for (const point of p.monthlyReturns || []) {
-      const d = (monthData[point.month][p.name] ??= { sum: 0, count: 0 });
-      d.sum += point.return;
+  const md: Record<number, Record<string, { sum: number; count: number }>> = {};
+  for (let m = 1; m <= 12; m++) md[m] = {};
+  for (const p of portfolios)
+    for (const pt of p.monthlyReturns || []) {
+      const d = (md[pt.month][p.name] ??= { sum: 0, count: 0 });
+      d.sum += pt.return;
       d.count++;
     }
-  }
   return monthLabels.map((label, i) => {
     const row: Record<string, number | string> = { month: label };
     for (const p of portfolios) {
-      const d = monthData[i + 1][p.name];
+      const d = md[i + 1][p.name];
       if (d?.count) row[p.name] = +((d.sum / d.count) * 100).toFixed(2);
     }
     return row;

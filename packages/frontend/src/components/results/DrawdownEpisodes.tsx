@@ -4,32 +4,38 @@ import { ChevronDown, ChevronRight } from 'lucide-react';
 import { fmtPct, formatDuration } from '@/utils/format.js';
 import { getColorClass } from '@/components/charts/chartUtils.js';
 import { cn } from '@/lib/utils.js';
-import type { DrawdownEpisode } from '@backtest/shared/types/backtest.js';
-interface DrawdownEpisodesProps {
+import type { DrawdownEpisode } from '@backtest/shared/types/backtest';
+
+type Severity = 'all' | 'severe' | 'moderate' | 'mild';
+function getSeverity(depth: number): 'severe' | 'moderate' | 'mild' {
+  const abs = Math.abs(depth);
+  return abs >= 0.2 ? 'severe' : abs >= 0.1 ? 'moderate' : 'mild';
+}
+export function DrawdownEpisodes({
+  episodes,
+}: {
   episodes: DrawdownEpisode[];
   portfolioName?: string;
-}
-type Severity = 'all' | 'severe' | 'moderate' | 'mild';
-export function DrawdownEpisodes({ episodes }: DrawdownEpisodesProps) {
+}) {
   const { t } = useTranslation();
   const [severity, setSeverity] = useState<Severity>('all');
   const [sortBy, setSortBy] = useState<'depth' | 'duration' | 'recovery'>('depth');
   const [displayLimit, setDisplayLimit] = useState(5);
   const filtered = episodes
     .filter((ep) => severity === 'all' || getSeverity(ep.depth) === severity)
-    .sort((a, b) => {
-      if (sortBy === 'depth') return a.depth - b.depth;
-      if (sortBy === 'duration') return b.totalTimeDurationDays - a.totalTimeDurationDays;
-      return (b.recoveryFactor ?? 0) - (a.recoveryFactor ?? 0);
-    });
+    .sort((a, b) =>
+      sortBy === 'depth'
+        ? a.depth - b.depth
+        : sortBy === 'duration'
+          ? b.totalTimeDurationDays - a.totalTimeDurationDays
+          : (b.recoveryFactor ?? 0) - (a.recoveryFactor ?? 0),
+    );
   const displayed = filtered.slice(0, displayLimit);
-  const hasMore = filtered.length > displayLimit;
   return (
     <div
       className="bg-surface border border-border rounded-xl"
       data-testid="drawdown-episodes-panel"
     >
-      {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-border">
         <h3 className="text-h3">{t('Drawdown Episodes')}</h3>
         <div className="flex items-center gap-2">
@@ -59,21 +65,18 @@ export function DrawdownEpisodes({ episodes }: DrawdownEpisodesProps) {
         </div>
       </div>
       <DrawdownSummary episodes={episodes} />
-      {/* 回撤列表 */}
       <div>
         {displayed.map((ep) => (
           <DrawdownEpisodeRow key={ep.peakDate} episode={ep} />
         ))}
-        {hasMore && (
+        {filtered.length > displayLimit && (
           <div className="p-4 border-t border-border-subtle text-center">
             <button
               onClick={() => setDisplayLimit((prev) => prev + 10)}
               className="text-caption text-brand hover:underline"
               data-testid="show-more-episodes"
             >
-              {t('Show {{count}} more', {
-                count: Math.min(10, filtered.length - displayLimit),
-              })}
+              {t('Show {{count}} more', { count: Math.min(10, filtered.length - displayLimit) })}
             </button>
           </div>
         )}
@@ -84,16 +87,18 @@ export function DrawdownEpisodes({ episodes }: DrawdownEpisodesProps) {
 function DrawdownSummary({ episodes }: { episodes: DrawdownEpisode[] }) {
   const { t } = useTranslation();
   const avg = (xs: number[]) => (xs.length > 0 ? xs.reduce((s, v) => s + v, 0) / xs.length : null);
-  const maxDepth = episodes.length > 0 ? Math.min(...episodes.map((e) => e.depth)) : null;
-  const avgDepth = avg(episodes.map((e) => e.depth));
-  const avgRecovery = avg(episodes.filter((e) => e.recoveryTime > 0).map((e) => e.recoveryTime));
-  const avgRecoveryText = avgRecovery === null ? '—' : formatDuration(Math.round(avgRecovery));
   const neg = (v: number | null) => v !== null && v < 0;
+  const maxDepth = episodes.length > 0 ? Math.min(...episodes.map((e) => e.depth)) : null;
+  const avgRecovery = avg(episodes.filter((e) => e.recoveryTime > 0).map((e) => e.recoveryTime));
+  const depths = episodes.map((e) => e.depth);
   const metrics = [
     { label: t('Total Drawdowns'), value: String(episodes.length) },
     { label: t('Max Drawdown'), value: fmtPct(maxDepth), neg: neg(maxDepth) },
-    { label: t('Avg Drawdown'), value: fmtPct(avgDepth), neg: neg(avgDepth) },
-    { label: t('Avg Recovery Duration'), value: avgRecoveryText },
+    { label: t('Avg Drawdown'), value: fmtPct(avg(depths)), neg: neg(avg(depths)) },
+    {
+      label: t('Avg Recovery Duration'),
+      value: avgRecovery === null ? '—' : formatDuration(Math.round(avgRecovery)),
+    },
   ];
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-6 px-6 py-4 border-b border-border-subtle">
@@ -173,16 +178,13 @@ function DrawdownEpisodeRow({ episode }: { episode: DrawdownEpisode }) {
   );
 }
 function TimelineViz({ episode }: { episode: DrawdownEpisode }) {
-  const peakDate = new Date(episode.peakDate);
-  const troughDate = new Date(episode.troughDate);
-  const recoveryDate = episode.recoveryDate ? new Date(episode.recoveryDate) : null;
-  const totalMs = recoveryDate
-    ? recoveryDate.getTime() - peakDate.getTime()
-    : Date.now() - peakDate.getTime();
-  const troughPos =
-    totalMs > 0 ? ((troughDate.getTime() - peakDate.getTime()) / totalMs) * 100 : 50;
+  const peakMs = new Date(episode.peakDate).getTime();
+  const troughMs = new Date(episode.troughDate).getTime();
+  const recoveryMs = episode.recoveryDate ? new Date(episode.recoveryDate).getTime() : null;
+  const totalMs = recoveryMs ? recoveryMs - peakMs : Date.now() - peakMs;
+  const troughPos = totalMs > 0 ? ((troughMs - peakMs) / totalMs) * 100 : 50;
   const troughLabelHidden = troughPos < 15;
-  const recoveryLabelHidden = !!recoveryDate && 100 - troughPos < 15;
+  const recoveryLabelHidden = !!recoveryMs && 100 - troughPos < 15;
   return (
     <div className="relative h-8" data-testid="drawdown-timeline">
       <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-border-subtle -translate-y-1/2" />
@@ -203,7 +205,7 @@ function TimelineViz({ episode }: { episode: DrawdownEpisode }) {
           </div>
         )}
       </div>
-      {recoveryDate && (
+      {recoveryMs && (
         <div className="absolute right-0 top-1/2 -translate-y-1/2 flex flex-col items-center">
           <div className="w-2.5 h-2.5 rounded-full bg-success" />
           {!recoveryLabelHidden && (
@@ -225,17 +227,17 @@ function DetailField({
   value: string;
   colorValue?: number;
 }) {
-  const cls = colorValue === undefined ? undefined : getColorClass(colorValue);
   return (
     <div>
       <div className="text-label-tiny text-fg-tertiary">{label}</div>
-      <div className={cn('text-body font-mono tabular-nums', cls)}>{value}</div>
+      <div
+        className={cn(
+          'text-body font-mono tabular-nums',
+          colorValue !== undefined && getColorClass(colorValue),
+        )}
+      >
+        {value}
+      </div>
     </div>
   );
-}
-function getSeverity(depth: number): 'severe' | 'moderate' | 'mild' {
-  const abs = Math.abs(depth);
-  if (abs >= 0.2) return 'severe';
-  if (abs >= 0.1) return 'moderate';
-  return 'mild';
 }

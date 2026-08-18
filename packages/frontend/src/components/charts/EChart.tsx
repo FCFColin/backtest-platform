@@ -12,7 +12,6 @@ import {
   AxisPointerComponent,
 } from 'echarts/components';
 import { CanvasRenderer } from 'echarts/renderers';
-
 echarts.use([
   LineChart,
   BarChart,
@@ -26,12 +25,8 @@ echarts.use([
   AxisPointerComponent,
   CanvasRenderer,
 ]);
-
-// canvas 渲染器无法解析 CSS 变量，渲染前把 var(--x)/hsl(var(--x)) 深度解析为具体色值
 const COLOR_FN = /^(?:hsl|rgb|rgba|hwb|lab|lch|oklch|color)\b/i;
-// HSL 通道三元组（如 "213 33% 96%"）需包一层 hsl()；shadow/px 等非颜色值原样透传
 const CHANNEL_RE = /^\d+\s+[\d.]+%?\s+[\d.]+%?$/;
-// 主题切换只发生在 data-theme 变更瞬间，同一批次图表解析可共享缓存
 const tokenCache = new Map<string, string>();
 function resolveToken(name: string): string {
   const cached = tokenCache.get(name);
@@ -63,7 +58,6 @@ function resolveTheme(option: EChartsOption): EChartsOption {
   };
   return walk(option) as EChartsOption;
 }
-
 interface EChartProps {
   option: EChartsOption;
   height: number | string;

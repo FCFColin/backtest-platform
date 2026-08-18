@@ -18,14 +18,6 @@ import {
   mergeRowsByDate,
 } from '@/utils/format.js';
 import { cn } from '@/lib/utils.js';
-interface GrowthChartProps {
-  portfolios: Array<{
-    id: string;
-    name: string;
-    growthCurve: Array<{ date: string; value: number }>;
-  }>;
-  currency?: string;
-}
 const TIME_RANGES = ['1Y', '5Y', '10Y', 'MAX'] as const;
 function GrowthHeader({
   timeRange,
@@ -94,7 +86,11 @@ function ChartLegend({
   onToggle,
   currency,
 }: {
-  portfolios: GrowthChartProps['portfolios'];
+  portfolios: Array<{
+    id: string;
+    name: string;
+    growthCurve: Array<{ date: string; value: number }>;
+  }>;
   hiddenIds: Set<string>;
   onToggle: (id: string) => void;
   currency: string;
@@ -138,13 +134,17 @@ function GrowthLines({
   t,
 }: {
   filteredData: Array<Record<string, string | number>>;
-  portfolios: GrowthChartProps['portfolios'];
+  portfolios: Array<{
+    id: string;
+    name: string;
+    growthCurve: Array<{ date: string; value: number }>;
+  }>;
   currency: string;
   logScale: boolean;
   hiddenIds: Set<string>;
   t: ReturnType<typeof useTranslation>['t'];
 }) {
-  const totalMonthsValue = useMemo(() => totalMonths(filteredData), [filteredData]);
+  const tm = useMemo(() => totalMonths(filteredData), [filteredData]);
   return (
     <SimpleChart
       type="line"
@@ -152,8 +152,8 @@ function GrowthLines({
       height={440}
       margin={{ top: 20, right: 32, bottom: 20, left: 80 }}
       xDataKey="date"
-      xTickFormatter={dateAxisTickFormatter(totalMonthsValue)}
-      xTickInterval={SMART_DATE_INTERVAL(totalMonthsValue)}
+      xTickFormatter={dateAxisTickFormatter(tm)}
+      xTickInterval={SMART_DATE_INTERVAL(tm)}
       yTickFormatter={(v: number) => formatCurrency(v, currency, 0)}
       yDomain={logScale ? [1, 'auto'] : ['auto', 'auto']}
       yScale={logScale ? 'log' : 'linear'}
@@ -166,7 +166,17 @@ function GrowthLines({
     />
   );
 }
-export function GrowthChart({ portfolios, currency = 'USD' }: GrowthChartProps) {
+export function GrowthChart({
+  portfolios,
+  currency = 'USD',
+}: {
+  portfolios: Array<{
+    id: string;
+    name: string;
+    growthCurve: Array<{ date: string; value: number }>;
+  }>;
+  currency?: string;
+}) {
   const { t } = useTranslation();
   const [logScale, setLogScale] = useState(false);
   const [timeRange, setTimeRange] = useState<(typeof TIME_RANGES)[number]>('MAX');
@@ -186,7 +196,7 @@ export function GrowthChart({ portfolios, currency = 'USD' }: GrowthChartProps) 
         portfolios.map((p) => ({
           key: p.id,
           rows: p.growthCurve,
-          value: (point: { date: string; value: number }) => point.value,
+          value: (pt: { date: string; value: number }) => pt.value,
         })),
       ),
     [portfolios],

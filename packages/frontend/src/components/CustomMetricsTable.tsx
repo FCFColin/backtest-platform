@@ -19,9 +19,6 @@ import { getPortfolioColor } from '@/lib/chart-theme.js';
 import { fmtPct, fmtNum } from '@/utils/format.js';
 import { rowsFromMeta } from './statistics-table/columns.js';
 import { STAT_KEY_TO_TESTID, type StatRow } from './statistics-table/types.js';
-interface CustomMetricsTableProps {
-  portfolios: PortfolioResult[];
-}
 const CUSTOM_METRIC_KEYS = [
   'cagr',
   'mwrr',
@@ -63,26 +60,26 @@ const DEFAULT_KEYS: (keyof Statistics)[] = [
 ];
 function formatMetricValue(v: number | undefined, fmt: StatRow['fmt']): string {
   if (v == null) return '—';
-  if (fmt === 'pct') return fmtPct(v);
-  return fmtNum(v, 2);
+  return fmt === 'pct' ? fmtPct(v) : fmtNum(v, 2);
 }
 function MetricLabel({ row }: { row: StatRow }) {
   const { t } = useTranslation();
-  if (!row.description) {
-    return <>{t(row.label)}</>;
-  }
-  return (
+  return row.description ? (
     <span className="inline-flex items-center gap-1">
       <span>{t(row.label)}</span>
       <InfoTooltip description={t(row.description)} />
     </span>
+  ) : (
+    <>{t(row.label)}</>
   );
 }
-interface MetricRowsTableProps {
+export function MetricRowsTable({
+  rows,
+  portfolios,
+}: {
   rows: StatRow[];
   portfolios: PortfolioResult[];
-}
-export function MetricRowsTable({ rows, portfolios }: MetricRowsTableProps) {
+}) {
   const { t } = useTranslation();
   const visibleRows = rows.filter((row) => portfolios.some((p) => p.statistics[row.key] != null));
   const columns: SimpleTableColumn<StatRow>[] = [
@@ -99,8 +96,11 @@ export function MetricRowsTable({ rows, portfolios }: MetricRowsTableProps) {
       align: 'right' as const,
       render: (row: StatRow) => {
         const val = p.statistics[row.key] as number | undefined;
-        const colorClass = val == null || !row.colorize ? '' : getColorClass(val);
-        return <span className={colorClass}>{formatMetricValue(val, row.fmt)}</span>;
+        return (
+          <span className={val == null || !row.colorize ? '' : getColorClass(val)}>
+            {formatMetricValue(val, row.fmt)}
+          </span>
+        );
       },
     })),
   ];
@@ -149,27 +149,25 @@ function MetricSelector({
     </DropdownMenu>
   );
 }
-export default function CustomMetricsTable({ portfolios }: CustomMetricsTableProps) {
+export default function CustomMetricsTable({ portfolios }: { portfolios: PortfolioResult[] }) {
   const { t } = useTranslation();
   const [selectedKeys, setSelectedKeys] = useState<Set<keyof Statistics>>(
     () => new Set(DEFAULT_KEYS),
   );
-  const toggleKey = (key: keyof Statistics) => {
+  const toggleKey = (key: keyof Statistics) =>
     setSelectedKeys((prev) => {
       const next = new Set(prev);
       if (next.has(key)) next.delete(key);
       else next.add(key);
       return next;
     });
-  };
   const visibleMetrics = ALL_METRICS.filter((m) => selectedKeys.has(m.key));
-  if (portfolios.length === 0) {
+  if (portfolios.length === 0)
     return (
       <ChartCard title={t('My Metrics')}>
         <TableEmpty message={t('No data')} />
       </ChartCard>
     );
-  }
   return (
     <ChartCard
       title={t('My Metrics')}

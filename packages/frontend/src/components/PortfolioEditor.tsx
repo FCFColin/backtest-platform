@@ -31,26 +31,26 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
 } from '@/components/ui/uiComponents';
+
 interface PortfolioAsset {
   ticker: string;
   weight: number;
 }
-interface SingleModeProps {
-  singleMode: true;
-  assets: PortfolioAsset[];
-  totalWeight: number;
-  onAdd: () => void;
-  onRemove: (index: number) => void;
-  onUpdate: (index: number, field: 'ticker' | 'weight', val: string | number) => void;
-  header?: ReactNode;
-  wrapInSection?: boolean;
-  cardStyle?: React.CSSProperties;
-  isComplete?: boolean;
-}
-interface MultiModeProps {
-  singleMode?: false;
-}
-type PortfolioEditorProps = SingleModeProps | MultiModeProps;
+type PortfolioEditorProps =
+  | {
+      singleMode: true;
+      assets: PortfolioAsset[];
+      totalWeight: number;
+      onAdd: () => void;
+      onRemove: (index: number) => void;
+      onUpdate: (index: number, field: 'ticker' | 'weight', val: string | number) => void;
+      header?: ReactNode;
+      wrapInSection?: boolean;
+      cardStyle?: React.CSSProperties;
+      isComplete?: boolean;
+    }
+  | { singleMode?: false };
+
 function SinglePortfolioEditor({
   assets,
   totalWeight,
@@ -61,7 +61,7 @@ function SinglePortfolioEditor({
   wrapInSection = true,
   cardStyle,
   isComplete,
-}: Omit<SingleModeProps, 'singleMode'>) {
+}: Omit<Extract<PortfolioEditorProps, { singleMode: true }>, 'singleMode'>) {
   const { t } = useTranslation();
   const weightError = isComplete !== undefined ? null : validateAssetWeights(assets);
   const complete = isComplete ?? weightError === null;
@@ -134,22 +134,29 @@ function SinglePortfolioEditor({
   );
 }
 function handleSavePortfolio(portfolio: StorePortfolio, parameters: BacktestParameters, t: TFunc) {
-  const data = { portfolios: [portfolio], parameters, exportedAt: new Date().toISOString() };
-  downloadJSON(data, `${portfolio.name || 'portfolio'}.json`);
+  downloadJSON(
+    { portfolios: [portfolio], parameters, exportedAt: new Date().toISOString() },
+    `${portfolio.name || 'portfolio'}.json`,
+  );
   useToastStore.getState().addToast('success', t('Portfolio saved as JSON file'));
 }
 const buildRebalanceOptions = (t: TFunc) =>
   ALL_REBALANCE_FREQUENCIES.map((value) => ({ value, label: t(REBALANCE_LABELS[value]) }));
-interface AddMenuActions {
+function AddPortfolioMenu({
+  t,
+  onAdd,
+  onAddPreset,
+  onAddGlidepath,
+  onLoadExample,
+  onLoadCompareExample,
+}: {
   t: TFunc;
   onAdd: () => void;
   onAddPreset: (presetId: string) => void;
   onAddGlidepath: () => void;
   onLoadExample: () => void;
   onLoadCompareExample: () => void;
-}
-function AddPortfolioMenu(props: AddMenuActions) {
-  const { t } = props;
+}) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -160,18 +167,18 @@ function AddPortfolioMenu(props: AddMenuActions) {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="min-w-[200px]">
-        <DropdownMenuItem onClick={props.onAdd}>{t('Add Empty')}</DropdownMenuItem>
+        <DropdownMenuItem onClick={onAdd}>{t('Add Empty')}</DropdownMenuItem>
         {PRESET_PORTFOLIOS.map((preset) => (
-          <DropdownMenuItem key={preset.id} onClick={() => props.onAddPreset(preset.id)}>
+          <DropdownMenuItem key={preset.id} onClick={() => onAddPreset(preset.id)}>
             <div className="flex flex-col gap-0.5">
               <span className="text-caption font-medium text-fg">{t(preset.nameKey)}</span>
               <span className="text-caption text-fg-tertiary">{t(preset.descriptionKey)}</span>
             </div>
           </DropdownMenuItem>
         ))}
-        <DropdownMenuItem onClick={props.onAddGlidepath}>{t('Add Glidepath')}</DropdownMenuItem>
-        <DropdownMenuItem onClick={props.onLoadExample}>{t('Load Example')}</DropdownMenuItem>
-        <DropdownMenuItem onClick={props.onLoadCompareExample}>
+        <DropdownMenuItem onClick={onAddGlidepath}>{t('Add Glidepath')}</DropdownMenuItem>
+        <DropdownMenuItem onClick={onLoadExample}>{t('Load Example')}</DropdownMenuItem>
+        <DropdownMenuItem onClick={onLoadCompareExample}>
           <GitCompare className="w-3.5 h-3.5 shrink-0" />
           {t('Load Comparison Example')}
         </DropdownMenuItem>
@@ -183,7 +190,7 @@ function PortfolioEditorHeader({
   t,
   count,
   ...menuActions
-}: { t: TFunc; count: number } & AddMenuActions) {
+}: { t: TFunc; count: number } & React.ComponentProps<typeof AddPortfolioMenu>) {
   return (
     <div className="flex items-center justify-between gap-2 flex-wrap mb-3">
       <div className="flex items-center gap-2">
@@ -232,11 +239,6 @@ function MultiPortfolioEditor() {
     }
     setShowGlidepathForm(true);
   };
-  const handleLoadCompareExample = () => {
-    addPortfolio('60-40');
-    addPortfolio('80-20');
-    addPortfolio('all-weather');
-  };
   return (
     <div className="flex flex-col gap-2">
       <PortfolioEditorHeader
@@ -246,7 +248,11 @@ function MultiPortfolioEditor() {
         onAddPreset={(presetId) => addPortfolio(presetId)}
         onAddGlidepath={handleAddGlidepath}
         onLoadExample={() => addPortfolio('60-40')}
-        onLoadCompareExample={handleLoadCompareExample}
+        onLoadCompareExample={() => {
+          addPortfolio('60-40');
+          addPortfolio('80-20');
+          addPortfolio('all-weather');
+        }}
       />
       {showGlidepathForm && (
         <GlidepathForm

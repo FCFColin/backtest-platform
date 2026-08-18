@@ -6,8 +6,7 @@ import { getPortfolioColor } from '@/lib/chart-theme.js';
 import { downsample, DOWNSAMPLE_THRESHOLD, DOWNSAMPLE_TARGET } from '../../utils/format.js';
 import { XYScatterChart } from './sharedChartContent.js';
 import { TimeSeriesLineChart } from './TimeSeriesLineChart.js';
-import { SimpleTable } from '../tables.js';
-import type { SimpleTableColumn } from '../tables.js';
+import { SimpleTable, type SimpleTableColumn } from '../tables.js';
 import { computeDailyReturns } from './chartUtils.js';
 interface RegressionChartProps {
   portfolios: PortfolioResult[];
@@ -60,12 +59,11 @@ function computeRegression(
   ];
   const residuals: Array<{ date: string; residual: number }> = [];
   const step = Math.max(1, Math.floor(n / 500));
-  for (let i = 0; i < n; i += step) {
+  for (let i = 0; i < n; i += step)
     residuals.push({
       date: dates[i] || `${i}`,
       residual: +((yReturns[i] - (alpha + beta * xReturns[i])) * 100).toFixed(4),
     });
-  }
   return { alpha: alpha * 100, beta, rSquared, points, linePoints, residuals };
 }
 function RegressionScatterChart({
@@ -122,12 +120,7 @@ function RegressionStatsTable({ reg }: { reg: RegressionWithMeta }) {
   ];
   const columns: SimpleTableColumn<(typeof rows)[number]>[] = [
     { key: 'metric', label: t('Metric'), render: (r) => r.label },
-    {
-      key: 'value',
-      label: t('Value'),
-      align: 'right',
-      render: (r) => r.value,
-    },
+    { key: 'value', label: t('Value'), align: 'right', render: (r) => r.value },
   ];
   return (
     <div style={{ flex: '0 0 auto' }}>

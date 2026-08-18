@@ -8,19 +8,17 @@ import { useAuthStore } from '@/store/authStore';
 import i18n from '@/i18n/index.js';
 import { fmt, Panel } from './dataEngineDistribution.js';
 import type { Stats, UniverseStats, ActionMethod } from './dataEngine.js';
-
-const formatStorageMb = (mb: number): string =>
+const fmtStorage = (mb: number) =>
   mb >= 1024
     ? `${(mb / 1024).toFixed(2)} GB`
     : mb >= 100
       ? `${Math.round(mb)} MB`
       : `${mb.toFixed(1)} MB`;
-const historySpanYears = (earliest?: string | null, latest?: string | null): number | null => {
-  if (!earliest || !latest) return null;
-  const y0 = parseInt(earliest.slice(0, 4), 10);
-  const y1 = parseInt(latest.slice(0, 4), 10);
-  if (Number.isNaN(y0) || Number.isNaN(y1) || y1 < y0) return null;
-  return y1 - y0;
+const historyYears = (e?: string | null, l?: string | null): number | null => {
+  if (!e || !l) return null;
+  const y0 = parseInt(e.slice(0, 4), 10),
+    y1 = parseInt(l.slice(0, 4), 10);
+  return Number.isNaN(y0) || Number.isNaN(y1) || y1 < y0 ? null : y1 - y0;
 };
 function StatCard({
   icon,
@@ -45,16 +43,16 @@ function StatCard({
   );
 }
 function ProgressBar({ label, current, total }: { label: string; current: number; total: number }) {
-  const pctVal = total > 0 ? (current / total) * 100 : 0;
+  const pct = total > 0 ? (current / total) * 100 : 0;
   return (
     <div className="mb-2">
       <div className="mb-1 flex justify-between text-caption">
         <span className="text-fg-secondary">{label}</span>
         <span className="font-mono tabular-nums text-fg-tertiary">
-          {(current ?? 0).toLocaleString()} / {(total ?? 0).toLocaleString()} ({pctVal.toFixed(1)}%)
+          {(current ?? 0).toLocaleString()} / {(total ?? 0).toLocaleString()} ({pct.toFixed(1)}%)
         </span>
       </div>
-      <Progress value={pctVal} />
+      <Progress value={pct} />
     </div>
   );
 }
@@ -71,8 +69,8 @@ export function UniverseInfo({ universe }: { universe: UniverseStats }) {
         {t('Stock')} <span className="font-mono tabular-nums">{fmt(u.stats?.stocks)}</span> + ETF{' '}
         <span className="font-mono tabular-nums">{fmt(u.stats?.etfs)}</span> + {t('Index')}{' '}
         <span className="font-mono tabular-nums">{fmt(u.stats?.indices)}</span>
-      </span>{' '}
-      |{' '}
+      </span>
+      {' | '}
       <span>
         {t('US Stocks')} <span className="font-mono tabular-nums">{fmt(u.stats?.us)}</span> +{' '}
         {t('CN Stocks')} <span className="font-mono tabular-nums">{fmt(u.stats?.cn)}</span>
@@ -80,10 +78,8 @@ export function UniverseInfo({ universe }: { universe: UniverseStats }) {
     </Card>
   );
 }
-const effectiveRole = (user: { role: string; orgRole: string | null }): string => {
-  if (user.orgRole) return user.orgRole === 'owner' ? 'admin' : user.orgRole;
-  return user.role;
-};
+const effectiveRole = (user: { role: string; orgRole: string | null }): string =>
+  user.orgRole ? (user.orgRole === 'owner' ? 'admin' : user.orgRole) : user.role;
 const MANAGE_ACTIONS: Array<{
   url: string;
   labelKey: string;
@@ -116,8 +112,7 @@ export function DataEngineActionButtons({
   const { t } = useTranslation();
   const user = useAuthStore((state) => state.user);
   const role = user ? effectiveRole(user) : '';
-  const canManage = user?.platformAdmin === true || role === 'admin' || role === 'analyst';
-  if (!canManage) return null;
+  if (!(user?.platformAdmin === true || role === 'admin' || role === 'analyst')) return null;
   return (
     <Card className="p-4">
       <div className="flex flex-wrap items-center gap-2">
@@ -147,17 +142,17 @@ export function DataEngineOverviewCards({
   universe: UniverseStats | null;
 }) {
   const { t } = useTranslation();
-  const totalUniverse = universe?.total || stats.total_cached || 0;
-  const totalCached = stats.total_cached || 0;
-  const earliestDate = stats.date_ranges.earliest;
-  const latestDate = stats.date_ranges.latest;
-  const historyYears = historySpanYears(earliestDate, latestDate);
+  const tu = universe?.total || stats.total_cached || 0,
+    tc = stats.total_cached || 0;
+  const ed = stats.date_ranges.earliest,
+    ld = stats.date_ranges.latest,
+    yrs = historyYears(ed, ld);
   const cards = [
     {
       icon: <Database className="size-5" />,
       label: t('Ticker Universe'),
-      value: fmt(totalUniverse),
-      sub: `${t('Cached')} ${fmt(totalCached)} (${totalUniverse > 0 ? ((totalCached / totalUniverse) * 100).toFixed(1) : 0}%)`,
+      value: fmt(tu),
+      sub: `${t('Cached')} ${fmt(tc)} (${tu > 0 ? ((tc / tu) * 100).toFixed(1) : 0}%)`,
     },
     {
       icon: <BarChart3 className="size-5" />,
@@ -168,19 +163,19 @@ export function DataEngineOverviewCards({
     {
       icon: <Clock className="size-5" />,
       label: t('Earliest Start'),
-      value: earliestDate || '-',
+      value: ed || '-',
       sub:
-        historyYears != null && earliestDate
+        yrs != null && ed
           ? t('History back to {{year}} — {{years}} years of market data', {
-              year: earliestDate.slice(0, 4),
-              years: historyYears,
+              year: ed.slice(0, 4),
+              years: yrs,
             })
-          : `${t('to')} ${latestDate || '-'}`,
+          : `${t('to')} ${ld || '-'}`,
     },
     {
       icon: <HardDrive className="size-5" />,
       label: t('Database Size'),
-      value: formatStorageMb(stats.data_quality.total_size_mb || 0),
+      value: fmtStorage(stats.data_quality.total_size_mb || 0),
       sub: t('PostgreSQL tablespace (incl. indexes)'),
     },
   ];
@@ -200,32 +195,26 @@ export function DataEngineCoverageBars({
   universe: UniverseStats | null;
 }) {
   const { t } = useTranslation();
-  const totalUniverse = universe?.total || stats.total_cached || 0;
-  const totalCached = stats.total_cached || 0;
-  const bars = [
-    { label: t('Total Coverage'), current: totalCached },
-    { label: t('5+ Years Data'), current: stats.coverage.tickers_with_5y_plus || 0 },
-    { label: t('10+ Years Data'), current: stats.coverage.tickers_with_10y_plus || 0 },
-    { label: t('20+ Years Data'), current: stats.coverage.tickers_with_20y_plus || 0 },
-    { label: t('Adj. Close Data'), current: stats.data_quality.with_adj_close || 0 },
-  ];
+  const total = universe?.total || stats.total_cached || 0;
   return (
     <Panel title={t('Data Coverage')}>
-      {bars.map((b) => (
-        <ProgressBar key={b.label} label={b.label} current={b.current} total={totalUniverse} />
+      {[
+        { l: t('Total Coverage'), c: stats.total_cached || 0 },
+        { l: t('5+ Years Data'), c: stats.coverage.tickers_with_5y_plus || 0 },
+        { l: t('10+ Years Data'), c: stats.coverage.tickers_with_10y_plus || 0 },
+        { l: t('20+ Years Data'), c: stats.coverage.tickers_with_20y_plus || 0 },
+        { l: t('Adj. Close Data'), c: stats.data_quality.with_adj_close || 0 },
+      ].map((b) => (
+        <ProgressBar key={b.l} label={b.l} current={b.c} total={total} />
       ))}
     </Panel>
   );
 }
-interface RecentUpdate {
-  ticker: string;
-  name: string;
-  lastBarDate: string | null;
-  updatedAt: string | null;
-}
 export function RecentUpdatesCard() {
   const { t } = useTranslation();
-  const [updates, setUpdates] = useState<RecentUpdate[]>([]);
+  const [updates, setUpdates] = useState<
+    Array<{ ticker: string; name: string; lastBarDate: string | null; updatedAt: string | null }>
+  >([]);
   const [loading, setLoading] = useState(true);
   useEffect(() => {
     let cancelled = false;
@@ -233,7 +222,7 @@ export function RecentUpdatesCard() {
       .then((r) => (r.ok ? r.json() : null))
       .then((json) => {
         if (!cancelled) {
-          setUpdates((json?.data ?? []) as RecentUpdate[]);
+          setUpdates((json?.data ?? []) as typeof updates);
           setLoading(false);
         }
       })
@@ -279,7 +268,7 @@ export function RecentUpdatesCard() {
 }
 export function SampleTickersCard({ stats }: { stats: Stats }) {
   const { t } = useTranslation();
-  const categoryLabels: Record<string, string> = {
+  const cl: Record<string, string> = {
     us_stock: t('US Stocks'),
     us_etf: t('US ETFs'),
     cn_stock: t('CN Stocks'),
@@ -290,12 +279,10 @@ export function SampleTickersCard({ stats }: { stats: Stats }) {
     <Panel title={t('Sample Tickers')}>
       {stats.sample_tickers &&
         Object.entries(stats.sample_tickers).map(
-          ([category, items]) =>
+          ([cat, items]) =>
             items.length > 0 && (
-              <div key={category} className="mb-3">
-                <div className="mb-1 text-caption font-semibold text-brand">
-                  {categoryLabels[category] || category}
-                </div>
+              <div key={cat} className="mb-3">
+                <div className="mb-1 text-caption font-semibold text-brand">{cl[cat] || cat}</div>
                 {items.map((tk) => (
                   <div
                     key={tk.ticker}

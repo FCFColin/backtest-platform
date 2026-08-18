@@ -18,7 +18,6 @@ import { Alert, AlertDescription } from '@/components/ui/uiComponents';
 import { cn } from '@/lib/utils';
 import { useToastStore, type ToastItem } from '../store/toastStore.js';
 import { Button } from '@/components/ui/uiComponents';
-
 function CenteredCol({
   children,
   className,
@@ -40,7 +39,6 @@ function CenteredCol({
     </div>
   );
 }
-
 export function EmptyState({
   icon: Icon,
   title,
@@ -63,13 +61,11 @@ export function EmptyState({
     </CenteredCol>
   );
 }
-
 export function TableEmpty({ message, className }: { message: string; className?: string }) {
   return (
     <div className={cn('py-6 text-center text-body text-fg-tertiary', className)}>{message}</div>
   );
 }
-
 export function LoadingState({
   label,
   size = 32,
@@ -86,7 +82,6 @@ export function LoadingState({
     </CenteredCol>
   );
 }
-
 const BACK_ONLINE_MS = 3000;
 export function OfflineBanner() {
   const { t } = useTranslation();
@@ -135,7 +130,6 @@ export function OfflineBanner() {
     </div>
   );
 }
-
 const VARIANT_META: Record<string, { icon: typeof AlertCircle; cls: string }> = {
   error: { icon: AlertCircle, cls: '' },
   warning: {
@@ -144,7 +138,6 @@ const VARIANT_META: Record<string, { icon: typeof AlertCircle; cls: string }> = 
   },
   info: { icon: Info, cls: 'bg-brand/10 border-brand/30 text-brand [&>svg]:text-brand' },
 };
-
 export function ErrorBanner({
   message,
   style,
@@ -169,7 +162,6 @@ export function ErrorBanner({
     </Alert>
   );
 }
-
 const AUTO_DISMISS_MS: Record<ToastItem['type'], number> = {
   success: 4000,
   warning: 4000,
@@ -194,7 +186,6 @@ const TYPE_META: Record<
     ariaLive: 'polite',
   },
 };
-
 function ToastCard({ toast }: { toast: ToastItem }) {
   const { t } = useTranslation();
   const removeToast = useToastStore((s) => s.removeToast);
@@ -204,17 +195,15 @@ function ToastCard({ toast }: { toast: ToastItem }) {
     setTimeout(() => removeToast(toast.id), FADE_DURATION);
   }, [removeToast, toast.id]);
   useEffect(() => {
-    const t = setTimeout(dismiss, AUTO_DISMISS_MS[toast.type]);
-    return () => clearTimeout(t);
+    const id = setTimeout(dismiss, AUTO_DISMISS_MS[toast.type]);
+    return () => clearTimeout(id);
   }, [dismiss, toast.type]);
   const meta = TYPE_META[toast.type];
   const Icon = meta.icon;
-  const role = meta.role ?? 'alert';
-  const ariaLive = meta.ariaLive ?? 'assertive';
   return (
     <div
-      role={role}
-      aria-live={ariaLive}
+      role={meta.role ?? 'alert'}
+      aria-live={meta.ariaLive ?? 'assertive'}
       aria-atomic="true"
       className={cn(
         'flex items-start gap-2 rounded-lg border border-border bg-elevated px-3 py-2.5 max-w-[380px] w-full transition-all',
@@ -237,7 +226,6 @@ function ToastCard({ toast }: { toast: ToastItem }) {
     </div>
   );
 }
-
 export function Toast() {
   const toasts = useToastStore((s) => s.toasts);
   if (toasts.length === 0) return null;
@@ -251,10 +239,13 @@ export function Toast() {
     </div>
   );
 }
-
-// 独立于 EChart，避免结果页仅需空态时拖入 echarts（首屏体积敏感）
-type ChartEmptyStateProps = { message?: string; height?: string };
-export function ChartEmptyState({ message, height = '280px' }: ChartEmptyStateProps) {
+export function ChartEmptyState({
+  message,
+  height = '280px',
+}: {
+  message?: string;
+  height?: string;
+}) {
   const { t } = useTranslation();
   return (
     <div

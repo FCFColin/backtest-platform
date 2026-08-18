@@ -20,7 +20,8 @@ const ERROR_CONTAINER_STYLE: React.CSSProperties = {
   color: 'hsl(var(--fg))',
   textAlign: 'center',
 };
-export function ErrorFallback({
+// eslint-disable-next-line react-refresh/only-export-components -- error boundaries are co-located by design
+function ErrorFallback({
   title,
   description,
   actionLabel,

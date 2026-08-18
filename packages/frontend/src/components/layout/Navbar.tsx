@@ -22,9 +22,8 @@ import {
   ThemeCurrencyButtons,
 } from './navbarParts.js';
 import { planTier } from '@/utils/orgPlan';
-
 const navLinkClass =
-  'px-3 py-2 text-body font-medium text-fg-secondary hover:text-fg rounded-md hover:bg-hover transition-colors duration-150';
+  'px-3 py-2 text-body font-medium text-fg-secondary hover:text-fg rounded-md hover:bg-hover hover:underline transition-colors duration-150';
 const DIRECT_LINKS = [
   { to: '/data-engine', key: 'dataEngine' },
   { to: '/calculators', key: 'calculators' },
@@ -65,11 +64,9 @@ const NAV_GROUP_KEYS = [
     ],
   },
 ] as const;
-
 function preloadGroup(group: (typeof NAV_GROUP_KEYS)[number]): void {
   for (const item of group.items) preloadPage(item.to === '/' ? 'backtest' : item.to.slice(1));
 }
-
 function NavGroup({
   group,
   isActive,
@@ -93,9 +90,7 @@ function NavGroup({
             'h-9 px-2.5 text-label text-fg-secondary hover:bg-hover hover:text-fg [&_svg]:size-3',
             groupActive && 'text-brand',
           )}
-          onMouseEnter={() => {
-            preloadGroup(group);
-          }}
+          onMouseEnter={() => preloadGroup(group)}
         >
           {t(`nav.${group.key}`)}
           <ChevronDown
@@ -116,7 +111,6 @@ function NavGroup({
     </DropdownMenu>
   );
 }
-
 function NavGroupsContainer({
   openGroup,
   isActive,
@@ -145,7 +139,6 @@ function NavGroupsContainer({
     </div>
   );
 }
-
 function NavbarMobileMenu({
   mobileOpen,
   setMobileOpen,
@@ -186,7 +179,6 @@ function NavbarMobileMenu({
     </Sheet>
   );
 }
-
 function DirectLinks({
   isActive,
   t,
@@ -210,9 +202,7 @@ function DirectLinks({
     </>
   );
 }
-
 export { PlanBadge, PromoBar } from './navbarParts.js';
-
 export default function Navbar() {
   const location = useLocation();
   const [openGroup, setOpenGroup] = useState<string>('');
@@ -226,7 +216,7 @@ export default function Navbar() {
   const isActive = (to: string) =>
     location.pathname === to || (to !== '/' && location.pathname.startsWith(`${to}/`));
   return (
-    <nav className="sticky top-0 z-50 h-15 border-b border-border-subtle bg-app/95 backdrop-blur-md">
+    <nav className="sticky top-0 z-50 h-15 border-b border-border-subtle bg-app/80 backdrop-blur-md">
       <div className="page-container h-full flex items-center gap-4">
         <NavbarMobileMenu
           mobileOpen={mobileOpen}

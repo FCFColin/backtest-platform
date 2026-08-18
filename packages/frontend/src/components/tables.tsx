@@ -36,18 +36,6 @@ export interface TableColumn<T> {
 }
 export type SimpleTableColumn<T> = TableColumn<T>;
 
-interface TableProps<T> {
-  columns: TableColumn<T>[];
-  data: T[];
-  maxWidth?: number;
-  rowKey?: (row: T, idx: number) => string;
-  nowrap?: boolean;
-  sortKey?: string;
-  sortDir?: 'asc' | 'desc';
-  onSort?: (key: string) => void;
-  caption?: ReactNode;
-  testIdOf?: (row: T) => string | undefined;
-}
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 泛型约束需要 any 以兼容无索引签名的具体接口
 function BaseTable<T extends Record<string, any>>({
   columns,
@@ -60,7 +48,18 @@ function BaseTable<T extends Record<string, any>>({
   onSort,
   caption,
   testIdOf,
-}: TableProps<T>) {
+}: {
+  columns: TableColumn<T>[];
+  data: T[];
+  maxWidth?: number;
+  rowKey?: (row: T, idx: number) => string;
+  nowrap?: boolean;
+  sortKey?: string;
+  sortDir?: 'asc' | 'desc';
+  onSort?: (key: string) => void;
+  caption?: ReactNode;
+  testIdOf?: (row: T) => string | undefined;
+}) {
   return (
     <div className="overflow-x-auto">
       <table
@@ -144,14 +143,7 @@ function BaseTable<T extends Record<string, any>>({
     </div>
   );
 }
-interface SimpleTableProps<T> {
-  columns: TableColumn<T>[];
-  data: T[];
-  maxWidth?: number;
-  rowKey?: (row: T, idx: number) => string;
-  caption?: ReactNode;
-  testIdOf?: (row: T) => string | undefined;
-}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 泛型约束需要 any 以兼容无索引签名的具体接口
 export function SimpleTable<T extends Record<string, any>>({
   columns,
@@ -160,7 +152,14 @@ export function SimpleTable<T extends Record<string, any>>({
   rowKey,
   caption,
   testIdOf,
-}: SimpleTableProps<T>) {
+}: {
+  columns: TableColumn<T>[];
+  data: T[];
+  maxWidth?: number;
+  rowKey?: (row: T, idx: number) => string;
+  caption?: ReactNode;
+  testIdOf?: (row: T) => string | undefined;
+}) {
   return (
     <BaseTable
       columns={columns}
@@ -172,14 +171,7 @@ export function SimpleTable<T extends Record<string, any>>({
     />
   );
 }
-interface SortableTableProps<T> {
-  columns: TableColumn<T>[];
-  data: T[];
-  initialSortKey?: string;
-  initialSortDir?: 'asc' | 'desc';
-  rowKey?: (row: T, idx: number) => string;
-  caption?: ReactNode;
-}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 泛型约束需要 any 以兼容无索引签名的具体接口
 function sortRows<T extends Record<string, any>>(
   a: T,
@@ -199,6 +191,7 @@ function sortRows<T extends Record<string, any>>(
   if (av === bv) return 0;
   return sortDir === 'asc' ? (av < bv ? -1 : 1) : av < bv ? 1 : -1;
 }
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 泛型约束需要 any 以兼容无索引签名的具体接口
 export function SortableTable<T extends Record<string, any>>({
   columns,
@@ -207,7 +200,14 @@ export function SortableTable<T extends Record<string, any>>({
   initialSortDir = 'desc',
   rowKey,
   caption,
-}: SortableTableProps<T>) {
+}: {
+  columns: TableColumn<T>[];
+  data: T[];
+  initialSortKey?: string;
+  initialSortDir?: 'asc' | 'desc';
+  rowKey?: (row: T, idx: number) => string;
+  caption?: ReactNode;
+}) {
   const [sortKey, setSortKey] = useState<string | undefined>(initialSortKey);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>(initialSortDir);
   const handleSort = (colKey: string) => {

@@ -14,7 +14,6 @@ import {
 } from '@/components/ui/uiComponents';
 import { Field, FieldLabel } from './Field.js';
 import { useSettingsStore } from '@/store/settingsStore';
-
 export function SectionHeader({
   title,
   info,
@@ -35,7 +34,6 @@ export function SectionHeader({
     </div>
   );
 }
-
 export function LabeledField({
   htmlFor,
   label,
@@ -52,7 +50,6 @@ export function LabeledField({
     </Field>
   );
 }
-
 export function DateField({
   id,
   label,
@@ -80,7 +77,6 @@ export function DateField({
     </LabeledField>
   );
 }
-
 export function SelectField<T extends string>({
   id,
   label,
@@ -111,7 +107,6 @@ export function SelectField<T extends string>({
     </LabeledField>
   );
 }
-
 export function PercentInput({
   showPercent = true,
   ...props
@@ -122,12 +117,10 @@ export function PercentInput({
     <Input type="number" {...props} />
   );
 }
-
 export function DollarInput(props: InputProps) {
   const currency = useSettingsStore((s) => s.currency);
   return <AffixInput type="number" prefix={currency === 'cny' ? '¥' : '$'} {...props} />;
 }
-
 export function SwitchField({
   id,
   label,
@@ -148,7 +141,6 @@ export function SwitchField({
     </Field>
   );
 }
-
 export function RunButton({
   isLoading,
   onClick,

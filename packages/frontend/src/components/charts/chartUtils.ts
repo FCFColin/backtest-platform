@@ -1,15 +1,12 @@
 import { TRADING_DAYS_PER_YEAR } from '@backtest/shared/constants';
 import { CHART_MARGIN, pickByAbsThreshold } from '@/lib/chart-theme.js';
-
 export const AXIS_TEXT = {
   color: 'hsl(var(--fg-tertiary))',
   fontSize: 11,
   fontFamily: 'Geist Mono Variable',
 } as const;
 export const BORDER_SOFT = 'hsl(var(--border-subtle))';
-type Margin = { top?: number; right?: number; bottom?: number; left?: number };
-type ValueFormatter = (v: number) => string;
-function axisLabel(formatter?: ValueFormatter, fontSize?: number) {
+function axisLabel(formatter?: (v: number) => string, fontSize?: number) {
   return {
     ...AXIS_TEXT,
     ...(formatter ? { formatter } : {}),
@@ -17,7 +14,7 @@ function axisLabel(formatter?: ValueFormatter, fontSize?: number) {
   };
 }
 export function chartGrid(
-  margin: Margin = CHART_MARGIN,
+  margin: { top?: number; right?: number; bottom?: number; left?: number } = CHART_MARGIN,
   opts: { legendBottom?: number; dataZoomBottom?: number } = {},
 ) {
   return {
@@ -39,17 +36,19 @@ export function chartLegend(
     ...(opts.formatter ? { formatter: opts.formatter } : {}),
   };
 }
-interface AxisNameOpts {
-  name?: string;
-  nameGap?: number;
-  fontSize?: number;
-}
 function axisName(name: string | undefined, nameGap: number, nameRotate = 0) {
   return name
     ? { name, nameLocation: 'middle' as const, nameGap, nameRotate, nameTextStyle: AXIS_TEXT }
     : {};
 }
-export function valueXAxis(opts: { formatter?: ValueFormatter } & AxisNameOpts = {}) {
+export function valueXAxis(
+  opts: {
+    formatter?: (v: number) => string;
+    name?: string;
+    nameGap?: number;
+    fontSize?: number;
+  } = {},
+) {
   return {
     type: 'value' as const,
     ...axisName(opts.name, opts.nameGap ?? 34),
@@ -61,11 +60,14 @@ export function valueXAxis(opts: { formatter?: ValueFormatter } & AxisNameOpts =
 }
 export function valueYAxis(
   opts: {
-    formatter?: ValueFormatter;
+    formatter?: (v: number) => string;
     min?: number;
     max?: number;
     type?: 'log';
-  } & AxisNameOpts = {},
+    name?: string;
+    nameGap?: number;
+    fontSize?: number;
+  } = {},
 ) {
   return {
     type: (opts.type ?? 'value') as 'value' | 'log',
@@ -203,54 +205,48 @@ export function axisTooltipFormatter(
 
 export type RollingMetricKey = 'cagr' | 'volatility' | 'excess' | 'skewness' | 'kurtosis' | 'kelly';
 export type RiskMetricKey = 'stdev' | 'maxDrawdown' | 'avgDrawdown' | 'ulcerIndex';
-
-function calcMoments(window: number[]): { mean: number; variance: number } {
-  const mean = window.reduce((s, r) => s + r, 0) / window.length;
-  const variance = window.reduce((s, r) => s + (r - mean) ** 2, 0) / (window.length - 1);
-  return { mean, variance };
+function calcMoments(w: number[]) {
+  const mean = w.reduce((s, r) => s + r, 0) / w.length;
+  return { mean, variance: w.reduce((s, r) => s + (r - mean) ** 2, 0) / (w.length - 1) };
 }
-function calcCagr(window: number[], windowDays: number): number {
-  let cumProd = 1;
-  for (const r of window) cumProd *= 1 + r;
-  const years = windowDays / TRADING_DAYS_PER_YEAR;
-  return Math.pow(cumProd, 1 / years) - 1;
+function calcCagr(w: number[], wd: number) {
+  let p = 1;
+  for (const r of w) p *= 1 + r;
+  return Math.pow(p, TRADING_DAYS_PER_YEAR / wd) - 1;
 }
-function calcVolatility(window: number[]): number {
-  return Math.sqrt(calcMoments(window).variance) * Math.sqrt(TRADING_DAYS_PER_YEAR);
+function calcVolatility(w: number[]) {
+  return Math.sqrt(calcMoments(w).variance) * Math.sqrt(TRADING_DAYS_PER_YEAR);
 }
-function calcSkewness(window: number[]): number {
-  const n = window.length;
-  const { mean, variance } = calcMoments(window);
+function calcSkewness(w: number[]) {
+  const n = w.length,
+    { mean, variance } = calcMoments(w);
   if (variance === 0) return 0;
   const stdev = Math.sqrt(variance);
-  const sumCubed = window.reduce((s, r) => s + ((r - mean) / stdev) ** 3, 0);
-  return (n / ((n - 1) * (n - 2))) * sumCubed;
+  return (n / ((n - 1) * (n - 2))) * w.reduce((s, r) => s + ((r - mean) / stdev) ** 3, 0);
 }
-function calcKurtosis(window: number[]): number {
-  const n = window.length;
+function calcKurtosis(w: number[]) {
+  const n = w.length;
   if (n < 4) return 0;
-  const { mean, variance } = calcMoments(window);
+  const { mean, variance } = calcMoments(w);
   if (variance === 0) return 0;
   const stdev = Math.sqrt(variance);
-  const sumFourth = window.reduce((s, r) => s + ((r - mean) / stdev) ** 4, 0);
   return (
-    ((n * (n + 1)) / ((n - 1) * (n - 2) * (n - 3))) * sumFourth -
+    ((n * (n + 1)) / ((n - 1) * (n - 2) * (n - 3))) *
+      w.reduce((s, r) => s + ((r - mean) / stdev) ** 4, 0) -
     (3 * (n - 1) ** 2) / ((n - 2) * (n - 3))
   );
 }
-function calcKelly(window: number[]): number {
-  const { mean, variance } = calcMoments(window);
+function calcKelly(w: number[]) {
+  const { mean, variance } = calcMoments(w);
   return variance > 0 ? mean / variance : 0;
 }
-
 const METRIC_CALCULATORS: Record<string, (w: number[], wd: number) => number> = {
-  cagr: (w, wd) => calcCagr(w, wd),
-  volatility: (w) => calcVolatility(w),
-  skewness: (w) => calcSkewness(w),
-  kurtosis: (w) => calcKurtosis(w),
-  kelly: (w) => calcKelly(w),
+  cagr: calcCagr,
+  volatility: calcVolatility,
+  skewness: calcSkewness,
+  kurtosis: calcKurtosis,
+  kelly: calcKelly,
 };
-
 export function computeRollingMetric(
   dailyReturns: number[],
   dates: string[],
@@ -259,15 +255,13 @@ export function computeRollingMetric(
 ): Array<{ date: string; value: number }> {
   const result: Array<{ date: string; value: number }> = [];
   if (dailyReturns.length < windowDays) return result;
-  const calculator = METRIC_CALCULATORS[metric];
+  const calc = METRIC_CALCULATORS[metric];
   for (let i = windowDays; i <= dailyReturns.length; i++) {
     if (i >= dates.length) continue;
-    const window = dailyReturns.slice(i - windowDays, i);
-    result.push({ date: dates[i], value: calculator(window, windowDays) });
+    result.push({ date: dates[i], value: calc(dailyReturns.slice(i - windowDays, i), windowDays) });
   }
   return result;
 }
-
 export function computeRollingExcessReturn(
   dailyReturns: number[],
   benchmarkDailyReturns: number[],
@@ -278,29 +272,20 @@ export function computeRollingExcessReturn(
   const n = Math.min(dailyReturns.length, benchmarkDailyReturns.length);
   if (n < windowDays) return result;
   for (let i = windowDays; i <= n; i++) {
-    const wAsset = dailyReturns.slice(i - windowDays, i);
-    const wBench = benchmarkDailyReturns.slice(i - windowDays, i);
-    const dateIdx = i;
-    if (dateIdx >= dates.length) continue;
-    let cumAsset = 1,
-      cumBench = 1;
-    for (let j = 0; j < wAsset.length; j++) {
-      cumAsset *= 1 + wAsset[j];
-      cumBench *= 1 + wBench[j];
-    }
-    const years = windowDays / TRADING_DAYS_PER_YEAR;
-    const cagrAsset = Math.pow(cumAsset, 1 / years) - 1;
-    const cagrBench = Math.pow(cumBench, 1 / years) - 1;
-    result.push({ date: dates[dateIdx], value: cagrAsset - cagrBench });
+    if (i >= dates.length) continue;
+    result.push({
+      date: dates[i],
+      value:
+        calcCagr(dailyReturns.slice(i - windowDays, i), windowDays) -
+        calcCagr(benchmarkDailyReturns.slice(i - windowDays, i), windowDays),
+    });
   }
   return result;
 }
 
-type GrowthCurvePoint = { date: string; value: number };
 export type RollingCorrelationPoint = { date: string; value: number };
 export type BetaRow = { name: string; beta: number };
-
-export function computeDailyReturns(curve: GrowthCurvePoint[]): number[] {
+export function computeDailyReturns(curve: { date: string; value: number }[]): number[] {
   const returns: number[] = [];
   for (let i = 1; i < curve.length; i++) {
     if (curve[i - 1].value > 0)
@@ -308,7 +293,6 @@ export function computeDailyReturns(curve: GrowthCurvePoint[]): number[] {
   }
   return returns;
 }
-
 export function computeBeta(baseReturns: number[], targetReturns: number[]): number {
   const n = Math.min(baseReturns.length, targetReturns.length);
   if (n < 2) return 0;
@@ -322,7 +306,6 @@ export function computeBeta(baseReturns: number[], targetReturns: number[]): num
   }
   return ssXX > 0 ? ssXY / ssXX : 0;
 }
-
 export function computeRollingCorrelation(
   baseReturns: number[],
   targetReturns: number[],
@@ -349,24 +332,19 @@ export function computeRollingCorrelation(
       ssXX += dx * dx;
       ssYY += dy * dy;
     }
-    const corr = ssXX > 1e-12 && ssYY > 1e-12 ? ssXY / Math.sqrt(ssXX * ssYY) : 0;
-    result.push({ date: dates[start + windowSize - 1] || '', value: +corr.toFixed(4) });
+    result.push({
+      date: dates[start + windowSize - 1] || '',
+      value: +(ssXX > 1e-12 && ssYY > 1e-12 ? ssXY / Math.sqrt(ssXX * ssYY) : 0).toFixed(4),
+    });
   }
   return result;
 }
-
 export function totalMonths(data: Array<Record<string, string | number>>): number {
   if (data.length <= 1) return 1;
-  const first = new Date(String(data[0].date));
-  const last = new Date(String(data[data.length - 1].date));
-  return Math.max(
-    1,
-    (last.getFullYear() - first.getFullYear()) * 12 + last.getMonth() - first.getMonth(),
-  );
+  const [f, l] = [new Date(String(data[0].date)), new Date(String(data[data.length - 1].date))];
+  return Math.max(1, (l.getFullYear() - f.getFullYear()) * 12 + l.getMonth() - f.getMonth());
 }
-export function getCorrelationTextColor(val: number): string {
-  return pickByAbsThreshold(val, 0.6, 'hsl(var(--corr-text-strong))', 'hsl(var(--fg))');
-}
-export function getColorClass(value: number): string {
-  return value > 0 ? 'text-success' : value < 0 ? 'text-danger' : 'text-fg';
-}
+export const getCorrelationTextColor = (val: number) =>
+  pickByAbsThreshold(val, 0.6, 'hsl(var(--corr-text-strong))', 'hsl(var(--fg))');
+export const getColorClass = (value: number) =>
+  value > 0 ? 'text-success' : value < 0 ? 'text-danger' : 'text-fg';

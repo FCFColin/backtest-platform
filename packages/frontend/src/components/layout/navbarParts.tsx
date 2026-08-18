@@ -22,7 +22,6 @@ import {
 } from '@/components/ui/uiComponents';
 import { cn } from '@/lib/utils';
 import { PLAN_BADGES, planTier, type PlanTier } from '@/utils/orgPlan';
-
 const Sheet = SheetPrimitive.Root;
 const SheetTrigger = SheetPrimitive.Trigger;
 const sheetVariants = cva(
@@ -33,7 +32,7 @@ const sheetVariants = cva(
         top: 'inset-x-0 top-0 border-b data-[state=closed]:slide-out-to-top data-[state=open]:slide-in-from-top',
         bottom:
           'inset-x-0 bottom-0 border-t data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom',
-        left: 'inset-y-0 left-0 h-full w-3/4 max-w-sm border-r data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left',
+        left: 'inset-y-0 left-0 h-full w-[85vw] max-w-sm border-r data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left',
         right:
           'inset-y-0 right-0 h-full w-3/4 max-w-sm border-l data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right',
       },
@@ -72,25 +71,25 @@ const SheetTitle = ({ className, children }: { className?: string; children: Rea
   </SheetPrimitive.Title>
 );
 export { Sheet, SheetTrigger, SheetContent, SheetTitle, ThemeCurrencyButtons };
-
 function NotificationBell() {
   const { t } = useTranslation();
   const { announcements, unreadCount, markAllRead } = useAnnouncements();
   const [open, setOpen] = useState(false);
   const count = unreadCount > 99 ? '99+' : String(unreadCount);
-  const ariaLabel = unreadCount > 0 ? `${t('Notifications')} (${count})` : t('Notifications');
-  const handleOpenChange = (v: boolean) => {
-    setOpen(v);
-    if (!v && open) markAllRead();
-  };
   return (
-    <Sheet open={open} onOpenChange={handleOpenChange}>
+    <Sheet
+      open={open}
+      onOpenChange={(v) => {
+        setOpen(v);
+        if (!v && open) markAllRead();
+      }}
+    >
       <SheetTrigger asChild>
         <Button
           variant="ghost"
           size="icon"
           className="h-8 w-8 relative"
-          aria-label={ariaLabel}
+          aria-label={unreadCount > 0 ? `${t('Notifications')} (${count})` : t('Notifications')}
           data-testid="notification-bell"
         >
           <Bell className="h-4 w-4" />
@@ -142,13 +141,10 @@ function NotificationBell() {
     </Sheet>
   );
 }
-
 function ThemeCurrencyButtons() {
   const { t } = useTranslation();
   const { theme, toggleTheme } = useTheme();
   const currency = useSettingsStore((s) => s.currency);
-  const toggleCurrency = () =>
-    useSettingsStore.getState().setCurrency(currency === 'usd' ? 'cny' : 'usd');
   return (
     <>
       <Button
@@ -164,7 +160,7 @@ function ThemeCurrencyButtons() {
       <Button
         variant="secondary"
         size="sm"
-        onClick={toggleCurrency}
+        onClick={() => useSettingsStore.getState().setCurrency(currency === 'usd' ? 'cny' : 'usd')}
         title={t('Switch currency')}
         aria-label={`${t('Switch currency')} (${currency === 'usd' ? 'USD' : 'CNY'})`}
         data-testid="currency-selector"
@@ -174,7 +170,6 @@ function ThemeCurrencyButtons() {
     </>
   );
 }
-
 export function NavbarActions() {
   const { t } = useTranslation();
   const user = useAuthStore((s) => s.user);
@@ -229,7 +224,6 @@ export function NavbarActions() {
     </div>
   );
 }
-
 export function PlanBadge({ tier, className }: { tier: PlanTier; className?: string }) {
   const { label, className: badgeClass } = PLAN_BADGES[tier];
   return (
@@ -245,7 +239,6 @@ export function PlanBadge({ tier, className }: { tier: PlanTier; className?: str
     </span>
   );
 }
-
 const PROMO_VARIANTS: Record<string, { bar: string; dot: string }> = {
   info: { bar: 'bg-brand-subtle/8 border-brand/20 text-fg', dot: 'bg-brand' },
   success: { bar: 'bg-success-subtle/10 border-success/20 text-fg', dot: 'bg-success' },
@@ -276,7 +269,7 @@ export function PromoBar({
     }
   });
   if (dismissed) return null;
-  const handleDismiss = () => {
+  const dismiss = () => {
     setDismissed(true);
     try {
       localStorage.setItem(storageKey, '1');
@@ -301,7 +294,7 @@ export function PromoBar({
         )}
         {dismissible && (
           <button
-            onClick={handleDismiss}
+            onClick={dismiss}
             className="ml-auto p-1 hover:bg-hover rounded-md transition-colors"
             aria-label={t('Close announcement')}
           >

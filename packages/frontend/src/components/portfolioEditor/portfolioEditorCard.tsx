@@ -28,14 +28,6 @@ import {
 } from './portfolioEditorFields.js';
 import type { StorePortfolio, TFunc, PortfolioFieldProps } from './portfolioEditor.js';
 
-interface PortfolioCardProps extends PortfolioFieldProps {
-  color: string;
-  rebalanceOptions: { value: RebalanceFrequency; label: string }[];
-  nonGlidepathPortfolios: StorePortfolio[];
-  onDelete: () => void;
-  onDuplicate: () => void;
-  onSave: (p: StorePortfolio) => void;
-}
 export function PortfolioCard({
   portfolio,
   color,
@@ -45,7 +37,14 @@ export function PortfolioCard({
   onDelete,
   onDuplicate,
   onSave,
-}: PortfolioCardProps) {
+}: PortfolioFieldProps & {
+  color: string;
+  rebalanceOptions: { value: RebalanceFrequency; label: string }[];
+  nonGlidepathPortfolios: StorePortfolio[];
+  onDelete: () => void;
+  onDuplicate: () => void;
+  onSave: (p: StorePortfolio) => void;
+}) {
   const { t } = useTranslation();
   const tw = portfolio.assets.reduce((sum, a) => sum + a.weight, 0);
   const isComplete = Math.abs(tw - 100) <= 0.01;
@@ -69,19 +68,9 @@ export function PortfolioCard({
     );
   };
   const actionBtns = [
-    {
-      icon: Copy,
-      title: t('Copy Portfolio'),
-      onClick: onDuplicate,
-      variant: 'icon' as const,
-    },
-    {
-      icon: Download,
-      title: t('Save as JSON'),
-      onClick: () => onSave(portfolio),
-      variant: 'icon' as const,
-    },
-    { icon: Trash2, title: t('Delete'), onClick: onDelete, variant: 'destructive' as const },
+    { icon: Copy, title: t('Copy Portfolio'), onClick: onDuplicate },
+    { icon: Download, title: t('Save as JSON'), onClick: () => onSave(portfolio) },
+    { icon: Trash2, title: t('Delete'), onClick: onDelete, destructive: true },
   ];
   return (
     <Card
@@ -96,7 +85,7 @@ export function PortfolioCard({
         {actionBtns.map((b) => (
           <Button
             key={b.title}
-            variant={b.variant}
+            variant={b.destructive ? 'destructive' : 'icon'}
             size="icon"
             title={b.title}
             aria-label={b.title}
@@ -221,8 +210,8 @@ function TagsRow({
 }) {
   const [draft, setDraft] = useState('');
   const commit = () => {
-    const trimmed = draft.trim();
-    if (trimmed && !tags.includes(trimmed)) onAddTag(trimmed);
+    const v = draft.trim();
+    if (v && !tags.includes(v)) onAddTag(v);
     setDraft('');
   };
   return (
@@ -296,19 +285,6 @@ function PortfolioMetaEditor({ portfolio, onUpdate }: PortfolioFieldProps) {
     (tag: string) => onUpdate(portfolio.id, { tags: tags.filter((x) => x !== tag) }),
     [portfolio.id, tags, onUpdate],
   );
-  const handleLoadPreset = useCallback(
-    (presetId: string) => {
-      const preset = findPresetPortfolio(presetId);
-      if (!preset) return;
-      onUpdate(portfolio.id, {
-        name: t(preset.nameKey),
-        assets: toAssetsWithIds(preset.assets),
-        tags: [...preset.tags],
-      });
-      useToastStore.getState().addToast('success', t('Preset loaded'));
-    },
-    [portfolio.id, onUpdate, t],
-  );
   return (
     <div className="flex flex-col gap-1.5 mb-2">
       <div className="flex items-center gap-1.5 flex-wrap">
@@ -320,7 +296,19 @@ function PortfolioMetaEditor({ portfolio, onUpdate }: PortfolioFieldProps) {
           className="h-8 w-[160px] text-body"
           aria-label={t('Name')}
         />
-        <PresetMenu onLoadPreset={handleLoadPreset} t={t} />
+        <PresetMenu
+          onLoadPreset={(presetId) => {
+            const preset = findPresetPortfolio(presetId);
+            if (!preset) return;
+            onUpdate(portfolio.id, {
+              name: t(preset.nameKey),
+              assets: toAssetsWithIds(preset.assets),
+              tags: [...preset.tags],
+            });
+            useToastStore.getState().addToast('success', t('Preset loaded'));
+          }}
+          t={t}
+        />
         <Button
           variant="ghost"
           size="sm"

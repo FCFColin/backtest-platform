@@ -24,40 +24,42 @@ function PortfolioSelect({
   value,
   onChange,
   portfolios,
+  label,
 }: {
   value: string;
   onChange: (v: string) => void;
   portfolios: StorePortfolio[];
+  label: string;
 }) {
-  const { t } = useTranslation();
   return (
-    <Select value={value} onValueChange={onChange}>
-      <SelectTrigger className="h-8 w-[120px]">
-        <SelectValue />
-      </SelectTrigger>
-      <SelectContent>
-        {portfolios.map((p, i) => (
-          <SelectItem key={p.id} value={p.id}>
-            {p.name || `${t('Portfolio')} ${i + 1}`}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+    <ParamCard label={label}>
+      <Select value={value} onValueChange={onChange}>
+        <SelectTrigger className="h-8 w-[120px]">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {portfolios.map((p, i) => (
+            <SelectItem key={p.id} value={p.id}>
+              {p.name || `${label} ${i + 1}`}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </ParamCard>
   );
 }
 
 function GlidepathTargetWeights({ portfolio, onUpdate }: PortfolioFieldProps) {
-  const { t } = useTranslation();
   return (
     <>
-      <div className="mt-1.5 text-label-tiny text-fg-tertiary">{t('Target Weights')}</div>
+      <div className="mt-1.5 text-label-tiny text-fg-tertiary">Target Weights</div>
       <div className="flex flex-wrap gap-1.5 mt-1">
         {portfolio.assets.map((asset, ai) => {
           const w = portfolio.glidepathToWeights?.[ai];
           return (
             <div key={ai} className="flex flex-col gap-0.5 min-w-[90px]">
               <label className="text-micro text-fg-tertiary whitespace-nowrap overflow-hidden text-ellipsis">
-                {asset.ticker || `${t('Asset')} ${ai + 1}`}
+                {asset.ticker || `Asset ${ai + 1}`}
               </label>
               <div className="flex items-center gap-1 h-7">
                 <Input
@@ -105,12 +107,18 @@ function GlidepathFields({
   const { t } = useTranslation();
   return (
     <>
-      <ParamCard label={t('Source Portfolio')}>
-        <PortfolioSelect value={from} onChange={onFromChange} portfolios={portfolios} />
-      </ParamCard>
-      <ParamCard label={t('Target Portfolio')}>
-        <PortfolioSelect value={to} onChange={onToChange} portfolios={portfolios} />
-      </ParamCard>
+      <PortfolioSelect
+        value={from}
+        onChange={onFromChange}
+        portfolios={portfolios}
+        label={t('Source Portfolio')}
+      />
+      <PortfolioSelect
+        value={to}
+        onChange={onToChange}
+        portfolios={portfolios}
+        label={t('Target Portfolio')}
+      />
       <ParamCard label={t('Transition Years')}>
         <Input
           type="number"
@@ -298,9 +306,7 @@ export function RebalanceControls({
   portfolio,
   rebalanceOptions,
   onUpdate,
-}: PortfolioFieldProps & {
-  rebalanceOptions: { value: RebalanceFrequency; label: string }[];
-}) {
+}: PortfolioFieldProps & { rebalanceOptions: { value: RebalanceFrequency; label: string }[] }) {
   const { t } = useTranslation();
   return (
     <>
@@ -348,7 +354,6 @@ export function RebalanceBandsRow({ portfolio, onUpdate }: PortfolioFieldProps) 
   const items = [
     {
       label: t('portfolio.absoluteDeviation'),
-      title: t('portfolio.absoluteDeviation'),
       val: bands.absoluteBand,
       min: 0.1,
       max: 50,
@@ -357,7 +362,6 @@ export function RebalanceBandsRow({ portfolio, onUpdate }: PortfolioFieldProps) 
     },
     {
       label: t('portfolio.relativeDeviation'),
-      title: t('portfolio.relativeDeviation'),
       val: bands.relativeBand,
       min: 1,
       max: 100,
@@ -375,7 +379,7 @@ export function RebalanceBandsRow({ portfolio, onUpdate }: PortfolioFieldProps) 
           min={item.min}
           max={item.max}
           step={item.step}
-          title={item.title}
+          title={item.label}
           width="h-8 w-[80px] font-mono tabular-nums"
           onChange={(v) =>
             onUpdate(portfolio.id, {
