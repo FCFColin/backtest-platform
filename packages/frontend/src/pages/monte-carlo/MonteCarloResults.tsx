@@ -136,44 +136,6 @@ function DistMetricSelector({
     </div>
   );
 }
-function DistHistogramChart({
-  data,
-  distMetric,
-  medianLabel,
-  meanLabel,
-  medianVal,
-  meanVal,
-}: {
-  data: { range: string; count: number }[];
-  distMetric: DistMetric;
-  medianLabel: string;
-  meanLabel: string;
-  medianVal?: number;
-  meanVal?: number;
-}) {
-  const { t } = useTranslation();
-  return (
-    <HistogramChart
-      data={data}
-      referenceLines={[
-        {
-          label: medianLabel,
-          color: getPortfolioColor(2),
-          value: t('charts.annualReturn.median', {
-            value: medianVal !== undefined ? METRIC_FORMAT[distMetric](medianVal) : '',
-          }),
-        },
-        {
-          label: meanLabel,
-          color: getPortfolioColor(1),
-          value: t('charts.annualReturn.mean', {
-            value: meanVal !== undefined ? METRIC_FORMAT[distMetric](meanVal) : '',
-          }),
-        },
-      ]}
-    />
-  );
-}
 function MonteCarloDistributionsTab({
   r,
   distMetric,
@@ -185,6 +147,7 @@ function MonteCarloDistributionsTab({
   setDistMetric: (m: DistMetric) => void;
   startingValue: number;
 }) {
+  const { t } = useTranslation();
   if (!r.perPathMetrics || r.perPathMetrics.length === 0) return <NoDataCard />;
   const { data, medianLabel, meanLabel, medianVal, meanVal } = buildDistHistogram(
     r.perPathMetrics,
@@ -194,13 +157,24 @@ function MonteCarloDistributionsTab({
   return (
     <Card className="p-5">
       <DistMetricSelector distMetric={distMetric} setDistMetric={setDistMetric} />
-      <DistHistogramChart
+      <HistogramChart
         data={data}
-        medianLabel={medianLabel}
-        meanLabel={meanLabel}
-        medianVal={medianVal}
-        meanVal={meanVal}
-        distMetric={distMetric}
+        referenceLines={[
+          {
+            label: medianLabel,
+            color: getPortfolioColor(2),
+            value: t('charts.annualReturn.median', {
+              value: medianVal !== undefined ? METRIC_FORMAT[distMetric](medianVal) : '',
+            }),
+          },
+          {
+            label: meanLabel,
+            color: getPortfolioColor(1),
+            value: t('charts.annualReturn.mean', {
+              value: meanVal !== undefined ? METRIC_FORMAT[distMetric](meanVal) : '',
+            }),
+          },
+        ]}
       />
     </Card>
   );
@@ -427,46 +401,6 @@ function MonteCarloRangeTab({ r, startingValue }: { r: MonteCarloResult; startin
     </div>
   );
 }
-function StatsGrid({
-  r,
-  startingValue,
-  numSimulations,
-}: {
-  r: MonteCarloResult;
-  startingValue: number;
-  numSimulations: number;
-}) {
-  const { t } = useTranslation();
-  return (
-    <div className="mb-5">
-      <MetricsGrid
-        metrics={[
-          {
-            label: t('Median Final Value'),
-            value: fmtAmount(r.statistics.medianFinalValue * startingValue),
-          },
-          {
-            label: t('Mean Final Value'),
-            value: fmtAmount(r.statistics.meanFinalValue * startingValue),
-          },
-          {
-            label: t('Capital Preservation'),
-            value: fmtPct(r.statistics.successRate, 1),
-            color: 'hsl(var(--success))',
-          },
-          { label: t('Simulation Count'), value: `${r.perPathMetrics?.length ?? numSimulations}` },
-        ]}
-      />
-    </div>
-  );
-}
-function ResultsHeading({ label, colorIdx }: { label: string; colorIdx: number }) {
-  return (
-    <div className="mb-3 mt-2 text-h3 font-semibold" style={{ color: getPortfolioColor(colorIdx) }}>
-      {label}
-    </div>
-  );
-}
 function MonteCarloSummaryTab({
   r,
   startingValue,
@@ -518,8 +452,37 @@ function ResultsDisplay({
   const { t } = useTranslation();
   return (
     <div key={label}>
-      {portfolioMode === 2 && <ResultsHeading label={label} colorIdx={colorIdx} />}
-      <StatsGrid r={r} startingValue={startingValue} numSimulations={numSimulations} />
+      {portfolioMode === 2 && (
+        <div
+          className="mb-3 mt-2 text-h3 font-semibold"
+          style={{ color: getPortfolioColor(colorIdx) }}
+        >
+          {label}
+        </div>
+      )}
+      <div className="mb-5">
+        <MetricsGrid
+          metrics={[
+            {
+              label: t('Median Final Value'),
+              value: fmtAmount(r.statistics.medianFinalValue * startingValue),
+            },
+            {
+              label: t('Mean Final Value'),
+              value: fmtAmount(r.statistics.meanFinalValue * startingValue),
+            },
+            {
+              label: t('Capital Preservation'),
+              value: fmtPct(r.statistics.successRate, 1),
+              color: 'hsl(var(--success))',
+            },
+            {
+              label: t('Simulation Count'),
+              value: `${r.perPathMetrics?.length ?? numSimulations}`,
+            },
+          ]}
+        />
+      </div>
       <Tabs value={activeTab} onValueChange={(v) => onTabChange(v as ResultTab)} className="w-full">
         <TabsList className="mb-4 flex-wrap">
           {RESULT_TABS.map((tab) => (
@@ -570,7 +533,7 @@ function MonteCarloResultsPanel({ s }: { s: McState }) {
     setDistMetric,
   } = s;
   const { t } = useTranslation();
-  const displayProps = (r: MonteCarloResult, idx: number) => ({
+  const dp = (r: MonteCarloResult, idx: number) => ({
     r,
     label: portfolios[idx].name,
     colorIdx: idx,
@@ -593,11 +556,11 @@ function MonteCarloResultsPanel({ s }: { s: McState }) {
       onRetry={s.runSimulation}
     >
       <div className="flex flex-col gap-6">
-        {results1 && <ResultsDisplay {...displayProps(results1, 0)} />}
+        {results1 && <ResultsDisplay {...dp(results1, 0)} />}
         {results2 && (
           <>
             <Separator />
-            <ResultsDisplay {...displayProps(results2, 1)} />
+            <ResultsDisplay {...dp(results2, 1)} />
           </>
         )}
       </div>
