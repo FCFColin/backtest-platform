@@ -28,28 +28,6 @@ interface GoalAsset {
   ticker: string;
   weight: number;
 }
-function getProbColor(prob: number | undefined): string {
-  if (prob === undefined) return 'hsl(var(--fg))';
-  if (prob >= 0.7) return 'hsl(var(--success))';
-  if (prob >= 0.4) return getPortfolioColor(1);
-  return 'hsl(var(--danger))';
-}
-interface GoalInputs {
-  validAssets: GoalAsset[];
-  totalWeight: number;
-  targetAmount: number;
-  initialAmount: number;
-  years: number;
-  t: TFunction;
-}
-function validateGoalInputs(inputs: GoalInputs): string | null {
-  const { validAssets, totalWeight, targetAmount, initialAmount, years, t } = inputs;
-  if (validAssets.length === 0) return t('Please add at least one ticker');
-  if (totalWeight !== 100) return t('Total weight must equal 100%');
-  if (targetAmount <= 0 || initialAmount <= 0 || years <= 0)
-    return t('Target amount, initial amount, and time range must be positive');
-  return null;
-}
 interface GoalOptimizerState {
   targetAmount: number;
   setTargetAmount: (v: number) => void;
@@ -73,15 +51,6 @@ interface GoalOptimizerState {
   totalWeight: number;
   runOptimize: () => void;
 }
-function buildOptimizeConstraints(
-  maxDrawdown: number | '',
-  maxVolatility: number | '',
-): { maxDrawdown?: number; maxVolatility?: number } {
-  const constraints: { maxDrawdown?: number; maxVolatility?: number } = {};
-  if (maxDrawdown !== '') constraints.maxDrawdown = maxDrawdown / 100;
-  if (maxVolatility !== '') constraints.maxVolatility = maxVolatility / 100;
-  return constraints;
-}
 function useGoalOptimizerState(t: TFunction): GoalOptimizerState {
   const s = useSetterState({
     targetAmount: 1000000,
@@ -104,7 +73,9 @@ function useGoalOptimizerState(t: TFunction): GoalOptimizerState {
     runCompute: runOptimize,
   } = useComputeTool<GoalOptimizerResult>(
     async () => {
-      const constraints = buildOptimizeConstraints(s.maxDrawdown, s.maxVolatility);
+      const constraints: { maxDrawdown?: number; maxVolatility?: number } = {};
+      if (s.maxDrawdown !== '') constraints.maxDrawdown = s.maxDrawdown / 100;
+      if (s.maxVolatility !== '') constraints.maxVolatility = s.maxVolatility / 100;
       const res = await apiFetch('/api/v1/goal-optimizer/optimize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -123,14 +94,11 @@ function useGoalOptimizerState(t: TFunction): GoalOptimizerState {
       return json.data as GoalOptimizerResult;
     },
     () => {
-      return validateGoalInputs({
-        validAssets,
-        totalWeight,
-        targetAmount: s.targetAmount,
-        initialAmount: s.initialAmount,
-        years: s.years,
-        t,
-      });
+      if (validAssets.length === 0) return t('Please add at least one ticker');
+      if (totalWeight !== 100) return t('Total weight must equal 100%');
+      if (s.targetAmount <= 0 || s.initialAmount <= 0 || s.years <= 0)
+        return t('Target amount, initial amount, and time range must be positive');
+      return null;
     },
   );
   return {
@@ -147,130 +115,41 @@ function useGoalOptimizerState(t: TFunction): GoalOptimizerState {
   };
 }
 const GRID = { top: 10, right: 20, bottom: 5, left: 60 };
-function targetReferenceLine(
-  axis: 'x' | 'y',
-  targetAmount: number,
-  targetColor: string,
-  t: TFunction,
-): ReferenceLine[] {
-  return [
-    {
-      axis,
-      value: targetAmount,
-      label: t('Target'),
-      color: targetColor,
-      dash: 'dashed',
-      width: 1.5,
-      labelColor: targetColor,
-      labelFontSize: 11,
-    },
-  ];
-}
-function ProbabilityDistributionChart({
-  data,
-  targetAmount,
-}: {
-  data: GoalOptimizerResult['probabilityCurve'];
-  targetAmount: number;
-}) {
-  const { t } = useTranslation();
-  const tc = getPortfolioColor(3);
-  return (
-    <ChartCard title={t('Final Value Probability Distribution')}>
-      <SimpleChart
-        type="area"
-        data={data}
-        height={300}
-        margin={GRID}
-        xDataKey="amount"
-        xType="number"
-        xTickFormatter={(v) => `$${(Number(v) / 1000).toFixed(0)}k`}
-        yTickFormatter={(v: number) => fmtPct(v, 1)}
-        tooltipFormatter={(v: number) => [fmtPct(v), t('Probability')]}
-        tooltipLabelFormatter={(label) => fmtAmount(Number(label))}
-        ariaLabel={t('Final Value Probability Distribution')}
-        series={[
-          {
-            dataKey: 'probability',
-            name: t('Probability'),
-            color: getPortfolioColor(0),
-            width: 2,
-            smooth: true,
-            areaOpacity: 0.3,
-          },
-        ]}
-        referenceLines={targetReferenceLine('x', targetAmount, tc, t)}
-      />
-    </ChartCard>
-  );
-}
-function OptimalPathChart({
-  data,
-  targetAmount,
-}: {
-  data: GoalOptimizerResult['optimalPath'];
-  targetAmount: number;
-}) {
-  const { t } = useTranslation();
-  const tc = getPortfolioColor(3);
-  return (
-    <ChartCard title={t('Optimal Path (Median / P10 / P90)')}>
-      <SimpleChart
-        data={data}
-        height={350}
-        margin={GRID}
-        xDataKey="year"
-        xTickFormatter={(v) => `${v}y`}
-        yTickFormatter={(v: number) => `$${(v / 1000).toFixed(0)}k`}
-        tooltipFormatter={(v: number) => [fmtAmount(v), '']}
-        tooltipLabelFormatter={(label) => t('Year {{year}}', { year: label })}
-        legendPosition="top"
-        ariaLabel={t('Optimal Path (Median / P10 / P90)')}
-        series={[
-          { dataKey: 'p90', name: 'P90', color: getPortfolioColor(2), width: 1.5, smooth: true },
-          {
-            dataKey: 'median',
-            name: t('Median'),
-            color: getPortfolioColor(0),
-            width: 2.5,
-            smooth: true,
-          },
-          { dataKey: 'p10', name: 'P10', color: getPortfolioColor(3), width: 1.5, smooth: true },
-        ]}
-        referenceLines={targetReferenceLine('y', targetAmount, tc, t)}
-      />
-    </ChartCard>
-  );
-}
-function RecommendationCards({
-  recommendation,
-  probColor,
-}: {
-  recommendation: GoalOptimizerResult['recommendation'];
-  probColor: string;
-}) {
-  const { t } = useTranslation();
-  return (
-    <ChartCard title={t('Recommended Configuration')}>
-      <MetricsGrid
-        columns={3}
-        variant="border"
-        metrics={[
-          { label: t('Expected Annual Return'), value: fmtPct(recommendation.expectedReturn) },
-          {
-            label: t('Required Annual Contribution'),
-            value: fmtAmount(recommendation.requiredContribution),
-          },
-          { label: t('Success Rate'), value: fmtPct(recommendation.successRate), color: probColor },
-        ]}
-      />
-    </ChartCard>
-  );
-}
 function GoalOptimizerResultsPanel({ state }: { state: GoalOptimizerState }) {
   const { t } = useTranslation();
   const r = state.results;
-  const probColor = r ? getProbColor(r.successProbability) : '';
+  const probColor = r
+    ? r.successProbability >= 0.7
+      ? 'hsl(var(--success))'
+      : r.successProbability >= 0.4
+        ? getPortfolioColor(1)
+        : 'hsl(var(--danger))'
+    : '';
+  const tc = getPortfolioColor(3);
+  const targetRefX: ReferenceLine[] = [
+    {
+      axis: 'x',
+      value: state.targetAmount,
+      label: t('Target'),
+      color: tc,
+      dash: 'dashed',
+      width: 1.5,
+      labelColor: tc,
+      labelFontSize: 11,
+    },
+  ];
+  const targetRefY: ReferenceLine[] = [
+    {
+      axis: 'y',
+      value: state.targetAmount,
+      label: t('Target'),
+      color: tc,
+      dash: 'dashed',
+      width: 1.5,
+      labelColor: tc,
+      labelFontSize: 11,
+    },
+  ];
   return (
     <ResultsShell
       error={state.error ? `${t('Optimization failed')}: ${state.error}` : null}
@@ -300,12 +179,91 @@ function GoalOptimizerResultsPanel({ state }: { state: GoalOptimizerState }) {
               })}
             </div>
           </Card>
-          <ProbabilityDistributionChart
-            data={r.probabilityCurve}
-            targetAmount={state.targetAmount}
-          />
-          <OptimalPathChart data={r.optimalPath} targetAmount={state.targetAmount} />
-          <RecommendationCards recommendation={r.recommendation} probColor={probColor} />
+          <ChartCard title={t('Final Value Probability Distribution')}>
+            <SimpleChart
+              type="area"
+              data={r.probabilityCurve}
+              height={300}
+              margin={GRID}
+              xDataKey="amount"
+              xType="number"
+              xTickFormatter={(v) => `$${(Number(v) / 1000).toFixed(0)}k`}
+              yTickFormatter={(v: number) => fmtPct(v, 1)}
+              tooltipFormatter={(v: number) => [fmtPct(v), t('Probability')]}
+              tooltipLabelFormatter={(label) => fmtAmount(Number(label))}
+              ariaLabel={t('Final Value Probability Distribution')}
+              series={[
+                {
+                  dataKey: 'probability',
+                  name: t('Probability'),
+                  color: getPortfolioColor(0),
+                  width: 2,
+                  smooth: true,
+                  areaOpacity: 0.3,
+                },
+              ]}
+              referenceLines={targetRefX}
+            />
+          </ChartCard>
+          <ChartCard title={t('Optimal Path (Median / P10 / P90)')}>
+            <SimpleChart
+              data={r.optimalPath}
+              height={350}
+              margin={GRID}
+              xDataKey="year"
+              xTickFormatter={(v) => `${v}y`}
+              yTickFormatter={(v: number) => `$${(v / 1000).toFixed(0)}k`}
+              tooltipFormatter={(v: number) => [fmtAmount(v), '']}
+              tooltipLabelFormatter={(label) => t('Year {{year}}', { year: label })}
+              legendPosition="top"
+              ariaLabel={t('Optimal Path (Median / P10 / P90)')}
+              series={[
+                {
+                  dataKey: 'p90',
+                  name: 'P90',
+                  color: getPortfolioColor(2),
+                  width: 1.5,
+                  smooth: true,
+                },
+                {
+                  dataKey: 'median',
+                  name: t('Median'),
+                  color: getPortfolioColor(0),
+                  width: 2.5,
+                  smooth: true,
+                },
+                {
+                  dataKey: 'p10',
+                  name: 'P10',
+                  color: getPortfolioColor(3),
+                  width: 1.5,
+                  smooth: true,
+                },
+              ]}
+              referenceLines={targetRefY}
+            />
+          </ChartCard>
+          <ChartCard title={t('Recommended Configuration')}>
+            <MetricsGrid
+              columns={3}
+              variant="border"
+              metrics={[
+                {
+                  label: t('Expected Annual Return'),
+                  value: fmtPct(r.recommendation.expectedReturn),
+                },
+                {
+                  label: t('Required Annual Contribution'),
+                  value: fmtAmount(r.recommendation.requiredContribution),
+                },
+                {
+                  label: t('Success Rate'),
+                  value: fmtPct(r.recommendation.successRate),
+                  color: probColor,
+                },
+              ]}
+            />
+          </ChartCard>
         </div>
       )}
     </ResultsShell>
