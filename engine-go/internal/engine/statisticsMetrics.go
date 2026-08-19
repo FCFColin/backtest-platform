@@ -255,15 +255,15 @@ func CalcExcessKurtosis(returns []float64) float64 {
 	}
 	return (float64(n*(n+1))/float64((n-1)*(n-2)*(n-3)))*sum - (3.0*float64((n-1)*(n-1)))/float64((n-2)*(n-3))
 }
-func CalcConditionalCorr(pr, br []float64, upside bool) float64 {
+func calcConditionalCorr(pr, br []float64, upside bool) float64 {
 	return calcFiltered(pr, br, upsideFilter(upside), CalcCorrelation)
 }
-func CalcConditionalBeta(pr, br []float64, upside bool) float64 {
+func calcConditionalBeta(pr, br []float64, upside bool) float64 {
 	return calcFiltered(pr, br, upsideFilter(upside), CalcBeta)
 }
 func CalcTreynor(cagr, beta float64) float64        { return safeRatio(cagr-riskFreeRate, beta) }
 func CalcM2(sharpe, benchmarkStdev float64) float64 { return sharpe*benchmarkStdev + riskFreeRate }
-func CalcAlphaDaily(dailyReturns, benchDailyReturns []float64, beta float64) float64 {
+func calcAlphaDaily(dailyReturns, benchDailyReturns []float64, beta float64) float64 {
 	if len(dailyReturns) == 0 || len(benchDailyReturns) == 0 {
 		return 0
 	}
@@ -498,11 +498,11 @@ func CalcPWRAllYears(annualReturns []float64) (pwr10y, swr10y, pwr20y, swr20y, p
 
 type benchmarkMetrics struct {
 	Beta, Alpha, RSquared, TrackingError, InformationRatio float64
-	UpsideCapture, DownsideCapture, CaptureSpread         float64
-	BenchmarkCorrelation                                  float64
-	UpsideCorrelation, DownsideCorrelation                float64
-	UpsideBeta, DownsideBeta                              float64
-	Treynor, M2, AlphaDaily, ActiveReturn                 float64
+	UpsideCapture, DownsideCapture, CaptureSpread          float64
+	BenchmarkCorrelation                                   float64
+	UpsideCorrelation, DownsideCorrelation                 float64
+	UpsideBeta, DownsideBeta                               float64
+	Treynor, M2, AlphaDaily, ActiveReturn                  float64
 }
 
 func computeBenchmarkMetrics(portfolioReturns, benchmarkReturns []float64, cagr, benchmarkCagr float64) benchmarkMetrics {
@@ -521,13 +521,13 @@ func computeBenchmarkMetrics(portfolioReturns, benchmarkReturns []float64, cagr,
 		DownsideCapture:      downsideDaily,
 		CaptureSpread:        upsideDaily - downsideDaily,
 		BenchmarkCorrelation: CalcCorrelation(portfolioReturns, benchmarkReturns),
-		UpsideCorrelation:    CalcConditionalCorr(portfolioReturns, benchmarkReturns, true),
-		DownsideCorrelation:  CalcConditionalCorr(portfolioReturns, benchmarkReturns, false),
-		UpsideBeta:           CalcConditionalBeta(portfolioReturns, benchmarkReturns, true),
-		DownsideBeta:         CalcConditionalBeta(portfolioReturns, benchmarkReturns, false),
+		UpsideCorrelation:    calcConditionalCorr(portfolioReturns, benchmarkReturns, true),
+		DownsideCorrelation:  calcConditionalCorr(portfolioReturns, benchmarkReturns, false),
+		UpsideBeta:           calcConditionalBeta(portfolioReturns, benchmarkReturns, true),
+		DownsideBeta:         calcConditionalBeta(portfolioReturns, benchmarkReturns, false),
 		Treynor:              CalcTreynor(cagr, beta),
 		M2:                   CalcM2(CalcSharpe(cagr, CalcAnnualizedStdev(benchmarkReturns)), CalcAnnualizedStdev(benchmarkReturns)),
-		AlphaDaily:           CalcAlphaDaily(portfolioReturns, benchmarkReturns, beta),
+		AlphaDaily:           calcAlphaDaily(portfolioReturns, benchmarkReturns, beta),
 		ActiveReturn:         cagr - benchmarkCagr,
 	}
 }
