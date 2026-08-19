@@ -252,38 +252,6 @@ function useFactorRegressionState(t: TFunction): FactorRegressionState {
     updateAsset,
   };
 }
-function FactorSelector({
-  selectedFactors,
-  onToggle,
-}: {
-  selectedFactors: string[];
-  onToggle: (key: string) => void;
-}) {
-  const { t } = useTranslation();
-  return (
-    <div className="flex flex-wrap gap-2">
-      {FACTOR_OPTIONS.map((opt) => {
-        const active = selectedFactors.includes(opt.key);
-        return (
-          <button
-            key={opt.key}
-            type="button"
-            onClick={() => onToggle(opt.key)}
-            aria-pressed={active}
-            className={badgeVariants({
-              variant: active ? 'asset' : 'secondary',
-              size: 'sm',
-              className: 'cursor-pointer',
-            })}
-          >
-            {t(opt.label)}
-            <span className="font-normal opacity-70">({t(opt.desc)})</span>
-          </button>
-        );
-      })}
-    </div>
-  );
-}
 function FactorRegressionParamsPanel({ state: s }: { state: FactorRegressionState }) {
   const { t } = useTranslation();
   return (
@@ -307,7 +275,27 @@ function FactorRegressionParamsPanel({ state: s }: { state: FactorRegressionStat
       <div className="col-span-full">
         <Field>
           <FieldLabel>{t('Factor Selection (Multi-select)')}</FieldLabel>
-          <FactorSelector selectedFactors={s.selectedFactors} onToggle={s.toggleFactor} />
+          <div className="flex flex-wrap gap-2">
+            {FACTOR_OPTIONS.map((opt) => {
+              const active = s.selectedFactors.includes(opt.key);
+              return (
+                <button
+                  key={opt.key}
+                  type="button"
+                  onClick={() => s.toggleFactor(opt.key)}
+                  aria-pressed={active}
+                  className={badgeVariants({
+                    variant: active ? 'asset' : 'secondary',
+                    size: 'sm',
+                    className: 'cursor-pointer',
+                  })}
+                >
+                  {t(opt.label)}
+                  <span className="font-normal opacity-70">({t(opt.desc)})</span>
+                </button>
+              );
+            })}
+          </div>
         </Field>
       </div>
       <div className="col-span-full">
@@ -359,55 +347,6 @@ function RegressionRow({
       </td>
       <td className="px-3 py-2 text-caption text-fg-tertiary">{desc}</td>
     </tr>
-  );
-}
-function ResidualsChart({ residuals }: { residuals: number[] }) {
-  const { t } = useTranslation();
-  return (
-    <div className="relative w-full" style={{ height: 200 }}>
-      <svg viewBox="0 0 800 200" className="h-full w-full" preserveAspectRatio="none">
-        <line
-          x1="10"
-          y1="100"
-          x2="790"
-          y2="100"
-          stroke="hsl(var(--border-subtle))"
-          strokeWidth="1"
-          strokeDasharray="4,4"
-        />
-        {residuals.map((r, i) => {
-          const x = 10 + (i / (residuals.length - 1)) * 780;
-          const barHeight = (Math.abs(r) / 0.04) * 90;
-          return (
-            <rect
-              key={i}
-              x={x - 1}
-              y={r >= 0 ? 100 - barHeight : 100}
-              width={2}
-              height={barHeight}
-              fill={r >= 0 ? 'hsl(var(--success))' : 'hsl(var(--danger))'}
-              opacity={0.5}
-            />
-          );
-        })}
-      </svg>
-      <div className="mt-1 flex justify-center gap-4 text-caption text-fg-tertiary">
-        <span>
-          <span
-            className="mr-1 inline-block h-1 w-3 rounded"
-            style={{ backgroundColor: 'hsl(var(--success))' }}
-          />
-          {t('Positive residual')}
-        </span>
-        <span>
-          <span
-            className="mr-1 inline-block h-1 w-3 rounded"
-            style={{ backgroundColor: 'hsl(var(--danger))' }}
-          />
-          {t('Negative residual')}
-        </span>
-      </div>
-    </div>
   );
 }
 function RegressionResultTable({
@@ -519,7 +458,50 @@ function FactorRegressionResultsPanel({ state: s }: { state: FactorRegressionSta
           {result.residuals.length > 0 && (
             <CollapsibleSection title={t('Regression Residuals')} defaultOpen>
               <Card className="p-4">
-                <ResidualsChart residuals={result.residuals} />
+                <div className="relative w-full" style={{ height: 200 }}>
+                  <svg viewBox="0 0 800 200" className="h-full w-full" preserveAspectRatio="none">
+                    <line
+                      x1="10"
+                      y1="100"
+                      x2="790"
+                      y2="100"
+                      stroke="hsl(var(--border-subtle))"
+                      strokeWidth="1"
+                      strokeDasharray="4,4"
+                    />
+                    {result.residuals.map((r, i) => {
+                      const x = 10 + (i / (result.residuals.length - 1)) * 780;
+                      const barHeight = (Math.abs(r) / 0.04) * 90;
+                      return (
+                        <rect
+                          key={i}
+                          x={x - 1}
+                          y={r >= 0 ? 100 - barHeight : 100}
+                          width={2}
+                          height={barHeight}
+                          fill={r >= 0 ? 'hsl(var(--success))' : 'hsl(var(--danger))'}
+                          opacity={0.5}
+                        />
+                      );
+                    })}
+                  </svg>
+                  <div className="mt-1 flex justify-center gap-4 text-caption text-fg-tertiary">
+                    <span>
+                      <span
+                        className="mr-1 inline-block h-1 w-3 rounded"
+                        style={{ backgroundColor: 'hsl(var(--success))' }}
+                      />
+                      {t('Positive residual')}
+                    </span>
+                    <span>
+                      <span
+                        className="mr-1 inline-block h-1 w-3 rounded"
+                        style={{ backgroundColor: 'hsl(var(--danger))' }}
+                      />
+                      {t('Negative residual')}
+                    </span>
+                  </div>
+                </div>
               </Card>
             </CollapsibleSection>
           )}
