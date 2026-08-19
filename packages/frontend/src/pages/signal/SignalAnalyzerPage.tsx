@@ -51,6 +51,7 @@ import {
   DualSignalParamsPanel,
   IndicatorSelect,
 } from './SignalParamsPanel.js';
+
 const AGG: { value: AggregationMethod; label: string; desc: string }[] = [
   {
     value: 'weighted',
@@ -61,6 +62,7 @@ const AGG: { value: AggregationMethod; label: string; desc: string }[] = [
   { value: 'rank', label: 'signal.multi.aggregationRank', desc: 'signal.multi.descRank' },
 ];
 const ROW_CLS = 'h-9 w-16 font-mono tabular-nums';
+
 function SignalRow({
   signal: s,
   idx,
@@ -128,141 +130,13 @@ function SignalRow({
     </div>
   );
 }
-function MultiSignalListSection({ state }: { state: UseMultiSignalStateResult }) {
-  const { t } = useTranslation();
-  const {
-    signals,
-    weights,
-    aggregationMethod,
-    addSignal,
-    removeSignal,
-    updateSignal,
-    updateWeight,
-  } = state;
-  return (
-    <section className="flex flex-col gap-2">
-      <div>
-        <h3 className="text-h3 text-fg">{t('Signal List')}</h3>
-        <FieldDescription>
-          {t('Add multiple technical-indicator signals; each can be removed individually')}
-        </FieldDescription>
-      </div>
-      <div className="flex flex-col gap-2">
-        {signals.map((s, idx) => (
-          <SignalRow
-            key={s.id}
-            signal={s}
-            idx={idx}
-            weight={weights[idx] ?? 0}
-            showWeight={aggregationMethod === 'weighted'}
-            canRemove={signals.length > 1}
-            onUpdateSignal={updateSignal}
-            onRemoveSignal={removeSignal}
-            onUpdateWeight={updateWeight}
-          />
-        ))}
-      </div>
-      <Button variant="secondary" size="sm" className="w-fit" onClick={addSignal}>
-        <Plus className="size-4" />
-        {t('Add Signal')}
-      </Button>
-    </section>
-  );
-}
-function AggregationSection({ state }: { state: UseMultiSignalStateResult }) {
-  const { t } = useTranslation();
-  const { aggregationMethod, setAggregationMethod } = state;
-  return (
-    <section className="flex flex-col gap-2">
-      <h3 className="text-h3 text-fg">{t('Aggregation Config')}</h3>
-      <Field>
-        <FieldLabel>{t('Aggregation Method')}</FieldLabel>
-        <RadioGroup
-          value={aggregationMethod}
-          onValueChange={(v) => setAggregationMethod(v as AggregationMethod)}
-          className="grid grid-cols-3 gap-3"
-        >
-          {AGG.map((m) => {
-            const id = `agg-${m.value}`;
-            return (
-              <div key={m.value} className="flex items-center gap-2">
-                <RadioGroupItem value={m.value} id={id} />
-                <Label htmlFor={id}>{t(m.label)}</Label>
-              </div>
-            );
-          })}
-        </RadioGroup>
-        <FieldDescription>
-          {t(AGG.find((m) => m.value === aggregationMethod)!.desc)}
-        </FieldDescription>
-      </Field>
-    </section>
-  );
-}
-function MultiSignalBacktestParams({ state }: { state: UseMultiSignalStateResult }) {
-  const { t } = useTranslation();
-  const { ticker, startDate, endDate, setTicker, setStartDate, setEndDate } = state;
-  const tickerId = useId();
-  const startId = useId();
-  const endId = useId();
-  return (
-    <section className="flex flex-col gap-2">
-      <h3 className="text-h3 text-fg">{t('Backtest Parameters')}</h3>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <LabeledField htmlFor={tickerId} label={t('Ticker')}>
-          <Input
-            id={tickerId}
-            type="text"
-            value={ticker}
-            onChange={(e) => setTicker(e.target.value)}
-            placeholder={t('e.g. SPY')}
-          />
-        </LabeledField>
-        <DateField id={startId} label={t('Start Date')} value={startDate} onChange={setStartDate} />
-        <DateField id={endId} label={t('End Date')} value={endDate} onChange={setEndDate} />
-      </div>
-    </section>
-  );
-}
-function MultiSignalParamsPanel({ state }: { state: UseMultiSignalStateResult }) {
-  const { t } = useTranslation();
-  return (
-    <div className="flex flex-col gap-5">
-      <MultiSignalListSection state={state} />
-      <AggregationSection state={state} />
-      <MultiSignalBacktestParams state={state} />
-      <RunButton
-        isLoading={state.isLoading}
-        onClick={state.runAnalysis}
-        label={t('Run Analysis')}
-        loadingLabel={t('Analyzing...')}
-        className="w-full sm:w-auto"
-      />
-    </div>
-  );
-}
+
 function renderDir(d: SignalDir, t: TFunction): ReactNode {
   if (d === 'buy') return <span className="font-semibold text-success">{t('Buy')}</span>;
   if (d === 'sell') return <span className="font-semibold text-danger">{t('Sell')}</span>;
   return <span className="text-fg-tertiary">-</span>;
 }
-function buildEquityData(results: DualSignalResponse): Array<Record<string, number | string>> {
-  const dateMap = new Map<string, Record<string, number | string>>();
-  const series: Array<{ name: string; curve: SignalAnalysisResult['equityCurve'] }> = [
-    { name: 'signal1', curve: results.signal1.equityCurve },
-    { name: 'signal2', curve: results.signal2.equityCurve },
-    { name: 'combined', curve: results.combined.equityCurve },
-  ];
-  for (const s of series) {
-    for (const p of s.curve) {
-      if (!dateMap.has(p.date)) dateMap.set(p.date, { date: p.date });
-      dateMap.get(p.date)![s.name] = p.value;
-    }
-  }
-  return Array.from(dateMap.values()).sort((a, b) =>
-    (a.date as string).localeCompare(b.date as string),
-  );
-}
+
 const STAT_COLS: { key: string; label: string; fmt: 'int' | 'pct' | 'ratio' }[] = [
   { key: 'totalSignals', label: 'signal.dual.statTotalSignals', fmt: 'int' },
   { key: 'winRate', label: 'Win Rate', fmt: 'pct' },
@@ -270,56 +144,11 @@ const STAT_COLS: { key: string; label: string; fmt: 'int' | 'pct' | 'ratio' }[] 
   { key: 'maxDrawdown', label: 'Max Drawdown', fmt: 'pct' },
   { key: 'sharpe', label: 'backtest.sharpeRatio', fmt: 'ratio' },
 ];
-function formatStat(v: number, fmt: 'int' | 'pct' | 'ratio'): string {
-  if (fmt === 'int') return String(v);
-  if (fmt === 'pct') return fmtPct(v);
-  return fmtRatio(v);
-}
+
 type StatRow = { name: string; stats: SignalAnalysisResult['statistics'] };
-function StatsComparisonTable({ statRows }: { statRows: StatRow[] }) {
-  const { t } = useTranslation();
-  const columns: SimpleTableColumn<(typeof STAT_COLS)[number]>[] = [
-    { key: 'metric', label: t('Metric'), render: (col) => t(col.label) },
-    ...statRows.map((r, idx) => ({
-      key: `signal${idx}`,
-      label: <PortfolioLabel color={getPortfolioColor(idx)} name={r.name} />,
-      align: 'right' as const,
-      render: (col: (typeof STAT_COLS)[number]) =>
-        formatStat((r.stats as Record<string, number>)[col.key], col.fmt),
-    })),
-  ];
-  return (
-    <ResultsSection title={t('Combined Signal Stats vs Single Signal Stats')}>
-      <SimpleTable columns={columns} data={STAT_COLS} rowKey={(r) => r.key} />
-    </ResultsSection>
-  );
-}
-function buildComparisonColumns(
-  t: TFunction,
-): TableColumn<DualSignalResponse['comparison'][number]>[] {
-  return [
-    { key: 'date', label: t('Date'), sortValue: (r) => r.date },
-    {
-      key: 'signal1',
-      label: t('Signal 1'),
-      render: (r) => renderDir(r.signal1, t),
-      sortValue: (r) => r.signal1 ?? '',
-    },
-    {
-      key: 'signal2',
-      label: t('Signal 2'),
-      render: (r) => renderDir(r.signal2, t),
-      sortValue: (r) => r.signal2 ?? '',
-    },
-    {
-      key: 'combined',
-      label: t('Combined Signal'),
-      render: (r) => renderDir(r.combined, t),
-      sortValue: (r) => r.combined ?? '',
-    },
-  ];
-}
+
 const PAGE_SIZE = 100;
+
 function DualSignalResultsBody({
   t,
   comparisonColumns,
@@ -339,9 +168,23 @@ function DualSignalResultsBody({
 }) {
   const pageRows = comparison.slice(comparisonPage * PAGE_SIZE, (comparisonPage + 1) * PAGE_SIZE);
   const pageCount = Math.max(1, Math.ceil(comparison.length / PAGE_SIZE));
+  const statColumns: SimpleTableColumn<(typeof STAT_COLS)[number]>[] = [
+    { key: 'metric', label: t('Metric'), render: (col) => t(col.label) },
+    ...statRows.map((r, idx) => ({
+      key: `signal${idx}`,
+      label: <PortfolioLabel color={getPortfolioColor(idx)} name={r.name} />,
+      align: 'right' as const,
+      render: (col: (typeof STAT_COLS)[number]) => {
+        const v = (r.stats as Record<string, number>)[col.key];
+        return col.fmt === 'int' ? String(v) : col.fmt === 'pct' ? fmtPct(v) : fmtRatio(v);
+      },
+    })),
+  ];
   return (
     <div className="flex flex-col gap-4">
-      <StatsComparisonTable statRows={statRows} />
+      <ResultsSection title={t('Combined Signal Stats vs Single Signal Stats')}>
+        <SimpleTable columns={statColumns} data={STAT_COLS} rowKey={(r) => r.key} />
+      </ResultsSection>
       <ResultsSection title={t('Signal Comparison ({{count}})', { count: comparison.length })}>
         {comparison.length > 0 ? (
           <>
@@ -398,6 +241,7 @@ function DualSignalResultsBody({
     </div>
   );
 }
+
 function DualSignalResultsPanel({
   results,
   error,
@@ -416,7 +260,45 @@ function DualSignalResultsPanel({
         { name: t('Combined Signal'), stats: results.combined.statistics },
       ]
     : [];
-  const equityData = results ? buildEquityData(results) : [];
+  const equityData = (() => {
+    if (!results) return [];
+    const dateMap = new Map<string, Record<string, number | string>>();
+    const series: Array<{ name: string; curve: SignalAnalysisResult['equityCurve'] }> = [
+      { name: 'signal1', curve: results.signal1.equityCurve },
+      { name: 'signal2', curve: results.signal2.equityCurve },
+      { name: 'combined', curve: results.combined.equityCurve },
+    ];
+    for (const s of series) {
+      for (const p of s.curve) {
+        if (!dateMap.has(p.date)) dateMap.set(p.date, { date: p.date });
+        dateMap.get(p.date)![s.name] = p.value;
+      }
+    }
+    return Array.from(dateMap.values()).sort((a, b) =>
+      (a.date as string).localeCompare(b.date as string),
+    );
+  })();
+  const comparisonColumns: TableColumn<DualSignalResponse['comparison'][number]>[] = [
+    { key: 'date', label: t('Date'), sortValue: (r) => r.date },
+    {
+      key: 'signal1',
+      label: t('Signal 1'),
+      render: (r) => renderDir(r.signal1, t),
+      sortValue: (r) => r.signal1 ?? '',
+    },
+    {
+      key: 'signal2',
+      label: t('Signal 2'),
+      render: (r) => renderDir(r.signal2, t),
+      sortValue: (r) => r.signal2 ?? '',
+    },
+    {
+      key: 'combined',
+      label: t('Combined Signal'),
+      render: (r) => renderDir(r.combined, t),
+      sortValue: (r) => r.combined ?? '',
+    },
+  ];
   return (
     <ResultsShell
       error={error}
@@ -427,7 +309,7 @@ function DualSignalResultsPanel({
     >
       <DualSignalResultsBody
         t={t}
-        comparisonColumns={buildComparisonColumns(t)}
+        comparisonColumns={comparisonColumns}
         comparison={comparison}
         comparisonPage={comparisonPage}
         setComparisonPage={setComparisonPage}
@@ -437,6 +319,7 @@ function DualSignalResultsPanel({
     </ResultsShell>
   );
 }
+
 function StatGrid({ rows }: { rows: { label: string; value: string }[] }) {
   return (
     <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
@@ -446,10 +329,15 @@ function StatGrid({ rows }: { rows: { label: string; value: string }[] }) {
     </div>
   );
 }
-function buildSignalColumns(
-  t: (key: string) => string,
-): TableColumn<{ date: string; type: 'buy' | 'sell'; price: number }>[] {
-  return [
+
+function SignalAnalyzerResultsPanel({
+  error,
+  results,
+  isLoading,
+  onRetry,
+}: ResultsPanelProps<SignalAnalysisResult> & { onRetry?: () => void }) {
+  const { t } = useTranslation();
+  const signalColumns: TableColumn<{ date: string; type: 'buy' | 'sell'; price: number }>[] = [
     { key: 'date', label: t('Date'), sortValue: (r) => r.date },
     {
       key: 'type',
@@ -470,85 +358,6 @@ function buildSignalColumns(
       sortValue: (r) => r.price,
     },
   ];
-}
-function SignalListSection({
-  results,
-  signalColumns,
-}: {
-  results: SignalAnalysisResult;
-  signalColumns: TableColumn<{ date: string; type: 'buy' | 'sell'; price: number }>[];
-}) {
-  const { t } = useTranslation();
-  return results.signals.length > 0 ? (
-    <SortableTable
-      columns={signalColumns}
-      data={results.signals}
-      initialSortKey="date"
-      initialSortDir="asc"
-    />
-  ) : (
-    <TableEmpty message={t('No signals generated for the current parameters')} />
-  );
-}
-function EquityCurveSection({
-  equityCurve: data,
-}: {
-  equityCurve: SignalAnalysisResult['equityCurve'];
-}) {
-  const { t } = useTranslation();
-  return (
-    <TimeSeriesLineChart
-      data={downsample(data, 400)}
-      series={[{ dataKey: 'value', legendName: t('Equity') }]}
-      referenceY={10000}
-      tooltipValueFormatter={(v) => [fmtAmount(v), t('Equity')]}
-      tooltipLabelFormatter={(label) => `${t('Date')}: ${label}`}
-    />
-  );
-}
-function SignalResultsContent({
-  results,
-  signalColumns,
-}: {
-  results: SignalAnalysisResult;
-  signalColumns: TableColumn<{ date: string; type: 'buy' | 'sell'; price: number }>[];
-}) {
-  const { t } = useTranslation();
-  return (
-    <>
-      <StatGrid
-        rows={[
-          { label: t('Total Signals'), value: String(results.statistics.totalSignals) },
-          { label: t('Win Rate'), value: fmtPct(results.statistics.winRate) },
-          { label: t('Average Return'), value: fmtPct(results.statistics.avgReturn) },
-          { label: t('Max Drawdown'), value: fmtPct(results.statistics.maxDrawdown) },
-          { label: t('Sharpe'), value: fmtRatio(results.statistics.sharpe) },
-        ]}
-      />
-      <Tabs defaultValue="signals">
-        <TabsList>
-          <TabsTrigger value="signals">
-            {t('Signal List ({{count}})', { count: results.signals.length })}
-          </TabsTrigger>
-          <TabsTrigger value="equity">{t('Equity Curve')}</TabsTrigger>
-        </TabsList>
-        <TabsContent value="signals">
-          <SignalListSection results={results} signalColumns={signalColumns} />
-        </TabsContent>
-        <TabsContent value="equity">
-          <EquityCurveSection equityCurve={results.equityCurve} />
-        </TabsContent>
-      </Tabs>
-    </>
-  );
-}
-function SignalAnalyzerResultsPanel({
-  error,
-  results,
-  isLoading,
-  onRetry,
-}: ResultsPanelProps<SignalAnalysisResult> & { onRetry?: () => void }) {
-  const { t } = useTranslation();
   return (
     <ResultsShell
       error={error}
@@ -558,16 +367,73 @@ function SignalAnalyzerResultsPanel({
       emptyTitle={t('Set parameters and click "Run Analysis" to view results')}
       onRetry={onRetry}
     >
-      <div className="flex flex-col gap-4">
-        <SignalResultsContent results={results!} signalColumns={buildSignalColumns(t)} />
-      </div>
+      {results && (
+        <div className="flex flex-col gap-4">
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+            {[
+              { label: t('Total Signals'), value: String(results.statistics.totalSignals) },
+              { label: t('Win Rate'), value: fmtPct(results.statistics.winRate) },
+              { label: t('Average Return'), value: fmtPct(results.statistics.avgReturn) },
+              { label: t('Max Drawdown'), value: fmtPct(results.statistics.maxDrawdown) },
+              { label: t('Sharpe'), value: fmtRatio(results.statistics.sharpe) },
+            ].map((r) => (
+              <StatCard key={r.label} label={r.label} value={r.value} />
+            ))}
+          </div>
+          <Tabs defaultValue="signals">
+            <TabsList>
+              <TabsTrigger value="signals">
+                {t('Signal List ({{count}})', { count: results.signals.length })}
+              </TabsTrigger>
+              <TabsTrigger value="equity">{t('Equity Curve')}</TabsTrigger>
+            </TabsList>
+            <TabsContent value="signals">
+              {results.signals.length > 0 ? (
+                <SortableTable
+                  columns={signalColumns}
+                  data={results.signals}
+                  initialSortKey="date"
+                  initialSortDir="asc"
+                />
+              ) : (
+                <TableEmpty message={t('No signals generated for the current parameters')} />
+              )}
+            </TabsContent>
+            <TabsContent value="equity">
+              <TimeSeriesLineChart
+                data={downsample(results.equityCurve, 400)}
+                series={[{ dataKey: 'value', legendName: t('Equity') }]}
+                referenceY={10000}
+                tooltipValueFormatter={(v) => [fmtAmount(v), t('Equity')]}
+                tooltipLabelFormatter={(label) => `${t('Date')}: ${label}`}
+              />
+            </TabsContent>
+          </Tabs>
+        </div>
+      )}
     </ResultsShell>
   );
 }
-function buildContributionColumns(
-  t: TFunction,
-): TableColumn<MultiSignalResponse['contributions'][number]>[] {
-  return [
+
+function MultiSignalResultsPanel({
+  results,
+  error,
+  isLoading,
+}: ResultsPanelProps<MultiSignalResponse>) {
+  const { t } = useTranslation();
+  const aggStatRows = results
+    ? (() => {
+        const s = results.aggregated.statistics;
+        return [
+          { label: 'signal.dual.statTotalSignals', value: String(s.totalSignals) },
+          { label: 'Win Rate', value: fmtPct(s.winRate) },
+          { label: 'Average Return', value: fmtPct(s.avgReturn) },
+          { label: 'Max Drawdown', value: fmtPct(s.maxDrawdown) },
+          { label: 'backtest.sharpeRatio', value: fmtRatio(s.sharpe) },
+        ];
+      })()
+    : [];
+  const contributionColumns: TableColumn<MultiSignalResponse['contributions'][number]>[] = [
     { key: 'index', label: '#', sortValue: (r) => r.index },
     { key: 'indicator', label: t('Metric'), sortValue: (r) => r.indicator },
     {
@@ -589,24 +455,6 @@ function buildContributionColumns(
       sortValue: (r) => r.statistics.totalSignals,
     },
   ];
-}
-function buildAggStatRows(results: MultiSignalResponse) {
-  const s = results.aggregated.statistics;
-  return [
-    { label: 'signal.dual.statTotalSignals', value: String(s.totalSignals) },
-    { label: 'Win Rate', value: fmtPct(s.winRate) },
-    { label: 'Average Return', value: fmtPct(s.avgReturn) },
-    { label: 'Max Drawdown', value: fmtPct(s.maxDrawdown) },
-    { label: 'backtest.sharpeRatio', value: fmtRatio(s.sharpe) },
-  ];
-}
-function MultiSignalResultsPanel({
-  results,
-  error,
-  isLoading,
-}: ResultsPanelProps<MultiSignalResponse>) {
-  const { t } = useTranslation();
-  const aggStatRows = results ? buildAggStatRows(results) : [];
   return (
     <ResultsShell
       error={error}
@@ -622,7 +470,7 @@ function MultiSignalResultsPanel({
         <ResultsSection title={t('Signal Contribution Comparison')}>
           {results!.contributions.length > 0 ? (
             <SortableTable
-              columns={buildContributionColumns(t)}
+              columns={contributionColumns}
               data={results!.contributions}
               initialSortKey="contribution"
               initialSortDir="desc"
@@ -644,6 +492,7 @@ function MultiSignalResultsPanel({
     </ResultsShell>
   );
 }
+
 const analyzerConfig: ComputeToolConfig<UseSignalAnalyzerStateResult> = {
   titleKey: 'signal.analyzer.title',
   params: ({ state }) => <SignalAnalyzerParamsPanel state={state} />,
@@ -656,10 +505,12 @@ const analyzerConfig: ComputeToolConfig<UseSignalAnalyzerStateResult> = {
     />
   ),
 };
+
 export default function SignalAnalyzerPage() {
   const s = useSignalAnalyzerState();
   return <ComputeToolShell config={analyzerConfig} state={s} />;
 }
+
 const dualConfig: ComputeToolConfig<UseDualSignalStateResult> = {
   titleKey: 'signal.dual.title',
   params: ({ state }) => <DualSignalParamsPanel state={state} />,
@@ -671,13 +522,120 @@ const dualConfig: ComputeToolConfig<UseDualSignalStateResult> = {
     />
   ),
 };
+
 export function DualSignalPage() {
   const s = useDualSignalState();
   return <ComputeToolShell config={dualConfig} state={s} />;
 }
+
+function MultiSignalParams({ state }: { state: UseMultiSignalStateResult }) {
+  const { t } = useTranslation();
+  const tickerId = useId();
+  const startId = useId();
+  const endId = useId();
+  const {
+    signals,
+    weights,
+    aggregationMethod,
+    addSignal,
+    removeSignal,
+    updateSignal,
+    updateWeight,
+    setAggregationMethod,
+    ticker,
+    startDate,
+    endDate,
+    setTicker,
+    setStartDate,
+    setEndDate,
+    isLoading,
+    runAnalysis,
+  } = state;
+  return (
+    <div className="flex flex-col gap-5">
+      <section className="flex flex-col gap-2">
+        <div>
+          <h3 className="text-h3 text-fg">{t('Signal List')}</h3>
+          <FieldDescription>
+            {t('Add multiple technical-indicator signals; each can be removed individually')}
+          </FieldDescription>
+        </div>
+        <div className="flex flex-col gap-2">
+          {signals.map((s, idx) => (
+            <SignalRow
+              key={s.id}
+              signal={s}
+              idx={idx}
+              weight={weights[idx] ?? 0}
+              showWeight={aggregationMethod === 'weighted'}
+              canRemove={signals.length > 1}
+              onUpdateSignal={updateSignal}
+              onRemoveSignal={removeSignal}
+              onUpdateWeight={updateWeight}
+            />
+          ))}
+        </div>
+        <Button variant="secondary" size="sm" className="w-fit" onClick={addSignal}>
+          <Plus className="size-4" />
+          {t('Add Signal')}
+        </Button>
+      </section>
+      <section className="flex flex-col gap-2">
+        <h3 className="text-h3 text-fg">{t('Aggregation Config')}</h3>
+        <Field>
+          <FieldLabel>{t('Aggregation Method')}</FieldLabel>
+          <RadioGroup
+            value={aggregationMethod}
+            onValueChange={(v) => setAggregationMethod(v as AggregationMethod)}
+            className="grid grid-cols-3 gap-3"
+          >
+            {AGG.map((m) => {
+              const id = `agg-${m.value}`;
+              return (
+                <div key={m.value} className="flex items-center gap-2">
+                  <RadioGroupItem value={m.value} id={id} />
+                  <Label htmlFor={id}>{t(m.label)}</Label>
+                </div>
+              );
+            })}
+          </RadioGroup>
+          <FieldDescription>
+            {t(AGG.find((m) => m.value === aggregationMethod)!.desc)}
+          </FieldDescription>
+        </Field>
+      </section>
+      <section className="flex flex-col gap-2">
+        <h3 className="text-h3 text-fg">{t('Backtest Parameters')}</h3>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <LabeledField htmlFor={tickerId} label={t('Ticker')}>
+            <Input
+              id={tickerId}
+              type="text"
+              value={ticker}
+              onChange={(e) => setTicker(e.target.value)}
+              placeholder={t('e.g. SPY')}
+            />
+          </LabeledField>
+          <DateField
+            id={startId}
+            label={t('Start Date')}
+            value={startDate}
+            onChange={setStartDate}
+          />
+          <DateField id={endId} label={t('End Date')} value={endDate} onChange={setEndDate} />
+        </div>
+      </section>
+      <RunButton
+        isLoading={isLoading}
+        label={t('Run Multi-Signal Analysis')}
+        onClick={runAnalysis}
+      />
+    </div>
+  );
+}
 const multiConfig: ComputeToolConfig<UseMultiSignalStateResult> = {
   titleKey: 'signal.multi.title',
-  params: ({ state }) => <MultiSignalParamsPanel state={state} />,
+  params: ({ state }) => <MultiSignalParams state={state} />,
   results: ({ state }) => (
     <MultiSignalResultsPanel
       results={state.results}
@@ -686,6 +644,7 @@ const multiConfig: ComputeToolConfig<UseMultiSignalStateResult> = {
     />
   ),
 };
+
 export function MultiSignalPage() {
   const s = useMultiSignalState();
   return <ComputeToolShell config={multiConfig} state={s} />;
