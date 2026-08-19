@@ -42,22 +42,6 @@ const TABS = [
   { key: 'risk-return', labelKey: 'Risk vs Return' },
   { key: 'returns', labelKey: 'tabs.returns' },
 ] as const;
-function extractErrorDetail(j: Record<string, unknown>, fallback: string): string {
-  const err = j.error;
-  if (typeof err === 'object' && err && 'detail' in err)
-    return String((err as { detail?: string }).detail);
-  if (typeof err === 'string') return err;
-  return fallback;
-}
-function throwIfError(res: Response, json: Record<string, unknown>, failedMsg: string) {
-  if (!res.ok) throw new Error(extractErrorDetail(json, `HTTP ${res.status}`));
-  if (json.success === false) throw new Error(extractErrorDetail(json, failedMsg));
-}
-function wrapFetchError(e: unknown, timeoutMsg: string, networkMsg: string): Error {
-  if (e instanceof DOMException && e.name === 'AbortError') return new Error(timeoutMsg);
-  if (e instanceof TypeError && e.message.includes('fetch')) return new Error(networkMsg);
-  return e instanceof Error ? e : new Error(String(e));
-}
 async function fetchAnalysisResult(
   validTickers: string[],
   ctx: {
@@ -98,7 +82,18 @@ async function fetchAnalysisResult(
         t('Server response abnormal, please confirm backend service is running and retry'),
       );
     }
-    throwIfError(res, json, t('Analysis failed'));
+    if (!res.ok || json.success === false) {
+      const err = json.error;
+      const detail =
+        typeof err === 'object' && err && 'detail' in err
+          ? String((err as { detail?: string }).detail)
+          : typeof err === 'string'
+            ? err
+            : !res.ok
+              ? `HTTP ${res.status}`
+              : t('Analysis failed');
+      throw new Error(detail);
+    }
     const raw = (json.data ?? json) as Record<string, unknown>;
     const tickers = (raw.tickers ?? raw.assets ?? []) as AssetAnalysisResult['tickers'];
     for (const tk of tickers) {
@@ -109,11 +104,13 @@ async function fetchAnalysisResult(
     }
     return { tickers, correlations: (raw.correlations ?? []) as number[][] };
   } catch (e) {
-    throw wrapFetchError(
-      e,
-      t('Connection timeout, please confirm backend service is running and retry'),
-      t('Network error: unable to connect to server, please confirm backend service is running'),
-    );
+    if (e instanceof DOMException && e.name === 'AbortError')
+      throw new Error(t('Connection timeout, please confirm backend service is running and retry'));
+    if (e instanceof TypeError && e.message.includes('fetch'))
+      throw new Error(
+        t('Network error: unable to connect to server, please confirm backend service is running'),
+      );
+    throw e instanceof Error ? e : new Error(String(e));
   } finally {
     clearTimeout(timeoutId);
   }
@@ -328,11 +325,7 @@ function CorrelationsBetaTab({
     </div>
   );
 }
-const AnalysisResultsPanel = memo(function AnalysisResultsPanel({
-  state: s,
-}: {
-  state: AnalysisPageState;
-}) {
+function AnalysisResultsPanel({ state: s }: { state: AnalysisPageState }) {
   const { error, results, activeTab, setActiveTab, isLoading, correlationWindow, rollingWindow } =
     s;
   const { t } = useTranslation();
@@ -377,7 +370,7 @@ const AnalysisResultsPanel = memo(function AnalysisResultsPanel({
       )}
     </ResultsShell>
   );
-});
+}
 type AnalysisPageState = ReturnType<typeof useAnalysisPageState>;
 export default createComputeToolPage(useAnalysisPageState, {
   titleKey: 'nav.assetAnalysis',
