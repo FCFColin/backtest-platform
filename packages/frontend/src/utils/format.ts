@@ -23,6 +23,12 @@ export const fmtRatio = (v: number | undefined | null): string =>
 export const fmtNum = (v: number | undefined | null, decimals = 2): string =>
   v == null || Number.isNaN(v) ? NULL : v.toFixed(decimals);
 
+export function fmtCompact(v: number): string {
+  if (Math.abs(v) >= 1e6) return (v / 1e6).toFixed(2) + 'M';
+  if (Math.abs(v) >= 1e3) return (v / 1e3).toFixed(1) + 'K';
+  return v.toFixed(2);
+}
+
 export const formatISODate = (iso: string): string => iso.split('-').join('/');
 
 export function formatPercentSigned(value: number | null | undefined, digits = 2): string {
@@ -57,8 +63,8 @@ export function percentile(arr: number[], p: number): number {
   return sorted[Math.min(Math.floor(sorted.length * p), sorted.length - 1)];
 }
 
-export const DOWNSAMPLE_THRESHOLD = 10000;
-export const DOWNSAMPLE_TARGET = 1000;
+const DOWNSAMPLE_THRESHOLD = 10000;
+const DOWNSAMPLE_TARGET = 1000;
 
 export function downsample<T>(data: T[], maxPoints = DOWNSAMPLE_TARGET): T[] {
   if (data.length <= maxPoints) return data;

@@ -121,7 +121,7 @@ function inferDateRangeFromData(
   return minDate && maxDate ? { min: minDate, max: maxDate } : null;
 }
 
-export function calculateDateRange(
+function calculateDateRange(
   startDate: string,
   endDate: string,
   effectiveStartDate: string,
@@ -142,7 +142,7 @@ export function calculateDateRange(
   return range;
 }
 
-export type PriceDataResult = {
+type PriceDataResult = {
   priceData: Record<string, Record<string, number>>;
   warnings: Warning[];
   invalidTickers: string[];
@@ -225,11 +225,6 @@ interface PreparedBacktestContext {
   exchangeRates: Record<string, number>;
   effectiveParameters: BacktestParameters;
   warnings: Warning[];
-  invalidTickers: string[];
-  effectiveStartDate: string;
-  effectiveEndDate: string;
-  degraded: boolean;
-  degradedWarning?: string;
   dateRange: DateRangeInfo;
 }
 
@@ -254,11 +249,6 @@ export async function prepareBacktestContext(
       price.effectiveEndDate,
     ),
     warnings: price.warnings,
-    invalidTickers: price.invalidTickers,
-    effectiveStartDate: price.effectiveStartDate,
-    effectiveEndDate: price.effectiveEndDate,
-    degraded: price.degraded,
-    degradedWarning: price.degradedWarning,
     dateRange: price.dateRange,
   };
 }

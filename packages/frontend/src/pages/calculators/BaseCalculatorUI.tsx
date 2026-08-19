@@ -22,11 +22,6 @@ import {
 } from '@/components/ui/uiComponents';
 import { Field as FieldShell, FieldLabel } from '@/components/form/Field';
 import { cn } from '@/lib/utils';
-function formatNum(v: number) {
-  if (Math.abs(v) >= 1e6) return (v / 1e6).toFixed(2) + 'M';
-  if (Math.abs(v) >= 1e3) return (v / 1e3).toFixed(1) + 'K';
-  return v.toFixed(2);
-}
 interface TwoFundFrontierResult {
   frontier: Array<{ wA: number; cagr: number; vol: number }>;
   minVarW: number;
@@ -65,7 +60,7 @@ function computeTwoFundFrontier(
 }
 import { SimpleLineChart, SimpleAreaChart } from '@/components/charts/sharedChartContent.js';
 import { ToolPageLayout } from '../../components/layout/ToolPageLayout.js';
-import { fmtPct } from '@/utils/format';
+import { fmtPct, fmtCompact } from '@/utils/format';
 function Field({
   label,
   value,
@@ -286,8 +281,8 @@ function ValueCurveChart({
         xDataKey="year"
         showLegend={false}
         xTickInterval="preserveStartEnd"
-        yTickFormatter={formatNum}
-        tooltipFormatter={(v: number) => [formatNum(v), t('Final Value')]}
+        yTickFormatter={fmtCompact}
+        tooltipFormatter={(v: number) => [fmtCompact(v), t('Final Value')]}
         series={[{ dataKey: 'value', color: getPortfolioColor(0), width: 2, areaOpacity: 0.12 }]}
       />
     </div>
@@ -364,11 +359,11 @@ function FutureValueCalculator() {
         },
       ]}
       rows={[
-        { label: t('Final Value'), value: formatNum(finalValue), tone: 'brand' },
-        { label: t('Total Contribution'), value: formatNum(totalContributions) },
+        { label: t('Final Value'), value: fmtCompact(finalValue), tone: 'brand' },
+        { label: t('Total Contribution'), value: fmtCompact(totalContributions) },
         {
           label: t('Investment Gain'),
-          value: formatNum(finalValue - totalContributions),
+          value: fmtCompact(finalValue - totalContributions),
           tone: 'success',
         },
       ]}
@@ -399,7 +394,7 @@ function CAGRAssumptionCalculator() {
         { label: t('Time'), value: years, onChange: setYears, suffix: t('y'), step: 1 },
         { label: t('Initial Capital'), value: initial, onChange: setInitial, step: 1000 },
       ]}
-      rows={[{ label: t('Final Value'), value: formatNum(finalValue), tone: 'brand' }]}
+      rows={[{ label: t('Final Value'), value: fmtCompact(finalValue), tone: 'brand' }]}
       chart={<ValueCurveChart curve={curve} height={200} />}
     />
   );
