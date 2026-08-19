@@ -22,7 +22,6 @@ import {
 } from '@/components/ui/uiComponents';
 import { cn } from '@/lib/utils';
 import { PLAN_BADGES, planTier, type PlanTier } from '@/utils/orgPlan';
-
 const Sheet = SheetPrimitive.Root;
 const SheetTrigger = SheetPrimitive.Trigger;
 const sheetVariants = cva(

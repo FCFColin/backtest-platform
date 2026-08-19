@@ -17,7 +17,7 @@ import { TimeSeriesLineChart } from '@/components/charts/TimeSeriesLineChart';
 import { fmtPct } from '@/utils/format';
 import { useAsyncAction } from '@/hooks/miscHooks';
 import { apiPostJSON } from '@/utils/apiClient';
-import { normalizeTicker } from '@/utils/format';
+import { normalizeTicker } from '@/utils/ticker';
 import {
   buildGrowthData,
   buildStatRows,

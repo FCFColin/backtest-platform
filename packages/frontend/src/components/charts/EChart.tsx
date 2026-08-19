@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import * as echarts from 'echarts/core';
 import type { EChartsOption } from 'echarts';
-import { resolveVarColorToken } from '@/utils/format';
+import { resolveVarColorToken } from '@/lib/cssVarResolver.js';
 import { LineChart, BarChart, PieChart, ScatterChart } from 'echarts/charts';
 import {
   GridComponent,

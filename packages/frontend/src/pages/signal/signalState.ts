@@ -10,7 +10,7 @@ import { useAnalysisState, useComputeTool } from '../../hooks/miscHooks.js';
 import { apiPostJSON } from '@/utils/apiClient';
 import i18n from '../../i18n/index.js';
 import { DEFAULT_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
-import { normalizeTicker } from '@/utils/format';
+import { normalizeTicker } from '@/utils/ticker';
 
 export type SignalDir = 'buy' | 'sell' | null;
 export interface SignalCfg {

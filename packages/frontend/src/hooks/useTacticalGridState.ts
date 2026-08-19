@@ -5,7 +5,7 @@ import { apiFetch } from '@/utils/apiClient';
 import { extractApiErrorDetail } from '@/store/backtestHelpers.js';
 import { pollJobStatus } from '@/store/backtestStore.js';
 import { DEFAULT_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
-import { normalizeTicker } from '@/utils/format';
+import { normalizeTicker } from '@/utils/ticker';
 import {
   countCombinations,
   getParamLabelKeys,

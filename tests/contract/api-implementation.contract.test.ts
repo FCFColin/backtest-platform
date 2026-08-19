@@ -3,7 +3,7 @@ import SwaggerParser from '@apidevtools/swagger-parser';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { generateOpenApiDocument } from '../../packages/backend/src/schemas/openapi-paths.js';
+import { generateOpenApiDocument } from '../../packages/backend/src/schemas/openapi-registry.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

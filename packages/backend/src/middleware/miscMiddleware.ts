@@ -2,7 +2,7 @@ import type { Request, Response, NextFunction, Application } from 'express';
 import type { ZodSchema } from 'zod';
 import swaggerUi from 'swagger-ui-express';
 import { sendProblem } from '../utils/errors.js';
-import { generateOpenApiDocument } from '../schemas/openapi-paths.js';
+import { generateOpenApiDocument } from '../schemas/openapi-registry.js';
 import { config } from '../config/index.js';
 
 function createValidator(source: 'body' | 'query', statusCode: number) {

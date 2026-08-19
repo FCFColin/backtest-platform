@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { normalizeTicker } from '../../../packages/frontend/src/utils/format';
+import { normalizeTicker } from '../../../packages/frontend/src/utils/ticker';
 
 describe('normalizeTicker', () => {
   it('应去除首尾空白并转大写', () => {

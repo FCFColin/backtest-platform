@@ -14,7 +14,7 @@ import { extractApiErrorDetail } from '@/store/backtestHelpers.js';
 import { pollJobStatus } from '@/store/backtestStore.js';
 import { useAssetList } from '../../hooks/miscHooks.js';
 import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
-import { normalizeTicker } from '@/utils/format';
+import { normalizeTicker } from '@/utils/ticker';
 
 export type { Objective };
 export const OBJECTIVE_SORT_KEY: Record<Objective, keyof OptimizeResultItem> = {
