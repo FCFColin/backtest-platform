@@ -35,9 +35,6 @@ import {
   useOptimizerState,
 } from './backtestOptimizerUtils.js';
 import type {
-  BestMetricsCardProps,
-  ComparisonTableSectionProps,
-  GrowthComparisonChartProps,
   Objective,
   OptimizerFormState,
   OptimizerSectionProps,
@@ -136,23 +133,23 @@ function BacktestRangeSection({ s }: OptimizerSectionProps) {
   );
 }
 
-function BestMetricsCard({ best, totalCombos }: BestMetricsCardProps) {
+function PortfolioConfigSection({ s }: OptimizerSectionProps) {
   const { t } = useTranslation();
-  if (!best) return null;
   return (
-    <div>
-      <div className="mb-3 flex items-center justify-between">
-        <div className="text-body font-semibold text-fg">{t('Optimal Portfolio')}</div>
-        <span className="text-caption text-fg-tertiary">
-          {t('Total Combinations', { count: totalCombos })}
-        </span>
-      </div>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {buildBestMetrics(best).map((m) => (
-          <StatCard key={m.label} label={m.label} value={m.value} />
-        ))}
-      </div>
-    </div>
+    <ParamGroup
+      title={t('Portfolio Allocation')}
+      info={t('Add tickers and weights for optimization')}
+    >
+      <SinglePortfolioEditor
+        singleMode
+        assets={s.assets.map(({ ticker, weight }) => ({ ticker, weight: Number(weight) || 0 }))}
+        totalWeight={s.assets.reduce((sum, a) => sum + (Number(a.weight) || 0), 0)}
+        onAdd={s.addAsset}
+        onRemove={s.removeAsset}
+        onUpdate={(i, field, val) => s.updateAsset(i, field, String(val))}
+        wrapInSection={false}
+      />
+    </ParamGroup>
   );
 }
 
@@ -178,6 +175,11 @@ export function OptimizerParams({ s }: OptimizerSectionProps) {
 
 export function OptimizerResults({ s }: OptimizerSectionProps) {
   const { t } = useTranslation();
+  const chartData = s.result.best ? buildChartData(s.result.best, s.result.benchmarkGrowth) : [];
+  const nameMap: Record<string, string> = {
+    portfolio: t('Optimal Portfolio'),
+    benchmark: t('Benchmark'),
+  };
   return (
     <ResultsShell
       error={s.result.error}
@@ -188,54 +190,70 @@ export function OptimizerResults({ s }: OptimizerSectionProps) {
       emptyTitle={t('Configure parameters above and click "Start Optimization" to see results')}
     >
       <div className="flex flex-col gap-4">
-        <BestMetricsCard best={s.result.best} totalCombos={s.result.totalCombos} />
-        <GrowthComparisonChart best={s.result.best} benchmarkGrowth={s.result.benchmarkGrowth} />
-        <ComparisonTableSection results={s.result.results ?? []} objective={s.form.objective} />
+        {s.result.best && (
+          <div>
+            <div className="mb-3 flex items-center justify-between">
+              <div className="text-body font-semibold text-fg">{t('Optimal Portfolio')}</div>
+              <span className="text-caption text-fg-tertiary">
+                {t('Total Combinations', { count: s.result.totalCombos })}
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {buildBestMetrics(s.result.best).map((m) => (
+                <StatCard key={m.label} label={m.label} value={m.value} />
+              ))}
+            </div>
+          </div>
+        )}
+        {chartData.length > 0 && (
+          <>
+            <div className="mb-3 mt-6 text-body font-semibold text-fg">
+              {t('Growth Comparison')}
+            </div>
+            <SimpleChart
+              type="line"
+              data={chartData}
+              height={320}
+              margin={{ left: 8, right: 20, top: 5, bottom: 5 }}
+              xTickFormatter={(d: number | string) => String(d).substring(0, 7)}
+              yTickFormatter={(v: number) => fmtAmount(v)}
+              tooltipFormatter={(v: number, name: string) => [fmtAmount(v), nameMap[name] ?? name]}
+              tooltipLabelFormatter={(d: string) => d}
+              showLegend
+              legendFormatter={(name: string) => nameMap[name] ?? name}
+              series={[
+                {
+                  dataKey: 'portfolio',
+                  name: nameMap.portfolio,
+                  color: getPortfolioColor(0),
+                  width: 2,
+                },
+                {
+                  dataKey: 'benchmark',
+                  name: nameMap.benchmark,
+                  color: getPortfolioColor(1),
+                  width: 1.5,
+                  dash: '4 2',
+                },
+              ]}
+            />
+          </>
+        )}
+        <div className="mb-3 mt-6 text-body font-semibold text-fg">
+          {t('Portfolio Comparison Table')}
+        </div>
+        {(s.result.results ?? []).length > 0 ? (
+          <SortableTable
+            columns={TABLE_COLUMNS}
+            data={s.result.results ?? []}
+            initialSortKey={OBJECTIVE_SORT_KEY[s.form.objective]}
+            initialSortDir="desc"
+          />
+        ) : (
+          <TableEmpty message={t('No portfolio matches the constraints')} />
+        )}
       </div>
     </ResultsShell>
-  );
-}
-
-function PortfolioConfigSection({ s }: OptimizerSectionProps) {
-  const { t } = useTranslation();
-  return (
-    <ParamGroup
-      title={t('Portfolio Allocation')}
-      info={t('Add tickers and weights for optimization')}
-    >
-      <SinglePortfolioEditor
-        singleMode
-        assets={s.assets.map(({ ticker, weight }) => ({ ticker, weight: Number(weight) || 0 }))}
-        totalWeight={s.assets.reduce((sum, a) => sum + (Number(a.weight) || 0), 0)}
-        onAdd={s.addAsset}
-        onRemove={s.removeAsset}
-        onUpdate={(i, field, val) => s.updateAsset(i, field, String(val))}
-        wrapInSection={false}
-      />
-    </ParamGroup>
-  );
-}
-
-function FreqMultiSelect({ s }: OptimizerSectionProps) {
-  const { t } = useTranslation();
-  return (
-    <div>
-      <div className="mb-1.5 text-caption font-medium text-fg-secondary">
-        {t('Rebalancing Frequency')}
-      </div>
-      <div className="flex flex-wrap gap-2">
-        {REBALANCE_FREQUENCY_OPTIONS.map((o) => (
-          <Button
-            key={o.value}
-            variant={s.frequencies.includes(o.value) ? 'primary' : 'secondary'}
-            size="sm"
-            onClick={() => s.toggleFreq(o.value)}
-          >
-            {t(o.label)}
-          </Button>
-        ))}
-      </div>
-    </div>
   );
 }
 
@@ -248,7 +266,23 @@ function ParameterSpaceSection({ s }: OptimizerSectionProps) {
       info={t('Set the search range for rebalance frequency and thresholds')}
     >
       <div className="flex flex-col gap-3">
-        <FreqMultiSelect s={s} />
+        <div>
+          <div className="mb-1.5 text-caption font-medium text-fg-secondary">
+            {t('Rebalancing Frequency')}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {REBALANCE_FREQUENCY_OPTIONS.map((o) => (
+              <Button
+                key={o.value}
+                variant={s.frequencies.includes(o.value) ? 'primary' : 'secondary'}
+                size="sm"
+                onClick={() => s.toggleFreq(o.value)}
+              >
+                {t(o.label)}
+              </Button>
+            ))}
+          </div>
+        </div>
         {RANGE_DEFS.map((r) => (
           <div key={r.titleKey}>
             <div className="mb-1.5 text-caption font-medium text-fg-secondary">{t(r.titleKey)}</div>
@@ -333,64 +367,6 @@ function ObjectiveSection({ s }: OptimizerSectionProps) {
         ))}
       </div>
     </ParamGroup>
-  );
-}
-
-function GrowthComparisonChart({ best, benchmarkGrowth }: GrowthComparisonChartProps) {
-  const { t } = useTranslation();
-  const chartData = buildChartData(best, benchmarkGrowth);
-  if (chartData.length === 0) return null;
-  const nameMap: Record<string, string> = {
-    portfolio: t('Optimal Portfolio'),
-    benchmark: t('Benchmark'),
-  };
-  return (
-    <>
-      <div className="mb-3 mt-6 text-body font-semibold text-fg">{t('Growth Comparison')}</div>
-      <SimpleChart
-        type="line"
-        data={chartData}
-        height={320}
-        margin={{ left: 8, right: 20, top: 5, bottom: 5 }}
-        xTickFormatter={(d: number | string) => String(d).substring(0, 7)}
-        yTickFormatter={(v: number) => fmtAmount(v)}
-        tooltipFormatter={(v: number, name: string) => [fmtAmount(v), nameMap[name] ?? name]}
-        tooltipLabelFormatter={(d: string) => d}
-        showLegend
-        legendFormatter={(name: string) => nameMap[name] ?? name}
-        series={[
-          { dataKey: 'portfolio', name: nameMap.portfolio, color: getPortfolioColor(0), width: 2 },
-          {
-            dataKey: 'benchmark',
-            name: nameMap.benchmark,
-            color: getPortfolioColor(1),
-            width: 1.5,
-            dash: '4 2',
-          },
-        ]}
-      />
-    </>
-  );
-}
-
-function ComparisonTableSection({ results, objective }: ComparisonTableSectionProps) {
-  const { t } = useTranslation();
-  return (
-    <>
-      <div className="mb-3 mt-6 text-body font-semibold text-fg">
-        {t('Portfolio Comparison Table')}
-      </div>
-      {results.length > 0 ? (
-        <SortableTable
-          columns={TABLE_COLUMNS}
-          data={results}
-          initialSortKey={OBJECTIVE_SORT_KEY[objective]}
-          initialSortDir="desc"
-        />
-      ) : (
-        <TableEmpty message={t('No portfolio matches the constraints')} />
-      )}
-    </>
   );
 }
 
