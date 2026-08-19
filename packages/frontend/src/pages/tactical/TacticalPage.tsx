@@ -37,7 +37,6 @@ import type {
   WhatIfResult,
   TacticalStrategy,
 } from '@backtest/shared/types/tactical';
-import type { TFunction } from 'i18next';
 import { useTacticalConfigs, type TacticalConfigPayload } from './useTacticalConfigs';
 import { ParamSection, SignalBuilderSection } from './TacticalSignalEditor';
 import { BacktestParamsFields } from './sharedBacktestParams';
@@ -98,9 +97,6 @@ function AggregationSection({ state }: { state: TacticalPageState }) {
       </div>
     </ParamSection>
   );
-}
-function BacktestParamsSection({ state }: { state: TacticalPageState }) {
-  return <BacktestParamsFields idPrefix="tactical" state={state} />;
 }
 function applyTacticalConfig(state: TacticalPageState, config: TacticalConfigPayload) {
   state.setStrategy(config.strategy);
@@ -192,7 +188,7 @@ function TacticalParamsPanel({ state }: { state: TacticalPageState }) {
       <ConfigPersistenceSection state={state} />
       <SignalBuilderSection state={state} />
       <AggregationSection state={state} />
-      <BacktestParamsSection state={state} />
+      <BacktestParamsFields idPrefix="tactical" state={state} />
       <RunButton
         isLoading={isLoading}
         onClick={handleRunBacktest}
@@ -201,28 +197,6 @@ function TacticalParamsPanel({ state }: { state: TacticalPageState }) {
       />
     </div>
   );
-}
-function buildWhatIfColumns(t: TFunction): TableColumn<WhatIfResult>[] {
-  return [
-    { key: 'ticker', label: t('Ticker'), sortValue: (r) => r.ticker },
-    {
-      key: 'currentPrice',
-      label: t('Latest Price'),
-      sortValue: (r) => r.currentPrice,
-      render: (r) => <span className="font-mono tabular-nums">{fmtPrice(r.currentPrice)}</span>,
-    },
-    { key: 'signalDate', label: t('Signal Date'), sortValue: (r) => r.signalDate },
-    {
-      key: 'signalType',
-      label: t('Signal Status'),
-      sortValue: (r) => r.signalType,
-      render: (r) => (
-        <span className="font-semibold" style={{ color: whatIfSignalColor(r.signalType) }}>
-          {whatIfSignalLabel(r.signalType, t)}
-        </span>
-      ),
-    },
-  ];
 }
 function SignalHistoryTable({
   signalHistory,
@@ -277,7 +251,26 @@ function WhatIfTab({ strategy }: { strategy: TacticalStrategy }) {
   const [tickerInput, setTickerInput] = useState('SPY, TLT, GLD');
   const [results, setResults] = useState<WhatIfResult[]>([]);
   const { isLoading, error, run, setError } = useAsyncAction();
-  const columns = buildWhatIfColumns(t);
+  const columns: TableColumn<WhatIfResult>[] = [
+    { key: 'ticker', label: t('Ticker'), sortValue: (r) => r.ticker },
+    {
+      key: 'currentPrice',
+      label: t('Latest Price'),
+      sortValue: (r) => r.currentPrice,
+      render: (r) => <span className="font-mono tabular-nums">{fmtPrice(r.currentPrice)}</span>,
+    },
+    { key: 'signalDate', label: t('Signal Date'), sortValue: (r) => r.signalDate },
+    {
+      key: 'signalType',
+      label: t('Signal Status'),
+      sortValue: (r) => r.signalType,
+      render: (r) => (
+        <span className="font-semibold" style={{ color: whatIfSignalColor(r.signalType) }}>
+          {whatIfSignalLabel(r.signalType, t)}
+        </span>
+      ),
+    },
+  ];
   const handleQuery = () => {
     const tickers = tickerInput
       .split(/[\s,]+/)
@@ -332,30 +325,6 @@ function WhatIfTab({ strategy }: { strategy: TacticalStrategy }) {
     </Card>
   );
 }
-function ChartCardTitle({ children }: { children: React.ReactNode }) {
-  return <h3 className="mb-3 text-h3 text-fg">{children}</h3>;
-}
-function GrowthChart({ growthData }: { growthData: Array<Record<string, number | string>> }) {
-  const { t } = useTranslation();
-  return (
-    <Card className="p-4">
-      <ChartCardTitle>{t('Growth Curve')}</ChartCardTitle>
-      <TimeSeriesLineChart
-        data={growthData}
-        height={380}
-        tooltipLabelFormatter={(label) => t('Date: {{label}}', { label })}
-        series={[
-          { dataKey: 'tactical', legendName: t('Tactical') },
-          {
-            dataKey: 'benchmark',
-            legendName: t('Equal Weight'),
-            strokeDasharray: '6 3',
-          },
-        ]}
-      />
-    </Card>
-  );
-}
 function BacktestResultTab({ results }: { results: TacticalBacktestResult }) {
   const { t } = useTranslation();
   const { portfolio, benchmark, signalHistory } = results;
@@ -377,9 +346,24 @@ function BacktestResultTab({ results }: { results: TacticalBacktestResult }) {
   ];
   return (
     <div className="flex flex-col gap-3">
-      <GrowthChart growthData={growthData} />
       <Card className="p-4">
-        <ChartCardTitle>{t('Statistics')}</ChartCardTitle>
+        <h3 className="mb-3 text-h3 text-fg">{t('Growth Curve')}</h3>
+        <TimeSeriesLineChart
+          data={growthData}
+          height={380}
+          tooltipLabelFormatter={(label) => t('Date: {{label}}', { label })}
+          series={[
+            { dataKey: 'tactical', legendName: t('Tactical') },
+            {
+              dataKey: 'benchmark',
+              legendName: t('Equal Weight'),
+              strokeDasharray: '6 3',
+            },
+          ]}
+        />
+      </Card>
+      <Card className="p-4">
+        <h3 className="mb-3 text-h3 text-fg">{t('Statistics')}</h3>
         <SortableTable
           columns={statColumns}
           data={statRows}
@@ -389,18 +373,6 @@ function BacktestResultTab({ results }: { results: TacticalBacktestResult }) {
       </Card>
       {signalHistory.length > 0 && <SignalHistoryTable signalHistory={signalHistory} />}
     </div>
-  );
-}
-function BacktestEmptyState() {
-  const { t } = useTranslation();
-  return (
-    <EmptyState
-      icon={LineChart}
-      title={t(
-        'Configure signals and parameters, then click "Run Tactical Backtest" to see results',
-      )}
-      className="py-16"
-    />
   );
 }
 function TacticalResultsPanel({ state }: { state: TacticalPageState }) {
@@ -419,7 +391,17 @@ function TacticalResultsPanel({ state }: { state: TacticalPageState }) {
             ))}
           </TabsList>
           <TabsContent value="backtest">
-            {results ? <BacktestResultTab results={results} /> : <BacktestEmptyState />}
+            {results ? (
+              <BacktestResultTab results={results} />
+            ) : (
+              <EmptyState
+                icon={LineChart}
+                title={t(
+                  'Configure signals and parameters, then click "Run Tactical Backtest" to see results',
+                )}
+                className="py-16"
+              />
+            )}
           </TabsContent>
           <TabsContent value="whatif">
             <WhatIfTab strategy={strategy} />
