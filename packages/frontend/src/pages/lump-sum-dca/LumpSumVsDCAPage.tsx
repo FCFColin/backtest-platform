@@ -45,39 +45,23 @@ interface CompareResult {
   finalValue: number;
   growthCurve: Array<{ date: string; value: number }>;
 }
-function extractStats(
-  stats: Statistics,
-): Pick<
-  CompareResult,
-  | 'cagr'
-  | 'stdev'
-  | 'maxDrawdown'
-  | 'sharpe'
-  | 'sortino'
-  | 'calmar'
-  | 'maxDrawdownDuration'
-  | 'ulcerIndex'
-> {
-  return {
-    cagr: stats?.cagr ?? 0,
-    stdev: stats?.stdev ?? 0,
-    maxDrawdown: stats?.maxDrawdown ?? 0,
-    sharpe: stats?.sharpe ?? 0,
-    sortino: stats?.sortino ?? 0,
-    calmar: stats?.calmar,
-    maxDrawdownDuration: stats?.maxDrawdownDuration,
-    ulcerIndex: stats?.ulcerIndex,
-  };
-}
 interface BacktestPortfolioResponse {
   growthCurve?: Array<{ date: string; value: number }>;
   statistics?: Statistics;
 }
 function toResult(p: BacktestPortfolioResponse, label: string): CompareResult {
   const curve = p.growthCurve ?? [];
+  const s = p.statistics as Statistics;
   return {
     label,
-    ...extractStats(p.statistics as Statistics),
+    cagr: s?.cagr ?? 0,
+    stdev: s?.stdev ?? 0,
+    maxDrawdown: s?.maxDrawdown ?? 0,
+    sharpe: s?.sharpe ?? 0,
+    sortino: s?.sortino ?? 0,
+    calmar: s?.calmar,
+    maxDrawdownDuration: s?.maxDrawdownDuration,
+    ulcerIndex: s?.ulcerIndex,
     finalValue: curve.length > 0 ? curve[curve.length - 1].value : 0,
     growthCurve: curve,
   };
@@ -293,52 +277,6 @@ function ConclStatCard({
     </div>
   );
 }
-function ConclusionText({
-  lsWins,
-  ls,
-  dca,
-  fmtPct,
-  fmtMoney,
-  finalValueDiffPct,
-}: { lsWins: boolean; ls: CompareResult; dca: CompareResult; finalValueDiffPct: number } & Pick<
-  FmtFns,
-  'fmtPct' | 'fmtMoney'
->) {
-  const { t } = useTranslation();
-  return (
-    <div className="text-body leading-relaxed text-fg-secondary">
-      {lsWins ? (
-        <>
-          {t('In the selected time range, ')}
-          <strong style={{ color: getPortfolioColor(0) }}>{t('Lump Sum')}</strong>
-          {t(
-            "has a higher final value ({{lsValue}} vs {{dcaValue}}), exceeding by {{pct}}%. However, Lump Sum's max drawdown ({{lsMdd}}) is typically larger than DCA's ({{dcaMdd}}), bearing greater psychological pressure in falling markets.",
-            {
-              lsValue: fmtMoney(ls.finalValue),
-              dcaValue: fmtMoney(dca.finalValue),
-              pct: finalValueDiffPct.toFixed(1),
-              lsMdd: fmtPct(ls.maxDrawdown),
-              dcaMdd: fmtPct(dca.maxDrawdown),
-            },
-          )}
-        </>
-      ) : (
-        <>
-          {t('In the selected time range, ')}
-          <strong style={{ color: getPortfolioColor(1) }}>{t('DCA')}</strong>
-          {t(
-            'has a higher final value ({{dcaValue}} vs {{lsValue}}), exceeding by {{pct}}%. DCA reduces average cost through batch purchases, achieving better returns in falling markets.',
-            {
-              dcaValue: fmtMoney(dca.finalValue),
-              lsValue: fmtMoney(ls.finalValue),
-              pct: finalValueDiffPct.toFixed(1),
-            },
-          )}
-        </>
-      )}
-    </div>
-  );
-}
 function ConclusionAnalysis({
   ls,
   dca,
@@ -379,32 +317,36 @@ function ConclusionAnalysis({
         />
         <ConclStatCard title={t('Max Drawdown Difference')} value={fmtPct(mddDiff)} />
       </div>
-      <ConclusionText
-        lsWins={lsWins}
-        ls={ls}
-        dca={dca}
-        fmtPct={fmtPct}
-        fmtMoney={fmtMoney}
-        finalValueDiffPct={finalValueDiffPct}
-      />
-    </div>
-  );
-}
-function RiskWarning({ lsWins }: { lsWins: boolean }) {
-  const { t } = useTranslation();
-  return (
-    <div className="mt-4 flex items-start gap-2.5 rounded-lg bg-input-bg p-3">
-      <AlertTriangle className="mt-0.5 size-4 shrink-0 text-warning" />
-      <div className="text-body leading-relaxed text-fg-tertiary">
-        <strong className="text-fg-secondary">{t('Risk Warning:')}</strong>
-        {lsWins
-          ? t(
-              'Although Lump Sum performs better in this historical period, this is a hindsight result. Lump Sum carries greater timing risk at entry; entering at market peaks may cause significant losses. While DCA has a lower final value, it reduces timing risk through staggered entries, suitable for investors with lower risk tolerance.',
-            )
-          : t(
-              'DCA performs better in this historical period, indicating the market experienced significant volatility or declines during this time. DCA reduces average cost through batch purchases, but if the market continues to rise, Lump Sum typically achieves higher returns. Investment decisions should consider personal risk tolerance and market judgment.',
+      <div className="text-body leading-relaxed text-fg-secondary">
+        {lsWins ? (
+          <>
+            {t('In the selected time range, ')}
+            <strong style={{ color: getPortfolioColor(0) }}>{t('Lump Sum')}</strong>
+            {t(
+              "has a higher final value ({{lsValue}} vs {{dcaValue}}), exceeding by {{pct}}%. However, Lump Sum's max drawdown ({{lsMdd}}) is typically larger than DCA's ({{dcaMdd}}), bearing greater psychological pressure in falling markets.",
+              {
+                lsValue: fmtMoney(ls.finalValue),
+                dcaValue: fmtMoney(dca.finalValue),
+                pct: finalValueDiffPct.toFixed(1),
+                lsMdd: fmtPct(ls.maxDrawdown),
+                dcaMdd: fmtPct(dca.maxDrawdown),
+              },
             )}
-        {t('Historical performance does not guarantee future returns.')}
+          </>
+        ) : (
+          <>
+            {t('In the selected time range, ')}
+            <strong style={{ color: getPortfolioColor(1) }}>{t('DCA')}</strong>
+            {t(
+              'has a higher final value ({{dcaValue}} vs {{lsValue}}), exceeding by {{pct}}%. DCA reduces average cost through batch purchases, achieving better returns in falling markets.',
+              {
+                dcaValue: fmtMoney(dca.finalValue),
+                lsValue: fmtMoney(ls.finalValue),
+                pct: finalValueDiffPct.toFixed(1),
+              },
+            )}
+          </>
+        )}
       </div>
     </div>
   );
@@ -412,6 +354,7 @@ function RiskWarning({ lsWins }: { lsWins: boolean }) {
 function LsDcaResultsCard({ s, fmtPct, fmtNum, fmtMoney }: FmtFns & { s: LumpSumVsDCAState }) {
   const { t } = useTranslation();
   if (s.results.length !== 2) return null;
+  const lsWins = s.results[0].finalValue > s.results[1].finalValue;
   return (
     <Card className="p-5">
       <ConclusionAnalysis
@@ -424,7 +367,20 @@ function LsDcaResultsCard({ s, fmtPct, fmtNum, fmtMoney }: FmtFns & { s: LumpSum
       <GrowthCurveChart results={s.results} fmtMoney={fmtMoney} />
       <div className="mb-3 mt-6 text-body font-semibold text-fg">{t('Statistics Comparison')}</div>
       <StatsTable results={s.results} fmtPct={fmtPct} fmtNum={fmtNum} fmtMoney={fmtMoney} />
-      <RiskWarning lsWins={s.results[0].finalValue > s.results[1].finalValue} />
+      <div className="mt-4 flex items-start gap-2.5 rounded-lg bg-input-bg p-3">
+        <AlertTriangle className="mt-0.5 size-4 shrink-0 text-warning" />
+        <div className="text-body leading-relaxed text-fg-tertiary">
+          <strong className="text-fg-secondary">{t('Risk Warning:')}</strong>
+          {lsWins
+            ? t(
+                'Although Lump Sum performs better in this historical period, this is a hindsight result. Lump Sum carries greater timing risk at entry; entering at market peaks may cause significant losses. While DCA has a lower final value, it reduces timing risk through staggered entries, suitable for investors with lower risk tolerance.',
+              )
+            : t(
+                'DCA performs better in this historical period, indicating the market experienced significant volatility or declines during this time. DCA reduces average cost through batch purchases, but if the market continues to rise, Lump Sum typically achieves higher returns. Investment decisions should consider personal risk tolerance and market judgment.',
+              )}
+          {t('Historical performance does not guarantee future returns.')}
+        </div>
+      </div>
     </Card>
   );
 }

@@ -43,16 +43,6 @@ const TOOLS = [
   { labelKey: 'nav.letfAnalysis', path: '/letf-slippage' },
 ] as const;
 
-interface CapabilityCardProps {
-  icon: React.ComponentType<{ className?: string }>;
-  title: string;
-  items?: string[];
-  tools?: Array<{ label: string; path: string }>;
-  linkLabel?: string;
-  linkTo?: string;
-  subtitle?: string;
-}
-
 function CapabilityCard({
   icon: Icon,
   title,
@@ -61,7 +51,15 @@ function CapabilityCard({
   linkLabel,
   linkTo,
   subtitle,
-}: CapabilityCardProps) {
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  title: string;
+  items?: string[];
+  tools?: Array<{ label: string; path: string }>;
+  linkLabel?: string;
+  linkTo?: string;
+  subtitle?: string;
+}) {
   return (
     <Card className="p-5 bg-surface border border-border-subtle hover:border-border transition-all duration-150 hover:-translate-y-0.5 hover:shadow-lg cursor-default group">
       <div className="flex items-center gap-3 mb-4">
@@ -103,41 +101,6 @@ function CapabilityCard({
         </Link>
       )}
     </Card>
-  );
-}
-
-function HeroDetails() {
-  const { t } = useTranslation();
-  return (
-    <>
-      <p className="text-body text-fg-tertiary max-w-[860px] mb-8 leading-relaxed">
-        {t(
-          'This platform is a portfolio backtesting tool supporting ETFs, stocks, funds, synthetic tickers, and custom sequences. Compare multiple portfolios over the same historical period, test rebalancing rules, and simulate cashflow contributions or withdrawals.',
-        )}
-      </p>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <CapabilityCard
-          icon={Settings}
-          title={t('What You Can Model')}
-          items={t('backtest.hero.model.items', { returnObjects: true }) as string[]}
-          linkLabel={t('Start Configuring')}
-          linkTo="#parameters"
-        />
-        <CapabilityCard
-          icon={BarChart3}
-          title={t('Metrics You Can Inspect')}
-          items={t('backtest.hero.inspect.items', { returnObjects: true }) as string[]}
-          linkLabel={t('View Results')}
-          linkTo="#results"
-          subtitle="60+"
-        />
-        <CapabilityCard
-          icon={Rocket}
-          title={t('Related Research Tools')}
-          tools={TOOLS.map((tool) => ({ label: t(tool.labelKey), path: tool.path }))}
-        />
-      </div>
-    </>
   );
 }
 
@@ -188,7 +151,37 @@ export const BacktestHero = memo(function BacktestHero() {
           )}
         </Button>
       </div>
-      {expanded && <HeroDetails />}
+      {expanded && (
+        <>
+          <p className="text-body text-fg-tertiary max-w-[860px] mb-8 leading-relaxed">
+            {t(
+              'This platform is a portfolio backtesting tool supporting ETFs, stocks, funds, synthetic tickers, and custom sequences. Compare multiple portfolios over the same historical period, test rebalancing rules, and simulate cashflow contributions or withdrawals.',
+            )}
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <CapabilityCard
+              icon={Settings}
+              title={t('What You Can Model')}
+              items={t('backtest.hero.model.items', { returnObjects: true }) as string[]}
+              linkLabel={t('Start Configuring')}
+              linkTo="#parameters"
+            />
+            <CapabilityCard
+              icon={BarChart3}
+              title={t('Metrics You Can Inspect')}
+              items={t('backtest.hero.inspect.items', { returnObjects: true }) as string[]}
+              linkLabel={t('View Results')}
+              linkTo="#results"
+              subtitle="60+"
+            />
+            <CapabilityCard
+              icon={Rocket}
+              title={t('Related Research Tools')}
+              tools={TOOLS.map((tool) => ({ label: t(tool.labelKey), path: tool.path }))}
+            />
+          </div>
+        </>
+      )}
     </section>
   );
 });
@@ -296,100 +289,6 @@ export interface BacktestPageState {
   handleDeleteConfig: (id: string) => Promise<void>;
 }
 type S = ReturnType<typeof useBacktestPageState>;
-type TF = (k: string) => string;
-function SaveInputRow({
-  configName,
-  setConfigName,
-  handleSaveConfig,
-  setShowSaveInput,
-  t,
-}: {
-  configName: string;
-  setConfigName: (v: string) => void;
-  handleSaveConfig: () => Promise<void>;
-  setShowSaveInput: (v: boolean) => void;
-  t: TF;
-}) {
-  return (
-    <div className="mt-2 flex items-center gap-1.5">
-      <Input
-        type="text"
-        value={configName}
-        onChange={(e) => setConfigName(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') void handleSaveConfig();
-        }}
-        placeholder={t('Enter scheme name')}
-        className="flex-1"
-        // eslint-disable-next-line jsx-a11y/no-autofocus -- intentional: form input focus on modal open
-        autoFocus
-      />
-      <Button variant="secondary" size="sm" onClick={() => void handleSaveConfig()}>
-        {t('Confirm')}
-      </Button>
-      <Button
-        variant="destructive"
-        size="icon"
-        onClick={() => {
-          setShowSaveInput(false);
-          setConfigName('');
-        }}
-        title={t('Cancel')}
-        aria-label={t('Cancel')}
-      >
-        <X />
-      </Button>
-    </div>
-  );
-}
-function LoadListPanel({
-  savedConfigs,
-  handleLoadConfig,
-  handleDeleteConfig,
-  t,
-  locale,
-}: {
-  savedConfigs: SavedPortfolio[];
-  handleLoadConfig: (c: SavedPortfolio) => void;
-  handleDeleteConfig: (id: string) => Promise<void>;
-  t: TF;
-  locale: string;
-}) {
-  return (
-    <div className="mt-2 max-h-[240px] overflow-y-auto rounded-md border border-border-subtle bg-elevated">
-      {savedConfigs.length === 0 ? (
-        <TableEmpty message={t('No saved schemes')} className="px-3 py-3 text-caption" />
-      ) : (
-        savedConfigs.map((config) => (
-          <div
-            key={config.id}
-            className="flex items-center gap-1.5 px-2.5 py-2 border-b border-border-subtle last:border-b-0"
-          >
-            <button
-              onClick={() => handleLoadConfig(config)}
-              className="flex-1 text-left bg-transparent border-none cursor-pointer p-0"
-            >
-              <div className="text-body font-medium text-fg">{config.name}</div>
-              <div className="text-caption text-fg-tertiary">
-                {new Date(config.savedAt).toLocaleString(locale)} · {config.portfolios.length}{' '}
-                {t('portfolios')}
-              </div>
-            </button>
-            <Button
-              variant="destructive"
-              size="icon"
-              onClick={() => void handleDeleteConfig(config.id)}
-              title={t('Delete')}
-              aria-label={t('Delete')}
-            >
-              <Trash2 />
-            </Button>
-          </div>
-        ))
-      )}
-    </div>
-  );
-}
 function BacktestToolbar({ state }: { state: S }) {
   const { t, i18n } = useTranslation();
   const {
@@ -432,22 +331,69 @@ function BacktestToolbar({ state }: { state: S }) {
         <p className="text-caption text-fg-tertiary">{t('Please add at least one portfolio')}</p>
       )}
       {showSaveInput && (
-        <SaveInputRow
-          configName={configName}
-          setConfigName={setConfigName}
-          handleSaveConfig={handleSaveConfig}
-          setShowSaveInput={setShowSaveInput}
-          t={t}
-        />
+        <div className="mt-2 flex items-center gap-1.5">
+          <Input
+            type="text"
+            value={configName}
+            onChange={(e) => setConfigName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') void handleSaveConfig();
+            }}
+            placeholder={t('Enter scheme name')}
+            className="flex-1"
+            // eslint-disable-next-line jsx-a11y/no-autofocus -- intentional: form input focus on modal open
+            autoFocus
+          />
+          <Button variant="secondary" size="sm" onClick={() => void handleSaveConfig()}>
+            {t('Confirm')}
+          </Button>
+          <Button
+            variant="destructive"
+            size="icon"
+            onClick={() => {
+              setShowSaveInput(false);
+              setConfigName('');
+            }}
+            title={t('Cancel')}
+            aria-label={t('Cancel')}
+          >
+            <X />
+          </Button>
+        </div>
       )}
       {showLoadList && (
-        <LoadListPanel
-          savedConfigs={savedConfigs}
-          handleLoadConfig={handleLoadConfig}
-          handleDeleteConfig={handleDeleteConfig}
-          t={t}
-          locale={i18n.language}
-        />
+        <div className="mt-2 max-h-[240px] overflow-y-auto rounded-md border border-border-subtle bg-elevated">
+          {savedConfigs.length === 0 ? (
+            <TableEmpty message={t('No saved schemes')} className="px-3 py-3 text-caption" />
+          ) : (
+            savedConfigs.map((config) => (
+              <div
+                key={config.id}
+                className="flex items-center gap-1.5 px-2.5 py-2 border-b border-border-subtle last:border-b-0"
+              >
+                <button
+                  onClick={() => handleLoadConfig(config)}
+                  className="flex-1 text-left bg-transparent border-none cursor-pointer p-0"
+                >
+                  <div className="text-body font-medium text-fg">{config.name}</div>
+                  <div className="text-caption text-fg-tertiary">
+                    {new Date(config.savedAt).toLocaleString(i18n.language)} ·{' '}
+                    {config.portfolios.length} {t('portfolios')}
+                  </div>
+                </button>
+                <Button
+                  variant="destructive"
+                  size="icon"
+                  onClick={() => void handleDeleteConfig(config.id)}
+                  title={t('Delete')}
+                  aria-label={t('Delete')}
+                >
+                  <Trash2 />
+                </Button>
+              </div>
+            ))
+          )}
+        </div>
       )}
     </div>
   );
