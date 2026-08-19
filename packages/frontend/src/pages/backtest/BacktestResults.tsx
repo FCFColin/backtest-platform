@@ -265,28 +265,6 @@ const mapDrawdown = (pf: PortfolioResult[]) =>
     name: p.name,
     drawdownCurve: (p.drawdownCurve ?? []).map((pt) => ({ date: pt.date, drawdown: pt.drawdown })),
   }));
-const TabBtn = ({
-  tab,
-  active,
-  onClick,
-}: {
-  tab: { key: string; labelKey: string };
-  active: boolean;
-  onClick: () => void;
-}) => {
-  const { t } = useTranslation();
-  return (
-    <Button
-      variant={active ? 'secondary' : 'ghost'}
-      size="sm"
-      className={active ? 'shrink-0 text-brand border-b-2 border-brand rounded-b-none' : 'shrink-0'}
-      aria-pressed={active}
-      onClick={onClick}
-    >
-      {t(tab.labelKey)}
-    </Button>
-  );
-};
 function TabBar() {
   const { t } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -309,12 +287,20 @@ function TabBar() {
     <div className="flex items-center justify-between gap-2 border-b border-border-subtle pb-2 mb-3">
       <div className="flex items-center gap-1 overflow-x-auto">
         {ALL_TABS.filter((tab) => PRIMARY_TABS.has(tab.key)).map((tab) => (
-          <TabBtn
+          <Button
             key={tab.key}
-            tab={tab}
-            active={activeTab === tab.key}
+            variant={activeTab === tab.key ? 'secondary' : 'ghost'}
+            size="sm"
+            className={
+              activeTab === tab.key
+                ? 'shrink-0 text-brand border-b-2 border-brand rounded-b-none'
+                : 'shrink-0'
+            }
+            aria-pressed={activeTab === tab.key}
             onClick={() => selectTab(tab.key)}
-          />
+          >
+            {t(tab.labelKey)}
+          </Button>
         ))}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -431,19 +417,6 @@ const TAB_RENDERERS: Record<
   telltale: ({ pf }) => <L.TelltaleChart portfolios={pf} />,
   regression: ({ pf }) => <L.RegressionChart portfolios={pf} />,
 };
-function exportResultsCSV(results: BacktestResult) {
-  const pf = results?.portfolios?.[0];
-  if (!pf?.growthCurve?.length) return;
-  downloadCSV(
-    pf.growthCurve.map((pt, i) => ({
-      date: pt.date,
-      ...Object.fromEntries(
-        results.portfolios.map((p) => [p.name, p.growthCurve[i]?.value?.toFixed(4) ?? '']),
-      ),
-    })),
-    'backtest-results',
-  );
-}
 function computeTimeRange(results: BacktestResult) {
   const pf = results.portfolios[0];
   const first = pf?.growthCurve?.[0]?.date;
@@ -516,11 +489,27 @@ export function ResultsContent() {
       )}
       <ResultsActionBar
         timeRange={computeTimeRange(results)}
-        onExport={(format) =>
-          format === 'json'
-            ? downloadJSON(results, dateSuffixedFilename('backtest-results', 'json'))
-            : exportResultsCSV(results)
-        }
+        onExport={(format) => {
+          if (format === 'json') {
+            downloadJSON(results, dateSuffixedFilename('backtest-results', 'json'));
+          } else {
+            const pf = results?.portfolios?.[0];
+            if (pf?.growthCurve?.length) {
+              downloadCSV(
+                pf.growthCurve.map((pt, i) => ({
+                  date: pt.date,
+                  ...Object.fromEntries(
+                    results.portfolios.map((p) => [
+                      p.name,
+                      p.growthCurve[i]?.value?.toFixed(4) ?? '',
+                    ]),
+                  ),
+                })),
+                'backtest-results',
+              );
+            }
+          }
+        }}
       />
       <Card className="p-5">
         <TabBar />
