@@ -178,3 +178,15 @@ export function downloadCSV(
 export function downloadJSON(data: unknown, filename: string): void {
   downloadFile(JSON.stringify(data, null, 2), filename, 'application/json');
 }
+
+export function normalizeTicker(raw: string): string {
+  return raw.trim().toUpperCase();
+}
+
+const VAR_PATTERN = /(hsl\()?var\((--[\w-]+)\)(\))?/g;
+export function resolveVarColorToken(input: string, resolve: (name: string) => string): string {
+  return input.replace(
+    VAR_PATTERN,
+    (full, _hslOpen: string | undefined, name: string) => resolve(name) || full,
+  );
+}

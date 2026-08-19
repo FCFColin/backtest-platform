@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { resolveVarColorToken } from '../../../packages/frontend/src/lib/cssVarResolver.js';
+import { resolveVarColorToken } from '../../../packages/frontend/src/utils/format';
 
 const resolve = (name: string): string => {
   switch (name) {

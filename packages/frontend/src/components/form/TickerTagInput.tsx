@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { X } from 'lucide-react';
 import { Badge, Button, Input } from '@/components/ui/uiComponents';
 import { cn } from '@/lib/utils';
-import { normalizeTicker } from '@/utils/ticker';
+import { normalizeTicker } from '@/utils/format';
 function TickerChips({
   tickers,
   onRemove,

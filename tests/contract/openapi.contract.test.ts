@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import SwaggerParser from '@apidevtools/swagger-parser';
-import { generateOpenApiDocument } from '../../packages/backend/src/schemas/openapi-registry.js';
+import { generateOpenApiDocument } from '../../packages/backend/src/schemas/openapi-paths.js';
 
 interface OpenAPIV3Document {
   openapi: string;

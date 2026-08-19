@@ -22,16 +22,14 @@ import { TickerTagInput } from '@/components/form/TickerTagInput.js';
 import { AllHistoryCheckbox } from '@/components/params/toolFields.js';
 import { useAnalysisData, computePairRollingCorrelation } from '../../hooks/useAnalysisData.js';
 import { apiFetch } from '../../utils/apiClient.js';
-import { downsample } from '../../utils/format.js';
 import { createComputeToolPage, TabFallback } from '../../components/shells/index.js';
 import { TOOL_LINKS } from '../../components/shells/constants.js';
 import { useComputeTool, useSetterState } from '../../hooks/miscHooks.js';
-import { fmtPct, fmtNum } from '@/utils/format';
+import { fmtPct, fmtNum, downsample, normalizeTicker } from '@/utils/format';
 import { SimpleTable, type SimpleTableColumn } from '@/components/tables.js';
 import { rowsFromMeta } from '../../components/statistics-table/columns.js';
 import type { StatRow } from '../../components/statistics-table/types.js';
 import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
-import { normalizeTicker } from '@/utils/ticker';
 import { lazyNamed } from '@/utils/lazyImport';
 import { cn } from '@/lib/utils';
 const TABS = [
