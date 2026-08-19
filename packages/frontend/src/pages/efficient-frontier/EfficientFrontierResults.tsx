@@ -171,20 +171,20 @@ function LoadInBacktesterButton({
     </Button>
   );
 }
-function FrontierScatterChartInner({
+function FrontierScatterChart({
   scatterData,
   sharpeRange,
   maxSharpe,
   frontier,
   onSelectPoint,
-  height,
+  onLoadInBacktester,
 }: {
   scatterData: Array<{ expectedVolatility: number; expectedReturn: number; sharpeRatio: number }>;
   sharpeRange: { min: number; max: number };
   maxSharpe: EfficientFrontierPoint | undefined;
   frontier: EfficientFrontierPoint[];
   onSelectPoint: (p: EfficientFrontierPoint) => void;
-  height: number;
+  onLoadInBacktester: () => void;
 }) {
   const { t } = useTranslation();
   const scatterSeries: XYScatterSeriesSpec[] = scatterData.map((entry) => ({
@@ -207,260 +207,30 @@ function FrontierScatterChartInner({
     });
   }
   return (
-    <XYScatterChart
-      xKey="expectedVolatility"
-      yKey="expectedReturn"
-      xName={t('Volatility (%)')}
-      yName={t('Return (%)')}
-      zRange={[60, 60]}
-      height={height}
-      tooltipFormatter={(v: number) => `${v.toFixed(2)}%`}
-      series={scatterSeries}
-      onClick={({ seriesIndex }) => {
-        const p = seriesIndex !== undefined ? (frontier[seriesIndex] ?? maxSharpe) : undefined;
-        if (p) onSelectPoint(p);
-      }}
-    />
-  );
-}
-function FrontierScatterChart({
-  scatterData,
-  sharpeRange,
-  maxSharpe,
-  frontier,
-  onSelectPoint,
-  onLoadInBacktester,
-}: {
-  scatterData: Array<{ expectedVolatility: number; expectedReturn: number; sharpeRatio: number }>;
-  sharpeRange: { min: number; max: number };
-  maxSharpe: EfficientFrontierPoint | undefined;
-  frontier: EfficientFrontierPoint[];
-  onSelectPoint: (p: EfficientFrontierPoint) => void;
-  onLoadInBacktester: () => void;
-}) {
-  const { t } = useTranslation();
-  return (
     <div>
       <div className="mb-3 flex items-center justify-between">
         <h3 className="text-h3 font-semibold text-fg">{t('nav.efficientFrontier')}</h3>
         <LoadInBacktesterButton onClick={onLoadInBacktester} label={t('Load in backtester')} />
       </div>
-      <FrontierScatterChartInner
-        scatterData={scatterData}
-        sharpeRange={sharpeRange}
-        maxSharpe={maxSharpe}
-        frontier={frontier}
-        onSelectPoint={onSelectPoint}
+      <XYScatterChart
+        xKey="expectedVolatility"
+        yKey="expectedReturn"
+        xName={t('Volatility (%)')}
+        yName={t('Return (%)')}
+        zRange={[60, 60]}
         height={400}
-      />
-    </div>
-  );
-}
-function FrontierAllocations({
-  allocationData,
-  allAssetTickers,
-}: {
-  allocationData: Record<string, number | string>[];
-  allAssetTickers: string[];
-}) {
-  const { t } = useTranslation();
-  if (allocationData.length === 0 || allAssetTickers.length === 0) return null;
-  return (
-    <div>
-      <h3 className="mb-3 mt-6 text-h3 font-semibold text-fg">{t('Frontier Allocations')}</h3>
-      <SimpleChart
-        type="area"
-        data={allocationData}
-        xDataKey="point"
-        height={300}
-        xLabel={t('Frontier Point')}
-        yTickFormatter={(v: number) => `${v}%`}
-        yDomain={[0, 100]}
-        tooltipFormatter={(v: number) => `${v}%`}
-        showLegend={false}
-        series={allAssetTickers.map((ticker, i) => ({
-          dataKey: ticker,
-          color: getPortfolioColor(i),
-          stackId: '1',
-          areaOpacity: 0.8,
-        }))}
-      />
-      <div className="mt-2 flex flex-wrap justify-center gap-4">
-        {allAssetTickers.map((ticker, i) => (
-          <div key={ticker} className="flex items-center gap-1 text-caption">
-            <span
-              className="inline-block size-3 rounded"
-              style={{ backgroundColor: getPortfolioColor(i) }}
-            />
-            <span className="text-fg-tertiary">{ticker}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-function CorrelationMatrixView({
-  correlations,
-}: {
-  correlations: { tickers: string[]; matrix: number[][] } | null;
-}) {
-  const { t } = useTranslation();
-  if (!correlations || correlations.tickers.length < 2) return null;
-  return (
-    <div>
-      <h3 className="mb-3 mt-6 text-h3 font-semibold text-fg">{t('Correlation Matrix')}</h3>
-      <MatrixHeatmap
-        rowLabels={correlations.tickers}
-        columnLabels={correlations.tickers}
-        matrix={correlations.matrix}
-        getBackgroundColor={getCorrelationColor}
-        getTextColor={getCorrelationTextColor}
-        formatValue={(v) => v.toFixed(2)}
-      />
-    </div>
-  );
-}
-const COLORS = {
-  success: 'hsl(var(--success))',
-  warning: 'hsl(var(--warning))',
-  brand: 'hsl(var(--brand))',
-  fgSec: 'hsl(var(--fg-secondary))',
-  fgTer: 'hsl(var(--fg-tertiary))',
-} as const;
-function WeightBar({ ticker, weight, color }: { ticker: string; weight: number; color: string }) {
-  return (
-    <div className="flex items-center gap-2">
-      <span className="w-[60px] shrink-0 text-label font-medium text-fg">{ticker}</span>
-      <div className="h-4 flex-1 overflow-hidden rounded-sm bg-input-bg">
-        <div
-          className="h-full rounded-sm"
-          style={{ width: `${weight * 100}%`, backgroundColor: color }}
-        />
-      </div>
-      <span className="font-mono text-caption tabular-nums text-fg-tertiary">
-        {fmtPct(weight, 1)}
-      </span>
-    </div>
-  );
-}
-function WeightAllocation({ weights, title }: { weights: Record<string, number>; title: string }) {
-  return (
-    <div>
-      <div className="mb-2 text-caption text-fg-tertiary">{title}</div>
-      <div className="flex flex-col gap-1.5">
-        {Object.entries(weights).map(([ticker, weight], i) => (
-          <WeightBar key={ticker} ticker={ticker} weight={weight} color={getPortfolioColor(i)} />
-        ))}
-      </div>
-    </div>
-  );
-}
-function PointStats({ p }: { p: EfficientFrontierPoint }) {
-  const { t } = useTranslation();
-  return (
-    <div className="flex flex-col gap-2">
-      {[
-        { key: 'Expected Return', value: fmtPct(p.expectedReturn), color: COLORS.success },
-        { key: 'Expected Volatility', value: fmtPct(p.expectedVolatility), color: COLORS.warning },
-        { key: 'Sharpe Ratio', value: p.sharpeRatio.toFixed(2), color: COLORS.brand },
-      ].map((s) => (
-        <MiniStatCard
-          key={s.key}
-          className="bg-elevated p-2.5"
-          label={t(s.key)}
-          value={s.value}
-          color={s.color}
-        />
-      ))}
-    </div>
-  );
-}
-function SelectedPointDetail({
-  selectedPoint,
-  onLoadInBacktester,
-}: {
-  selectedPoint: EfficientFrontierPoint | null;
-  onLoadInBacktester: (p: EfficientFrontierPoint) => void;
-}) {
-  const { t } = useTranslation();
-  if (!selectedPoint) return null;
-  return (
-    <div className="mt-4 rounded-md bg-input-bg p-4">
-      <div className="mb-2 flex items-center justify-between">
-        <h3 className="text-label font-semibold text-fg">{t('Selected Portfolio Details')}</h3>
-        <LoadInBacktesterButton
-          onClick={() => onLoadInBacktester(selectedPoint)}
-          label={t('Load')}
-          size="sm"
-        />
-      </div>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <WeightAllocation weights={selectedPoint.weights} title={t('Weight Allocation')} />
-        <PointStats p={selectedPoint} />
-      </div>
-    </div>
-  );
-}
-function MaxSharpeSection({ maxSharpe }: { maxSharpe: EfficientFrontierPoint | undefined }) {
-  const { t } = useTranslation();
-  if (!maxSharpe) return null;
-  return (
-    <div>
-      <h3 className="mb-3 mt-6 text-h3 font-semibold text-fg">{t('Max Sharpe Portfolio')}</h3>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <WeightAllocation weights={maxSharpe.weights} title={t('Weight')} />
-        <div className="flex flex-col gap-3">
-          <PointStats p={maxSharpe} />
-        </div>
-      </div>
-    </div>
-  );
-}
-function ParamsSummary({
-  rebalanceFrequency,
-  allowCash,
-  returnObjective,
-  solver,
-}: {
-  rebalanceFrequency: string;
-  allowCash: boolean;
-  returnObjective: ReturnObjective;
-  solver: FrontierSolver;
-}) {
-  const { t } = useTranslation();
-  return (
-    <div>
-      <h3 className="mb-3 mt-6 text-h3 font-semibold text-fg">{t('Parameters Summary')}</h3>
-      <MetricsGrid
-        metrics={[
-          {
-            label: t('Rebalancing Frequency'),
-            value:
-              t(`efficientFrontier.rebalanceFreq.${rebalanceFrequency}`, { defaultValue: '' }) ||
-              rebalanceFrequency,
-            color: COLORS.fgSec,
-          },
-          {
-            label: t('Allow Cash Allocation'),
-            value: allowCash ? t('Yes') : t('No'),
-            color: allowCash ? COLORS.success : COLORS.fgTer,
-          },
-          {
-            label: t('Return Objective'),
-            value: returnObjective === 'maxCagr' ? t('Max CAGR') : t('Min Vol'),
-            color: COLORS.fgSec,
-          },
-          {
-            label: t('Solver'),
-            value: t(`efficientFrontier.solver.${solver}`, { defaultValue: solver }),
-            color: COLORS.fgSec,
-          },
-        ]}
+        tooltipFormatter={(v: number) => `${v.toFixed(2)}%`}
+        series={scatterSeries}
+        onClick={({ seriesIndex }) => {
+          const p = seriesIndex !== undefined ? (frontier[seriesIndex] ?? maxSharpe) : undefined;
+          if (p) onSelectPoint(p);
+        }}
       />
     </div>
   );
 }
 function FrontierResults({ state }: { state: FrontierState }) {
+  const { t } = useTranslation();
   const {
     results: r,
     scatterData,
@@ -487,19 +257,158 @@ function FrontierResults({ state }: { state: FrontierState }) {
         onSelectPoint={setSelectedPoint}
         onLoadInBacktester={() => handleLoadInBacktester()}
       />
-      <FrontierAllocations allocationData={allocationData} allAssetTickers={allAssetTickers} />
-      <CorrelationMatrixView correlations={correlations} />
-      <SelectedPointDetail
-        selectedPoint={selectedPoint}
-        onLoadInBacktester={handleLoadInBacktester}
-      />
-      <MaxSharpeSection maxSharpe={maxSharpe} />
-      <ParamsSummary
-        rebalanceFrequency={rebalanceFrequency}
-        allowCash={allowCash}
-        returnObjective={returnObjective}
-        solver={solver}
-      />
+      {allocationData.length > 0 && allAssetTickers.length > 0 && (
+        <div>
+          <h3 className="mb-3 mt-6 text-h3 font-semibold text-fg">{t('Frontier Allocations')}</h3>
+          <SimpleChart
+            type="area"
+            data={allocationData}
+            xDataKey="point"
+            height={300}
+            xLabel={t('Frontier Point')}
+            yTickFormatter={(v: number) => `${v}%`}
+            yDomain={[0, 100]}
+            tooltipFormatter={(v: number) => `${v}%`}
+            showLegend={false}
+            series={allAssetTickers.map((ticker, i) => ({
+              dataKey: ticker,
+              color: getPortfolioColor(i),
+              stackId: '1',
+              areaOpacity: 0.8,
+            }))}
+          />
+          <div className="mt-2 flex flex-wrap justify-center gap-4">
+            {allAssetTickers.map((ticker, i) => (
+              <div key={ticker} className="flex items-center gap-1 text-caption">
+                <span
+                  className="inline-block size-3 rounded"
+                  style={{ backgroundColor: getPortfolioColor(i) }}
+                />
+                <span className="text-fg-tertiary">{ticker}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {correlations && correlations.tickers.length >= 2 && (
+        <div>
+          <h3 className="mb-3 mt-6 text-h3 font-semibold text-fg">{t('Correlation Matrix')}</h3>
+          <MatrixHeatmap
+            rowLabels={correlations.tickers}
+            columnLabels={correlations.tickers}
+            matrix={correlations.matrix}
+            getBackgroundColor={getCorrelationColor}
+            getTextColor={getCorrelationTextColor}
+            formatValue={(v) => v.toFixed(2)}
+          />
+        </div>
+      )}
+      {selectedPoint && (
+        <div className="mt-4 rounded-md bg-input-bg p-4">
+          <div className="mb-2 flex items-center justify-between">
+            <h3 className="text-label font-semibold text-fg">{t('Selected Portfolio Details')}</h3>
+            <LoadInBacktesterButton
+              onClick={() => handleLoadInBacktester(selectedPoint)}
+              label={t('Load')}
+              size="sm"
+            />
+          </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <WeightAllocation weights={selectedPoint.weights} title={t('Weight Allocation')} />
+            <PointStats p={selectedPoint} />
+          </div>
+        </div>
+      )}
+      {maxSharpe && (
+        <div>
+          <h3 className="mb-3 mt-6 text-h3 font-semibold text-fg">{t('Max Sharpe Portfolio')}</h3>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <WeightAllocation weights={maxSharpe.weights} title={t('Weight')} />
+            <div className="flex flex-col gap-3">
+              <PointStats p={maxSharpe} />
+            </div>
+          </div>
+        </div>
+      )}
+      <div>
+        <h3 className="mb-3 mt-6 text-h3 font-semibold text-fg">{t('Parameters Summary')}</h3>
+        <MetricsGrid
+          metrics={[
+            {
+              label: t('Rebalancing Frequency'),
+              value:
+                t(`efficientFrontier.rebalanceFreq.${rebalanceFrequency}`, { defaultValue: '' }) ||
+                rebalanceFrequency,
+              color: COLORS.fgSec,
+            },
+            {
+              label: t('Allow Cash Allocation'),
+              value: allowCash ? t('Yes') : t('No'),
+              color: allowCash ? COLORS.success : COLORS.fgTer,
+            },
+            {
+              label: t('Return Objective'),
+              value: returnObjective === 'maxCagr' ? t('Max CAGR') : t('Min Vol'),
+              color: COLORS.fgSec,
+            },
+            {
+              label: t('Solver'),
+              value: t(`efficientFrontier.solver.${solver}`, { defaultValue: solver }),
+              color: COLORS.fgSec,
+            },
+          ]}
+        />
+      </div>
+    </div>
+  );
+}
+const COLORS = {
+  success: 'hsl(var(--success))',
+  warning: 'hsl(var(--warning))',
+  brand: 'hsl(var(--brand))',
+  fgSec: 'hsl(var(--fg-secondary))',
+  fgTer: 'hsl(var(--fg-tertiary))',
+} as const;
+function WeightAllocation({ weights, title }: { weights: Record<string, number>; title: string }) {
+  return (
+    <div>
+      <div className="mb-2 text-caption text-fg-tertiary">{title}</div>
+      <div className="flex flex-col gap-1.5">
+        {Object.entries(weights).map(([ticker, weight], i) => (
+          <div key={ticker} className="flex items-center gap-2">
+            <span className="w-[60px] shrink-0 text-label font-medium text-fg">{ticker}</span>
+            <div className="h-4 flex-1 overflow-hidden rounded-sm bg-input-bg">
+              <div
+                className="h-full rounded-sm"
+                style={{ width: `${weight * 100}%`, backgroundColor: getPortfolioColor(i) }}
+              />
+            </div>
+            <span className="font-mono text-caption tabular-nums text-fg-tertiary">
+              {fmtPct(weight, 1)}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+function PointStats({ p }: { p: EfficientFrontierPoint }) {
+  const { t } = useTranslation();
+  return (
+    <div className="flex flex-col gap-2">
+      {[
+        { key: 'Expected Return', value: fmtPct(p.expectedReturn), color: COLORS.success },
+        { key: 'Expected Volatility', value: fmtPct(p.expectedVolatility), color: COLORS.warning },
+        { key: 'Sharpe Ratio', value: p.sharpeRatio.toFixed(2), color: COLORS.brand },
+      ].map((s) => (
+        <MiniStatCard
+          key={s.key}
+          className="bg-elevated p-2.5"
+          label={t(s.key)}
+          value={s.value}
+          color={s.color}
+        />
+      ))}
     </div>
   );
 }
