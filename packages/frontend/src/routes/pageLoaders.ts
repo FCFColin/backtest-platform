@@ -12,6 +12,7 @@ const importers = {
   'factor-regression': () => import('@/pages/factor-regression/FactorRegressionPage'),
   calculators: () => import('@/pages/calculators/BaseCalculatorUI'),
   tactical: () => import('@/pages/tactical/TacticalPage'),
+  'tactical-grid': () => import('@/pages/tactical/TacticalGridPage'),
   'backtest-optimizer': () => import('@/pages/backtest/BacktestOptimizerPage'),
   pca: () => import('@/pages/pca/PCAPage'),
   'signal-analyzer': () => import('@/pages/signal/SignalAnalyzerPage'),
@@ -25,7 +26,7 @@ export const PAGE_LOADERS = Object.fromEntries(
   Object.entries(importers).map(([k, v]) => [k, lazyNamed(v, 'default')]),
 );
 
-export const TacticalGridPage = lazyNamed(importers.tactical, 'TacticalGridPage');
+export const TacticalGridPage = lazyNamed(importers['tactical-grid'], 'TacticalGridPage');
 export const DualSignalPage = lazyNamed(importers['signal-analyzer'], 'DualSignalPage');
 export const MultiSignalPage = lazyNamed(importers['signal-analyzer'], 'MultiSignalPage');
 
