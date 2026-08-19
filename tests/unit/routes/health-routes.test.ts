@@ -2,7 +2,7 @@ import '../../helpers/loggerMock.js';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { startExpressApp } from '../../helpers/expressApp.js';
 import { withServer } from '../../helpers/serverLifecycle.js';
-import { createConfigMocks } from '../../helpers/mockFactories.js';
+import { mockConfigModule } from '../../helpers/mockFactories.js';
 import { redisModuleMock } from '../../helpers/redisFixture.js';
 
 const originalFetch = globalThis.fetch;
@@ -11,15 +11,13 @@ const dbMocks = vi.hoisted(() => ({
   query: vi.fn(),
 }));
 
-vi.mock('../../../packages/backend/src/config/index.js', () => ({
-  config: createConfigMocks({
+vi.mock('../../../packages/backend/src/config/index.js', () =>
+  mockConfigModule({
     NODE_ENV: 'test',
     GO_ENGINE_URL: 'http://127.0.0.1:15001',
     GO_DATA_SERVICE_URL: 'http://127.0.0.1:15003',
   }),
-  validateConfig: vi.fn(),
-  USAGE_METRIC: { BACKTEST: 'backtest' },
-}));
+);
 
 vi.mock('../../../packages/backend/src/db/pool.js', () => ({
   getPool: vi.fn(() => ({ query: vi.fn().mockResolvedValue({ rows: [{ '?column?': 1 }] }) })),

@@ -68,16 +68,10 @@ describe('recordEngineCall', () => {
     expect(await metricValue(engineCallsTotal, { result: 'unavailable' })).toBeUndefined();
   });
 
-  it('result=unavailable 应递增 result=unavailable 而非 success', async () => {
+  it('result=unavailable 应递增对应计数器且不影响其他指标', async () => {
     recordEngineCall('unavailable');
     expect(await metricValue(engineCallsTotal, { result: 'unavailable' })).toBe(1);
     expect(await metricValue(engineCallsTotal, { result: 'success' })).toBeUndefined();
-  });
-
-  it('result=unavailable 时应仅递增 engineCallsTotal（engineUnavailableTotal 由 recordEngineUnavailable 独立管理）', async () => {
-    recordEngineCall('unavailable');
-    expect(await metricValue(engineCallsTotal, { result: 'unavailable' })).toBe(1);
-    // engineUnavailableTotal 不再由 recordEngineCall 管理，
     const snapshot = await engineUnavailableTotal.get();
     expect(snapshot.values).toHaveLength(0);
   });

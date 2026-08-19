@@ -1,7 +1,7 @@
 import '../../helpers/loggerMock.js';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useTestServer } from '../../helpers/expressApp.js';
-import { createConfigMocks } from '../../helpers/mockFactories.js';
+import { mockConfigModule } from '../../helpers/mockFactories.js';
 
 const callServiceMock = vi.hoisted(() => vi.fn());
 
@@ -19,15 +19,13 @@ vi.mock('../../../packages/backend/src/infrastructure/dataQuery.js', () => ({
   getUniverseStats: engineServiceMocks.getUniverseStats,
 }));
 
-vi.mock('../../../packages/backend/src/config/index.js', () => ({
-  config: createConfigMocks({
+vi.mock('../../../packages/backend/src/config/index.js', () =>
+  mockConfigModule({
     NODE_ENV: 'test',
     GO_ENGINE_URL: 'http://127.0.0.1:15004',
     GO_DATA_SERVICE_URL: 'http://127.0.0.1:15003',
   }),
-  validateConfig: vi.fn(),
-  USAGE_METRIC: { BACKTEST: 'backtest' },
-}));
+);
 
 import '../../helpers/middlewareMocks.js';
 const apiKeyServiceMocks = vi.hoisted(() => ({
