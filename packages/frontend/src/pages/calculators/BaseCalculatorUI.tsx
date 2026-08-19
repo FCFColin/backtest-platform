@@ -22,45 +22,123 @@ import {
 } from '@/components/ui/uiComponents';
 import { Field as FieldShell, FieldLabel } from '@/components/form/Field';
 import { cn } from '@/lib/utils';
-interface TwoFundFrontierResult {
-  frontier: Array<{ wA: number; cagr: number; vol: number }>;
-  minVarW: number;
-  minVarCagr: number;
-  minVarVol: number;
-}
+import { SimpleLineChart, SimpleAreaChart } from '@/components/charts/sharedChartContent.js';
+import { ToolPageLayout } from '../../components/layout/ToolPageLayout.js';
+import { fmtPct, fmtCompact } from '@/utils/format';
+
+type SetState = React.Dispatch<React.SetStateAction<Record<string, number>>>;
+
 function computeTwoFundFrontier(
   cagrA: number,
   volA: number,
   cagrB: number,
   volB: number,
   corr: number,
-): TwoFundFrontierResult {
-  const muA = cagrA / 100;
-  const muB = cagrB / 100;
-  const sA = volA / 100;
-  const sB = volB / 100;
-  const rho = corr;
+) {
+  const muA = cagrA / 100,
+    muB = cagrB / 100,
+    sA = volA / 100,
+    sB = volB / 100,
+    rho = corr;
   const pts: Array<{ wA: number; cagr: number; vol: number }> = [];
   for (let w = 0; w <= 100; w += 2) {
-    const wA = w / 100;
-    const wB = 1 - wA;
-    const pCagr = wA * muA + wB * muB;
-    const pVol = Math.sqrt(wA * wA * sA * sA + wB * wB * sB * sB + 2 * wA * wB * rho * sA * sB);
-    pts.push({ wA, cagr: pCagr * 100, vol: pVol * 100 });
+    const wA = w / 100,
+      wB = 1 - wA;
+    pts.push({
+      wA,
+      cagr: (wA * muA + wB * muB) * 100,
+      vol: Math.sqrt(wA * wA * sA * sA + wB * wB * sB * sB + 2 * wA * wB * rho * sA * sB) * 100,
+    });
   }
-  const covAB = rho * sA * sB;
-  const denom = sA * sA + sB * sB - 2 * covAB;
+  const covAB = rho * sA * sB,
+    denom = sA * sA + sB * sB - 2 * covAB;
   let mwA = denom !== 0 ? (sB * sB - covAB) / denom : 0.5;
   mwA = Math.max(0, Math.min(1, mwA));
-  const mvCagr = (mwA * muA + (1 - mwA) * muB) * 100;
-  const mvVol =
-    Math.sqrt(mwA * mwA * sA * sA + (1 - mwA) * (1 - mwA) * sB * sB + 2 * mwA * (1 - mwA) * covAB) *
-    100;
-  return { frontier: pts, minVarW: mwA, minVarCagr: mvCagr, minVarVol: mvVol };
+  return {
+    frontier: pts,
+    minVarW: mwA,
+    minVarCagr: (mwA * muA + (1 - mwA) * muB) * 100,
+    minVarVol:
+      Math.sqrt(mwA * mwA * sA * sA + (1 - mwA) ** 2 * sB * sB + 2 * mwA * (1 - mwA) * covAB) * 100,
+  };
 }
-import { SimpleLineChart, SimpleAreaChart } from '@/components/charts/sharedChartContent.js';
-import { ToolPageLayout } from '../../components/layout/ToolPageLayout.js';
-import { fmtPct, fmtCompact } from '@/utils/format';
+
+function computeFutureValue(initial: number, cagr: number, years: number, monthly: number) {
+  const r = cagr / 100,
+    monthlyR = r / 12,
+    months = years * 12;
+  const pts: Array<{ year: number; value: number }> = [];
+  let acc = initial;
+  for (let t = 0; t <= months; t++) {
+    if (t % 12 === 0) pts.push({ year: t / 12, value: acc });
+    if (t < months) acc = acc * (1 + monthlyR) + monthly;
+  }
+  return { finalValue: acc, totalContributions: initial + monthly * months, curve: pts };
+}
+
+function computeAllocationRisk(
+  stockPct: number,
+  bondPct: number,
+  stockVol: number,
+  bondVol: number,
+  correlation: number,
+) {
+  const wS = stockPct / 100,
+    wB = bondPct / 100,
+    sS = stockVol / 100,
+    sB = bondVol / 100,
+    rho = correlation;
+  const pV = Math.sqrt(wS ** 2 * sS ** 2 + wB ** 2 * sB ** 2 + 2 * wS * wB * rho * sS * sB);
+  const pV2 = pV * pV;
+  return {
+    portfolioVol: pV,
+    diversificationBenefit: wS * sS + wB * sB - pV,
+    riskContributionStock: (wS ** 2 * sS ** 2 + wS * wB * rho * sS * sB) / pV2,
+    riskContributionBond: (wB ** 2 * sB ** 2 + wS * wB * rho * sS * sB) / pV2,
+  };
+}
+
+function erf(x: number): number {
+  const sign = x < 0 ? -1 : 1,
+    a = Math.abs(x),
+    t = 1 / (1 + 0.3275911 * a);
+  return (
+    sign *
+    (1 -
+      ((((1.061405429 * t - 1.453152027) * t + 1.421413741) * t - 0.284496736) * t + 0.254829592) *
+        t *
+        Math.exp(-a * a))
+  );
+}
+function normCdf(x: number) {
+  return 0.5 * (1 + erf(x / Math.SQRT2));
+}
+function computeOptionLeverage(
+  spotPrice: number,
+  strikePrice: number,
+  optionPrice: number,
+  impliedVol: number,
+  daysToExpiry: number,
+) {
+  if (optionPrice <= 0 || spotPrice <= 0)
+    return { leverage: 0, delta: 0, intrinsic: 0, timeValue: 0 };
+  const intrinsic = Math.max(spotPrice - strikePrice, 0);
+  const sigma = impliedVol / 100,
+    sqrtT = Math.sqrt(daysToExpiry / 365);
+  const d1 =
+    sigma > 0 && sqrtT > 0 && strikePrice > 0
+      ? (Math.log(spotPrice / strikePrice) + (sigma ** 2 * (daysToExpiry / 365)) / 2) /
+        (sigma * sqrtT)
+      : 0;
+  const delta = normCdf(d1);
+  return {
+    leverage: (delta * spotPrice) / optionPrice,
+    delta,
+    intrinsic,
+    timeValue: optionPrice - intrinsic,
+  };
+}
+
 function Field({
   label,
   value,
@@ -95,8 +173,9 @@ function Field({
     </FieldShell>
   );
 }
+
 type ResultTone = 'brand' | 'success' | 'warning' | 'danger' | 'muted' | 'default';
-const RESULT_TONE_CLASS: Record<ResultTone, string> = {
+const TONE_CLASS: Record<ResultTone, string> = {
   brand: 'text-brand',
   success: 'text-success',
   warning: 'text-warning',
@@ -116,9 +195,7 @@ function ResultRow({
   return (
     <div className="flex items-center justify-between border-b border-border-subtle py-1.5 last:border-b-0">
       <span className="text-label text-fg-tertiary">{label}</span>
-      <span
-        className={cn('font-mono tabular-nums text-label font-semibold', RESULT_TONE_CLASS[tone])}
-      >
+      <span className={cn('font-mono tabular-nums text-label font-semibold', TONE_CLASS[tone])}>
         {value}
       </span>
     </div>
@@ -131,6 +208,7 @@ function InfoBox({ children }: { children: ReactNode }) {
     </div>
   );
 }
+
 function CollapsibleCard({
   icon: Icon,
   title,
@@ -170,6 +248,7 @@ function CollapsibleCard({
     </Card>
   );
 }
+
 function CalcCard({
   icon,
   title,
@@ -223,6 +302,7 @@ function CalcCard({
     </CollapsibleCard>
   );
 }
+
 function SWRChart({ data }: { data: Array<{ year: number; ratio: number }> }) {
   const { t } = useTranslation();
   return (
@@ -288,543 +368,401 @@ function ValueCurveChart({
     </div>
   );
 }
-function CAGRCalculator() {
-  const { t } = useTranslation();
-  const [initial, setInitial] = useState(10000);
-  const [finalVal, setFinalVal] = useState(50000);
-  const [years, setYears] = useState(10);
-  const cagr = useMemo(() => {
-    if (initial <= 0 || years <= 0) return 0;
-    return Math.pow(finalVal / initial, 1 / years) - 1;
-  }, [initial, finalVal, years]);
-  return (
-    <CalcCard
-      icon={TrendingUp}
-      title={t('CAGR Calculator')}
-      defaultOpen
-      cols={3}
-      fields={[
-        { label: t('Initial Value'), value: initial, onChange: setInitial, step: 1000, min: 0 },
-        { label: t('Final Value'), value: finalVal, onChange: setFinalVal, step: 1000, min: 0 },
-        { label: t('Years'), value: years, onChange: setYears, suffix: t('y'), step: 1, min: 1 },
-      ]}
-      rows={[{ label: 'CAGR', value: fmtPct(cagr), tone: 'brand' }]}
-      info={t('Formula: CAGR = (Final Value / Initial Value)^(1 / Years) - 1')}
-    />
-  );
+
+type TFn = (key: string, opts?: Record<string, unknown>) => string;
+interface CalcResult {
+  rows: { label: string; value: string; tone?: ResultTone }[];
+  chart?: ReactNode;
+  info?: string;
+  extra?: ReactNode;
+  rowsClassName?: string;
 }
-function computeFutureValue(initial: number, cagr: number, years: number, monthly: number) {
-  const r = cagr / 100;
-  const monthlyR = r / 12;
-  const months = years * 12;
-  const pts: Array<{ year: number; value: number }> = [];
-  let accumulated = initial;
-  for (let t = 0; t <= months; t++) {
-    if (t % 12 === 0) {
-      pts.push({ year: t / 12, value: accumulated });
-    }
-    if (t < months) {
-      accumulated = accumulated * (1 + monthlyR) + monthly;
-    }
-  }
-  const totalContrib = initial + monthly * months;
-  return { finalValue: accumulated, totalContributions: totalContrib, curve: pts };
+interface CalcConfig {
+  icon: ElementType;
+  title: string;
+  defaultOpen?: boolean;
+  cols?: 2 | 3;
+  fields: {
+    key: string;
+    label: string;
+    default: number;
+    suffix?: string;
+    step?: number;
+    min?: number;
+    max?: number;
+  }[];
+  info?: string;
+  extra?: (state: Record<string, number>, setState: SetState) => ReactNode;
+  compute: (state: Record<string, number>, t: TFn) => CalcResult;
 }
-function FutureValueCalculator() {
-  const { t } = useTranslation();
-  const [initial, setInitial] = useState(10000);
-  const [cagr, setCagr] = useState(8);
-  const [years, setYears] = useState(20);
-  const [monthly, setMonthly] = useState(500);
-  const { finalValue, totalContributions, curve } = useMemo(
-    () => computeFutureValue(initial, cagr, years, monthly),
-    [initial, cagr, years, monthly],
-  );
-  return (
-    <CalcCard
-      icon={DollarSign}
-      title={t('Future Value Calculation')}
-      defaultOpen
-      cols={2}
-      fields={[
-        { label: t('Initial Value'), value: initial, onChange: setInitial, step: 1000, min: 0 },
-        { label: 'CAGR', value: cagr, onChange: setCagr, suffix: '%', step: 0.5 },
-        { label: t('Years'), value: years, onChange: setYears, suffix: t('y'), step: 1, min: 1 },
+
+function createCalculator(config: CalcConfig) {
+  return function Calculator() {
+    const { t } = useTranslation();
+    const [state, setState] = useState<Record<string, number>>(() =>
+      Object.fromEntries(config.fields.map((f) => [f.key, f.default])),
+    );
+    const result = useMemo(() => config.compute(state, t), [state, t]);
+    return (
+      <CalcCard
+        icon={config.icon}
+        title={t(config.title)}
+        defaultOpen={config.defaultOpen}
+        cols={config.cols}
+        fields={config.fields.map((f) => ({
+          label: t(f.label),
+          value: state[f.key],
+          onChange: (v: number) => setState((prev) => ({ ...prev, [f.key]: v })),
+          suffix: f.suffix ? t(f.suffix) : undefined,
+          step: f.step,
+          min: f.min,
+          max: f.max,
+        }))}
+        extra={config.extra?.(state, setState)}
+        rows={result.rows}
+        rowsClassName={result.rowsClassName}
+        chart={result.chart}
+        info={result.info ? t(result.info) : undefined}
+      />
+    );
+  };
+}
+
+const CAGR = createCalculator({
+  icon: TrendingUp,
+  title: 'CAGR Calculator',
+  defaultOpen: true,
+  cols: 3,
+  fields: [
+    { key: 'initial', label: 'Initial Value', default: 10000, step: 1000, min: 0 },
+    { key: 'finalVal', label: 'Final Value', default: 50000, step: 1000, min: 0 },
+    { key: 'years', label: 'Years', default: 10, suffix: 'y', step: 1, min: 1 },
+  ],
+  info: 'Formula: CAGR = (Final Value / Initial Value)^(1 / Years) - 1',
+  compute: (s) => {
+    const cagr =
+      s.initial > 0 && s.years > 0 ? Math.pow(s.finalVal / s.initial, 1 / s.years) - 1 : 0;
+    return { rows: [{ label: 'CAGR', value: fmtPct(cagr), tone: 'brand' }] };
+  },
+});
+
+const FutureValue = createCalculator({
+  icon: DollarSign,
+  title: 'Future Value Calculation',
+  defaultOpen: true,
+  fields: [
+    { key: 'initial', label: 'Initial Value', default: 10000, step: 1000, min: 0 },
+    { key: 'cagr', label: 'CAGR', default: 8, suffix: '%', step: 0.5 },
+    { key: 'years', label: 'Years', default: 20, suffix: 'y', step: 1, min: 1 },
+    { key: 'monthly', label: 'Monthly Contribution', default: 500, step: 100, min: 0 },
+  ],
+  compute: (s) => {
+    const { finalValue, totalContributions, curve } = computeFutureValue(
+      s.initial,
+      s.cagr,
+      s.years,
+      s.monthly,
+    );
+    return {
+      rows: [
+        { label: 'Final Value', value: fmtCompact(finalValue), tone: 'brand' },
+        { label: 'Total Contribution', value: fmtCompact(totalContributions) },
         {
-          label: t('Monthly Contribution'),
-          value: monthly,
-          onChange: setMonthly,
-          step: 100,
-          min: 0,
-        },
-      ]}
-      rows={[
-        { label: t('Final Value'), value: fmtCompact(finalValue), tone: 'brand' },
-        { label: t('Total Contribution'), value: fmtCompact(totalContributions) },
-        {
-          label: t('Investment Gain'),
+          label: 'Investment Gain',
           value: fmtCompact(finalValue - totalContributions),
           tone: 'success',
         },
-      ]}
-      chart={<ValueCurveChart curve={curve} height={240} />}
-    />
-  );
-}
-function CAGRAssumptionCalculator() {
-  const { t } = useTranslation();
-  const [cagr, setCagr] = useState(8);
-  const [years, setYears] = useState(20);
-  const [initial, setInitial] = useState(10000);
-  const { finalValue, curve } = useMemo(() => {
-    const r = cagr / 100;
-    const pts: Array<{ year: number; value: number }> = [];
-    for (let t = 0; t <= years; t++) {
-      pts.push({ year: t, value: initial * Math.pow(1 + r, t) });
-    }
-    return { finalValue: initial * Math.pow(1 + r, years), curve: pts };
-  }, [cagr, years, initial]);
-  return (
-    <CalcCard
-      icon={TrendingUp}
-      title={t('Assumptions')}
-      cols={2}
-      fields={[
-        { label: t('Expected Return'), value: cagr, onChange: setCagr, suffix: '%' },
-        { label: t('Time'), value: years, onChange: setYears, suffix: t('y'), step: 1 },
-        { label: t('Initial Capital'), value: initial, onChange: setInitial, step: 1000 },
-      ]}
-      rows={[{ label: t('Final Value'), value: fmtCompact(finalValue), tone: 'brand' }]}
-      chart={<ValueCurveChart curve={curve} height={200} />}
-    />
-  );
-}
-function SWRCalculator() {
-  const { t } = useTranslation();
-  const [expectedReturn, setExpectedReturn] = useState(7);
-  const [volatility, setVolatility] = useState(15);
-  const [retirementYears, setRetirementYears] = useState(30);
-  const [successTarget, setSuccessTarget] = useState(95);
-  const swr = useMemo(() => {
-    const mu = expectedReturn / 100,
-      sigma = volatility / 100,
-      T = retirementYears,
-      pTarget = successTarget / 100;
-    return Math.min(
+      ],
+      chart: <ValueCurveChart curve={curve} height={240} />,
+    };
+  },
+});
+
+const CAGRAssumption = createCalculator({
+  icon: TrendingUp,
+  title: 'Assumptions',
+  fields: [
+    { key: 'cagr', label: 'Expected Return', default: 8, suffix: '%' },
+    { key: 'years', label: 'Time', default: 20, suffix: 'y', step: 1 },
+    { key: 'initial', label: 'Initial Capital', default: 10000, step: 1000 },
+  ],
+  compute: (s) => {
+    const r = s.cagr / 100;
+    const curve = Array.from({ length: s.years + 1 }, (_, t) => ({
+      year: t,
+      value: s.initial * Math.pow(1 + r, t),
+    }));
+    return {
+      rows: [{ label: 'Final Value', value: fmtCompact(curve[s.years].value), tone: 'brand' }],
+      chart: <ValueCurveChart curve={curve} height={200} />,
+    };
+  },
+});
+
+const SWR = createCalculator({
+  icon: ShieldAlert,
+  title: 'Safe Withdrawal Rate (SWR) Calculator',
+  fields: [
+    { key: 'expectedReturn', label: 'Expected Return', default: 7, suffix: '%', step: 0.5 },
+    { key: 'volatility', label: 'Volatility', default: 15, suffix: '%', step: 1 },
+    {
+      key: 'retirementYears',
+      label: 'Retirement Years',
+      default: 30,
+      suffix: 'y',
+      step: 1,
+      min: 1,
+    },
+    {
+      key: 'successTarget',
+      label: 'Success Target',
+      default: 95,
+      suffix: '%',
+      step: 1,
+      min: 50,
+      max: 99,
+    },
+  ],
+  info: 'Formula: SWR ≈ (Expected Return - Risk Premium × Volatility²) / (1 + Risk Premium × Volatility²)',
+  compute: (s, t) => {
+    const mu = s.expectedReturn / 100,
+      sigma = s.volatility / 100,
+      pTarget = s.successTarget / 100;
+    const swr = Math.min(
       Math.max(
-        mu - 0.5 * sigma * sigma - ((1.645 + (pTarget - 0.95) * 10 * 0.842) * sigma) / Math.sqrt(T),
+        mu -
+          0.5 * sigma ** 2 -
+          ((1.645 + (pTarget - 0.95) * 10 * 0.842) * sigma) / Math.sqrt(s.retirementYears),
         0,
       ),
       0.1,
     );
-  }, [expectedReturn, volatility, retirementYears, successTarget]);
-  const pts = useMemo(() => {
-    const out: Array<{ year: number; ratio: number }> = [];
     let r = 1;
-    for (let i = 1; i <= retirementYears; i++) {
-      r = r * (1 + expectedReturn / 100) * (1 - swr);
-      out.push({ year: i, ratio: r });
-    }
-    return out;
-  }, [swr, expectedReturn, retirementYears]);
-  return (
-    <CalcCard
-      icon={ShieldAlert}
-      title={t('Safe Withdrawal Rate (SWR) Calculator')}
-      cols={2}
-      fields={[
-        {
-          label: t('Expected Return'),
-          value: expectedReturn,
-          onChange: setExpectedReturn,
-          suffix: '%',
-          step: 0.5,
-        },
-        {
-          label: t('Volatility'),
-          value: volatility,
-          onChange: setVolatility,
-          suffix: '%',
-          step: 1,
-        },
-        {
-          label: t('Retirement Years'),
-          value: retirementYears,
-          onChange: setRetirementYears,
-          suffix: t('y'),
-          step: 1,
-          min: 1,
-        },
-        {
-          label: t('Success Target'),
-          value: successTarget,
-          onChange: setSuccessTarget,
-          suffix: '%',
-          step: 1,
-          min: 50,
-          max: 99,
-        },
-      ]}
-      rows={[
+    const pts = Array.from({ length: s.retirementYears }, (_, i) => {
+      r *= (1 + s.expectedReturn / 100) * (1 - swr);
+      return { year: i + 1, ratio: r };
+    });
+    return {
+      rows: [
         { label: t('Estimated SWR'), value: fmtPct(swr), tone: 'brand' },
         {
           label: t('Annual Withdrawal (per $1M)'),
           value: String(Math.round(swr * 1_000_000)),
           tone: 'success',
         },
-      ]}
-      chart={<SWRChart data={pts} />}
-      info={t(
-        'Formula: SWR ≈ (Expected Return - Risk Premium × Volatility²) / (1 + Risk Premium × Volatility²)',
-      )}
+      ],
+      chart: <SWRChart data={pts} />,
+    };
+  },
+});
+
+const AssetAllocationRisk = createCalculator({
+  icon: BarChart3,
+  title: 'Risk Contribution Calculator',
+  fields: [
+    {
+      key: 'stockPct',
+      label: 'Stock Percentage',
+      default: 60,
+      suffix: '%',
+      step: 5,
+      min: 0,
+      max: 100,
+    },
+    {
+      key: 'bondPct',
+      label: 'Bond Percentage',
+      default: 40,
+      suffix: '%',
+      step: 5,
+      min: 0,
+      max: 100,
+    },
+    { key: 'stockVol', label: 'Stock Volatility', default: 18, suffix: '%', step: 1 },
+    { key: 'bondVol', label: 'Bond Volatility', default: 5, suffix: '%', step: 1 },
+  ],
+  info: 'Formula: σp = √(ws²σs² + wb²σb² + 2wswbσsσbρ)',
+  extra: (s, set) => (
+    <Field
+      label="Correlation"
+      value={s.corr ?? 0.2}
+      onChange={(v) => set((p) => ({ ...p, corr: v }))}
+      step={0.05}
+      min={-1}
+      max={1}
     />
-  );
-}
-function computeAllocationRisk(
-  stockPct: number,
-  bondPct: number,
-  stockVol: number,
-  bondVol: number,
-  correlation: number,
-) {
-  const wS = stockPct / 100,
-    wB = bondPct / 100,
-    sS = stockVol / 100,
-    sB = bondVol / 100,
-    rho = correlation;
-  const pV = Math.sqrt(wS * wS * sS * sS + wB * wB * sB * sB + 2 * wS * wB * rho * sS * sB);
-  const pV2 = pV * pV;
-  return {
-    portfolioVol: pV,
-    diversificationBenefit: wS * sS + wB * sB - pV,
-    riskContributionStock: (wS * wS * sS * sS + wS * wB * rho * sS * sB) / pV2,
-    riskContributionBond: (wB * wB * sB * sB + wS * wB * rho * sS * sB) / pV2,
-  };
-}
-function AssetAllocationRiskCalculator() {
-  const { t } = useTranslation();
-  const [stockPct, setStockPct] = useState(60);
-  const [bondPct, setBondPct] = useState(40);
-  const [stockVol, setStockVol] = useState(18);
-  const [bondVol, setBondVol] = useState(5);
-  const [correlation, setCorrelation] = useState(0.2);
-  const result = useMemo(
-    () => computeAllocationRisk(stockPct, bondPct, stockVol, bondVol, correlation),
-    [stockPct, bondPct, stockVol, bondVol, correlation],
-  );
-  return (
-    <CalcCard
-      icon={BarChart3}
-      title={t('Risk Contribution Calculator')}
-      cols={2}
-      fields={[
+  ),
+  compute: (s) => {
+    const r = computeAllocationRisk(s.stockPct, s.bondPct, s.stockVol, s.bondVol, s.corr ?? 0.2);
+    return {
+      rowsClassName: 'mt-2',
+      rows: [
+        { label: 'Portfolio Volatility', value: fmtPct(r.portfolioVol), tone: 'brand' },
         {
-          label: t('Stock Percentage'),
-          value: stockPct,
-          onChange: setStockPct,
-          suffix: '%',
-          step: 5,
-          min: 0,
-          max: 100,
-        },
-        {
-          label: t('Bond Percentage'),
-          value: bondPct,
-          onChange: setBondPct,
-          suffix: '%',
-          step: 5,
-          min: 0,
-          max: 100,
-        },
-        {
-          label: t('Stock Volatility'),
-          value: stockVol,
-          onChange: setStockVol,
-          suffix: '%',
-          step: 1,
-        },
-        { label: t('Bond Volatility'), value: bondVol, onChange: setBondVol, suffix: '%', step: 1 },
-      ]}
-      extra={
-        <Field
-          label={t('Correlation')}
-          value={correlation}
-          onChange={setCorrelation}
-          step={0.05}
-          min={-1}
-          max={1}
-        />
-      }
-      rowsClassName="mt-2"
-      rows={[
-        { label: t('Portfolio Volatility'), value: fmtPct(result.portfolioVol), tone: 'brand' },
-        {
-          label: t('Diversification Benefit'),
-          value: fmtPct(result.diversificationBenefit),
+          label: 'Diversification Benefit',
+          value: fmtPct(r.diversificationBenefit),
           tone: 'success',
         },
-        { label: t('Stock Risk Contribution'), value: fmtPct(result.riskContributionStock) },
-        { label: t('Bond Risk Contribution'), value: fmtPct(result.riskContributionBond) },
-      ]}
-      info={t('Formula: σp = √(ws²σs² + wb²σb² + 2wswbσsσbρ)')}
-    />
-  );
-}
-function LeverageDecayCalculator() {
-  const { t } = useTranslation();
-  const [baseVol, setBaseVol] = useState(18);
-  const [leverage, setLeverage] = useState(3);
-  const [years, setYears] = useState(10);
-  const result = useMemo(() => {
-    const sigma = baseVol / 100,
-      l = leverage;
-    const volDrag = ((l * l - l) * sigma * sigma) / 2;
-    const totalDecay = 1 - Math.pow(1 - volDrag, years);
-    return { volDrag, totalDecay, effectiveReturn: -totalDecay };
-  }, [baseVol, leverage, years]);
-  return (
-    <CalcCard
-      icon={Layers}
-      title={t('Volatility Decay Calculator')}
-      cols={3}
-      fields={[
+        { label: 'Stock Risk Contribution', value: fmtPct(r.riskContributionStock) },
+        { label: 'Bond Risk Contribution', value: fmtPct(r.riskContributionBond) },
+      ],
+    };
+  },
+});
+
+const LeverageDecay = createCalculator({
+  icon: Layers,
+  title: 'Volatility Decay Calculator',
+  cols: 3,
+  fields: [
+    { key: 'baseVol', label: 'Asset Volatility', default: 18, suffix: '%', step: 1 },
+    { key: 'leverage', label: 'Leverage Multiplier', default: 3, suffix: 'x', step: 0.5, min: 1 },
+    { key: 'years', label: 'Holding Years', default: 10, suffix: 'y', step: 1, min: 1 },
+  ],
+  info: 'Decay Formula: Total Decay = (1 - (1 - Annual Drag)^Years) × 100%',
+  compute: (s, t) => {
+    const sigma = s.baseVol / 100,
+      l = s.leverage;
+    const volDrag = ((l ** 2 - l) * sigma ** 2) / 2;
+    const totalDecay = 1 - Math.pow(1 - volDrag, s.years);
+    return {
+      rows: [
+        { label: t('Annual Volatility Drag'), value: fmtPct(volDrag), tone: 'warning' },
         {
-          label: t('Asset Volatility'),
-          value: baseVol,
-          onChange: setBaseVol,
-          suffix: '%',
-          step: 1,
-        },
-        {
-          label: t('Leverage Multiplier'),
-          value: leverage,
-          onChange: setLeverage,
-          suffix: 'x',
-          step: 0.5,
-          min: 1,
-        },
-        {
-          label: t('Holding Years'),
-          value: years,
-          onChange: setYears,
-          suffix: t('y'),
-          step: 1,
-          min: 1,
-        },
-      ]}
-      rows={[
-        { label: t('Annual Volatility Drag'), value: fmtPct(result.volDrag), tone: 'warning' },
-        {
-          label: t('{{years}}-Year Total Decay', { years }),
-          value: fmtPct(result.totalDecay),
+          label: t('{{years}}-Year Total Decay', { years: s.years }),
+          value: fmtPct(totalDecay),
           tone: 'danger',
         },
-        { label: t('Effective Loss'), value: fmtPct(result.effectiveReturn), tone: 'danger' },
-      ]}
-      info={t('Decay Formula: Total Decay = (1 - (1 - Annual Drag)^Years) × 100%')}
-    />
-  );
-}
-function LeverageETFCalculator() {
-  const { t } = useTranslation();
-  const [baseCagr, setBaseCagr] = useState(8);
-  const [baseVol, setBaseVol] = useState(15);
-  const [leverage, setLeverage] = useState(2);
-  const [borrowSpread, setBorrowSpread] = useState(1);
-  const result = useMemo(() => {
-    const mu = baseCagr / 100,
-      sigma = baseVol / 100,
-      l = leverage,
-      rBorrow = borrowSpread / 100;
-    const levCagr = l * mu - (l - 1) * rBorrow - ((l * l - l) * sigma * sigma) / 2;
-    return { levCagr, levVol: l * sigma };
-  }, [baseCagr, baseVol, leverage, borrowSpread]);
-  return (
-    <CalcCard
-      icon={Layers}
-      title={t('Leveraged ETF Calculator')}
-      cols={2}
-      fields={[
-        { label: t('Base CAGR'), value: baseCagr, onChange: setBaseCagr, suffix: '%' },
-        { label: t('Base Volatility'), value: baseVol, onChange: setBaseVol, suffix: '%' },
-        {
-          label: t('Leverage Multiplier'),
-          value: leverage,
-          onChange: setLeverage,
-          suffix: 'x',
-          step: 0.5,
-          min: 1,
-        },
-        { label: t('Borrow Spread'), value: borrowSpread, onChange: setBorrowSpread, suffix: '%' },
-      ]}
-      rows={[
-        { label: t('Leveraged CAGR'), value: fmtPct(result.levCagr), tone: 'brand' },
-        { label: t('Leveraged Volatility'), value: fmtPct(result.levVol), tone: 'warning' },
-        { label: t('Leveraged Sharpe'), value: (result.levCagr / result.levVol).toFixed(3) },
-      ]}
-    />
-  );
-}
-function KellyLeverageCalculator() {
-  const { t } = useTranslation();
-  const [baseCagr, setBaseCagr] = useState(8);
-  const [baseVol, setBaseVol] = useState(15);
-  const [riskFree, setRiskFree] = useState(4);
-  const result = useMemo(() => {
-    const mu = baseCagr / 100,
-      sigma = baseVol / 100,
-      rf = riskFree / 100;
-    const kelly = (mu - rf) / (sigma * sigma),
+        { label: t('Effective Loss'), value: fmtPct(-totalDecay), tone: 'danger' },
+      ],
+    };
+  },
+});
+
+const LeverageETF = createCalculator({
+  icon: Layers,
+  title: 'Leveraged ETF Calculator',
+  fields: [
+    { key: 'baseCagr', label: 'Base CAGR', default: 8, suffix: '%' },
+    { key: 'baseVol', label: 'Base Volatility', default: 15, suffix: '%' },
+    { key: 'leverage', label: 'Leverage Multiplier', default: 2, suffix: 'x', step: 0.5, min: 1 },
+    { key: 'borrowSpread', label: 'Borrow Spread', default: 1, suffix: '%' },
+  ],
+  compute: (s) => {
+    const mu = s.baseCagr / 100,
+      sigma = s.baseVol / 100,
+      l = s.leverage,
+      rBorrow = s.borrowSpread / 100;
+    const levCagr = l * mu - (l - 1) * rBorrow - ((l ** 2 - l) * sigma ** 2) / 2;
+    const levVol = l * sigma;
+    return {
+      rows: [
+        { label: 'Leveraged CAGR', value: fmtPct(levCagr), tone: 'brand' },
+        { label: 'Leveraged Volatility', value: fmtPct(levVol), tone: 'warning' },
+        { label: 'Leveraged Sharpe', value: (levCagr / levVol).toFixed(3) },
+      ],
+    };
+  },
+});
+
+const KellyLeverage = createCalculator({
+  icon: Target,
+  title: 'Kelly Formula Calculator',
+  cols: 3,
+  fields: [
+    { key: 'baseCagr', label: 'Base CAGR', default: 8, suffix: '%' },
+    { key: 'baseVol', label: 'Volatility', default: 15, suffix: '%' },
+    { key: 'riskFree', label: 'Risk-Free Rate', default: 4, suffix: '%' },
+  ],
+  info: 'Kelly Formula: f* = (μ - r) / σ²',
+  compute: (s) => {
+    const mu = s.baseCagr / 100,
+      sigma = s.baseVol / 100,
+      rf = s.riskFree / 100;
+    const kelly = (mu - rf) / sigma ** 2,
       halfKelly = kelly / 2;
-    const optCagr = rf + kelly * (mu - rf) - (kelly * kelly * sigma * sigma) / 2;
-    const halfCagr = rf + halfKelly * (mu - rf) - (halfKelly * halfKelly * sigma * sigma) / 2;
-    return { kelly, halfKelly, optimalCagr: optCagr, halfKellyCagr: halfCagr };
-  }, [baseCagr, baseVol, riskFree]);
-  return (
-    <CalcCard
-      icon={Target}
-      title={t('Kelly Formula Calculator')}
-      cols={3}
-      fields={[
-        { label: t('Base CAGR'), value: baseCagr, onChange: setBaseCagr, suffix: '%' },
-        { label: t('Volatility'), value: baseVol, onChange: setBaseVol, suffix: '%' },
-        { label: t('Risk-Free Rate'), value: riskFree, onChange: setRiskFree, suffix: '%' },
-      ]}
-      rows={[
-        { label: t('Kelly Optimal'), value: `${result.kelly.toFixed(3)}x`, tone: 'brand' },
-        { label: t('Half Kelly'), value: `${result.halfKelly.toFixed(3)}x`, tone: 'muted' },
-        { label: t('Kelly Expected CAGR'), value: fmtPct(result.optimalCagr) },
-        { label: t('Half Kelly Expected CAGR'), value: fmtPct(result.halfKellyCagr) },
-      ]}
-      info={t('Kelly Formula: f* = (μ - r) / σ²')}
+    const optCagr = rf + kelly * (mu - rf) - (kelly ** 2 * sigma ** 2) / 2;
+    const halfCagr = rf + halfKelly * (mu - rf) - (halfKelly ** 2 * sigma ** 2) / 2;
+    return {
+      rows: [
+        { label: 'Kelly Optimal', value: `${kelly.toFixed(3)}x`, tone: 'brand' },
+        { label: 'Half Kelly', value: `${halfKelly.toFixed(3)}x`, tone: 'muted' },
+        { label: 'Kelly Expected CAGR', value: fmtPct(optCagr) },
+        { label: 'Half Kelly Expected CAGR', value: fmtPct(halfCagr) },
+      ],
+    };
+  },
+});
+
+const OptionLeverage = createCalculator({
+  icon: Flame,
+  title: 'Option Leverage Calculator',
+  fields: [
+    { key: 'spotPrice', label: 'Underlying Price', default: 100, step: 1 },
+    { key: 'strikePrice', label: 'Strike Price', default: 105, step: 1 },
+    { key: 'optionPrice', label: 'Option Price', default: 5, step: 0.5 },
+    { key: 'impliedVol', label: 'Implied Volatility', default: 25, suffix: '%', step: 1 },
+    { key: 'daysToExpiry', label: 'Days to Expiry', default: 30, suffix: 'd', step: 1, min: 1 },
+  ],
+  info: 'Option Formula: Leverage Ratio = (Black-Scholes Delta × Underlying Price) / Option Price',
+  compute: (s) => {
+    const r = computeOptionLeverage(
+      s.spotPrice,
+      s.strikePrice,
+      s.optionPrice,
+      s.impliedVol,
+      s.daysToExpiry,
+    );
+    return {
+      rows: [
+        { label: 'Leverage Ratio', value: `${r.leverage.toFixed(2)}x`, tone: 'brand' },
+        { label: 'Approximate Delta', value: r.delta.toFixed(4), tone: 'muted' },
+        { label: 'Intrinsic Value', value: r.intrinsic.toFixed(2) },
+        { label: 'Time Value', value: r.timeValue.toFixed(2) },
+      ],
+    };
+  },
+});
+
+const TwoFund = createCalculator({
+  icon: PieChart,
+  title: 'Two-Fund Calculator',
+  fields: [
+    { key: 'cagrA', label: 'Asset A CAGR', default: 8, suffix: '%' },
+    { key: 'volA', label: 'Asset A Volatility', default: 15, suffix: '%' },
+    { key: 'cagrB', label: 'Asset B CAGR', default: 4, suffix: '%' },
+    { key: 'volB', label: 'Asset B Volatility', default: 5, suffix: '%' },
+  ],
+  extra: (s, set) => (
+    <Field
+      label="Correlation"
+      value={s.corr ?? 0.2}
+      onChange={(v) => set((p) => ({ ...p, corr: v }))}
+      step={0.05}
+      min={-1}
+      max={1}
     />
-  );
-}
-function erf(x: number): number {
-  const sign = x < 0 ? -1 : 1,
-    a = Math.abs(x),
-    t = 1 / (1 + 0.3275911 * a);
-  const y =
-    1 -
-    ((((1.061405429 * t - 1.453152027) * t + 1.421413741) * t - 0.284496736) * t + 0.254829592) *
-      t *
-      Math.exp(-a * a);
-  return sign * y;
-}
-function normCdf(x: number): number {
-  return 0.5 * (1 + erf(x / Math.SQRT2));
-}
-function computeOptionLeverage(
-  spotPrice: number,
-  strikePrice: number,
-  optionPrice: number,
-  impliedVol: number,
-  daysToExpiry: number,
-) {
-  if (optionPrice <= 0 || spotPrice <= 0)
-    return { leverage: 0, delta: 0, intrinsic: 0, timeValue: 0 };
-  const intrinsic = Math.max(spotPrice - strikePrice, 0);
-  const timeValue = optionPrice - intrinsic;
-  const sigma = impliedVol / 100,
-    sqrtT = Math.sqrt(daysToExpiry / 365);
-  const d1 =
-    sigma > 0 && sqrtT > 0 && strikePrice > 0
-      ? (Math.log(spotPrice / strikePrice) + (sigma * sigma * (daysToExpiry / 365)) / 2) /
-        (sigma * sqrtT)
-      : 0;
-  const delta = normCdf(d1);
-  return { leverage: (delta * spotPrice) / optionPrice, delta, intrinsic, timeValue };
-}
-function OptionLeverageCalculator() {
-  const { t } = useTranslation();
-  const [spotPrice, setSpotPrice] = useState(100);
-  const [strikePrice, setStrikePrice] = useState(105);
-  const [optionPrice, setOptionPrice] = useState(5);
-  const [impliedVol, setImpliedVol] = useState(25);
-  const [daysToExpiry, setDaysToExpiry] = useState(30);
-  const result = useMemo(
-    () => computeOptionLeverage(spotPrice, strikePrice, optionPrice, impliedVol, daysToExpiry),
-    [spotPrice, strikePrice, optionPrice, impliedVol, daysToExpiry],
-  );
-  return (
-    <CalcCard
-      icon={Flame}
-      title={t('Option Leverage Calculator')}
-      cols={2}
-      fields={[
-        { label: t('Underlying Price'), value: spotPrice, onChange: setSpotPrice, step: 1 },
-        { label: t('Strike Price'), value: strikePrice, onChange: setStrikePrice, step: 1 },
-        { label: t('Option Price'), value: optionPrice, onChange: setOptionPrice, step: 0.5 },
-        {
-          label: t('Implied Volatility'),
-          value: impliedVol,
-          onChange: setImpliedVol,
-          suffix: '%',
-          step: 1,
-        },
-        {
-          label: t('Days to Expiry'),
-          value: daysToExpiry,
-          onChange: setDaysToExpiry,
-          suffix: t('d'),
-          step: 1,
-          min: 1,
-        },
-      ]}
-      rows={[
-        { label: t('Leverage Ratio'), value: `${result.leverage.toFixed(2)}x`, tone: 'brand' },
-        { label: t('Approximate Delta'), value: result.delta.toFixed(4), tone: 'muted' },
-        { label: t('Intrinsic Value'), value: result.intrinsic.toFixed(2) },
-        { label: t('Time Value'), value: result.timeValue.toFixed(2) },
-      ]}
-      info={t(
-        'Option Formula: Leverage Ratio = (Black-Scholes Delta × Underlying Price) / Option Price',
-      )}
-    />
-  );
-}
-function TwoFundPortfolioCalculator() {
-  const { t } = useTranslation();
-  const [cagrA, setCagrA] = useState(8);
-  const [volA, setVolA] = useState(15);
-  const [cagrB, setCagrB] = useState(4);
-  const [volB, setVolB] = useState(5);
-  const [corr, setCorr] = useState(0.2);
-  const { frontier, minVarW, minVarCagr, minVarVol } = useMemo(
-    () => computeTwoFundFrontier(cagrA, volA, cagrB, volB, corr),
-    [cagrA, volA, cagrB, volB, corr],
-  );
-  return (
-    <CalcCard
-      icon={PieChart}
-      title={t('Two-Fund Calculator')}
-      cols={2}
-      fields={[
-        { label: t('Asset A CAGR'), value: cagrA, onChange: setCagrA, suffix: '%' },
-        { label: t('Asset A Volatility'), value: volA, onChange: setVolA, suffix: '%' },
-        { label: t('Asset B CAGR'), value: cagrB, onChange: setCagrB, suffix: '%' },
-        { label: t('Asset B Volatility'), value: volB, onChange: setVolB, suffix: '%' },
-      ]}
-      extra={
-        <Field
-          label={t('Correlation')}
-          value={corr}
-          onChange={setCorr}
-          step={0.05}
-          min={-1}
-          max={1}
-        />
-      }
-      rowsClassName="mt-1"
-      rows={[
-        { label: t('Min Variance Weight'), value: `${(minVarW * 100).toFixed(1)}%`, tone: 'brand' },
-        { label: t('Min Variance CAGR'), value: `${minVarCagr.toFixed(2)}%` },
-        { label: t('Min Variance Volatility'), value: `${minVarVol.toFixed(2)}%` },
-      ]}
-      chart={<TwoFundChart data={frontier} />}
-    />
-  );
-}
+  ),
+  compute: (s) => {
+    const { frontier, minVarW, minVarCagr, minVarVol } = computeTwoFundFrontier(
+      s.cagrA,
+      s.volA,
+      s.cagrB,
+      s.volB,
+      s.corr ?? 0.2,
+    );
+    return {
+      rowsClassName: 'mt-1',
+      rows: [
+        { label: 'Min Variance Weight', value: `${(minVarW * 100).toFixed(1)}%`, tone: 'brand' },
+        { label: 'Min Variance CAGR', value: `${minVarCagr.toFixed(2)}%` },
+        { label: 'Min Variance Volatility', value: `${minVarVol.toFixed(2)}%` },
+      ],
+      chart: <TwoFundChart data={frontier} />,
+    };
+  },
+});
+
 export default function CalculatorsPage() {
   const { t } = useTranslation();
   return (
@@ -833,16 +771,16 @@ export default function CalculatorsPage() {
       <ToolPageLayout
         params={
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-            <CAGRCalculator />
-            <FutureValueCalculator />
-            <LeverageDecayCalculator />
-            <SWRCalculator />
-            <AssetAllocationRiskCalculator />
-            <CAGRAssumptionCalculator />
-            <LeverageETFCalculator />
-            <KellyLeverageCalculator />
-            <TwoFundPortfolioCalculator />
-            <OptionLeverageCalculator />
+            <CAGR />
+            <FutureValue />
+            <LeverageDecay />
+            <SWR />
+            <AssetAllocationRisk />
+            <CAGRAssumption />
+            <LeverageETF />
+            <KellyLeverage />
+            <TwoFund />
+            <OptionLeverage />
           </div>
         }
       />
