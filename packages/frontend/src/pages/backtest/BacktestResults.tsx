@@ -40,7 +40,6 @@ import {
   type Portfolio,
   type PortfolioResult,
   type BacktestResult,
-  type TimeSeriesPoint,
   REBALANCE_LABELS,
   toStatsRecord,
   createEmptyStatistics,
@@ -331,13 +330,7 @@ const TAB_RENDERERS: Record<
     pf: PortfolioResult[];
     pfs: Portfolio[];
     baseCurrency: string | undefined;
-    r: {
-      assetTickers?: string[];
-      assetCorrelations?: number[][];
-      correlations?: number[][];
-      portfolios?: PortfolioResult[];
-      benchmarkGrowth?: TimeSeriesPoint[];
-    };
+    r: BacktestResult;
   }) => ReactNode
 > = {
   summary: ({ pf, baseCurrency }) => {
@@ -417,10 +410,10 @@ const TAB_RENDERERS: Record<
   telltale: ({ pf }) => <L.TelltaleChart portfolios={pf} />,
   regression: ({ pf }) => <L.RegressionChart portfolios={pf} />,
 };
-function computeTimeRange(results: BacktestResult) {
-  const pf = results.portfolios[0];
-  const first = pf?.growthCurve?.[0]?.date;
-  const last = pf?.growthCurve?.[pf.growthCurve.length - 1]?.date;
+function computeTimeRange(r: BacktestResult) {
+  const g = r.portfolios[0]?.growthCurve;
+  const first = g?.[0]?.date;
+  const last = g?.[g.length - 1]?.date;
   const years =
     first && last
       ? (new Date(last).getTime() - new Date(first).getTime()) / (365.25 * 24 * 60 * 60 * 1000)

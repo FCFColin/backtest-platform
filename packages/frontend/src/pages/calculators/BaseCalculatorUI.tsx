@@ -1,4 +1,4 @@
-import { useState, useMemo, useId } from 'react';
+import { useState, useId } from 'react';
 import type { ElementType, ReactNode } from 'react';
 import {
   ChevronDown,
@@ -201,13 +201,6 @@ function ResultRow({
     </div>
   );
 }
-function InfoBox({ children }: { children: ReactNode }) {
-  return (
-    <div className="mt-2.5 rounded-md bg-input-bg p-3 text-caption leading-relaxed text-fg-tertiary">
-      {children}
-    </div>
-  );
-}
 
 function CalcCard({
   icon: Icon,
@@ -279,7 +272,11 @@ function CalcCard({
               </div>
             )}
             {chart}
-            {info && <InfoBox>{info}</InfoBox>}
+            {info && (
+              <div className="mt-2.5 rounded-md bg-input-bg p-3 text-caption leading-relaxed text-fg-tertiary">
+                {info}
+              </div>
+            )}
           </div>
         </CollapsibleContent>
       </Collapsible>
@@ -299,14 +296,6 @@ function MiniChart({
   );
 }
 
-type TFn = (key: string, opts?: Record<string, unknown>) => string;
-interface CalcResult {
-  rows: { label: string; value: string; tone?: ResultTone }[];
-  chart?: ReactNode;
-  info?: string;
-  extra?: ReactNode;
-  rowsClassName?: string;
-}
 interface CalcConfig {
   icon: ElementType;
   title: string;
@@ -323,7 +312,16 @@ interface CalcConfig {
   }[];
   info?: string;
   extra?: (state: Record<string, number>, setState: SetState) => ReactNode;
-  compute: (state: Record<string, number>, t: TFn) => CalcResult;
+  compute: (
+    state: Record<string, number>,
+    t: (key: string, opts?: Record<string, unknown>) => string,
+  ) => {
+    rows: { label: string; value: string; tone?: ResultTone }[];
+    chart?: ReactNode;
+    info?: string;
+    extra?: ReactNode;
+    rowsClassName?: string;
+  };
 }
 
 const correlationExtra: CalcConfig['extra'] = (s, set) => (
@@ -343,7 +341,7 @@ function createCalculator(config: CalcConfig) {
     const [state, setState] = useState<Record<string, number>>(() =>
       Object.fromEntries(config.fields.map((f) => [f.key, f.default])),
     );
-    const result = useMemo(() => config.compute(state, t), [state, t]);
+    const result = config.compute(state, t);
     return (
       <CalcCard
         icon={config.icon}

@@ -26,19 +26,8 @@ interface Invitation {
 }
 const ROLES = ['admin', 'analyst', 'readonly'] as const;
 type Role = Exclude<OrgRole, 'owner'>;
-interface UseOrgMembersStateResult {
-  members: Member[];
-  invitations: Invitation[];
-  loading: boolean;
-  error: string | null;
-  busy: boolean;
-  load: () => Promise<void>;
-  changeRole: (userId: string, role: string) => Promise<void>;
-  removeMember: (userId: string) => Promise<void>;
-  sendInvite: (email: string, role: string) => Promise<void>;
-  revokeInvite: (id: string) => Promise<void>;
-}
-function useOrgMembersState(isAdmin: boolean): UseOrgMembersStateResult {
+
+function useOrgMembersState(isAdmin: boolean) {
   const [members, setMembers] = useState<Member[]>([]);
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [loading, setLoading] = useState(true);

@@ -24,7 +24,7 @@ import {
 import { ComputeToolShell, type ComputeToolConfig } from '../../components/shells/index.js';
 import { TOOL_LINKS } from '../../components/shells/constants.js';
 import { MetricsGrid } from '@/components/ui/MetricsGrid';
-import { SimpleTable, type SimpleTableColumn } from '@/components/tables.js';
+import { SimpleTable } from '@/components/tables.js';
 import { McParamsPanel } from './MonteCarloParams.js';
 import type { DistMetric, McState, PortfolioMode, ResultTab } from './monteCarloUtils.js';
 import {
@@ -107,35 +107,7 @@ function HistogramChart({
   };
   return <EChart option={option} height={height} ariaLabel={t('Frequency Distribution')} />;
 }
-function DistMetricSelector({
-  distMetric,
-  setDistMetric,
-}: {
-  distMetric: DistMetric;
-  setDistMetric: (m: DistMetric) => void;
-}) {
-  const { t } = useTranslation();
-  const labels = metricLabels(t);
-  return (
-    <div className="mb-4 flex flex-wrap gap-1.5">
-      {(Object.keys(labels) as DistMetric[]).map((key) => (
-        <button
-          key={key}
-          type="button"
-          onClick={() => setDistMetric(key)}
-          className={cn(
-            'rounded-md border px-3 py-1 text-caption font-medium transition-colors duration-150',
-            distMetric === key
-              ? 'border-brand bg-brand text-brand-fg'
-              : 'border-border bg-input-bg text-fg-secondary hover:bg-hover hover:text-fg',
-          )}
-        >
-          {labels[key]}
-        </button>
-      ))}
-    </div>
-  );
-}
+
 function MonteCarloDistributionsTab({
   r,
   distMetric,
@@ -156,7 +128,23 @@ function MonteCarloDistributionsTab({
   );
   return (
     <Card className="p-5">
-      <DistMetricSelector distMetric={distMetric} setDistMetric={setDistMetric} />
+      <div className="mb-4 flex flex-wrap gap-1.5">
+        {(Object.keys(metricLabels(t)) as DistMetric[]).map((key) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => setDistMetric(key)}
+            className={cn(
+              'rounded-md border px-3 py-1 text-caption font-medium transition-colors duration-150',
+              distMetric === key
+                ? 'border-brand bg-brand text-brand-fg'
+                : 'border-border bg-input-bg text-fg-secondary hover:bg-hover hover:text-fg',
+            )}
+          >
+            {metricLabels(t)[key]}
+          </button>
+        ))}
+      </div>
       <HistogramChart
         data={data}
         referenceLines={[
@@ -179,17 +167,12 @@ function MonteCarloDistributionsTab({
     </Card>
   );
 }
-const SCENARIO_LINES: Array<{
-  key: 'best' | 'p75' | 'median' | 'p25' | 'worst';
-  color: string;
-  width: number;
-  name: string;
-}> = [
-  { key: 'best', color: getPortfolioColor(2), width: 2, name: 'Best' },
-  { key: 'p75', color: getPortfolioColor(0), width: 1.5, name: 'P75' },
-  { key: 'median', color: getPortfolioColor(4), width: 2.5, name: 'Median' },
-  { key: 'p25', color: getPortfolioColor(1), width: 1.5, name: 'P25' },
-  { key: 'worst', color: getPortfolioColor(3), width: 2, name: 'Worst' },
+const SCENARIO_LINES = [
+  { key: 'best' as const, color: getPortfolioColor(2), width: 2, name: 'Best' },
+  { key: 'p75' as const, color: getPortfolioColor(0), width: 1.5, name: 'P75' },
+  { key: 'median' as const, color: getPortfolioColor(4), width: 2.5, name: 'Median' },
+  { key: 'p25' as const, color: getPortfolioColor(1), width: 1.5, name: 'P25' },
+  { key: 'worst' as const, color: getPortfolioColor(3), width: 2, name: 'Worst' },
 ];
 function MonteCarloScenariosTab({
   r,
@@ -231,9 +214,9 @@ function MonteCarloScenariosTab({
 function FanChart({ data }: { data: FanDataPoint[] }) {
   const { t } = useTranslation();
   const months = data.map((d) => String(d.month));
-  const bands: Array<{ dataKey: 'band5_95' | 'band25_75'; opacity: number; name: string }> = [
-    { dataKey: 'band5_95', opacity: 0.08, name: t('monteCarlo.fanChart.band5_95') },
-    { dataKey: 'band25_75', opacity: 0.18, name: t('monteCarlo.fanChart.band25_75') },
+  const bands = [
+    { dataKey: 'band5_95' as const, opacity: 0.08, name: t('monteCarlo.fanChart.band5_95') },
+    { dataKey: 'band25_75' as const, opacity: 0.18, name: t('monteCarlo.fanChart.band25_75') },
   ];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 需要动态构造堆叠 band 系列
   const seriesArr: any[] = [];
@@ -351,14 +334,22 @@ function MonteCarloSuccessTab({ r }: { r: MonteCarloResult }) {
   const { t } = useTranslation();
   const data = buildSuccessData(r);
   if (data.length === 0) return <NoDataCard />;
-  const lines: Array<{
-    key: 'survival' | 'capitalPreservation' | 'profit';
-    color: string;
-    nameKey: string;
-  }> = [
-    { key: 'survival', color: getPortfolioColor(2), nameKey: 'monteCarlo.results.survivalProb' },
-    { key: 'capitalPreservation', color: getPortfolioColor(0), nameKey: 'Capital Preservation' },
-    { key: 'profit', color: getPortfolioColor(1), nameKey: 'monteCarlo.results.profitProb' },
+  const lines = [
+    {
+      key: 'survival' as const,
+      color: getPortfolioColor(2),
+      nameKey: 'monteCarlo.results.survivalProb',
+    },
+    {
+      key: 'capitalPreservation' as const,
+      color: getPortfolioColor(0),
+      nameKey: 'Capital Preservation',
+    },
+    {
+      key: 'profit' as const,
+      color: getPortfolioColor(1),
+      nameKey: 'monteCarlo.results.profitProb',
+    },
   ];
   return (
     <Card className="p-5">
@@ -411,8 +402,8 @@ function MonteCarloSummaryTab({
   const { t } = useTranslation();
   const rows = buildSummaryData(r, startingValue, t);
   if (!rows) return <NoDataCard />;
-  const columns: SimpleTableColumn<(typeof rows)[number]>[] = [
-    { key: 'metric', label: t('Metric'), render: (row) => row.metric },
+  const columns = [
+    { key: 'metric', label: t('Metric'), render: (row: (typeof rows)[number]) => row.metric },
     ...SUMMARY_STATS.map((s) => ({
       key: s,
       label: s,

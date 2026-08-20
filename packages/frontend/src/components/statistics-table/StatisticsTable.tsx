@@ -1,8 +1,8 @@
 ﻿import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Settings2 } from 'lucide-react';
-import { Button } from '@/components/ui/uiComponents.js';
 import {
+  Button,
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
@@ -32,12 +32,6 @@ interface PortfolioStatsRow {
   name: string;
   stats: Record<string, number | string>;
 }
-interface StatisticsTableProps {
-  portfolios: PortfolioStatsRow[];
-  colors: string[];
-  extendedTable?: React.ReactNode;
-  currency?: string;
-}
 const FORMAT_FN: Record<string, (v: number) => string> = {
   percent: fmtPct,
   duration: formatDuration,
@@ -66,7 +60,12 @@ export function StatisticsTable({
   colors,
   extendedTable,
   currency,
-}: StatisticsTableProps) {
+}: {
+  portfolios: PortfolioStatsRow[];
+  colors: string[];
+  extendedTable?: React.ReactNode;
+  currency?: string;
+}) {
   const { t } = useTranslation();
   const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(new Set());
   const [expanded, setExpanded] = useState(false);
@@ -183,15 +182,13 @@ const RATE_ROWS = [
     keys: ['pwr10y', 'pwr20y', 'pwr30y', 'pwr40y'] as const,
   },
 ] as const;
-interface WithdrawalRatesCardProps {
-  portfolios: PortfolioResult[];
-}
+
 function hasWithdrawalData(portfolios: PortfolioResult[]): boolean {
   return portfolios.some((p) =>
     RATE_ROWS.some((row) => row.keys.some((k) => p.statistics[k] != null && p.statistics[k] !== 0)),
   );
 }
-export function WithdrawalRatesCard({ portfolios }: WithdrawalRatesCardProps) {
+export function WithdrawalRatesCard({ portfolios }: { portfolios: PortfolioResult[] }) {
   const { t } = useTranslation();
   if (!hasWithdrawalData(portfolios)) return null;
   const showName = portfolios.length > 1;

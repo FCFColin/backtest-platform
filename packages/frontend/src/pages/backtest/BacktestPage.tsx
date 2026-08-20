@@ -1,4 +1,4 @@
-import { useState, useEffect, memo } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   FolderOpen,
@@ -21,7 +21,6 @@ import BacktestParamsForm from '@/components/BacktestParamsForm.js';
 import PortfolioEditor from '@/components/PortfolioEditor.js';
 import { useBacktestStore } from '@/store/backtestStore';
 import { useToastStore } from '@/store/toastStore';
-import type { TFunction } from 'i18next';
 import type { BacktestParameters, Portfolio } from '@backtest/shared';
 import {
   saveNamedConfigApi,
@@ -104,7 +103,7 @@ function CapabilityCard({
   );
 }
 
-export const BacktestHero = memo(function BacktestHero() {
+export function BacktestHero() {
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState(() => {
     try {
@@ -184,7 +183,7 @@ export const BacktestHero = memo(function BacktestHero() {
       )}
     </section>
   );
-});
+}
 function useUrlShareLoader() {
   const { t } = useTranslation();
   const loadFromShare = useBacktestStore((s) => s.loadFromShare);
@@ -271,22 +270,6 @@ function useBacktestPageState() {
     handleLoadConfig,
     handleDeleteConfig,
   };
-}
-export interface BacktestPageState {
-  t: TFunction;
-  runBacktest: () => void;
-  parameters: BacktestParameters;
-  portfolios: Portfolio[];
-  showSaveInput: boolean;
-  setShowSaveInput: (v: boolean) => void;
-  configName: string;
-  setConfigName: (v: string) => void;
-  showLoadList: boolean;
-  savedConfigs: SavedPortfolio[];
-  handleSaveConfig: () => Promise<void>;
-  handleOpenLoadList: () => Promise<void>;
-  handleLoadConfig: (config: SavedPortfolio) => void;
-  handleDeleteConfig: (id: string) => Promise<void>;
 }
 type S = ReturnType<typeof useBacktestPageState>;
 function BacktestToolbar({ state }: { state: S }) {

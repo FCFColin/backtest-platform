@@ -84,9 +84,7 @@ export function useMediaQuery(query: string): boolean {
 
 export function useChartAnimation(isLargeDataset: boolean) {
   const prefersReducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
-  return {
-    isAnimationActive: !isLargeDataset && !prefersReducedMotion,
-  };
+  return { isAnimationActive: !isLargeDataset && !prefersReducedMotion };
 }
 
 export function useTheme() {
