@@ -42,106 +42,56 @@ interface AssetItem {
   ticker: string;
   weight: number;
 }
-interface FetchRegressionParams {
-  validAssets: AssetItem[];
-  startDate: string;
-  endDate: string;
-  selectedFactors: string[];
-}
 const FACTOR_OPTIONS = [
-  {
-    key: 'mktRF',
-    label: 'factorRegression.factors.mktRf',
-    desc: 'factorRegression.factors.mktRfDesc',
-  },
-  {
-    key: 'smb',
-    label: 'factorRegression.factors.smb',
-    desc: 'factorRegression.factors.smbDesc',
-  },
-  {
-    key: 'hml',
-    label: 'factorRegression.factors.hml',
-    desc: 'factorRegression.factors.hmlDesc',
-  },
-];
+  ['mktRF', 'factorRegression.factors.mktRf', 'factorRegression.factors.mktRfDesc'],
+  ['smb', 'factorRegression.factors.smb', 'factorRegression.factors.smbDesc'],
+  ['hml', 'factorRegression.factors.hml', 'factorRegression.factors.hmlDesc'],
+] as const;
 const FACTOR_COLORS = {
   alpha: getPortfolioColor(0),
   beta: getPortfolioColor(1),
   smb: getPortfolioColor(2),
   hml: getPortfolioColor(3),
 } as const;
-let ffDataCache: FFDataPoint[] | null = null;
-async function loadFamaFrenchData(): Promise<FFDataPoint[]> {
-  if (ffDataCache) return ffDataCache;
+let ffCache: FFDataPoint[] | null = null;
+async function loadFF(): Promise<FFDataPoint[]> {
+  if (ffCache) return ffCache;
   const rows = await apiGetJSON<Array<Record<string, unknown>>>(
     '/api/v1/data/factors',
     i18n.t('Failed to load Fama-French factor data'),
   );
-  ffDataCache = rows.map((r) => ({
+  ffCache = rows.map((r) => ({
     date: String(r.date ?? ''),
-    mktRf: Number(r.mktRf ?? r.mkt_rf) || 0,
+    mktRf:
+      Number((r as Record<string, unknown>)['mktRf'] ?? (r as Record<string, unknown>)['mkt_rf']) ||
+      0,
     smb: Number(r.smb) || 0,
     hml: Number(r.hml) || 0,
     rf: Number(r.rf) || 0,
   }));
-  return ffDataCache;
+  return ffCache;
 }
-function extractTickerReturns(
-  tickersData: Array<{
-    ticker: string;
-    growthCurve?: Array<{ date: string }>;
-    dailyReturns?: number[];
-  }>,
-): Array<{ ticker: string; dailyReturns: number[]; dates: string[] }> {
-  const result: Array<{ ticker: string; dailyReturns: number[]; dates: string[] }> = [];
-  for (const tk of tickersData) {
-    const gc = tk.growthCurve ?? [];
-    const dr = tk.dailyReturns ?? [];
-    if (gc.length < 2 || dr.length < 1) continue;
-    const dates = gc.slice(1).map((p: { date: string }) => p.date);
-    result.push({ ticker: tk.ticker, dailyReturns: dr, dates });
-  }
-  return result;
-}
-function computeCombinedMonthlyReturns(
-  tickerReturns: Array<{ ticker: string; dailyReturns: number[]; dates: string[] }>,
-  weightMap: Map<string, number>,
-): Array<{ date: string; value: number }> {
-  const longest = tickerReturns.reduce((a, b) =>
-    a.dailyReturns.length > b.dailyReturns.length ? a : b,
-  );
-  const combinedMonthlyReturns = new Map<string, number>();
-  for (let i = 0; i < longest.dailyReturns.length; i++) {
-    const date = longest.dates[i];
-    if (!date) continue;
-    const monthKey = date.slice(0, 7);
-    let dailyReturn = 0;
-    for (const tr of tickerReturns) {
-      const idx = tr.dates.indexOf(date);
-      if (idx >= 0) dailyReturn += tr.dailyReturns[idx] * (weightMap.get(tr.ticker) ?? 0);
-    }
-    const prev = combinedMonthlyReturns.get(monthKey) ?? 1;
-    combinedMonthlyReturns.set(monthKey, prev * (1 + dailyReturn));
-  }
-  return Array.from(combinedMonthlyReturns.entries())
-    .map(([date, value]) => ({ date, value: value - 1 }))
-    .sort((a, b) => a.date.localeCompare(b.date));
-}
-async function fetchRegression(params: FetchRegressionParams): Promise<FactorRegressionResult> {
-  const { validAssets, startDate, endDate, selectedFactors } = params;
-  const errFetchData = i18n.t('Failed to fetch market data');
-  const errRegCompute = i18n.t('Factor regression computation failed');
-  const tickers = validAssets.map((a) => a.ticker);
-  const analysisData = await apiPostJSON<{
-    tickers?: Parameters<typeof extractTickerReturns>[0];
+async function fetchRegression(p: {
+  validAssets: AssetItem[];
+  startDate: string;
+  endDate: string;
+  selectedFactors: string[];
+}): Promise<FactorRegressionResult> {
+  const { validAssets: a, startDate: s, endDate: e, selectedFactors: f } = p;
+  const tickers = a.map((x) => x.ticker);
+  const data = await apiPostJSON<{
+    tickers?: Array<{
+      ticker: string;
+      growthCurve?: Array<{ date: string }>;
+      dailyReturns?: number[];
+    }>;
   }>(
     '/api/v1/backtest/analysis',
     {
       tickers,
       parameters: {
-        startDate,
-        endDate,
+        startDate: s,
+        endDate: e,
         startingValue: 10000,
         baseCurrency: 'usd',
         adjustForInflation: false,
@@ -151,26 +101,43 @@ async function fetchRegression(params: FetchRegressionParams): Promise<FactorReg
         oneTimeCashflows: [],
       },
     },
-    errFetchData,
+    i18n.t('Failed to fetch market data'),
   );
-  const tickerReturns = extractTickerReturns(analysisData.tickers ?? []);
-  if (tickerReturns.length === 0) throw new Error(i18n.t('Insufficient price data available'));
-  const totalW = validAssets.reduce((s, a) => s + (a.weight || 0), 0);
-  const weightMap = new Map(validAssets.map((a) => [a.ticker, (a.weight || 0) / totalW]));
-  const monthlyReturns = computeCombinedMonthlyReturns(tickerReturns, weightMap);
+  const tks = (data.tickers ?? []).reduce<
+    Array<{ ticker: string; dailyReturns: number[]; dates: string[] }>
+  >((acc, tk) => {
+    const gc = tk.growthCurve ?? [],
+      dr = tk.dailyReturns ?? [];
+    if (gc.length < 2 || dr.length < 1) return acc;
+    acc.push({ ticker: tk.ticker, dailyReturns: dr, dates: gc.slice(1).map((x) => x.date) });
+    return acc;
+  }, []);
+  if (tks.length === 0) throw new Error(i18n.t('Insufficient price data available'));
+  const tot = a.reduce((sum, x) => sum + (x.weight || 0), 0);
+  const w = new Map(a.map((x) => [x.ticker, (x.weight || 0) / tot]));
+  const longest = tks.reduce((x, y) => (x.dailyReturns.length > y.dailyReturns.length ? x : y));
+  const m = new Map<string, number>();
+  for (let i = 0; i < longest.dailyReturns.length; i++) {
+    const d = longest.dates[i];
+    if (!d) continue;
+    const k = d.slice(0, 7);
+    let r = 0;
+    for (const tr of tks) {
+      const idx = tr.dates.indexOf(d);
+      if (idx >= 0) r += tr.dailyReturns[idx] * (w.get(tr.ticker) ?? 0);
+    }
+    m.set(k, (m.get(k) ?? 1) * (1 + r));
+  }
+  const monthlyReturns = Array.from(m.entries())
+    .map(([date, v]) => ({ date, value: v - 1 }))
+    .sort((x, y) => x.date.localeCompare(y.date));
   if (monthlyReturns.length < 3)
     throw new Error(i18n.t('Insufficient data points (at least 3 months required)'));
-  const ffData = await loadFamaFrenchData();
+  const ff = await loadFF();
   return apiPostJSON<FactorRegressionResult>(
     '/api/v1/analysis/factor-regression',
-    {
-      monthlyReturns,
-      ffData,
-      factors: selectedFactors,
-      startDate,
-      endDate,
-    },
-    errRegCompute,
+    { monthlyReturns, ffData: ff, factors: f, startDate: s, endDate: e },
+    i18n.t('Factor regression computation failed'),
   );
 }
 function useFactorRegressionState(t: TFunction) {
@@ -186,39 +153,31 @@ function useFactorRegressionState(t: TFunction) {
     0,
   );
   const { isLoading, error, run, setError } = useAsyncAction();
-  const toggleFactor = (key: string) =>
+  const toggleFactor = (k: string) =>
     s.setSelectedFactors(
-      s.selectedFactors.includes(key)
-        ? s.selectedFactors.filter((f) => f !== key)
-        : [...s.selectedFactors, key],
+      s.selectedFactors.includes(k)
+        ? s.selectedFactors.filter((x) => x !== k)
+        : [...s.selectedFactors, k],
     );
   const runRegression = () => {
-    const validAssets = assets.filter((a) => a.ticker.trim() !== '');
-    if (validAssets.length === 0) {
-      setError(t('Please add at least one ticker'));
-      return;
-    }
-    const weightErr = validateAssetWeights(assets);
-    if (weightErr) {
-      setError(weightErr);
-      return;
-    }
-    if (s.selectedFactors.length === 0) {
-      setError(t('Please select at least one factor'));
-      return;
-    }
+    const v = assets.filter((x) => x.ticker.trim() !== '');
+    if (v.length === 0) return setError(t('Please add at least one ticker'));
+    const e = validateAssetWeights(assets);
+    if (e) return setError(e);
+    if (s.selectedFactors.length === 0) return setError(t('Please select at least one factor'));
     s.setResult(null);
     run(async () => {
       try {
-        const r = await fetchRegression({
-          validAssets,
-          startDate: s.startDate,
-          endDate: s.endDate,
-          selectedFactors: s.selectedFactors,
-        });
-        s.setResult(r);
-      } catch (e) {
-        const msg = e instanceof Error ? e.message : t('Regression computation failed');
+        s.setResult(
+          await fetchRegression({
+            validAssets: v,
+            startDate: s.startDate,
+            endDate: s.endDate,
+            selectedFactors: s.selectedFactors,
+          }),
+        );
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : t('Regression computation failed');
         setError(msg);
         useToastStore.getState().addToast('error', msg);
       }
@@ -265,22 +224,22 @@ function FactorRegressionParamsPanel({
         <Field>
           <FieldLabel>{t('Factor Selection (Multi-select)')}</FieldLabel>
           <div className="flex flex-wrap gap-2">
-            {FACTOR_OPTIONS.map((opt) => {
-              const active = s.selectedFactors.includes(opt.key);
+            {FACTOR_OPTIONS.map(([k, l, d]) => {
+              const a = s.selectedFactors.includes(k);
               return (
                 <button
-                  key={opt.key}
+                  key={k}
                   type="button"
-                  onClick={() => s.toggleFactor(opt.key)}
-                  aria-pressed={active}
+                  onClick={() => s.toggleFactor(k)}
+                  aria-pressed={a}
                   className={badgeVariants({
-                    variant: active ? 'asset' : 'secondary',
+                    variant: a ? 'asset' : 'secondary',
                     size: 'sm',
                     className: 'cursor-pointer',
                   })}
                 >
-                  {t(opt.label)}
-                  <span className="font-normal opacity-70">({t(opt.desc)})</span>
+                  {t(l)}
+                  <span className="font-normal opacity-70">({t(d)})</span>
                 </button>
               );
             })}
@@ -309,79 +268,55 @@ function FactorRegressionParamsPanel({
   );
 }
 function RegressionResultTable({
-  result,
-  selectedFactors,
+  result: r,
+  selectedFactors: f,
 }: {
   result: FactorRegressionResult;
   selectedFactors: string[];
 }) {
   const { t } = useTranslation();
-  const rows: { label: string; color: string; value: string; cls: string; desc: string }[] = [
-    {
-      label: 'Alpha',
-      color: FACTOR_COLORS.alpha,
-      value: fmtPct(result.alpha),
-      cls: result.alpha >= 0 ? 'text-success' : 'text-danger',
-      desc: t(
-        "Portfolio excess return (annualized); positive means outperforming the factor model's expectation",
-      ),
-    },
-    {
-      label: 'Beta (MKT-RF)',
-      color: FACTOR_COLORS.beta,
-      value: fmtNum(result.beta, 3),
-      cls: 'text-fg',
-      desc: t('Market sensitivity; 1.0 means moving in sync with the market'),
-    },
-    ...(selectedFactors.includes('smb')
-      ? [
-          {
-            label: 'SMB',
-            color: FACTOR_COLORS.smb,
-            value: fmtNum(result.smb, 3),
-            cls: 'text-fg',
-            desc: t('Size factor loading; positive tilts toward small-cap stocks'),
-          },
-        ]
-      : []),
-    ...(selectedFactors.includes('hml')
-      ? [
-          {
-            label: 'HML',
-            color: FACTOR_COLORS.hml,
-            value: fmtNum(result.hml, 3),
-            cls: 'text-fg',
-            desc: t('Value factor loading; positive tilts toward value stocks'),
-          },
-        ]
-      : []),
-    {
-      label: 'R²',
-      color: 'transparent',
-      value: fmtNum(result.rSquared, 3),
-      cls: 'text-fg',
-      desc: t('Model explanatory power; closer to 1 means factors explain returns more fully'),
-    },
-  ];
-  const columns: SimpleTableColumn<(typeof rows)[number]>[] = [
+  const C = FACTOR_COLORS;
+  const d = {
+    alpha: t(
+      "Portfolio excess return (annualized); positive means outperforming the factor model's expectation",
+    ),
+    beta: t('Market sensitivity; 1.0 means moving in sync with the market'),
+    smb: t('Size factor loading; positive tilts toward small-cap stocks'),
+    hml: t('Value factor loading; positive tilts toward value stocks'),
+    r2: t('Model explanatory power; closer to 1 means factors explain returns more fully'),
+  };
+  const rows = [
+    ['Alpha', C.alpha, fmtPct(r.alpha), r.alpha >= 0 ? 'text-success' : 'text-danger', d.alpha],
+    ['Beta (MKT-RF)', C.beta, fmtNum(r.beta, 3), 'text-fg', d.beta],
+    ...(f.includes('smb') ? [['SMB', C.smb, fmtNum(r.smb, 3), 'text-fg', d.smb] as const] : []),
+    ...(f.includes('hml') ? [['HML', C.hml, fmtNum(r.hml, 3), 'text-fg', d.hml] as const] : []),
+    ['R\u00B2', 'transparent', fmtNum(r.rSquared, 3), 'text-fg', d.r2],
+  ].map(([label, color, value, cls, desc]) => ({ label, color, value, cls, desc })) as Array<{
+    label: string;
+    color: string;
+    value: string;
+    cls: string;
+    desc: string;
+  }>;
+  const cols: SimpleTableColumn<(typeof rows)[number]>[] = [
     {
       key: 'label',
       label: t('Coefficient'),
-      render: (r) => <PortfolioLabel color={r.color} name={r.label} />,
+      render: (x) => <PortfolioLabel color={x.color} name={x.label} />,
     },
     {
       key: 'value',
       label: t('Estimate'),
       align: 'right',
-      render: (r) => (
-        <span className={cn('font-mono tabular-nums font-medium', r.cls)}>{r.value}</span>
+      render: (x) => (
+        <span className={cn('font-mono tabular-nums font-medium', x.cls)}>{x.value}</span>
       ),
     },
     { key: 'desc', label: t('Meaning') },
   ];
   return (
     <Card className="overflow-hidden">
-      <SimpleTable columns={columns} data={rows} rowKey={(r) => r.label} />
+      <SimpleTable columns={cols} data={rows} rowKey={(x) => x.label} />
     </Card>
   );
 }
@@ -390,41 +325,44 @@ function FactorRegressionResultsPanel({
 }: {
   state: ReturnType<typeof useFactorRegressionState>;
 }) {
-  const { result, error, selectedFactors, isLoading } = s;
+  const { result: r, error, selectedFactors, isLoading } = s;
   const { t } = useTranslation();
   return (
     <ResultsShell
       error={error}
       errorPrefix={`${t('Analysis failed')}: `}
       isLoading={isLoading}
-      hasResults={!!result}
+      hasResults={!!r}
       loadingLabel={t('Loading...')}
       emptyTitle={t('Configure parameters and click "Run Analysis" to see results')}
     >
-      {result && (
+      {r && (
         <div className="flex flex-col gap-3">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <StatCard
-              label="Alpha"
-              value={fmtPct(result.alpha)}
-              tone={result.alpha >= 0 ? 'pos' : 'neg'}
-              color={FACTOR_COLORS.alpha}
-            />
-            <StatCard
-              label="Beta (MKT-RF)"
-              value={fmtNum(result.beta, 3)}
-              color={FACTOR_COLORS.beta}
-            />
-            <StatCard label="R²" value={fmtNum(result.rSquared, 3)} color="transparent" />
+            {(
+              [
+                ['Alpha', fmtPct(r.alpha), r.alpha >= 0 ? 'pos' : 'neg', FACTOR_COLORS.alpha],
+                ['Beta (MKT-RF)', fmtNum(r.beta, 3), undefined, FACTOR_COLORS.beta],
+                ['R\u00B2', fmtNum(r.rSquared, 3), undefined, 'transparent'],
+              ] as const
+            ).map(([label, value, tone, color]) => (
+              <StatCard
+                key={label}
+                label={label}
+                value={value}
+                tone={tone as never}
+                color={color}
+              />
+            ))}
           </div>
           <CollapsibleSection title={t('Fama-French Three-Factor Regression Results')} defaultOpen>
-            <RegressionResultTable result={result} selectedFactors={selectedFactors} />
+            <RegressionResultTable result={r} selectedFactors={selectedFactors} />
           </CollapsibleSection>
-          {result.residuals.length > 0 && (
+          {r.residuals.length > 0 && (
             <CollapsibleSection title={t('Regression Residuals')} defaultOpen>
               <Card className="p-4">
                 <BarChartContent
-                  data={result.residuals.map((r, i) => ({ index: i, value: r }))}
+                  data={r.residuals.map((v, i) => ({ index: i, value: v }))}
                   seriesNames={[t('Residuals')]}
                   xDataKey="index"
                   height={200}

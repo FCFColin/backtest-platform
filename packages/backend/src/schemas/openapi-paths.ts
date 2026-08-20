@@ -1,4 +1,4 @@
-/* eslint-disable max-params, max-lines-per-function -- 声明式 OpenAPI 路径注册表：helper 多参使 ~100 个调用点保持可读 */
+/* eslint-disable max-params, max-lines-per-function -- 声明式 OpenAPI 路径注册表 */
 import { z } from 'zod';
 import { OpenApiGeneratorV3 } from '@asteasolutions/zod-to-openapi';
 import { OpenAPIRegistry, extendZodWithOpenApi } from '@asteasolutions/zod-to-openapi';
@@ -34,7 +34,6 @@ import {
   factorRegressionSchema,
   calculatorBodySchema,
 } from './analysisSchemas.js';
-
 extendZodWithOpenApi(z);
 const registry = new OpenAPIRegistry();
 registry.registerComponent('securitySchemes', 'BearerAuth', {
@@ -93,7 +92,6 @@ const AcceptedEnvelope = registry.register(
     }),
   }),
 );
-
 type Method = 'get' | 'post' | 'put' | 'patch' | 'delete';
 interface RegPathOpts {
   method: Method;
@@ -151,8 +149,6 @@ function reg(opts: RegPathOpts): void {
   if (opts.params) request.params = opts.params;
   if (opts.query) request.query = opts.query;
   if (opts.body) request.body = { content: { 'application/json': { schema: opts.body } } };
-  // operation 级 security 显式标注（protected=BearerAuth，公开=[]），不依赖全局继承，
-  // 避免公开端点（health/announcements/errors/auth 等）被顶层 BearerAuth 误标注为需认证
   const security =
     opts.security === true
       ? [{ BearerAuth: [] }]
@@ -173,7 +169,6 @@ function reg(opts: RegPathOpts): void {
 function idParam(name = 'id') {
   return z.object({ [name]: z.string() });
 }
-
 const AUTH_ERR = [401, 403, 500];
 const AUTH_500_ERR = [401, 500];
 const PERM_ERR = [401, 403];
@@ -189,7 +184,29 @@ const WITH_ID_PARAM = { params: idParam() } as const;
 const WITH_USER_ID_PARAM = { params: idParam('userId') } as const;
 const PAGINATION_QUERY = z.object({ limit: z.number().optional(), offset: z.number().optional() });
 const KEY_BODY = z.object({ name: z.string().max(120) });
-
+const SEARCH_Q = z.object({
+  query: z.string().min(1).max(100),
+  limit: z.coerce.number().int().min(1).max(200).optional(),
+});
+const TICKER_Q = z.object({ ticker: z.string() });
+const LIMIT_Q = z.object({ limit: z.number().optional() });
+const CPI_P = z.object({ country: z.enum(['us', 'cn']) });
+const TYPE_P = z.object({ type: z.string() });
+const TACTICAL_CFG_BODY = z.object({
+  name: z.string().min(1).max(255),
+  description: z.string().optional(),
+  chart: z.string().optional(),
+  cs: z.string().optional(),
+  longSort: z.enum(['alpha', 'beta', 'rsq']).optional(),
+  shortSort: z.enum(['rising', 'alpha']).optional(),
+});
+const TACTICAL_CFG_UPDATE_BODY = z.object({
+  name: z.string().min(1).max(255).optional(),
+  description: z.string().max(255).optional(),
+  cs: z.string().optional(),
+  longSort: z.enum(['alpha', 'beta', 'rsq']).optional(),
+  chart: z.string().optional(),
+});
 function sec(
   method: Method,
   path: string,
@@ -240,36 +257,197 @@ function registerCrud(opts: CrudOpts): void {
     ...WITH_ID_PARAM,
   });
 }
-
 function registerAllPaths(): void {
-  pubReg(
-    'post',
-    '/auth/login/password',
-    'auth',
-    '用户名密码登录',
-    [400, 401, 422, 429, 500],
-    '返回 accessToken/refreshToken',
-    loginPasswordSchema,
-  );
-  pubReg(
-    'post',
-    '/auth/register',
-    'auth',
-    '注册新用户',
-    [400, 409, 422, 429, 500],
-    undefined,
-    registerSchema,
-  );
-  pubReg('post', '/auth/refresh', 'auth', '刷新访问令牌', [400, 401, 500]);
-  sec('delete', '/auth/logout', 'auth', '登出（吊销刷新令牌）', [400, 401]);
-  sec('get', '/auth/me', 'auth', '查询当前用户身份', [401]);
-  sec('get', '/auth/orgs', 'auth', '查询可切换组织列表', [401]);
-  sec('post', '/auth/switch-org', 'auth', '切换当前组织', [400, 401, 403]);
-  sec('delete', '/auth/me', 'auth', '注销账户', AUTH_500_ERR);
-  pubReg('post', '/auth/verify-email', 'auth', '邮箱验证', [400, 404]);
+  const PUB: [Method, string, string, string, number[], string?, z.ZodType?][] = [
+    [
+      'post',
+      '/auth/login/password',
+      'auth',
+      '用户名密码登录',
+      [400, 401, 422, 429, 500],
+      '返回 accessToken/refreshToken',
+      loginPasswordSchema,
+    ],
+    [
+      'post',
+      '/auth/register',
+      'auth',
+      '注册新用户',
+      [400, 409, 422, 429, 500],
+      undefined,
+      registerSchema,
+    ],
+    ['post', '/auth/refresh', 'auth', '刷新访问令牌', [400, 401, 500]],
+    ['post', '/auth/verify-email', 'auth', '邮箱验证', [400, 404]],
+    ['get', '/health', 'health', '存活探针', [503], '服务存活'],
+    ['get', '/ready', 'health', '就绪探针', [503], '服务就绪'],
+    ['get', '/metrics', 'health', 'Prometheus 指标', [], 'Prometheus 文本格式指标'],
+    ['get', '/announcements', 'announcements', '获取公告列表（公开）', [500], '当前有效的公告列表'],
+    [
+      'post',
+      '/errors',
+      'errors',
+      '前端错误上报端点',
+      [400, 422, 429, 500],
+      undefined,
+      errorReportSchema,
+    ],
+  ];
+  for (const [m, p, t, s, e, d, b] of PUB) pubReg(m, p, t, s, e, d, b);
+  const SEC: [Method, string, string, string, number[]][] = [
+    ['delete', '/auth/logout', 'auth', '登出（吊销刷新令牌）', [400, 401]],
+    ['get', '/auth/me', 'auth', '查询当前用户身份', [401]],
+    ['get', '/auth/orgs', 'auth', '查询可切换组织列表', [401]],
+    ['post', '/auth/switch-org', 'auth', '切换当前组织', [400, 401, 403]],
+    ['delete', '/auth/me', 'auth', '注销账户', AUTH_500_ERR],
+    ['get', '/keys', 'saas-keys', '列出组织 API Key', [401]],
+    ['delete', '/keys/{id}', 'saas-keys', '吊销组织 API Key', NOT_FOUND_ERR],
+    ['get', '/orgs/members', 'saas-orgs', '列出组织成员', [401]],
+    ['get', '/orgs/invitations', 'saas-orgs', '列出组织邀请', PERM_ERR],
+    ['post', '/orgs/invitations', 'saas-orgs', '创建组织邀请', [401, 403, 422]],
+    ['post', '/orgs/invitations/accept', 'saas-orgs', '接受组织邀请', [401, 404, 409]],
+    ['delete', '/orgs/invitations/{id}', 'saas-orgs', '撤销组织邀请', ID_ERR],
+    ['get', '/billing/subscription', 'saas-billing', '查询当前订阅', [401]],
+    ['post', '/billing/checkout', 'saas-billing', '创建 Stripe Checkout Session', [401, 422, 503]],
+    ['post', '/billing/portal', 'saas-billing', '创建 Billing Portal Session', [401, 503]],
+    ['get', '/jobs/{id}', 'saas-jobs', '查询异步任务状态', ID_ERR],
+    ['get', '/admin/stats', 'admin', '仪表盘统计', PERM_ERR],
+    ['get', '/admin/system', 'admin', '系统资源信息', PERM_ERR],
+    ['post', '/admin/keys/rotate', 'admin', '轮换 ADMIN_API_KEY', AUTH_ERR],
+    ['delete', '/admin/keys/{id}', 'admin', '吊销指定密钥', ID_ERR],
+    ['get', '/admin/keys', 'admin', '列出平台密钥', PERM_ERR],
+    ['get', '/data/health', 'data', '数据服务健康状态', [401, 503]],
+    ['get', '/data/factors', 'data', 'Fama-French 因子数据', [401, 503]],
+    ['get', '/data/meta', 'data', '获取数据元信息', AUTH_500_ERR],
+    ['get', '/data/manage/status', 'data-manage', '数据引擎状态', STATUS_ERR],
+    ['get', '/data/manage/last-updated', 'data-manage', '获取数据最后更新日期', STATUS_ERR],
+    ['get', '/data/manage/stats', 'data-manage', '数据引擎统计', STATUS_ERR],
+    ['get', '/data/manage/update/status', 'data-manage', '更新任务状态', [401]],
+    ['put', '/data/manage/update/full', 'data-manage', '触发全量更新', [401, 403, 409, 503]],
+    ['patch', '/data/manage/update/inc', 'data-manage', '触发增量更新', [401, 403, 503]],
+    ['post', '/data/manage/update/stop', 'data-manage', '停止更新任务', [401, 403, 409]],
+    ['put', '/data/manage/universe', 'data-manage', '更新标的池', [401, 403, 422]],
+  ];
+  for (const [m, p, t, s, e] of SEC) sec(m, p, t, s, e);
   sec('post', '/keys', 'saas-keys', '创建组织 API Key', [400, 401, 422], { body: KEY_BODY });
-  sec('get', '/keys', 'saas-keys', '列出组织 API Key', [401]);
-  sec('delete', '/keys/{id}', 'saas-keys', '吊销组织 API Key', NOT_FOUND_ERR, WITH_ID_PARAM);
+  sec('patch', '/orgs/members/{userId}', 'saas-orgs', '更新成员角色', ID_ERR, WITH_USER_ID_PARAM);
+  sec('delete', '/orgs/members/{userId}', 'saas-orgs', '移除成员', ID_ERR, WITH_USER_ID_PARAM);
+  sec('get', '/backtest/search', 'backtest', '搜索可回测标的', [400, 401, 422], {
+    query: SEARCH_Q,
+  });
+  sec('post', '/backtest/portfolio', 'backtest', '组合回测', BACKTEST_ERR, {
+    body: portfolioBacktestSchema,
+    accepted: AcceptedEnvelope,
+    acceptedDescription: '任务已入队，通过 GET /backtest/runs/:jobId 轮询结果',
+  });
+  sec('post', '/backtest/portfolio/series', 'backtest', '从缓存补全 Tab 序列', [400, 401, 422], {
+    body: portfolioSeriesSchema,
+  });
+  sec('post', '/backtest/analysis', 'backtest', '资产分析', BACKTEST_ERR, { body: analysisSchema });
+  sec('post', '/backtest/monte-carlo', 'backtest', '蒙特卡洛模拟', BACKTEST_ERR, {
+    body: monteCarloSchema,
+  });
+  sec('post', '/backtest/optimize', 'backtest', '组合优化', BACKTEST_ERR, { body: optimizeSchema });
+  sec('post', '/backtest/efficient-frontier', 'backtest', '有效前沿', BACKTEST_ERR, {
+    body: efficientFrontierSchema,
+  });
+  sec('get', '/backtest/runs/{jobId}', 'backtest', '查询异步回测任务状态', [400, 401, 404, 503], {
+    params: idParam('jobId'),
+  });
+  sec(
+    'post',
+    '/backtest-optimizer/optimize',
+    'backtest-optimizer',
+    '参数空间网格优化',
+    BACKTEST_ERR,
+    {
+      body: backtestOptimizerSchema,
+    },
+  );
+  sec('post', '/tactical/backtest', 'tactical', '战术分配回测', BACKTEST_ERR, {
+    body: tacticalBacktestSchema,
+  });
+  sec('post', '/tactical/what-if', 'tactical', '战术 What-If 分析', TACTICAL_ERR, {
+    body: tacticalWhatIfSchema,
+  });
+  sec('post', '/tactical-grid/search', 'tactical-grid', '战术网格参数搜索', BACKTEST_ERR, {
+    body: tacticalGridSearchSchema,
+  });
+  sec('post', '/signal/analyze', 'signal', '单信号分析', BACKTEST_ERR, {
+    body: signalAnalyzeSchema,
+  });
+  sec('post', '/signal/dual', 'signal', '双信号组合分析', BACKTEST_ERR, { body: signalDualSchema });
+  sec('post', '/signal/multi', 'signal', '多信号聚合分析', BACKTEST_ERR, {
+    body: signalMultiSchema,
+  });
+  sec('post', '/pca/analyze', 'pca', 'PCA 主成分分析', BACKTEST_ERR, { body: pcaAnalyzeSchema });
+  sec('post', '/letf/analyze', 'letf', '杠杆 ETF 滑点分析', BACKTEST_ERR, {
+    body: letfAnalyzeSchema,
+  });
+  sec(
+    'post',
+    '/goal-optimizer/optimize',
+    'goal-optimizer',
+    '目标优化（蒙特卡洛达成概率）',
+    BACKTEST_ERR,
+    {
+      body: goalOptimizerSchema,
+    },
+  );
+  sec('post', '/calculators/{type}', 'calculators', '计算器（按类型）', TACTICAL_ERR, {
+    params: TYPE_P,
+    body: calculatorBodySchema,
+  });
+  sec('post', '/analysis/factor-regression', 'factor-regression', '因子回归分析', TACTICAL_ERR, {
+    body: factorRegressionSchema,
+  });
+  sec('get', '/data/cpi/{country}', 'data', '获取 CPI 数据', [400, 401, 404, 503], {
+    params: CPI_P,
+  });
+  sec('get', '/data/ticker-meta', 'data', '查询单个 ticker 元数据', [400, 401], {
+    query: TICKER_Q,
+  });
+  sec('get', '/data/recent-updates', 'data', '获取最近更新的标的列表', AUTH_500_ERR, {
+    query: LIMIT_Q,
+  });
+  sec('get', '/data/manage/tickers', 'data-manage', '标的管理列表（分页）', [401, 422], {
+    query: tickerListQuerySchema,
+  });
+  sec('get', '/data/manage/search', 'data-manage', '标的搜索', [401, 422], {
+    query: tickerSearchQuerySchema,
+  });
+  sec('get', '/data/manage/ticker/{id}', 'data-manage', '查询单个标的信息', [400, 401, 404], {
+    ...WITH_ID_PARAM,
+  });
+  sec('post', '/announcements', 'announcements', '发布公告（仅管理员）', VALIDATION_ERR, {
+    body: createAnnouncementSchema,
+  });
+  sec('get', '/tactical/configs', 'tactical-config', '列出当前租户的战术分配配置列表', AUTH_ERR, {
+    query: PAGINATION_QUERY,
+  });
+  sec(
+    'get',
+    '/tactical/configs/{id}',
+    'tactical-config',
+    '查询单个战术分配配置的详情',
+    AUTH_NOT_FOUND_ERR,
+    WITH_ID_PARAM,
+  );
+  sec('post', '/tactical/configs', 'tactical-config', '新建战术分配配置', VALIDATION_ERR, {
+    body: TACTICAL_CFG_BODY,
+  });
+  sec('put', '/tactical/configs/{id}', 'tactical-config', '更新战术分配配置', UPDATE_ERR, {
+    ...WITH_ID_PARAM,
+    body: TACTICAL_CFG_UPDATE_BODY,
+  });
+  sec(
+    'delete',
+    '/tactical/configs/{id}',
+    'tactical-config',
+    '删除战术分配配置（软删除）',
+    AUTH_NOT_FOUND_ERR,
+    WITH_ID_PARAM,
+  );
   registerCrud({
     tag: 'saas-portfolios',
     basePath: '/portfolios',
@@ -301,183 +479,7 @@ function registerAllPaths(): void {
     createBody: backtestRunBodySchema,
     deleteSummary: '删除回测历史',
   });
-  sec('get', '/orgs/members', 'saas-orgs', '列出组织成员', [401]);
-  sec('patch', '/orgs/members/{userId}', 'saas-orgs', '更新成员角色', ID_ERR, WITH_USER_ID_PARAM);
-  sec('delete', '/orgs/members/{userId}', 'saas-orgs', '移除成员', ID_ERR, WITH_USER_ID_PARAM);
-  sec('get', '/orgs/invitations', 'saas-orgs', '列出组织邀请', PERM_ERR);
-  sec('post', '/orgs/invitations', 'saas-orgs', '创建组织邀请', [401, 403, 422]);
-  sec('post', '/orgs/invitations/accept', 'saas-orgs', '接受组织邀请', [401, 404, 409]);
-  sec('delete', '/orgs/invitations/{id}', 'saas-orgs', '撤销组织邀请', ID_ERR, WITH_ID_PARAM);
-  sec('get', '/billing/subscription', 'saas-billing', '查询当前订阅', [401]);
-  sec('post', '/billing/checkout', 'saas-billing', '创建 Stripe Checkout Session', [401, 422, 503]);
-  sec('post', '/billing/portal', 'saas-billing', '创建 Billing Portal Session', [401, 503]);
-  sec('get', '/jobs/{id}', 'saas-jobs', '查询异步任务状态', ID_ERR, WITH_ID_PARAM);
-  sec('get', '/admin/stats', 'admin', '仪表盘统计', PERM_ERR);
-  sec('get', '/admin/system', 'admin', '系统资源信息', PERM_ERR);
-  sec('post', '/admin/keys/rotate', 'admin', '轮换 ADMIN_API_KEY', AUTH_ERR);
-  sec('delete', '/admin/keys/{id}', 'admin', '吊销指定密钥', ID_ERR, WITH_ID_PARAM);
-  sec('get', '/admin/keys', 'admin', '列出平台密钥', PERM_ERR);
-  pubReg('get', '/health', 'health', '存活探针', [503], '服务存活');
-  pubReg('get', '/ready', 'health', '就绪探针', [503], '服务就绪');
-  pubReg('get', '/metrics', 'health', 'Prometheus 指标', [], 'Prometheus 文本格式指标');
-  pubReg(
-    'get',
-    '/announcements',
-    'announcements',
-    '获取公告列表（公开）',
-    [500],
-    '当前有效的公告列表',
-  );
-  sec('post', '/announcements', 'announcements', '发布公告（仅管理员）', VALIDATION_ERR, {
-    body: createAnnouncementSchema,
-  });
-  pubReg(
-    'post',
-    '/errors',
-    'errors',
-    '前端错误上报端点',
-    [400, 422, 429, 500],
-    undefined,
-    errorReportSchema,
-  );
-  sec('get', '/backtest/search', 'backtest', '搜索可回测标的', [400, 401, 422], {
-    query: z.object({
-      query: z.string().min(1).max(100),
-      limit: z.coerce.number().int().min(1).max(200).optional(),
-    }),
-  });
-  sec('post', '/backtest/portfolio', 'backtest', '组合回测', BACKTEST_ERR, {
-    body: portfolioBacktestSchema,
-    accepted: AcceptedEnvelope,
-    acceptedDescription: '任务已入队，通过 GET /backtest/runs/:jobId 轮询结果',
-  });
-  sec('post', '/backtest/portfolio/series', 'backtest', '从缓存补全 Tab 序列', [400, 401, 422], {
-    body: portfolioSeriesSchema,
-  });
-  sec('post', '/backtest/analysis', 'backtest', '资产分析', BACKTEST_ERR, { body: analysisSchema });
-  sec('post', '/backtest/monte-carlo', 'backtest', '蒙特卡洛模拟', BACKTEST_ERR, {
-    body: monteCarloSchema,
-  });
-  sec('post', '/backtest/optimize', 'backtest', '组合优化', BACKTEST_ERR, { body: optimizeSchema });
-  sec('post', '/backtest/efficient-frontier', 'backtest', '有效前沿', BACKTEST_ERR, {
-    body: efficientFrontierSchema,
-  });
-  sec('get', '/backtest/runs/{jobId}', 'backtest', '查询异步回测任务状态', [400, 401, 404, 503], {
-    params: idParam('jobId'),
-  });
-  sec(
-    'post',
-    '/backtest-optimizer/optimize',
-    'backtest-optimizer',
-    '参数空间网格优化',
-    BACKTEST_ERR,
-    { body: backtestOptimizerSchema },
-  );
-  sec('post', '/tactical/backtest', 'tactical', '战术分配回测', BACKTEST_ERR, {
-    body: tacticalBacktestSchema,
-  });
-  sec('post', '/tactical/what-if', 'tactical', '战术 What-If 分析', TACTICAL_ERR, {
-    body: tacticalWhatIfSchema,
-  });
-  sec('post', '/tactical-grid/search', 'tactical-grid', '战术网格参数搜索', BACKTEST_ERR, {
-    body: tacticalGridSearchSchema,
-  });
-  sec('post', '/signal/analyze', 'signal', '单信号分析', BACKTEST_ERR, {
-    body: signalAnalyzeSchema,
-  });
-  sec('post', '/signal/dual', 'signal', '双信号组合分析', BACKTEST_ERR, { body: signalDualSchema });
-  sec('post', '/signal/multi', 'signal', '多信号聚合分析', BACKTEST_ERR, {
-    body: signalMultiSchema,
-  });
-  sec('post', '/pca/analyze', 'pca', 'PCA 主成分分析', BACKTEST_ERR, { body: pcaAnalyzeSchema });
-  sec('post', '/letf/analyze', 'letf', '杠杆 ETF 滑点分析', BACKTEST_ERR, {
-    body: letfAnalyzeSchema,
-  });
-  sec(
-    'post',
-    '/goal-optimizer/optimize',
-    'goal-optimizer',
-    '目标优化（蒙特卡洛达成概率）',
-    BACKTEST_ERR,
-    { body: goalOptimizerSchema },
-  );
-  sec('post', '/calculators/{type}', 'calculators', '计算器（按类型）', TACTICAL_ERR, {
-    params: z.object({ type: z.string() }),
-    body: calculatorBodySchema,
-  });
-  sec('post', '/analysis/factor-regression', 'factor-regression', '因子回归分析', TACTICAL_ERR, {
-    body: factorRegressionSchema,
-  });
-  sec('get', '/data/cpi/{country}', 'data', '获取 CPI 数据', [400, 401, 404, 503], {
-    params: z.object({ country: z.enum(['us', 'cn']) }),
-  });
-  sec('get', '/data/health', 'data', '数据服务健康状态', [401, 503]);
-  sec('get', '/data/factors', 'data', 'Fama-French 因子数据', [401, 503]);
-  sec('get', '/data/meta', 'data', '获取数据元信息', AUTH_500_ERR);
-  sec('get', '/data/ticker-meta', 'data', '查询单个 ticker 元数据', [400, 401], {
-    query: z.object({ ticker: z.string() }),
-  });
-  sec('get', '/data/recent-updates', 'data', '获取最近更新的标的列表', AUTH_500_ERR, {
-    query: z.object({ limit: z.number().optional() }),
-  });
-  sec('get', '/data/manage/status', 'data-manage', '数据引擎状态', STATUS_ERR);
-  sec('get', '/data/manage/last-updated', 'data-manage', '获取数据最后更新日期', STATUS_ERR);
-  sec('get', '/data/manage/stats', 'data-manage', '数据引擎统计', STATUS_ERR);
-  sec('get', '/data/manage/tickers', 'data-manage', '标的管理列表（分页）', [401, 422], {
-    query: tickerListQuerySchema,
-  });
-  sec('get', '/data/manage/search', 'data-manage', '标的搜索', [401, 422], {
-    query: tickerSearchQuerySchema,
-  });
-  sec('get', '/data/manage/ticker/{id}', 'data-manage', '查询单个标的信息', [400, 401, 404], {
-    ...WITH_ID_PARAM,
-  });
-  sec('get', '/data/manage/update/status', 'data-manage', '更新任务状态', [401]);
-  sec('put', '/data/manage/update/full', 'data-manage', '触发全量更新', [401, 403, 409, 503]);
-  sec('patch', '/data/manage/update/inc', 'data-manage', '触发增量更新', [401, 403, 503]);
-  sec('post', '/data/manage/update/stop', 'data-manage', '停止更新任务', [401, 403, 409]);
-  sec('put', '/data/manage/universe', 'data-manage', '更新标的池', [401, 403, 422]);
-  sec('get', '/tactical/configs', 'tactical-config', '列出当前租户的战术分配配置列表', AUTH_ERR, {
-    query: PAGINATION_QUERY,
-  });
-  sec(
-    'get',
-    '/tactical/configs/{id}',
-    'tactical-config',
-    '查询单个战术分配配置的详情',
-    AUTH_NOT_FOUND_ERR,
-    WITH_ID_PARAM,
-  );
-  sec('post', '/tactical/configs', 'tactical-config', '新建战术分配配置', VALIDATION_ERR, {
-    body: z.object({
-      name: z.string().min(1).max(255),
-      description: z.string().optional(),
-      chart: z.string().optional(),
-      cs: z.string().optional(),
-      longSort: z.enum(['alpha', 'beta', 'rsq']).optional(),
-      shortSort: z.enum(['rising', 'alpha']).optional(),
-    }),
-  });
-  sec('put', '/tactical/configs/{id}', 'tactical-config', '更新战术分配配置', UPDATE_ERR, {
-    ...WITH_ID_PARAM,
-    body: z.object({
-      name: z.string().min(1).max(255).optional(),
-      description: z.string().max(255).optional(),
-      cs: z.string().optional(),
-      longSort: z.enum(['alpha', 'beta', 'rsq']).optional(),
-      chart: z.string().optional(),
-    }),
-  });
-  sec(
-    'delete',
-    '/tactical/configs/{id}',
-    'tactical-config',
-    '删除战术分配配置（软删除）',
-    AUTH_NOT_FOUND_ERR,
-    WITH_ID_PARAM,
-  );
 }
-
 const TAGS = [
   'auth',
   'backtest',
@@ -505,7 +507,6 @@ const TAGS = [
   'tactical-config',
   'errors',
 ];
-
 export function generateOpenApiDocument() {
   registerAllPaths();
   const generator = new OpenApiGeneratorV3(registry.definitions);

@@ -1,18 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type ComponentType } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  FolderOpen,
-  Trash2,
-  X,
-  ChevronDown,
-  Save,
-  BarChart3,
-  Check,
-  Settings,
-  Rocket,
-  ChevronUp,
-  ArrowRight,
-} from 'lucide-react';
+import * as L from 'lucide-react';
 import { Link } from 'react-router';
 import { Card, Button, Input } from '@/components/ui/uiComponents';
 import { cn } from '@/lib/utils';
@@ -22,13 +10,8 @@ import PortfolioEditor from '@/components/PortfolioEditor.js';
 import { useBacktestStore } from '@/store/backtestStore';
 import { useToastStore } from '@/store/toastStore';
 import type { BacktestParameters, Portfolio } from '@backtest/shared';
-import {
-  saveNamedConfigApi,
-  listNamedConfigs,
-  deleteNamedConfigApi,
-  readStateFromURL,
-  type SavedPortfolio,
-} from '@/utils/portfolioStorage';
+import * as PS from '@/utils/portfolioStorage';
+import type { SavedPortfolio } from '@/utils/portfolioStorage';
 import { RunButton } from '@/components/form/sharedFields';
 import { TableEmpty } from '@/components/stateDisplay.js';
 import { ResultsContent } from './BacktestResults.js';
@@ -41,7 +24,15 @@ const TOOLS = [
   { labelKey: 'nav.pca', path: '/pca' },
   { labelKey: 'nav.letfAnalysis', path: '/letf-slippage' },
 ] as const;
-
+type CapProps = {
+  icon: ComponentType<{ className?: string }>;
+  title: string;
+  items?: string[];
+  tools?: { label: string; path: string }[];
+  linkLabel?: string;
+  linkTo?: string;
+  subtitle?: string;
+};
 function CapabilityCard({
   icon: Icon,
   title,
@@ -50,15 +41,7 @@ function CapabilityCard({
   linkLabel,
   linkTo,
   subtitle,
-}: {
-  icon: React.ComponentType<{ className?: string }>;
-  title: string;
-  items?: string[];
-  tools?: Array<{ label: string; path: string }>;
-  linkLabel?: string;
-  linkTo?: string;
-  subtitle?: string;
-}) {
+}: CapProps) {
   return (
     <Card className="p-5 bg-surface border border-border-subtle hover:border-border transition-all duration-150 hover:-translate-y-0.5 hover:shadow-lg cursor-default group">
       <div className="flex items-center gap-3 mb-4">
@@ -69,23 +52,23 @@ function CapabilityCard({
       </div>
       {Array.isArray(items) && (
         <ul className="space-y-2 mb-4">
-          {items.map((item, i) => (
+          {items.map((x, i) => (
             <li key={i} className="text-body text-fg-secondary flex items-start gap-2">
-              <Check className="size-3.5 text-success mt-0.5 shrink-0" />
-              <span>{item}</span>
+              <L.Check className="size-3.5 text-success mt-0.5 shrink-0" />
+              <span>{x}</span>
             </li>
           ))}
         </ul>
       )}
       {tools && (
         <div className="flex flex-wrap gap-2 mb-4">
-          {tools.map((tool) => (
+          {tools.map((x) => (
             <Link
-              key={tool.path}
-              to={tool.path}
+              key={x.path}
+              to={x.path}
               className="text-caption px-2.5 py-1 bg-brand-subtle/8 text-brand rounded-md hover:bg-brand-subtle/15 transition-colors"
             >
-              {tool.label}
+              {x.label}
             </Link>
           ))}
         </div>
@@ -96,30 +79,48 @@ function CapabilityCard({
           to={linkTo}
           className="text-caption text-brand hover:underline flex items-center gap-1"
         >
-          {linkLabel} <ArrowRight className="h-3 w-3" />
+          {linkLabel} <L.ArrowRight className="h-3 w-3" />
         </Link>
       )}
     </Card>
   );
 }
-
-export function BacktestHero() {
+function BacktestHero() {
   const { t } = useTranslation();
-  const [expanded, setExpanded] = useState(() => {
+  const [exp, setExp] = useState(() => {
     try {
-      const v = localStorage.getItem(HERO_KEY);
-      return v === null || v === '1';
+      return localStorage.getItem(HERO_KEY) !== '0';
     } catch {
       return true;
     }
   });
   useEffect(() => {
     try {
-      localStorage.setItem(HERO_KEY, expanded ? '1' : '0');
-    } catch {
-      /* ignore */
-    }
-  }, [expanded]);
+      localStorage.setItem(HERO_KEY, exp ? '1' : '0');
+    } catch {}
+  }, [exp]);
+  const cards: CapProps[] = [
+    {
+      icon: L.Settings,
+      title: t('What You Can Model'),
+      items: t('backtest.hero.model.items', { returnObjects: true }) as string[],
+      linkLabel: t('Start Configuring'),
+      linkTo: '#parameters',
+    },
+    {
+      icon: L.BarChart3,
+      title: t('Metrics You Can Inspect'),
+      items: t('backtest.hero.inspect.items', { returnObjects: true }) as string[],
+      linkLabel: t('View Results'),
+      linkTo: '#results',
+      subtitle: '60+',
+    },
+    {
+      icon: L.Rocket,
+      title: t('Related Research Tools'),
+      tools: TOOLS.map((x) => ({ label: t(x.labelKey), path: x.path })),
+    },
+  ];
   return (
     <section className={cn('page-container', 'pt-4 pb-6')} data-testid="page-hero">
       <div className="flex items-start justify-between mb-4">
@@ -136,21 +137,18 @@ export function BacktestHero() {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => setExpanded(!expanded)}
+          onClick={() => setExp(!exp)}
           className="text-caption text-fg-tertiary hover:text-fg"
         >
-          {expanded ? (
-            <>
-              {t('Hide Intro')} <ChevronUp className="h-4 w-4 ml-1" />
-            </>
+          {t(exp ? 'Hide Intro' : 'Show Intro')}{' '}
+          {exp ? (
+            <L.ChevronUp className="h-4 w-4 ml-1" />
           ) : (
-            <>
-              {t('Show Intro')} <ChevronDown className="h-4 w-4 ml-1" />
-            </>
+            <L.ChevronDown className="h-4 w-4 ml-1" />
           )}
         </Button>
       </div>
-      {expanded && (
+      {exp ? (
         <>
           <p className="text-body text-fg-tertiary max-w-[860px] mb-8 leading-relaxed">
             {t(
@@ -158,226 +156,181 @@ export function BacktestHero() {
             )}
           </p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <CapabilityCard
-              icon={Settings}
-              title={t('What You Can Model')}
-              items={t('backtest.hero.model.items', { returnObjects: true }) as string[]}
-              linkLabel={t('Start Configuring')}
-              linkTo="#parameters"
-            />
-            <CapabilityCard
-              icon={BarChart3}
-              title={t('Metrics You Can Inspect')}
-              items={t('backtest.hero.inspect.items', { returnObjects: true }) as string[]}
-              linkLabel={t('View Results')}
-              linkTo="#results"
-              subtitle="60+"
-            />
-            <CapabilityCard
-              icon={Rocket}
-              title={t('Related Research Tools')}
-              tools={TOOLS.map((tool) => ({ label: t(tool.labelKey), path: tool.path }))}
-            />
+            {cards.map((c) => (
+              <CapabilityCard key={c.title} {...c} />
+            ))}
           </div>
         </>
-      )}
+      ) : null}
     </section>
   );
 }
-function useUrlShareLoader() {
+function useBacktestPageState() {
   const { t } = useTranslation();
-  const loadFromShare = useBacktestStore((s) => s.loadFromShare);
-  const hasLoadedFromShare = useBacktestStore((s) => s.hasLoadedFromShare);
-  const setHasLoadedFromShare = useBacktestStore((s) => s.setHasLoadedFromShare);
+  const run = useBacktestStore((s) => s.runBacktest);
+  const params = useBacktestStore((s) => s.parameters);
+  const pfs = useBacktestStore((s) => s.portfolios);
+  const load = useBacktestStore((s) => s.loadFromShare);
+  const loaded = useBacktestStore((s) => s.hasLoadedFromShare);
+  const setLoaded = useBacktestStore((s) => s.setHasLoadedFromShare);
   useEffect(() => {
-    if (hasLoadedFromShare) return;
-    setHasLoadedFromShare(true);
-    const urlState = readStateFromURL();
-    if (urlState) {
-      loadFromShare(urlState);
+    if (loaded) return;
+    setLoaded(true);
+    const u = PS.readStateFromURL();
+    if (u) {
+      load(u);
       useToastStore.getState().addToast('success', t('Configuration loaded from share link'));
       return;
     }
-    const loadFromOptimizer = localStorage.getItem('bt_load_from_optimizer');
-    if (loadFromOptimizer) {
-      localStorage.removeItem('bt_load_from_optimizer');
-      try {
-        const data = JSON.parse(loadFromOptimizer);
-        const sharePortfolios: Portfolio[] = (data.portfolios || []).map((p: Portfolio) => ({
-          ...p,
-          id: p.id || `portfolio-${Date.now()}`,
-        }));
-        const shareParameters: BacktestParameters = data.parameters;
-        if (sharePortfolios.length > 0 && shareParameters)
-          loadFromShare({ portfolios: sharePortfolios, parameters: shareParameters });
-      } catch {
-        useToastStore
-          .getState()
-          .addToast('warning', t('Optimizer data format error, unable to load'));
-      }
+    const d = localStorage.getItem('bt_load_from_optimizer');
+    if (!d) return;
+    localStorage.removeItem('bt_load_from_optimizer');
+    try {
+      const j = JSON.parse(d);
+      const ps: Portfolio[] = (j.portfolios || []).map((p: Portfolio) => ({
+        ...p,
+        id: p.id || `portfolio-${Date.now()}`,
+      }));
+      if (ps.length && j.parameters)
+        load({ portfolios: ps, parameters: j.parameters as BacktestParameters });
+    } catch {
+      useToastStore
+        .getState()
+        .addToast('warning', t('Optimizer data format error, unable to load'));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- 仅在挂载时从 URL/optimizer 加载配置
-  }, [loadFromShare, hasLoadedFromShare, setHasLoadedFromShare]);
-}
-function useBacktestPageState() {
-  const { t } = useTranslation();
-  const runBacktest = useBacktestStore((s) => s.runBacktest);
-  const parameters = useBacktestStore((s) => s.parameters);
-  const portfolios = useBacktestStore((s) => s.portfolios);
-  useUrlShareLoader();
-  const [showSaveInput, setShowSaveInput] = useState(false);
-  const [configName, setConfigName] = useState('');
-  const [showLoadList, setShowLoadList] = useState(false);
-  const [savedConfigs, setSavedConfigs] = useState<SavedPortfolio[]>([]);
-  const handleSaveConfig = async () => {
-    const name = configName.trim();
-    if (!name) return;
-    await saveNamedConfigApi(name, portfolios, parameters);
-    useToastStore.getState().addToast('success', t('Scheme saved'));
-    setConfigName('');
-    setShowSaveInput(false);
-  };
-  const handleOpenLoadList = async () => {
-    const next = !showLoadList;
-    setShowLoadList(next);
-    setShowSaveInput(false);
-    if (next) setSavedConfigs(await listNamedConfigs());
-  };
-  const handleLoadConfig = (config: SavedPortfolio) => {
-    useBacktestStore
-      .getState()
-      .loadFromShare({ portfolios: config.portfolios, parameters: config.parameters });
-    useToastStore.getState().addToast('success', t('Scheme loaded'));
-    setShowLoadList(false);
-  };
-  const handleDeleteConfig = async (id: string) => {
-    await deleteNamedConfigApi(id);
-    setSavedConfigs(await listNamedConfigs());
-  };
+  }, [load, loaded, setLoaded]);
+  const [saveOpen, setSaveOpen] = useState(false);
+  const [name, setName] = useState('');
+  const [loadOpen, setLoadOpen] = useState(false);
+  const [saved, setSaved] = useState<SavedPortfolio[]>([]);
   return {
     t,
-    runBacktest,
-    parameters,
-    portfolios,
-    showSaveInput,
-    setShowSaveInput,
-    configName,
-    setConfigName,
-    showLoadList,
-    savedConfigs,
-    handleSaveConfig,
-    handleOpenLoadList,
-    handleLoadConfig,
-    handleDeleteConfig,
+    runBacktest: run,
+    parameters: params,
+    portfolios: pfs,
+    saveOpen,
+    setSaveOpen,
+    name,
+    setName,
+    loadOpen,
+    saved,
+    save: async () => {
+      const n = name.trim();
+      if (!n) return;
+      await PS.saveNamedConfigApi(n, pfs, params);
+      useToastStore.getState().addToast('success', t('Scheme saved'));
+      setName('');
+      setSaveOpen(false);
+    },
+    toggleLoad: async () => {
+      const next = !loadOpen;
+      setLoadOpen(next);
+      setSaveOpen(false);
+      if (next) setSaved(await PS.listNamedConfigs());
+    },
+    loadCfg: (c: SavedPortfolio) => {
+      useBacktestStore
+        .getState()
+        .loadFromShare({ portfolios: c.portfolios, parameters: c.parameters });
+      useToastStore.getState().addToast('success', t('Scheme loaded'));
+      setLoadOpen(false);
+    },
+    delCfg: async (id: string) =>
+      setSaved(await (await PS.deleteNamedConfigApi(id), PS.listNamedConfigs())),
   };
 }
 type S = ReturnType<typeof useBacktestPageState>;
-function BacktestToolbar({ state }: { state: S }) {
+function BacktestToolbar({ state: s }: { state: S }) {
   const { t, i18n } = useTranslation();
-  const {
-    runBacktest,
-    showSaveInput,
-    setShowSaveInput,
-    configName,
-    setConfigName,
-    handleSaveConfig,
-    showLoadList,
-    handleOpenLoadList,
-    savedConfigs,
-    handleLoadConfig,
-    handleDeleteConfig,
-  } = state;
-  const isLoading = useBacktestStore((s) => s.isLoading);
-  const portfolioCount = useBacktestStore((s) => s.portfolios.length);
+  const loading = useBacktestStore((x) => x.isLoading);
+  const count = useBacktestStore((x) => x.portfolios.length);
   return (
     <div className="mt-3 flex flex-col gap-2 border-t border-border-subtle pt-4">
       <div className="flex items-center gap-2">
         <RunButton
-          isLoading={isLoading}
-          onClick={runBacktest}
+          isLoading={loading}
+          onClick={s.runBacktest}
           label={t('Run Backtest')}
           loadingLabel={t('Backtesting...')}
-          disabled={portfolioCount === 0}
+          disabled={count === 0}
           data-testid="backtest-run"
         />
-        <Button variant="secondary" onClick={() => void handleOpenLoadList()}>
-          <FolderOpen />
-          {t('Load Saved Backtest')}
-          <ChevronDown className="size-3.5" />
+        <Button variant="secondary" onClick={() => void s.toggleLoad()}>
+          <L.FolderOpen /> {t('Load Saved Backtest')} <L.ChevronDown className="size-3.5" />
         </Button>
-        <Button variant="secondary" onClick={() => setShowSaveInput(true)}>
-          <Save className="size-4" />
-          {t('Save')}
+        <Button variant="secondary" onClick={() => s.setSaveOpen(true)}>
+          <L.Save className="size-4" /> {t('Save')}
         </Button>
       </div>
-      {portfolioCount === 0 && (
+      {count === 0 ? (
         <p className="text-caption text-fg-tertiary">{t('Please add at least one portfolio')}</p>
-      )}
-      {showSaveInput && (
+      ) : null}
+      {s.saveOpen ? (
         <div className="mt-2 flex items-center gap-1.5">
           <Input
             type="text"
-            value={configName}
-            onChange={(e) => setConfigName(e.target.value)}
+            value={s.name}
+            onChange={(e) => s.setName(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter') void handleSaveConfig();
+              if (e.key === 'Enter') void s.save();
             }}
             placeholder={t('Enter scheme name')}
             className="flex-1"
             // eslint-disable-next-line jsx-a11y/no-autofocus -- intentional: form input focus on modal open
             autoFocus
           />
-          <Button variant="secondary" size="sm" onClick={() => void handleSaveConfig()}>
+          <Button variant="secondary" size="sm" onClick={() => void s.save()}>
             {t('Confirm')}
           </Button>
           <Button
             variant="destructive"
             size="icon"
             onClick={() => {
-              setShowSaveInput(false);
-              setConfigName('');
+              s.setSaveOpen(false);
+              s.setName('');
             }}
             title={t('Cancel')}
             aria-label={t('Cancel')}
           >
-            <X />
+            <L.X />
           </Button>
         </div>
-      )}
-      {showLoadList && (
+      ) : null}
+      {s.loadOpen ? (
         <div className="mt-2 max-h-[240px] overflow-y-auto rounded-md border border-border-subtle bg-elevated">
-          {savedConfigs.length === 0 ? (
+          {s.saved.length === 0 ? (
             <TableEmpty message={t('No saved schemes')} className="px-3 py-3 text-caption" />
           ) : (
-            savedConfigs.map((config) => (
+            s.saved.map((c) => (
               <div
-                key={config.id}
+                key={c.id}
                 className="flex items-center gap-1.5 px-2.5 py-2 border-b border-border-subtle last:border-b-0"
               >
                 <button
-                  onClick={() => handleLoadConfig(config)}
+                  onClick={() => s.loadCfg(c)}
                   className="flex-1 text-left bg-transparent border-none cursor-pointer p-0"
                 >
-                  <div className="text-body font-medium text-fg">{config.name}</div>
+                  <div className="text-body font-medium text-fg">{c.name}</div>
                   <div className="text-caption text-fg-tertiary">
-                    {new Date(config.savedAt).toLocaleString(i18n.language)} ·{' '}
-                    {config.portfolios.length} {t('portfolios')}
+                    {new Date(c.savedAt).toLocaleString(i18n.language)} · {c.portfolios.length}{' '}
+                    {t('portfolios')}
                   </div>
                 </button>
                 <Button
                   variant="destructive"
                   size="icon"
-                  onClick={() => void handleDeleteConfig(config.id)}
+                  onClick={() => void s.delCfg(c.id)}
                   title={t('Delete')}
                   aria-label={t('Delete')}
                 >
-                  <Trash2 />
+                  <L.Trash2 />
                 </Button>
               </div>
             ))
           )}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-﻿import { useEffect, useRef, useState, Suspense, type ReactNode } from 'react';
+import { useEffect, useRef, useState, Suspense, type ReactNode } from 'react';
 import { useTranslation, Trans } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router';
 import { MoreHorizontal, Download } from 'lucide-react';
@@ -44,22 +44,18 @@ import {
   toStatsRecord,
   createEmptyStatistics,
 } from '@backtest/shared';
-function ResultsActionBar({
-  timeRange,
-  onExport,
-}: {
+type RABProps = {
   timeRange: { start: string; end: string; years: number };
-  onExport?: (format: 'csv' | 'json') => void;
-}) {
+  onExport?: (f: 'csv' | 'json') => void;
+};
+function ResultsActionBar({ timeRange, onExport }: RABProps) {
   const { t } = useTranslation();
   const [sticky, setSticky] = useState(false);
   const sentinelRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    const observer = new IntersectionObserver(([entry]) => setSticky(!entry.isIntersecting), {
-      threshold: 0,
-    });
-    if (sentinelRef.current) observer.observe(sentinelRef.current);
-    return () => observer.disconnect();
+    const o = new IntersectionObserver(([e]) => setSticky(!e.isIntersecting), { threshold: 0 });
+    if (sentinelRef.current) o.observe(sentinelRef.current);
+    return () => o.disconnect();
   }, []);
   const years = Number.isInteger(timeRange.years) ? timeRange.years : +timeRange.years.toFixed(1);
   return (
@@ -115,19 +111,14 @@ const SUMMARY_METRIC_CONFIGS: [string, keyof Statistics, (v: number) => string, 
   ['summarySidebar.bestYear', 'bestYear', fmtPct, 'summary-best-year'],
   ['summarySidebar.worstYear', 'worstYear', fmtPct, 'summary-worst-year'],
 ];
-function SummarySidebar({
-  stats,
-  totalYears,
-  positiveYears,
-  name,
-  color,
-}: {
+type SSProps = {
   stats: Statistics;
   totalYears: number;
   positiveYears: number;
   name?: string;
   color?: string;
-}) {
+};
+function SummarySidebar({ stats, totalYears, positiveYears, name, color }: SSProps) {
   const { t } = useTranslation();
   const metrics = SUMMARY_METRIC_CONFIGS.map(([labelKey, key, format, testId]) => ({
     labelKey,
@@ -194,46 +185,35 @@ function SummarySidebar({
     </>
   );
 }
+const lz = lazyNamed;
 const L = {
-  GrowthChart: lazyNamed(() => import('@/components/charts/GrowthChart'), 'GrowthChart'),
-  DrawdownChart: lazyNamed(() => import('@/components/charts/drawdownCharts'), 'DrawdownChart'),
-  DrawdownEpisodes: lazyNamed(
-    () => import('@/components/results/DrawdownEpisodes'),
-    'DrawdownEpisodes',
-  ),
-  YearlyReturnsTable: lazyNamed(
+  GrowthChart: lz(() => import('@/components/charts/GrowthChart'), 'GrowthChart'),
+  DrawdownChart: lz(() => import('@/components/charts/drawdownCharts'), 'DrawdownChart'),
+  DrawdownEpisodes: lz(() => import('@/components/results/DrawdownEpisodes'), 'DrawdownEpisodes'),
+  YearlyReturnsTable: lz(
     () => import('@/components/results/YearlyReturnsTable'),
     'YearlyReturnsTable',
   ),
-  UnderwaterCurve: lazyNamed(() => import('@/components/charts/drawdownCharts'), 'UnderwaterCurve'),
-  TelltaleChart: lazyNamed(() => import('@/components/charts/analysis'), 'TelltaleChart'),
-  RiskReturnScatter: lazyNamed(() => import('@/components/charts/riskReturn'), 'RiskReturnScatter'),
-  SeasonalityChart: lazyNamed(() => import('@/components/charts/analysis'), 'SeasonalityChart'),
-  RegressionChart: lazyNamed(
-    () => import('@/components/charts/RegressionChart'),
-    'RegressionChart',
-  ),
-  PortfolioAllocationChart: lazyNamed(
+  UnderwaterCurve: lz(() => import('@/components/charts/drawdownCharts'), 'UnderwaterCurve'),
+  TelltaleChart: lz(() => import('@/components/charts/analysis'), 'TelltaleChart'),
+  RiskReturnScatter: lz(() => import('@/components/charts/riskReturn'), 'RiskReturnScatter'),
+  SeasonalityChart: lz(() => import('@/components/charts/analysis'), 'SeasonalityChart'),
+  RegressionChart: lz(() => import('@/components/charts/RegressionChart'), 'RegressionChart'),
+  PortfolioAllocationChart: lz(
     () => import('@/components/charts/portfolioCharts'),
     'PortfolioAllocationChart',
   ),
-  PortfolioPiesChart: lazyNamed(() => import('@/components/charts/portfolioCharts'), 'default'),
-  RollingReturnChart: lazyNamed(() => import('@/components/charts/rolling'), 'RollingReturnChart'),
-  AnnualReturnChart: lazyNamed(
-    () => import('@/components/charts/AnnualReturnChart'),
-    'AnnualReturnChart',
-  ),
-  MonthlyHeatmap: lazyNamed(() => import('@/components/charts/analysis'), 'MonthlyHeatmap'),
-  CorrelationWithBeta: lazyNamed(
+  PortfolioPiesChart: lz(() => import('@/components/charts/portfolioCharts'), 'default'),
+  RollingReturnChart: lz(() => import('@/components/charts/rolling'), 'RollingReturnChart'),
+  AnnualReturnChart: lz(() => import('@/components/charts/AnnualReturnChart'), 'AnnualReturnChart'),
+  MonthlyHeatmap: lz(() => import('@/components/charts/analysis'), 'MonthlyHeatmap'),
+  CorrelationWithBeta: lz(
     () => import('@/components/charts/CorrelationHeatmapChart'),
     'CorrelationWithBeta',
   ),
-  CustomMetricsTable: lazyNamed(
-    () => import('@/components/CustomMetricsTable'),
-    'CustomMetricsTable',
-  ),
-  CashflowsLog: lazyNamed(() => import('@/components/CashflowsLog'), 'CashflowsLog'),
-  TurnoverTaxReport: lazyNamed(() => import('@/components/TurnoverTaxReport'), 'TurnoverTaxReport'),
+  CustomMetricsTable: lz(() => import('@/components/CustomMetricsTable'), 'CustomMetricsTable'),
+  CashflowsLog: lz(() => import('@/components/CashflowsLog'), 'CashflowsLog'),
+  TurnoverTaxReport: lz(() => import('@/components/TurnoverTaxReport'), 'TurnoverTaxReport'),
 };
 const ALL_TABS = [
   { key: 'summary', labelKey: 'tabs.summary' },
@@ -324,15 +304,8 @@ function TabBar() {
     </div>
   );
 }
-const TAB_RENDERERS: Record<
-  string,
-  (c: {
-    pf: PortfolioResult[];
-    pfs: Portfolio[];
-    baseCurrency: string | undefined;
-    r: BacktestResult;
-  }) => ReactNode
-> = {
+type Ctx = { pf: PortfolioResult[]; pfs: Portfolio[]; baseCurrency?: string; r: BacktestResult };
+const TAB_RENDERERS: Record<string, (c: Ctx) => ReactNode> = {
   summary: ({ pf, baseCurrency }) => {
     const f = pf[0];
     const ar = f?.annualReturns ?? [];
@@ -411,13 +384,11 @@ const TAB_RENDERERS: Record<
   regression: ({ pf }) => <L.RegressionChart portfolios={pf} />,
 };
 function computeTimeRange(r: BacktestResult) {
-  const g = r.portfolios[0]?.growthCurve;
-  const first = g?.[0]?.date;
-  const last = g?.[g.length - 1]?.date;
+  const g = r.portfolios[0]?.growthCurve,
+    first = g?.[0]?.date,
+    last = g?.[g.length - 1]?.date;
   const years =
-    first && last
-      ? (new Date(last).getTime() - new Date(first).getTime()) / (365.25 * 24 * 60 * 60 * 1000)
-      : 0;
+    first && last ? (new Date(last).getTime() - new Date(first).getTime()) / 864e5 / 365.25 : 0;
   return { start: first ?? '—', end: last ?? '—', years };
 }
 export function ResultsContent() {
@@ -444,6 +415,7 @@ export function ResultsContent() {
     allocation: ['allocationHistory'],
     summary: ['drawdownEpisodes'],
   } as const;
+
   useEffect(() => {
     const series = TAB_SERIES[activeTab as keyof typeof TAB_SERIES];
     if (results && series) void enrichSeries(series as never);
@@ -521,16 +493,11 @@ export function ResultsContent() {
     </div>
   );
 }
-function RebalancingStats({
-  portfolios,
-}: {
-  portfolios: Array<
-    Pick<
-      Portfolio,
-      'name' | 'rebalanceFrequency' | 'rebalanceThreshold' | 'rebalanceOffset' | 'rebalanceBands'
-    >
-  >;
-}) {
+type RBPortfolios = Pick<
+  Portfolio,
+  'name' | 'rebalanceFrequency' | 'rebalanceThreshold' | 'rebalanceOffset' | 'rebalanceBands'
+>;
+function RebalancingStats({ portfolios }: { portfolios: RBPortfolios[] }) {
   const { t } = useTranslation();
   if (!portfolios.some((p) => p.rebalanceFrequency && p.rebalanceFrequency !== 'none'))
     return (

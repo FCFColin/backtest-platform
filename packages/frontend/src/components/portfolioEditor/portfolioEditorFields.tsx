@@ -17,17 +17,14 @@ import { cn } from '@/lib/utils';
 import { ParamCard } from '@/components/params/paramsLayout.js';
 import { useBacktestStore } from '@/store/backtestStore';
 import { getPortfolioColor } from '@/lib/chart-theme.js';
-
 export type StorePortfolio = ReturnType<typeof useBacktestStore.getState>['portfolios'][number];
 export type TFunc = (key: string) => string;
 export interface PortfolioFieldProps {
   portfolio: StorePortfolio;
   onUpdate: (id: string, patch: Partial<Portfolio>) => void;
 }
-
 const numCls = 'h-8 w-[70px] font-mono tabular-nums';
 const FIELDS_ROW = 'flex flex-wrap gap-2 items-end';
-
 function PortfolioSelect({
   value,
   onChange,
@@ -56,7 +53,6 @@ function PortfolioSelect({
     </ParamCard>
   );
 }
-
 function GlidepathTargetWeights({ portfolio, onUpdate }: PortfolioFieldProps) {
   return (
     <>
@@ -94,7 +90,6 @@ function GlidepathTargetWeights({ portfolio, onUpdate }: PortfolioFieldProps) {
     </>
   );
 }
-
 function GlidepathFields({
   from,
   to,
@@ -140,7 +135,6 @@ function GlidepathFields({
     </>
   );
 }
-
 export function GlidepathForm({
   nonGlidepathPortfolios,
   onConfirm,
@@ -190,7 +184,6 @@ export function GlidepathForm({
     </div>
   );
 }
-
 export function GlidepathConfig({
   portfolio,
   nonGlidepathPortfolios,
@@ -217,7 +210,6 @@ export function GlidepathConfig({
     </div>
   );
 }
-
 export function AssetWeightRow({
   asset,
   onUpdate,
@@ -267,7 +259,6 @@ export function AssetWeightRow({
     </div>
   );
 }
-
 export function NumField({
   label,
   value,
@@ -309,7 +300,6 @@ export function NumField({
     </div>
   );
 }
-
 export function RebalanceControls({
   portfolio,
   rebalanceOptions,
@@ -354,7 +344,6 @@ export function RebalanceControls({
     </>
   );
 }
-
 export function RebalanceBandsRow({ portfolio, onUpdate }: PortfolioFieldProps) {
   const { t } = useTranslation();
   const bands = portfolio.rebalanceBands;
@@ -403,7 +392,6 @@ export function RebalanceBandsRow({ portfolio, onUpdate }: PortfolioFieldProps) 
     </div>
   );
 }
-
 export function AllocationBar({
   assets,
   tw,

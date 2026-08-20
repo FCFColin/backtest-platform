@@ -1,7 +1,6 @@
 ﻿/* eslint-disable react-refresh/only-export-components */
 import { useState, memo, lazy, Suspense, useMemo, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { TFunction } from 'i18next';
 import { LineChart } from 'lucide-react';
 import { type AssetAnalysisResult } from '@backtest/shared';
 import { getPortfolioColor } from '@/lib/chart-theme.js';
@@ -43,7 +42,7 @@ const TABS = [
   { key: 'returns', labelKey: 'tabs.returns' },
 ] as const;
 async function fetchAnalysisResult(
-  validTickers: string[],
+  tks: string[],
   ctx: {
     startDate: string;
     endDate: string;
@@ -53,15 +52,15 @@ async function fetchAnalysisResult(
   },
   t: (k: string) => string,
 ): Promise<AssetAnalysisResult> {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 180_000);
+  const c = new AbortController();
+  const id = setTimeout(() => c.abort(), 180_000);
   try {
-    const res = await apiFetch('/api/v1/backtest/analysis', {
+    const r = await apiFetch('/api/v1/backtest/analysis', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      signal: controller.signal,
+      signal: c.signal,
       body: JSON.stringify({
-        tickers: validTickers,
+        tickers: tks,
         parameters: {
           startDate: ctx.startDate,
           endDate: ctx.endDate,
@@ -74,29 +73,27 @@ async function fetchAnalysisResult(
         },
       }),
     });
-    const json = await res.json().catch(() => {
+    const j = await r.json().catch(() => {
       throw new Error(
         t('Server response abnormal, please confirm backend service is running and retry'),
       );
     });
-    if (!res.ok || json.success === false) {
-      const err = json.error;
+    if (!r.ok || j.success === false) {
+      const e = j.error;
       throw new Error(
-        (typeof err === 'object' &&
-          err &&
-          'detail' in err &&
-          String((err as { detail?: string }).detail)) ||
-          (typeof err === 'string' && err) ||
-          (!res.ok ? `HTTP ${res.status}` : t('Analysis failed')),
+        (typeof e === 'object' &&
+          e &&
+          'detail' in e &&
+          String((e as { detail?: string }).detail)) ||
+          (typeof e === 'string' && e) ||
+          (!r.ok ? `HTTP ${r.status}` : t('Analysis failed')),
       );
     }
-    const raw = (json.data ?? json) as Record<string, unknown>;
+    const raw = (j.data ?? j) as Record<string, unknown>;
     const tickers = (raw.tickers ?? raw.assets ?? []) as AssetAnalysisResult['tickers'];
-    for (const tk of tickers) {
-      if (tk.growthCurve && tk.growthCurve.length > 500)
-        tk.growthCurve = downsample(tk.growthCurve, 500);
-      if (tk.drawdownCurve && tk.drawdownCurve.length > 500)
-        tk.drawdownCurve = downsample(tk.drawdownCurve, 500);
+    for (const x of tickers) {
+      if (x.growthCurve?.length > 500) x.growthCurve = downsample(x.growthCurve, 500);
+      if (x.drawdownCurve?.length > 500) x.drawdownCurve = downsample(x.drawdownCurve, 500);
     }
     return { tickers, correlations: (raw.correlations ?? []) as number[][] };
   } catch (e) {
@@ -108,119 +105,8 @@ async function fetchAnalysisResult(
       );
     throw e instanceof Error ? e : new Error(String(e));
   } finally {
-    clearTimeout(timeoutId);
+    clearTimeout(id);
   }
-}
-function MonthWindowField({
-  id,
-  label,
-  value,
-  onChange,
-  t,
-}: {
-  id: string;
-  label: string;
-  value: number;
-  onChange: (v: number) => void;
-  t: TFunction;
-}) {
-  return (
-    <LabeledField htmlFor={id} label={label}>
-      <AffixInput
-        id={id}
-        type="number"
-        className="pr-14"
-        value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
-        suffix={t('months')}
-      />
-    </LabeledField>
-  );
-}
-function AnalysisParamsPanel(props: {
-  tickers: string[];
-  setTickers: (v: string[]) => void;
-  startDate: string;
-  setStartDate: (v: string) => void;
-  endDate: string;
-  setEndDate: (v: string) => void;
-  startingValue: number;
-  setStartingValue: (v: number) => void;
-  rollingWindow: number;
-  setRollingWindow: (v: number) => void;
-  correlationWindow: number;
-  setCorrelationWindow: (v: number) => void;
-  isLoading: boolean;
-  runAnalysis: () => void;
-}) {
-  const { t } = useTranslation();
-  const allHistory = props.startDate === '' && props.endDate === '';
-  return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 items-end">
-      <Field className="sm:col-span-2 lg:col-span-3">
-        <TickerTagInput
-          tickers={props.tickers.filter(Boolean)}
-          onChange={props.setTickers}
-          minCount={1}
-          placeholder={t('Enter symbol, e.g. SPY')}
-        />
-      </Field>
-      <AllHistoryCheckbox
-        startDate={props.startDate}
-        endDate={props.endDate}
-        onStartDateChange={props.setStartDate}
-        onEndDateChange={props.setEndDate}
-        label={t('All History')}
-      />
-      <DateField
-        id="analysis-start-date"
-        label={t('Start Date')}
-        value={props.startDate}
-        fallback={DEFAULT_BACKTEST_START_DATE}
-        onChange={props.setStartDate}
-        disabled={allHistory}
-      />
-      <DateField
-        id="analysis-end-date"
-        label={t('End Date')}
-        value={props.endDate}
-        fallback={DEFAULT_END_DATE}
-        onChange={props.setEndDate}
-        disabled={allHistory}
-      />
-      <LabeledField htmlFor="analysis-starting-value" label={t('Starting Value')}>
-        <DollarInput
-          id="analysis-starting-value"
-          type="number"
-          value={props.startingValue}
-          onChange={(e) => props.setStartingValue(Number(e.target.value))}
-        />
-      </LabeledField>
-      <MonthWindowField
-        id="analysis-rolling-window"
-        label={t('Rolling Window')}
-        value={props.rollingWindow}
-        onChange={props.setRollingWindow}
-        t={t}
-      />
-      <MonthWindowField
-        id="analysis-correlation-window"
-        label={t('Correlation Window')}
-        value={props.correlationWindow}
-        onChange={props.setCorrelationWindow}
-        t={t}
-      />
-      <div className="flex justify-end sm:col-span-1 lg:col-span-2">
-        <RunButton
-          isLoading={props.isLoading}
-          onClick={props.runAnalysis}
-          label={t('Run Analysis')}
-          loadingLabel={t('Analyzing...')}
-          className={cn(buttonVariants({ variant: 'primary', size: 'default' }), 'w-auto')}
-        />
-      </div>
-    </div>
-  );
 }
 function useAnalysisPageState() {
   const { t } = useTranslation();
@@ -240,7 +126,7 @@ function useAnalysisPageState() {
     setResults,
     runCompute: runAnalysis,
   } = useComputeTool<AssetAnalysisResult>(
-    async () =>
+    () =>
       fetchAnalysisResult(
         tickers.filter(Boolean).map(normalizeTicker),
         {
@@ -252,59 +138,120 @@ function useAnalysisPageState() {
         },
         t,
       ),
-    () => (tickers.filter(Boolean).length > 0 ? null : t('Please enter at least one ticker')),
+    () => (tickers.filter(Boolean).length ? null : t('Please enter at least one ticker')),
   );
   return { tickers, ...s, isLoading, error, results, setTickers, setResults, runAnalysis };
 }
-const OverviewCharts = lazyNamed(
-  () => import('../../components/charts/analysis.js'),
-  'OverviewCharts',
-);
-const TelltaleChart = lazyNamed(
-  () => import('../../components/charts/analysis.js'),
-  'TelltaleChart',
-);
-const MonthlyHeatmap = lazyNamed(
-  () => import('../../components/charts/analysis.js'),
-  'MonthlyHeatmap',
-);
-const CorrelationMatrixTable = lazyNamed(
-  () => import('../../components/charts/tables.js'),
-  'CorrelationMatrixTable',
-);
-const BetaMatrixTable = lazyNamed(
-  () => import('../../components/charts/tables.js'),
-  'BetaMatrixTable',
-);
-const RollingCorrelationChart = lazyNamed(
-  () => import('../../components/charts/rolling.js'),
-  'RollingCorrelationChart',
-);
-const RollingMetricsChart = lazyNamed(
-  () => import('../../components/charts/rolling.js'),
-  'RollingMetricsChart',
-);
-const RiskReturnChart = lazyNamed(
-  () => import('../../components/charts/riskReturn.js'),
-  'RiskReturnChart',
-);
+type AnalysisPageState = ReturnType<typeof useAnalysisPageState>;
+function AnalysisParamsPanel(p: AnalysisPageState) {
+  const { t } = useTranslation();
+  const all = p.startDate === '' && p.endDate === '';
+  const df: [string, string, string, (v: string) => void, string, boolean][] = [
+    [
+      'analysis-start-date',
+      'Start Date',
+      p.startDate,
+      p.setStartDate,
+      DEFAULT_BACKTEST_START_DATE,
+      all,
+    ],
+    ['analysis-end-date', 'End Date', p.endDate, p.setEndDate, DEFAULT_END_DATE, all],
+  ];
+  const mf: [string, string, number, (v: number) => void][] = [
+    ['analysis-rolling-window', 'Rolling Window', p.rollingWindow, p.setRollingWindow],
+    [
+      'analysis-correlation-window',
+      'Correlation Window',
+      p.correlationWindow,
+      p.setCorrelationWindow,
+    ],
+  ];
+  return (
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 items-end">
+      <Field className="sm:col-span-2 lg:col-span-3">
+        <TickerTagInput
+          tickers={p.tickers.filter(Boolean)}
+          onChange={p.setTickers}
+          minCount={1}
+          placeholder={t('Enter symbol, e.g. SPY')}
+        />
+      </Field>
+      <AllHistoryCheckbox
+        startDate={p.startDate}
+        endDate={p.endDate}
+        onStartDateChange={p.setStartDate}
+        onEndDateChange={p.setEndDate}
+        label={t('All History')}
+      />
+      {df.map(([id, lb, v, s, fb, dis]) => (
+        <DateField
+          key={id}
+          id={id}
+          label={t(lb)}
+          value={v}
+          fallback={fb}
+          onChange={s}
+          disabled={dis}
+        />
+      ))}
+      <LabeledField htmlFor="analysis-starting-value" label={t('Starting Value')}>
+        <DollarInput
+          id="analysis-starting-value"
+          type="number"
+          value={p.startingValue}
+          onChange={(e) => p.setStartingValue(Number(e.target.value))}
+        />
+      </LabeledField>
+      {mf.map(([id, lb, v, s]) => (
+        <LabeledField key={id} htmlFor={id} label={t(lb)}>
+          <AffixInput
+            id={id}
+            type="number"
+            className="pr-14"
+            value={v}
+            onChange={(e) => s(Number(e.target.value))}
+            suffix={t('months')}
+          />
+        </LabeledField>
+      ))}
+      <div className="flex justify-end sm:col-span-1 lg:col-span-2">
+        <RunButton
+          isLoading={p.isLoading}
+          onClick={p.runAnalysis}
+          label={t('Run Analysis')}
+          loadingLabel={t('Analyzing...')}
+          className={cn(buttonVariants({ variant: 'primary', size: 'default' }), 'w-auto')}
+        />
+      </div>
+    </div>
+  );
+}
+const LA = (n: string) => lazyNamed(() => import('../../components/charts/analysis.js'), n);
+const LT = (n: string) => lazyNamed(() => import('../../components/charts/tables.js'), n);
+const LR = (n: string) => lazyNamed(() => import('../../components/charts/rolling.js'), n);
+const LRR = (n: string) => lazyNamed(() => import('../../components/charts/riskReturn.js'), n);
+const OverviewCharts = LA('OverviewCharts');
+const TelltaleChart = LA('TelltaleChart');
+const MonthlyHeatmap = LA('MonthlyHeatmap');
+const CorrelationMatrixTable = LT('CorrelationMatrixTable');
+const BetaMatrixTable = LT('BetaMatrixTable');
+const RollingCorrelationChart = LR('RollingCorrelationChart');
+const RollingMetricsChart = LR('RollingMetricsChart');
+const RiskReturnChart = LRR('RiskReturnChart');
 const AnnualReturnChart = lazy(() => import('../../components/charts/AnnualReturnChart.js'));
 function CorrelationsBetaTab({
   results,
-  correlationWindow,
+  correlationWindow: w,
 }: {
   results: AssetAnalysisResult;
   correlationWindow: number;
 }) {
-  const [rollingPair, setRollingPair] = useState<[number, number]>([
-    0,
-    Math.min(1, results.tickers.length - 1),
-  ]);
-  const tickers = results.tickers.map((tk) => tk.ticker);
+  const [pair, setPair] = useState<[number, number]>([0, Math.min(1, results.tickers.length - 1)]);
+  const tickers = results.tickers.map((x) => x.ticker);
   const { betaMatrix } = useAnalysisData(results);
   const rollingCorrData = useMemo(
-    () => computePairRollingCorrelation(results.tickers, rollingPair, correlationWindow),
-    [results, rollingPair, correlationWindow],
+    () => computePairRollingCorrelation(results.tickers, pair, w),
+    [results, pair, w],
   );
   return (
     <div className="space-y-6">
@@ -313,8 +260,8 @@ function CorrelationsBetaTab({
       {results.tickers.length >= 2 && (
         <RollingCorrelationChart
           tickers={tickers}
-          rollingPair={rollingPair}
-          setRollingPair={setRollingPair}
+          rollingPair={pair}
+          setRollingPair={setPair}
           rollingCorrData={rollingCorrData}
         />
       )}
@@ -325,7 +272,7 @@ function AnalysisResultsPanel({ state: s }: { state: AnalysisPageState }) {
   const { error, results, activeTab, setActiveTab, isLoading, correlationWindow, rollingWindow } =
     s;
   const { t } = useTranslation();
-  const renderTab: Record<(typeof TABS)[number]['key'], (r: AssetAnalysisResult) => ReactNode> = {
+  const tabMap: Record<(typeof TABS)[number]['key'], (r: AssetAnalysisResult) => ReactNode> = {
     summary: (r) => <OverviewCharts results={r} StatsTable={StatsTable} />,
     telltale: (r) => <TelltaleChart results={r} />,
     correlations: (r) => <CorrelationsBetaTab results={r} correlationWindow={correlationWindow} />,
@@ -351,15 +298,15 @@ function AnalysisResultsPanel({ state: s }: { state: AnalysisPageState }) {
       {results && (
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="flex w-full justify-start overflow-x-auto">
-            {TABS.map((tab) => (
-              <TabsTrigger key={tab.key} value={tab.key}>
-                {t(tab.labelKey)}
+            {TABS.map((x) => (
+              <TabsTrigger key={x.key} value={x.key}>
+                {t(x.labelKey)}
               </TabsTrigger>
             ))}
           </TabsList>
-          {TABS.map((tab) => (
-            <TabsContent key={tab.key} value={tab.key} className="pt-4">
-              <Suspense fallback={<TabFallback />}>{renderTab[tab.key](results)}</Suspense>
+          {TABS.map((x) => (
+            <TabsContent key={x.key} value={x.key} className="pt-4">
+              <Suspense fallback={<TabFallback />}>{tabMap[x.key](results)}</Suspense>
             </TabsContent>
           ))}
         </Tabs>
@@ -367,7 +314,6 @@ function AnalysisResultsPanel({ state: s }: { state: AnalysisPageState }) {
     </ResultsShell>
   );
 }
-type AnalysisPageState = ReturnType<typeof useAnalysisPageState>;
 export default createComputeToolPage(useAnalysisPageState, {
   titleKey: 'nav.assetAnalysis',
   seoDescKey: 'analysis.seoDesc',
@@ -394,7 +340,7 @@ const STATS_KEYS = [
   'beta',
 ] as const;
 const STATS_COLUMNS: StatRow[] = rowsFromMeta(STATS_KEYS);
-export const StatsTable = memo(function StatsTable({
+const StatsTable = memo(function StatsTable({
   tickers,
 }: {
   tickers: AssetAnalysisResult['tickers'];
@@ -408,23 +354,23 @@ export const StatsTable = memo(function StatsTable({
       : f === 'pct'
         ? fmtPct(v)
         : fmtNum(v, 2);
-  const rows = STATS_COLUMNS.filter((c) => tickers.some((tk) => tk.statistics[c.key] != null));
-  const columns: SimpleTableColumn<StatRow>[] = [
+  const rows = STATS_COLUMNS.filter((c) => tickers.some((x) => x.statistics[c.key] != null));
+  const cols: SimpleTableColumn<StatRow>[] = [
     {
       key: 'metric',
       label: t('Metric'),
       render: (c) => (c.label.includes('.') ? t(c.label) : c.label),
     },
-    ...tickers.map((tk, idx) => ({
-      key: tk.ticker,
-      label: <PortfolioLabel color={getPortfolioColor(idx)} name={tk.ticker} />,
+    ...tickers.map((x, i) => ({
+      key: x.ticker,
+      label: <PortfolioLabel color={getPortfolioColor(i)} name={x.ticker} />,
       align: 'right' as const,
       render: (c: StatRow) => {
-        const v = tk.statistics[c.key] as number | undefined;
-        const text = fmt(v, c.fmt);
-        return c.colorize && v != null ? <span className={getColorClass(v)}>{text}</span> : text;
+        const v = x.statistics[c.key] as number | undefined;
+        const txt = fmt(v, c.fmt);
+        return c.colorize && v != null ? <span className={getColorClass(v)}>{txt}</span> : txt;
       },
     })),
   ];
-  return <SimpleTable columns={columns} data={rows} rowKey={(c) => c.key} />;
+  return <SimpleTable columns={cols} data={rows} rowKey={(c) => c.key} />;
 });

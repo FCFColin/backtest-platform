@@ -1,34 +1,34 @@
-import { useMemo, type ReactNode } from 'react';
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Play, AlertTriangle, TrendingDown, TrendingUp } from 'lucide-react';
 import { ComputeToolShell, type ComputeToolConfig } from '@/components/shells/index.js';
 import {
-  Card,
   AffixInput,
+  Card,
+  LoadingButton,
   PortfolioLabel,
   Select,
-  SelectTrigger,
-  SelectValue,
   SelectContent,
   SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from '@/components/ui/uiComponents';
 import { Field, FieldLabel } from '@/components/form/Field';
 import { BasicParamsFields } from '../../components/BacktestParamsForm.js';
 import PortfolioEditor from '../../components/PortfolioEditor.js';
-import { LoadingButton } from '../../components/ui/uiComponents.js';
-import { fmtPct, fmtNum, mergeRowsByDate } from '@/utils/format';
+import { fmtNum, fmtPct, mergeRowsByDate } from '@/utils/format';
 import { getPortfolioColor } from '@/lib/chart-theme.js';
 import { SimpleTable, type SimpleTableColumn } from '@/components/tables.js';
 import { TimeSeriesLineChart } from '@/components/charts/TimeSeriesLineChart.js';
 import type { TFunction } from 'i18next';
 import type { Statistics } from '@backtest/shared';
-import { useAsyncAction, useAssetList, useSetterState } from '@/hooks/miscHooks.js';
 import { apiFetch } from '@/utils/apiClient';
+import { useAssetList, useAsyncAction, useSetterState } from '@/hooks/miscHooks.js';
 import i18n from '../../i18n/index.js';
 import {
+  DEFAULT_60_40_ASSETS,
   DEFAULT_BACKTEST_START_DATE,
   DEFAULT_END_DATE,
-  DEFAULT_60_40_ASSETS,
 } from '@/utils/constants';
 import { validateAssetWeights } from '@/utils/validation';
 type DcaFrequency = 'monthly' | 'quarterly';
@@ -49,6 +49,7 @@ interface BacktestPortfolioResponse {
   growthCurve?: Array<{ date: string; value: number }>;
   statistics?: Statistics;
 }
+type LumpSumAsset = { ticker: string; weight: number };
 function toResult(p: BacktestPortfolioResponse, label: string): CompareResult {
   const curve = p.growthCurve ?? [];
   const s = p.statistics as Statistics;
@@ -66,7 +67,7 @@ function toResult(p: BacktestPortfolioResponse, label: string): CompareResult {
     growthCurve: curve,
   };
 }
-function useLumpSumVsDCAStateInner() {
+function useLumpSumVsDCAState(t: TFunction) {
   const s = useSetterState({
     startDate: DEFAULT_BACKTEST_START_DATE,
     endDate: DEFAULT_END_DATE,
@@ -78,90 +79,88 @@ function useLumpSumVsDCAStateInner() {
     results: [] as CompareResult[],
   });
   const { isLoading, error, run, setError } = useAsyncAction();
-  return { ...s, isLoading, error, run, setError };
-}
-type LumpSumVsDCAStateInner = ReturnType<typeof useLumpSumVsDCAStateInner>;
-type LumpSumAsset = { ticker: string; weight: number };
-async function executeComparison(s: LumpSumVsDCAStateInner, validAssets: LumpSumAsset[]) {
-  const baseParams = {
-    startDate: s.startDate,
-    endDate: s.endDate,
-    startingValue: s.startingValue,
-    baseCurrency: s.baseCurrency,
-    adjustForInflation: s.adjustForInflation,
-    rollingWindowMonths: 12,
-    benchmarkTicker: '',
-    cashflowLegs: [],
-    oneTimeCashflows: [],
-  };
-  const portfolioDef = {
-    name: 'portfolio',
-    assets: validAssets,
-    rebalanceFrequency: 'quarterly' as const,
-    rebalanceOffset: 0,
-    drag: 0,
-  };
-  const lumpSumBody = {
-    portfolios: [{ ...portfolioDef, name: 'lumpSum' }],
-    parameters: { ...baseParams, startingValue: s.startingValue },
-  };
-  const contributionAmount = Math.round(s.startingValue / s.dcaPeriods);
-  const dcaBody = {
-    portfolios: [{ ...portfolioDef, name: 'dca' }],
-    parameters: {
-      ...baseParams,
-      startingValue: 0,
-      cashflowLegs: [
-        {
-          id: `dca-${Date.now()}`,
-          amount: contributionAmount,
-          type: 'contribution' as const,
-          frequency: s.dcaFrequency === 'monthly' ? ('monthly' as const) : ('quarterly' as const),
-        },
-      ],
-    },
-  };
-  const post = (body: unknown) =>
-    apiFetch('/api/v1/backtest/portfolio', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-  const [lumpSumRes, dcaRes] = await Promise.all([post(lumpSumBody), post(dcaBody)]);
-  const lumpSumFailedMsg = i18n.t('Lump sum backtest failed');
-  const dcaFailedMsg = i18n.t('DCA backtest failed');
-  if (!lumpSumRes.ok) throw new Error(`${lumpSumFailedMsg}: HTTP ${lumpSumRes.status}`);
-  if (!dcaRes.ok) throw new Error(`${dcaFailedMsg}: HTTP ${dcaRes.status}`);
-  const lumpSumJson = await lumpSumRes.json();
-  const dcaJson = await dcaRes.json();
-  if (lumpSumJson.success === false) throw new Error(lumpSumJson.error || lumpSumFailedMsg);
-  if (dcaJson.success === false) throw new Error(dcaJson.error || dcaFailedMsg);
-  const lumpSumP = (lumpSumJson.data ?? lumpSumJson).portfolios?.[0];
-  const dcaP = (dcaJson.data ?? dcaJson).portfolios?.[0];
-  if (!lumpSumP) throw new Error(i18n.t('Lump sum has no result'));
-  if (!dcaP) throw new Error(i18n.t('DCA has no result'));
-  s.setResults([toResult(lumpSumP, i18n.t('Lump Sum')), toResult(dcaP, i18n.t('DCA'))]);
-}
-function useLumpSumVsDCAState(t: TFunction) {
-  const s = useLumpSumVsDCAStateInner();
   const { assets, setAssets, addAsset, removeAsset, updateAsset, totalWeight } =
     useAssetList<LumpSumAsset>([...DEFAULT_60_40_ASSETS], () => ({ ticker: '', weight: 0 }), 0);
   const runComparison = () => {
     const validAssets = assets.filter((a) => a.ticker.trim() !== '');
     if (validAssets.length === 0) {
-      s.setError(t('Please add at least one ticker'));
+      setError(t('Please add at least one ticker'));
       return;
     }
     const weightErr = validateAssetWeights(assets);
     if (weightErr) {
-      s.setError(weightErr);
+      setError(weightErr);
       return;
     }
     s.setResults([]);
-    s.run(() => executeComparison(s, validAssets));
+    run(async () => {
+      const baseParams = {
+        startDate: s.startDate,
+        endDate: s.endDate,
+        startingValue: s.startingValue,
+        baseCurrency: s.baseCurrency,
+        adjustForInflation: s.adjustForInflation,
+        rollingWindowMonths: 12,
+        benchmarkTicker: '',
+        cashflowLegs: [],
+        oneTimeCashflows: [],
+      };
+      const portfolioDef = {
+        name: 'portfolio',
+        assets: validAssets,
+        rebalanceFrequency: 'quarterly' as const,
+        rebalanceOffset: 0,
+        drag: 0,
+      };
+      const lumpSumBody = {
+        portfolios: [{ ...portfolioDef, name: 'lumpSum' }],
+        parameters: { ...baseParams, startingValue: s.startingValue },
+      };
+      const dcaBody = {
+        portfolios: [{ ...portfolioDef, name: 'dca' }],
+        parameters: {
+          ...baseParams,
+          startingValue: 0,
+          cashflowLegs: [
+            {
+              id: `dca-${Date.now()}`,
+              amount: Math.round(s.startingValue / s.dcaPeriods),
+              type: 'contribution' as const,
+              frequency:
+                s.dcaFrequency === 'monthly' ? ('monthly' as const) : ('quarterly' as const),
+            },
+          ],
+        },
+      };
+      const post = (body: unknown) =>
+        apiFetch('/api/v1/backtest/portfolio', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+      const [lumpSumRes, dcaRes] = await Promise.all([post(lumpSumBody), post(dcaBody)]);
+      if (!lumpSumRes.ok)
+        throw new Error(`${i18n.t('Lump sum backtest failed')}: HTTP ${lumpSumRes.status}`);
+      if (!dcaRes.ok) throw new Error(`${i18n.t('DCA backtest failed')}: HTTP ${dcaRes.status}`);
+      const lumpSumJson = await lumpSumRes.json();
+      const dcaJson = await dcaRes.json();
+      if (lumpSumJson.success === false)
+        throw new Error(lumpSumJson.error || i18n.t('Lump sum backtest failed'));
+      if (dcaJson.success === false)
+        throw new Error(dcaJson.error || i18n.t('DCA backtest failed'));
+      const lumpSumP = (lumpSumJson.data ?? lumpSumJson).portfolios?.[0];
+      const dcaP = (dcaJson.data ?? dcaJson).portfolios?.[0];
+      if (!lumpSumP) throw new Error(i18n.t('Lump sum has no result'));
+      if (!dcaP) throw new Error(i18n.t('DCA has no result'));
+      s.setResults([toResult(lumpSumP, i18n.t('Lump Sum')), toResult(dcaP, i18n.t('DCA'))]);
+    });
   };
   return {
     ...s,
+    isLoading,
+    error,
+    run,
+    setError,
     assets,
     setAssets,
     addAsset,
@@ -251,27 +250,6 @@ function StatsTable({ results, fmtPct, fmtNum, fmtMoney }: FmtFns & { results: C
     />
   );
 }
-function ConclStatCard({
-  title,
-  value,
-  color,
-}: {
-  title: string;
-  value: ReactNode;
-  color?: string;
-}) {
-  return (
-    <div className="rounded-lg bg-elevated p-3">
-      <div className="mb-1 text-caption text-fg-tertiary">{title}</div>
-      <div
-        className="font-mono text-body font-semibold"
-        style={{ color: color ?? 'hsl(var(--fg-secondary))' }}
-      >
-        {value}
-      </div>
-    </div>
-  );
-}
 function ConclusionAnalysis({
   ls,
   dca,
@@ -294,23 +272,34 @@ function ConclusionAnalysis({
         <span className="text-body font-semibold text-fg">{t('Conclusion Analysis')}</span>
       </div>
       <div className="mb-3 grid grid-cols-3 gap-3">
-        <ConclStatCard
-          title={t('Winning Strategy')}
-          value={lsWins ? t('Lump Sum') : t('DCA')}
-          color={lsWins ? getPortfolioColor(0) : getPortfolioColor(1)}
-        />
-        <ConclStatCard
-          title={t('Final Value Difference')}
-          value={
-            <>
-              {fmtMoney(finalValueDiff)}{' '}
-              <span className="text-caption text-fg-tertiary">
-                ({finalValueDiffPct.toFixed(1)}%)
-              </span>
-            </>
-          }
-        />
-        <ConclStatCard title={t('Max Drawdown Difference')} value={fmtPct(mddDiff)} />
+        <div className="rounded-lg bg-elevated p-3">
+          <div className="mb-1 text-caption text-fg-tertiary">{t('Winning Strategy')}</div>
+          <div
+            className="font-mono text-body font-semibold"
+            style={{ color: lsWins ? getPortfolioColor(0) : getPortfolioColor(1) }}
+          >
+            {lsWins ? t('Lump Sum') : t('DCA')}
+          </div>
+        </div>
+        <div className="rounded-lg bg-elevated p-3">
+          <div className="mb-1 text-caption text-fg-tertiary">{t('Final Value Difference')}</div>
+          <div
+            className="font-mono text-body font-semibold"
+            style={{ color: 'hsl(var(--fg-secondary))' }}
+          >
+            {fmtMoney(finalValueDiff)}{' '}
+            <span className="text-caption text-fg-tertiary">({finalValueDiffPct.toFixed(1)}%)</span>
+          </div>
+        </div>
+        <div className="rounded-lg bg-elevated p-3">
+          <div className="mb-1 text-caption text-fg-tertiary">{t('Max Drawdown Difference')}</div>
+          <div
+            className="font-mono text-body font-semibold"
+            style={{ color: 'hsl(var(--fg-secondary))' }}
+          >
+            {fmtPct(mddDiff)}
+          </div>
+        </div>
       </div>
       <div className="text-body leading-relaxed text-fg-secondary">
         {t('In the selected time range, ')}
@@ -339,66 +328,6 @@ function ConclusionAnalysis({
     </div>
   );
 }
-function DcaParamsSection({
-  dcaFrequency,
-  setDcaFrequency,
-  dcaPeriods,
-  setDcaPeriods,
-  startingValue,
-  baseCurrency,
-}: {
-  dcaFrequency: DcaFrequency;
-  setDcaFrequency: (v: DcaFrequency) => void;
-  dcaPeriods: number;
-  setDcaPeriods: (v: number) => void;
-  startingValue: number;
-  baseCurrency: 'usd' | 'cny';
-}) {
-  const { t } = useTranslation();
-  const prefix = baseCurrency === 'usd' ? '$' : '¥';
-  return (
-    <div className="mt-4">
-      <div className="mb-1.5 text-caption font-semibold text-fg-tertiary">
-        {t('DCA Parameters')}
-      </div>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Field>
-          <FieldLabel htmlFor="lumpsum-dca-frequency">{t('DCA Frequency')}</FieldLabel>
-          <Select value={dcaFrequency} onValueChange={(v) => setDcaFrequency(v as DcaFrequency)}>
-            <SelectTrigger id="lumpsum-dca-frequency">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent position="popper" sideOffset={4}>
-              <SelectItem value="monthly">{t('Monthly')}</SelectItem>
-              <SelectItem value="quarterly">{t('Quarterly')}</SelectItem>
-            </SelectContent>
-          </Select>
-        </Field>
-        <Field>
-          <FieldLabel>{t('DCA Periods')}</FieldLabel>
-          <AffixInput
-            type="number"
-            value={dcaPeriods}
-            onChange={(e) => setDcaPeriods(Number(e.target.value) || 1)}
-            min={1}
-            max={360}
-            suffix={t('periods')}
-          />
-        </Field>
-        <Field>
-          <FieldLabel>{t('Per-Period Amount')}</FieldLabel>
-          <AffixInput
-            type="text"
-            prefix={prefix}
-            className="opacity-70"
-            value={Math.round(startingValue / dcaPeriods).toLocaleString()}
-            readOnly
-          />
-        </Field>
-      </div>
-    </div>
-  );
-}
 function LumpSumVsDCAParamsForm({ state }: { state: LumpSumVsDCAState }) {
   const { t } = useTranslation();
   return (
@@ -420,14 +349,49 @@ function LumpSumVsDCAParamsForm({ state }: { state: LumpSumVsDCAState }) {
           setters[field]?.(value as never);
         }}
       />
-      <DcaParamsSection
-        dcaFrequency={state.dcaFrequency}
-        setDcaFrequency={state.setDcaFrequency}
-        dcaPeriods={state.dcaPeriods}
-        setDcaPeriods={state.setDcaPeriods}
-        startingValue={state.startingValue}
-        baseCurrency={state.baseCurrency}
-      />
+      <div className="mt-4">
+        <div className="mb-1.5 text-caption font-semibold text-fg-tertiary">
+          {t('DCA Parameters')}
+        </div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <Field>
+            <FieldLabel htmlFor="lumpsum-dca-frequency">{t('DCA Frequency')}</FieldLabel>
+            <Select
+              value={state.dcaFrequency}
+              onValueChange={(v) => state.setDcaFrequency(v as DcaFrequency)}
+            >
+              <SelectTrigger id="lumpsum-dca-frequency">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent position="popper" sideOffset={4}>
+                <SelectItem value="monthly">{t('Monthly')}</SelectItem>
+                <SelectItem value="quarterly">{t('Quarterly')}</SelectItem>
+              </SelectContent>
+            </Select>
+          </Field>
+          <Field>
+            <FieldLabel>{t('DCA Periods')}</FieldLabel>
+            <AffixInput
+              type="number"
+              value={state.dcaPeriods}
+              onChange={(e) => state.setDcaPeriods(Number(e.target.value) || 1)}
+              min={1}
+              max={360}
+              suffix={t('periods')}
+            />
+          </Field>
+          <Field>
+            <FieldLabel>{t('Per-Period Amount')}</FieldLabel>
+            <AffixInput
+              type="text"
+              prefix={state.baseCurrency === 'usd' ? '$' : '¥'}
+              className="opacity-70"
+              value={Math.round(state.startingValue / state.dcaPeriods).toLocaleString()}
+              readOnly
+            />
+          </Field>
+        </div>
+      </div>
       <PortfolioEditor
         singleMode
         assets={state.assets}
@@ -454,7 +418,6 @@ function LumpSumVsDCAResults({ state }: { state: LumpSumVsDCAState }) {
     state.baseCurrency === 'usd'
       ? `$${v.toLocaleString(undefined, { maximumFractionDigits: 0 })}`
       : `¥${v.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
-  const { results } = state;
   if (state.error) {
     return (
       <Card className="mb-3 p-6 text-center text-danger">
@@ -462,15 +425,20 @@ function LumpSumVsDCAResults({ state }: { state: LumpSumVsDCAState }) {
       </Card>
     );
   }
-  if (results.length !== 2) return null;
-  const lsWins = results[0].finalValue > results[1].finalValue;
+  if (state.results.length !== 2) return null;
+  const lsWins = state.results[0].finalValue > state.results[1].finalValue;
   return (
     <Card className="p-5">
-      <ConclusionAnalysis ls={results[0]} dca={results[1]} fmtPct={fmtPct} fmtMoney={fmtMoney} />
+      <ConclusionAnalysis
+        ls={state.results[0]}
+        dca={state.results[1]}
+        fmtPct={fmtPct}
+        fmtMoney={fmtMoney}
+      />
       <div className="mb-3 text-body font-semibold text-fg">{t('Growth Curve Comparison')}</div>
-      <GrowthCurveChart results={results} fmtMoney={fmtMoney} />
+      <GrowthCurveChart results={state.results} fmtMoney={fmtMoney} />
       <div className="mb-3 mt-6 text-body font-semibold text-fg">{t('Statistics Comparison')}</div>
-      <StatsTable results={results} fmtPct={fmtPct} fmtNum={fmtNum} fmtMoney={fmtMoney} />
+      <StatsTable results={state.results} fmtPct={fmtPct} fmtNum={fmtNum} fmtMoney={fmtMoney} />
       <div className="mt-4 flex items-start gap-2.5 rounded-lg bg-input-bg p-3">
         <AlertTriangle className="mt-0.5 size-4 shrink-0 text-warning" />
         <div className="text-body leading-relaxed text-fg-tertiary">
