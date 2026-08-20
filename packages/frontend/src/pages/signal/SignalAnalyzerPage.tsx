@@ -628,6 +628,7 @@ function MultiSignalParams({ state }: { state: UseMultiSignalStateResult }) {
       <RunButton
         isLoading={isLoading}
         label={t('Run Multi-Signal Analysis')}
+        loadingLabel={t('Analyzing...')}
         onClick={runAnalysis}
       />
     </div>

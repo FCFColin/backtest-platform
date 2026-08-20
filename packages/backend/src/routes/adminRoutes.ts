@@ -7,7 +7,7 @@ import { logger } from '../utils/logger.js';
 import { adminMiddleware } from '../middleware/middlewareChains.js';
 import { requirePlatformAdmin } from '../middleware/rbac.js';
 import { listRuns, type BacktestRunRecord } from '../repositories/backtestRunRepo.js';
-import { crudRouteHandler } from './routeUtils.js';
+import { crudRouteHandler, sendData } from './routeUtils.js';
 
 const router = Router();
 
@@ -166,9 +166,9 @@ router.get(
         getUniverseStats(),
       ]);
 
-      res.json({
-        success: true,
-        data: buildStatsResponseData({
+      sendData(
+        res,
+        buildStatsResponseData({
           engineHealth,
           goHealth,
           tickerStats,
@@ -176,7 +176,7 @@ router.get(
           backtestHistory,
           system: collectSystemSnapshot(),
         }),
-      });
+      );
     },
     {
       logMsg: '[Admin Stats] 获取统计数据失败',
@@ -194,19 +194,16 @@ router.get(
       const system = collectSystemSnapshot();
       const tickerStats = (await scanTickersStats()) ?? defaultTickerStats();
 
-      res.json({
-        success: true,
-        data: {
-          memory: system.memory,
-          uptime: {
-            seconds: Math.round(system.uptimeSeconds),
-            formatted: system.uptimeFormatted,
-          },
-          data_directory: {
-            total_size_mb: tickerStats.data_quality.total_size_mb,
-            ticker_file_count: tickerStats.total_cached,
-            total_data_points: tickerStats.data_quality.total_data_points,
-          },
+      sendData(res, {
+        memory: system.memory,
+        uptime: {
+          seconds: Math.round(system.uptimeSeconds),
+          formatted: system.uptimeFormatted,
+        },
+        data_directory: {
+          total_size_mb: tickerStats.data_quality.total_size_mb,
+          ticker_file_count: tickerStats.total_cached,
+          total_data_points: tickerStats.data_quality.total_data_points,
         },
       });
     },

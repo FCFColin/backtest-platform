@@ -14,7 +14,7 @@ import {
   MAX_GRID_COMBINATIONS,
   type TacticalGridRequest,
 } from '../application/grid-application-service.js';
-import { crudRouteHandler, resolveAuthorizedJob, buildJobStatus } from './routeUtils.js';
+import { crudRouteHandler, resolveAuthorizedJob, buildJobStatus, sendData } from './routeUtils.js';
 import { submitQueueJob } from './jobSubmission.js';
 
 const router = Router();
@@ -34,7 +34,7 @@ router.get(
       const job = await resolveAuthorizedJob(req, res, req.params.id!);
       if (!job) return;
 
-      res.json({ success: true, data: buildJobStatus(job, await job.getState()) });
+      sendData(res, buildJobStatus(job, await job.getState()));
     },
     {
       logMsg: '[jobRoutes] 查询任务状态失败',

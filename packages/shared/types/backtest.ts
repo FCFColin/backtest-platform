@@ -20,7 +20,12 @@ export interface BacktestParameters {
 
 export type TimeSeriesPoint = { date: string; value: number };
 
-type DrawdownPoint = { date: string; drawdown: number };
+export type DrawdownPoint = { date: string; drawdown: number };
+
+export type RollingReturn = { date: string; return: number };
+export type AnnualReturn = { year: number; return: number };
+export type MonthlyReturn = { year: number; month: number; return: number };
+export type AllocationPoint = { date: string; weights: number[] };
 
 export interface DrawdownEpisode {
   peakDate: string;
@@ -41,12 +46,12 @@ export interface PortfolioResult {
   name: string;
   growthCurve: TimeSeriesPoint[];
   drawdownCurve: DrawdownPoint[];
-  rollingReturns: Array<{ date: string; return: number }>;
-  annualReturns: Array<{ year: number; return: number }>;
-  monthlyReturns: Array<{ year: number; month: number; return: number }>;
+  rollingReturns: RollingReturn[];
+  annualReturns: AnnualReturn[];
+  monthlyReturns: MonthlyReturn[];
   statistics: Statistics;
   drawdownEpisodes?: DrawdownEpisode[];
-  allocationHistory?: Array<{ date: string; weights: number[] }>;
+  allocationHistory?: AllocationPoint[];
 }
 
 export interface BacktestResult {
@@ -63,9 +68,9 @@ export interface AssetAnalysisResult {
     growthCurve: TimeSeriesPoint[];
     drawdownCurve: DrawdownPoint[];
     dailyReturns: number[];
-    annualReturns: Array<{ year: number; return: number }>;
-    monthlyReturns: Array<{ year: number; month: number; return: number }>;
-    rollingReturns: Array<{ date: string; return: number }>;
+    annualReturns: AnnualReturn[];
+    monthlyReturns: MonthlyReturn[];
+    rollingReturns: RollingReturn[];
     statistics: Partial<Statistics>;
   }>;
   correlations: number[][];

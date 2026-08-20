@@ -75,12 +75,12 @@ func CalculateStatisticsFromRequest(req StatisticsRequest) Statistics {
 	maxAnnualRet := MaxValue(req.AnnualReturnValues)
 	minAnnualRet := MinValue(req.AnnualReturnValues)
 	pwr := CalcPWR(req.AnnualReturnValues)
-	pwr10y, swr10y, pwr20y, swr20y, pwr30y, swr30y, pwr40y, swr40y := CalcPWRAllYears(req.AnnualReturnValues)
+	pwrAll := CalcPWRAllYears(req.AnnualReturnValues)
 	swr := 0.0
 	for _, y := range []struct {
 		threshold int
 		val       float64
-	}{{40, swr40y}, {30, swr30y}, {20, swr20y}, {10, swr10y}} {
+	}{{40, pwrAll.SWR40Y}, {30, pwrAll.SWR30Y}, {20, pwrAll.SWR20Y}, {10, pwrAll.SWR10Y}} {
 		if len(req.AnnualReturnValues) >= y.threshold {
 			swr = y.val
 			break
@@ -112,6 +112,6 @@ func CalculateStatisticsFromRequest(req StatisticsRequest) Statistics {
 		AvgDailyGain: avgDailyGain, AvgDailyLoss: avgDailyLoss, GainLossRatioDaily: gainLossRatioDaily,
 		AvgMonthlyGain: avgMonthlyGain, AvgMonthlyLoss: avgMonthlyLoss, GainLossRatioMonthly: gainLossRatioMonthly,
 		AvgAnnualGain: avgAnnualGain, AvgAnnualLoss: avgAnnualLoss, GainLossRatioAnnual: gainLossRatioAnnual,
-		SWR: swr, SWR10Y: swr10y, PWR10Y: pwr10y, SWR20Y: swr20y, PWR20Y: pwr20y, SWR30Y: swr30y, PWR30Y: pwr30y, SWR40Y: swr40y, PWR40Y: pwr40y,
+		SWR: swr, SWR10Y: pwrAll.SWR10Y, PWR10Y: pwrAll.PWR10Y, SWR20Y: pwrAll.SWR20Y, PWR20Y: pwrAll.PWR20Y, SWR30Y: pwrAll.SWR30Y, PWR30Y: pwrAll.PWR30Y, SWR40Y: pwrAll.SWR40Y, PWR40Y: pwrAll.PWR40Y,
 	}
 }

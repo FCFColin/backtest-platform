@@ -18,7 +18,13 @@ import {
   PLATFORM_ADMIN_KEY_MAX_TTL_DAYS,
 } from '../repositories/apiKeyRepo.js';
 import { markApiKeyRevoked } from '../infrastructure/apiKeyVerifier.js';
-import { tenantHandler, requireUuidParam, crudRouteHandler, jsonRoute } from './routeUtils.js';
+import {
+  tenantHandler,
+  requireUuidParam,
+  crudRouteHandler,
+  jsonRoute,
+  sendData,
+} from './routeUtils.js';
 
 const router = Router();
 
@@ -58,7 +64,7 @@ router.get(
     '[apiKeyRoutes] 列出 API Key 失败',
     'API_KEY_LIST_FAILED',
     async (_req, res, orgId) => {
-      res.json({ success: true, data: await listApiKeys(orgId) });
+      sendData(res, await listApiKeys(orgId));
     },
   ),
 );
@@ -79,7 +85,7 @@ router.delete(
         return;
       }
       await markApiKeyRevoked(keyId);
-      res.json({ success: true, data: { id: keyId, revoked: true } });
+      sendData(res, { id: keyId, revoked: true });
     },
   ),
 );
@@ -153,7 +159,7 @@ router.delete(
       }
       await markApiKeyRevoked(keyId);
       logger.warn({ keyId }, '[adminKeyRoutes] 已吊销平台 break-glass 密钥');
-      res.json({ success: true, data: { id: keyId, revoked: true } });
+      sendData(res, { id: keyId, revoked: true });
     },
     {
       logMsg: '[adminKeyRoutes] 吊销平台密钥失败',

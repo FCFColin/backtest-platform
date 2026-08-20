@@ -6,7 +6,7 @@ import { sendProblem } from '../utils/errors.js';
 import { getPrometheusRegister } from '../utils/metrics.js';
 import { getPool } from '../db/pool.js';
 import { appRedis, checkSentinelMaster, isSentinelMode } from '../infrastructure/redisClient.js';
-import { crudRouteHandler } from './routeUtils.js';
+import { crudRouteHandler, sendData } from './routeUtils.js';
 
 const router = Router();
 
@@ -173,14 +173,11 @@ router.get(
 
 router.get('/v1/debug/health', (req, res) => {
   if (!checkBearerToken(req, res, config.DEBUG_AUTH_TOKEN, 'NOT_FOUND', 404)) return;
-  res.json({
-    success: true,
-    data: {
-      node: process.version,
-      pid: process.pid,
-      uptimeSec: process.uptime(),
-      memory: process.memoryUsage(),
-    },
+  sendData(res, {
+    node: process.version,
+    pid: process.pid,
+    uptimeSec: process.uptime(),
+    memory: process.memoryUsage(),
   });
 });
 

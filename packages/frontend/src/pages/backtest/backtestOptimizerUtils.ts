@@ -101,18 +101,6 @@ export interface BacktestOptimizerState {
 export interface OptimizerSectionProps {
   s: BacktestOptimizerState;
 }
-export interface BestMetricsCardProps {
-  best: BestResultItem | null;
-  totalCombos: number;
-}
-export interface GrowthComparisonChartProps {
-  best: BestResultItem | null;
-  benchmarkGrowth: Array<{ date: string; value: number }> | null;
-}
-export interface ComparisonTableSectionProps {
-  results: OptimizeResultItem[];
-  objective: Objective;
-}
 
 const DEFAULT_FORM: OptimizerFormState = {
   thrMin: '5',

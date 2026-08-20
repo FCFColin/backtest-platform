@@ -209,48 +209,8 @@ function InfoBox({ children }: { children: ReactNode }) {
   );
 }
 
-function CollapsibleCard({
-  icon: Icon,
-  title,
-  defaultOpen = false,
-  children,
-}: {
-  icon: ElementType;
-  title: string;
-  defaultOpen?: boolean;
-  children: ReactNode;
-}) {
-  const [open, setOpen] = useState(defaultOpen);
-  return (
-    <Card className="overflow-hidden bg-elevated">
-      <Collapsible open={open} onOpenChange={setOpen} className="w-full">
-        <CollapsibleTrigger
-          className={cn(
-            'flex w-full items-center gap-2.5 p-4 text-left',
-            'transition-colors duration-150 hover:bg-hover',
-          )}
-        >
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-brand/10">
-            <Icon className="size-4 text-brand" />
-          </span>
-          <h3 className="flex-1 text-h3 text-fg">{title}</h3>
-          <ChevronDown
-            className={cn(
-              'size-4 shrink-0 text-fg-tertiary transition-transform duration-200',
-              open && 'rotate-180',
-            )}
-          />
-        </CollapsibleTrigger>
-        <CollapsibleContent>
-          <div className="p-4 pt-0">{children}</div>
-        </CollapsibleContent>
-      </Collapsible>
-    </Card>
-  );
-}
-
 function CalcCard({
-  icon,
+  icon: Icon,
   title,
   defaultOpen = false,
   cols = 2,
@@ -280,91 +240,61 @@ function CalcCard({
   chart?: ReactNode;
   info?: string;
 }) {
+  const [open, setOpen] = useState(defaultOpen);
   return (
-    <CollapsibleCard icon={icon} title={title} defaultOpen={defaultOpen}>
-      {fields.length > 0 && (
-        <div className={cols === 3 ? 'grid grid-cols-3 gap-3' : 'grid grid-cols-2 gap-3'}>
-          {fields.map((f) => (
-            <Field key={f.label} {...f} />
-          ))}
-        </div>
-      )}
-      {extra && <div className="mt-3">{extra}</div>}
-      {rows.length > 0 && (
-        <div className={rowsClassName}>
-          {rows.map((r) => (
-            <ResultRow key={r.label} {...r} />
-          ))}
-        </div>
-      )}
-      {chart}
-      {info && <InfoBox>{info}</InfoBox>}
-    </CollapsibleCard>
+    <Card className="overflow-hidden bg-elevated">
+      <Collapsible open={open} onOpenChange={setOpen} className="w-full">
+        <CollapsibleTrigger
+          className={cn(
+            'flex w-full items-center gap-2.5 p-4 text-left',
+            'transition-colors duration-150 hover:bg-hover',
+          )}
+        >
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-brand/10">
+            <Icon className="size-4 text-brand" />
+          </span>
+          <h3 className="flex-1 text-h3 text-fg">{title}</h3>
+          <ChevronDown
+            className={cn(
+              'size-4 shrink-0 text-fg-tertiary transition-transform duration-200',
+              open && 'rotate-180',
+            )}
+          />
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <div className="p-4 pt-0">
+            {fields.length > 0 && (
+              <div className={cols === 3 ? 'grid grid-cols-3 gap-3' : 'grid grid-cols-2 gap-3'}>
+                {fields.map((f) => (
+                  <Field key={f.label} {...f} />
+                ))}
+              </div>
+            )}
+            {extra && <div className="mt-3">{extra}</div>}
+            {rows.length > 0 && (
+              <div className={rowsClassName}>
+                {rows.map((r) => (
+                  <ResultRow key={r.label} {...r} />
+                ))}
+              </div>
+            )}
+            {chart}
+            {info && <InfoBox>{info}</InfoBox>}
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
+    </Card>
   );
 }
 
-function SWRChart({ data }: { data: Array<{ year: number; ratio: number }> }) {
-  const { t } = useTranslation();
+function MiniChart({
+  type = 'area',
+  ...props
+}: { type?: 'area' | 'line' } & Parameters<typeof SimpleAreaChart>[0]) {
+  const Chart = type === 'line' ? SimpleLineChart : SimpleAreaChart;
   return (
     <div className="mt-3">
-      <SimpleAreaChart
-        data={data}
-        height={160}
-        xDataKey="year"
-        showLegend={false}
-        yTickFormatter={(v) => v.toFixed(1)}
-        tooltipFormatter={(v: number) => [v.toFixed(3), t('Asset Ratio')]}
-        series={[{ dataKey: 'ratio', color: getPortfolioColor(2), width: 2, areaOpacity: 0.12 }]}
-      />
-    </div>
-  );
-}
-function TwoFundChart({ data }: { data: Array<{ wA: number; cagr: number; vol: number }> }) {
-  const { t } = useTranslation();
-  return (
-    <div className="mt-3">
-      <SimpleLineChart
-        data={data}
-        height={220}
-        xDataKey="vol"
-        xType="number"
-        xLabel={t('Volatility')}
-        yLabel="CAGR"
-        showLegend={false}
-        xTickFormatter={(v) => `${Number(v).toFixed(1)}%`}
-        yTickFormatter={(v) => `${v.toFixed(1)}%`}
-        tooltipFormatter={(v: number, name: string) => [
-          `${v.toFixed(2)}%`,
-          name === 'cagr' ? 'CAGR' : name,
-        ]}
-        tooltipLabelFormatter={(l) =>
-          t('Volatility: {{value}}', { value: `${Number(l).toFixed(2)}%` })
-        }
-        series={[{ dataKey: 'cagr', color: getPortfolioColor(0), width: 2 }]}
-      />
-    </div>
-  );
-}
-function ValueCurveChart({
-  curve,
-  height,
-}: {
-  curve: Array<{ year: number; value: number }>;
-  height: number;
-}) {
-  const { t } = useTranslation();
-  return (
-    <div className="mt-3">
-      <SimpleAreaChart
-        data={curve}
-        height={height}
-        xDataKey="year"
-        showLegend={false}
-        xTickInterval="preserveStartEnd"
-        yTickFormatter={fmtCompact}
-        tooltipFormatter={(v: number) => [fmtCompact(v), t('Final Value')]}
-        series={[{ dataKey: 'value', color: getPortfolioColor(0), width: 2, areaOpacity: 0.12 }]}
-      />
+      <Chart {...props} />
     </div>
   );
 }
@@ -395,6 +325,17 @@ interface CalcConfig {
   extra?: (state: Record<string, number>, setState: SetState) => ReactNode;
   compute: (state: Record<string, number>, t: TFn) => CalcResult;
 }
+
+const correlationExtra: CalcConfig['extra'] = (s, set) => (
+  <Field
+    label="Correlation"
+    value={s.corr ?? 0.2}
+    onChange={(v) => set((p) => ({ ...p, corr: v }))}
+    step={0.05}
+    min={-1}
+    max={1}
+  />
+);
 
 function createCalculator(config: CalcConfig) {
   return function Calculator() {
@@ -456,7 +397,7 @@ const FutureValue = createCalculator({
     { key: 'years', label: 'Years', default: 20, suffix: 'y', step: 1, min: 1 },
     { key: 'monthly', label: 'Monthly Contribution', default: 500, step: 100, min: 0 },
   ],
-  compute: (s) => {
+  compute: (s, t) => {
     const { finalValue, totalContributions, curve } = computeFutureValue(
       s.initial,
       s.cagr,
@@ -473,7 +414,19 @@ const FutureValue = createCalculator({
           tone: 'success',
         },
       ],
-      chart: <ValueCurveChart curve={curve} height={240} />,
+      chart: (
+        <MiniChart
+          type="area"
+          data={curve}
+          height={240}
+          xDataKey="year"
+          showLegend={false}
+          xTickInterval="preserveStartEnd"
+          yTickFormatter={fmtCompact}
+          tooltipFormatter={(v: number) => [fmtCompact(v), t('Final Value')]}
+          series={[{ dataKey: 'value', color: getPortfolioColor(0), width: 2, areaOpacity: 0.12 }]}
+        />
+      ),
     };
   },
 });
@@ -486,15 +439,27 @@ const CAGRAssumption = createCalculator({
     { key: 'years', label: 'Time', default: 20, suffix: 'y', step: 1 },
     { key: 'initial', label: 'Initial Capital', default: 10000, step: 1000 },
   ],
-  compute: (s) => {
+  compute: (s, t) => {
     const r = s.cagr / 100;
-    const curve = Array.from({ length: s.years + 1 }, (_, t) => ({
-      year: t,
-      value: s.initial * Math.pow(1 + r, t),
+    const curve = Array.from({ length: s.years + 1 }, (_, i) => ({
+      year: i,
+      value: s.initial * Math.pow(1 + r, i),
     }));
     return {
       rows: [{ label: 'Final Value', value: fmtCompact(curve[s.years].value), tone: 'brand' }],
-      chart: <ValueCurveChart curve={curve} height={200} />,
+      chart: (
+        <MiniChart
+          type="area"
+          data={curve}
+          height={200}
+          xDataKey="year"
+          showLegend={false}
+          xTickInterval="preserveStartEnd"
+          yTickFormatter={fmtCompact}
+          tooltipFormatter={(v: number) => [fmtCompact(v), t('Final Value')]}
+          series={[{ dataKey: 'value', color: getPortfolioColor(0), width: 2, areaOpacity: 0.12 }]}
+        />
+      ),
     };
   },
 });
@@ -551,7 +516,18 @@ const SWR = createCalculator({
           tone: 'success',
         },
       ],
-      chart: <SWRChart data={pts} />,
+      chart: (
+        <MiniChart
+          type="area"
+          data={pts}
+          height={160}
+          xDataKey="year"
+          showLegend={false}
+          yTickFormatter={(v) => v.toFixed(1)}
+          tooltipFormatter={(v: number) => [v.toFixed(3), t('Asset Ratio')]}
+          series={[{ dataKey: 'ratio', color: getPortfolioColor(2), width: 2, areaOpacity: 0.12 }]}
+        />
+      ),
     };
   },
 });
@@ -582,16 +558,7 @@ const AssetAllocationRisk = createCalculator({
     { key: 'bondVol', label: 'Bond Volatility', default: 5, suffix: '%', step: 1 },
   ],
   info: 'Formula: σp = √(ws²σs² + wb²σb² + 2wswbσsσbρ)',
-  extra: (s, set) => (
-    <Field
-      label="Correlation"
-      value={s.corr ?? 0.2}
-      onChange={(v) => set((p) => ({ ...p, corr: v }))}
-      step={0.05}
-      min={-1}
-      max={1}
-    />
-  ),
+  extra: correlationExtra,
   compute: (s) => {
     const r = computeAllocationRisk(s.stockPct, s.bondPct, s.stockVol, s.bondVol, s.corr ?? 0.2);
     return {
@@ -733,17 +700,8 @@ const TwoFund = createCalculator({
     { key: 'cagrB', label: 'Asset B CAGR', default: 4, suffix: '%' },
     { key: 'volB', label: 'Asset B Volatility', default: 5, suffix: '%' },
   ],
-  extra: (s, set) => (
-    <Field
-      label="Correlation"
-      value={s.corr ?? 0.2}
-      onChange={(v) => set((p) => ({ ...p, corr: v }))}
-      step={0.05}
-      min={-1}
-      max={1}
-    />
-  ),
-  compute: (s) => {
+  extra: correlationExtra,
+  compute: (s, t) => {
     const { frontier, minVarW, minVarCagr, minVarVol } = computeTwoFundFrontier(
       s.cagrA,
       s.volA,
@@ -758,7 +716,28 @@ const TwoFund = createCalculator({
         { label: 'Min Variance CAGR', value: `${minVarCagr.toFixed(2)}%` },
         { label: 'Min Variance Volatility', value: `${minVarVol.toFixed(2)}%` },
       ],
-      chart: <TwoFundChart data={frontier} />,
+      chart: (
+        <MiniChart
+          type="line"
+          data={frontier}
+          height={220}
+          xDataKey="vol"
+          xType="number"
+          xLabel={t('Volatility')}
+          yLabel="CAGR"
+          showLegend={false}
+          xTickFormatter={(v) => `${Number(v).toFixed(1)}%`}
+          yTickFormatter={(v) => `${v.toFixed(1)}%`}
+          tooltipFormatter={(v: number, name: string) => [
+            `${v.toFixed(2)}%`,
+            name === 'cagr' ? 'CAGR' : name,
+          ]}
+          tooltipLabelFormatter={(l) =>
+            t('Volatility: {{value}}', { value: `${Number(l).toFixed(2)}%` })
+          }
+          series={[{ dataKey: 'cagr', color: getPortfolioColor(0), width: 2 }]}
+        />
+      ),
     };
   },
 });

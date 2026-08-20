@@ -26,7 +26,7 @@ import {
   RebalanceControls,
   RebalanceBandsRow,
 } from './portfolioEditorFields.js';
-import type { StorePortfolio, TFunc, PortfolioFieldProps } from './portfolioEditor.js';
+import type { StorePortfolio, TFunc, PortfolioFieldProps } from './portfolioEditorFields.js';
 
 export function PortfolioCard({
   portfolio,

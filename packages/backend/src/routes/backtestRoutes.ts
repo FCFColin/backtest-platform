@@ -16,6 +16,7 @@ import {
   computeRoute,
   resolveAuthorizedJob,
   buildJobStatus,
+  sendData,
 } from './routeUtils.js';
 import { submitQueueJob } from './jobSubmission.js';
 import type { AuthenticatedRequest } from '../middleware/jwtAuth.js';
@@ -46,7 +47,7 @@ router.get(
       const synthetic = SYNTHETIC_TICKERS.filter(
         (s) => s.ticker.toLowerCase().includes(q) || s.name.toLowerCase().includes(q),
       ).map((s) => ({ ticker: s.ticker, name: s.name, market: s.category }));
-      res.json({ success: true, data: [...results, ...synthetic].slice(0, limit) });
+      sendData(res, [...results, ...synthetic].slice(0, limit));
     },
     { logMsg: 'Ticker search error', code: 'SEARCH_ERROR', endpoint: 'backtest-search' },
   ),
@@ -76,7 +77,7 @@ router.get(
     async (req, res): Promise<void> => {
       const job = await resolveAuthorizedJob(req, res, req.params.jobId!);
       if (!job) return;
-      res.json({ success: true, data: buildJobStatus(job, await job.getState()) });
+      sendData(res, buildJobStatus(job, await job.getState()));
     },
     { logMsg: '[backtestRoutes] 查询异步任务状态失败', code: 'JOB_STATUS_ERROR' },
   ),
@@ -102,7 +103,7 @@ router.post(
         sendProblem(res, 404, 'BACKTEST_CACHE_MISS');
         return;
       }
-      res.json({ success: true, data: { portfolios: extractBacktestSeries(cached, series) } });
+      sendData(res, { portfolios: extractBacktestSeries(cached, series) });
     },
     { logMsg: 'Portfolio series error', code: 'SERIES_ERROR', endpoint: 'portfolio-series' },
   ),

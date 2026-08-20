@@ -485,15 +485,29 @@ func rollingWindowSuccessRate(annualReturns []float64, years int, withdrawalRate
 	}
 	return float64(successes) / float64(numWindows)
 }
-func CalcPWRAllYears(annualReturns []float64) (pwr10y, swr10y, pwr20y, swr20y, pwr30y, swr30y, pwr40y, swr40y float64) {
-	ptrs := [8]*float64{&pwr10y, &swr10y, &pwr20y, &swr20y, &pwr30y, &swr30y, &pwr40y, &swr40y}
-	for i, y := range []int{10, 20, 30, 40} {
+type PWRAllYears struct {
+	PWR10Y, SWR10Y, PWR20Y, SWR20Y, PWR30Y, SWR30Y, PWR40Y, SWR40Y float64
+}
+
+func CalcPWRAllYears(annualReturns []float64) PWRAllYears {
+	var r PWRAllYears
+	for _, y := range []int{10, 20, 30, 40} {
 		if len(annualReturns) >= y {
-			*ptrs[i*2] = CalcSWR(annualReturns, y, 1.0)
-			*ptrs[i*2+1] = CalcSWR(annualReturns, y, 0.95)
+			pwr := CalcSWR(annualReturns, y, 1.0)
+			swr := CalcSWR(annualReturns, y, 0.95)
+			switch y {
+			case 10:
+				r.PWR10Y, r.SWR10Y = pwr, swr
+			case 20:
+				r.PWR20Y, r.SWR20Y = pwr, swr
+			case 30:
+				r.PWR30Y, r.SWR30Y = pwr, swr
+			case 40:
+				r.PWR40Y, r.SWR40Y = pwr, swr
+			}
 		}
 	}
-	return
+	return r
 }
 
 type benchmarkMetrics struct {

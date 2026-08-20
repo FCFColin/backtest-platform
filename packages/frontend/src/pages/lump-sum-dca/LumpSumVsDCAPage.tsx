@@ -66,14 +66,6 @@ function toResult(p: BacktestPortfolioResponse, label: string): CompareResult {
     growthCurve: curve,
   };
 }
-async function fetchBacktest(body: unknown) {
-  const res = await apiFetch('/api/v1/backtest/portfolio', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  return res;
-}
 function useLumpSumVsDCAStateInner() {
   const s = useSetterState({
     startDate: DEFAULT_BACKTEST_START_DATE,
@@ -129,10 +121,13 @@ async function executeComparison(s: LumpSumVsDCAStateInner, validAssets: LumpSum
       ],
     },
   };
-  const [lumpSumRes, dcaRes] = await Promise.all([
-    fetchBacktest(lumpSumBody),
-    fetchBacktest(dcaBody),
-  ]);
+  const post = (body: unknown) =>
+    apiFetch('/api/v1/backtest/portfolio', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+  const [lumpSumRes, dcaRes] = await Promise.all([post(lumpSumBody), post(dcaBody)]);
   const lumpSumFailedMsg = i18n.t('Lump sum backtest failed');
   const dcaFailedMsg = i18n.t('DCA backtest failed');
   if (!lumpSumRes.ok) throw new Error(`${lumpSumFailedMsg}: HTTP ${lumpSumRes.status}`);
@@ -318,70 +313,30 @@ function ConclusionAnalysis({
         <ConclStatCard title={t('Max Drawdown Difference')} value={fmtPct(mddDiff)} />
       </div>
       <div className="text-body leading-relaxed text-fg-secondary">
-        {lsWins ? (
-          <>
-            {t('In the selected time range, ')}
-            <strong style={{ color: getPortfolioColor(0) }}>{t('Lump Sum')}</strong>
-            {t(
-              "has a higher final value ({{lsValue}} vs {{dcaValue}}), exceeding by {{pct}}%. However, Lump Sum's max drawdown ({{lsMdd}}) is typically larger than DCA's ({{dcaMdd}}), bearing greater psychological pressure in falling markets.",
-              {
+        {t('In the selected time range, ')}
+        <strong style={{ color: getPortfolioColor(lsWins ? 0 : 1) }}>
+          {t(lsWins ? 'Lump Sum' : 'DCA')}
+        </strong>
+        {t(
+          lsWins
+            ? "has a higher final value ({{lsValue}} vs {{dcaValue}}), exceeding by {{pct}}%. However, Lump Sum's max drawdown ({{lsMdd}}) is typically larger than DCA's ({{dcaMdd}}), bearing greater psychological pressure in falling markets."
+            : 'has a higher final value ({{dcaValue}} vs {{lsValue}}), exceeding by {{pct}}%. DCA reduces average cost through batch purchases, achieving better returns in falling markets.',
+          lsWins
+            ? {
                 lsValue: fmtMoney(ls.finalValue),
                 dcaValue: fmtMoney(dca.finalValue),
                 pct: finalValueDiffPct.toFixed(1),
                 lsMdd: fmtPct(ls.maxDrawdown),
                 dcaMdd: fmtPct(dca.maxDrawdown),
-              },
-            )}
-          </>
-        ) : (
-          <>
-            {t('In the selected time range, ')}
-            <strong style={{ color: getPortfolioColor(1) }}>{t('DCA')}</strong>
-            {t(
-              'has a higher final value ({{dcaValue}} vs {{lsValue}}), exceeding by {{pct}}%. DCA reduces average cost through batch purchases, achieving better returns in falling markets.',
-              {
+              }
+            : {
                 dcaValue: fmtMoney(dca.finalValue),
                 lsValue: fmtMoney(ls.finalValue),
                 pct: finalValueDiffPct.toFixed(1),
               },
-            )}
-          </>
         )}
       </div>
     </div>
-  );
-}
-function LsDcaResultsCard({ s, fmtPct, fmtNum, fmtMoney }: FmtFns & { s: LumpSumVsDCAState }) {
-  const { t } = useTranslation();
-  if (s.results.length !== 2) return null;
-  const lsWins = s.results[0].finalValue > s.results[1].finalValue;
-  return (
-    <Card className="p-5">
-      <ConclusionAnalysis
-        ls={s.results[0]}
-        dca={s.results[1]}
-        fmtPct={fmtPct}
-        fmtMoney={fmtMoney}
-      />
-      <div className="mb-3 text-body font-semibold text-fg">{t('Growth Curve Comparison')}</div>
-      <GrowthCurveChart results={s.results} fmtMoney={fmtMoney} />
-      <div className="mb-3 mt-6 text-body font-semibold text-fg">{t('Statistics Comparison')}</div>
-      <StatsTable results={s.results} fmtPct={fmtPct} fmtNum={fmtNum} fmtMoney={fmtMoney} />
-      <div className="mt-4 flex items-start gap-2.5 rounded-lg bg-input-bg p-3">
-        <AlertTriangle className="mt-0.5 size-4 shrink-0 text-warning" />
-        <div className="text-body leading-relaxed text-fg-tertiary">
-          <strong className="text-fg-secondary">{t('Risk Warning:')}</strong>
-          {lsWins
-            ? t(
-                'Although Lump Sum performs better in this historical period, this is a hindsight result. Lump Sum carries greater timing risk at entry; entering at market peaks may cause significant losses. While DCA has a lower final value, it reduces timing risk through staggered entries, suitable for investors with lower risk tolerance.',
-              )
-            : t(
-                'DCA performs better in this historical period, indicating the market experienced significant volatility or declines during this time. DCA reduces average cost through batch purchases, but if the market continues to rise, Lump Sum typically achieves higher returns. Investment decisions should consider personal risk tolerance and market judgment.',
-              )}
-          {t('Historical performance does not guarantee future returns.')}
-        </div>
-      </div>
-    </Card>
   );
 }
 function DcaParamsSection({
@@ -455,11 +410,14 @@ function LumpSumVsDCAParamsForm({ state }: { state: LumpSumVsDCAState }) {
         baseCurrency={state.baseCurrency}
         adjustForInflation={state.adjustForInflation}
         onChange={(field, value) => {
-          if (field === 'startDate') state.setStartDate(value as string);
-          else if (field === 'endDate') state.setEndDate(value as string);
-          else if (field === 'startingValue') state.setStartingValue(value as number);
-          else if (field === 'baseCurrency') state.setBaseCurrency(value as 'usd' | 'cny');
-          else if (field === 'adjustForInflation') state.setAdjustForInflation(value as boolean);
+          const setters: Record<string, (v: never) => void> = {
+            startDate: state.setStartDate,
+            endDate: state.setEndDate,
+            startingValue: state.setStartingValue,
+            baseCurrency: state.setBaseCurrency,
+            adjustForInflation: state.setAdjustForInflation,
+          };
+          setters[field]?.(value as never);
         }}
       />
       <DcaParamsSection
@@ -496,15 +454,38 @@ function LumpSumVsDCAResults({ state }: { state: LumpSumVsDCAState }) {
     state.baseCurrency === 'usd'
       ? `$${v.toLocaleString(undefined, { maximumFractionDigits: 0 })}`
       : `¥${v.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+  const { results } = state;
+  if (state.error) {
+    return (
+      <Card className="mb-3 p-6 text-center text-danger">
+        {t('Comparison failed')}: {state.error}
+      </Card>
+    );
+  }
+  if (results.length !== 2) return null;
+  const lsWins = results[0].finalValue > results[1].finalValue;
   return (
-    <>
-      {state.error && (
-        <Card className="mb-3 p-6 text-center text-danger">
-          {t('Comparison failed')}: {state.error}
-        </Card>
-      )}
-      <LsDcaResultsCard s={state} fmtPct={fmtPct} fmtNum={fmtNum} fmtMoney={fmtMoney} />
-    </>
+    <Card className="p-5">
+      <ConclusionAnalysis ls={results[0]} dca={results[1]} fmtPct={fmtPct} fmtMoney={fmtMoney} />
+      <div className="mb-3 text-body font-semibold text-fg">{t('Growth Curve Comparison')}</div>
+      <GrowthCurveChart results={results} fmtMoney={fmtMoney} />
+      <div className="mb-3 mt-6 text-body font-semibold text-fg">{t('Statistics Comparison')}</div>
+      <StatsTable results={results} fmtPct={fmtPct} fmtNum={fmtNum} fmtMoney={fmtMoney} />
+      <div className="mt-4 flex items-start gap-2.5 rounded-lg bg-input-bg p-3">
+        <AlertTriangle className="mt-0.5 size-4 shrink-0 text-warning" />
+        <div className="text-body leading-relaxed text-fg-tertiary">
+          <strong className="text-fg-secondary">{t('Risk Warning:')}</strong>
+          {lsWins
+            ? t(
+                'Although Lump Sum performs better in this historical period, this is a hindsight result. Lump Sum carries greater timing risk at entry; entering at market peaks may cause significant losses. While DCA has a lower final value, it reduces timing risk through staggered entries, suitable for investors with lower risk tolerance.',
+              )
+            : t(
+                'DCA performs better in this historical period, indicating the market experienced significant volatility or declines during this time. DCA reduces average cost through batch purchases, but if the market continues to rise, Lump Sum typically achieves higher returns. Investment decisions should consider personal risk tolerance and market judgment.',
+              )}
+          {t('Historical performance does not guarantee future returns.')}
+        </div>
+      </div>
+    </Card>
   );
 }
 const config: ComputeToolConfig<LumpSumVsDCAState> = {

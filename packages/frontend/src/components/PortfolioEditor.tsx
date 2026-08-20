@@ -12,13 +12,13 @@ import { useToastStore } from '@/store/toastStore';
 import { useConfirmDialog } from '@/components/confirmDialog';
 import { PRESET_PORTFOLIOS } from '@/store/presetPortfolios.js';
 import { validateAssetWeights } from '@/utils/validation';
-import type { StorePortfolio, TFunc } from './portfolioEditor/portfolioEditor.js';
+import type { StorePortfolio, TFunc } from './portfolioEditor/portfolioEditorFields.js';
 import {
   GlidepathForm,
-  PortfolioCard,
   AllocationBar,
   TotalWeightBlock,
-} from './portfolioEditor/portfolioEditor.js';
+} from './portfolioEditor/portfolioEditorFields.js';
+import { PortfolioCard } from './portfolioEditor/portfolioEditorCard.js';
 import { getPortfolioColor } from '@/lib/chart-theme.js';
 import { downloadJSON } from '@/utils/format';
 import {

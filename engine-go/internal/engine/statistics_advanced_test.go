@@ -180,12 +180,12 @@ func TestCalcPWR(t *testing.T) {
 }
 func TestPWRAllYearsRespectsHorizon(t *testing.T) {
 	annualReturns := enginetest.VolatileAnnualReturns(50)
-	pwr10y, _, pwr20y, _, pwr30y, _, pwr40y, _ := CalcPWRAllYears(annualReturns)
-	if pwr10y == pwr20y || pwr10y == pwr30y || pwr20y == pwr40y {
-		t.Errorf("CalcPWRAllYears must vary by horizon, got pwr10y=%v pwr20y=%v pwr30y=%v pwr40y=%v", pwr10y, pwr20y, pwr30y, pwr40y)
+	pwrAll := CalcPWRAllYears(annualReturns)
+	if pwrAll.PWR10Y == pwrAll.PWR20Y || pwrAll.PWR10Y == pwrAll.PWR30Y || pwrAll.PWR20Y == pwrAll.PWR40Y {
+		t.Errorf("CalcPWRAllYears must vary by horizon, got pwr10y=%v pwr20y=%v pwr30y=%v pwr40y=%v", pwrAll.PWR10Y, pwrAll.PWR20Y, pwrAll.PWR30Y, pwrAll.PWR40Y)
 	}
-	if pwr10y <= 0 || pwr40y <= 0 {
-		t.Errorf("CalcPWRAllYears values must be positive, got %v", pwr10y)
+	if pwrAll.PWR10Y <= 0 || pwrAll.PWR40Y <= 0 {
+		t.Errorf("CalcPWRAllYears values must be positive, got %v", pwrAll.PWR10Y)
 	}
 }
 func TestCalcDrawdownCurve(t *testing.T) {

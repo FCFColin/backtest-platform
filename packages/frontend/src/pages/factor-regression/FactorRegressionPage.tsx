@@ -5,6 +5,8 @@ import { cn } from '@/lib/utils';
 import { useAsyncAction, useAssetList, useSetterState } from '@/hooks/miscHooks.js';
 import { useToastStore } from '@/store/toastStore';
 import { Card, PortfolioLabel, badgeVariants } from '@/components/ui/uiComponents';
+import { SimpleTable, type SimpleTableColumn } from '@/components/tables.js';
+import { BarChartContent } from '@/components/charts/sharedChartContent.js';
 import { CollapsibleSection, StatCard } from '@/components/cards.js';
 import { ResultsShell } from '@/components/resultsShell.js';
 import { ComputeToolShell, type ComputeToolConfig } from '../../components/shells/index.js';
@@ -171,24 +173,7 @@ async function fetchRegression(params: FetchRegressionParams): Promise<FactorReg
     errRegCompute,
   );
 }
-interface FactorRegressionState {
-  startDate: string;
-  endDate: string;
-  selectedFactors: string[];
-  assets: AssetItem[];
-  totalWeight: number;
-  isLoading: boolean;
-  error: string | null;
-  result: FactorRegressionResult | null;
-  runRegression: () => void;
-  setStartDate: (v: string) => void;
-  setEndDate: (v: string) => void;
-  toggleFactor: (key: string) => void;
-  addAsset: () => void;
-  removeAsset: (i: number) => void;
-  updateAsset: (i: number, field: 'ticker' | 'weight', val: string | number) => void;
-}
-function useFactorRegressionState(t: TFunction): FactorRegressionState {
+function useFactorRegressionState(t: TFunction) {
   const s = useSetterState({
     startDate: DEFAULT_BACKTEST_START_DATE,
     endDate: DEFAULT_END_DATE,
@@ -252,7 +237,11 @@ function useFactorRegressionState(t: TFunction): FactorRegressionState {
     updateAsset,
   };
 }
-function FactorRegressionParamsPanel({ state: s }: { state: FactorRegressionState }) {
+function FactorRegressionParamsPanel({
+  state: s,
+}: {
+  state: ReturnType<typeof useFactorRegressionState>;
+}) {
   const { t } = useTranslation();
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -319,36 +308,6 @@ function FactorRegressionParamsPanel({ state: s }: { state: FactorRegressionStat
     </div>
   );
 }
-function RegressionRow({
-  label,
-  color,
-  value,
-  valueClassName,
-  desc,
-}: {
-  label: string;
-  color: string;
-  value: string;
-  valueClassName: string;
-  desc: string;
-}) {
-  return (
-    <tr className="border-b border-border-subtle transition-colors last:border-0 hover:bg-hover">
-      <td className="px-3 py-2 text-body text-fg">
-        <PortfolioLabel color={color} name={label} />
-      </td>
-      <td
-        className={cn(
-          'px-3 py-2 text-right font-mono tabular-nums text-body font-medium',
-          valueClassName,
-        )}
-      >
-        {value}
-      </td>
-      <td className="px-3 py-2 text-caption text-fg-tertiary">{desc}</td>
-    </tr>
-  );
-}
 function RegressionResultTable({
   result,
   selectedFactors,
@@ -357,74 +316,80 @@ function RegressionResultTable({
   selectedFactors: string[];
 }) {
   const { t } = useTranslation();
+  const rows: { label: string; color: string; value: string; cls: string; desc: string }[] = [
+    {
+      label: 'Alpha',
+      color: FACTOR_COLORS.alpha,
+      value: fmtPct(result.alpha),
+      cls: result.alpha >= 0 ? 'text-success' : 'text-danger',
+      desc: t(
+        "Portfolio excess return (annualized); positive means outperforming the factor model's expectation",
+      ),
+    },
+    {
+      label: 'Beta (MKT-RF)',
+      color: FACTOR_COLORS.beta,
+      value: fmtNum(result.beta, 3),
+      cls: 'text-fg',
+      desc: t('Market sensitivity; 1.0 means moving in sync with the market'),
+    },
+    ...(selectedFactors.includes('smb')
+      ? [
+          {
+            label: 'SMB',
+            color: FACTOR_COLORS.smb,
+            value: fmtNum(result.smb, 3),
+            cls: 'text-fg',
+            desc: t('Size factor loading; positive tilts toward small-cap stocks'),
+          },
+        ]
+      : []),
+    ...(selectedFactors.includes('hml')
+      ? [
+          {
+            label: 'HML',
+            color: FACTOR_COLORS.hml,
+            value: fmtNum(result.hml, 3),
+            cls: 'text-fg',
+            desc: t('Value factor loading; positive tilts toward value stocks'),
+          },
+        ]
+      : []),
+    {
+      label: 'R²',
+      color: 'transparent',
+      value: fmtNum(result.rSquared, 3),
+      cls: 'text-fg',
+      desc: t('Model explanatory power; closer to 1 means factors explain returns more fully'),
+    },
+  ];
+  const columns: SimpleTableColumn<(typeof rows)[number]>[] = [
+    {
+      key: 'label',
+      label: t('Coefficient'),
+      render: (r) => <PortfolioLabel color={r.color} name={r.label} />,
+    },
+    {
+      key: 'value',
+      label: t('Estimate'),
+      align: 'right',
+      render: (r) => (
+        <span className={cn('font-mono tabular-nums font-medium', r.cls)}>{r.value}</span>
+      ),
+    },
+    { key: 'desc', label: t('Meaning') },
+  ];
   return (
     <Card className="overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="w-full border-collapse">
-          <thead>
-            <tr className="border-b-2 border-border-subtle">
-              <th className="px-3 py-2.5 text-left text-caption font-semibold text-fg-tertiary">
-                {t('Coefficient')}
-              </th>
-              <th className="px-3 py-2.5 text-right text-caption font-semibold text-fg-tertiary">
-                {t('Estimate')}
-              </th>
-              <th className="px-3 py-2.5 text-left text-caption font-semibold text-fg-tertiary">
-                {t('Meaning')}
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            <RegressionRow
-              label="Alpha"
-              color={FACTOR_COLORS.alpha}
-              value={fmtPct(result.alpha)}
-              valueClassName={result.alpha >= 0 ? 'text-success' : 'text-danger'}
-              desc={t(
-                "Portfolio excess return (annualized); positive means outperforming the factor model's expectation",
-              )}
-            />
-            <RegressionRow
-              label="Beta (MKT-RF)"
-              color={FACTOR_COLORS.beta}
-              value={fmtNum(result.beta, 3)}
-              valueClassName="text-fg"
-              desc={t('Market sensitivity; 1.0 means moving in sync with the market')}
-            />
-            {selectedFactors.includes('smb') && (
-              <RegressionRow
-                label="SMB"
-                color={FACTOR_COLORS.smb}
-                value={fmtNum(result.smb, 3)}
-                valueClassName="text-fg"
-                desc={t('Size factor loading; positive tilts toward small-cap stocks')}
-              />
-            )}
-            {selectedFactors.includes('hml') && (
-              <RegressionRow
-                label="HML"
-                color={FACTOR_COLORS.hml}
-                value={fmtNum(result.hml, 3)}
-                valueClassName="text-fg"
-                desc={t('Value factor loading; positive tilts toward value stocks')}
-              />
-            )}
-            <RegressionRow
-              label="R²"
-              color="transparent"
-              value={fmtNum(result.rSquared, 3)}
-              valueClassName="text-fg"
-              desc={t(
-                'Model explanatory power; closer to 1 means factors explain returns more fully',
-              )}
-            />
-          </tbody>
-        </table>
-      </div>
+      <SimpleTable columns={columns} data={rows} rowKey={(r) => r.label} />
     </Card>
   );
 }
-function FactorRegressionResultsPanel({ state: s }: { state: FactorRegressionState }) {
+function FactorRegressionResultsPanel({
+  state: s,
+}: {
+  state: ReturnType<typeof useFactorRegressionState>;
+}) {
   const { result, error, selectedFactors, isLoading } = s;
   const { t } = useTranslation();
   return (
@@ -458,50 +423,17 @@ function FactorRegressionResultsPanel({ state: s }: { state: FactorRegressionSta
           {result.residuals.length > 0 && (
             <CollapsibleSection title={t('Regression Residuals')} defaultOpen>
               <Card className="p-4">
-                <div className="relative w-full" style={{ height: 200 }}>
-                  <svg viewBox="0 0 800 200" className="h-full w-full" preserveAspectRatio="none">
-                    <line
-                      x1="10"
-                      y1="100"
-                      x2="790"
-                      y2="100"
-                      stroke="hsl(var(--border-subtle))"
-                      strokeWidth="1"
-                      strokeDasharray="4,4"
-                    />
-                    {result.residuals.map((r, i) => {
-                      const x = 10 + (i / (result.residuals.length - 1)) * 780;
-                      const barHeight = (Math.abs(r) / 0.04) * 90;
-                      return (
-                        <rect
-                          key={i}
-                          x={x - 1}
-                          y={r >= 0 ? 100 - barHeight : 100}
-                          width={2}
-                          height={barHeight}
-                          fill={r >= 0 ? 'hsl(var(--success))' : 'hsl(var(--danger))'}
-                          opacity={0.5}
-                        />
-                      );
-                    })}
-                  </svg>
-                  <div className="mt-1 flex justify-center gap-4 text-caption text-fg-tertiary">
-                    <span>
-                      <span
-                        className="mr-1 inline-block h-1 w-3 rounded"
-                        style={{ backgroundColor: 'hsl(var(--success))' }}
-                      />
-                      {t('Positive residual')}
-                    </span>
-                    <span>
-                      <span
-                        className="mr-1 inline-block h-1 w-3 rounded"
-                        style={{ backgroundColor: 'hsl(var(--danger))' }}
-                      />
-                      {t('Negative residual')}
-                    </span>
-                  </div>
-                </div>
+                <BarChartContent
+                  data={result.residuals.map((r, i) => ({ index: i, value: r }))}
+                  seriesNames={[t('Residuals')]}
+                  xDataKey="index"
+                  height={200}
+                  yTickFormatter={(v) => v.toFixed(3)}
+                  tooltipValueFormatter={(v) => [v.toFixed(4), t('Residuals')]}
+                  signColorSingleSeries
+                  showLegend={false}
+                  xTickFontSize={9}
+                />
               </Card>
             </CollapsibleSection>
           )}
@@ -515,7 +447,7 @@ function FactorRegressionResultsPanel({ state: s }: { state: FactorRegressionSta
     </ResultsShell>
   );
 }
-const config: ComputeToolConfig<FactorRegressionState> = {
+const config: ComputeToolConfig<ReturnType<typeof useFactorRegressionState>> = {
   titleKey: 'factorRegression.title',
   seoDescKey: 'factorRegression.seo.desc',
   seoFeatures: [

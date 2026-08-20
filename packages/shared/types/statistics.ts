@@ -106,6 +106,14 @@ export type Statistics = {
 const ZERO_VAR: { [K in VarLevel]: number } = { 1: 0, 5: 0, 10: 0 };
 const ZERO_SKEW: HorizonStats = { daily: 0, monthly: 0, annual: 0 };
 
+type NonObjectKeys = {
+  [K in keyof Statistics]-?: Statistics[K] extends number | undefined
+    ? undefined extends Statistics[K]
+      ? never
+      : K
+    : never;
+}[keyof Statistics];
+
 const NUM_FIELDS = [
   'cagr',
   'mwrr',
@@ -183,7 +191,7 @@ const NUM_FIELDS = [
   'pwr30y',
   'swr40y',
   'pwr40y',
-] as const;
+] as const satisfies readonly NonObjectKeys[];
 
 export function createEmptyStatistics(): Statistics {
   return {

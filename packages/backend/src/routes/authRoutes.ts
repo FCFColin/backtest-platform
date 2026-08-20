@@ -1,7 +1,7 @@
 import { Router, type Response } from 'express';
 import { logger } from '../utils/logger.js';
 import { sendProblem } from '../utils/errors.js';
-import { crudRouteHandler } from './routeUtils.js';
+import { crudRouteHandler, sendData } from './routeUtils.js';
 import { authConfig, config } from '../config/index.js';
 import {
   generateToken,
@@ -140,18 +140,15 @@ router.post(
         },
         '[auth] 密码登录成功',
       );
-      res.json({
-        success: true,
-        data: {
-          accessToken,
-          role: effectiveRole ?? user.role,
-          userId: user.id,
-          org: membership ? orgSummary(membership) : null,
-          idleTimeoutMs:
-            ((effectiveRole ?? user.role) === 'analyst'
-              ? authConfig.SESSION_IDLE_TIMEOUT_ANALYST_SEC
-              : authConfig.SESSION_IDLE_TIMEOUT_READONLY_SEC) * 1000,
-        },
+      sendData(res, {
+        accessToken,
+        role: effectiveRole ?? user.role,
+        userId: user.id,
+        org: membership ? orgSummary(membership) : null,
+        idleTimeoutMs:
+          ((effectiveRole ?? user.role) === 'analyst'
+            ? authConfig.SESSION_IDLE_TIMEOUT_ANALYST_SEC
+            : authConfig.SESSION_IDLE_TIMEOUT_READONLY_SEC) * 1000,
       });
     },
     { logMsg: 'Login error', code: 'LOGIN_ERROR', endpoint: 'auth-login' },
@@ -206,7 +203,7 @@ router.post(
         sendProblem(res, 400, 'INVALID_OR_EXPIRED_TOKEN');
         return;
       }
-      res.json({ success: true, data: { userId, verified: true } });
+      sendData(res, { userId, verified: true });
     },
     { logMsg: '[auth] 邮箱验证失败', code: 'VERIFY_EMAIL_FAILED' },
   ),
@@ -228,7 +225,7 @@ router.post(
         return;
       }
       res.cookie(RT_COOKIE, result.refreshToken, RT_SET);
-      res.json({ success: true, data: { accessToken: result.accessToken } });
+      sendData(res, { accessToken: result.accessToken });
     },
     { logMsg: 'Token refresh error', code: 'REFRESH_ERROR', endpoint: 'auth-refresh' },
   ),
@@ -244,7 +241,7 @@ router.delete(
         logger.info('[auth] Refresh Token 已撤销');
       }
       res.clearCookie(RT_COOKIE, RT_BASE);
-      res.json({ success: true, data: null });
+      sendData(res, null);
     },
     { logMsg: 'Logout error', code: 'LOGOUT_ERROR', endpoint: 'auth-logout' },
   ),
@@ -253,16 +250,13 @@ router.delete(
 router.get('/me', jwtAuth, (req: AuthenticatedRequest, res: Response) => {
   if (!requireUser(req, res)) return;
   const u = req.user;
-  res.json({
-    success: true,
-    data: {
-      userId: u.sub,
-      role: u.role,
-      tenantId: u.tenant_id ?? null,
-      orgRole: u.org_role ?? null,
-      platformAdmin: u.platform_admin === true,
-      exp: u.exp,
-    },
+  sendData(res, {
+    userId: u.sub,
+    role: u.role,
+    tenantId: u.tenant_id ?? null,
+    orgRole: u.org_role ?? null,
+    platformAdmin: u.platform_admin === true,
+    exp: u.exp,
   });
 });
 
@@ -272,12 +266,9 @@ router.get(
   crudRouteHandler(
     async (req, res): Promise<void> => {
       if (!requireUser(req, res)) return;
-      res.json({
-        success: true,
-        data: {
-          activeOrgId: req.user.tenant_id ?? null,
-          orgs: (await getUserMemberships(req.user.sub)).map(orgSummary),
-        },
+      sendData(res, {
+        activeOrgId: req.user.tenant_id ?? null,
+        orgs: (await getUserMemberships(req.user.sub)).map(orgSummary),
       });
     },
     { logMsg: 'List user orgs error', code: 'ORG_LIST_ERROR', endpoint: 'auth-orgs' },
@@ -317,7 +308,7 @@ router.post(
         { userId: hashUserId(req.user.sub), orgId: req.body.orgId, role },
         '[auth] 切换活跃组织成功',
       );
-      res.json({ success: true, data: { accessToken, role, org: orgSummary(membership) } });
+      sendData(res, { accessToken, role, org: orgSummary(membership) });
     },
     { logMsg: 'Switch org error', code: 'SWITCH_ORG_ERROR', endpoint: 'auth-switch-org' },
   ),
@@ -334,7 +325,7 @@ router.delete(
       await revokeAllUserSessions(req.user.sub);
       const ok = await anonymizeUser(req.user.sub);
       logger.info({ userId: hashUserId(req.user.sub), ok }, '[auth] 用户自助删除（匿名化）');
-      res.json({ success: true, data: { anonymized: ok } });
+      sendData(res, { anonymized: ok });
     },
     { logMsg: 'Account deletion error', code: 'ACCOUNT_DELETE_ERROR', endpoint: 'auth-me-delete' },
   ),
