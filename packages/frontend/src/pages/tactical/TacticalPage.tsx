@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/uiComponents';
 import { LabeledField, RunButton, SelectField } from '@/components/form/sharedFields';
 import { ErrorBanner, EmptyState } from '@/components/stateDisplay';
-import { SortableTable, type TableColumn } from '@/components/tables';
+import { SimpleTable, SortableTable, type TableColumn } from '@/components/tables';
 import { TimeSeriesLineChart } from '@/components/charts/TimeSeriesLineChart';
 import { fmtPct } from '@/utils/format';
 import { useAsyncAction } from '@/hooks/miscHooks';
@@ -204,44 +204,30 @@ function SignalHistoryTable({
   signalHistory: TacticalBacktestResult['signalHistory'];
 }) {
   const { t } = useTranslation();
+  const columns: TableColumn<(typeof signalHistory)[number]>[] = [
+    { key: 'date', label: t('Date') },
+    {
+      key: 'activeSignals',
+      label: t('Active Signals'),
+      render: (h) =>
+        h.activeSignals.length > 0 ? (
+          h.activeSignals.join(', ')
+        ) : (
+          <span className="text-fg-tertiary">{t('None (Equal Weight)')}</span>
+        ),
+    },
+    {
+      key: 'weights',
+      label: t('Target Weights'),
+      align: 'right',
+      render: (h) => h.weights.map((w) => `${w.ticker}: ${fmtPct(w.weight, 1)}`).join('  '),
+    },
+  ];
   return (
     <Card className="p-4">
       <h3 className="mb-3 text-h3 text-fg">{t('Signal Switching History (Rebalance Days)')}</h3>
       <div className="max-h-[400px] overflow-auto">
-        <table className="w-full border-collapse">
-          <thead className="sticky top-0 z-10 bg-elevated">
-            <tr>
-              <th className="border-b border-border-strong px-3 py-2 text-left text-caption font-semibold text-fg-tertiary">
-                {t('Date')}
-              </th>
-              <th className="border-b border-border-strong px-3 py-2 text-left text-caption font-semibold text-fg-tertiary">
-                {t('Active Signals')}
-              </th>
-              <th className="border-b border-border-strong px-3 py-2 text-right text-caption font-semibold text-fg-tertiary">
-                {t('Target Weights')}
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {signalHistory.map((h, idx) => (
-              <tr key={idx} className={idx % 2 === 1 ? 'bg-input-bg/40' : 'bg-transparent'}>
-                <td className="border-b border-border-subtle px-3 py-2 text-label font-mono tabular-nums text-fg">
-                  {h.date}
-                </td>
-                <td className="border-b border-border-subtle px-3 py-2 text-label text-fg-secondary">
-                  {h.activeSignals.length > 0 ? (
-                    h.activeSignals.join(', ')
-                  ) : (
-                    <span className="text-fg-tertiary">{t('None (Equal Weight)')}</span>
-                  )}
-                </td>
-                <td className="border-b border-border-subtle px-3 py-2 text-right text-label font-mono tabular-nums text-fg">
-                  {h.weights.map((w) => `${w.ticker}: ${fmtPct(w.weight, 1)}`).join('  ')}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <SimpleTable columns={columns} data={signalHistory} rowKey={(_, idx) => String(idx)} />
       </div>
     </Card>
   );

@@ -74,25 +74,21 @@ async function fetchAnalysisResult(
         },
       }),
     });
-    let json: Record<string, unknown>;
-    try {
-      json = await res.json();
-    } catch {
+    const json = await res.json().catch(() => {
       throw new Error(
         t('Server response abnormal, please confirm backend service is running and retry'),
       );
-    }
+    });
     if (!res.ok || json.success === false) {
       const err = json.error;
-      const detail =
-        typeof err === 'object' && err && 'detail' in err
-          ? String((err as { detail?: string }).detail)
-          : typeof err === 'string'
-            ? err
-            : !res.ok
-              ? `HTTP ${res.status}`
-              : t('Analysis failed');
-      throw new Error(detail);
+      throw new Error(
+        (typeof err === 'object' &&
+          err &&
+          'detail' in err &&
+          String((err as { detail?: string }).detail)) ||
+          (typeof err === 'string' && err) ||
+          (!res.ok ? `HTTP ${res.status}` : t('Analysis failed')),
+      );
     }
     const raw = (json.data ?? json) as Record<string, unknown>;
     const tickers = (raw.tickers ?? raw.assets ?? []) as AssetAnalysisResult['tickers'];

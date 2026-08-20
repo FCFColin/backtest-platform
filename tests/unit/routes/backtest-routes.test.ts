@@ -1,7 +1,13 @@
 import { describe, it, expect, vi } from 'vitest';
-import { startExpressApp, type TestRequest, postJson, reqJson } from '../../helpers/expressApp.js';
+import {
+  startExpressApp,
+  useTestServer,
+  type TestRequest,
+  postJson,
+  reqJson,
+} from '../../helpers/expressApp.js';
 import { withServer } from '../../helpers/serverLifecycle.js';
-import { m, loggerMocks, queueMocks } from './backtestRoutes.shared.js';
+import { m, loggerMocks, queueMocks, resetQueueMocks } from './backtestRoutes.shared.js';
 import backtestRoutes from '../../../packages/backend/src/routes/backtestRoutes.js';
 import {
   createValidParameters,
@@ -11,6 +17,7 @@ import {
   setupPortfolioServer,
   startEngineRouteServer,
 } from '../../helpers/backtestRoutesFixtures.js';
+import { createMockJob } from '../../helpers/jobFixtures.js';
 import { EngineUnavailableErrorStub } from '../../helpers/engineFixture.js';
 import {
   setBacktestResultCache,
@@ -29,11 +36,7 @@ import {
 const get = (url: string, headers?: Record<string, string>) =>
   reqJson(url, 'GET', undefined, headers).then(({ res, body }) => ({ res, json: body }));
 
-const portfolioJobServer = () => (
-  queueMocks.add.mockReset(),
-  queueMocks.getJob.mockReset(),
-  setupPortfolioServer(backtestRoutes, m)
-);
+const portfolioJobServer = () => (resetQueueMocks(), setupPortfolioServer(backtestRoutes, m));
 
 const manyTickers = Array.from({ length: 51 }, (_, i) => `T${i}`);
 
@@ -458,35 +461,11 @@ describe('backtestRoutes - GET /api/v1/backtest/search', () => {
   });
 });
 
-function createMockJob(overrides: Record<string, unknown> = {}) {
-  const { state, ...rest } = overrides;
-  return {
-    id: 'job-123',
-    data: { type: 'optimizer' },
-    timestamp: 1700000000000,
-    processedOn: 1700000001000,
-    finishedOn: 1700000005000,
-    returnvalue: undefined,
-    failedReason: undefined,
-    progress: 0,
-    getState: vi.fn().mockResolvedValue(state ?? 'completed'),
-    ...rest,
-  };
-}
-
 describe('backtestRoutes - GET /api/v1/backtest/runs/:jobId — 状态查询', () => {
   // jobAccessGranted 已 fail-closed（ADR-007）：状态查询必须在强制鉴权后执行，故注入已认证请求上下文
-  const getServer = withServer(() => {
-    queueMocks.add.mockReset();
-    queueMocks.getJob.mockReset();
-    return startExpressApp((app) => {
-      app.use((req: TestRequest, _res, next) => {
-        req.user = { sub: 'test-user', role: 'admin', iat: 0, exp: 0 };
-        req.tenantId = 'tenant-456';
-        next();
-      });
-      app.use('/api/v1/backtest', backtestRoutes);
-    });
+  const { url: serverUrl } = useTestServer('/api/v1/backtest', backtestRoutes, {
+    auth: { user: { sub: 'test-user', role: 'admin' }, tenantId: 'tenant-456' },
+    configure: () => resetQueueMocks(),
   });
   const completedResult = {
     data: { portfolios: [{ name: 'Test', growthCurve: [] }] },
@@ -558,7 +537,7 @@ describe('backtestRoutes - GET /api/v1/backtest/runs/:jobId — 状态查询', (
     ],
   ])('%s', async (_n, job, expected) => {
     queueMocks.getJob.mockResolvedValue(createMockJob(job));
-    const { res, json } = await get(`${getServer().url}/api/v1/backtest/runs/${job.id}`);
+    const { res, json } = await get(`${serverUrl()}/api/v1/backtest/runs/${job.id}`);
     const data = json.data as unknown as RunStatusExpectation;
     expect(res.status).toBe(200);
     expect(json.success).toBe(true);
@@ -572,7 +551,7 @@ describe('backtestRoutes - GET /api/v1/backtest/runs/:jobId — 状态查询', (
   });
   it('任务不存在时返回 404', async () => {
     queueMocks.getJob.mockResolvedValue(null);
-    const { res, json } = await get(`${getServer().url}/api/v1/backtest/runs/nonexistent`);
+    const { res, json } = await get(`${serverUrl()}/api/v1/backtest/runs/nonexistent`);
     expect(res.status).toBe(404);
     expect(json.success).toBe(false);
     expect(json.error.code).toBe('JOB_NOT_FOUND');

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { m, queueMocks } from '../unit/routes/backtestRoutes.shared.js';
 import { createValidRequestBody, setupPortfolioServer } from '../helpers/backtestRoutesFixtures.js';
+import { createMockJob } from '../helpers/jobFixtures.js';
 import { idempotencyKey } from '../../packages/backend/src/middleware/idempotency.js';
 import backtestRoutes from '../../packages/backend/src/routes/backtestRoutes.js';
 
@@ -59,12 +60,12 @@ describe('P0-01 T3 · 异步回测全链路集成测试', () => {
       const job = jobStore.get(jobId);
       if (!job) return null;
       return {
+        ...createMockJob({ ...job, state: job.state }),
         id: job.id,
         data: job.data,
         progress: job.progress,
         returnvalue: job.returnvalue,
         failedReason: job.failedReason,
-        getState: vi.fn().mockResolvedValue(job.state),
       };
     });
   });

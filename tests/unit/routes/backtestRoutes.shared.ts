@@ -113,3 +113,7 @@ configureTickerHelpersMocks(internalMocks.m);
 export const m = internalMocks.m;
 export { loggerMocks } from '../../helpers/middlewareMocks.js';
 export const queueMocks = internalMocks.queue;
+export function resetQueueMocks() {
+  queueMocks.add.mockReset();
+  queueMocks.getJob.mockReset();
+}
