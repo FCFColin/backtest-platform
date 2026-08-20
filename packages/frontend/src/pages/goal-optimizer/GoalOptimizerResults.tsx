@@ -126,21 +126,9 @@ function GoalOptimizerResultsPanel({ state }: { state: GoalOptimizerState }) {
         : 'hsl(var(--danger))'
     : '';
   const tc = getPortfolioColor(3);
-  const targetRefX: ReferenceLine[] = [
+  const buildTargetRefLines = (axis: 'x' | 'y'): ReferenceLine[] => [
     {
-      axis: 'x',
-      value: state.targetAmount,
-      label: t('Target'),
-      color: tc,
-      dash: 'dashed',
-      width: 1.5,
-      labelColor: tc,
-      labelFontSize: 11,
-    },
-  ];
-  const targetRefY: ReferenceLine[] = [
-    {
-      axis: 'y',
+      axis,
       value: state.targetAmount,
       label: t('Target'),
       color: tc,
@@ -202,7 +190,7 @@ function GoalOptimizerResultsPanel({ state }: { state: GoalOptimizerState }) {
                   areaOpacity: 0.3,
                 },
               ]}
-              referenceLines={targetRefX}
+              referenceLines={buildTargetRefLines('x')}
             />
           </ChartCard>
           <ChartCard title={t('Optimal Path (Median / P10 / P90)')}>
@@ -240,7 +228,7 @@ function GoalOptimizerResultsPanel({ state }: { state: GoalOptimizerState }) {
                   smooth: true,
                 },
               ]}
-              referenceLines={targetRefY}
+              referenceLines={buildTargetRefLines('y')}
             />
           </ChartCard>
           <ChartCard title={t('Recommended Configuration')}>

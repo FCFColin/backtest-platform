@@ -294,19 +294,15 @@ type MaxDrawdownResult struct {
 	MaxDrawdownDuration int
 }
 
-func iterDrawdownValues(values []float64, fn func(dd float64, i, peakIdx int)) {
-	if len(values) < 2 {
-		return
-	}
-	engineutil.IterDrawdowns(values, func(i, peakIdx int, peak float64) {
-		if peak > 0 {
-			fn((peak-values[i])/peak, i, peakIdx)
-		}
-	})
-}
 func reduceDrawdowns[T any](values []float64, init T, fn func(acc T, dd float64, i, peakIdx int) T) T {
 	acc := init
-	iterDrawdownValues(values, func(dd float64, i, peakIdx int) { acc = fn(acc, dd, i, peakIdx) })
+	if len(values) >= 2 {
+		engineutil.IterDrawdowns(values, func(i, peakIdx int, peak float64) {
+			if peak > 0 {
+				acc = fn(acc, (peak-values[i])/peak, i, peakIdx)
+			}
+		})
+	}
 	return acc
 }
 func CalcMaxDrawdown(values []float64) MaxDrawdownResult {
@@ -491,20 +487,12 @@ type PWRAllYears struct {
 
 func CalcPWRAllYears(annualReturns []float64) PWRAllYears {
 	var r PWRAllYears
-	for _, y := range []int{10, 20, 30, 40} {
+	pwrFields := []*float64{&r.PWR10Y, &r.PWR20Y, &r.PWR30Y, &r.PWR40Y}
+	swrFields := []*float64{&r.SWR10Y, &r.SWR20Y, &r.SWR30Y, &r.SWR40Y}
+	for i, y := range []int{10, 20, 30, 40} {
 		if len(annualReturns) >= y {
-			pwr := CalcSWR(annualReturns, y, 1.0)
-			swr := CalcSWR(annualReturns, y, 0.95)
-			switch y {
-			case 10:
-				r.PWR10Y, r.SWR10Y = pwr, swr
-			case 20:
-				r.PWR20Y, r.SWR20Y = pwr, swr
-			case 30:
-				r.PWR30Y, r.SWR30Y = pwr, swr
-			case 40:
-				r.PWR40Y, r.SWR40Y = pwr, swr
-			}
+			*pwrFields[i] = CalcSWR(annualReturns, y, 1.0)
+			*swrFields[i] = CalcSWR(annualReturns, y, 0.95)
 		}
 	}
 	return r
