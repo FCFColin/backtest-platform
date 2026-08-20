@@ -370,10 +370,9 @@ export const useBacktestStore = create<BacktestState>()((set, get) => {
               glidepathFrom: fromId,
               glidepathTo: toId,
               glidepathYears: years,
-              glidepathToWeights: from.assets.map((fa) => {
-                const ta = to.assets.find((a) => a.ticker === fa.ticker);
-                return ta ? ta.weight / 100 : 0;
-              }),
+              glidepathToWeights: from.assets.map(
+                (fa) => (to.assets.find((a) => a.ticker === fa.ticker)?.weight ?? 0) / 100,
+              ),
             },
           ],
         });

@@ -57,18 +57,14 @@ export function useAssetList<T extends { ticker: string; weight: number | string
   minLength = 1,
 ) {
   const [items, setItems] = useState<T[]>(() => defaults);
-  const addItem = () => setItems((p) => [...p, factory()]);
-  const removeItem = (i: number) =>
-    setItems((p) => (p.length > minLength ? p.filter((_, j) => j !== i) : p));
-  const updateItem = (i: number, u: (p: T) => T) =>
-    setItems((p) => p.map((item, j) => (j === i ? u(item) : item)));
   return {
     assets: items,
     setAssets: setItems,
-    addAsset: addItem,
-    removeAsset: removeItem,
+    addAsset: () => setItems((p) => [...p, factory()]),
+    removeAsset: (i: number) =>
+      setItems((p) => (p.length > minLength ? p.filter((_, j) => j !== i) : p)),
     updateAsset: (i: number, field: keyof T, val: T[keyof T]) =>
-      updateItem(i, (p) => ({ ...p, [field]: val })),
+      setItems((p) => p.map((item, j) => (j === i ? { ...item, [field]: val } : item))),
     totalWeight: items.reduce((sum, a) => sum + (Number(a.weight) || 0), 0),
   };
 }
@@ -134,25 +130,23 @@ export function useAdminFetch<T>(
   componentName: string,
 ) {
   const [data, setData] = useState(initial);
-  const [loading, setLoading] = useState(false);
   const [lastRefresh, setLastRefresh] = useState('');
-  const fetch = async () => {
-    setLoading(true);
-    try {
-      const res = await apiFetch(url);
-      if (!res.ok) return;
-      const json = await res.json();
-      if (json.success && json.data) {
-        setData(parser(json.data));
-        setLastRefresh(new Date().toLocaleTimeString(i18n.language));
+  const { isLoading: loading, run } = useAsyncAction();
+  const fetch = () =>
+    run(async () => {
+      try {
+        const res = await apiFetch(url);
+        if (!res.ok) return;
+        const json = await res.json();
+        if (json.success && json.data) {
+          setData(parser(json.data));
+          setLastRefresh(new Date().toLocaleTimeString(i18n.language));
+        }
+      } catch (error) {
+        reportError(error, { component: componentName, action: 'fetch' });
+        useToastStore.getState().addToast('error', i18n.t('Load failed'));
       }
-    } catch (error) {
-      reportError(error, { component: componentName, action: 'fetch' });
-      useToastStore.getState().addToast('error', i18n.t('Load failed'));
-    } finally {
-      setLoading(false);
-    }
-  };
+    });
   return { data, loading, lastRefresh, fetch };
 }
 

@@ -110,57 +110,90 @@ const DATE_FIELDS: Array<{
   },
 ];
 
-function BacktestRangeSection({ s }: OptimizerSectionProps) {
-  const { t } = useTranslation();
-  return (
-    <ParamGroup
-      title={t('Backtest Range')}
-      info={t('Set the backtest time range for parameter search')}
-    >
-      <ParamRow>
-        {DATE_FIELDS.map((f) => (
-          <ParamCard key={f.key} label={t(f.labelKey)}>
-            <Input
-              type={f.type}
-              value={s.form[f.key] as string}
-              onChange={(e) => s.patchForm({ [f.key]: e.target.value })}
-              placeholder={f.placeholderKey ? t(f.placeholderKey) : undefined}
-            />
-          </ParamCard>
-        ))}
-      </ParamRow>
-    </ParamGroup>
-  );
-}
-
-function PortfolioConfigSection({ s }: OptimizerSectionProps) {
-  const { t } = useTranslation();
-  return (
-    <ParamGroup
-      title={t('Portfolio Allocation')}
-      info={t('Add tickers and weights for optimization')}
-    >
-      <SinglePortfolioEditor
-        singleMode
-        assets={s.assets.map(({ ticker, weight }) => ({ ticker, weight: Number(weight) || 0 }))}
-        totalWeight={s.assets.reduce((sum, a) => sum + (Number(a.weight) || 0), 0)}
-        onAdd={s.addAsset}
-        onRemove={s.removeAsset}
-        onUpdate={(i, field, val) => s.updateAsset(i, field, String(val))}
-        wrapInSection={false}
-      />
-    </ParamGroup>
-  );
-}
-
 export function OptimizerParams({ s }: OptimizerSectionProps) {
   const { t } = useTranslation();
   return (
     <ParamsPanel>
-      <PortfolioConfigSection s={s} />
+      <ParamGroup
+        title={t('Portfolio Allocation')}
+        info={t('Add tickers and weights for optimization')}
+      >
+        <SinglePortfolioEditor
+          singleMode
+          assets={s.assets.map(({ ticker, weight }) => ({ ticker, weight: Number(weight) || 0 }))}
+          totalWeight={s.assets.reduce((sum, a) => sum + (Number(a.weight) || 0), 0)}
+          onAdd={s.addAsset}
+          onRemove={s.removeAsset}
+          onUpdate={(i, field, val) => s.updateAsset(i, field, String(val))}
+          wrapInSection={false}
+        />
+      </ParamGroup>
       <ParameterSpaceSection s={s} />
-      <ObjectiveSection s={s} />
-      <BacktestRangeSection s={s} />
+      <ParamGroup title={t('Objective')} info={t('Select optimization objective and constraints')}>
+        <ParamRow>
+          <ParamCard label={t('Target')}>
+            <Select
+              value={s.form.objective}
+              onValueChange={(v) => s.patchForm({ objective: v as Objective })}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {OBJECTIVE_OPTIONS.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>
+                    {t(o.labelKey)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </ParamCard>
+        </ParamRow>
+        <div className="mt-3 flex flex-col gap-3">
+          {CONSTRAINT_DEFS.map((c) => (
+            <div key={c.enabledKey} className="flex items-center gap-2.5">
+              <label className="flex items-center gap-2 w-[130px] mb-0 cursor-pointer">
+                <Switch
+                  checked={s.form[c.enabledKey]}
+                  onCheckedChange={(v) => s.patchForm({ [c.enabledKey]: v })}
+                />
+                <span className="text-caption text-fg-secondary">{t(c.labelKey)}</span>
+              </label>
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    step="0.1"
+                    className="font-mono tabular-nums"
+                    value={s.form[c.valueKey]}
+                    onChange={(e) => s.patchForm({ [c.valueKey]: e.target.value })}
+                    placeholder={t(c.placeholderKey)}
+                    disabled={!s.form[c.enabledKey]}
+                  />
+                  <span className="text-caption text-fg-tertiary shrink-0">%</span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </ParamGroup>
+      <ParamGroup
+        title={t('Backtest Range')}
+        info={t('Set the backtest time range for parameter search')}
+      >
+        <ParamRow>
+          {DATE_FIELDS.map((f) => (
+            <ParamCard key={f.key} label={t(f.labelKey)}>
+              <Input
+                type={f.type}
+                value={s.form[f.key] as string}
+                onChange={(e) => s.patchForm({ [f.key]: e.target.value })}
+                placeholder={f.placeholderKey ? t(f.placeholderKey) : undefined}
+              />
+            </ParamCard>
+          ))}
+        </ParamRow>
+      </ParamGroup>
       <div className="py-3">
         <RunButton
           isLoading={s.result.isLoading}
@@ -309,60 +342,6 @@ function ParameterSpaceSection({ s }: OptimizerSectionProps) {
                 </ParamCard>
               ))}
             </ParamRow>
-          </div>
-        ))}
-      </div>
-    </ParamGroup>
-  );
-}
-
-function ObjectiveSection({ s }: OptimizerSectionProps) {
-  const { t } = useTranslation();
-  return (
-    <ParamGroup title={t('Objective')} info={t('Select optimization objective and constraints')}>
-      <ParamRow>
-        <ParamCard label={t('Target')}>
-          <Select
-            value={s.form.objective}
-            onValueChange={(v) => s.patchForm({ objective: v as Objective })}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {OBJECTIVE_OPTIONS.map((o) => (
-                <SelectItem key={o.value} value={o.value}>
-                  {t(o.labelKey)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </ParamCard>
-      </ParamRow>
-      <div className="mt-3 flex flex-col gap-3">
-        {CONSTRAINT_DEFS.map((c) => (
-          <div key={c.enabledKey} className="flex items-center gap-2.5">
-            <label className="flex items-center gap-2 w-[130px] mb-0 cursor-pointer">
-              <Switch
-                checked={s.form[c.enabledKey]}
-                onCheckedChange={(v) => s.patchForm({ [c.enabledKey]: v })}
-              />
-              <span className="text-caption text-fg-secondary">{t(c.labelKey)}</span>
-            </label>
-            <div className="flex-1">
-              <div className="flex items-center gap-2">
-                <Input
-                  type="number"
-                  step="0.1"
-                  className="font-mono tabular-nums"
-                  value={s.form[c.valueKey]}
-                  onChange={(e) => s.patchForm({ [c.valueKey]: e.target.value })}
-                  placeholder={t(c.placeholderKey)}
-                  disabled={!s.form[c.enabledKey]}
-                />
-                <span className="text-caption text-fg-tertiary shrink-0">%</span>
-              </div>
-            </div>
           </div>
         ))}
       </div>

@@ -320,16 +320,6 @@ function DualSignalResultsPanel({
   );
 }
 
-function StatGrid({ rows }: { rows: { label: string; value: string }[] }) {
-  return (
-    <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
-      {rows.map((r) => (
-        <StatCard key={r.label} label={r.label} value={r.value} />
-      ))}
-    </div>
-  );
-}
-
 function SignalAnalyzerResultsPanel({
   error,
   results,
@@ -465,7 +455,11 @@ function MultiSignalResultsPanel({
     >
       <div className="flex flex-col gap-4">
         <ResultsSection title={t('Aggregated Signal Statistics')}>
-          <StatGrid rows={aggStatRows.map((r) => ({ label: t(r.label), value: r.value }))} />
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+            {aggStatRows.map((r) => (
+              <StatCard key={r.label} label={t(r.label)} value={r.value} />
+            ))}
+          </div>
         </ResultsSection>
         <ResultsSection title={t('Signal Contribution Comparison')}>
           {results!.contributions.length > 0 ? (

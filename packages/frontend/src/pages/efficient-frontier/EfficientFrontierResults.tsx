@@ -1,7 +1,6 @@
 ﻿/* eslint-disable react-refresh/only-export-components */
 import { ArrowRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import type { TFunction } from 'i18next';
 import { type EfficientFrontierPoint } from '@backtest/shared';
 import { getCorrelationColor, getPortfolioColor } from '@/lib/chart-theme.js';
 import { getCorrelationTextColor } from '@/components/charts/chartUtils.js';
@@ -25,116 +24,8 @@ import {
   useEfficientFrontierState,
   type FrontierState,
 } from './EfficientFrontierUtils.js';
-import type { SolveSpeed, FrontierSolver, ReturnObjective } from './EfficientFrontierUtils.js';
 import { createComputeToolPage } from '../../components/shells/index.js';
 import { TOOL_LINKS } from '../../components/shells/constants.js';
-const solveSpeedOptions = (t: TFunction): { value: SolveSpeed; label: string }[] => [
-  { value: 'ultrafast', label: t('Ultra Fast') },
-  { value: 'fast', label: t('Fast') },
-  { value: 'medium', label: t('Medium') },
-  { value: 'slow', label: t('Slow') },
-];
-const rebalanceFreqOptions = (t: TFunction): { value: string; label: string }[] => [
-  { value: 'daily', label: t('Daily') },
-  { value: 'weekly', label: t('Weekly') },
-  { value: 'monthly', label: t('Monthly') },
-  { value: 'quarterly', label: t('Quarterly') },
-  { value: 'yearly', label: t('Annual') },
-];
-const returnObjOptions = (t: TFunction): { value: ReturnObjective; label: string }[] => [
-  { value: 'maxCagr', label: t('backtest.optimizer.maxCagr') },
-  { value: 'minVolatility', label: t('Minimize Volatility') },
-];
-const solverOptions = (t: TFunction): { value: FrontierSolver; label: string }[] => [
-  { value: 'markowitz', label: t('Markowitz') },
-  { value: 'nsga2', label: t('NSGA-II') },
-];
-function DateAndPointsGrid({ s }: { s: FrontierState }) {
-  const { t } = useTranslation();
-  return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-      <DateField label={t('Start Date')} value={s.startDate} onChange={s.setStartDate} />
-      <DateField label={t('End Date')} value={s.endDate} onChange={s.setEndDate} />
-      <FieldShell>
-        <FieldLabel>{t('Sample Points')}</FieldLabel>
-        <Input
-          type="number"
-          min={5}
-          max={100}
-          value={s.numPoints}
-          onChange={(e) => s.setNumPoints(Number(e.target.value))}
-        />
-      </FieldShell>
-      <FieldShell>
-        <AllHistoryCheckbox
-          startDate={s.startDate}
-          endDate={s.endDate}
-          onStartDateChange={s.setStartDate}
-          onEndDateChange={s.setEndDate}
-          label={t('All History')}
-        />
-      </FieldShell>
-    </div>
-  );
-}
-function AdvancedParamsGrid({ s }: { s: FrontierState }) {
-  const { t } = useTranslation();
-  return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      <SelectField
-        label={t('Solve Speed')}
-        value={s.solveSpeed}
-        onChange={s.setSolveSpeed}
-        options={solveSpeedOptions(t)}
-      />
-      <FieldShell>
-        <FieldLabel>{t('Min Inclusion Weight')}</FieldLabel>
-        <AffixInput
-          type="number"
-          min={0}
-          max={100}
-          suffix="%"
-          value={s.minInclusionWeight}
-          onChange={(e) => s.setMinInclusionWeight(Number(e.target.value))}
-        />
-      </FieldShell>
-      <SelectField
-        label={t('Rebalancing Frequency')}
-        value={s.rebalanceFrequency}
-        onChange={s.setRebalanceFrequency}
-        options={rebalanceFreqOptions(t)}
-      />
-      <SelectField
-        label={t('Return Objective')}
-        value={s.returnObjective}
-        onChange={s.setReturnObjective}
-        options={returnObjOptions(t)}
-      />
-      <SelectField
-        label={t('Solver')}
-        value={s.solver}
-        onChange={s.setSolver}
-        options={solverOptions(t)}
-      />
-      <FieldShell>
-        <label className="flex h-10 cursor-pointer items-center gap-2 text-label text-fg-secondary">
-          <Checkbox checked={s.allowCash} onCheckedChange={(c) => s.setAllowCash(c === true)} />
-          <span>{t('Allow Cash Allocation')}</span>
-        </label>
-      </FieldShell>
-    </div>
-  );
-}
-function ParamsSection({ s }: { s: FrontierState }) {
-  const { t } = useTranslation();
-  return (
-    <section className="flex flex-col gap-4">
-      <SectionHeader title={t('Parameters')} />
-      <DateAndPointsGrid s={s} />
-      <AdvancedParamsGrid s={s} />
-    </section>
-  );
-}
 function FrontierParams({ state }: { state: FrontierState }) {
   const { t } = useTranslation();
   return (
@@ -145,7 +36,99 @@ function FrontierParams({ state }: { state: FrontierState }) {
         minCount={2}
         title={t('Ticker List')}
       />
-      <ParamsSection s={state} />
+      <section className="flex flex-col gap-4">
+        <SectionHeader title={t('Parameters')} />
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <DateField
+            label={t('Start Date')}
+            value={state.startDate}
+            onChange={state.setStartDate}
+          />
+          <DateField label={t('End Date')} value={state.endDate} onChange={state.setEndDate} />
+          <FieldShell>
+            <FieldLabel>{t('Sample Points')}</FieldLabel>
+            <Input
+              type="number"
+              min={5}
+              max={100}
+              value={state.numPoints}
+              onChange={(e) => state.setNumPoints(Number(e.target.value))}
+            />
+          </FieldShell>
+          <FieldShell>
+            <AllHistoryCheckbox
+              startDate={state.startDate}
+              endDate={state.endDate}
+              onStartDateChange={state.setStartDate}
+              onEndDateChange={state.setEndDate}
+              label={t('All History')}
+            />
+          </FieldShell>
+        </div>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <SelectField
+            label={t('Solve Speed')}
+            value={state.solveSpeed}
+            onChange={state.setSolveSpeed}
+            options={[
+              { value: 'ultrafast', label: t('Ultra Fast') },
+              { value: 'fast', label: t('Fast') },
+              { value: 'medium', label: t('Medium') },
+              { value: 'slow', label: t('Slow') },
+            ]}
+          />
+          <FieldShell>
+            <FieldLabel>{t('Min Inclusion Weight')}</FieldLabel>
+            <AffixInput
+              type="number"
+              min={0}
+              max={100}
+              suffix="%"
+              value={state.minInclusionWeight}
+              onChange={(e) => state.setMinInclusionWeight(Number(e.target.value))}
+            />
+          </FieldShell>
+          <SelectField
+            label={t('Rebalancing Frequency')}
+            value={state.rebalanceFrequency}
+            onChange={state.setRebalanceFrequency}
+            options={[
+              { value: 'daily', label: t('Daily') },
+              { value: 'weekly', label: t('Weekly') },
+              { value: 'monthly', label: t('Monthly') },
+              { value: 'quarterly', label: t('Quarterly') },
+              { value: 'yearly', label: t('Annual') },
+            ]}
+          />
+          <SelectField
+            label={t('Return Objective')}
+            value={state.returnObjective}
+            onChange={state.setReturnObjective}
+            options={[
+              { value: 'maxCagr', label: t('backtest.optimizer.maxCagr') },
+              { value: 'minVolatility', label: t('Minimize Volatility') },
+            ]}
+          />
+          <SelectField
+            label={t('Solver')}
+            value={state.solver}
+            onChange={state.setSolver}
+            options={[
+              { value: 'markowitz', label: t('Markowitz') },
+              { value: 'nsga2', label: t('NSGA-II') },
+            ]}
+          />
+          <FieldShell>
+            <label className="flex h-10 cursor-pointer items-center gap-2 text-label text-fg-secondary">
+              <Checkbox
+                checked={state.allowCash}
+                onCheckedChange={(c) => state.setAllowCash(c === true)}
+              />
+              <span>{t('Allow Cash Allocation')}</span>
+            </label>
+          </FieldShell>
+        </div>
+      </section>
       <RunButton
         isLoading={state.isLoading}
         onClick={state.runFrontier}
@@ -396,19 +379,24 @@ function PointStats({ p }: { p: EfficientFrontierPoint }) {
   const { t } = useTranslation();
   return (
     <div className="flex flex-col gap-2">
-      {[
-        { key: 'Expected Return', value: fmtPct(p.expectedReturn), color: COLORS.success },
-        { key: 'Expected Volatility', value: fmtPct(p.expectedVolatility), color: COLORS.warning },
-        { key: 'Sharpe Ratio', value: p.sharpeRatio.toFixed(2), color: COLORS.brand },
-      ].map((s) => (
-        <MiniStatCard
-          key={s.key}
-          className="bg-elevated p-2.5"
-          label={t(s.key)}
-          value={s.value}
-          color={s.color}
-        />
-      ))}
+      <MiniStatCard
+        className="bg-elevated p-2.5"
+        label={t('Expected Return')}
+        value={fmtPct(p.expectedReturn)}
+        color={COLORS.success}
+      />
+      <MiniStatCard
+        className="bg-elevated p-2.5"
+        label={t('Expected Volatility')}
+        value={fmtPct(p.expectedVolatility)}
+        color={COLORS.warning}
+      />
+      <MiniStatCard
+        className="bg-elevated p-2.5"
+        label={t('Sharpe Ratio')}
+        value={p.sharpeRatio.toFixed(2)}
+        color={COLORS.brand}
+      />
     </div>
   );
 }
