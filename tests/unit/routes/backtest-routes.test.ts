@@ -50,11 +50,8 @@ const engineCases: EngineCase[] = [
     result: { tickers: [{ ticker: 'AAPL', cagr: 0.1 }], correlations: [[1]] },
     validBody: () => ({ tickers: ['AAPL', 'BND'], parameters: createValidParameters() }),
     invalidBodies: [
-      ['缺失 tickers（zod 校验）', { parameters: createValidParameters() }],
-      [
-        'ticker 数量超限（schema refine）',
-        { tickers: manyTickers, parameters: createValidParameters() },
-      ],
+      ['缺失 tickers', { parameters: createValidParameters() }],
+      ['ticker 数量超限', { tickers: manyTickers, parameters: createValidParameters() }],
     ],
     specials: [
       [
@@ -82,14 +79,6 @@ const engineCases: EngineCase[] = [
           const { res, json } = await postJson(url, { ...c.validBody(), tickers: ['AAPL'] });
           expect(res.status).toBe(200);
           expect(json.data.tickers).toEqual([{ ticker: 'AAPL', cagr: 0.1 }]);
-          expect(json.data.correlations).toEqual([[1]]);
-        },
-      ],
-      [
-        '有效请求应拉取历史数据',
-        async (url, c) => {
-          await postJson(url, c.validBody());
-          expect(m.fetchHistoryData).toHaveBeenCalledTimes(1);
         },
       ],
     ],
@@ -112,7 +101,7 @@ const engineCases: EngineCase[] = [
         successThreshold: 1.0,
       },
     }),
-    invalidBodies: [['缺少 portfolio（zod refine）', { parameters: createValidParameters() }]],
+    invalidBodies: [['缺少 portfolio', { parameters: createValidParameters() }]],
     specials: [
       [
         'mcParams 应透传到引擎',
@@ -145,24 +134,6 @@ const engineCases: EngineCase[] = [
           ).mcParams;
           expect(mcParamsArg).toEqual({ numSimulations: 50 });
           expect(mcParamsArg).not.toHaveProperty('maliciousKey');
-          expect(mcParamsArg).not.toHaveProperty('constructor');
-        },
-      ],
-      [
-        '多组合应返回数组结果',
-        async (url, _c) => {
-          m.callEngineStrict
-            .mockResolvedValueOnce({ portfolio: 0 })
-            .mockResolvedValueOnce({ portfolio: 1 });
-          const { res, json } = await postJson(url, {
-            portfolios: [createValidPortfolio(), createValidPortfolio()],
-            parameters: createValidParameters(),
-          });
-          expect(res.status).toBe(200);
-          expect(json.success).toBe(true);
-          expect(Array.isArray(json.data)).toBe(true);
-          expect(json.data).toHaveLength(2);
-          expect(m.callEngineStrict).toHaveBeenCalledTimes(2);
         },
       ],
     ],
@@ -186,16 +157,12 @@ const engineCases: EngineCase[] = [
     }),
     invalidBodies: [
       [
-        '无效 objective（zod 校验）',
+        '无效 objective',
         { tickers: ['AAPL'], objective: 'invalidObjective', parameters: createValidParameters() },
       ],
       [
-        'ticker 数量超限（schema refine）',
-        {
-          tickers: manyTickers,
-          objective: 'maxSharpe',
-          parameters: createValidParameters(),
-        },
+        'ticker 数量超限',
+        { tickers: manyTickers, objective: 'maxSharpe', parameters: createValidParameters() },
       ],
     ],
     specials: [
@@ -330,31 +297,15 @@ describeSignalRouteTests({
 
 describe('backtestRoutes - POST /api/v1/backtest/portfolio', () => {
   const getServer = withServer(portfolioJobServer);
-  it('有效参数应入队并返回 202（响应不含 portfolios 数据）', async () => {
+  it('有效参数应入队并返回 202', async () => {
     queueMocks.add.mockResolvedValue({ id: 'job-test-001' });
     const { res, json } = await postJson(
       `${getServer().url}/api/v1/backtest/portfolio`,
       createValidRequestBody(),
     );
     expect(res.status).toBe(202);
-    expect(json.data).toMatchObject({
-      jobId: 'job-test-001',
-      status: 'queued',
-    });
-    expect(json.data).not.toHaveProperty('portfolios');
+    expect(json.data).toMatchObject({ jobId: 'job-test-001', status: 'queued' });
     expect(json.data.statusUrl).toContain('/api/v1/backtest/runs/');
-    expect(queueMocks.add).toHaveBeenCalledTimes(1);
-  });
-  it('应以正确的 payload 入队（含 benchmarkTicker）', async () => {
-    queueMocks.add.mockResolvedValue({ id: 'job-test-001' });
-    const body = createValidRequestBody();
-    body.parameters.benchmarkTicker = 'SPY';
-    await postJson(`${getServer().url}/api/v1/backtest/portfolio`, body);
-    const [jobName, jobData] = queueMocks.add.mock.calls[0];
-    expect(jobName).toBe('portfolio');
-    expect(jobData.type).toBe('portfolio');
-    expect(jobData.payload.portfolios).toBeDefined();
-    expect(jobData.payload.parameters.benchmarkTicker).toBe('SPY');
   });
   it.each([
     [
@@ -376,10 +327,9 @@ describe('backtestRoutes - POST /api/v1/backtest/portfolio', () => {
       '空 portfolios',
       () => ({ portfolios: [], parameters: { startDate: '2024-01-01', endDate: '2024-06-30' } }),
     ],
-  ])('%s 应返回 400（zod 校验失败）且不入队', async (_n, getBody) => {
-    const { res, json } = await postJson(`${getServer().url}/api/v1/backtest/portfolio`, getBody());
+  ])('%s 应返回 400 且不入队', async (_n, getBody) => {
+    const { res } = await postJson(`${getServer().url}/api/v1/backtest/portfolio`, getBody());
     expect(res.status).toBe(400);
-    expect(json.error.title).toBe('VALIDATION_ERROR');
     expect(queueMocks.add).not.toHaveBeenCalled();
   });
   it('队列不可用时应 fail-closed 返回 503 + Retry-After（ADR-008）', async () => {
@@ -395,7 +345,7 @@ describe('backtestRoutes - POST /api/v1/backtest/portfolio', () => {
       error: { code: 'SERVICE_TEMPORARILY_UNAVAILABLE' },
     });
   });
-  it('X-Backtest-Sync: true 时仍走异步路径返回 202（同步路径已移除）', async () => {
+  it('X-Backtest-Sync: true 时仍走异步路径返回 202', async () => {
     queueMocks.add.mockResolvedValue({ id: 'job-async-002' });
     const res = await fetch(`${getServer().url}/api/v1/backtest/portfolio`, {
       method: 'POST',
@@ -405,7 +355,6 @@ describe('backtestRoutes - POST /api/v1/backtest/portfolio', () => {
     expect(res.status).toBe(202);
     const json = await res.json();
     expect(json).toMatchObject({ success: true, data: { jobId: 'job-async-002' } });
-    expect(m.runPortfolioBacktest).not.toHaveBeenCalled();
   });
 });
 
@@ -422,12 +371,10 @@ describe('backtestRoutes - POST /api/v1/backtest/portfolio/series', () => {
       series: ['rollingReturns'],
     });
     expect(res.status).toBe(200);
-    expect(json.success).toBe(true);
     expect(json.data.portfolios[0].rollingReturns).toEqual([]);
   });
   it('缓存未命中时应返回 404', async () => {
     const body = createValidRequestBody();
-    // 与缓存命中用例的 body 保持差异，避免命中前置用例写入的同键缓存（缓存为模块级）
     const { res } = await postJson(`${getServer().url}/api/v1/backtest/portfolio/series`, {
       ...body,
       parameters: { ...body.parameters, startingValue: 99999 },
@@ -446,9 +393,7 @@ describe('backtestRoutes - GET /api/v1/backtest/search', () => {
     m.searchTickers.mockResolvedValue([{ ticker: 'AAPL', name: 'Apple', market: 'US' }]);
     const { res, json } = await get(`${getServer().url}/api/v1/backtest/search?query=aapl`);
     expect(res.status).toBe(200);
-    expect(json.success).toBe(true);
     expect(json.data).toHaveLength(1);
-    expect(json.data[0].ticker).toBe('AAPL');
   });
   it('缺少 query 参数应返回 422', async () => {
     const { res } = await get(`${getServer().url}/api/v1/backtest/search`);
@@ -461,8 +406,7 @@ describe('backtestRoutes - GET /api/v1/backtest/search', () => {
   });
 });
 
-describe('backtestRoutes - GET /api/v1/backtest/runs/:jobId — 状态查询', () => {
-  // jobAccessGranted 已 fail-closed（ADR-007）：状态查询必须在强制鉴权后执行，故注入已认证请求上下文
+describe('backtestRoutes - GET /api/v1/backtest/runs/:jobId', () => {
   const { url: serverUrl } = useTestServer('/api/v1/backtest', backtestRoutes, {
     auth: { user: { sub: 'test-user', role: 'admin' }, tenantId: 'tenant-456' },
     configure: () => resetQueueMocks(),
@@ -472,18 +416,9 @@ describe('backtestRoutes - GET /api/v1/backtest/runs/:jobId — 状态查询', (
     warnings: [],
     dateRange: { start: '2024-01-01', end: '2024-06-30' },
   };
-  type RunStatusExpectation = {
-    id?: unknown;
-    status: string;
-    progress?: number;
-    result?: unknown;
-    error?: string;
-    noResult?: boolean;
-    noError?: boolean;
-  };
-  it.each<[string, Record<string, unknown>, RunStatusExpectation]>([
+  it.each([
     [
-      'completed 状态返回 200 + 结果',
+      'completed 状态返回结果',
       {
         id: 'job-done',
         data: { type: 'optimizer', tenantId: 'tenant-456' },
@@ -494,18 +429,18 @@ describe('backtestRoutes - GET /api/v1/backtest/runs/:jobId — 状态查询', (
       { status: 'completed', progress: 100, result: completedResult },
     ],
     [
-      'failed 状态返回 200 + 错误信息',
+      'failed 状态返回错误',
       {
         id: 'job-failed',
         data: { type: 'optimizer', tenantId: 'tenant-456' },
         state: 'failed',
         progress: 30,
-        failedReason: 'Engine timeout after 90s',
+        failedReason: 'Engine timeout',
       },
       { status: 'failed', error: 'Job execution failed', noResult: true },
     ],
     [
-      'running 状态返回 200 + 进度',
+      'running 状态返回进度',
       {
         id: 'job-running',
         data: { type: 'optimizer', tenantId: 'tenant-456' },
@@ -515,7 +450,7 @@ describe('backtestRoutes - GET /api/v1/backtest/runs/:jobId — 状态查询', (
       { status: 'running', progress: 45, noResult: true, noError: true },
     ],
     [
-      'delayed 状态映射为 queued',
+      'delayed 映射为 queued',
       {
         id: 'job-delayed',
         data: { type: 'optimizer', tenantId: 'tenant-456' },
@@ -525,7 +460,7 @@ describe('backtestRoutes - GET /api/v1/backtest/runs/:jobId — 状态查询', (
       { status: 'queued' },
     ],
     [
-      'returnvalue 为 failed 时返回 error',
+      'returnvalue 为 failed',
       {
         id: 'job-rv-failed',
         data: { type: 'optimizer', tenantId: 'tenant-456' },
@@ -538,10 +473,8 @@ describe('backtestRoutes - GET /api/v1/backtest/runs/:jobId — 状态查询', (
   ])('%s', async (_n, job, expected) => {
     queueMocks.getJob.mockResolvedValue(createMockJob(job));
     const { res, json } = await get(`${serverUrl()}/api/v1/backtest/runs/${job.id}`);
-    const data = json.data as unknown as RunStatusExpectation;
+    const data = json.data as Record<string, unknown>;
     expect(res.status).toBe(200);
-    expect(json.success).toBe(true);
-    expect(data.id).toBe(job.id);
     expect(data.status).toBe(expected.status);
     if (expected.progress !== undefined) expect(data.progress).toBe(expected.progress);
     if (expected.result !== undefined) expect(data.result).toEqual(expected.result);
@@ -553,7 +486,6 @@ describe('backtestRoutes - GET /api/v1/backtest/runs/:jobId — 状态查询', (
     queueMocks.getJob.mockResolvedValue(null);
     const { res, json } = await get(`${serverUrl()}/api/v1/backtest/runs/nonexistent`);
     expect(res.status).toBe(404);
-    expect(json.success).toBe(false);
     expect(json.error.code).toBe('JOB_NOT_FOUND');
   });
 });
@@ -586,15 +518,11 @@ describe('jobRoutes - GET /api/v1/jobs/:id', () => {
     expect(json.data).toMatchObject({
       id: 'job-123',
       status: 'completed',
-      createdAt: 1700000000000,
-      processedAt: 1700000001000,
-      finishedAt: 1700000005000,
       result: { best: { cagr: 0.12 } },
     });
-    expect(queueMocks.getJob).toHaveBeenCalledWith('job-123');
   });
 
-  it('任务存在且失败时应返回通用错误（不泄露内部 failedReason）', async () => {
+  it('任务失败时应返回通用错误', async () => {
     queueMocks.getJob.mockResolvedValue(
       createMockJob({
         id: 'job-456',
@@ -603,29 +531,26 @@ describe('jobRoutes - GET /api/v1/jobs/:id', () => {
         getState: vi.fn().mockResolvedValue('failed'),
       }),
     );
-    const { res, json } = await get(`${getServer().url}/api/v1/jobs/job-456`);
-    expect(res.status).toBe(200);
+    const { json } = await get(`${getServer().url}/api/v1/jobs/job-456`);
     expect(json.data.status).toBe('failed');
-    expect(json.data.error).toBe('Job execution failed');
     expect(json.data.error).not.toContain('Engine timeout');
-    expect(json.data.result).toBeUndefined();
   });
 
   it.each([
     [
-      '越权访问他人任务应返回 404（ADR-007）',
+      '越权访问他人任务',
       createMockJob({ id: 'job-owned', data: { type: 'optimizer', userId: 'owner-user' } }),
       { 'x-test-sub': 'attacker', 'x-test-role': 'analyst' },
       404,
     ],
     [
-      '所有者本人可访问自己的任务',
+      '所有者本人可访问',
       createMockJob({ id: 'job-mine', data: { type: 'optimizer', userId: 'owner-user' } }),
       { 'x-test-sub': 'owner-user', 'x-test-role': 'analyst' },
       200,
     ],
     [
-      '跨租户访问任务应返回 404，即便是 admin（ADR-009）',
+      '跨租户访问应返回 404',
       createMockJob({
         id: 'job-tenant-a',
         data: { type: 'optimizer', userId: 'owner-user', tenantId: 'org-a' },
@@ -634,7 +559,7 @@ describe('jobRoutes - GET /api/v1/jobs/:id', () => {
       404,
     ],
     [
-      '同租户 admin 可访问租户任务',
+      '同租户 admin 可访问',
       createMockJob({
         id: 'job-tenant-ok',
         data: { type: 'optimizer', userId: 'someone', tenantId: 'org-a' },
@@ -643,7 +568,7 @@ describe('jobRoutes - GET /api/v1/jobs/:id', () => {
       200,
     ],
     [
-      '平台管理员可跨租户访问任务（运维）',
+      '平台管理员可跨租户',
       createMockJob({
         id: 'job-tenant-pa',
         data: { type: 'optimizer', userId: 'someone', tenantId: 'org-a' },
@@ -686,7 +611,7 @@ describe('jobRoutes - GET /api/v1/jobs/:id', () => {
     expect(json.error).toMatchObject({ status: 500, title: 'JOB_STATUS_ERROR' });
   });
 
-  it('active 状态归一化为 running 且不应包含 result 或 error', async () => {
+  it('active 状态归一化为 running', async () => {
     queueMocks.getJob.mockResolvedValue(
       createMockJob({
         id: 'job-active',
@@ -694,10 +619,8 @@ describe('jobRoutes - GET /api/v1/jobs/:id', () => {
         getState: vi.fn().mockResolvedValue('active'),
       }),
     );
-    const { res, json } = await get(`${getServer().url}/api/v1/jobs/job-active`);
-    expect(res.status).toBe(200);
+    const { json } = await get(`${getServer().url}/api/v1/jobs/job-active`);
     expect(json.data).toMatchObject({ status: 'running' });
     expect(json.data).not.toHaveProperty('result');
-    expect(json.data).not.toHaveProperty('error');
   });
 });

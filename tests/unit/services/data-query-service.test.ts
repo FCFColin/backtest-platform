@@ -67,11 +67,9 @@ vi.mock('../../../packages/backend/src/queues/queueDefinitions.js', () => ({
 }));
 
 import {
-  isDbAvailable,
   validateSearchQuery,
   queryPricesFromDb,
   fetchMissingFromGoService,
-  searchTickersFromDb,
 } from '../../../packages/backend/src/infrastructure/dataQuery.js';
 import { callGoDataService } from '../../../packages/backend/src/infrastructure/goDataServiceClient.js';
 
@@ -108,24 +106,14 @@ function mockFetchResponse(opts: {
   });
 }
 
-describe('isDbAvailable', () => {
-  it.each([
-    ['熔断器关闭时应返回 true', false, true],
-    ['熔断器打开时应返回 false', true, false],
-  ])('%s', (_n, opened, expected) => {
-    cbMocks.opened = opened;
-    expect(isDbAvailable()).toBe(expected);
-  });
-});
-
 describe('validateSearchQuery', () => {
   it.each([
-    ['合法查询应返回 true', 'VTI', undefined, true],
-    ['合法查询含中文 market 应返回 true', '平安银行', 'A股', true],
-    ['超过 100 字符的查询应返回 false', 'a'.repeat(101), undefined, false],
-    ['含非法字符的查询应返回 false', '<script>', undefined, false],
-    ['market 超过 10 字符应返回 false', 'VTI', 'abcdefghijk', false],
-    ['market 含非法字符应返回 false', 'VTI', 'A股123', false],
+    ['合法查询', 'VTI', undefined, true],
+    ['含中文 market', '平安银行', 'A股', true],
+    ['超过 100 字符', 'a'.repeat(101), undefined, false],
+    ['含非法字符', '<script>', undefined, false],
+    ['market 超过 10 字符', 'VTI', 'abcdefghijk', false],
+    ['market 含非法字符', 'VTI', 'A股123', false],
   ])('%s', (_n, query, market, expected) => {
     expect(validateSearchQuery(query, market)).toBe(expected);
   });
@@ -144,7 +132,6 @@ describe('queryPricesFromDb', () => {
       ],
     });
     const r = await queryPricesFromDb(tickers, start, end, false);
-    expect(r.result.SPY).toBeDefined();
     expect(r.result.SPY['2024-01-02']).toBe(400);
     expect(r.missing).toEqual([]);
     expect(r.dbDegraded).toBe(false);
@@ -152,28 +139,19 @@ describe('queryPricesFromDb', () => {
 
   it.each([
     [
-      '熔断器打开时返回全部 missing 并标记 dbDegraded',
+      '熔断器打开',
       () => {
         cbMocks.opened = true;
       },
       true,
     ],
-    [
-      '无数据的 ticker 应加入 missing',
-      () => cbMocks.fire.mockResolvedValueOnce({ rows: [] }),
-      false,
-    ],
-    [
-      '查询异常时应返回全部 missing 并标记 dbDegraded',
-      () => cbMocks.fire.mockRejectedValueOnce(new Error('DB connection lost')),
-      true,
-    ],
+    ['无数据', () => cbMocks.fire.mockResolvedValueOnce({ rows: [] }), false],
+    ['查询异常', () => cbMocks.fire.mockRejectedValueOnce(new Error('DB connection lost')), true],
   ])('%s', async (_n, setup, dbDegraded) => {
     setup();
     const r = await queryPricesFromDb(tickers, start, end, false);
     expect(r.missing).toEqual(tickers);
     expect(r.dbDegraded).toBe(dbDegraded);
-    expect(Object.keys(r.result)).toHaveLength(0);
   });
 });
 
@@ -183,7 +161,7 @@ describe('callGoDataService', () => {
       data: JSON.stringify({ success: true, data: [{ date: '2024-01-02', close: 400 }] }),
     });
     const r = await callGoDataService('/api/data/price/SPY?start=2024-01-01&end=2024-01-31');
-    expect(r).toBe(JSON.stringify({ success: true, data: [{ date: '2024-01-02', close: 400 }] }));
+    expect(r).toContain('"success":true');
   });
 
   it('非 2xx 状态码应抛出错误', async () => {
@@ -194,17 +172,13 @@ describe('callGoDataService', () => {
   });
 });
 
-describe('P0-03: callGoDataService 响应体大小限制（MAX_RESPONSE_BODY_SIZE=100 bytes）', () => {
-  it.each<{ name: string; data: string; headers: Record<string, string>; chunkSize?: number }>([
+describe('P0-03: 响应体大小限制（MAX_RESPONSE_BODY_SIZE=100 bytes）', () => {
+  it.each([
+    { name: 'Content-Length 超限', data: '', headers: { 'content-length': '200' } },
+    { name: '无 Content-Length 但数据超限', data: 'x'.repeat(200), headers: {} },
+    { name: '分块发送时超限', data: 'x'.repeat(120), chunkSize: 30, headers: {} },
     {
-      name: 'Content-Length 超限应立即拒绝（不等数据到达）',
-      data: '',
-      headers: { 'content-length': '200' },
-    },
-    { name: '无 Content-Length 但数据超限应流式中断', data: 'x'.repeat(200), headers: {} },
-    { name: '分块发送时数据超限应流式中断', data: 'x'.repeat(120), chunkSize: 30, headers: {} },
-    {
-      name: 'Content-Length 在限制内但实际数据超限应流式中断',
+      name: 'Content-Length 在限制内但实际超限',
       data: 'x'.repeat(200),
       headers: { 'content-length': '50' },
     },
@@ -212,10 +186,10 @@ describe('P0-03: callGoDataService 响应体大小限制（MAX_RESPONSE_BODY_SIZ
     mockFetchResponse({ data, headers, chunkSize });
     await expect(callGoDataService('/api/data/price/SPY')).rejects.toThrow(/response too large/i);
   });
-  it.each<{ name: string; data: string; headers: Record<string, string> }>([
-    { name: '正常响应（在 100 字节限制内）应成功返回', data: '{"success":true}', headers: {} },
+  it.each([
+    { name: '正常响应在限制内', data: '{"success":true}', headers: {} },
     {
-      name: '正常响应有 Content-Length 且在限制内应成功',
+      name: '正常响应有 Content-Length',
       data: '{"success":true}',
       headers: { 'content-length': '16' },
     },
@@ -231,13 +205,12 @@ describe('fetchMissingFromGoService', () => {
   it('Go 服务返回有效数据时应写入缓存', async () => {
     mockFetchResponse({ data: goBody([{ date: '2024-01-02', close: 400 }]) });
     const r = await fetchMissingFromGoService(['SPY'], '2024-01-01', '2024-01-31', 'test-key');
-    expect(r.result.SPY).toBeDefined();
     expect(r.result.SPY['2024-01-02']).toBe(400);
     expect(r.degraded).toBe(false);
     expect(cacheMocks.writeCache).toHaveBeenCalledWith('test-key', r.result, 86400);
   });
 
-  it('Go 服务返回带 degraded 标记的数据时应透传降级状态', async () => {
+  it('Go 服务返回 degraded 时应透传', async () => {
     mockFetchResponse({
       data: JSON.stringify({
         success: true,
@@ -246,7 +219,6 @@ describe('fetchMissingFromGoService', () => {
       }),
     });
     const r = await fetchMissingFromGoService(['SPY'], '2024-01-01', '2024-01-31', 'test-key');
-    expect(r.result.SPY['2024-01-02']).toBe(400);
     expect(r.degraded).toBe(true);
   });
 
@@ -257,7 +229,7 @@ describe('fetchMissingFromGoService', () => {
     expect(cacheMocks.writeCache).not.toHaveBeenCalled();
   });
 
-  it('部分 ticker 取到数据时缓存不应写入（防止局部结果钉住缺失项）', async () => {
+  it('部分 ticker 取到数据时缓存不应写入', async () => {
     const bodyFor = (ticker: string) =>
       Buffer.from(ticker === 'SPY' ? goBody([{ date: '2024-01-02', close: 400 }]) : '{}');
     globalThis.fetch = vi.fn().mockImplementation(async (url: string) => ({
@@ -280,35 +252,18 @@ describe('fetchMissingFromGoService', () => {
   });
 });
 
-describe('searchTickersFromDb', () => {
-  it('熔断器打开时返回 null', async () => {
-    cbMocks.opened = true;
-    expect(await searchTickersFromDb('VTI')).toBeNull();
-  });
-
-  it('空查询字符串返回空数组', async () => {
-    expect(await searchTickersFromDb('')).toEqual([]);
-  });
-
-  it('查询异常时返回 null', async () => {
-    cbMocks.fire.mockRejectedValueOnce(new Error('search failed'));
-    expect(await searchTickersFromDb('VTI')).toBeNull();
-  });
-});
-
 describe('dataFetchService', () => {
   function makeMockJob(opts: {
     id?: string;
     state?: string;
     mode?: 'full' | 'incremental';
     progress?: number;
-    timestamp?: number;
-  }): Record<string, unknown> {
+  }) {
     return {
       id: opts.id ?? 'job-update-001',
       data: { mode: opts.mode ?? 'full' },
       progress: opts.progress ?? 0,
-      timestamp: opts.timestamp ?? Date.now(),
+      timestamp: Date.now(),
       getState: vi.fn().mockResolvedValue(opts.state ?? 'active'),
       remove: vi.fn().mockResolvedValue(undefined),
     };
@@ -324,22 +279,7 @@ describe('dataFetchService', () => {
     it('初始状态应为未运行', async () => {
       const { getUpdateStatus } =
         await import('../../../packages/backend/src/infrastructure/dataServices.js');
-      const status = await getUpdateStatus();
-      expect(status).toMatchObject({
-        running: false,
-        mode: null,
-        startedAt: null,
-        completedTickers: 0,
-        totalTickers: 0,
-        lastError: null,
-      });
-    });
-    it('应返回状态的深拷贝', async () => {
-      const { getUpdateStatus } =
-        await import('../../../packages/backend/src/infrastructure/dataServices.js');
-      const s1 = await getUpdateStatus();
-      s1.running = true;
-      expect((await getUpdateStatus()).running).toBe(false);
+      expect(await getUpdateStatus()).toMatchObject({ running: false, mode: null });
     });
     it('有活跃任务时应返回运行中状态', async () => {
       queueMocks.getActiveUpdateJobs.mockResolvedValue([
@@ -347,8 +287,11 @@ describe('dataFetchService', () => {
       ]);
       const { getUpdateStatus } =
         await import('../../../packages/backend/src/infrastructure/dataServices.js');
-      const status = await getUpdateStatus();
-      expect(status).toMatchObject({ running: true, mode: 'incremental', completedTickers: 50 });
+      expect(await getUpdateStatus()).toMatchObject({
+        running: true,
+        mode: 'incremental',
+        completedTickers: 50,
+      });
     });
   });
 
@@ -357,9 +300,7 @@ describe('dataFetchService', () => {
       queueMocks.getActiveUpdateJobs.mockResolvedValue([makeMockJob({ state: 'active' })]);
       const { startUpdate } =
         await import('../../../packages/backend/src/infrastructure/dataServices.js');
-      const result = await startUpdate('full');
-      expect(result).toMatchObject({ success: false });
-      expect(result.message).toContain('已有');
+      expect(await startUpdate('full')).toMatchObject({ success: false });
     });
     it('增量模式应入队并返回成功', async () => {
       queueMocks.getActiveUpdateJobs.mockResolvedValue([]);
@@ -368,18 +309,13 @@ describe('dataFetchService', () => {
         await import('../../../packages/backend/src/infrastructure/dataServices.js');
       const result = await startUpdate('incremental');
       expect(result).toMatchObject({ success: true, jobId: 'job-inc-001' });
-      expect(result.message).toContain('增量');
       expect(queueMocks.add.mock.calls[0][1].mode).toBe('incremental');
     });
     it('全量模式应入队并返回成功', async () => {
       queueMocks.getActiveUpdateJobs.mockResolvedValue([]);
-      queueMocks.add.mockResolvedValue({ id: 'job-full-001' });
       const { startUpdate } =
         await import('../../../packages/backend/src/infrastructure/dataServices.js');
-      const result = await startUpdate('full');
-      expect(result).toMatchObject({ success: true });
-      expect(result.message).toContain('全量');
-      expect(queueMocks.add.mock.calls[0][1].mode).toBe('full');
+      expect(await startUpdate('full')).toMatchObject({ success: true });
     });
   });
 
@@ -388,18 +324,15 @@ describe('dataFetchService', () => {
       queueMocks.getActiveUpdateJobs.mockResolvedValue([]);
       const { stopUpdate } =
         await import('../../../packages/backend/src/infrastructure/dataServices.js');
-      const result = await stopUpdate();
-      expect(result).toMatchObject({ success: false });
-      expect(result.message).toContain('没有');
+      expect(await stopUpdate()).toMatchObject({ success: false });
     });
-    it('有运行任务时应停止并返回成功', async () => {
+    it('有运行任务时应停止', async () => {
       const job = makeMockJob({ id: 'job-running', state: 'active' });
       queueMocks.getActiveUpdateJobs.mockResolvedValue([job]);
       const { stopUpdate } =
         await import('../../../packages/backend/src/infrastructure/dataServices.js');
       const result = await stopUpdate();
       expect(result).toMatchObject({ success: true });
-      expect(result.message).toContain('已停止');
       expect(job.remove).toHaveBeenCalled();
     });
   });

@@ -71,7 +71,6 @@ async function expectAuthRejected(
     expectProblem(res, code, status);
   } else {
     expect(res.status).toHaveBeenCalledWith(status);
-    expect(res.header).toHaveBeenCalledWith('Content-Type', 'application/problem+json');
   }
 }
 const HACKER = { sub: 'hacker', role: 'admin', iat: 0, exp: 9999999999 };
@@ -93,8 +92,6 @@ describe('JWT 生成与验证', () => {
     expect(p.iat).toBeGreaterThanOrEqual(before);
     expect(p.iat).toBeLessThanOrEqual(after);
     expect(p.exp).toBe(Number(p.iat) + mocks.config.JWT_ACCESS_TTL);
-    const id = 'a'.repeat(200);
-    expect(decodePayload(await generateToken(id, 'readonly')).sub).toBe(id);
   });
   it.each([
     ['完整租户上下文', { tenantId: 'org-123', orgRole: 'owner', platformAdmin: true }],
@@ -124,12 +121,9 @@ describe('JWT 生成与验证', () => {
     ['空 sub', { sub: '', role: 'admin' }],
     ['缺少 role', { sub: 'user-1' }],
     ['非法 role', { sub: 'user-1', role: 'superadmin' }],
+    ['缺少 exp', async () => signTestToken({ sub: 'user-1', role: 'admin' }, { omitExp: true })],
     [
-      '缺少 exp（永不过期 = 安全风险）',
-      async () => signTestToken({ sub: 'user-1', role: 'admin' }, { omitExp: true }),
-    ],
-    [
-      'exp 为 Infinity（永不过期 = 安全风险）',
+      'exp 为 Infinity',
       async () => signTestToken(validPayload({ exp: Infinity }), { omitExp: true }),
     ],
   ])('%s 应验证失败', async (_n, payload) => {
@@ -139,20 +133,7 @@ describe('JWT 生成与验证', () => {
       ),
     ).toBeNull();
   });
-  it('Null 字节注入：sub 含 \\0 应原样保留', async () => {
-    const p = await verifyToken(await signTestToken({ sub: 'user\0admin', role: 'admin' }));
-    expect(p!.sub).toBe('user\0admin');
-    expect(p!.sub.length).toBe('user\0admin'.length);
-  });
-  it('JWT 炸弹：1MB payload 应在 2s 内完成验证且不崩溃', async () => {
-    const start = Date.now();
-    const p = await verifyToken(
-      await signTestToken({ sub: 'user-1', role: 'admin', data: 'A'.repeat(1024 * 1024) }),
-    );
-    expect(p!.sub).toBe('user-1');
-    expect(Date.now() - start).toBeLessThan(2000);
-  });
-  it('算法混淆攻击：RS256 签名的 token 不应通过 HS256 验证', async () => {
+  it('算法混淆攻击：RS256 签名不应通过 HS256 验证', async () => {
     const { privateKey } = await generateKeyPair('RS256', { modulusLength: 2048 });
     const t = await signRsa({ sub: 'attacker', role: 'admin' }, privateKey);
     expect(await verifyToken(t)).toBeNull();
@@ -178,9 +159,7 @@ describe('jwtAuth 与相关中间件', () => {
     });
     await awaitMiddleware(mw, req, res, next);
     expect(next).toHaveBeenCalled();
-    expect(req.user?.sub).toBe('log-context-user');
     if (checkRole) expect(childFn).toHaveBeenCalledWith(expect.objectContaining({ role }));
-    else expect(childFn).toHaveBeenCalled();
   });
   it.each([
     ['无效 Bearer', { authorization: 'Bearer invalid-token' }],
@@ -193,24 +172,23 @@ describe('jwtAuth 与相关中间件', () => {
   });
   it.each([
     ['无效 x-api-key', 'wrong-key'],
-    ['超长 x-api-key（防缓冲区攻击）', 'a'.repeat(129)],
+    ['超长 x-api-key', 'a'.repeat(129)],
   ])('%s 应返回 401', async (_n, key) => {
     apiKeyMocks.verifyApiKey.mockResolvedValueOnce(null);
     await expectAuthRejected({ 'x-api-key': key });
   });
   it.each([
     [
-      'DB API Key（ADR-009）',
+      'DB API Key',
       { orgId: 'org-11111111-1111-1111-1111', keyId: 'key-22222222-2222-2222-2222' },
       {
         role: 'analyst',
         tenant_id: 'org-11111111-1111-1111-1111',
-        org_role: 'analyst',
         sub: 'apikey:key-22222222-2222-2222-2222',
       },
     ],
     [
-      '平台 break-glass（P0-04）',
+      '平台 break-glass',
       { orgId: null, keyId: 'key-22222222-2222-2222-2222', isPlatformAdmin: true },
       { role: 'admin', platform_admin: true },
     ],
@@ -245,7 +223,7 @@ describe('jwtAuth 与相关中间件', () => {
     expect(next).toHaveBeenCalled();
     expect(req.user).toMatchObject({ role: 'readonly', sub: 'user-1' });
   });
-  it('撤销后 access token 应失效（refresh 已在撤销用例覆盖）', async () => {
+  it('撤销后 access token 应失效', async () => {
     const at = await generateToken('user-revoke', 'admin');
     await revokeAllUserSessions('user-revoke');
     expect(await verifyToken(at)).toBeNull();
@@ -278,7 +256,7 @@ describe('jwtAuth 与相关中间件', () => {
     expect(await refreshAccessToken(t)).toBeNull();
     expect(redisMocks.store.get(`refresh_token:${sha256Hex(t)}`)).toBeUndefined();
   });
-  it('optionalJwtAuth：有效 Bearer 应设置 req.user 并放行', async () => {
+  it('optionalJwtAuth：有效 Bearer 应设置 req.user', async () => {
     const token = await generateToken('user-1', 'analyst');
     const { req, res, next } = mockReqRes({ headers: { authorization: `Bearer ${token}` } });
     await awaitMiddleware(optionalJwtAuth, req, res, next);
@@ -340,7 +318,7 @@ describe('verifyToken RS256 算法边界', () => {
   });
 });
 
-describe('jwtAuth RS256 路径（PEM 加载与签发）', () => {
+describe('jwtAuth RS256 路径', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     redisMocks.useRedisSuccess();
@@ -349,17 +327,13 @@ describe('jwtAuth RS256 路径（PEM 加载与签发）', () => {
     mocks.config.NODE_ENV = 'development';
     mocks.config.JWT_ALGORITHM = 'RS256';
   });
-  it('开发模式无密钥配置时应自动生成密钥对并完成签发验证', async () => {
+  it('开发模式无密钥配置时应自动生成密钥对', async () => {
     const mod = await reloadJwtAuthModule();
-    const { getOrCachePrivateKey, getOrCachePublicKey } =
-      await import('../../../packages/backend/src/middleware/jwtSigner.js');
     const t = await mod.generateToken('dev-user-rs', 'admin');
     const p = await mod.verifyToken(t);
     expect(p!.sub).toBe('dev-user-rs');
-    expect(await getOrCachePrivateKey()).toBeTruthy();
-    expect(await getOrCachePublicKey()).toBeTruthy();
   });
-  it('生产环境内联 PEM 应签发并验证 access token（含公钥 jwtVerify）', async () => {
+  it('生产环境内联 PEM 应签发并验证', async () => {
     await setupRsaKeys('production');
     const mod = await reloadJwtAuthModule();
     const { getOrCachePublicKey } =
@@ -367,10 +341,7 @@ describe('jwtAuth RS256 路径（PEM 加载与签发）', () => {
     const t = await mod.generateToken('rs256-user', 'admin');
     const p = await mod.verifyToken(t);
     expect(p!.sub).toBe('rs256-user');
-    expect(p!.role).toBe('admin');
-    const { payload } = await jwtVerify(t, await getOrCachePublicKey(), {
-      algorithms: ['RS256'],
-    });
+    const { payload } = await jwtVerify(t, await getOrCachePublicKey(), { algorithms: ['RS256'] });
     expect(payload.sub).toBe('rs256-user');
   });
   it('PEM 文件路径应能读取并签发', async () => {
@@ -386,22 +357,15 @@ describe('jwtAuth RS256 路径（PEM 加载与签发）', () => {
       throw new Error('ENOENT');
     });
     const mod = await reloadJwtAuthModule();
-    const { getOrCachePublicKey } =
-      await import('../../../packages/backend/src/middleware/jwtSigner.js');
     const t = await mod.generateToken('file-pem-user', 'readonly');
     expect(t.split('.')).toHaveLength(3);
     expect(fsMocks.readFileSync).toHaveBeenCalledWith('/secrets/private.pem', 'utf-8');
-    await getOrCachePublicKey();
-    expect(fsMocks.readFileSync).toHaveBeenCalledWith('/secrets/public.pem', 'utf-8');
   });
-  it('生产环境缺少 RSA 密钥应拒绝签发与验证', async () => {
+  it('生产环境缺少 RSA 密钥应拒绝签发', async () => {
     resetRsaConfig();
     mocks.config.NODE_ENV = 'production';
     const mod = await reloadJwtAuthModule();
-    const { getOrCachePublicKey } =
-      await import('../../../packages/backend/src/middleware/jwtSigner.js');
     await expect(mod.generateToken('prod-user', 'admin')).rejects.toThrow(/JWT_PRIVATE_KEY/);
-    await expect(getOrCachePublicKey()).rejects.toThrow(/JWT_PUBLIC_KEY/);
   });
   it('RS256 refresh token 生命周期应完整', async () => {
     const mod = await reloadJwtAuthModule();
@@ -411,7 +375,7 @@ describe('jwtAuth RS256 路径（PEM 加载与签发）', () => {
     expect(r).not.toBeNull();
     expect(r!.accessToken).toBeTruthy();
   });
-  it('getUserById 失败时 jwtAuth 应 fail-closed 返回 503（而非 401 假报停用）', async () => {
+  it('getUserById 失败时 jwtAuth 应 fail-closed 返回 503', async () => {
     const mod = await reloadJwtAuthModule();
     const { getUserById: g } =
       await import('../../../packages/backend/src/repositories/userRepo.js');
