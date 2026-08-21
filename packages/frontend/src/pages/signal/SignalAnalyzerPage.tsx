@@ -80,6 +80,12 @@ const StatCardGrid = ({ items }: { items: { label: string; value: string }[] }) 
     ))}
   </div>
 );
+const toItems = (s: Record<string, number>, t: TFunction) =>
+  STAT_COLS.map((c) => ({
+    label: t(c.label),
+    value:
+      c.fmt === 'int' ? String(s[c.key]) : c.fmt === 'pct' ? fmtPct(s[c.key]) : fmtRatio(s[c.key]),
+  }));
 function buildEq(r: DualSignalResponse) {
   const m = new Map<string, Record<string, number | string>>();
   const a = [
@@ -146,6 +152,7 @@ function DualSignalResultsPanel({
       },
     })),
   ];
+  const total = Math.ceil(cmp.length / PAGE_SIZE);
   return (
     <ResultsShell
       error={error}
@@ -180,10 +187,8 @@ function DualSignalResultsPanel({
                     type="button"
                     variant="ghost"
                     size="sm"
-                    onClick={() =>
-                      setPage((p) => Math.min(Math.ceil(cmp.length / PAGE_SIZE) - 1, p + 1))
-                    }
-                    disabled={page >= Math.ceil(cmp.length / PAGE_SIZE) - 1}
+                    onClick={() => setPage((p) => Math.min(total - 1, p + 1))}
+                    disabled={page >= total - 1}
                   >
                     {t('Next')}
                   </Button>
@@ -244,15 +249,7 @@ function SignalAnalyzerResultsPanel({
     >
       {results && (
         <div className="flex flex-col gap-4">
-          <StatCardGrid
-            items={[
-              { label: t('Total Signals'), value: String(results.statistics.totalSignals) },
-              { label: t('Win Rate'), value: fmtPct(results.statistics.winRate) },
-              { label: t('Average Return'), value: fmtPct(results.statistics.avgReturn) },
-              { label: t('Max Drawdown'), value: fmtPct(results.statistics.maxDrawdown) },
-              { label: t('Sharpe'), value: fmtRatio(results.statistics.sharpe) },
-            ]}
-          />
+          <StatCardGrid items={toItems(results.statistics as any, t)} />
           <Tabs defaultValue="signals">
             <TabsList>
               <TabsTrigger value="signals">
@@ -325,29 +322,7 @@ function MultiSignalResultsPanel({
     >
       <div className="flex flex-col gap-4">
         <ResultsSection title={t('Aggregated Signal Statistics')}>
-          {results && (
-            <StatCardGrid
-              items={[
-                {
-                  label: t('signal.dual.statTotalSignals'),
-                  value: String(results.aggregated.statistics.totalSignals),
-                },
-                { label: t('Win Rate'), value: fmtPct(results.aggregated.statistics.winRate) },
-                {
-                  label: t('Average Return'),
-                  value: fmtPct(results.aggregated.statistics.avgReturn),
-                },
-                {
-                  label: t('Max Drawdown'),
-                  value: fmtPct(results.aggregated.statistics.maxDrawdown),
-                },
-                {
-                  label: t('backtest.sharpeRatio'),
-                  value: fmtRatio(results.aggregated.statistics.sharpe),
-                },
-              ]}
-            />
-          )}
+          {results && <StatCardGrid items={toItems(results.aggregated.statistics as any, t)} />}
         </ResultsSection>
         <ResultsSection title={t('Signal Contribution Comparison')}>
           {results!.contributions.length > 0 ? (
@@ -374,40 +349,52 @@ function MultiSignalResultsPanel({
     </ResultsShell>
   );
 }
-const analyzerConfig: ComputeToolConfig<UseSignalAnalyzerStateResult> = {
-  titleKey: 'signal.analyzer.title',
-  params: ({ state }) => <SignalAnalyzerParamsPanel state={state} />,
-  results: ({ state }) => (
-    <SignalAnalyzerResultsPanel
-      error={state.error}
-      results={state.results}
-      isLoading={state.isLoading}
-      onRetry={state.runAnalysis}
-    />
-  ),
-};
 export default function SignalAnalyzerPage() {
-  return <ComputeToolShell config={analyzerConfig} state={useSignalAnalyzerState()} />;
-}
-const dualConfig: ComputeToolConfig<UseDualSignalStateResult> = {
-  titleKey: 'signal.dual.title',
-  params: ({ state }) => <DualSignalParamsPanel state={state} />,
-  results: ({ state }) => (
-    <DualSignalResultsPanel
-      results={state.results}
-      error={state.error}
-      isLoading={state.isLoading}
+  return (
+    <ComputeToolShell
+      config={
+        {
+          titleKey: 'signal.analyzer.title',
+          params: ({ state }) => <SignalAnalyzerParamsPanel state={state} />,
+          results: ({ state }) => (
+            <SignalAnalyzerResultsPanel
+              error={state.error}
+              results={state.results}
+              isLoading={state.isLoading}
+              onRetry={state.runAnalysis}
+            />
+          ),
+        } as ComputeToolConfig<UseSignalAnalyzerStateResult>
+      }
+      state={useSignalAnalyzerState()}
     />
-  ),
-};
+  );
+}
 export function DualSignalPage() {
-  return <ComputeToolShell config={dualConfig} state={useDualSignalState()} />;
+  return (
+    <ComputeToolShell
+      config={
+        {
+          titleKey: 'signal.dual.title',
+          params: ({ state }) => <DualSignalParamsPanel state={state} />,
+          results: ({ state }) => (
+            <DualSignalResultsPanel
+              results={state.results}
+              error={state.error}
+              isLoading={state.isLoading}
+            />
+          ),
+        } as ComputeToolConfig<UseDualSignalStateResult>
+      }
+      state={useDualSignalState()}
+    />
+  );
 }
 function MultiSignalParams({ state }: { state: UseMultiSignalStateResult }) {
   const { t } = useTranslation();
-  const tid = useId();
-  const sid = useId();
-  const eid = useId();
+  const tid = useId(),
+    sid = useId(),
+    eid = useId();
   const {
     signals,
     weights,
@@ -533,17 +520,23 @@ function MultiSignalParams({ state }: { state: UseMultiSignalStateResult }) {
     </div>
   );
 }
-const multiConfig: ComputeToolConfig<UseMultiSignalStateResult> = {
-  titleKey: 'signal.multi.title',
-  params: ({ state }) => <MultiSignalParams state={state} />,
-  results: ({ state }) => (
-    <MultiSignalResultsPanel
-      results={state.results}
-      error={state.error}
-      isLoading={state.isLoading}
-    />
-  ),
-};
 export function MultiSignalPage() {
-  return <ComputeToolShell config={multiConfig} state={useMultiSignalState()} />;
+  return (
+    <ComputeToolShell
+      config={
+        {
+          titleKey: 'signal.multi.title',
+          params: ({ state }) => <MultiSignalParams state={state} />,
+          results: ({ state }) => (
+            <MultiSignalResultsPanel
+              results={state.results}
+              error={state.error}
+              isLoading={state.isLoading}
+            />
+          ),
+        } as ComputeToolConfig<UseMultiSignalStateResult>
+      }
+      state={useMultiSignalState()}
+    />
+  );
 }
