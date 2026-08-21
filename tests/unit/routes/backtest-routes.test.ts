@@ -32,14 +32,12 @@ import {
   type EngineCase,
   type SignalCase,
 } from '../../helpers/routeTestDsl.js';
-
-const get = (url: string, headers?: Record<string, string>) =>
-  reqJson(url, 'GET', undefined, headers).then(({ res, body }) => ({ res, json: body }));
-
+const get = (url: string, h?: Record<string, string>) =>
+  reqJson(url, 'GET', undefined, h).then(({ res, body }) => ({ res, json: body }));
 const portfolioJobServer = () => (resetQueueMocks(), setupPortfolioServer(backtestRoutes, m));
-
-const manyTickers = Array.from({ length: 51 }, (_, i) => `T${i}`);
-
+const MT = Array.from({ length: 51 }, (_, i) => `T${i}`);
+const P = createValidParameters;
+const VP = createValidPortfolio;
 const engineCases: EngineCase[] = [
   {
     name: 'analysis',
@@ -48,10 +46,10 @@ const engineCases: EngineCase[] = [
     errorCode: 'ANALYSIS_ERROR',
     logOnError: true,
     result: { tickers: [{ ticker: 'AAPL', cagr: 0.1 }], correlations: [[1]] },
-    validBody: () => ({ tickers: ['AAPL', 'BND'], parameters: createValidParameters() }),
+    validBody: () => ({ tickers: ['AAPL', 'BND'], parameters: P() }),
     invalidBodies: [
-      ['缺失 tickers', { parameters: createValidParameters() }],
-      ['ticker 数量超限', { tickers: manyTickers, parameters: createValidParameters() }],
+      ['缺失 tickers', { parameters: P() }],
+      ['ticker 数量超限', { tickers: MT, parameters: P() }],
     ],
     specials: [
       [
@@ -91,8 +89,8 @@ const engineCases: EngineCase[] = [
     logOnError: false,
     result: { paths: [], statistics: {} },
     validBody: () => ({
-      portfolio: createValidPortfolio(),
-      parameters: createValidParameters(),
+      portfolio: VP(),
+      parameters: P(),
       mcParams: {
         numSimulations: 100,
         numYears: 20,
@@ -101,7 +99,7 @@ const engineCases: EngineCase[] = [
         successThreshold: 1.0,
       },
     }),
-    invalidBodies: [['缺少 portfolio', { parameters: createValidParameters() }]],
+    invalidBodies: [['缺少 portfolio', { parameters: P() }]],
     specials: [
       [
         'mcParams 应透传到引擎',
@@ -120,8 +118,8 @@ const engineCases: EngineCase[] = [
         '恶意 mcParams 键应被剥离',
         async (url, _c) => {
           await postJson(url, {
-            portfolio: createValidPortfolio(),
-            parameters: createValidParameters(),
+            portfolio: VP(),
+            parameters: P(),
             mcParams: {
               numSimulations: 50,
               __proto__: { polluted: true },
@@ -129,11 +127,10 @@ const engineCases: EngineCase[] = [
               maliciousKey: 'strip-me',
             },
           });
-          const mcParamsArg = (
-            m.callEngineStrict.mock.calls[0][1] as { mcParams: Record<string, unknown> }
-          ).mcParams;
-          expect(mcParamsArg).toEqual({ numSimulations: 50 });
-          expect(mcParamsArg).not.toHaveProperty('maliciousKey');
+          const mp = (m.callEngineStrict.mock.calls[0][1] as { mcParams: Record<string, unknown> })
+            .mcParams;
+          expect(mp).toEqual({ numSimulations: 50 });
+          expect(mp).not.toHaveProperty('maliciousKey');
         },
       ],
     ],
@@ -150,20 +147,10 @@ const engineCases: EngineCase[] = [
       expectedVolatility: 0.15,
       sharpeRatio: 1.2,
     },
-    validBody: () => ({
-      tickers: ['AAPL', 'BND'],
-      objective: 'maxSharpe',
-      parameters: createValidParameters(),
-    }),
+    validBody: () => ({ tickers: ['AAPL', 'BND'], objective: 'maxSharpe', parameters: P() }),
     invalidBodies: [
-      [
-        '无效 objective',
-        { tickers: ['AAPL'], objective: 'invalidObjective', parameters: createValidParameters() },
-      ],
-      [
-        'ticker 数量超限',
-        { tickers: manyTickers, objective: 'maxSharpe', parameters: createValidParameters() },
-      ],
+      ['无效 objective', { tickers: ['AAPL'], objective: 'invalidObjective', parameters: P() }],
+      ['ticker 数量超限', { tickers: MT, objective: 'maxSharpe', parameters: P() }],
     ],
     specials: [
       [
@@ -193,19 +180,14 @@ const engineCases: EngineCase[] = [
         { weights: { AAPL: 1 }, expectedReturn: 0.1, expectedVolatility: 0.2, sharpeRatio: 0.5 },
       ],
     },
-    validBody: () => ({
-      tickers: ['AAPL', 'BND'],
-      parameters: createValidParameters(),
-      numPoints: 10,
-    }),
+    validBody: () => ({ tickers: ['AAPL', 'BND'], parameters: P(), numPoints: 10 }),
     invalidBodies: [
-      ['空 tickers 数组', { tickers: [], parameters: createValidParameters() }],
-      ['ticker 数量超限', { tickers: manyTickers, parameters: createValidParameters() }],
+      ['空 tickers 数组', { tickers: [], parameters: P() }],
+      ['ticker 数量超限', { tickers: MT, parameters: P() }],
     ],
     specials: [],
   },
 ];
-
 describeEngineRouteTests({
   startServer: (c) => () => {
     m.callEngineStrict.mockResolvedValue(c.result);
@@ -214,7 +196,6 @@ describeEngineRouteTests({
   unavailableError: EngineUnavailableErrorStub,
   mocks: () => ({ callEngineStrict: m.callEngineStrict, loggerError: loggerMocks.error }),
 })(engineCases);
-
 function createSignalConfig(ticker = 'SPY') {
   return {
     ticker,
@@ -226,13 +207,11 @@ function createSignalConfig(ticker = 'SPY') {
     signalType: 'both' as const,
   };
 }
-
 const mockSignalResult = {
   signals: [{ date: '2020-01-02', type: 'buy', price: 301.0 }],
   statistics: { totalSignals: 1, winRate: 1.0, avgReturn: 0.01, maxDrawdown: 0, sharpe: 2.0 },
   equityCurve: [{ date: '2020-01-01', value: 10000 }],
 };
-
 const signalCases: SignalCase[] = [
   {
     path: '/api/v1/signal/analyze',
@@ -241,7 +220,7 @@ const signalCases: SignalCase[] = [
     validReq: () => createSignalConfig(),
     validation: [
       [
-        '缺少 ticker',
+        '缺失 ticker',
         () => {
           const r = createSignalConfig();
           delete (r as Record<string, unknown>).ticker;
@@ -284,7 +263,6 @@ const signalCases: SignalCase[] = [
     ],
   },
 ];
-
 describeSignalRouteTests({
   startServer: (c) => () => {
     vi.clearAllMocks();
@@ -294,7 +272,6 @@ describeSignalRouteTests({
   },
   mocks: () => ({ callEngineStrict: m.callEngineStrict, fetchHistoryData: m.fetchHistoryData }),
 })(signalCases);
-
 describe('backtestRoutes - POST /api/v1/backtest/portfolio', () => {
   const getServer = withServer(portfolioJobServer);
   it('有效参数应入队并返回 202', async () => {
@@ -311,9 +288,9 @@ describe('backtestRoutes - POST /api/v1/backtest/portfolio', () => {
     [
       '无效日期格式',
       () => {
-        const body = createValidRequestBody();
-        (body.parameters as Record<string, unknown>).startDate = 'not-a-date';
-        return body;
+        const b = createValidRequestBody();
+        (b.parameters as Record<string, unknown>).startDate = 'not-a-date';
+        return b;
       },
     ],
     ['缺少 portfolios', () => ({ parameters: { startDate: '2024-01-01', endDate: '2024-06-30' } })],
@@ -357,7 +334,6 @@ describe('backtestRoutes - POST /api/v1/backtest/portfolio', () => {
     expect(json).toMatchObject({ success: true, data: { jobId: 'job-async-002' } });
   });
 });
-
 describe('backtestRoutes - POST /api/v1/backtest/portfolio/series', () => {
   const getServer = withServer(() => setupPortfolioServer(backtestRoutes, m));
   it('缓存命中时应返回请求的序列字段', async () => {
@@ -383,7 +359,6 @@ describe('backtestRoutes - POST /api/v1/backtest/portfolio/series', () => {
     expect(res.status).toBe(404);
   });
 });
-
 describe('backtestRoutes - GET /api/v1/backtest/search', () => {
   const getServer = withServer(() => {
     vi.clearAllMocks();
@@ -405,7 +380,6 @@ describe('backtestRoutes - GET /api/v1/backtest/search', () => {
     expect(res.status).toBe(500);
   });
 });
-
 describe('backtestRoutes - GET /api/v1/backtest/runs/:jobId', () => {
   const { url: serverUrl } = useTestServer('/api/v1/backtest', backtestRoutes, {
     auth: { user: { sub: 'test-user', role: 'admin' }, tenantId: 'tenant-456' },
@@ -489,7 +463,6 @@ describe('backtestRoutes - GET /api/v1/backtest/runs/:jobId', () => {
     expect(json.error.code).toBe('JOB_NOT_FOUND');
   });
 });
-
 describe('jobRoutes - GET /api/v1/jobs/:id', () => {
   const getServer = withServer(() => {
     vi.clearAllMocks();
@@ -508,7 +481,6 @@ describe('jobRoutes - GET /api/v1/jobs/:id', () => {
       app.use('/api/v1', jobRoutes);
     });
   });
-
   it('任务存在且已完成时应返回结果', async () => {
     queueMocks.getJob.mockResolvedValue(
       createMockJob({ id: 'job-123', returnvalue: { best: { cagr: 0.12 } } }),
@@ -521,7 +493,6 @@ describe('jobRoutes - GET /api/v1/jobs/:id', () => {
       result: { best: { cagr: 0.12 } },
     });
   });
-
   it('任务失败时应返回通用错误', async () => {
     queueMocks.getJob.mockResolvedValue(
       createMockJob({
@@ -535,7 +506,6 @@ describe('jobRoutes - GET /api/v1/jobs/:id', () => {
     expect(json.data.status).toBe('failed');
     expect(json.data.error).not.toContain('Engine timeout');
   });
-
   it.each([
     [
       '越权访问他人任务',
@@ -586,7 +556,6 @@ describe('jobRoutes - GET /api/v1/jobs/:id', () => {
     const { res } = await get(`${getServer().url}/api/v1/jobs/${job.id}`, headers);
     expect(res.status).toBe(expected);
   });
-
   it('未认证时应返回 401', async () => {
     const unauthServer = await startExpressApp((app) => {
       app.use('/api/v1', jobRoutes);
@@ -610,7 +579,6 @@ describe('jobRoutes - GET /api/v1/jobs/:id', () => {
     expect(res.status).toBe(500);
     expect(json.error).toMatchObject({ status: 500, title: 'JOB_STATUS_ERROR' });
   });
-
   it('active 状态归一化为 running', async () => {
     queueMocks.getJob.mockResolvedValue(
       createMockJob({

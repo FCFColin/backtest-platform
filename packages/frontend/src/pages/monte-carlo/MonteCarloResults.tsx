@@ -5,50 +5,30 @@ import type { MonteCarloResult } from '@backtest/shared';
 import { getPortfolioColor } from '@/lib/chart-theme.js';
 import { cn } from '@/lib/utils';
 import { fmtAmount, fmtPct } from '@/utils/format';
-import {
-  axisTooltipFormatter,
-  categoryAxis,
-  tooltipOption,
-  tooltipRow,
-  valueYAxis,
-} from '@/components/charts/chartUtils.js';
+import { axisTooltipFormatter, categoryAxis } from '@/components/charts/chartUtils.js';
+import { tooltipOption, tooltipRow, valueYAxis } from '@/components/charts/chartUtils.js';
 import EChart from '@/components/charts/EChart.js';
 import { SimpleChart } from '@/components/charts/sharedChartContent.js';
 import { ResultsShell } from '@/components/resultsShell.js';
-import {
-  Card,
-  Separator,
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from '@/components/ui/uiComponents';
+import { Card, Separator, Tabs, TabsContent, TabsList } from '@/components/ui/uiComponents';
+import { TabsTrigger } from '@/components/ui/uiComponents';
 import { ComputeToolShell, type ComputeToolConfig } from '../../components/shells/index.js';
 import { TOOL_LINKS } from '../../components/shells/constants.js';
 import { MetricsGrid } from '@/components/ui/MetricsGrid';
 import { SimpleTable } from '@/components/tables.js';
 import { McParamsPanel } from './MonteCarloParams.js';
 import type { DistMetric, McState, PortfolioMode, ResultTab } from './monteCarloUtils.js';
-import {
-  METRIC_FORMAT,
-  RESULT_TABS,
-  SUMMARY_STATS,
-  buildDistHistogram,
-  buildFanChartData,
-  buildPresets,
-  buildScenarioData,
-  buildSuccessData,
-  buildSummaryData,
-  buildTerminalHistogram,
-  dollarKFormatter,
-  metricLabels,
-  monthFormatter,
-  yearLabelFormatter,
-  useMonteCarloState,
-} from './monteCarloUtils.js';
+import { METRIC_FORMAT, RESULT_TABS, SUMMARY_STATS } from './monteCarloUtils.js';
+import { buildDistHistogram, buildFanChartData, buildPresets } from './monteCarloUtils.js';
+import { buildScenarioData, buildSuccessData, buildSummaryData } from './monteCarloUtils.js';
+import { buildTerminalHistogram, dollarKFormatter, metricLabels } from './monteCarloUtils.js';
+import { monthFormatter, yearLabelFormatter, useMonteCarloState } from './monteCarloUtils.js';
 import type { FanDataPoint } from './monteCarloUtils.js';
 import { TableEmpty } from '@/components/stateDisplay.js';
 import { useMediaQuery } from '@/hooks/miscHooks.js';
+type HistData = { range: string; count: number }[];
+type RefLine = { label: string; color: string; value: string };
+type BaseProps = { r: MonteCarloResult; startingValue: number };
 function NoDataCard() {
   const { t } = useTranslation();
   return (
@@ -60,20 +40,19 @@ function NoDataCard() {
 function HistogramChart({
   data,
   height = 350,
-  tooltipFormatter,
-  disableTooltipAnimation = false,
-  referenceLines,
+  tooltipFormatter: tf,
+  disableTooltipAnimation: noAnim,
+  referenceLines: rl,
 }: {
-  data: { range: string; count: number }[];
+  data: HistData;
   height?: number;
-  tooltipFormatter?: (value: number, name: string) => [string, string] | string;
+  tooltipFormatter?: (v: number, n: string) => [string, string] | string;
   disableTooltipAnimation?: boolean;
-  referenceLines?: { label: string; color: string; value: string }[];
+  referenceLines?: RefLine[];
 }) {
   const { t } = useTranslation();
   const rm = useMediaQuery('(prefers-reduced-motion: reduce)');
-  if (data.length === 0) return <NoDataCard />;
-
+  if (!data.length) return <NoDataCard />;
   const s: any[] = [
     {
       type: 'bar',
@@ -85,10 +64,10 @@ function HistogramChart({
       barMaxWidth: 60,
     },
   ];
-  if (referenceLines?.length)
+  if (rl?.length)
     s[0].markLine = {
       silent: true,
-      data: referenceLines.map((r) => ({
+      data: rl.map((r) => ({
         xAxis: r.label,
         lineStyle: { color: r.color, type: 'dashed', width: 1.5 },
         label: { formatter: r.value, position: 'top', color: r.color, fontSize: 11 },
@@ -101,62 +80,60 @@ function HistogramChart({
       { interval: 3 },
     ),
     yAxis: valueYAxis(),
-    tooltip: tooltipOption(axisTooltipFormatter(undefined, tooltipFormatter)),
+    tooltip: tooltipOption(axisTooltipFormatter(undefined, tf)),
     series: s as EChartsOption['series'],
-    animation: !disableTooltipAnimation && !rm,
+    animation: !noAnim && !rm,
   };
   return <EChart option={o} height={height} ariaLabel={t('Frequency Distribution')} />;
 }
 function MonteCarloDistributionsTab({
   r,
-  distMetric,
-  setDistMetric,
-  startingValue,
-}: {
-  r: MonteCarloResult;
-  distMetric: DistMetric;
-  setDistMetric: (m: DistMetric) => void;
-  startingValue: number;
-}) {
+  distMetric: m,
+  setDistMetric: setM,
+  startingValue: sv,
+}: BaseProps & { distMetric: DistMetric; setDistMetric: (v: DistMetric) => void }) {
   const { t } = useTranslation();
-  if (!r.perPathMetrics || r.perPathMetrics.length === 0) return <NoDataCard />;
-  const { data, medianLabel, meanLabel, medianVal, meanVal } = buildDistHistogram(
-    r.perPathMetrics,
-    distMetric,
-    startingValue,
-  );
-  const rl = [
+  if (!r.perPathMetrics?.length) return <NoDataCard />;
+  const {
+    data,
+    medianLabel: medL,
+    meanLabel: meanL,
+    medianVal: medV,
+    meanVal,
+  } = buildDistHistogram(r.perPathMetrics, m, sv);
+  const rl: RefLine[] = [
     {
-      label: medianLabel,
+      label: medL,
       color: getPortfolioColor(2),
       value: t('charts.annualReturn.median', {
-        value: medianVal !== undefined ? METRIC_FORMAT[distMetric](medianVal) : '',
+        value: medV !== undefined ? METRIC_FORMAT[m](medV) : '',
       }),
     },
     {
-      label: meanLabel,
+      label: meanL,
       color: getPortfolioColor(1),
       value: t('charts.annualReturn.mean', {
-        value: meanVal !== undefined ? METRIC_FORMAT[distMetric](meanVal) : '',
+        value: meanVal !== undefined ? METRIC_FORMAT[m](meanVal) : '',
       }),
     },
   ];
+  const labels = metricLabels(t) as Record<DistMetric, string>;
   return (
     <Card className="p-5">
       <div className="mb-4 flex flex-wrap gap-1.5">
-        {(Object.keys(metricLabels(t)) as DistMetric[]).map((k) => (
+        {(Object.keys(labels) as DistMetric[]).map((k) => (
           <button
             key={k}
             type="button"
-            onClick={() => setDistMetric(k)}
+            onClick={() => setM(k)}
             className={cn(
               'rounded-md border px-3 py-1 text-caption font-medium transition-colors duration-150',
-              distMetric === k
+              m === k
                 ? 'border-brand bg-brand text-brand-fg'
                 : 'border-border bg-input-bg text-fg-secondary hover:bg-hover hover:text-fg',
             )}
           >
-            {metricLabels(t)[k]}
+            {labels[k]}
           </button>
         ))}
       </div>
@@ -164,23 +141,17 @@ function MonteCarloDistributionsTab({
     </Card>
   );
 }
-const SCENARIO_LINES = [
+const SC_LINES = [
   { key: 'best' as const, color: getPortfolioColor(2), width: 2, name: 'Best' },
   { key: 'p75' as const, color: getPortfolioColor(0), width: 1.5, name: 'P75' },
   { key: 'median' as const, color: getPortfolioColor(4), width: 2.5, name: 'Median' },
   { key: 'p25' as const, color: getPortfolioColor(1), width: 1.5, name: 'P25' },
   { key: 'worst' as const, color: getPortfolioColor(3), width: 2, name: 'Worst' },
 ];
-function MonteCarloScenariosTab({
-  r,
-  startingValue,
-}: {
-  r: MonteCarloResult;
-  startingValue: number;
-}) {
+function MonteCarloScenariosTab({ r, startingValue: sv }: BaseProps) {
   const { t } = useTranslation();
-  const { data } = buildScenarioData(r, startingValue);
-  if (data.length === 0) return <NoDataCard />;
+  const { data } = buildScenarioData(r, sv);
+  if (!data.length) return <NoDataCard />;
   return (
     <Card className="p-5">
       <SimpleChart
@@ -197,7 +168,7 @@ function MonteCarloScenariosTab({
         tooltipFormatter={(v) => fmtAmount(v)}
         tooltipLabelFormatter={(l) => yearLabelFormatter(t, Number(l))}
         ariaLabel={t('Scenario Paths')}
-        series={SCENARIO_LINES.map((l) => ({
+        series={SC_LINES.map((l) => ({
           name: l.name,
           dataKey: l.key,
           color: l.color,
@@ -211,49 +182,47 @@ function MonteCarloScenariosTab({
 function FanChart({ data }: { data: FanDataPoint[] }) {
   const { t } = useTranslation();
   const ms = data.map((d) => String(d.month));
-  const m = new Map(data.map((d) => [d.month, d]));
+  const mm = new Map(data.map((d) => [d.month, d]));
+  const c = getPortfolioColor(0);
+  const mkBand = (stack: string, d: number[], op?: number, name?: string) => ({
+    type: 'line',
+    stack,
+    ...(name ? { name } : {}),
+    data: d,
+    symbol: 'none',
+    lineStyle: { opacity: 0 },
+    ...(op !== undefined
+      ? { areaStyle: { color: c, opacity: op } }
+      : { itemStyle: { opacity: 0 } }),
+  });
   const s: any[] = [
-    {
-      type: 'line',
-      stack: 'band5_95',
-      data: data.map((d) => d.band5_95[0]),
-      symbol: 'none',
-      lineStyle: { opacity: 0 },
-      itemStyle: { opacity: 0 },
-    },
-    {
-      type: 'line',
-      stack: 'band5_95',
-      name: t('monteCarlo.fanChart.band5_95'),
-      data: data.map((d) => d.band5_95[1] - d.band5_95[0]),
-      symbol: 'none',
-      lineStyle: { opacity: 0 },
-      areaStyle: { color: getPortfolioColor(0), opacity: 0.08 },
-    },
-    {
-      type: 'line',
-      stack: 'band25_75',
-      data: data.map((d) => d.band25_75[0]),
-      symbol: 'none',
-      lineStyle: { opacity: 0 },
-      itemStyle: { opacity: 0 },
-    },
-    {
-      type: 'line',
-      stack: 'band25_75',
-      name: t('monteCarlo.fanChart.band25_75'),
-      data: data.map((d) => d.band25_75[1] - d.band25_75[0]),
-      symbol: 'none',
-      lineStyle: { opacity: 0 },
-      areaStyle: { color: getPortfolioColor(0), opacity: 0.18 },
-    },
+    mkBand(
+      'band5_95',
+      data.map((d) => d.band5_95[0]),
+    ),
+    mkBand(
+      'band5_95',
+      data.map((d) => d.band5_95[1] - d.band5_95[0]),
+      0.08,
+      t('monteCarlo.fanChart.band5_95'),
+    ),
+    mkBand(
+      'band25_75',
+      data.map((d) => d.band25_75[0]),
+    ),
+    mkBand(
+      'band25_75',
+      data.map((d) => d.band25_75[1] - d.band25_75[0]),
+      0.18,
+      t('monteCarlo.fanChart.band25_75'),
+    ),
     {
       type: 'line',
       name: t('Median'),
       data: data.map((d) => d.p50),
       symbol: 'none',
-      lineStyle: { width: 2.5, color: getPortfolioColor(0) },
-      itemStyle: { color: getPortfolioColor(0) },
+      lineStyle: { width: 2.5, color: c },
+      itemStyle: { color: c },
       emphasis: { focus: 'series' },
     },
   ];
@@ -265,17 +234,13 @@ function FanChart({ data }: { data: FanDataPoint[] }) {
     }),
     yAxis: valueYAxis({ formatter: dollarKFormatter }),
     tooltip: tooltipOption((p: { axisValue: string; marker: string }) => {
-      const d = m.get(Number(p.axisValue));
+      const d = mm.get(Number(p.axisValue));
       if (!d) return '';
       const [lo95, hi95] = d.band5_95;
       const [lo75, hi75] = d.band25_75;
-      const c = getPortfolioColor(0);
+      const dot = `<span style="background:${c};width:8px;height:8px;display:inline-block;border-radius:2px"></span>`;
       return [
-        tooltipRow(
-          `<span style="background:${c};width:8px;height:8px;display:inline-block;border-radius:2px"></span>`,
-          t('Median'),
-          dollarKFormatter(d.p50),
-        ),
+        tooltipRow(dot, t('Median'), dollarKFormatter(d.p50)),
         tooltipRow(
           p.marker,
           t('monteCarlo.fanChart.band25_75'),
@@ -292,20 +257,14 @@ function FanChart({ data }: { data: FanDataPoint[] }) {
   };
   return <EChart option={o} height={450} ariaLabel={t('Monte Carlo Fan Chart')} />;
 }
-function MonteCarloTerminalHistogram({
-  r,
-  startingValue,
-}: {
-  r: MonteCarloResult;
-  startingValue: number;
-}) {
+function MonteCarloTerminalHistogram({ r, startingValue: sv }: BaseProps) {
   const { t } = useTranslation();
   const { data, p5Val, p50Val, p95Val, p5Label, p50Label, p95Label } = buildTerminalHistogram(
     r,
-    startingValue,
+    sv,
   );
-  if (data.length === 0) return null;
-  const rl = [
+  if (!data.length) return null;
+  const rl: RefLine[] = [
     {
       label: p5Label,
       color: getPortfolioColor(3),
@@ -340,7 +299,12 @@ function MonteCarloTerminalHistogram({
 function MonteCarloSuccessTab({ r }: { r: MonteCarloResult }) {
   const { t } = useTranslation();
   const data = buildSuccessData(r);
-  if (data.length === 0) return <NoDataCard />;
+  if (!data.length) return <NoDataCard />;
+  const rows: { k: 'survival' | 'capitalPreservation' | 'profit'; c: string; n: string }[] = [
+    { k: 'survival', c: getPortfolioColor(2), n: 'monteCarlo.results.survivalProb' },
+    { k: 'capitalPreservation', c: getPortfolioColor(0), n: 'Capital Preservation' },
+    { k: 'profit', c: getPortfolioColor(1), n: 'monteCarlo.results.profitProb' },
+  ];
   return (
     <Card className="p-5">
       <SimpleChart
@@ -355,19 +319,21 @@ function MonteCarloSuccessTab({ r }: { r: MonteCarloResult }) {
         legendPosition="top"
         tooltipFormatter={(v) => `${v}%`}
         ariaLabel={t('Success Probability')}
-        series={[
-          { k: 'survival' as const, c: getPortfolioColor(2), n: 'monteCarlo.results.survivalProb' },
-          { k: 'capitalPreservation' as const, c: getPortfolioColor(0), n: 'Capital Preservation' },
-          { k: 'profit' as const, c: getPortfolioColor(1), n: 'monteCarlo.results.profitProb' },
-        ].map((l) => ({ name: t(l.n), dataKey: l.k, color: l.c, width: 2, smooth: true }))}
+        series={rows.map((l) => ({
+          name: t(l.n),
+          dataKey: l.k,
+          color: l.c,
+          width: 2,
+          smooth: true,
+        }))}
       />
     </Card>
   );
 }
-function MonteCarloRangeTab({ r, startingValue }: { r: MonteCarloResult; startingValue: number }) {
+function MonteCarloRangeTab({ r, startingValue: sv }: BaseProps) {
   const { t } = useTranslation();
-  const data = buildFanChartData(r, startingValue);
-  if (data.length === 0) return <NoDataCard />;
+  const data = buildFanChartData(r, sv);
+  if (!data.length) return <NoDataCard />;
   return (
     <div className="flex flex-col gap-4">
       <Card className="p-5">
@@ -376,19 +342,13 @@ function MonteCarloRangeTab({ r, startingValue }: { r: MonteCarloResult; startin
         </h4>
         <FanChart data={data} />
       </Card>
-      <MonteCarloTerminalHistogram r={r} startingValue={startingValue} />
+      <MonteCarloTerminalHistogram r={r} startingValue={sv} />
     </div>
   );
 }
-function MonteCarloSummaryTab({
-  r,
-  startingValue,
-}: {
-  r: MonteCarloResult;
-  startingValue: number;
-}) {
+function MonteCarloSummaryTab({ r, startingValue: sv }: BaseProps) {
   const { t } = useTranslation();
-  const rows = buildSummaryData(r, startingValue, t);
+  const rows = buildSummaryData(r, sv, t);
   if (!rows) return <NoDataCard />;
   const cols = [
     { key: 'metric', label: t('Metric'), render: (row: (typeof rows)[number]) => row.metric },
@@ -408,13 +368,13 @@ function MonteCarloSummaryTab({
 function ResultsDisplay({
   r,
   label,
-  colorIdx,
-  portfolioMode,
-  activeTab,
-  startingValue,
-  numSimulations,
-  distMetric,
-  setDistMetric,
+  colorIdx: ci,
+  portfolioMode: pm,
+  activeTab: at,
+  startingValue: sv,
+  numSimulations: ns,
+  distMetric: dm,
+  setDistMetric: setDm,
   onTabChange,
 }: {
   r: MonteCarloResult;
@@ -430,47 +390,36 @@ function ResultsDisplay({
 }) {
   const { t } = useTranslation();
   const ms = [
-    {
-      label: t('Median Final Value'),
-      value: fmtAmount(r.statistics.medianFinalValue * startingValue),
-    },
-    { label: t('Mean Final Value'), value: fmtAmount(r.statistics.meanFinalValue * startingValue) },
+    { label: t('Median Final Value'), value: fmtAmount(r.statistics.medianFinalValue * sv) },
+    { label: t('Mean Final Value'), value: fmtAmount(r.statistics.meanFinalValue * sv) },
     {
       label: t('Capital Preservation'),
       value: fmtPct(r.statistics.successRate, 1),
       color: 'hsl(var(--success))',
     },
-    { label: t('Simulation Count'), value: `${r.perPathMetrics?.length ?? numSimulations}` },
+    { label: t('Simulation Count'), value: `${r.perPathMetrics?.length ?? ns}` },
   ];
   const tabs: [ResultTab, React.ReactNode][] = [
-    ['summary', <MonteCarloSummaryTab r={r} startingValue={startingValue} />],
-    ['range', <MonteCarloRangeTab r={r} startingValue={startingValue} />],
+    ['summary', <MonteCarloSummaryTab r={r} startingValue={sv} />],
+    ['range', <MonteCarloRangeTab r={r} startingValue={sv} />],
     ['success', <MonteCarloSuccessTab r={r} />],
     [
       'distributions',
-      <MonteCarloDistributionsTab
-        r={r}
-        distMetric={distMetric}
-        setDistMetric={setDistMetric}
-        startingValue={startingValue}
-      />,
+      <MonteCarloDistributionsTab r={r} distMetric={dm} setDistMetric={setDm} startingValue={sv} />,
     ],
-    ['scenarios', <MonteCarloScenariosTab r={r} startingValue={startingValue} />],
+    ['scenarios', <MonteCarloScenariosTab r={r} startingValue={sv} />],
   ];
   return (
     <div key={label}>
-      {portfolioMode === 2 && (
-        <div
-          className="mb-3 mt-2 text-h3 font-semibold"
-          style={{ color: getPortfolioColor(colorIdx) }}
-        >
+      {pm === 2 && (
+        <div className="mb-3 mt-2 text-h3 font-semibold" style={{ color: getPortfolioColor(ci) }}>
           {label}
         </div>
       )}
       <div className="mb-5">
         <MetricsGrid metrics={ms} />
       </div>
-      <Tabs value={activeTab} onValueChange={(v) => onTabChange(v as ResultTab)} className="w-full">
+      <Tabs value={at} onValueChange={(v) => onTabChange(v as ResultTab)} className="w-full">
         <TabsList className="mb-4 flex-wrap">
           {RESULT_TABS.map((tab) => (
             <TabsTrigger key={tab.key} value={tab.key}>

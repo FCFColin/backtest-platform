@@ -1,6 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
-import { useTranslation } from 'react-i18next';
 import { Loader2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import {
   REBALANCE_FREQUENCIES,
   REBALANCE_FREQUENCY_COLORS,
@@ -9,31 +9,56 @@ import {
 } from '@backtest/shared';
 import { createComputeToolPage } from '@/components/shells/index.js';
 import i18n from '@/i18n/index.js';
+import { getPortfolioColor } from '@/lib/chart-theme.js';
+import { BasicParamsFields } from '../../components/BacktestParamsForm.js';
+import PortfolioEditor from '../../components/PortfolioEditor.js';
+import { Field, FieldLabel } from '@/components/form/Field';
+import { RunButton } from '@/components/form/sharedFields';
+import { ResultsShell } from '@/components/resultsShell.js';
+import {
+  BarChartContent,
+  SimpleLineChart,
+  XYScatterChart,
+} from '@/components/charts/sharedChartContent.js';
+import {
+  AffixInput,
+  Card,
+  PortfolioLabel,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from '@/components/ui/uiComponents';
 import { apiFetch } from '@/utils/apiClient';
 import {
-  buildBacktestParameters,
-  buildSinglePortfolioBody,
+  DEFAULT_60_40_ASSETS,
   DEFAULT_BACKTEST_START_DATE,
   DEFAULT_END_DATE,
-  DEFAULT_60_40_ASSETS,
+  buildBacktestParameters,
+  buildSinglePortfolioBody,
 } from '@/utils/constants';
+import { fmtPct } from '@/utils/format';
 import { validateAssetWeights } from '@/utils/validation';
 import { useAssetList, useSetterState } from '../../hooks/miscHooks.js';
-import { getPortfolioColor } from '@/lib/chart-theme.js';
-type BacktestParamsInput = {
+type Bp = {
   startDate: string;
   endDate: string;
   startingValue: number;
   baseCurrency: 'usd' | 'cny';
   adjustForInflation: boolean;
 };
-const REBALANCE_OPTIONS: { value: RebalanceFrequency; label: string; color: string }[] =
-  REBALANCE_FREQUENCIES.map((value) => ({
-    value,
-    label: i18n.t(REBALANCE_LABELS[value]),
-    color: REBALANCE_FREQUENCY_COLORS[value],
-  }));
-interface FreqResult {
+type A = Array<{ ticker: string; weight: number }>;
+const REBALANCE_OPTIONS = REBALANCE_FREQUENCIES.map((v) => ({
+  value: v,
+  label: i18n.t(REBALANCE_LABELS[v]),
+  color: REBALANCE_FREQUENCY_COLORS[v],
+}));
+type FreqResult = {
   frequency: RebalanceFrequency;
   label: string;
   color: string;
@@ -43,107 +68,88 @@ interface FreqResult {
   sharpe: number;
   sortino: number;
   growthCurve?: Array<{ date: string; value: number }>;
-}
+};
 const FREQ_ORDER = Object.fromEntries(REBALANCE_FREQUENCIES.map((f, i) => [f, i]));
 const OFFSETS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20];
-function buildBacktestBody(
-  label: string,
-  assets: Array<{ ticker: string; weight: number }>,
-  freq: RebalanceFrequency,
-  offset: number,
-  params: BacktestParamsInput,
-) {
+function buildBody(l: string, a: A, f: RebalanceFrequency, o: number, p: Bp) {
   return buildSinglePortfolioBody(
-    label,
-    assets,
-    { rebalanceFrequency: freq, rebalanceOffset: offset },
-    buildBacktestParameters(params.startDate, params.endDate, {
-      startingValue: params.startingValue,
-      baseCurrency: params.baseCurrency,
-      adjustForInflation: params.adjustForInflation,
+    l,
+    a,
+    { rebalanceFrequency: f, rebalanceOffset: o },
+    buildBacktestParameters(p.startDate, p.endDate, {
+      startingValue: p.startingValue,
+      baseCurrency: p.baseCurrency,
+      adjustForInflation: p.adjustForInflation,
     }),
   );
 }
-async function postPortfolioBacktest(body: unknown): Promise<Response> {
-  return apiFetch('/api/v1/backtest/portfolio', {
+async function fetchFreqResult(
+  f: RebalanceFrequency,
+  a: A,
+  p: Bp,
+  ab: number | '',
+  rb: number | '',
+): Promise<FreqResult> {
+  const o = REBALANCE_OPTIONS.find((x) => x.value === f)!;
+  const b = buildBody(o.label, a, f, 0, p) as unknown as {
+    portfolios: Array<Record<string, unknown>>;
+  };
+  if (ab !== '' || rb !== '')
+    (b.portfolios[0] as Record<string, unknown>).rebalanceBands = {
+      enabled: true,
+      absoluteBand: ab !== '' ? Number(ab) : undefined,
+      relativeBand: rb !== '' ? Number(rb) : undefined,
+    };
+  const r = await apiFetch('/api/v1/backtest/portfolio', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
+    body: JSON.stringify(b),
   });
-}
-function applyRebalanceBands(
-  portfolios: Array<Record<string, unknown>>,
-  absoluteBand: number | '',
-  relativeBand: number | '',
-) {
-  if (absoluteBand === '' && relativeBand === '') return;
-  portfolios[0].rebalanceBands = {
-    enabled: true,
-    absoluteBand: absoluteBand !== '' ? Number(absoluteBand) : undefined,
-    relativeBand: relativeBand !== '' ? Number(relativeBand) : undefined,
+  if (!r.ok) throw new Error(`HTTP ${r.status} (${o.label})`);
+  const j = (await r.json()) as { success?: boolean; error?: string; data?: unknown };
+  if (j.success === false)
+    throw new Error(j.error || i18n.t('Backtest failed ({{label}})', { label: o.label }));
+  const d = (j.data ?? j) as {
+    portfolios?: Array<{
+      statistics?: Record<string, number>;
+      growthCurve?: FreqResult['growthCurve'];
+    }>;
   };
-}
-function extractFreqResult(
-  json: unknown,
-  freq: RebalanceFrequency,
-  label: string,
-  color: string,
-): FreqResult {
-  const data = (json as { data?: unknown })?.data ?? json;
-  const p = (
-    data as {
-      portfolios?: Array<{
-        statistics?: Record<string, number>;
-        growthCurve?: Array<{ date: string; value: number }>;
-      }>;
-    }
-  )?.portfolios?.[0];
-  if (!p) throw new Error(i18n.t('No results ({{label}})', { label }));
-  const stats = p.statistics ?? {};
+  const q = d.portfolios?.[0];
+  if (!q) throw new Error(i18n.t('No results ({{label}})', { label: o.label }));
+  const s = q.statistics ?? {};
   return {
-    frequency: freq,
-    label,
-    color,
-    cagr: stats.cagr ?? 0,
-    stdev: stats.stdev ?? 0,
-    maxDrawdown: stats.maxDrawdown ?? 0,
-    sharpe: stats.sharpe ?? 0,
-    sortino: stats.sortino ?? 0,
-    growthCurve: p.growthCurve,
+    frequency: f,
+    label: o.label,
+    color: o.color,
+    cagr: s.cagr ?? 0,
+    stdev: s.stdev ?? 0,
+    maxDrawdown: s.maxDrawdown ?? 0,
+    sharpe: s.sharpe ?? 0,
+    sortino: s.sortino ?? 0,
+    growthCurve: q.growthCurve,
   };
-}
-async function fetchFreqResult(
-  freq: RebalanceFrequency,
-  assets: Array<{ ticker: string; weight: number }>,
-  params: BacktestParamsInput,
-  absoluteBand: number | '',
-  relativeBand: number | '',
-): Promise<FreqResult> {
-  const opt = REBALANCE_OPTIONS.find((o) => o.value === freq)!;
-  const body = buildBacktestBody(opt.label, assets, freq, 0, params);
-  applyRebalanceBands(
-    body.portfolios as Array<Record<string, unknown>>,
-    absoluteBand,
-    relativeBand,
-  );
-  const res = await postPortfolioBacktest(body);
-  if (!res.ok) throw new Error(`HTTP ${res.status} (${opt.label})`);
-  const json = await res.json();
-  if (json.success === false)
-    throw new Error(json.error || i18n.t('Backtest failed ({{label}})', { label: opt.label }));
-  return extractFreqResult(json, freq, opt.label, opt.color);
 }
 async function fetchOffsetResult(
-  offset: number,
-  freq: RebalanceFrequency,
-  assets: Array<{ ticker: string; weight: number }>,
-  params: BacktestParamsInput,
+  o: number,
+  f: RebalanceFrequency,
+  a: A,
+  p: Bp,
 ): Promise<{ offset: number; cagr: number }> {
-  const body = buildBacktestBody(`offset-${offset}`, assets, freq, offset, params);
-  const res = await postPortfolioBacktest(body);
-  if (!res.ok) return { offset, cagr: 0 };
-  const json = await res.json();
-  return { offset, cagr: (json.data ?? json).portfolios?.[0]?.statistics?.cagr ?? 0 };
+  const b = buildBody(`offset-${o}`, a, f, o, p);
+  const r = await apiFetch('/api/v1/backtest/portfolio', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(b),
+  });
+  if (!r.ok) return { offset: o, cagr: 0 };
+  const j = (await r.json()) as { data?: unknown } & Record<string, unknown>;
+  return {
+    offset: o,
+    cagr:
+      ((j.data ?? j) as { portfolios?: Array<{ statistics?: Record<string, number> }> })
+        .portfolios?.[0]?.statistics?.cagr ?? 0,
+  };
 }
 const TABS = [
   { key: 'scatter', labelKey: 'rebalancingSensitivity.tab.scatter' },
@@ -151,7 +157,7 @@ const TABS = [
   { key: 'offset', labelKey: 'rebalancingSensitivity.tab.offset' },
   { key: 'table', labelKey: 'rebalancingSensitivity.tab.table' },
 ];
-interface RebalancingState {
+type RebalancingState = {
   startDate: string;
   setStartDate: (v: string) => void;
   endDate: string;
@@ -168,7 +174,7 @@ interface RebalancingState {
   setAbsoluteBand: (v: number | '') => void;
   relativeBand: number | '';
   setRelativeBand: (v: number | '') => void;
-  assets: Array<{ ticker: string; weight: number }>;
+  assets: A;
   addAsset: () => void;
   removeAsset: (i: number) => void;
   updateAsset: (i: number, field: 'ticker' | 'weight', val: string | number) => void;
@@ -184,7 +190,7 @@ interface RebalancingState {
   isLoadingOffset: boolean;
   runSensitivity: () => Promise<void>;
   runOffsetScan: (freq: RebalanceFrequency) => Promise<void>;
-}
+};
 function useRebalSetters() {
   return useSetterState({
     startDate: DEFAULT_BACKTEST_START_DATE,
@@ -204,36 +210,19 @@ function useRebalSetters() {
     isLoadingOffset: false,
   });
 }
-function createRebalancingRunners(
-  s: ReturnType<typeof useRebalSetters>,
-  params: {
-    startDate: string;
-    endDate: string;
-    startingValue: number;
-    baseCurrency: 'usd' | 'cny';
-    adjustForInflation: boolean;
-  },
-  assets: Array<{ ticker: string; weight: number }>,
-) {
-  const validate = (): Array<{ ticker: string; weight: number }> | string => {
-    const validAssets = assets.filter((a) => a.ticker.trim() !== '');
-    if (validAssets.length === 0) return i18n.t('Please add at least one ticker');
-    const weightErr = validateAssetWeights(assets);
-    if (weightErr) return weightErr;
-    if (s.selectedFreqs.length === 0)
-      return i18n.t('Please select at least one rebalancing frequency');
-    return validAssets;
+function createRebalancingRunners(s: ReturnType<typeof useRebalSetters>, p: Bp, assets: A) {
+  const validate = (): A | string => {
+    const v = assets.filter((a) => a.ticker.trim() !== '');
+    if (!v.length) return i18n.t('Please add at least one ticker');
+    const e = validateAssetWeights(assets);
+    if (e) return e;
+    return s.selectedFreqs.length ? v : i18n.t('Please select at least one rebalancing frequency');
   };
-  const runOffsetScanInner = async (
-    freq: RebalanceFrequency,
-    validAssets: Array<{ ticker: string; weight: number }>,
-  ) => {
+  const runOffsetScanInner = async (f: RebalanceFrequency, v: A) => {
     s.setIsLoadingOffset(true);
     s.setOffsetResults([]);
     try {
-      s.setOffsetResults(
-        await Promise.all(OFFSETS.map((o) => fetchOffsetResult(o, freq, validAssets, params))),
-      );
+      s.setOffsetResults(await Promise.all(OFFSETS.map((o) => fetchOffsetResult(o, f, v, p))));
     } catch {
       s.setError(i18n.t('Rebalancing sensitivity analysis failed'));
     } finally {
@@ -241,57 +230,52 @@ function createRebalancingRunners(
     }
   };
   const runSensitivity = async () => {
-    const validAssets = validate();
-    if (typeof validAssets === 'string') {
-      s.setError(validAssets);
-      return;
-    }
+    const v = validate();
+    if (typeof v === 'string') return void s.setError(v);
     s.setIsLoading(true);
     s.setError(null);
     s.setResults([]);
     s.setOffsetResults([]);
     try {
       const all = await Promise.all(
-        s.selectedFreqs.map((f) =>
-          fetchFreqResult(f, validAssets, params, s.absoluteBand, s.relativeBand),
-        ),
+        s.selectedFreqs.map((f) => fetchFreqResult(f, v, p, s.absoluteBand, s.relativeBand)),
       );
       all.sort((a, b) => FREQ_ORDER[a.frequency] - FREQ_ORDER[b.frequency]);
       s.setResults(all);
-      if (s.selectedFreqs.length > 0) void runOffsetScanInner(s.selectedFreqs[0], validAssets);
+      if (s.selectedFreqs.length) void runOffsetScanInner(s.selectedFreqs[0], v);
     } catch (e) {
       s.setError(e instanceof Error ? e.message : i18n.t('Analysis failed'));
     } finally {
       s.setIsLoading(false);
     }
   };
-  const runOffsetScan = async (freq: RebalanceFrequency) => {
-    const validAssets = assets.filter((a) => a.ticker.trim() !== '');
-    if (validAssets.length === 0) return;
-    await runOffsetScanInner(freq, validAssets);
+  const runOffsetScan = async (f: RebalanceFrequency) => {
+    const v = assets.filter((a) => a.ticker.trim() !== '');
+    if (v.length) await runOffsetScanInner(f, v);
   };
   return { runSensitivity, runOffsetScan };
 }
 function useRebalancingState(): RebalancingState {
   const s = useRebalSetters();
-  const toggleFreq = (freq: RebalanceFrequency) =>
+  const toggleFreq = (f: RebalanceFrequency) =>
     s.setSelectedFreqs(
-      s.selectedFreqs.includes(freq)
-        ? s.selectedFreqs.filter((f) => f !== freq)
-        : [...s.selectedFreqs, freq],
+      s.selectedFreqs.includes(f)
+        ? s.selectedFreqs.filter((x) => x !== f)
+        : [...s.selectedFreqs, f],
     );
-  const { assets, addAsset, removeAsset, updateAsset, totalWeight } = useAssetList<{
-    ticker: string;
-    weight: number;
-  }>([...DEFAULT_60_40_ASSETS], () => ({ ticker: '', weight: 0 }), 0);
-  const params = {
+  const { assets, addAsset, removeAsset, updateAsset, totalWeight } = useAssetList<A[number]>(
+    [...DEFAULT_60_40_ASSETS],
+    () => ({ ticker: '', weight: 0 }),
+    0,
+  );
+  const p: Bp = {
     startDate: s.startDate,
     endDate: s.endDate,
     startingValue: s.startingValue,
     baseCurrency: s.baseCurrency,
     adjustForInflation: s.adjustForInflation,
   };
-  const { runSensitivity, runOffsetScan } = createRebalancingRunners(s, params, assets);
+  const { runSensitivity, runOffsetScan } = createRebalancingRunners(s, p, assets);
   return {
     ...s,
     toggleFreq,
@@ -303,34 +287,6 @@ function useRebalancingState(): RebalancingState {
     runSensitivity,
     runOffsetScan,
   };
-}
-import {
-  Card,
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-  PortfolioLabel,
-  AffixInput,
-} from '@/components/ui/uiComponents';
-import { ResultsShell } from '@/components/resultsShell.js';
-import { fmtPct } from '@/utils/format';
-import {
-  XYScatterChart,
-  BarChartContent,
-  SimpleLineChart,
-} from '@/components/charts/sharedChartContent.js';
-import { BasicParamsFields } from '../../components/BacktestParamsForm.js';
-import PortfolioEditor from '../../components/PortfolioEditor.js';
-import { Field, FieldLabel } from '@/components/form/Field';
-import { RunButton } from '@/components/form/sharedFields';
-function cellClassName(isBest: boolean) {
-  return `border-b border-border-subtle px-3 py-2 text-right font-mono text-label font-medium ${isBest ? 'font-bold text-success' : 'text-fg'}`;
 }
 type NumKey = 'cagr' | 'stdev' | 'maxDrawdown' | 'sharpe' | 'sortino';
 const TABLE_COLS: Array<[string, NumKey, (v: number) => string]> = [
@@ -419,9 +375,9 @@ function ResultsPanel({ s }: { s: RebalancingState }) {
               <Select
                 value={s.offsetFreq}
                 onValueChange={(v) => {
-                  const freq = v as RebalanceFrequency;
-                  s.setOffsetFreq(freq);
-                  void s.runOffsetScan(freq);
+                  const f = v as RebalanceFrequency;
+                  s.setOffsetFreq(f);
+                  void s.runOffsetScan(f);
                 }}
               >
                 <SelectTrigger className="h-9 w-32" aria-label={t('Frequency')}>
@@ -482,10 +438,13 @@ function ResultsPanel({ s }: { s: RebalancingState }) {
                         <PortfolioLabel color={r.color} name={r.label} />
                       </td>
                       {TABLE_COLS.map(([, key, fmt]) => {
-                        const val = r[key] as number;
+                        const v = r[key] as number;
                         return (
-                          <td key={key} className={cellClassName(val === best[key])}>
-                            {fmt(val)}
+                          <td
+                            key={key}
+                            className={`border-b border-border-subtle px-3 py-2 text-right font-mono text-label font-medium ${v === best[key] ? 'font-bold text-success' : 'text-fg'}`}
+                          >
+                            {fmt(v)}
                           </td>
                         );
                       })}
@@ -502,7 +461,7 @@ function ResultsPanel({ s }: { s: RebalancingState }) {
 }
 function RebalancingSensitivityParamsForm({ s }: { s: RebalancingState }) {
   const { t } = useTranslation();
-  const bandField = (
+  const band = (
     label: string,
     value: number | '',
     onChange: (v: number | '') => void,
@@ -541,23 +500,23 @@ function RebalancingSensitivityParamsForm({ s }: { s: RebalancingState }) {
         <FieldLabel>{t('Rebalancing Frequency (multi-select)')}</FieldLabel>
         <div className="flex flex-wrap gap-2">
           {REBALANCE_OPTIONS.map((opt) => {
-            const selected = s.selectedFreqs.includes(opt.value);
+            const sel = s.selectedFreqs.includes(opt.value);
             return (
               <label
                 key={opt.value}
                 className="flex cursor-pointer items-center gap-1.5 rounded-lg border px-3 py-1.5 text-caption font-semibold transition-colors"
                 style={{
-                  borderColor: selected ? opt.color : 'hsl(var(--border))',
-                  backgroundColor: selected
+                  borderColor: sel ? opt.color : 'hsl(var(--border))',
+                  backgroundColor: sel
                     ? `color-mix(in srgb, ${opt.color} 10%, transparent)`
                     : 'transparent',
-                  color: selected ? opt.color : 'hsl(var(--fg-tertiary))',
+                  color: sel ? opt.color : 'hsl(var(--fg-tertiary))',
                 }}
               >
                 <input
                   type="checkbox"
                   className="sr-only"
-                  checked={selected}
+                  checked={sel}
                   onChange={() => s.toggleFreq(opt.value)}
                 />
                 <PortfolioLabel
@@ -570,8 +529,8 @@ function RebalancingSensitivityParamsForm({ s }: { s: RebalancingState }) {
         </div>
       </Field>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        {bandField(t('Absolute Deviation Band'), s.absoluteBand, s.setAbsoluteBand, 50)}
-        {bandField(t('Relative Deviation Band'), s.relativeBand, s.setRelativeBand, 100)}
+        {band(t('Absolute Deviation Band'), s.absoluteBand, s.setAbsoluteBand, 50)}
+        {band(t('Relative Deviation Band'), s.relativeBand, s.setRelativeBand, 100)}
       </div>
       <PortfolioEditor
         singleMode
@@ -595,10 +554,7 @@ export default createComputeToolPage(useRebalancingState, {
   titleKey: 'nav.rebalancingSensitivity',
   seoDescKey: 'rebalancingSensitivity.seo.desc',
   seoFeatures: [
-    {
-      titleKey: 'analysis.seoAnalyzable',
-      descKey: 'rebalancingSensitivity.seo.analyzableDesc',
-    },
+    { titleKey: 'analysis.seoAnalyzable', descKey: 'rebalancingSensitivity.seo.analyzableDesc' },
     {
       titleKey: 'rebalancingSensitivity.seo.offsetScanTitle',
       descKey: 'rebalancingSensitivity.seo.offsetScanDesc',
