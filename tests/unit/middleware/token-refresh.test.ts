@@ -1,4 +1,5 @@
-﻿import { describe, it, expect, vi, beforeEach } from 'vitest';
+/* eslint-disable @typescript-eslint/no-explicit-any -- test mock */
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { decodeJwt, jwtVerify } from 'jose';
 import {
   createIdempotencyReqRes,
@@ -21,7 +22,6 @@ import {
 } from './jwtAuth.shared.js';
 import { getUserById } from '../../../packages/backend/src/repositories/userRepo.js';
 import { membershipMocks } from './jwtAuth.shared.js';
-
 import {
   generateRefreshToken,
   refreshAccessToken,
@@ -34,88 +34,108 @@ import {
 } from '../../../packages/backend/src/middleware/tokenStore.js';
 import { idempotencyKey } from '../../../packages/backend/src/middleware/idempotency.js';
 redisMocks.useRedisSuccess();
-
-beforeEach(() => {
-  vi.clearAllMocks();
-  redisMocks.useRedisSuccess();
-  mockMembershipActive();
-});
-
-async function expiredTokenByFakeTimers(ttlSeconds: number) {
+beforeEach(() => (vi.clearAllMocks(), redisMocks.useRedisSuccess(), mockMembershipActive()));
+async function expiredTokenByFakeTimers(s: number) {
   vi.useFakeTimers();
   const t = await generateRefreshToken('expired-user', 'admin');
-  vi.advanceTimersByTime(ttlSeconds * 1000);
+  vi.advanceTimersByTime(s * 1000);
   return t;
 }
-async function expireStoredToken(user: string) {
-  const t = await generateRefreshToken(user, 'admin');
-  const key = `refresh_token:${sha256Hex(t)}`;
-  const entry = JSON.parse(redisMocks.store.get(key)!);
-  entry.expiresAt = Math.floor(Date.now() / 1000) - 10;
-  redisMocks.store.set(key, JSON.stringify(entry));
+async function expireStoredToken(u: string) {
+  const t = await generateRefreshToken(u, 'admin');
+  const k = `refresh_token:${sha256Hex(t)}`;
+  const e = JSON.parse(redisMocks.store.get(k)!);
+  e.expiresAt = Math.floor(Date.now() / 1000) - 10;
+  redisMocks.store.set(k, JSON.stringify(e));
   return t;
 }
-
+const o1 = { tenantId: 'org-1', orgRole: 'owner', platformAdmin: true } as const;
+const o42 = { tenantId: 'org-42', orgRole: 'owner', platformAdmin: true } as const;
+const oRem = { tenantId: 'org-removed', orgRole: 'admin' } as const;
+const oDem = { tenantId: 'org-demote', orgRole: 'admin' } as const;
+const expTenant = {
+  sub: 'tenant-refresh',
+  role: 'admin',
+  tenant_id: 'org-42',
+  org_role: 'owner',
+  platform_admin: true,
+};
+const failSet = async () => (
+  redisMocks.set.mockRejectedValueOnce(new Error('Redis write failed')),
+  generateRefreshToken('user-fallback', 'admin')
+);
+const failGetRefresh = async () => {
+  const t = await generateRefreshToken('redis-refresh-fallback', 'admin');
+  redisMocks.get.mockRejectedValueOnce(new Error('Redis read failed'));
+  return refreshAccessToken(t);
+};
+const failGetRevoke = async () => {
+  const t = await generateRefreshToken('user-revoke-err', 'admin');
+  redisMocks.get.mockRejectedValueOnce(new Error('redis read failed'));
+  return revokeRefreshToken(t);
+};
+const failSmembers = async () => (
+  await generateRefreshToken('revoke-fallback-user', 'admin'),
+  redisMocks.smembers.mockRejectedValueOnce(new Error('smembers failed')),
+  revokeAllUserSessions('revoke-fallback-user')
+);
+const failIsRevoked = async () => (
+  await revokeAllUserSessions('redis-fallback-check-user'),
+  redisMocks.get.mockRejectedValueOnce(new Error('get failed')),
+  isAccessTokenRevokedForUser('redis-fallback-check-user', 1)
+);
+const throwEacces = () => {
+  throw new Error('EACCES: permission denied');
+};
+const throwEnoent = () => {
+  throw new Error('ENOENT');
+};
+const checkRedis = (t: string) =>
+  expect(redisMocks.store.has(`refresh_token:${sha256Hex(t)}`)).toBe(false);
 describe('Refresh Token 生命周期与 Redis', () => {
   beforeEach(() => mockUser());
   it('生成：64 位 hex、写入 Redis（TTL + family + 集合）', async () => {
     const t = await generateRefreshToken('user-1', 'admin');
     expect(t).toMatch(/^[0-9a-f]{64}$/);
     expect(t).not.toBe(await generateRefreshToken('user-1', 'admin'));
-    for (const role of ['admin', 'analyst', 'readonly'] as const)
-      expect(await generateRefreshToken('user-role', role)).toBeTruthy();
+    for (const r of ['admin', 'analyst', 'readonly'] as const)
+      expect(await generateRefreshToken('user-role', r)).toBeTruthy();
     expect(await generateRefreshToken('user-1', 'admin', 'existing-family-id')).toBeTruthy();
-    expect(
-      await generateRefreshToken('tenant-user', 'admin', undefined, {
-        tenantId: 'org-1',
-        orgRole: 'owner',
-        platformAdmin: true,
-      }),
-    ).toBeTruthy();
-    const setCall = vi
+    expect(await generateRefreshToken('tenant-user', 'admin', void 0, o1 as any)).toBeTruthy();
+    const c = vi
       .mocked(redisMocks.set)
       .mock.calls.find(([k]) => String(k).startsWith('refresh_token:'));
-    expect(setCall![2]).toBe('EX');
-    expect(setCall![3]).toBe(mocks.config.JWT_REFRESH_TTL);
-    const family = JSON.parse(
+    expect(c![2]).toBe('EX');
+    expect(c![3]).toBe(mocks.config.JWT_REFRESH_TTL);
+    const f = JSON.parse(
       [...redisMocks.store.entries()].find(([k]) => k.startsWith('token_family:'))![1],
     );
-    expect(family).toMatchObject({ lastToken: sha256Hex(t), revoked: false });
+    expect(f).toMatchObject({ lastToken: sha256Hex(t), revoked: false });
     expect(redisMocks.sadd).toHaveBeenCalledWith(
       expect.stringContaining('user_families:user-1'),
       expect.any(String),
     );
   });
   it('轮换：新对+租户透传+旧 token 失效标记、链式刷新、复用撤销、revokeAll', async () => {
-    const t = await generateRefreshToken('tenant-refresh', 'analyst', undefined, {
-      tenantId: 'org-42',
-      orgRole: 'owner',
-      platformAdmin: true,
-    });
+    const t = await generateRefreshToken('tenant-refresh', 'analyst', void 0, o42 as any);
     const r = await refreshAccessToken(t);
     expect(r).not.toBeNull();
     expect(r!.accessToken).toBeTruthy();
     expect(r!.refreshToken).not.toBe(t);
-    expect(decodeJwt(r!.accessToken)).toMatchObject({
-      sub: 'tenant-refresh',
-      role: 'admin',
-      tenant_id: 'org-42',
-      org_role: 'owner',
-      platform_admin: true,
-    });
+    expect(decodeJwt(r!.accessToken)).toMatchObject(expTenant);
     expect(redisMocks.store.has(`refresh_token:${sha256Hex(t)}`)).toBe(false);
     expect(redisMocks.store.has(`refresh_token:used:${sha256Hex(t)}`)).toBe(true);
-    let chain = r!.refreshToken;
+    let ch = r!.refreshToken;
     for (let i = 0; i < 3; i++) {
-      const next = await refreshAccessToken(chain);
-      expect(next).not.toBeNull();
-      chain = next!.refreshToken;
+      const n = await refreshAccessToken(ch);
+      expect(n).not.toBeNull();
+      ch = n!.refreshToken;
     }
     expect(await refreshAccessToken(t)).toBeNull();
     const t2 = await generateRefreshToken('revoke-user', 'admin');
-    const entry = JSON.parse(redisMocks.store.get(`refresh_token:${sha256Hex(t2)}`)!);
+    const e = JSON.parse(redisMocks.store.get(`refresh_token:${sha256Hex(t2)}`)!);
     await revokeRefreshToken(t2);
-    expect(JSON.parse(redisMocks.store.get(`token_family:${entry.familyId}`)!).revoked).toBe(true);
+    expect(JSON.parse(redisMocks.store.get(`token_family:${e.familyId}`)!).revoked).toBe(true);
     const t3 = await generateRefreshToken('revoke-used', 'admin');
     await refreshAccessToken(t3);
     await revokeRefreshToken(t3);
@@ -134,11 +154,7 @@ describe('Refresh Token 生命周期与 Redis', () => {
       () => expiredTokenByFakeTimers(mocks.config.JWT_REFRESH_TTL + 60),
       undefined,
     ],
-    [
-      'Redis entry 已过期',
-      async () => expireStoredToken('redis-expired'),
-      (t: string) => expect(redisMocks.store.has(`refresh_token:${sha256Hex(t)}`)).toBe(false),
-    ],
+    ['Redis entry 已过期', async () => expireStoredToken('redis-expired'), checkRedis],
   ])('%s 应返回 null 并清理', async (_n, build, extra) => {
     const t = await build();
     expect(await refreshAccessToken(t)).toBeNull();
@@ -151,21 +167,15 @@ describe('Refresh Token 生命周期与 Redis', () => {
     await expect(refreshAccessToken(t)).rejects.toThrow(RedisUnavailableError);
   });
   it('成员资格已移除时应拒绝刷新并撤销 family', async () => {
-    const t = await generateRefreshToken('removed-member', 'admin', undefined, {
-      tenantId: 'org-removed',
-      orgRole: 'admin',
-    });
-    const entry = JSON.parse(redisMocks.store.get(`refresh_token:${sha256Hex(t)}`)!);
+    const t = await generateRefreshToken('removed-member', 'admin', void 0, oRem as any);
+    const e = JSON.parse(redisMocks.store.get(`refresh_token:${sha256Hex(t)}`)!);
     mockMembershipActive();
     vi.mocked(membershipMocks.getMembership).mockResolvedValueOnce(null);
     expect(await refreshAccessToken(t)).toBeNull();
-    expect(JSON.parse(redisMocks.store.get(`token_family:${entry.familyId}`)!).revoked).toBe(true);
+    expect(JSON.parse(redisMocks.store.get(`token_family:${e.familyId}`)!).revoked).toBe(true);
   });
   it('成员角色降级应在刷新时即时生效', async () => {
-    const t = await generateRefreshToken('demoted-user', 'admin', undefined, {
-      tenantId: 'org-demote',
-      orgRole: 'admin',
-    });
+    const t = await generateRefreshToken('demoted-user', 'admin', void 0, oDem as any);
     mockMembershipActive('readonly');
     const r = await refreshAccessToken(t);
     expect(r).not.toBeNull();
@@ -180,50 +190,15 @@ describe('Refresh Token 生命周期与 Redis', () => {
     );
   });
   it.each([
-    [
-      'generateRefreshToken set 失败',
-      async () => {
-        redisMocks.set.mockRejectedValueOnce(new Error('Redis write failed'));
-        return generateRefreshToken('user-fallback', 'admin');
-      },
-    ],
-    [
-      'refreshAccessToken get 失败',
-      async () => {
-        const t = await generateRefreshToken('redis-refresh-fallback', 'admin');
-        redisMocks.get.mockRejectedValueOnce(new Error('Redis read failed'));
-        return refreshAccessToken(t);
-      },
-    ],
-    [
-      'revokeRefreshToken get 失败',
-      async () => {
-        const t = await generateRefreshToken('user-revoke-err', 'admin');
-        redisMocks.get.mockRejectedValueOnce(new Error('redis read failed'));
-        return revokeRefreshToken(t);
-      },
-    ],
-    [
-      'revokeAllUserSessions smembers 失败',
-      async () => {
-        await generateRefreshToken('revoke-fallback-user', 'admin');
-        redisMocks.smembers.mockRejectedValueOnce(new Error('smembers failed'));
-        return revokeAllUserSessions('revoke-fallback-user');
-      },
-    ],
-    [
-      'isAccessTokenRevokedForUser get 失败',
-      async () => {
-        await revokeAllUserSessions('redis-fallback-check-user');
-        redisMocks.get.mockRejectedValueOnce(new Error('get failed'));
-        return isAccessTokenRevokedForUser('redis-fallback-check-user', 1);
-      },
-    ],
+    ['generateRefreshToken set 失败', failSet],
+    ['refreshAccessToken get 失败', failGetRefresh],
+    ['revokeRefreshToken get 失败', failGetRevoke],
+    ['revokeAllUserSessions smembers 失败', failSmembers],
+    ['isAccessTokenRevokedForUser get 失败', failIsRevoked],
   ])('%s 应抛出 RedisUnavailableError', async (_n, fn) => {
     await expect(fn()).rejects.toThrow(RedisUnavailableError);
   });
 });
-
 describe('isUserSessionValid 与 isAccessTokenRevokedForUser', () => {
   it('系统用户 ID（dev-user）应视为有效且不查 DB', async () => {
     expect(await isUserSessionValid('dev-user')).toBe(true);
@@ -249,84 +224,71 @@ describe('isUserSessionValid 与 isAccessTokenRevokedForUser', () => {
     expect(redisMocks.get).toHaveBeenCalled();
   });
 });
-
 describe('getOrCache* 密钥加载（jwtSigner）', () => {
-  beforeEach(() => {
-    resetRsaConfig();
-    mocks.config.NODE_ENV = 'test';
-    mocks.config.JWT_ALGORITHM = 'RS256';
-  });
+  beforeEach(
+    () => (
+      resetRsaConfig(),
+      (mocks.config.NODE_ENV = 'test'),
+      (mocks.config.JWT_ALGORITHM = 'RS256')
+    ),
+  );
   it('生产环境应从环境变量加载密钥', async () => {
     await setupRsaKeys('production');
-    const mod = await reloadJwtAuthModule();
-    expect(await mod.getOrCachePrivateKey()).toBeTruthy();
-    expect(await mod.getOrCachePublicKey()).toBeTruthy();
+    const m = await reloadJwtAuthModule();
+    expect(await m.getOrCachePrivateKey()).toBeTruthy();
+    expect(await m.getOrCachePublicKey()).toBeTruthy();
   });
   it('密钥加载应缓存', async () => {
     mocks.config.NODE_ENV = 'development';
-    const mod = await reloadJwtAuthModule();
-    expect(await mod.getOrCachePrivateKey()).toBe(await mod.getOrCachePrivateKey());
-    expect(await mod.getOrCachePublicKey()).toBe(await mod.getOrCachePublicKey());
-    expect(await mod.getOrCacheHS256Key()).toBe(await mod.getOrCacheHS256Key());
+    const m = await reloadJwtAuthModule();
+    expect(await m.getOrCachePrivateKey()).toBe(await m.getOrCachePrivateKey());
+    expect(await m.getOrCachePublicKey()).toBe(await m.getOrCachePublicKey());
+    expect(await m.getOrCacheHS256Key()).toBe(await m.getOrCacheHS256Key());
   });
   it.each([
     [
       'fs 读取错误',
-      () => {
-        throw new Error('EACCES: permission denied');
-      },
+      throwEacces,
       '/etc/secrets/key.pem',
       /无法读取 PEM 文件.*\/etc\/secrets\/key\.pem/,
     ],
     ['PEM 内容非法', () => 'not-a-valid-pem-key', '/secrets/private.pem', null],
-    [
-      '文件不存在',
-      () => {
-        throw new Error('ENOENT');
-      },
-      '/missing/private.pem',
-      /无法读取 PEM 文件/,
-    ],
-  ])('readPemFile %s 应抛出错误', async (_n, impl, filePath, pattern) => {
+    ['文件不存在', throwEnoent, '/missing/private.pem', /无法读取 PEM 文件/],
+  ])('readPemFile %s 应抛出错误', async (_n, impl, p, pat) => {
     fsMocks.readFileSync.mockImplementation(impl);
     mocks.config.JWT_PRIVATE_KEY = '';
-    mocks.config.JWT_PRIVATE_KEY_FILE = filePath;
+    mocks.config.JWT_PRIVATE_KEY_FILE = p;
     mocks.config.NODE_ENV = 'production';
-    const mod = await reloadJwtAuthModule();
-    const p = mod.getOrCachePrivateKey();
-    if (pattern) await expect(p).rejects.toThrow(pattern);
-    else await expect(p).rejects.toThrow();
+    const m = await reloadJwtAuthModule();
+    const pr = m.getOrCachePrivateKey();
+    if (pat) await expect(pr).rejects.toThrow(pat);
+    else await expect(pr).rejects.toThrow();
   });
   it('HS256 密钥应从 JWT_SECRET 派生并完成签发验证', async () => {
     mocks.config.JWT_ALGORITHM = 'HS256';
-    const mod = await reloadJwtAuthModule();
-    const key = await mod.getOrCacheHS256Key();
-    expect(key).toBeTruthy();
-    const { payload } = await jwtVerify(await mod.generateToken('hs256-test', 'analyst'), key, {
+    const m = await reloadJwtAuthModule();
+    const k = await m.getOrCacheHS256Key();
+    expect(k).toBeTruthy();
+    const { payload } = await jwtVerify(await m.generateToken('hs256-test', 'analyst'), k, {
       algorithms: ['HS256'],
     });
     expect(payload.sub).toBe('hs256-test');
   });
 });
-
 describe('idempotencyKey 中间件', () => {
-  async function passOnce(
-    r: ReturnType<typeof createIdempotencyReqRes>,
-    body: unknown,
-    statusCode = 200,
-  ) {
+  async function passOnce(r: ReturnType<typeof createIdempotencyReqRes>, b: unknown, c = 200) {
     idempotencyKey(r.req, r.res, r.next);
     await vi.waitFor(() => expect(r.next).toHaveBeenCalledTimes(1));
-    r.res.statusCode = statusCode;
-    r.res.json(body);
+    r.res.statusCode = c;
+    r.res.json(b);
   }
   it.each([
     ['Redis 正常', false],
     ['Redis 不可用', true],
-  ])('%s 时非 POST/无 Key 请求应直接放行', (_n, redisDown) => {
-    if (redisDown) redisMocks.useMemoryFallback();
-    for (const method of ['GET', 'POST']) {
-      const { req, res, next } = createIdempotencyReqRes(undefined, method, '/api/test', true);
+  ])('%s 时非 POST/无 Key 请求应直接放行', (_n, down) => {
+    if (down) redisMocks.useMemoryFallback();
+    for (const m of ['GET', 'POST']) {
+      const { req, res, next } = createIdempotencyReqRes(void 0, m, '/api/test', true);
       idempotencyKey(req, res, next);
       expect(next).toHaveBeenCalledTimes(1);
     }
@@ -342,47 +304,45 @@ describe('idempotencyKey 中间件', () => {
     ['SQL 注入 Key', SQL_INJECTION_KEY, false],
     ['XSS 载荷 Key', XSS_KEY, false],
     ['换行符注入 Key', NEWLINE_INJECTION_KEY, false],
-  ])('%s', async (_n, key, assertRedis) => {
-    const cachedBody = { success: true, data: 'cached' };
-    const r1 = createIdempotencyReqRes(key);
-    await passOnce(r1, cachedBody);
-    if (assertRedis)
-      await vi.waitFor(() =>
-        expect(redisMocks.store.has(`idempotency:127.0.0.1:${key}`)).toBe(true),
-      );
-    const r2 = createIdempotencyReqRes(key);
+  ])('%s', async (_n, k, a) => {
+    const c = { success: true, data: 'cached' };
+    const r1 = createIdempotencyReqRes(k);
+    await passOnce(r1, c);
+    if (a)
+      await vi.waitFor(() => expect(redisMocks.store.has(`idempotency:127.0.0.1:${k}`)).toBe(true));
+    const r2 = createIdempotencyReqRes(k);
     idempotencyKey(r2.req, r2.res, r2.next);
     await vi.waitFor(() => expect(r2.res.status).toHaveBeenCalledWith(200));
-    expect(r2.res.json).toHaveBeenCalledWith(cachedBody);
-    if (assertRedis) expect(redisMocks.get).toHaveBeenCalledWith(`idempotency:127.0.0.1:${key}`);
+    expect(r2.res.json).toHaveBeenCalledWith(c);
+    if (a) expect(redisMocks.get).toHaveBeenCalledWith(`idempotency:127.0.0.1:${k}`);
   });
   it('5xx 响应不应被缓存', async () => {
-    const key = 'server-error-key';
-    const r1 = createIdempotencyReqRes(key);
+    const k = 'server-error-key';
+    const r1 = createIdempotencyReqRes(k);
     await passOnce(r1, { success: false }, 503);
-    expect(redisMocks.store.has(`idempotency:${key}`)).toBe(false);
-    const r2 = createIdempotencyReqRes(key);
+    expect(redisMocks.store.has(`idempotency:${k}`)).toBe(false);
+    const r2 = createIdempotencyReqRes(k);
     idempotencyKey(r2.req, r2.res, r2.next);
     await vi.waitFor(() => expect(r2.next).toHaveBeenCalledTimes(1));
   });
   it('并发相同 Key：仅一个执行 handler', async () => {
-    const key = 'race-condition-key-12345';
-    const cachedBody = { success: true, data: 'first-response' };
-    const r1 = createIdempotencyReqRes(key);
-    await passOnce(r1, cachedBody);
-    const concurrent = Array.from({ length: 4 }, () => createIdempotencyReqRes(key));
+    const k = 'race-condition-key-12345';
+    const c = { success: true, data: 'first-response' };
+    const r1 = createIdempotencyReqRes(k);
+    await passOnce(r1, c);
+    const cs = Array.from({ length: 4 }, () => createIdempotencyReqRes(k));
     await Promise.all(
-      concurrent.map(
+      cs.map(
         ({ req, res, next }) =>
-          new Promise<void>((resolve) => {
+          new Promise<void>((ok) => {
             idempotencyKey(req, res, next);
-            vi.waitFor(() => expect(res.status).toHaveBeenCalledWith(200)).then(resolve);
+            vi.waitFor(() => expect(res.status).toHaveBeenCalledWith(200)).then(ok);
           }),
       ),
     );
-    for (const { res, next } of concurrent) {
+    for (const { res, next } of cs) {
       expect(next).not.toHaveBeenCalled();
-      expect(res.json).toHaveBeenCalledWith(cachedBody);
+      expect(res.json).toHaveBeenCalledWith(c);
     }
   });
   it('幂等结果写入失败应记录 warn 且不阻塞响应', async () => {
@@ -398,14 +358,14 @@ describe('idempotencyKey 中间件', () => {
     ['Redis ping 失败', () => redisMocks.useMemoryFallback()],
     [
       'Redis 占位读取抛错',
-      () => {
-        redisMocks.ping.mockResolvedValue('PONG');
-        redisMocks.set.mockResolvedValueOnce(null);
-        redisMocks.get.mockRejectedValueOnce(new Error('redis read failed'));
-      },
+      () => (
+        redisMocks.ping.mockResolvedValue('PONG'),
+        redisMocks.set.mockResolvedValueOnce(null),
+        redisMocks.get.mockRejectedValueOnce(new Error('redis read failed'))
+      ),
     ],
-  ])('%s 时应 fail-closed 返回 503', async (_n, arrange) => {
-    arrange();
+  ])('%s 时应 fail-closed 返回 503', async (_n, a) => {
+    a();
     const { req, res, next } = createIdempotencyReqRes('redis-down-key');
     idempotencyKey(req, res, next);
     await vi.waitFor(() => expect(res.status).toHaveBeenCalledWith(503));

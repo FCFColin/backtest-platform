@@ -6,6 +6,13 @@ import { useAuthStore } from '@/store/authStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { reportError } from '@/utils/errorReporter';
 import { useToastStore } from '@/store/toastStore';
+type AW = { ticker: string; weight: number | string };
+type Parser<T> = (d: Record<string, unknown>) => T;
+type PollOpts = { enabled?: boolean; deps?: unknown[]; immediate?: boolean };
+type Dict = Record<string, unknown>;
+type F = () => void | Promise<void>;
+type B<S> = (s: S) => unknown;
+type V<S> = (s: S) => string | null;
 export function useOrgAuth() {
   const isAuthed = useAuthStore((s) => s.isAuthenticated()),
     org = useAuthStore((s) => s.org),
@@ -15,26 +22,26 @@ export function useOrgAuth() {
 export function useAsyncAction() {
   const [isLoading, setIsLoading] = useState(false),
     [error, setError] = useState<string | null>(null);
-  const run = useCallback(async <T>(task: () => Promise<T>): Promise<T | undefined> => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      return await task();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : i18n.t('Operation failed'));
-      return undefined;
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-  const reset = useCallback(() => {
-    setIsLoading(false);
-    setError(null);
-  }, []);
+  const run = useCallback(
+    <T>(t: () => Promise<T>) => (
+      setIsLoading(true),
+      setError(null),
+      t()
+        .catch(
+          (e: unknown) => (
+            setError(e instanceof Error ? e.message : i18n.t('Operation failed')),
+            undefined as T
+          ),
+        )
+        .finally(() => setIsLoading(false)) as Promise<T | undefined>
+    ),
+    [],
+  );
+  const reset = useCallback(() => (setIsLoading(false), setError(null)), []);
   return { isLoading, error, run, reset, setError };
 }
 type SetterState<T> = T & { [K in keyof T as `set${Capitalize<string & K>}`]: (v: T[K]) => void };
-export function useSetterState<T extends Record<string, unknown>>(initial: T): SetterState<T> {
+export function useSetterState<T extends Dict>(initial: T): SetterState<T> {
   const [state, setState] = useState(initial);
   const set =
     <K extends keyof T>(k: K) =>
@@ -47,34 +54,27 @@ export function useSetterState<T extends Record<string, unknown>>(initial: T): S
     ),
   } as SetterState<T>;
 }
-export function useAssetList<T extends { ticker: string; weight: number | string }>(
-  defaults: T[],
-  factory: () => T,
-  minLength = 1,
-) {
-  const [items, setItems] = useState<T[]>(() => defaults);
+export function useAssetList<T extends AW>(d: T[], f: () => T, n = 1) {
+  const [items, setItems] = useState<T[]>(() => d);
   return {
     assets: items,
     setAssets: setItems,
-    addAsset: () => setItems((p) => [...p, factory()]),
-    removeAsset: (i: number) =>
-      setItems((p) => (p.length > minLength ? p.filter((_, j) => j !== i) : p)),
-    updateAsset: (i: number, field: keyof T, val: T[keyof T]) =>
-      setItems((p) => p.map((item, j) => (j === i ? { ...item, [field]: val } : item))),
+    addAsset: () => setItems((p) => [...p, f()]),
+    removeAsset: (i: number) => setItems((p) => (p.length > n ? p.filter((_, j) => j !== i) : p)),
+    updateAsset: (i: number, k: keyof T, v: T[keyof T]) =>
+      setItems((p) => p.map((x, j) => (j === i ? { ...x, [k]: v } : x))),
     totalWeight: items.reduce((s, a) => s + (Number(a.weight) || 0), 0),
   };
 }
-export function useMediaQuery(query: string): boolean {
-  const [matches, setMatches] = useState(
-    () => typeof window !== 'undefined' && window.matchMedia(query).matches,
-  );
+export function useMediaQuery(q: string) {
+  const [m, setM] = useState(() => typeof window !== 'undefined' && window.matchMedia(q).matches);
   useEffect(() => {
-    const m = window.matchMedia(query);
-    const h = (e: MediaQueryListEvent) => setMatches(e.matches);
-    m.addEventListener('change', h);
-    return () => m.removeEventListener('change', h);
-  }, [query]);
-  return matches;
+    const w = window.matchMedia(q);
+    const h = (e: MediaQueryListEvent) => setM(e.matches);
+    w.addEventListener('change', h);
+    return () => w.removeEventListener('change', h);
+  }, [q]);
+  return m;
 }
 export function useChartAnimation(large: boolean) {
   const r = useMediaQuery('(prefers-reduced-motion: reduce)');
@@ -83,95 +83,77 @@ export function useChartAnimation(large: boolean) {
 export function useTheme() {
   const pref = useSettingsStore((s) => s.theme),
     dark = useMediaQuery('(prefers-color-scheme: dark)'),
-    resolvedTheme = pref === 'system' ? (dark ? 'dark' : 'light') : pref;
+    t = pref === 'system' ? (dark ? 'dark' : 'light') : pref;
   useEffect(() => {
-    document.documentElement.dataset.theme = resolvedTheme;
-  }, [resolvedTheme]);
+    document.documentElement.dataset.theme = t;
+  }, [t]);
   return {
     theme: pref,
-    resolvedTheme,
-    isDark: resolvedTheme === 'dark',
+    resolvedTheme: t,
+    isDark: t === 'dark',
     setTheme: useSettingsStore((s) => s.setTheme),
     toggleTheme: useSettingsStore((s) => s.toggleTheme),
   };
 }
 export function usePolling(
-  fetchFn: () => void | Promise<void>,
-  intervalMs: number,
-  {
-    enabled = true,
-    deps = [],
-    immediate = true,
-  }: { enabled?: boolean; deps?: unknown[]; immediate?: boolean } = {},
+  fn: F,
+  ms: number,
+  { enabled = true, deps = [], immediate = true }: PollOpts = {},
 ) {
   useEffect(() => {
     if (!enabled) return;
-    if (immediate) fetchFn();
-    const id = setInterval(fetchFn, intervalMs);
+    if (immediate) fn();
+    const id = setInterval(fn, ms);
     return () => clearInterval(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled, intervalMs, immediate, ...deps]);
+  }, [enabled, ms, immediate, ...deps]);
 }
-export function useAdminFetch<T>(
-  url: string,
-  parser: (data: Record<string, unknown>) => T,
-  initial: T,
-  componentName: string,
-) {
-  const [data, setData] = useState(initial),
+export function useAdminFetch<T>(u: string, p: Parser<T>, init: T, name: string) {
+  const [data, setData] = useState(init),
     [lastRefresh, setLastRefresh] = useState(''),
     { isLoading: loading, run } = useAsyncAction();
   const fetch = () =>
     run(async () => {
       try {
-        const r = await apiFetch(url);
+        const r = await apiFetch(u);
         if (!r.ok) return;
         const j = await r.json();
         if (j.success && j.data) {
-          setData(parser(j.data));
+          setData(p(j.data));
           setLastRefresh(new Date().toLocaleTimeString(i18n.language));
         }
       } catch (e) {
-        reportError(e, { component: componentName, action: 'fetch' });
+        reportError(e, { component: name, action: 'fetch' });
         useToastStore.getState().addToast('error', i18n.t('Load failed'));
       }
     });
   return { data, loading, lastRefresh, fetch };
 }
-export function useComputeTool<TResult>(
-  computeFn: () => Promise<TResult>,
-  validateFn?: () => string | null,
-) {
+export function useComputeTool<R>(c: () => Promise<R>, v?: () => string | null) {
   const { isLoading, error, run, setError, reset: resetAction } = useAsyncAction(),
-    [results, setResults] = useState<TResult | null>(null);
+    [results, setResults] = useState<R | null>(null);
   const runCompute = useCallback(() => {
-    const ve = validateFn?.();
-    if (ve) return void setError(ve);
+    const e = v?.();
+    if (e) return void setError(e);
     run(async () => {
-      setResults(await computeFn());
+      setResults(await c());
     });
-  }, [computeFn, validateFn, run, setError]);
+  }, [c, v, run, setError]);
   const reset = useCallback(() => {
     resetAction();
     setResults(null);
   }, [resetAction]);
   return { isLoading, error, results, runCompute, setResults, reset };
 }
-export function useAnalysisState<S extends Record<string, unknown>, R>(
-  endpoint: string,
-  initial: S,
-  buildBody: (s: S) => unknown,
-  validate: (s: S) => string | null,
-) {
-  const s = useSetterState(initial);
+export function useAnalysisState<S extends Dict, R>(e: string, i: S, b: B<S>, v: V<S>) {
+  const s = useSetterState(i);
   const {
     isLoading,
     error,
     results,
     runCompute: runAnalysis,
   } = useComputeTool<R>(
-    async () => apiPostJSON<R>(endpoint, buildBody(s), i18n.t('Analysis failed')),
-    () => validate(s),
+    async () => apiPostJSON<R>(e, b(s), i18n.t('Analysis failed')),
+    () => v(s),
   );
   return { ...s, isLoading, error, results, runAnalysis };
 }
@@ -244,16 +226,13 @@ function useCachedResource<T>(cache: ResourceCache<T>): T | null {
   }, [cache]);
   return data;
 }
-const ACTIVITY_EVENTS = ['mousemove', 'keydown', 'mousedown', 'touchstart', 'scroll'] as const,
-  HEARTBEAT_MS = 60_000;
+const ACTIVITY_EVENTS = ['mousemove', 'keydown', 'mousedown', 'touchstart', 'scroll'] as const;
 export function useIdleTimeout(timeoutMs: number, enabled: boolean): void {
   const navigate = useNavigate(),
     logout = useAuthStore((s) => s.logout),
     lastActivity = useRef(Date.now()),
     triggered = useRef(false);
-  const resetActivity = useCallback(() => {
-    lastActivity.current = Date.now();
-  }, []);
+  const resetActivity = useCallback(() => (lastActivity.current = Date.now()), []);
   const triggerTimeout = useCallback(async () => {
     if (triggered.current) return;
     triggered.current = true;
@@ -273,7 +252,7 @@ export function useIdleTimeout(timeoutMs: number, enabled: boolean): void {
       if (document.visibilityState === 'visible') checkTimeout();
     };
     document.addEventListener('visibilitychange', onVis);
-    const id = setInterval(checkTimeout, HEARTBEAT_MS);
+    const id = setInterval(checkTimeout, 60_000);
     return () => {
       ACTIVITY_EVENTS.forEach((e) => window.removeEventListener(e, resetActivity));
       document.removeEventListener('visibilitychange', onVis);
@@ -291,7 +270,6 @@ interface Announcement {
   variant: 'info' | 'success' | 'warning';
   publishedAt: string;
 }
-const READ_KEY = 'announcements-read';
 const announceCache = createResourceCache<Announcement[]>(() =>
   apiFetch('/api/v1/announcements', { silent: true })
     .then((r) => (r.ok ? r.json() : { data: [] }))
@@ -306,17 +284,15 @@ export function useAnnouncements() {
     [readIds, setReadIds] = useState<Set<number>>(new Set());
   useEffect(() => {
     try {
-      const s = localStorage.getItem(READ_KEY);
+      const s = localStorage.getItem('announcements-read');
       if (s) setReadIds(new Set(JSON.parse(s)));
-    } catch {
-      /* corrupted */
-    }
+    } catch {}
   }, []);
   const list = announcements ?? [];
   const markAllRead = useCallback(() => {
     const all = new Set(announcements?.map((a) => a.id) ?? []);
     setReadIds(all);
-    localStorage.setItem(READ_KEY, JSON.stringify([...all]));
+    localStorage.setItem('announcements-read', JSON.stringify([...all]));
   }, [announcements]);
   return {
     announcements: list,
@@ -330,7 +306,6 @@ interface DataMeta {
   earliestDate: string;
   dataPointCount: number;
 }
-const META_TTL = 5 * 60 * 1000;
 const metaCache = createResourceCache<DataMeta | null>(
   () =>
     apiFetch('/api/v1/data/meta', { silent: true })
@@ -354,16 +329,12 @@ const metaCache = createResourceCache<DataMeta | null>(
           earliestDate: d.earliestDate || '',
           dataPointCount: d.dataPointCount || 0,
         };
-    } catch {
-      /* no valid preload */
-    }
+    } catch {}
     return null;
   })(),
-  META_TTL,
+  5 * 60 * 1000,
 );
-export function useDataMeta(): DataMeta | null {
-  return useCachedResource(metaCache);
-}
+export const useDataMeta = (): DataMeta | null => useCachedResource(metaCache);
 export type WorkerTask = { type: string; payload: unknown[] };
 export function useChartCalcWorker<T>(task: WorkerTask | null) {
   const [data, setData] = useState<T | null>(null),

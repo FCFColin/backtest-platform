@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- test mock */
 import { describe, it, expect, vi } from 'vitest';
 import {
   startExpressApp,
@@ -33,11 +34,57 @@ import {
   type SignalCase,
 } from '../../helpers/routeTestDsl.js';
 const get = (url: string, h?: Record<string, string>) =>
-  reqJson(url, 'GET', undefined, h).then(({ res, body }) => ({ res, json: body }));
+  reqJson(url, 'GET', void 0, h).then(({ res, body }) => ({ res, json: body }));
 const portfolioJobServer = () => (resetQueueMocks(), setupPortfolioServer(backtestRoutes, m));
 const MT = Array.from({ length: 51 }, (_, i) => `T${i}`);
 const P = createValidParameters;
 const VP = createValidPortfolio;
+const t1 = { tickers: [{ ticker: 'AAPL' }, { ticker: 'BND' }], correlations: [[1]] };
+const t2 = { assets: [{ ticker: 'AAPL', cagr: 0.1 }], correlations: [[1]] };
+const expMc = {
+  numSimulations: 100,
+  numYears: 20,
+  minBlockYears: 1,
+  maxBlockYears: 3,
+  successThreshold: 1,
+};
+const evil = {
+  numSimulations: 50,
+  __proto__: { polluted: true },
+  constructor: 'evil',
+  maliciousKey: 'strip-me',
+};
+const h1 = async (url: string, c: EngineCase) => {
+  m.callEngineStrict.mockResolvedValue(t1);
+  const { res } = await postJson(url, { ...c.validBody(), tickers: 'AAPL BND' });
+  expect(res.status).toBe(200);
+  expect((m.callEngineStrict.mock.calls[0][1] as any).tickers).toEqual(['AAPL', 'BND']);
+};
+const h2 = async (url: string, c: EngineCase) => {
+  m.callEngineStrict.mockResolvedValue(t2);
+  const { res, json } = await postJson(url, { ...c.validBody(), tickers: ['AAPL'] });
+  expect(res.status).toBe(200);
+  expect(json.data.tickers).toEqual([{ ticker: 'AAPL', cagr: 0.1 }]);
+};
+const h3 = async (url: string, c: EngineCase) => {
+  await postJson(url, c.validBody());
+  expect((m.callEngineStrict.mock.calls[0][1] as any).mcParams).toEqual(expMc);
+};
+const h4 = async (url: string) => {
+  await postJson(url, { portfolio: VP(), parameters: P(), mcParams: evil });
+  const mp = (m.callEngineStrict.mock.calls[0][1] as any).mcParams;
+  expect(mp).toEqual({ numSimulations: 50 });
+  expect(mp).not.toHaveProperty('maliciousKey');
+};
+const h5 = async (url: string, c: EngineCase) => {
+  const { res } = await postJson(url, {
+    ...c.validBody(),
+    objective: 'minVolatility',
+    numIterations: 50000,
+  });
+  expect(res.status).toBe(200);
+  expect((m.callEngineStrict.mock.calls[0][1] as any).numIterations).toBe(50000);
+};
 const engineCases: EngineCase[] = [
   {
     name: 'analysis',
@@ -52,33 +99,8 @@ const engineCases: EngineCase[] = [
       ['ticker 数量超限', { tickers: MT, parameters: P() }],
     ],
     specials: [
-      [
-        'tickers 为空格分隔字符串时应正常处理',
-        async (url, c) => {
-          m.callEngineStrict.mockResolvedValue({
-            tickers: [{ ticker: 'AAPL' }, { ticker: 'BND' }],
-            correlations: [[1]],
-          });
-          const { res } = await postJson(url, { ...c.validBody(), tickers: 'AAPL BND' });
-          expect(res.status).toBe(200);
-          expect((m.callEngineStrict.mock.calls[0][1] as { tickers: string[] }).tickers).toEqual([
-            'AAPL',
-            'BND',
-          ]);
-        },
-      ],
-      [
-        '引擎返回 assets 字段时应映射为 tickers',
-        async (url, c) => {
-          m.callEngineStrict.mockResolvedValue({
-            assets: [{ ticker: 'AAPL', cagr: 0.1 }],
-            correlations: [[1]],
-          });
-          const { res, json } = await postJson(url, { ...c.validBody(), tickers: ['AAPL'] });
-          expect(res.status).toBe(200);
-          expect(json.data.tickers).toEqual([{ ticker: 'AAPL', cagr: 0.1 }]);
-        },
-      ],
+      ['tickers 为空格分隔字符串时应正常处理', h1],
+      ['引擎返回 assets 字段时应映射为 tickers', h2],
     ],
   },
   {
@@ -88,51 +110,11 @@ const engineCases: EngineCase[] = [
     errorCode: 'MONTE_CARLO_ERROR',
     logOnError: false,
     result: { paths: [], statistics: {} },
-    validBody: () => ({
-      portfolio: VP(),
-      parameters: P(),
-      mcParams: {
-        numSimulations: 100,
-        numYears: 20,
-        minBlockYears: 1,
-        maxBlockYears: 3,
-        successThreshold: 1.0,
-      },
-    }),
+    validBody: () => ({ portfolio: VP(), parameters: P(), mcParams: expMc }),
     invalidBodies: [['缺少 portfolio', { parameters: P() }]],
     specials: [
-      [
-        'mcParams 应透传到引擎',
-        async (url, c) => {
-          await postJson(url, c.validBody());
-          expect((m.callEngineStrict.mock.calls[0][1] as { mcParams: unknown }).mcParams).toEqual({
-            numSimulations: 100,
-            numYears: 20,
-            minBlockYears: 1,
-            maxBlockYears: 3,
-            successThreshold: 1.0,
-          });
-        },
-      ],
-      [
-        '恶意 mcParams 键应被剥离',
-        async (url, _c) => {
-          await postJson(url, {
-            portfolio: VP(),
-            parameters: P(),
-            mcParams: {
-              numSimulations: 50,
-              __proto__: { polluted: true },
-              constructor: 'evil',
-              maliciousKey: 'strip-me',
-            },
-          });
-          const mp = (m.callEngineStrict.mock.calls[0][1] as { mcParams: Record<string, unknown> })
-            .mcParams;
-          expect(mp).toEqual({ numSimulations: 50 });
-          expect(mp).not.toHaveProperty('maliciousKey');
-        },
-      ],
+      ['mcParams 应透传到引擎', h3],
+      ['恶意 mcParams 键应被剥离', h4],
     ],
   },
   {
@@ -152,22 +134,7 @@ const engineCases: EngineCase[] = [
       ['无效 objective', { tickers: ['AAPL'], objective: 'invalidObjective', parameters: P() }],
       ['ticker 数量超限', { tickers: MT, objective: 'maxSharpe', parameters: P() }],
     ],
-    specials: [
-      [
-        'numIterations 应被正确上限截断',
-        async (url, c) => {
-          const { res } = await postJson(url, {
-            ...c.validBody(),
-            objective: 'minVolatility',
-            numIterations: 50000,
-          });
-          expect(res.status).toBe(200);
-          expect(
-            (m.callEngineStrict.mock.calls[0][1] as { numIterations: number }).numIterations,
-          ).toBe(50000);
-        },
-      ],
-    ],
+    specials: [['numIterations 应被正确上限截断', h5]],
   },
   {
     name: 'efficient-frontier',
@@ -189,16 +156,16 @@ const engineCases: EngineCase[] = [
   },
 ];
 describeEngineRouteTests({
-  startServer: (c) => () => {
-    m.callEngineStrict.mockResolvedValue(c.result);
-    return startEngineRouteServer(backtestRoutes, m);
-  },
+  startServer: (c) => () => (
+    m.callEngineStrict.mockResolvedValue(c.result),
+    startEngineRouteServer(backtestRoutes, m)
+  ),
   unavailableError: EngineUnavailableErrorStub,
   mocks: () => ({ callEngineStrict: m.callEngineStrict, loggerError: loggerMocks.error }),
 })(engineCases);
-function createSignalConfig(ticker = 'SPY') {
+function createSignalConfig(t = 'SPY') {
   return {
-    ticker,
+    ticker: t,
     indicator: 'sma',
     period: 20,
     threshold: 0,
@@ -208,31 +175,29 @@ function createSignalConfig(ticker = 'SPY') {
   };
 }
 const mockSignalResult = {
-  signals: [{ date: '2020-01-02', type: 'buy', price: 301.0 }],
-  statistics: { totalSignals: 1, winRate: 1.0, avgReturn: 0.01, maxDrawdown: 0, sharpe: 2.0 },
+  signals: [{ date: '2020-01-02', type: 'buy', price: 301 }],
+  statistics: { totalSignals: 1, winRate: 1, avgReturn: 0.01, maxDrawdown: 0, sharpe: 2 },
   equityCurve: [{ date: '2020-01-01', value: 10000 }],
+};
+const mkMissingTicker = () => {
+  const r = createSignalConfig();
+  delete (r as any).ticker;
+  return r;
 };
 const signalCases: SignalCase[] = [
   {
     path: '/api/v1/signal/analyze',
-    data: { SPY: { '2020-01-01': 300.0, '2020-01-02': 301.0 } },
+    data: { SPY: { '2020-01-01': 300, '2020-01-02': 301 } },
     engineResult: mockSignalResult,
     validReq: () => createSignalConfig(),
     validation: [
-      [
-        '缺失 ticker',
-        () => {
-          const r = createSignalConfig();
-          delete (r as Record<string, unknown>).ticker;
-          return r;
-        },
-      ],
+      ['缺失 ticker', mkMissingTicker],
       ['无效 signalType', () => ({ ...createSignalConfig(), signalType: 'invalid' })],
     ],
   },
   {
     path: '/api/v1/signal/dual',
-    data: { SPY: { '2020-01-01': 300.0 }, QQQ: { '2020-01-01': 200.0 } },
+    data: { SPY: { '2020-01-01': 300 }, QQQ: { '2020-01-01': 200 } },
     engineResult: { ...mockSignalResult, equityCurve: [] },
     validReq: () => ({
       signal1: createSignalConfig('SPY'),
@@ -248,7 +213,7 @@ const signalCases: SignalCase[] = [
   },
   {
     path: '/api/v1/signal/multi',
-    data: { SPY: { '2020-01-01': 300.0, '2020-01-02': 301.0 } },
+    data: { SPY: { '2020-01-01': 300, '2020-01-02': 301 } },
     engineResult: { ...mockSignalResult, equityCurve: [] },
     validReq: () => ({
       signals: [
@@ -264,12 +229,12 @@ const signalCases: SignalCase[] = [
   },
 ];
 describeSignalRouteTests({
-  startServer: (c) => () => {
-    vi.clearAllMocks();
-    m.fetchHistoryData.mockResolvedValue({ data: c.data, degraded: false });
-    m.callEngineStrict.mockResolvedValue(c.engineResult);
-    return startExpressApp((app) => app.use('/api/v1', analysisRoutes));
-  },
+  startServer: (c) => () => (
+    vi.clearAllMocks(),
+    m.fetchHistoryData.mockResolvedValue({ data: c.data, degraded: false }),
+    m.callEngineStrict.mockResolvedValue(c.engineResult),
+    startExpressApp((a) => a.use('/api/v1', analysisRoutes))
+  ),
   mocks: () => ({ callEngineStrict: m.callEngineStrict, fetchHistoryData: m.fetchHistoryData }),
 })(signalCases);
 describe('backtestRoutes - POST /api/v1/backtest/portfolio', () => {
@@ -284,15 +249,13 @@ describe('backtestRoutes - POST /api/v1/backtest/portfolio', () => {
     expect(json.data).toMatchObject({ jobId: 'job-test-001', status: 'queued' });
     expect(json.data.statusUrl).toContain('/api/v1/backtest/runs/');
   });
+  const badDate = () => {
+    const b = createValidRequestBody();
+    (b.parameters as any).startDate = 'not-a-date';
+    return b;
+  };
   it.each([
-    [
-      '无效日期格式',
-      () => {
-        const b = createValidRequestBody();
-        (b.parameters as Record<string, unknown>).startDate = 'not-a-date';
-        return b;
-      },
-    ],
+    ['无效日期格式', badDate],
     ['缺少 portfolios', () => ({ parameters: { startDate: '2024-01-01', endDate: '2024-06-30' } })],
     [
       '缺少 parameters',
@@ -305,7 +268,10 @@ describe('backtestRoutes - POST /api/v1/backtest/portfolio', () => {
       () => ({ portfolios: [], parameters: { startDate: '2024-01-01', endDate: '2024-06-30' } }),
     ],
   ])('%s 应返回 400 且不入队', async (_n, getBody) => {
-    const { res } = await postJson(`${getServer().url}/api/v1/backtest/portfolio`, getBody());
+    const { res } = await postJson(
+      `${getServer().url}/api/v1/backtest/portfolio`,
+      (getBody as any)(),
+    );
     expect(res.status).toBe(400);
     expect(queueMocks.add).not.toHaveBeenCalled();
   });
@@ -330,40 +296,37 @@ describe('backtestRoutes - POST /api/v1/backtest/portfolio', () => {
       body: JSON.stringify(createValidRequestBody()),
     });
     expect(res.status).toBe(202);
-    const json = await res.json();
-    expect(json).toMatchObject({ success: true, data: { jobId: 'job-async-002' } });
+    const j = await res.json();
+    expect(j).toMatchObject({ success: true, data: { jobId: 'job-async-002' } });
   });
 });
 describe('backtestRoutes - POST /api/v1/backtest/portfolio/series', () => {
   const getServer = withServer(() => setupPortfolioServer(backtestRoutes, m));
   it('缓存命中时应返回请求的序列字段', async () => {
-    const body = createValidRequestBody();
+    const b = createValidRequestBody();
     await setBacktestResultCache(
-      backtestCacheKey(body.portfolios, body.parameters, undefined),
+      backtestCacheKey(b.portfolios, b.parameters, void 0),
       mockBacktestResult(),
     );
     const { res, json } = await postJson(`${getServer().url}/api/v1/backtest/portfolio/series`, {
-      ...body,
+      ...b,
       series: ['rollingReturns'],
     });
     expect(res.status).toBe(200);
     expect(json.data.portfolios[0].rollingReturns).toEqual([]);
   });
   it('缓存未命中时应返回 404', async () => {
-    const body = createValidRequestBody();
+    const b = createValidRequestBody();
     const { res } = await postJson(`${getServer().url}/api/v1/backtest/portfolio/series`, {
-      ...body,
-      parameters: { ...body.parameters, startingValue: 99999 },
+      ...b,
+      parameters: { ...b.parameters, startingValue: 99999 },
       series: ['rollingReturns'],
     });
     expect(res.status).toBe(404);
   });
 });
 describe('backtestRoutes - GET /api/v1/backtest/search', () => {
-  const getServer = withServer(() => {
-    vi.clearAllMocks();
-    return createBacktestApp(backtestRoutes);
-  });
+  const getServer = withServer(() => (vi.clearAllMocks(), createBacktestApp(backtestRoutes)));
   it('应返回搜索结果', async () => {
     m.searchTickers.mockResolvedValue([{ ticker: 'AAPL', name: 'Apple', market: 'US' }]);
     const { res, json } = await get(`${getServer().url}/api/v1/backtest/search?query=aapl`);
@@ -385,76 +348,69 @@ describe('backtestRoutes - GET /api/v1/backtest/runs/:jobId', () => {
     auth: { user: { sub: 'test-user', role: 'admin' }, tenantId: 'tenant-456' },
     configure: () => resetQueueMocks(),
   });
-  const completedResult = {
+  const cr = {
     data: { portfolios: [{ name: 'Test', growthCurve: [] }] },
     warnings: [],
     dateRange: { start: '2024-01-01', end: '2024-06-30' },
   };
+  const j1 = {
+    id: 'job-done',
+    data: { type: 'optimizer', tenantId: 'tenant-456' },
+    state: 'completed',
+    progress: 100,
+    returnvalue: { status: 'completed', result: cr },
+  };
+  const j2 = {
+    id: 'job-failed',
+    data: { type: 'optimizer', tenantId: 'tenant-456' },
+    state: 'failed',
+    progress: 30,
+    failedReason: 'Engine timeout',
+  };
+  const j3 = {
+    id: 'job-running',
+    data: { type: 'optimizer', tenantId: 'tenant-456' },
+    state: 'active',
+    progress: 45,
+  };
+  const j4 = {
+    id: 'job-delayed',
+    data: { type: 'optimizer', tenantId: 'tenant-456' },
+    state: 'delayed',
+    progress: 0,
+  };
+  const j5 = {
+    id: 'job-rv-failed',
+    data: { type: 'optimizer', tenantId: 'tenant-456' },
+    state: 'completed',
+    progress: 100,
+    returnvalue: { status: 'failed', error: 'Parameter validation failed' },
+  };
   it.each([
-    [
-      'completed 状态返回结果',
-      {
-        id: 'job-done',
-        data: { type: 'optimizer', tenantId: 'tenant-456' },
-        state: 'completed',
-        progress: 100,
-        returnvalue: { status: 'completed', result: completedResult },
-      },
-      { status: 'completed', progress: 100, result: completedResult },
-    ],
+    ['completed 状态返回结果', j1, { status: 'completed', progress: 100, result: cr }],
     [
       'failed 状态返回错误',
-      {
-        id: 'job-failed',
-        data: { type: 'optimizer', tenantId: 'tenant-456' },
-        state: 'failed',
-        progress: 30,
-        failedReason: 'Engine timeout',
-      },
+      j2,
       { status: 'failed', error: 'Job execution failed', noResult: true },
     ],
     [
       'running 状态返回进度',
-      {
-        id: 'job-running',
-        data: { type: 'optimizer', tenantId: 'tenant-456' },
-        state: 'active',
-        progress: 45,
-      },
+      j3,
       { status: 'running', progress: 45, noResult: true, noError: true },
     ],
-    [
-      'delayed 映射为 queued',
-      {
-        id: 'job-delayed',
-        data: { type: 'optimizer', tenantId: 'tenant-456' },
-        state: 'delayed',
-        progress: 0,
-      },
-      { status: 'queued' },
-    ],
-    [
-      'returnvalue 为 failed',
-      {
-        id: 'job-rv-failed',
-        data: { type: 'optimizer', tenantId: 'tenant-456' },
-        state: 'completed',
-        progress: 100,
-        returnvalue: { status: 'failed', error: 'Parameter validation failed' },
-      },
-      { status: 'completed', error: 'Parameter validation failed' },
-    ],
-  ])('%s', async (_n, job, expected) => {
+    ['delayed 映射为 queued', j4, { status: 'queued' }],
+    ['returnvalue 为 failed', j5, { status: 'completed', error: 'Parameter validation failed' }],
+  ])('%s', async (_n, job: any, exp: any) => {
     queueMocks.getJob.mockResolvedValue(createMockJob(job));
     const { res, json } = await get(`${serverUrl()}/api/v1/backtest/runs/${job.id}`);
-    const data = json.data as Record<string, unknown>;
+    const d = json.data as any;
     expect(res.status).toBe(200);
-    expect(data.status).toBe(expected.status);
-    if (expected.progress !== undefined) expect(data.progress).toBe(expected.progress);
-    if (expected.result !== undefined) expect(data.result).toEqual(expected.result);
-    if (expected.error !== undefined) expect(data.error).toBe(expected.error);
-    if (expected.noResult) expect(data.result).toBeUndefined();
-    if (expected.noError) expect(data.error).toBeUndefined();
+    expect(d.status).toBe(exp.status);
+    if (exp.progress !== void 0) expect(d.progress).toBe(exp.progress);
+    if (exp.result !== void 0) expect(d.result).toEqual(exp.result);
+    if (exp.error !== void 0) expect(d.error).toBe(exp.error);
+    if (exp.noResult) expect(d.result).toBeUndefined();
+    if (exp.noError) expect(d.error).toBeUndefined();
   });
   it('任务不存在时返回 404', async () => {
     queueMocks.getJob.mockResolvedValue(null);
@@ -464,23 +420,23 @@ describe('backtestRoutes - GET /api/v1/backtest/runs/:jobId', () => {
   });
 });
 describe('jobRoutes - GET /api/v1/jobs/:id', () => {
-  const getServer = withServer(() => {
-    vi.clearAllMocks();
-    return startExpressApp((app) => {
-      app.use((req: TestRequest, _res, next) => {
-        req.user = {
-          sub: (req.headers['x-test-sub'] as string) || 'admin-user',
-          role: (req.headers['x-test-role'] as string) || 'admin',
-          platform_admin: req.headers['x-test-platform'] === 'true',
-          iat: 0,
-          exp: 0,
-        };
-        req.tenantId = (req.headers['x-test-tenant'] as string) || undefined;
-        next();
-      });
-      app.use('/api/v1', jobRoutes);
-    });
-  });
+  const authMw = (req: TestRequest, _res: any, next: any) => {
+    req.user = {
+      sub: (req.headers['x-test-sub'] as string) || 'admin-user',
+      role: (req.headers['x-test-role'] as string) || 'admin',
+      platform_admin: (req.headers['x-test-platform'] as string) === 'true',
+      iat: 0,
+      exp: 0,
+    };
+    req.tenantId = (req.headers['x-test-tenant'] as string) || void 0;
+    next();
+  };
+  const getServer = withServer(
+    () => (
+      vi.clearAllMocks(),
+      startExpressApp((a) => (a.use(authMw), a.use('/api/v1', jobRoutes)))
+    ),
+  );
   it('任务存在且已完成时应返回结果', async () => {
     queueMocks.getJob.mockResolvedValue(
       createMockJob({ id: 'job-123', returnvalue: { best: { cagr: 0.12 } } }),
@@ -506,43 +462,38 @@ describe('jobRoutes - GET /api/v1/jobs/:id', () => {
     expect(json.data.status).toBe('failed');
     expect(json.data.error).not.toContain('Engine timeout');
   });
+  const oj = createMockJob({ id: 'job-owned', data: { type: 'optimizer', userId: 'owner-user' } });
+  const mj = createMockJob({ id: 'job-mine', data: { type: 'optimizer', userId: 'owner-user' } });
+  const ta = createMockJob({
+    id: 'job-tenant-a',
+    data: { type: 'optimizer', userId: 'owner-user', tenantId: 'org-a' },
+  });
+  const ok = createMockJob({
+    id: 'job-tenant-ok',
+    data: { type: 'optimizer', userId: 'someone', tenantId: 'org-a' },
+  });
+  const pa = createMockJob({
+    id: 'job-tenant-pa',
+    data: { type: 'optimizer', userId: 'someone', tenantId: 'org-a' },
+  });
   it.each([
-    [
-      '越权访问他人任务',
-      createMockJob({ id: 'job-owned', data: { type: 'optimizer', userId: 'owner-user' } }),
-      { 'x-test-sub': 'attacker', 'x-test-role': 'analyst' },
-      404,
-    ],
-    [
-      '所有者本人可访问',
-      createMockJob({ id: 'job-mine', data: { type: 'optimizer', userId: 'owner-user' } }),
-      { 'x-test-sub': 'owner-user', 'x-test-role': 'analyst' },
-      200,
-    ],
+    ['越权访问他人任务', oj, { 'x-test-sub': 'attacker', 'x-test-role': 'analyst' }, 404],
+    ['所有者本人可访问', mj, { 'x-test-sub': 'owner-user', 'x-test-role': 'analyst' }, 200],
     [
       '跨租户访问应返回 404',
-      createMockJob({
-        id: 'job-tenant-a',
-        data: { type: 'optimizer', userId: 'owner-user', tenantId: 'org-a' },
-      }),
+      ta,
       { 'x-test-sub': 'admin-user', 'x-test-role': 'admin', 'x-test-tenant': 'org-b' },
       404,
     ],
     [
       '同租户 admin 可访问',
-      createMockJob({
-        id: 'job-tenant-ok',
-        data: { type: 'optimizer', userId: 'someone', tenantId: 'org-a' },
-      }),
+      ok,
       { 'x-test-sub': 'admin-user', 'x-test-role': 'admin', 'x-test-tenant': 'org-a' },
       200,
     ],
     [
       '平台管理员可跨租户',
-      createMockJob({
-        id: 'job-tenant-pa',
-        data: { type: 'optimizer', userId: 'someone', tenantId: 'org-a' },
-      }),
+      pa,
       {
         'x-test-sub': 'op',
         'x-test-role': 'admin',
@@ -551,20 +502,18 @@ describe('jobRoutes - GET /api/v1/jobs/:id', () => {
       },
       200,
     ],
-  ])('%s', async (_n, job, headers, expected) => {
+  ])('%s', async (_n, job: any, h: any, exp: any) => {
     queueMocks.getJob.mockResolvedValue(job);
-    const { res } = await get(`${getServer().url}/api/v1/jobs/${job.id}`, headers);
-    expect(res.status).toBe(expected);
+    const { res } = await get(`${getServer().url}/api/v1/jobs/${job.id}`, h);
+    expect(res.status).toBe(exp);
   });
   it('未认证时应返回 401', async () => {
-    const unauthServer = await startExpressApp((app) => {
-      app.use('/api/v1', jobRoutes);
-    });
+    const s = await startExpressApp((a) => a.use('/api/v1', jobRoutes));
     try {
-      const res = await fetch(`${unauthServer.url}/api/v1/jobs/job-x`);
-      expect(res.status).toBe(401);
+      const r = await fetch(`${s.url}/api/v1/jobs/job-x`);
+      expect(r.status).toBe(401);
     } finally {
-      await unauthServer.close();
+      await s.close();
     }
   });
   it('任务不存在时应返回 404', async () => {
@@ -583,7 +532,7 @@ describe('jobRoutes - GET /api/v1/jobs/:id', () => {
     queueMocks.getJob.mockResolvedValue(
       createMockJob({
         id: 'job-active',
-        finishedOn: undefined,
+        finishedOn: void 0,
         getState: vi.fn().mockResolvedValue('active'),
       }),
     );
