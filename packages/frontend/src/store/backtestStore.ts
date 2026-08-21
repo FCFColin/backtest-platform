@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- store 动态 patch 需 any */
 import { create } from 'zustand';
 import { startTransition } from 'react';
 import i18n from '@/i18n/index.js';
@@ -25,6 +26,22 @@ import {
   cancellableSleep,
 } from './backtestHelpers.js';
 export type BacktestSeriesField = 'rollingReturns' | 'allocationHistory' | 'drawdownEpisodes';
+type PP = Pick<
+  Portfolio,
+  | 'name'
+  | 'assets'
+  | 'rebalanceFrequency'
+  | 'rebalanceThreshold'
+  | 'rebalanceOffset'
+  | 'rebalanceBands'
+  | 'drag'
+  | 'isGlidepath'
+  | 'glidepathFrom'
+  | 'glidepathTo'
+  | 'glidepathYears'
+  | 'glidepathToWeights'
+  | 'tags'
+>;
 export interface BacktestState {
   portfolios: Portfolio[];
   portfolioCounter: number;
@@ -39,27 +56,7 @@ export interface BacktestState {
   addPortfolio: (presetId?: string) => void;
   removePortfolio: (id: string) => void;
   duplicatePortfolio: (id: string) => void;
-  updatePortfolio: (
-    id: string,
-    updates: Partial<
-      Pick<
-        Portfolio,
-        | 'name'
-        | 'assets'
-        | 'rebalanceFrequency'
-        | 'rebalanceThreshold'
-        | 'rebalanceOffset'
-        | 'rebalanceBands'
-        | 'drag'
-        | 'isGlidepath'
-        | 'glidepathFrom'
-        | 'glidepathTo'
-        | 'glidepathYears'
-        | 'glidepathToWeights'
-        | 'tags'
-      >
-    >,
-  ) => void;
+  updatePortfolio: (id: string, updates: Partial<PP>) => void;
   addGlidepath: (name: string, fromId: string, toId: string, years: number) => void;
   addCashflowLeg: () => void;
   removeCashflowLeg: (id: string) => void;
@@ -79,50 +76,38 @@ export interface BacktestState {
   getShareableState: () => { portfolios: Portfolio[]; parameters: BacktestParameters };
 }
 export type SetFn = (
-  partial: Partial<BacktestState> | ((state: BacktestState) => Partial<BacktestState>),
+  p: Partial<BacktestState> | ((s: BacktestState) => Partial<BacktestState>),
 ) => void;
 export type GetFn = () => BacktestState;
-
 let currentRequestId = 0;
-
 export async function pollJobStatus(
-  statusUrl: string,
+  url: string,
   signal: AbortSignal,
-  requestId: number | null,
+  rid: number | null,
 ): Promise<Record<string, unknown>> {
-  let delay = 50;
+  let d = 50;
   while (true) {
-    await cancellableSleep(delay, signal);
-    if (signal.aborted || (requestId !== null && requestId !== currentRequestId))
+    await cancellableSleep(d, signal);
+    if (signal.aborted || (rid !== null && rid !== currentRequestId))
       throw new DOMException('Aborted', 'AbortError');
-    const res = await apiFetch(statusUrl, { cache: 'no-store', signal });
-    const json = await res.json();
-    if (!res.ok || json.success === false) throw new Error(extractApiErrorDetail(json));
-    const jd = json.data as {
-      status?: string;
-      state?: string;
-      result?: { data?: unknown; warnings: unknown[]; dateRange: unknown };
-      error?: string;
-    };
-    const js = jd.status ?? jd.state;
-    if (js === 'completed' && jd.result)
-      return { success: true, data: (jd.result.data ?? jd.result) as unknown } as Record<
-        string,
-        unknown
-      >;
-    if (js === 'failed')
+    const r = await apiFetch(url, { cache: 'no-store', signal });
+    const j = await r.json();
+    if (!r.ok || j.success === false) throw new Error(extractApiErrorDetail(j));
+    const x = j.data as any;
+    const s = x.status ?? x.state;
+    if (s === 'completed' && x.result)
+      return { success: true, data: x.result.data ?? x.result } as any;
+    if (s === 'failed')
       throw new Error(
-        jd.error || i18n.t('Backtest failed. Please check ticker symbols and parameters.'),
+        x.error || i18n.t('Backtest failed. Please check ticker symbols and parameters.'),
       );
-    delay = Math.min(delay * 2, 500);
+    d = Math.min(d * 2, 500);
   }
 }
-
 const setIfCurrent = (set: SetFn, rid: number, patch: Partial<BacktestState>) => {
   if (rid === currentRequestId) set(patch);
 };
-const stale = <T>(patch: T): T & { resultsStale: true } => ({ ...patch, resultsStale: true });
-
+const stale = <T>(p: T): T & { resultsStale: true } => ({ ...p, resultsStale: true });
 async function runBacktestAction(set: SetFn, get: GetFn): Promise<void> {
   const rid = ++currentRequestId;
   const prev = get()._abortController;
@@ -130,19 +115,13 @@ async function runBacktestAction(set: SetFn, get: GetFn): Promise<void> {
   const ctrl = new AbortController();
   set({ _abortController: ctrl, isLoading: true, error: null });
   const { portfolios, parameters } = get();
-  const abort = (msg?: string) => {
-    if (msg) useToastStore.getState().addToast('warning', msg);
+  const abort = (m?: string) => {
+    if (m) useToastStore.getState().addToast('warning', m);
     setIfCurrent(set, rid, { isLoading: false, _abortController: null });
   };
-  if (portfolios.length === 0) {
-    abort(i18n.t('Please add at least one portfolio'));
-    return;
-  }
+  if (!portfolios.length) return abort(i18n.t('Please add at least one portfolio'));
   const ve = validatePortfolios(portfolios);
-  if (ve) {
-    abort(ve);
-    return;
-  }
+  if (ve) return abort(ve);
   const tid = setTimeout(() => ctrl.abort(), 180_000);
   try {
     const res = await apiFetch('/api/v1/backtest/portfolio', {
@@ -167,15 +146,14 @@ async function runBacktestAction(set: SetFn, get: GetFn): Promise<void> {
     processResponseWarnings(rj);
     if (rid === currentRequestId)
       startTransition(() => set({ results, error: null, resultsStale: false }));
-  } catch (error) {
+  } catch (e) {
     if (rid !== currentRequestId) return;
-    set({ error: handleBacktestError(error) });
+    set({ error: handleBacktestError(e) });
   } finally {
     clearTimeout(tid);
     setIfCurrent(set, rid, { isLoading: false, _abortController: null });
   }
 }
-
 async function enrichSeriesAction(
   set: SetFn,
   get: GetFn,
@@ -189,7 +167,7 @@ async function enrichSeriesAction(
       return v === undefined || (Array.isArray(v) && v.length === 0);
     }),
   );
-  if (missing.length === 0) return;
+  if (!missing.length) return;
   try {
     const res = await apiFetch('/api/v1/backtest/portfolio/series', {
       method: 'POST',
@@ -217,20 +195,19 @@ async function enrichSeriesAction(
         }),
       });
     });
-  } catch (error) {
-    reportError(error, { component: 'backtestStore', action: 'enrichBacktestSeries' });
+  } catch (e) {
+    reportError(e, { component: 'backtestStore', action: 'enrichBacktestSeries' });
   }
 }
-
 function loadFromShareAction(
   set: SetFn,
   get: GetFn,
   data: { portfolios: Portfolio[]; parameters: BacktestParameters },
 ): void {
   useSettingsStore.getState().setCurrency(data.parameters.baseCurrency ?? 'usd');
-  const maxId = data.portfolios.reduce((mx, p) => {
-    const m = p.id?.match(/-(\d+)$/);
-    return m ? Math.max(mx, parseInt(m[1])) : mx;
+  const maxId = data.portfolios.reduce((m, p) => {
+    const x = p.id?.match(/-(\d+)$/);
+    return x ? Math.max(m, parseInt(x[1])) : m;
   }, get().portfolioCounter);
   set({
     portfolios: data.portfolios.map((p) => ({
@@ -246,32 +223,23 @@ function loadFromShareAction(
     hasLoadedFromShare: true,
   });
 }
-
-const mapPortfolio = (
-  st: BacktestState,
-  id: string,
-  fn: (p: Portfolio) => Portfolio,
-): Portfolio[] => st.portfolios.map((p) => (p.id === id ? fn(p) : p));
-const patchParams = <T extends CashflowLeg | OneTimeCashflow>(
+type CF = CashflowLeg | OneTimeCashflow;
+const patchParams = <T extends CF>(
   set: SetFn,
   key: 'cashflowLegs' | 'oneTimeCashflows',
-  fn: (l: T[], st: BacktestState) => T[],
+  fn: (l: T[], s: BacktestState) => T[],
 ) =>
-  set((st) =>
+  set((s) =>
     stale({
-      parameters: {
-        ...st.parameters,
-        [key]: fn((st.parameters[key] as T[] | undefined) ?? [], st),
-      },
+      parameters: { ...s.parameters, [key]: fn((s.parameters[key] as T[] | undefined) ?? [], s) },
     }),
   );
 const patchAssets = (set: SetFn, id: string, fn: (p: Portfolio) => Portfolio) =>
-  set((st) => stale({ portfolios: mapPortfolio(st, id, fn) }));
-
-function crudActions<T extends CashflowLeg | OneTimeCashflow>(
+  set((s) => stale({ portfolios: s.portfolios.map((p) => (p.id === id ? fn(p) : p)) }));
+function crudActions<T extends CF>(
   set: SetFn,
   key: 'cashflowLegs' | 'oneTimeCashflows',
-  make: (st: BacktestState) => T,
+  make: (s: BacktestState) => T,
 ) {
   return {
     add: () => patchParams<T>(set, key, (l, s) => [...l, make(s)]),
@@ -280,7 +248,6 @@ function crudActions<T extends CashflowLeg | OneTimeCashflow>(
       patchParams<T>(set, key, (l) => l.map((x) => (x.id === id ? { ...x, ...u } : x))),
   };
 }
-
 export const useBacktestStore = create<BacktestState>()((set, get) => {
   const cf = crudActions(
     set,
@@ -293,7 +260,7 @@ export const useBacktestStore = create<BacktestState>()((set, get) => {
         frequency: 'yearly',
       }) as CashflowLeg,
   );
-  const otc = crudActions(
+  const ot = crudActions(
     set,
     'oneTimeCashflows',
     (s) =>
@@ -315,83 +282,85 @@ export const useBacktestStore = create<BacktestState>()((set, get) => {
     hasLoadedFromShare: false,
     _abortController: null as AbortController | null,
     parameters: defaultParameters as BacktestParameters,
-    addPortfolio: (presetId?: string) => {
-      const next = get().portfolioCounter + 1;
-      set((st) =>
+    addPortfolio: (p?: string) => {
+      const n = get().portfolioCounter + 1;
+      set((s) =>
         stale({
-          portfolioCounter: next,
+          portfolioCounter: n,
           portfolios: [
-            ...st.portfolios,
-            presetId ? createPortfolioFromPreset(presetId, next) : createEmptyPortfolio(next),
+            ...s.portfolios,
+            p ? createPortfolioFromPreset(p, n) : createEmptyPortfolio(n),
           ],
         }),
       );
     },
     removePortfolio: (id: string) =>
-      set((st) => stale({ portfolios: st.portfolios.filter((p) => p.id !== id) })),
+      set((s) => stale({ portfolios: s.portfolios.filter((x) => x.id !== id) })),
     duplicatePortfolio: (id: string) => {
-      const next = get().portfolioCounter + 1;
-      set((st) => {
-        const src = st.portfolios.find((p) => p.id === id);
-        if (!src) return st;
-        return stale({
-          portfolioCounter: next,
-          portfolios: [
-            ...st.portfolios,
-            {
-              ...src,
-              id: `portfolio-${Date.now()}-${next}`,
-              name: `${src.name} (${i18n.t('Copy')})`,
-              assets: src.assets.map((a) => ({ ...a })),
-            },
-          ],
-        });
+      const n = get().portfolioCounter + 1;
+      set((s) => {
+        const src = s.portfolios.find((x) => x.id === id);
+        return !src
+          ? s
+          : stale({
+              portfolioCounter: n,
+              portfolios: [
+                ...s.portfolios,
+                {
+                  ...src,
+                  id: `portfolio-${Date.now()}-${n}`,
+                  name: `${src.name} (${i18n.t('Copy')})`,
+                  assets: src.assets.map((a) => ({ ...a })),
+                },
+              ],
+            });
       });
     },
-    updatePortfolio: (id, updates) => patchAssets(set, id, (p) => ({ ...p, ...updates })),
+    updatePortfolio: (id, u) => patchAssets(set, id, (p) => ({ ...p, ...u })),
     addGlidepath: (name: string, fromId: string, toId: string, years: number) => {
-      const next = get().portfolioCounter + 1;
-      set((st) => {
-        const from = st.portfolios.find((p) => p.id === fromId);
-        const to = st.portfolios.find((p) => p.id === toId);
-        if (!from || !to) return st;
-        return stale({
-          portfolioCounter: next,
-          portfolios: [
-            ...st.portfolios,
-            {
-              id: `glidepath-${Date.now()}-${next}`,
-              name,
-              assets: from.assets.map((a) => ({ ...a })),
-              rebalanceFrequency: from.rebalanceFrequency,
-              rebalanceOffset: from.rebalanceOffset,
-              drag: from.drag ?? 0,
-              isGlidepath: true,
-              glidepathFrom: fromId,
-              glidepathTo: toId,
-              glidepathYears: years,
-              glidepathToWeights: from.assets.map(
-                (fa) => (to.assets.find((a) => a.ticker === fa.ticker)?.weight ?? 0) / 100,
-              ),
-            },
-          ],
-        });
+      const n = get().portfolioCounter + 1;
+      set((s) => {
+        const f = s.portfolios.find((x) => x.id === fromId);
+        const t = s.portfolios.find((x) => x.id === toId);
+        return !f || !t
+          ? s
+          : stale({
+              portfolioCounter: n,
+              portfolios: [
+                ...s.portfolios,
+                {
+                  id: `glidepath-${Date.now()}-${n}`,
+                  name,
+                  assets: f.assets.map((a) => ({ ...a })),
+                  rebalanceFrequency: f.rebalanceFrequency,
+                  rebalanceOffset: f.rebalanceOffset,
+                  drag: f.drag ?? 0,
+                  isGlidepath: true,
+                  glidepathFrom: fromId,
+                  glidepathTo: toId,
+                  glidepathYears: years,
+                  glidepathToWeights: f.assets.map(
+                    (a) => (t.assets.find((x) => x.ticker === a.ticker)?.weight ?? 0) / 100,
+                  ),
+                },
+              ],
+            });
       });
     },
     addCashflowLeg: cf.add,
     removeCashflowLeg: cf.remove,
     updateCashflowLeg: cf.update,
-    addOneTimeCashflow: otc.add,
-    removeOneTimeCashflow: otc.remove,
-    updateOneTimeCashflow: otc.update,
-    updateParameter: <K extends keyof BacktestParameters>(key: K, value: BacktestParameters[K]) =>
-      set((st) => stale({ parameters: { ...st.parameters, [key]: value } })),
+    addOneTimeCashflow: ot.add,
+    removeOneTimeCashflow: ot.remove,
+    updateOneTimeCashflow: ot.update,
+    updateParameter: <K extends keyof BacktestParameters>(k: K, v: BacktestParameters[K]) =>
+      set((s) => stale({ parameters: { ...s.parameters, [k]: v } })),
     runBacktest: () => runBacktestAction(set, get),
     enrichSeries: (series: BacktestSeriesField[]) => enrichSeriesAction(set, get, series),
-    setActiveTab: (tab: string) => set({ activeTab: tab }),
-    setHasLoadedFromShare: (val: boolean) => set({ hasLoadedFromShare: val }),
-    loadFromShare: (data: { portfolios: Portfolio[]; parameters: BacktestParameters }) =>
-      loadFromShareAction(set, get, data),
+    setActiveTab: (t: string) => set({ activeTab: t }),
+    setHasLoadedFromShare: (v: boolean) => set({ hasLoadedFromShare: v }),
+    loadFromShare: (d: { portfolios: Portfolio[]; parameters: BacktestParameters }) =>
+      loadFromShareAction(set, get, d),
     getShareableState: () => {
       const { portfolios, parameters } = get();
       return { portfolios, parameters };
