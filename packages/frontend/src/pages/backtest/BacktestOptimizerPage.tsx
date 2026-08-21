@@ -10,22 +10,8 @@ import type {
   RebalanceFrequency,
 } from '@backtest/shared';
 import { getPortfolioColor } from '@/lib/chart-theme.js';
-import {
-  ParamCard,
-  ParamGroup,
-  ParamsPanel,
-  ParamRow,
-} from '../../components/params/paramsLayout.js';
-import {
-  Button,
-  Input,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-  Switch,
-} from '@/components/ui/uiComponents';
+import * as PL from '../../components/params/paramsLayout.js';
+import * as UI from '@/components/ui/uiComponents';
 import SinglePortfolioEditor from '@/components/PortfolioEditor.js';
 import { RunButton } from '@/components/form/sharedFields';
 import { useSettingsStore } from '@/store/settingsStore';
@@ -43,47 +29,14 @@ import { pollJobStatus } from '@/store/backtestStore.js';
 import { useAssetList } from '../../hooks/miscHooks.js';
 import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
 import { normalizeTicker } from '@/utils/ticker';
-type OptimizerFormState = Record<
-  | 'thrMin'
-  | 'thrMax'
-  | 'thrStep'
-  | 'capMin'
-  | 'capMax'
-  | 'capStep'
-  | 'maxDD'
-  | 'minCagr'
-  | 'startDate'
-  | 'endDate'
-  | 'benchmarkTicker',
-  string
-> & { objective: Objective; enableMaxDD: boolean; enableMinCagr: boolean };
-type OptimizerResultState = {
-  isLoading: boolean;
-  error: string | null;
-  results: OptimizeResultItem[] | null;
-  best: BestResultItem | null;
-  benchmarkGrowth: { date: string; value: number }[] | null;
-  totalCombos: number;
-};
-type BacktestOptimizerState = {
-  assets: { ticker: string; weight: string }[];
-  frequencies: RebalanceFrequency[];
-  form: OptimizerFormState;
-  patchForm: (p: Partial<OptimizerFormState>) => void;
-  result: OptimizerResultState;
-  addAsset: () => void;
-  removeAsset: (i: number) => void;
-  updateAsset: (i: number, f: 'ticker' | 'weight', v: string) => void;
-  toggleFreq: (f: RebalanceFrequency) => void;
-  runOptimize: () => Promise<void>;
-};
-const OBJECTIVE_SORT_KEY: Record<Objective, keyof OptimizeResultItem> = {
+type BacktestOptimizerState = any;
+const SORT_KEY: Record<Objective, keyof OptimizeResultItem> = {
   maxCagr: 'cagr',
   minMaxDrawdown: 'maxDrawdown',
   maxSharpe: 'sharpe',
   maxSortino: 'sortino',
 };
-const mkCol = (
+const col = (
   k: keyof OptimizeResultItem,
   l: string,
   f: (v: number) => string,
@@ -93,7 +46,7 @@ const mkCol = (
   sortValue: (r) => r[k] as number,
   render: (r) => f(r[k] as number),
 });
-const TABLE_COLUMNS: TableColumn<OptimizeResultItem>[] = [
+const COLS: TableColumn<OptimizeResultItem>[] = [
   {
     key: 'rebalanceFrequency',
     label: i18n.t('Rebalancing Frequency'),
@@ -115,14 +68,14 @@ const TABLE_COLUMNS: TableColumn<OptimizeResultItem>[] = [
     sortValue: (r) => r.initialCapital,
     render: (r) => fmtAmount(r.initialCapital),
   },
-  mkCol('cagr', i18n.t('stats.cagr'), fmtPct),
-  mkCol('maxDrawdown', i18n.t('Max Drawdown'), fmtPct),
-  mkCol('stdev', i18n.t('Volatility'), fmtPct),
-  mkCol('sharpe', i18n.t('Sharpe'), fmtNum),
-  mkCol('sortino', 'Sortino', fmtNum),
-  mkCol('calmar', 'Calmar', fmtNum),
+  col('cagr', i18n.t('stats.cagr'), fmtPct),
+  col('maxDrawdown', i18n.t('Max Drawdown'), fmtPct),
+  col('stdev', i18n.t('Volatility'), fmtPct),
+  col('sharpe', i18n.t('Sharpe'), fmtNum),
+  col('sortino', 'Sortino', fmtNum),
+  col('calmar', 'Calmar', fmtNum),
 ];
-const DEFAULT_FORM: OptimizerFormState = {
+const DEF_FORM: any = {
   thrMin: '5',
   thrMax: '20',
   thrStep: '5',
@@ -138,7 +91,7 @@ const DEFAULT_FORM: OptimizerFormState = {
   endDate: DEFAULT_END_DATE,
   benchmarkTicker: 'VTI',
 };
-const EMPTY_RESULT: OptimizerResultState = {
+const EMPTY_RES: any = {
   isLoading: false,
   error: null,
   results: null,
@@ -146,50 +99,7 @@ const EMPTY_RESULT: OptimizerResultState = {
   benchmarkGrowth: null,
   totalCombos: 0,
 };
-function buildOptimizeBody(
-  v: { ticker: string; weight: string }[],
-  f: RebalanceFrequency[],
-  s: OptimizerFormState,
-): Record<string, unknown> {
-  const c: Record<string, number> = {};
-  if (s.enableMaxDD && s.maxDD !== '') c.maxDrawdown = Number(s.maxDD);
-  if (s.enableMinCagr && s.minCagr !== '') c.minCagr = Number(s.minCagr);
-  return {
-    portfolio: {
-      assets: v.map((a) => ({ ticker: normalizeTicker(a.ticker), weight: Number(a.weight) || 0 })),
-    },
-    parameterSpace: {
-      rebalanceFrequencies: f,
-      rebalanceThreshold: { min: Number(s.thrMin), max: Number(s.thrMax), step: Number(s.thrStep) },
-      initialCapital: { min: Number(s.capMin), max: Number(s.capMax), step: Number(s.capStep) },
-    },
-    parameters: {
-      startDate: s.startDate,
-      endDate: s.endDate,
-      benchmarkTicker: normalizeTicker(s.benchmarkTicker),
-      baseCurrency: 'usd',
-      adjustForInflation: false,
-    },
-    objective: s.objective,
-    constraints: c,
-  };
-}
-function buildChartData(
-  b: BestResultItem | null,
-  g: { date: string; value: number }[] | null,
-): { date: string; portfolio: number; benchmark?: number }[] {
-  if (!b?.growthCurve) return [];
-  const m = new Map<string, { date: string; portfolio: number; benchmark?: number }>();
-  for (const p of b.growthCurve) m.set(p.date, { date: p.date, portfolio: p.value });
-  if (g)
-    for (const p of g) {
-      const e = m.get(p.date);
-      if (e) e.benchmark = p.value;
-      else m.set(p.date, { date: p.date, portfolio: 0, benchmark: p.value });
-    }
-  return [...m.values()].sort((a, b) => a.date.localeCompare(b.date));
-}
-const BEST_METRIC_DEFS: [keyof BestResultItem, string, (v: number) => string][] = [
+const BEST_DEFS: [keyof BestResultItem, string, (v: number) => string][] = [
   ['cagr', 'CAGR', fmtPct],
   ['maxDrawdown', '最大回撤', fmtPct],
   ['stdev', '波动率', fmtPct],
@@ -198,10 +108,12 @@ const BEST_METRIC_DEFS: [keyof BestResultItem, string, (v: number) => string][] 
   ['calmar', 'Calmar', fmtNum],
 ];
 function useOptimizerState(): BacktestOptimizerState {
-  const { assets, addAsset, removeAsset, updateAsset } = useAssetList<{
-    ticker: string;
-    weight: string;
-  }>(
+  const {
+    assets: a,
+    addAsset: add,
+    removeAsset: rem,
+    updateAsset: upd,
+  } = useAssetList<{ ticker: string; weight: string }>(
     [
       { ticker: 'VTI', weight: '60' },
       { ticker: 'BND', weight: '40' },
@@ -209,69 +121,97 @@ function useOptimizerState(): BacktestOptimizerState {
     () => ({ ticker: '', weight: '' }),
     1,
   );
-  const [frequencies, setFrequencies] = useState<RebalanceFrequency[]>(['quarterly']);
-  const toggleFreq = (freq: RebalanceFrequency) =>
-    setFrequencies((p) => (p.includes(freq) ? p.filter((f) => f !== freq) : [...p, freq]));
-  const [form, setForm] = useState<OptimizerFormState>(DEFAULT_FORM);
-  const patchForm = (p: Partial<OptimizerFormState>) => setForm((v) => ({ ...v, ...p }));
-  const [result, setResult] = useState<OptimizerResultState>(EMPTY_RESULT);
-  const patchResult = (p: Partial<OptimizerResultState>) => setResult((v) => ({ ...v, ...p }));
-  const runOptimize = async () => {
-    const v = assets.filter((a) => a.ticker.trim());
-    if (!v.length) return patchResult({ error: i18n.t('Please enter at least one ticker') });
-    if (!frequencies.length)
-      return patchResult({ error: i18n.t('Please select at least one rebalancing frequency') });
-    patchResult({ isLoading: true, error: null, results: null, best: null, benchmarkGrowth: null });
+  const [freqs, setFreqs] = useState<RebalanceFrequency[]>(['quarterly']);
+  const tog = (f: RebalanceFrequency) =>
+    setFreqs((p) => (p.includes(f) ? p.filter((x) => x !== f) : [...p, f]));
+  const [form, setForm] = useState<any>(DEF_FORM);
+  const patchForm = (p: any) => setForm((v: any) => ({ ...v, ...p }));
+  const [res, setRes] = useState<any>(EMPTY_RES);
+  const patchRes = (p: any) => setRes((v: any) => ({ ...v, ...p }));
+  const run = async () => {
+    const v = a.filter((x: any) => x.ticker.trim());
+    if (!v.length) return patchRes({ error: i18n.t('Please enter at least one ticker') });
+    if (!freqs.length)
+      return patchRes({ error: i18n.t('Please select at least one rebalancing frequency') });
+    patchRes({ isLoading: true, error: null, results: null, best: null, benchmarkGrowth: null });
     try {
-      const res = await apiFetch('/api/v1/backtest-optimizer/optimize', {
+      const c: Record<string, number> = {};
+      if (form.enableMaxDD && form.maxDD !== '') c.maxDrawdown = Number(form.maxDD);
+      if (form.enableMinCagr && form.minCagr !== '') c.minCagr = Number(form.minCagr);
+      const body = {
+        portfolio: {
+          assets: v.map((x: any) => ({
+            ticker: normalizeTicker(x.ticker),
+            weight: Number(x.weight) || 0,
+          })),
+        },
+        parameterSpace: {
+          rebalanceFrequencies: freqs,
+          rebalanceThreshold: {
+            min: Number(form.thrMin),
+            max: Number(form.thrMax),
+            step: Number(form.thrStep),
+          },
+          initialCapital: {
+            min: Number(form.capMin),
+            max: Number(form.capMax),
+            step: Number(form.capStep),
+          },
+        },
+        parameters: {
+          startDate: form.startDate,
+          endDate: form.endDate,
+          benchmarkTicker: normalizeTicker(form.benchmarkTicker),
+          baseCurrency: 'usd',
+          adjustForInflation: false,
+        },
+        objective: form.objective,
+        constraints: c,
+      };
+      const r = await apiFetch('/api/v1/backtest-optimizer/optimize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(buildOptimizeBody(v, frequencies, form)),
+        body: JSON.stringify(body),
       });
-      const json = await res.json();
-      if (!res.ok || json.success === false) throw new Error(extractApiErrorDetail(json));
+      const j = await r.json();
+      if (!r.ok || j.success === false) throw new Error(extractApiErrorDetail(j));
       const d = (
-        json.data?.statusUrl
-          ? (await pollJobStatus(json.data.statusUrl, new AbortController().signal, null)).data
-          : json.data
-      ) as {
-        results?: OptimizeResultItem[];
-        best?: BestResultItem | null;
-        benchmarkGrowth?: { date: string; value: number }[] | null;
-        totalCombinations?: number;
-      };
-      patchResult({
+        j.data?.statusUrl
+          ? (await pollJobStatus(j.data.statusUrl, new AbortController().signal, null)).data
+          : j.data
+      ) as any;
+      patchRes({
         results: d.results ?? [],
         best: d.best ?? null,
         benchmarkGrowth: d.benchmarkGrowth ?? null,
         totalCombos: d.totalCombinations ?? 0,
       });
     } catch (e) {
-      patchResult({ error: e instanceof Error ? e.message : i18n.t('Optimization failed') });
+      patchRes({ error: e instanceof Error ? e.message : i18n.t('Optimization failed') });
     } finally {
-      patchResult({ isLoading: false });
+      patchRes({ isLoading: false });
     }
   };
   return {
-    assets,
-    frequencies,
+    assets: a,
+    frequencies: freqs,
     form,
     patchForm,
-    result,
-    addAsset,
-    removeAsset,
-    updateAsset,
-    toggleFreq,
-    runOptimize,
+    result: res,
+    addAsset: add,
+    removeAsset: rem,
+    updateAsset: upd,
+    toggleFreq: tog,
+    runOptimize: run,
   };
 }
-const OBJECTIVE_OPTIONS = [
+const OBJ_OPTS = [
   { value: 'maxCagr', labelKey: 'backtest.optimizer.maxCagr' },
   { value: 'minMaxDrawdown', labelKey: 'backtest.optimizer.minMaxDrawdown' },
   { value: 'maxSharpe', labelKey: 'backtest.optimizer.maxSharpe' },
   { value: 'maxSortino', labelKey: 'backtest.optimizer.maxSortino' },
 ] as const;
-const CONSTRAINT_DEFS = [
+const CONS_DEFS = [
   ['enableMaxDD', 'maxDD', 'maxDrawdownConstraint', 'maxDrawdownPlaceholder'],
   ['enableMinCagr', 'minCagr', 'cagrConstraint', 'cagrPlaceholder'],
 ] as const;
@@ -297,7 +237,7 @@ const RANGE_DEFS = [
     ],
   },
 ] as const;
-const DATE_FIELDS = [
+const DATE_FLS = [
   ['startDate', 'Start Date', 'date'],
   ['endDate', 'End Date', 'date'],
   ['benchmarkTicker', 'backtest.optimizer.benchmarkTicker', 'text', 'benchmarkPlaceholder'],
@@ -305,49 +245,55 @@ const DATE_FIELDS = [
 export function OptimizerParams({ s }: { s: BacktestOptimizerState }) {
   const { t } = useTranslation();
   return (
-    <ParamsPanel>
-      <ParamGroup
+    <PL.ParamsPanel>
+      <PL.ParamGroup
         title={t('Portfolio Allocation')}
         info={t('Add tickers and weights for optimization')}
       >
         <SinglePortfolioEditor
           singleMode
-          assets={s.assets.map(({ ticker, weight }) => ({ ticker, weight: Number(weight) || 0 }))}
-          totalWeight={s.assets.reduce((sum, a) => sum + (Number(a.weight) || 0), 0)}
+          assets={s.assets.map(({ ticker, weight }: any) => ({
+            ticker,
+            weight: Number(weight) || 0,
+          }))}
+          totalWeight={s.assets.reduce((sum: number, x: any) => sum + (Number(x.weight) || 0), 0)}
           onAdd={s.addAsset}
           onRemove={s.removeAsset}
-          onUpdate={(i, field, val) => s.updateAsset(i, field, String(val))}
+          onUpdate={(i: any, f: any, v: any) => s.updateAsset(i, f, String(v))}
           wrapInSection={false}
         />
-      </ParamGroup>
+      </PL.ParamGroup>
       <ParameterSpaceSection s={s} />
-      <ParamGroup title={t('Objective')} info={t('Select optimization objective and constraints')}>
-        <ParamRow>
-          <ParamCard label={t('Target')}>
-            <Select
+      <PL.ParamGroup
+        title={t('Objective')}
+        info={t('Select optimization objective and constraints')}
+      >
+        <PL.ParamRow>
+          <PL.ParamCard label={t('Target')}>
+            <UI.Select
               value={s.form.objective}
-              onValueChange={(v) => s.patchForm({ objective: v as Objective })}
+              onValueChange={(v: any) => s.patchForm({ objective: v as Objective })}
             >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {OBJECTIVE_OPTIONS.map((o) => (
-                  <SelectItem key={o.value} value={o.value}>
+              <UI.SelectTrigger>
+                <UI.SelectValue />
+              </UI.SelectTrigger>
+              <UI.SelectContent>
+                {OBJ_OPTS.map((o: any) => (
+                  <UI.SelectItem key={o.value} value={o.value}>
                     {t(o.labelKey)}
-                  </SelectItem>
+                  </UI.SelectItem>
                 ))}
-              </SelectContent>
-            </Select>
-          </ParamCard>
-        </ParamRow>
+              </UI.SelectContent>
+            </UI.Select>
+          </PL.ParamCard>
+        </PL.ParamRow>
         <div className="mt-3 flex flex-col gap-3">
-          {CONSTRAINT_DEFS.map(([ek, vk, lk, pk]) => (
+          {CONS_DEFS.map(([ek, vk, lk, pk]: any) => (
             <div key={ek} className="flex items-center gap-2.5">
               <label className="flex items-center gap-2 w-[130px] mb-0 cursor-pointer">
-                <Switch
-                  checked={s.form[ek as keyof OptimizerFormState] as boolean}
-                  onCheckedChange={(v) => s.patchForm({ [ek]: v } as any)}
+                <UI.Switch
+                  checked={s.form[ek] as boolean}
+                  onCheckedChange={(v: any) => s.patchForm({ [ek]: v } as any)}
                 />
                 <span className="text-caption text-fg-secondary">
                   {t(`backtest.optimizer.${lk}`)}
@@ -355,14 +301,14 @@ export function OptimizerParams({ s }: { s: BacktestOptimizerState }) {
               </label>
               <div className="flex-1">
                 <div className="flex items-center gap-2">
-                  <Input
+                  <UI.Input
                     type="number"
                     step="0.1"
                     className="font-mono tabular-nums"
-                    value={s.form[vk as keyof OptimizerFormState] as string}
-                    onChange={(e) => s.patchForm({ [vk]: e.target.value } as any)}
+                    value={s.form[vk] as string}
+                    onChange={(e: any) => s.patchForm({ [vk]: e.target.value } as any)}
                     placeholder={t(`backtest.optimizer.${pk}`)}
-                    disabled={!s.form[ek as keyof OptimizerFormState] as boolean}
+                    disabled={!s.form[ek] as boolean}
                   />
                   <span className="text-caption text-fg-tertiary shrink-0">%</span>
                 </div>
@@ -370,24 +316,24 @@ export function OptimizerParams({ s }: { s: BacktestOptimizerState }) {
             </div>
           ))}
         </div>
-      </ParamGroup>
-      <ParamGroup
+      </PL.ParamGroup>
+      <PL.ParamGroup
         title={t('Backtest Range')}
         info={t('Set the backtest time range for parameter search')}
       >
-        <ParamRow>
-          {DATE_FIELDS.map(([k, lk, ty, pk]) => (
-            <ParamCard key={k} label={t(lk)}>
-              <Input
+        <PL.ParamRow>
+          {DATE_FLS.map(([k, lk, ty, pk]: any) => (
+            <PL.ParamCard key={k} label={t(lk)}>
+              <UI.Input
                 type={ty as any}
-                value={s.form[k as keyof OptimizerFormState] as string}
-                onChange={(e) => s.patchForm({ [k]: e.target.value } as any)}
+                value={s.form[k] as string}
+                onChange={(e: any) => s.patchForm({ [k]: e.target.value } as any)}
                 placeholder={pk ? t(`backtest.optimizer.${pk}`) : undefined}
               />
-            </ParamCard>
+            </PL.ParamCard>
           ))}
-        </ParamRow>
-      </ParamGroup>
+        </PL.ParamRow>
+      </PL.ParamGroup>
       <div className="py-3">
         <RunButton
           isLoading={s.result.isLoading}
@@ -396,12 +342,25 @@ export function OptimizerParams({ s }: { s: BacktestOptimizerState }) {
           loadingLabel={t('Optimizing...')}
         />
       </div>
-    </ParamsPanel>
+    </PL.ParamsPanel>
   );
 }
 export function OptimizerResults({ s }: { s: BacktestOptimizerState }) {
   const { t } = useTranslation();
-  const chartData = s.result.best ? buildChartData(s.result.best, s.result.benchmarkGrowth) : [];
+  const chartData = (() => {
+    const b = s.result.best,
+      g = s.result.benchmarkGrowth;
+    if (!b?.growthCurve) return [] as any;
+    const m = new Map<string, any>();
+    for (const p of b.growthCurve) m.set(p.date, { date: p.date, portfolio: p.value });
+    if (g)
+      for (const p of g) {
+        const e = m.get(p.date);
+        if (e) e.benchmark = p.value;
+        else m.set(p.date, { date: p.date, portfolio: 0, benchmark: p.value });
+      }
+    return [...m.values()].sort((a: any, b: any) => a.date.localeCompare(b.date));
+  })();
   const nameMap: Record<string, string> = {
     portfolio: t('Optimal Portfolio'),
     benchmark: t('Benchmark'),
@@ -413,11 +372,11 @@ export function OptimizerResults({ s }: { s: BacktestOptimizerState }) {
           value:
             s.result.best.rebalanceFrequency === 'threshold'
               ? `阈值(${s.result.best.rebalanceThreshold}%)`
-              : t(REBALANCE_LABELS[s.result.best.rebalanceFrequency]) ||
+              : t(REBALANCE_LABELS[s.result.best.rebalanceFrequency as RebalanceFrequency]) ||
                 s.result.best.rebalanceFrequency,
         },
         { label: '初始资金', value: fmtAmount(s.result.best.initialCapital) },
-        ...BEST_METRIC_DEFS.map(([k, label, f]) => ({
+        ...BEST_DEFS.map(([k, label, f]: any) => ({
           label,
           value: f(s.result.best![k] as number),
         })),
@@ -442,7 +401,7 @@ export function OptimizerResults({ s }: { s: BacktestOptimizerState }) {
               </span>
             </div>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              {bestMetrics.map((m) => (
+              {bestMetrics.map((m: any) => (
                 <StatCard key={m.label} label={m.label} value={m.value} />
               ))}
             </div>
@@ -458,9 +417,9 @@ export function OptimizerResults({ s }: { s: BacktestOptimizerState }) {
               data={chartData}
               height={320}
               margin={{ left: 8, right: 20, top: 5, bottom: 5 }}
-              xTickFormatter={(d: number | string) => String(d).substring(0, 7)}
-              yTickFormatter={(v: number) => fmtAmount(v)}
-              tooltipFormatter={(v: number, name: string) => [fmtAmount(v), nameMap[name] ?? name]}
+              xTickFormatter={(d: any) => String(d).substring(0, 7)}
+              yTickFormatter={(v: any) => fmtAmount(v)}
+              tooltipFormatter={(v: any, name: string) => [fmtAmount(v), nameMap[name] ?? name]}
               tooltipLabelFormatter={(d: string) => d}
               showLegend
               legendFormatter={(name: string) => nameMap[name] ?? name}
@@ -487,9 +446,9 @@ export function OptimizerResults({ s }: { s: BacktestOptimizerState }) {
         </div>
         {(s.result.results ?? []).length > 0 ? (
           <SortableTable
-            columns={TABLE_COLUMNS}
+            columns={COLS}
             data={s.result.results ?? []}
-            initialSortKey={OBJECTIVE_SORT_KEY[s.form.objective]}
+            initialSortKey={SORT_KEY[s.form.objective as Objective]}
             initialSortDir="desc"
           />
         ) : (
@@ -501,9 +460,9 @@ export function OptimizerResults({ s }: { s: BacktestOptimizerState }) {
 }
 function ParameterSpaceSection({ s }: { s: BacktestOptimizerState }) {
   const { t } = useTranslation();
-  const currency = useSettingsStore((x) => x.currency);
+  const cur = useSettingsStore((x: any) => x.currency);
   return (
-    <ParamGroup
+    <PL.ParamGroup
       title={t('Parameter Space')}
       info={t('Set the search range for rebalance frequency and thresholds')}
     >
@@ -513,42 +472,40 @@ function ParameterSpaceSection({ s }: { s: BacktestOptimizerState }) {
             {t('Rebalancing Frequency')}
           </div>
           <div className="flex flex-wrap gap-2">
-            {REBALANCE_FREQUENCY_OPTIONS.map((o) => (
-              <Button
+            {REBALANCE_FREQUENCY_OPTIONS.map((o: any) => (
+              <UI.Button
                 key={o.value}
                 variant={s.frequencies.includes(o.value) ? 'primary' : 'secondary'}
                 size="sm"
                 onClick={() => s.toggleFreq(o.value)}
               >
                 {t(o.label)}
-              </Button>
+              </UI.Button>
             ))}
           </div>
         </div>
-        {RANGE_DEFS.map((r) => (
+        {RANGE_DEFS.map((r: any) => (
           <div key={r.titleKey}>
             <div className="mb-1.5 text-caption font-medium text-fg-secondary">{t(r.titleKey)}</div>
-            <ParamRow>
-              {r.fields.map(([labelKey, formKey]) => (
-                <ParamCard key={labelKey} label={t(labelKey)}>
+            <PL.ParamRow>
+              {r.fields.map(([lk, fk]: any) => (
+                <PL.ParamCard key={lk} label={t(lk)}>
                   <div className="flex items-center gap-2">
                     {(r as any).prefix && (
                       <span className="text-body text-fg-tertiary font-mono shrink-0">
                         {(r as any).prefix === '$'
-                          ? currency === 'cny'
+                          ? cur === 'cny'
                             ? '¥'
                             : '$'
                           : (r as any).prefix}
                       </span>
                     )}
-                    <Input
+                    <UI.Input
                       type="number"
                       step={r.step}
                       className="font-mono tabular-nums"
-                      value={s.form[formKey as keyof OptimizerFormState] as string}
-                      onChange={(e) =>
-                        s.patchForm({ [formKey]: e.target.value } as Partial<OptimizerFormState>)
-                      }
+                      value={s.form[fk] as string}
+                      onChange={(e: any) => s.patchForm({ [fk]: e.target.value } as any)}
                     />
                     {(r as any).suffix && (
                       <span className="text-caption text-fg-tertiary shrink-0">
@@ -556,13 +513,13 @@ function ParameterSpaceSection({ s }: { s: BacktestOptimizerState }) {
                       </span>
                     )}
                   </div>
-                </ParamCard>
+                </PL.ParamCard>
               ))}
-            </ParamRow>
+            </PL.ParamRow>
           </div>
         ))}
       </div>
-    </ParamGroup>
+    </PL.ParamGroup>
   );
 }
 const config: ComputeToolConfig<BacktestOptimizerState> = {
@@ -578,8 +535,8 @@ const config: ComputeToolConfig<BacktestOptimizerState> = {
       descKey: 'backtest.optimizer.featureMultiObjectiveDesc',
     },
   ],
-  params: ({ state }) => <OptimizerParams s={state} />,
-  results: ({ state }) => <OptimizerResults s={state} />,
+  params: ({ state }: any) => <OptimizerParams s={state} />,
+  results: ({ state }: any) => <OptimizerResults s={state} />,
 };
 export default function BacktestOptimizerPage() {
   const s = useOptimizerState();

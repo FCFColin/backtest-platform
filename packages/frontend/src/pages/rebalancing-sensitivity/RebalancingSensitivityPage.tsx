@@ -90,10 +90,8 @@ async function fetchFreqResult(
   ab: number | '',
   rb: number | '',
 ): Promise<FreqResult> {
-  const o = REBALANCE_OPTIONS.find((x) => x.value === f)!;
-  const b = buildBody(o.label, a, f, 0, p) as unknown as {
-    portfolios: Array<Record<string, unknown>>;
-  };
+  const o = REBALANCE_OPTIONS.find((x) => x.value === f)!,
+    b = buildBody(o.label, a, f, 0, p) as unknown as { portfolios: Array<Record<string, unknown>> };
   if (ab !== '' || rb !== '')
     (b.portfolios[0] as Record<string, unknown>).rebalanceBands = {
       enabled: true,
@@ -136,12 +134,12 @@ async function fetchOffsetResult(
   a: A,
   p: Bp,
 ): Promise<{ offset: number; cagr: number }> {
-  const b = buildBody(`offset-${o}`, a, f, o, p);
-  const r = await apiFetch('/api/v1/backtest/portfolio', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(b),
-  });
+  const b = buildBody(`offset-${o}`, a, f, o, p),
+    r = await apiFetch('/api/v1/backtest/portfolio', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(b),
+    });
   if (!r.ok) return { offset: o, cagr: 0 };
   const j = (await r.json()) as { data?: unknown } & Record<string, unknown>;
   return {
@@ -157,40 +155,6 @@ const TABS = [
   { key: 'offset', labelKey: 'rebalancingSensitivity.tab.offset' },
   { key: 'table', labelKey: 'rebalancingSensitivity.tab.table' },
 ];
-type RebalancingState = {
-  startDate: string;
-  setStartDate: (v: string) => void;
-  endDate: string;
-  setEndDate: (v: string) => void;
-  adjustForInflation: boolean;
-  setAdjustForInflation: (v: boolean) => void;
-  baseCurrency: 'usd' | 'cny';
-  setBaseCurrency: (v: 'usd' | 'cny') => void;
-  startingValue: number;
-  setStartingValue: (v: number) => void;
-  selectedFreqs: RebalanceFrequency[];
-  toggleFreq: (f: RebalanceFrequency) => void;
-  absoluteBand: number | '';
-  setAbsoluteBand: (v: number | '') => void;
-  relativeBand: number | '';
-  setRelativeBand: (v: number | '') => void;
-  assets: A;
-  addAsset: () => void;
-  removeAsset: (i: number) => void;
-  updateAsset: (i: number, field: 'ticker' | 'weight', val: string | number) => void;
-  totalWeight: number;
-  isLoading: boolean;
-  error: string | null;
-  results: FreqResult[];
-  activeTab: string;
-  setActiveTab: (v: string) => void;
-  offsetFreq: RebalanceFrequency;
-  setOffsetFreq: (v: RebalanceFrequency) => void;
-  offsetResults: Array<{ offset: number; cagr: number }>;
-  isLoadingOffset: boolean;
-  runSensitivity: () => Promise<void>;
-  runOffsetScan: (freq: RebalanceFrequency) => Promise<void>;
-};
 function useRebalSetters() {
   return useSetterState({
     startDate: DEFAULT_BACKTEST_START_DATE,
@@ -215,8 +179,11 @@ function createRebalancingRunners(s: ReturnType<typeof useRebalSetters>, p: Bp, 
     const v = assets.filter((a) => a.ticker.trim() !== '');
     if (!v.length) return i18n.t('Please add at least one ticker');
     const e = validateAssetWeights(assets);
-    if (e) return e;
-    return s.selectedFreqs.length ? v : i18n.t('Please select at least one rebalancing frequency');
+    return e
+      ? e
+      : s.selectedFreqs.length
+        ? v
+        : i18n.t('Please select at least one rebalancing frequency');
   };
   const runOffsetScanInner = async (f: RebalanceFrequency, v: A) => {
     s.setIsLoadingOffset(true);
@@ -255,7 +222,7 @@ function createRebalancingRunners(s: ReturnType<typeof useRebalSetters>, p: Bp, 
   };
   return { runSensitivity, runOffsetScan };
 }
-function useRebalancingState(): RebalancingState {
+function useRebalancingState() {
   const s = useRebalSetters();
   const toggleFreq = (f: RebalanceFrequency) =>
     s.setSelectedFreqs(
@@ -288,6 +255,7 @@ function useRebalancingState(): RebalancingState {
     runOffsetScan,
   };
 }
+type RebalancingState = ReturnType<typeof useRebalancingState>;
 type NumKey = 'cagr' | 'stdev' | 'maxDrawdown' | 'sharpe' | 'sortino';
 const TABLE_COLS: Array<[string, NumKey, (v: number) => string]> = [
   ['stats.cagr', 'cagr', fmtPct],
