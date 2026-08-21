@@ -1,385 +1,268 @@
 import client from 'prom-client';
 import { monitorEventLoopDelay } from 'node:perf_hooks';
 import type { Request } from 'express';
-
-const register = new client.Registry();
-client.collectDefaultMetrics({ register });
-
-// 注册幂等：连接池重建/模块热载时重复注册同名指标会抛错，复用已注册实例
-function ensureMetric<T extends client.Gauge | client.Counter | client.Histogram>(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- prom-client 构造签名不兼容泛型约束
-  Ctor: new (...args: any[]) => T,
+const R = new client.Registry();
+client.collectDefaultMetrics({ register: R });
+function E<T extends client.Gauge | client.Counter | client.Histogram>(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- prom-client ctor
+  C: new (...a: any[]) => T,
   cfg: Record<string, unknown>,
 ): T {
   return (
-    (register.getSingleMetric(cfg.name as string) as T | undefined) ??
-    new Ctor({ ...cfg, registers: [register] })
+    (R.getSingleMetric(cfg.name as string) as T | undefined) ?? new C({ ...cfg, registers: [R] })
   );
 }
-const gauge = (name: string, help: string, labelNames: string[] = []): client.Gauge =>
-  ensureMetric(client.Gauge, { name, help, labelNames });
-const counter = (name: string, help: string, labelNames: readonly string[] = []): client.Counter =>
-  ensureMetric(client.Counter, { name, help, labelNames: [...labelNames] });
-const histogram = (
-  name: string,
-  help: string,
-  labelNames: string[],
-  buckets: number[],
-): client.Histogram => ensureMetric(client.Histogram, { name, help, labelNames, buckets });
-
-function startSampler(fn: () => void | Promise<void>, intervalMs: number): void {
+const g = (n: string, h: string, l: string[] = []): client.Gauge =>
+  E(client.Gauge, { name: n, help: h, labelNames: l });
+const c = (n: string, h: string, l: readonly string[] = []): client.Counter =>
+  E(client.Counter, { name: n, help: h, labelNames: [...l] });
+const hs = (n: string, h: string, l: string[], b: number[]): client.Histogram =>
+  E(client.Histogram, { name: n, help: h, labelNames: l, buckets: b });
+const sample = (fn: () => void | Promise<void>, ms: number): void => {
   void fn();
-  setInterval(fn, intervalMs).unref();
-}
-
-const GAUGE_DEFS = {
-  node_eventloop_lag_seconds: ['Event loop lag (P99) in seconds, sampled every 10s', []],
-  circuit_breaker_state: ['Circuit breaker state: 0=closed, 1=open, 2=halfOpen', ['name']],
-  data_service_semaphore_permits_available: [
-    'Available permits of data-service concurrency semaphore',
-    ['name'],
-  ],
-  data_service_semaphore_permits_max: [
-    'Max permits of data-service concurrency semaphore (configured limit)',
-    ['name'],
-  ],
-  api_keys_stale_count: [
-    'Active API keys not used within the staleness threshold (by is_platform_admin)',
-    ['is_platform_admin'],
-  ],
-  bullmq_queue_size: ['Number of jobs in BullMQ queue (waiting + active + delayed)', ['queue']],
+  setInterval(fn, ms).unref();
+};
+const G_DEFS = {
+  node_eventloop_lag_seconds: ['Event loop lag P99 (s)', []],
+  circuit_breaker_state: ['Circuit breaker state 0/1/2', ['name']],
+  data_service_semaphore_permits_available: ['Available data-service permits', ['name']],
+  data_service_semaphore_permits_max: ['Max data-service permits', ['name']],
+  api_keys_stale_count: ['Stale API keys by admin flag', ['is_platform_admin']],
+  bullmq_queue_size: ['BullMQ queue jobs (waiting+active+delayed)', ['queue']],
 } as const;
-const gauges = Object.fromEntries(
-  Object.entries(GAUGE_DEFS).map(([n, [h, l]]) => [n, gauge(n, h, [...l])]),
-) as Record<keyof typeof GAUGE_DEFS, client.Gauge>;
-const eventLoopLagSeconds = gauges.node_eventloop_lag_seconds;
-const circuitBreakerState = gauges.circuit_breaker_state;
-const dataServiceSemaphoreAvailable = gauges.data_service_semaphore_permits_available;
-const dataServiceSemaphoreTotal = gauges.data_service_semaphore_permits_max;
-export const apiKeysStaleCount = gauges.api_keys_stale_count;
-const bullmqQueueSize = gauges.bullmq_queue_size;
-const eventLoopMonitor = monitorEventLoopDelay({ resolution: 20 });
-eventLoopMonitor.enable();
+const G = Object.fromEntries(
+  Object.entries(G_DEFS).map(([n, [h, l]]) => [n, g(n, h, [...l])]),
+) as Record<keyof typeof G_DEFS, client.Gauge>;
+export const eventLoopLagSeconds = G.node_eventloop_lag_seconds;
+export const circuitBreakerState = G.circuit_breaker_state;
+export const dataServiceSemaphoreAvailable = G.data_service_semaphore_permits_available;
+export const dataServiceSemaphoreTotal = G.data_service_semaphore_permits_max;
+export const apiKeysStaleCount = G.api_keys_stale_count;
+const bullmqQueueSize = G.bullmq_queue_size;
+const eld = monitorEventLoopDelay({ resolution: 20 });
+eld.enable();
 setInterval(() => {
-  eventLoopLagSeconds.set(eventLoopMonitor.percentile(99) / 1e9);
-  eventLoopMonitor.reset();
+  eventLoopLagSeconds.set(eld.percentile(99) / 1e9);
+  eld.reset();
 }, 10_000).unref();
-
-export function registerCircuitBreakerMetrics(
-  name: string,
-  breaker: {
-    on(event: 'open', cb: () => void): unknown;
-    on(event: 'halfOpen', cb: () => void): unknown;
-    on(event: 'close', cb: () => void): unknown;
-  },
-): void {
-  breaker.on('open', () => circuitBreakerState.set({ name }, 1));
-  breaker.on('halfOpen', () => circuitBreakerState.set({ name }, 2));
-  breaker.on('close', () => circuitBreakerState.set({ name }, 0));
+type Breaker = { on(e: 'open' | 'halfOpen' | 'close', cb: () => void): unknown };
+export function registerCircuitBreakerMetrics(name: string, b: Breaker): void {
+  b.on('open', () => circuitBreakerState.set({ name }, 1));
+  b.on('halfOpen', () => circuitBreakerState.set({ name }, 2));
+  b.on('close', () => circuitBreakerState.set({ name }, 0));
   circuitBreakerState.set({ name }, 0);
 }
-
-export function registerSemaphoreMetrics(
-  name: string,
-  total: number,
-  getAvailable: () => number,
-): void {
+export function registerSemaphoreMetrics(name: string, total: number, getAv: () => number): void {
   dataServiceSemaphoreTotal.set({ name }, total);
-  startSampler(() => dataServiceSemaphoreAvailable.set({ name }, getAvailable()), 5_000);
+  sample(() => dataServiceSemaphoreAvailable.set({ name }, getAv()), 5_000);
 }
-
-const HTTP_LABELS = ['method', 'route', 'status_code'] as const;
-export const httpRequestDurationMicroseconds = histogram(
+const HTTP_L = ['method', 'route', 'status_code'] as const;
+export const httpRequestDurationMicroseconds = hs(
   'http_request_duration_seconds',
-  'Duration of HTTP requests in seconds',
-  [...HTTP_LABELS],
+  'HTTP request duration (s)',
+  [...HTTP_L],
   [0.005, 0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.5, 0.75, 1, 2.5, 5, 10, 30],
 );
-export const engineCallDuration = histogram(
+export const engineCallDuration = hs(
   'go_engine_call_duration_seconds',
-  'Duration of Go engine calls in seconds',
+  'Go engine call duration (s)',
   ['result'],
   [0.05, 0.1, 0.25, 0.5, 1, 2, 5, 10, 30, 60, 120],
 );
-
-const COUNTER_DEFS = {
-  http_requests_total: { help: 'Total number of HTTP requests', labels: [...HTTP_LABELS] },
-  go_engine_calls_total: { help: 'Total number of calls to Go engine', labels: ['result'] },
-  engine_unavailable_total: {
-    help: 'Total number of engine unavailable events (Go circuit breaker open/fail-closed)',
-    labels: ['reason'],
-  },
-  backtest_requests: {
-    help: 'Total backtest-related API requests',
-    labels: ['endpoint', 'mode', 'status'],
-  },
-  degraded_responses: { help: 'Responses served in degraded mode', labels: ['endpoint', 'reason'] },
-  cache_hits: { help: 'Cache hit/miss count by layer', labels: ['layer', 'result'] },
-  cache_evictions: {
-    help: 'Cache evictions by level (l1 = in-process LRU capacity eviction)',
-    labels: ['level'],
-  },
-  auth_failures: {
-    help: 'Authentication/authorization failures by endpoint and reason',
-    labels: ['endpoint', 'reason'],
-  },
-  auth_ip_lockout_total: {
-    help: 'Total number of IP addresses blocked due to suspicious login activity',
-    labels: [],
-  },
-  quota_enforcement_failures_total: {
-    help: 'Total number of quota enforcement failures (Redis/DB unavailable, fail-closed)',
-    labels: ['quota_key', 'reason'],
-  },
-  audit_outbox_write_failures_total: {
-    help: 'Total number of audit outbox event write failures (non-transactional path)',
-    labels: [],
-  },
-  usage_write_failures_total: {
-    help: 'Total number of usage recording DB write failures (quota/BI loss, fail-open)',
-    labels: ['metric'],
-  },
-  dlq_transfers_total: {
-    help: 'Total jobs transferred to a dead letter queue (final failure)',
-    labels: ['queue'],
-  },
+const C_DEFS = {
+  http_requests_total: ['Total HTTP requests', [...HTTP_L]],
+  go_engine_calls_total: ['Total Go engine calls', ['result']],
+  engine_unavailable_total: ['Engine unavailable events', ['reason']],
+  backtest_requests: ['Backtest API requests', ['endpoint', 'mode', 'status']],
+  degraded_responses: ['Degraded responses', ['endpoint', 'reason']],
+  cache_hits: ['Cache hit/miss', ['layer', 'result']],
+  cache_evictions: ['Cache evictions l1', ['level']],
+  auth_failures: ['Auth failures', ['endpoint', 'reason']],
+  auth_ip_lockout_total: ['IP lockouts', []],
+  quota_enforcement_failures_total: ['Quota enforcement failures', ['quota_key', 'reason']],
+  audit_outbox_write_failures_total: ['Audit outbox write failures', []],
+  usage_write_failures_total: ['Usage write failures', ['metric']],
+  dlq_transfers_total: ['Dead letter transfers', ['queue']],
 } as const;
-const ctr = Object.fromEntries(
-  Object.entries(COUNTER_DEFS).map(([name, def]) => [name, counter(name, def.help, def.labels)]),
-) as Record<keyof typeof COUNTER_DEFS, client.Counter>;
-export const httpRequestsTotal = ctr.http_requests_total;
-const engineCallsTotal = ctr.go_engine_calls_total;
-const engineUnavailableTotal = ctr.engine_unavailable_total;
-export const authIpLockoutCounter = ctr.auth_ip_lockout_total;
-export const quotaEnforcementFailures = ctr.quota_enforcement_failures_total;
-export const auditOutboxWriteFailures = ctr.audit_outbox_write_failures_total;
-export const usageWriteFailures = ctr.usage_write_failures_total;
-export const recordDlqTransfer = (queue: string): void =>
-  ctr.dlq_transfers_total.inc({ queue: sanitizeMetricLabel(queue) });
-
-function sanitizeMetricLabel(value: string, maxLength = 64, allowSlash = false): string {
-  const pattern = allowSlash ? /[^a-zA-Z0-9_/-]/g : /[^a-zA-Z0-9_-]/g;
-  return value.replace(pattern, '_').slice(0, maxLength);
-}
+const C = Object.fromEntries(
+  Object.entries(C_DEFS).map(([n, [h, l]]) => [n, c(n, h, l as readonly string[])]),
+) as Record<keyof typeof C_DEFS, client.Counter>;
+export const httpRequestsTotal = C.http_requests_total;
+export const engineCallsTotal = C.go_engine_calls_total;
+export const engineUnavailableTotal = C.engine_unavailable_total;
+export const authIpLockoutCounter = C.auth_ip_lockout_total;
+export const quotaEnforcementFailures = C.quota_enforcement_failures_total;
+export const auditOutboxWriteFailures = C.audit_outbox_write_failures_total;
+export const usageWriteFailures = C.usage_write_failures_total;
+export const recordDlqTransfer = (q: string): void =>
+  C.dlq_transfers_total.inc({ queue: sLabel(q) });
+const sLabel = (v: string, m = 64, slash = false): string =>
+  v.replace(slash ? /[^a-zA-Z0-9_/-]/g : /[^a-zA-Z0-9_-]/g, '_').slice(0, m);
 export function getRoutePattern(req: Pick<Request, 'baseUrl' | 'route' | 'path'>): string {
-  if (req.route?.path) return (req.baseUrl + req.route.path).slice(0, 128);
-  return (req.path || 'unknown')
-    .replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, ':uuid')
-    .replace(/\/\d+/g, '/:id')
-    .slice(0, 128);
+  return req.route?.path
+    ? (req.baseUrl + req.route.path).slice(0, 128)
+    : (req.path || 'unknown')
+        .replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, ':uuid')
+        .replace(/\/\d+/g, '/:id')
+        .slice(0, 128);
 }
-
 export const recordBacktestRequest = (
-  endpoint: string,
-  mode: 'sync' | 'async',
-  status: 'success' | 'error' | 'timeout' | 'queue_error',
-): void => ctr.backtest_requests.inc({ endpoint, mode, status });
-export const recordDegradedResponse = (endpoint: string, reason: string): void =>
-  ctr.degraded_responses.inc({ endpoint, reason: sanitizeMetricLabel(reason) });
-export const recordCacheHit = (layer: string, hit: boolean): void =>
-  ctr.cache_hits.inc({ layer, result: hit ? 'hit' : 'miss' });
-export const recordCacheEviction = (level: 'l1'): void => ctr.cache_evictions.inc({ level });
-export const recordAuthFailure = (endpoint: string, reason: string): void =>
-  ctr.auth_failures.inc({
-    endpoint: sanitizeMetricLabel(endpoint, 128, true),
-    reason: sanitizeMetricLabel(reason),
-  });
-
+  e: string,
+  m: 'sync' | 'async',
+  s: 'success' | 'error' | 'timeout' | 'queue_error',
+): void => C.backtest_requests.inc({ endpoint: e, mode: m, status: s });
+export const recordDegradedResponse = (e: string, r: string): void =>
+  C.degraded_responses.inc({ endpoint: e, reason: sLabel(r) });
+export const recordCacheHit = (l: string, hit: boolean): void =>
+  C.cache_hits.inc({ layer: l, result: hit ? 'hit' : 'miss' });
+export const recordCacheEviction = (l: 'l1'): void => C.cache_evictions.inc({ level: l });
+export const recordAuthFailure = (e: string, r: string): void =>
+  C.auth_failures.inc({ endpoint: sLabel(e, 128, true), reason: sLabel(r) });
 export function registerPgPoolMetrics(
-  poolName: string,
-  getStats: () => { waitingCount: number; totalCount: number },
+  pool: string,
+  get: () => { waitingCount: number; totalCount: number },
 ): void {
-  const waiting = gauge(
-    'pg_pool_waiting_count',
-    'Number of queued requests waiting for a pool connection',
-    ['pool'],
-  );
-  const total = gauge(
-    'pg_pool_connection_count',
-    'Current connections in the pool (idle + in use)',
-    ['pool'],
-  );
-  startSampler(() => {
-    const s = getStats();
-    waiting.set({ pool: poolName }, s.waitingCount);
-    total.set({ pool: poolName }, s.totalCount);
+  const w = g('pg_pool_waiting_count', 'Queued pool requests', ['pool']);
+  const t = g('pg_pool_connection_count', 'Pool connections (idle+in-use)', ['pool']);
+  sample(() => {
+    const s = get();
+    w.set({ pool }, s.waitingCount);
+    t.set({ pool }, s.totalCount);
   }, 5_000);
 }
-
-export const recordEngineCall = (result: 'success' | 'client_error' | 'unavailable'): void =>
-  engineCallsTotal.inc({ result });
-export const recordEngineUnavailable = (reason: string): void =>
-  engineUnavailableTotal.inc({ reason: sanitizeMetricLabel(reason) });
-
-const TS_GAUGE_DEFS: Record<string, [string, string]> = {
-  chunk_total: ['timescaledb_chunk_count', 'Total number of chunks in prices hypertable'],
-  chunk_compressed: [
-    'timescaledb_compressed_chunks',
-    'Number of compressed chunks in prices hypertable',
-  ],
-  chunk_uncompressed: [
-    'timescaledb_uncompressed_chunks',
-    'Number of uncompressed chunks in prices hypertable',
-  ],
-  compression_ratio: [
-    'timescaledb_compression_ratio',
-    'Compression ratio of prices hypertable (after/before, lower is better)',
-  ],
-  cagg_rows: ['timescaledb_cagg_rows', 'Total rows in prices_monthly continuous aggregate'],
+export const recordEngineCall = (r: 'success' | 'client_error' | 'unavailable'): void =>
+  engineCallsTotal.inc({ result: r });
+export const recordEngineUnavailable = (r: string): void =>
+  engineUnavailableTotal.inc({ reason: sLabel(r) });
+const TS_DEFS: Record<string, [string, string]> = {
+  chunk_total: ['timescaledb_chunk_count', 'Chunks in prices hypertable'],
+  chunk_compressed: ['timescaledb_compressed_chunks', 'Compressed chunks in prices'],
+  chunk_uncompressed: ['timescaledb_uncompressed_chunks', 'Uncompressed chunks in prices'],
+  compression_ratio: ['timescaledb_compression_ratio', 'Compression ratio after/before'],
+  cagg_rows: ['timescaledb_cagg_rows', 'Rows in prices_monthly CAGG'],
 };
-const tsGauges = Object.fromEntries(
-  Object.entries(TS_GAUGE_DEFS).map(([k, [n, h]]) => [k, gauge(n, h)]),
+const TSG = Object.fromEntries(
+  Object.entries(TS_DEFS).map(([k, [n, h]]) => [k, g(n, h)]),
 ) as Record<string, client.Gauge>;
-
 export function registerTimescaleMetrics(
-  queryFn: (sql: string) => Promise<Array<Record<string, unknown>>>,
+  q: (sql: string) => Promise<Array<Record<string, unknown>>>,
 ): void {
-  const setNum = (g: client.Gauge, v: unknown): void => g.set(Number(v ?? 0));
-  startSampler(async () => {
+  sample(async () => {
     try {
-      const chunkRows = await queryFn(
+      const cr = await q(
         `SELECT COUNT(*) AS total_chunks, COUNT(*) FILTER (WHERE compression_status = 'Compressed') AS compressed_chunks, COUNT(*) FILTER (WHERE compression_status != 'Compressed') AS uncompressed_chunks FROM timescaledb_information.chunks WHERE hypertable_name = 'prices'`,
       );
-      const cs = chunkRows[0];
+      const cs = cr[0];
       if (cs) {
-        setNum(tsGauges.chunk_total, cs.total_chunks);
-        setNum(tsGauges.chunk_compressed, cs.compressed_chunks);
-        setNum(tsGauges.chunk_uncompressed, cs.uncompressed_chunks);
+        TSG.chunk_total.set(Number(cs.total_chunks ?? 0));
+        TSG.chunk_compressed.set(Number(cs.compressed_chunks ?? 0));
+        TSG.chunk_uncompressed.set(Number(cs.uncompressed_chunks ?? 0));
       }
-      const ratioRows = await queryFn(
+      const rr = await q(
         `SELECT COALESCE(SUM(after_compression_total_bytes)::FLOAT / NULLIF(SUM(before_compression_total_bytes), 0), 1.0) AS ratio FROM timescaledb_information.compressed_chunk_stats WHERE hypertable_name = 'prices'`,
       );
-      const ratio = ratioRows[0]?.ratio;
-      if (ratio !== undefined && ratio !== null) tsGauges.compression_ratio.set(Number(ratio));
-      const caggRows = await queryFn(`SELECT COUNT(*) AS cnt FROM prices_monthly`);
-      if (caggRows[0]?.cnt !== undefined) setNum(tsGauges.cagg_rows, caggRows[0].cnt);
+      const ra = rr[0]?.ratio;
+      if (ra !== undefined && ra !== null) TSG.compression_ratio.set(Number(ra));
+      const ar = await q(`SELECT COUNT(*) AS cnt FROM prices_monthly`);
+      if (ar[0]?.cnt !== undefined) TSG.cagg_rows.set(Number(ar[0].cnt ?? 0));
     } catch {
-      /* ignore query error */
+      /* ignore */
     }
   }, 60_000);
 }
-
 export function registerQueueMetrics(
-  queues: Array<{ name: string; getJobCounts: () => Promise<Record<string, number>> }>,
+  qs: Array<{ name: string; getJobCounts: () => Promise<Record<string, number>> }>,
 ): void {
-  startSampler(async () => {
-    for (const q of queues) {
+  sample(async () => {
+    for (const q of qs)
       try {
-        const counts = await q.getJobCounts();
+        const n = await q.getJobCounts();
         bullmqQueueSize.set(
           { queue: q.name },
-          (counts.waiting ?? 0) + (counts.active ?? 0) + (counts.delayed ?? 0),
+          (n.waiting ?? 0) + (n.active ?? 0) + (n.delayed ?? 0),
         );
       } catch {
         /* ignore */
       }
-    }
   }, 10_000);
 }
-
-const FE_HIST_DEFS: Record<string, [string, string, string[], number[]]> = {
+const B_A = [0.05, 0.1, 0.25, 0.5, 1, 2, 5, 10, 30];
+const B_R = [0.001, 0.005, 0.01, 0.016, 0.05, 0.1, 0.5, 1];
+const B_P = [0.1, 0.5, 1, 2, 3, 5, 10];
+const FE_DEFS: Record<string, [string, string, string[], number[]]> = {
   apiCall: [
     'frontend_api_call_duration_seconds',
-    'API call duration from frontend perspective (includes network latency)',
+    'Frontend API call (s)',
     ['endpoint', 'method', 'status_code'],
-    [0.05, 0.1, 0.25, 0.5, 1, 2, 5, 10, 30],
+    B_A,
   ],
   componentRender: [
     'frontend_component_render_duration_seconds',
-    'React component render duration from Profiler',
+    'React render (s)',
     ['component', 'phase'],
-    [0.001, 0.005, 0.01, 0.016, 0.05, 0.1, 0.5, 1],
+    B_R,
   ],
-  pageLoad: [
-    'frontend_page_load_seconds',
-    'Page load timing from Navigation Timing API',
-    ['metric'],
-    [0.1, 0.5, 1, 2, 3, 5, 10],
-  ],
+  pageLoad: ['frontend_page_load_seconds', 'Page load (s)', ['metric'], B_P],
 };
-const fe = {
-  webVital: gauge(
-    'frontend_web_vital',
-    'Web Vitals from real-user monitoring (lcp/cls/inp/fcp/ttfb)',
-    ['metric'],
-  ),
+const F = {
+  webVital: g('frontend_web_vital', 'Web Vitals (lcp/cls/inp/fcp/ttfb)', ['metric']),
   ...Object.fromEntries(
-    Object.entries(FE_HIST_DEFS).map(([k, [n, h, l, b]]) => [k, histogram(n, h, [...l], [...b])]),
+    Object.entries(FE_DEFS).map(([k, [n, h, l, b]]) => [k, hs(n, h, [...l], [...b])]),
   ),
 } as Record<string, client.Gauge | client.Histogram>;
-
-// /api/v1/errors 无认证入口：客户端可控 label 须防高基数注入（白名单 / 归一化 / 基数上限）
-const OTHER_LABEL = '[other]';
-const LABEL_CARDINALITY_CAP = 300;
-const KNOWN_LABEL_SETS = {
+const OTHER = '[other]';
+const CAP = 300;
+const KNOWN = {
   webVital: new Set(['lcp', 'cls', 'inp', 'fcp', 'ttfb']),
   pageLoad: new Set(['ttfb', 'fcp', 'dom_ready', 'load']),
   renderPhase: new Set(['mount', 'update']),
 } as const;
-const ID_SEGMENT_RE = /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$|^\d{6,}$/i;
-const seenLabels = new Set<string>();
-// 达到基数上限后周期性清空：避免新 label 永久落入 [other]（老序列被清只是降级为新 label）
-let seenLabelsResetAt = Date.now();
-const LABEL_SET_TTL_MS = 60 * 60 * 1000;
-
-function boundedLabel(scope: string, raw: string): string {
-  const key = `${scope}\u0000${raw}`;
-  if (seenLabels.has(key)) return raw;
-  if (!raw || seenLabels.size >= LABEL_CARDINALITY_CAP) {
-    if (Date.now() - seenLabelsResetAt >= LABEL_SET_TTL_MS) {
-      seenLabelsResetAt = Date.now();
-      seenLabels.clear();
+const ID_RE = /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$|^\d{6,}$/i;
+const seen = new Set<string>();
+let seenAt = Date.now();
+const TTL = 60 * 60 * 1000;
+const bLabel = (scope: string, raw: string): string => {
+  const k = `${scope}\u0000${raw}`;
+  if (seen.has(k)) return raw;
+  if (!raw || seen.size >= CAP) {
+    if (Date.now() - seenAt >= TTL) {
+      seenAt = Date.now();
+      seen.clear();
     }
-    return OTHER_LABEL;
+    return OTHER;
   }
-  seenLabels.add(key);
+  seen.add(k);
   return raw;
-}
-
-function normalizeEndpoint(raw: string): string {
-  const rest = raw.split('?')[0].replace(/^https?:\/\/[^/]+/, '');
-  return rest
+};
+const normEp = (raw: string): string =>
+  raw
+    .split('?')[0]
+    .replace(/^https?:\/\/[^/]+/, '')
     .split('/')
-    .map((s) => (ID_SEGMENT_RE.test(s) ? ':id' : s))
+    .map((s) => (ID_RE.test(s) ? ':id' : s))
     .join('/')
     .slice(0, 128);
-}
-
-export const recordFrontendWebVital = (metric: string, value: number): void => {
-  if (!KNOWN_LABEL_SETS.webVital.has(metric)) return;
-  (fe.webVital as client.Gauge).set({ metric }, value);
+export const recordFrontendWebVital = (m: string, v: number): void => {
+  if (!KNOWN.webVital.has(m as never)) return;
+  (F.webVital as client.Gauge).set({ metric: m }, v);
 };
-export const recordFrontendApiCall = (
-  endpoint: string,
-  method: string,
-  statusCode: number,
-  durationMs: number,
-): void =>
-  (fe.apiCall as client.Histogram).observe(
-    {
-      endpoint: boundedLabel('apiCall', normalizeEndpoint(endpoint)),
-      method,
-      status_code: String(statusCode),
-    },
-    durationMs / 1000,
+export const recordFrontendApiCall = (e: string, m: string, s: number, d: number): void =>
+  (F.apiCall as client.Histogram).observe(
+    { endpoint: bLabel('apiCall', normEp(e)), method: m, status_code: String(s) },
+    d / 1000,
   );
-export const recordFrontendComponentRender = (
-  component: string,
-  phase: string,
-  durationMs: number,
-): void =>
-  (fe.componentRender as client.Histogram).observe(
+export const recordFrontendComponentRender = (c: string, p: string, d: number): void =>
+  (F.componentRender as client.Histogram).observe(
     {
-      component: boundedLabel('render', component.slice(0, 128)),
-      phase: KNOWN_LABEL_SETS.renderPhase.has(phase) ? phase : OTHER_LABEL,
+      component: bLabel('render', c.slice(0, 128)),
+      phase: KNOWN.renderPhase.has(p as never) ? p : OTHER,
     },
-    durationMs / 1000,
+    d / 1000,
   );
-export const recordFrontendPageLoad = (metric: string, value: number): void => {
-  if (!KNOWN_LABEL_SETS.pageLoad.has(metric)) return;
-  (fe.pageLoad as client.Histogram).observe({ metric }, value / 1000);
+export const recordFrontendPageLoad = (m: string, v: number): void => {
+  if (!KNOWN.pageLoad.has(m as never)) return;
+  (F.pageLoad as client.Histogram).observe({ metric: m }, v / 1000);
 };
-
 export function getPrometheusRegister(): client.Registry {
-  return register;
+  return R;
 }
