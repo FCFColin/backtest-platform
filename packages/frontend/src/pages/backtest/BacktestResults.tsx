@@ -28,13 +28,11 @@ const SCLS =
   'sticky top-15 z-40 h-14 bg-sticky-bg/95 backdrop-blur-md border-b border-border shadow-md';
 const ICLS = 'h-14 bg-transparent border-b border-border-subtle';
 const ROWCLS = 'flex items-center justify-between gap-3';
-const DTCLS = 'text-caption text-fg-tertiary whitespace-nowrap';
 const DDCLS = 'text-caption font-mono tabular-nums font-semibold text-right';
 const CARDMCLS = 'flex-shrink-0 min-w-[130px] p-3';
 const LBLCLS = 'text-label-tiny text-fg-tertiary mb-1 whitespace-nowrap';
 const VALCLS = 'text-body font-mono tabular-nums font-semibold';
 const ACTCLS = 'shrink-0 text-brand border-b-2 border-brand rounded-b-none';
-const BAND_KEY = 'Deviation Bands: {{absolute}} Absolute / {{relative}} Relative';
 function ResultsActionBar({
   timeRange: r,
   onExport: o,
@@ -145,7 +143,7 @@ function SummarySidebar({
         <dl className="space-y-2.5">
           {m.map((x) => (
             <div key={x.labelKey} className={ROWCLS} data-testid={x.testId}>
-              <dt className={DTCLS}>{t(x.labelKey)}</dt>
+              <dt className="text-caption text-fg-tertiary whitespace-nowrap">{t(x.labelKey)}</dt>
               <dd className={cn(DDCLS, x.colorClass)}>{x.value}</dd>
             </div>
           ))}
@@ -155,64 +153,56 @@ function SummarySidebar({
   );
 }
 const lz = lazyNamed;
+const yearly = (n: string) => lz(() => import('@/components/results/YearlyReturnsTable'), n);
+const pcharts = (n: string) => lz(() => import('@/components/charts/portfolioCharts'), n);
+const corr = (n: string) => lz(() => import('@/components/charts/CorrelationHeatmapChart'), n);
 const L = {
   GrowthChart: lz(() => import('@/components/charts/GrowthChart'), 'GrowthChart'),
   DrawdownChart: lz(() => import('@/components/charts/drawdownCharts'), 'DrawdownChart'),
   DrawdownEpisodes: lz(() => import('@/components/results/DrawdownEpisodes'), 'DrawdownEpisodes'),
-  YearlyReturnsTable: lz(
-    () => import('@/components/results/YearlyReturnsTable'),
-    'YearlyReturnsTable',
-  ),
+  YearlyReturnsTable: yearly('YearlyReturnsTable'),
   UnderwaterCurve: lz(() => import('@/components/charts/drawdownCharts'), 'UnderwaterCurve'),
   TelltaleChart: lz(() => import('@/components/charts/analysis'), 'TelltaleChart'),
   RiskReturnScatter: lz(() => import('@/components/charts/riskReturn'), 'RiskReturnScatter'),
   SeasonalityChart: lz(() => import('@/components/charts/analysis'), 'SeasonalityChart'),
   RegressionChart: lz(() => import('@/components/charts/RegressionChart'), 'RegressionChart'),
-  PortfolioAllocationChart: lz(
-    () => import('@/components/charts/portfolioCharts'),
-    'PortfolioAllocationChart',
-  ),
-  PortfolioPiesChart: lz(() => import('@/components/charts/portfolioCharts'), 'default'),
+  PortfolioAllocationChart: pcharts('PortfolioAllocationChart'),
+  PortfolioPiesChart: pcharts('default'),
   RollingReturnChart: lz(() => import('@/components/charts/rolling'), 'RollingReturnChart'),
   AnnualReturnChart: lz(() => import('@/components/charts/AnnualReturnChart'), 'AnnualReturnChart'),
   MonthlyHeatmap: lz(() => import('@/components/charts/analysis'), 'MonthlyHeatmap'),
-  CorrelationWithBeta: lz(
-    () => import('@/components/charts/CorrelationHeatmapChart'),
-    'CorrelationWithBeta',
-  ),
+  CorrelationWithBeta: corr('CorrelationWithBeta'),
   CustomMetricsTable: lz(() => import('@/components/CustomMetricsTable'), 'CustomMetricsTable'),
   CashflowsLog: lz(() => import('@/components/CashflowsLog'), 'CashflowsLog'),
   TurnoverTaxReport: lz(() => import('@/components/TurnoverTaxReport'), 'TurnoverTaxReport'),
 };
-const ALL_TABS = [
-  { key: 'summary', labelKey: 'tabs.summary' },
-  { key: 'myMetrics', labelKey: 'My Metrics' },
-  { key: 'returns', labelKey: 'tabs.returnsDist' },
-  { key: 'yearlyReturns', labelKey: 'Annual Returns' },
-  { key: 'rolling', labelKey: 'tabs.rolling' },
-  { key: 'seasonality', labelKey: 'Seasonality' },
-  { key: 'riskReturn', labelKey: 'tabs.riskReturn' },
-  { key: 'drawdown', labelKey: 'tabs.drawdown' },
-  { key: 'cashflows', labelKey: 'tabs.cashflows' },
-  { key: 'rebalancing', labelKey: 'tabs.rebalancing' },
-  { key: 'turnover', labelKey: 'tabs.turnover' },
-  { key: 'allocation', labelKey: 'Asset Allocation' },
-  { key: 'pies', labelKey: 'Allocation Pies' },
-  { key: 'correlation', labelKey: 'Correlation' },
-  { key: 'telltale', labelKey: 'tabs.telltale' },
-  { key: 'regression', labelKey: 'tabs.regression' },
-];
+const ALL_TABS =
+  'summary:tabs.summary|myMetrics:My Metrics|returns:tabs.returnsDist|yearlyReturns:Annual Returns|rolling:tabs.rolling|seasonality:Seasonality|riskReturn:tabs.riskReturn|drawdown:tabs.drawdown|cashflows:tabs.cashflows|rebalancing:tabs.rebalancing|turnover:tabs.turnover|allocation:Asset Allocation|pies:Allocation Pies|correlation:Correlation|telltale:tabs.telltale|regression:tabs.regression'
+    .split('|')
+    .map(([key, labelKey]) => ({ key, labelKey }));
 const PRIMARY_TABS = new Set(['summary', 'returns', 'yearlyReturns', 'rolling', 'drawdown']);
 const toCommon = (pf: PortfolioResult[]) => ({
   portfolios: pf.map((p) => ({ id: p.name, name: p.name, stats: toStatsRecord(p.statistics) })),
   colors: pf.map((_, i) => getPortfolioColor(i)),
 });
+const toGrowth = (pf: PortfolioResult[]) =>
+  pf.map((p) => ({ id: p.name, name: p.name, growthCurve: p.growthCurve ?? [] }));
 const mapDD = (pf: PortfolioResult[]) =>
   pf.map((p) => ({
     id: p.name,
     name: p.name,
     drawdownCurve: (p.drawdownCurve ?? []).map((pt) => ({ date: pt.date, drawdown: pt.drawdown })),
   }));
+const toAlloc = (pf: PortfolioResult[], pfs: Portfolio[]) =>
+  pf.map(
+    (rp, idx) =>
+      ({
+        name: rp.name,
+        assets: pfs[idx]?.assets ?? [],
+        growthCurve: rp.growthCurve,
+        allocationHistory: rp.allocationHistory,
+      }) as never,
+  );
 function TabBar() {
   const { t } = useTranslation();
   const [sp, setSp] = useSearchParams();
@@ -225,9 +215,7 @@ function TabBar() {
   const sel = (tab: string) => {
     if (tab === active) return;
     setActive(tab);
-    const n = new URLSearchParams(sp);
-    n.set('tab', tab);
-    setSp(n);
+    setSp(new URLSearchParams({ ...Object.fromEntries(sp), tab }));
   };
   const more = ALL_TABS.filter((x) => !PRIMARY_TABS.has(x.key));
   const actMore = more.find((x) => x.key === active);
@@ -284,14 +272,7 @@ const TAB_RENDERERS: Record<string, (c: Ctx) => ReactNode> = {
           positiveYears={ar.filter((r) => r.return > 0).length}
         />
         <div className="space-y-4 min-w-0">
-          <L.GrowthChart
-            portfolios={pf.map((p) => ({
-              id: p.name,
-              name: p.name,
-              growthCurve: p.growthCurve ?? [],
-            }))}
-            currency={cur}
-          />
+          <L.GrowthChart portfolios={toGrowth(pf)} currency={cur} />
           <L.DrawdownChart portfolios={mapDD(pf)} />
           <ST.StatisticsTable
             {...toCommon(pf)}
@@ -323,19 +304,7 @@ const TAB_RENDERERS: Record<string, (c: Ctx) => ReactNode> = {
   cashflows: () => <L.CashflowsLog parameters={useBacktestStore.getState().parameters} />,
   rebalancing: ({ pfs }) => <RebalancingStats portfolios={pfs} />,
   turnover: ({ pf }) => <L.TurnoverTaxReport portfolios={pf} />,
-  allocation: ({ pf, pfs }) => (
-    <L.PortfolioAllocationChart
-      portfolios={pf.map(
-        (rp, idx) =>
-          ({
-            name: rp.name,
-            assets: pfs[idx]?.assets ?? [],
-            growthCurve: rp.growthCurve,
-            allocationHistory: rp.allocationHistory,
-          }) as never,
-      )}
-    />
-  ),
+  allocation: ({ pf, pfs }) => <L.PortfolioAllocationChart portfolios={toAlloc(pf, pfs)} />,
   pies: ({ pfs }) => <L.PortfolioPiesChart portfolios={pfs} />,
   correlation: ({ pf, r }) => (
     <L.CorrelationWithBeta
@@ -348,6 +317,12 @@ const TAB_RENDERERS: Record<string, (c: Ctx) => ReactNode> = {
   telltale: ({ pf }) => <L.TelltaleChart portfolios={pf} />,
   regression: ({ pf }) => <L.RegressionChart portfolios={pf} />,
 };
+const TAB_SERIES = {
+  rolling: ['rollingReturns'],
+  turnover: ['allocationHistory'],
+  allocation: ['allocationHistory'],
+  summary: ['drawdownEpisodes'],
+} as const;
 export function ResultsContent() {
   const { t } = useTranslation();
   const results = useBacktestStore((s) => s.results);
@@ -366,12 +341,6 @@ export function ResultsContent() {
       document.getElementById('results')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     prev.current = has;
   }, [has]);
-  const TAB_SERIES = {
-    rolling: ['rollingReturns'],
-    turnover: ['allocationHistory'],
-    allocation: ['allocationHistory'],
-    summary: ['drawdownEpisodes'],
-  } as const;
   useEffect(() => {
     const s = TAB_SERIES[activeTab as keyof typeof TAB_SERIES];
     if (results && s) void enrich(s as never);
@@ -391,18 +360,17 @@ export function ResultsContent() {
         {null}
       </ResultsShell>
     );
-  const g = results.portfolios[0]?.growthCurve;
-  const first = g?.[0]?.date;
-  const last = g?.[g.length - 1]?.date;
+  const ps = results.portfolios;
+  const g = ps[0]?.growthCurve;
+  const [first, last] = [g?.[0]?.date, g?.[g.length - 1]?.date];
   const years =
     first && last ? (new Date(last).getTime() - new Date(first).getTime()) / 864e5 / 365.25 : 0;
   const range = { start: first ?? '—', end: last ?? '—', years };
+  const ctx = { pf: ps, pfs, baseCurrency: cur, r: results as never };
   const csvRows = (pf: PortfolioResult) =>
     pf.growthCurve.map((pt, i) => ({
       date: pt.date,
-      ...Object.fromEntries(
-        results.portfolios.map((p) => [p.name, p.growthCurve[i]?.value?.toFixed(4) ?? '']),
-      ),
+      ...Object.fromEntries(ps.map((p) => [p.name, p.growthCurve[i]?.value?.toFixed(4) ?? ''])),
     }));
   return (
     <div className="space-y-4">
@@ -425,22 +393,12 @@ export function ResultsContent() {
         onExport={(f) => {
           if (f === 'json')
             F.downloadJSON(results, F.dateSuffixedFilename('backtest-results', 'json'));
-          else {
-            const pf = results?.portfolios?.[0];
-            if (pf?.growthCurve?.length) F.downloadCSV(csvRows(pf), 'backtest-results');
-          }
+          else if (ps[0]?.growthCurve?.length) F.downloadCSV(csvRows(ps[0]), 'backtest-results');
         }}
       />
       <U.Card className="p-5">
         <TabBar />
-        <Suspense fallback={<TabFallback />}>
-          {TAB_RENDERERS[activeTab]?.({
-            pf: results.portfolios,
-            pfs,
-            baseCurrency: cur,
-            r: results as never,
-          })}
-        </Suspense>
+        <Suspense fallback={<TabFallback />}>{TAB_RENDERERS[activeTab]?.(ctx)}</Suspense>
       </U.Card>
       <p className="text-xs text-fg-tertiary">
         <Trans i18nKey="stats.survivorshipBiasWarning" components={{ link: <Link to="/help" /> }} />
@@ -448,14 +406,11 @@ export function ResultsContent() {
     </div>
   );
 }
-function RebalancingStats({
-  portfolios: pf,
-}: {
-  portfolios: Pick<
-    Portfolio,
-    'name' | 'rebalanceFrequency' | 'rebalanceThreshold' | 'rebalanceOffset' | 'rebalanceBands'
-  >[];
-}) {
+type RebP = Pick<
+  Portfolio,
+  'name' | 'rebalanceFrequency' | 'rebalanceThreshold' | 'rebalanceOffset' | 'rebalanceBands'
+>;
+function RebalancingStats({ portfolios: pf }: { portfolios: RebP[] }) {
   const { t } = useTranslation();
   if (!pf.some((p) => p.rebalanceFrequency && p.rebalanceFrequency !== 'none'))
     return (
@@ -463,40 +418,34 @@ function RebalancingStats({
         <ChartEmptyState message={t('No data')} />
       </ChartCard>
     );
-  const cols: SimpleTableColumn<(typeof pf)[number]>[] = [
-    {
-      key: 'name',
-      label: t('Portfolio'),
-      render: (p, i) => <U.PortfolioLabel color={getPortfolioColor(i)} name={p.name} />,
-    },
-    {
-      key: 'rebalanceFrequency',
-      label: t('Rebalancing Frequency'),
-      render: (p) => t(REBALANCE_LABELS[p.rebalanceFrequency] || p.rebalanceFrequency),
-    },
-    {
-      key: 'rebalanceOffset',
-      label: t('Offset Days'),
-      align: 'right',
-      render: (p) => String(p.rebalanceOffset ?? 0),
-    },
-    {
-      key: 'rebalanceThreshold',
-      label: t('Deviation Threshold'),
-      align: 'right',
-      render: (p) => (p.rebalanceFrequency === 'threshold' ? `${p.rebalanceThreshold ?? 5}%` : '-'),
-    },
-    {
-      key: 'rebalanceBands',
-      label: t('Rebalancing Bands'),
-      render: (p) =>
-        p.rebalanceBands?.enabled
-          ? t(BAND_KEY, {
-              absolute: p.rebalanceBands.absoluteBand ?? '-',
-              relative: p.rebalanceBands.relativeBand ?? '-',
-            })
-          : t('Deviation Bands Disabled'),
-    },
+  const col = (
+    key: string,
+    label: string,
+    render: (p: RebP, i: number) => ReactNode,
+    align?: 'left' | 'right',
+  ): SimpleTableColumn<RebP> => ({ key, label, render, align });
+  const cols: SimpleTableColumn<RebP>[] = [
+    col('name', t('Portfolio'), (p, i) => (
+      <U.PortfolioLabel color={getPortfolioColor(i)} name={p.name} />
+    )),
+    col('rebalanceFrequency', t('Rebalancing Frequency'), (p) =>
+      t(REBALANCE_LABELS[p.rebalanceFrequency] || p.rebalanceFrequency),
+    ),
+    col('rebalanceOffset', t('Offset Days'), (p) => String(p.rebalanceOffset ?? 0), 'right'),
+    col(
+      'rebalanceThreshold',
+      t('Deviation Threshold'),
+      (p) => (p.rebalanceFrequency === 'threshold' ? `${p.rebalanceThreshold ?? 5}%` : '-'),
+      'right',
+    ),
+    col('rebalanceBands', t('Rebalancing Bands'), (p) =>
+      p.rebalanceBands?.enabled
+        ? t('Deviation Bands: {{absolute}} Absolute / {{relative}} Relative', {
+            absolute: p.rebalanceBands.absoluteBand ?? '-',
+            relative: p.rebalanceBands.relativeBand ?? '-',
+          })
+        : t('Deviation Bands Disabled'),
+    ),
   ];
   return (
     <ChartCard title={t('Rebalancing')}>
