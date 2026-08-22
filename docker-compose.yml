@@ -50,17 +50,7 @@ x-base:
   redis-replica: &redis-replica
     <<: *redis-img
     profiles: ['redis-ha'] # 默认不拉起；chaos 核心依赖仅用单节点 redis
-    command:
-      [
-        'redis-server',
-        '--appendonly',
-        'yes',
-        '--replicaof',
-        'redis-master',
-        '6379',
-        '--replica-read-only',
-        'yes',
-      ]
+    command: ['redis-server', '--appendonly', 'yes', '--replicaof', 'redis-master', '6379', '--replica-read-only', 'yes']
     depends_on: { redis-master: { condition: service_healthy } }
     healthcheck: *hc-redis
   redis-sentinel: &redis-sentinel
@@ -79,41 +69,9 @@ services:
     <<: *timescale
     container_name: backtest-postgres
     ports: ['127.0.0.1:5432:5432']
-    environment:
-      <<: *env-pg
-      WALG_S3_PREFIX: s3://backtest-wal-backup
-      AWS_ENDPOINT: http://minio:9000
-      AWS_ACCESS_KEY_ID: minioadmin
-      AWS_SECRET_ACCESS_KEY: minioadmin
-      AWS_S3_FORCE_PATH_STYLE: true
-      WALG_COMPRESSION_METHOD: brotli
-      AWS_REGION: us-east-1
-      WALG_UPLOAD_CONCURRENCY: 4
-    command:
-      - postgres
-      - -c
-      - wal_level=replica
-      - -c
-      - archive_mode=on
-      - -c
-      - archive_command='envdir /etc/wal-g.d/env wal-g wal-push %p'
-      - -c
-      - archive_timeout=60
-      - -c
-      - restore_command='envdir /etc/wal-g.d/env wal-g wal-fetch %f %p'
-      - -c
-      - max_wal_senders=3
-      - -c
-      - wal_keep_size=64
-      - -c
-      - listen_addresses='*'
-      - -c
-      - full_page_writes=on
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-      - ./docker/postgres-init:/docker-entrypoint-initdb.d
-      - ./docker/wal-g/env:/etc/wal-g.d/env:ro
-      - ./scripts/install-walg.sh:/docker-entrypoint-initdb.d/00-install-walg.sh:ro
+    environment: { <<: *env-pg, WALG_S3_PREFIX: 's3://backtest-wal-backup', AWS_ENDPOINT: 'http://minio:9000', AWS_ACCESS_KEY_ID: minioadmin, AWS_SECRET_ACCESS_KEY: minioadmin, AWS_S3_FORCE_PATH_STYLE: true, WALG_COMPRESSION_METHOD: brotli, AWS_REGION: us-east-1, WALG_UPLOAD_CONCURRENCY: 4 }
+    command: ["postgres", "-c", "wal_level=replica", "-c", "archive_mode=on", "-c", "archive_command='envdir /etc/wal-g.d/env wal-g wal-push %p'", "-c", "archive_timeout=60", "-c", "restore_command='envdir /etc/wal-g.d/env wal-g wal-fetch %f %p'", "-c", "max_wal_senders=3", "-c", "wal_keep_size=64", "-c", "listen_addresses='*'", "-c", "full_page_writes=on"]
+    volumes: [pgdata:/var/lib/postgresql/data, ./docker/postgres-init:/docker-entrypoint-initdb.d, ./docker/wal-g/env:/etc/wal-g.d/env:ro, ./scripts/install-walg.sh:/docker-entrypoint-initdb.d/00-install-walg.sh:ro]
     healthcheck: *hc-pg
 
   redis:
@@ -127,16 +85,7 @@ services:
     <<: *redis-img
     profiles: ['redis-ha']
     container_name: backtest-redis-master
-    command:
-      [
-        'redis-server',
-        '--appendonly',
-        'yes',
-        '--min-slaves-to-write',
-        '1',
-        '--min-slaves-max-lag',
-        '10',
-      ]
+    command: ['redis-server', '--appendonly', 'yes', '--min-slaves-to-write', '1', '--min-slaves-max-lag', '10']
     ports: ['127.0.0.1:6380:6379']
     healthcheck: *hc-redis
 
@@ -151,42 +100,28 @@ services:
   redis-sentinel-1:
     <<: *redis-sentinel
     container_name: backtest-redis-sentinel-1
-    volumes:
-      - ./docker/redis-sentinel/sentinel.conf:/etc/redis/sentinel.conf:ro
-      - redis-sentinel-1-data:/data
+    volumes: ['./docker/redis-sentinel/sentinel.conf:/etc/redis/sentinel.conf:ro', 'redis-sentinel-1-data:/data']
     ports: ['127.0.0.1:26379:26379']
 
   redis-sentinel-2:
     <<: *redis-sentinel
     container_name: backtest-redis-sentinel-2
-    volumes:
-      - ./docker/redis-sentinel/sentinel.conf:/etc/redis/sentinel.conf:ro
-      - redis-sentinel-2-data:/data
+    volumes: ['./docker/redis-sentinel/sentinel.conf:/etc/redis/sentinel.conf:ro', 'redis-sentinel-2-data:/data']
     ports: ['127.0.0.1:26380:26379']
 
   redis-sentinel-3:
     <<: *redis-sentinel
     container_name: backtest-redis-sentinel-3
-    volumes:
-      - ./docker/redis-sentinel/sentinel.conf:/etc/redis/sentinel.conf:ro
-      - redis-sentinel-3-data:/data
+    volumes: ['./docker/redis-sentinel/sentinel.conf:/etc/redis/sentinel.conf:ro', 'redis-sentinel-3-data:/data']
     ports: ['127.0.0.1:26381:26379']
 
   engine-go:
     build: { context: ., dockerfile: engine-go/Dockerfile }
     container_name: backtest-engine-go
     ports: ['127.0.0.1:15004:5004']
-    environment:
-      {
-        ENGINE_GO_PORT: '5004',
-        GIN_MODE: release,
-        ENGINE_AUTH_TOKEN: '${ENGINE_AUTH_TOKEN:-dev-engine-auth-token}',
-      }
+    environment: { ENGINE_GO_PORT: '5004', GIN_MODE: release, ENGINE_AUTH_TOKEN: '${ENGINE_AUTH_TOKEN:-dev-engine-auth-token}' }
     depends_on: { postgres: { condition: service_healthy } }
-    healthcheck:
-      <<: *hc-wget
-      test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:5004/api/engine/health']
-      start_period: 10s
+    healthcheck: { <<: *hc-wget, test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:5004/api/engine/health'], start_period: 10s }
     <<: *restart-unless
 
   api:
@@ -195,10 +130,7 @@ services:
     ports: ['127.0.0.1:15001:5001']
     environment: { <<: *env-node, API_PORT: '5001' }
     depends_on: { <<: *dep-pg-engine-redis }
-    healthcheck:
-      <<: *hc-wget
-      test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:5001/api/health']
-      start_period: 15s
+    healthcheck: { <<: *hc-wget, test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:5001/api/health'], start_period: 15s }
     <<: *restart-unless
 
   worker:
@@ -206,15 +138,8 @@ services:
     container_name: backtest-worker
     environment: { <<: *env-node, WORKER_CONCURRENCY: '3' }
     depends_on: { <<: *dep-pg-engine-redis }
-    healthcheck:
-      test:
-        - 'CMD-SHELL'
-        # ioredis 安装在 packages/backend/node_modules（pnpm 工作区布局），须在此目录下 require
-        - 'cd /app/packages/backend && node -e "const r=new (require(\"ioredis\"))(\"redis://redis:6379\");r.get(\"worker:heartbeat\").then(v=>{r.quit();process.exit(v?0:1)}).catch(()=>process.exit(1))"'
-      interval: 30s
-      timeout: 5s
-      start_period: 20s
-      retries: 3
+    # ioredis 安装在 packages/backend/node_modules（pnpm 工作区布局），须在此目录下 require
+    healthcheck: { test: ['CMD-SHELL', 'cd /app/packages/backend && node -e "const r=new (require(\"ioredis\"))(\"redis://redis:6379\");r.get(\"worker:heartbeat\").then(v=>{r.quit();process.exit(v?0:1)}).catch(()=>process.exit(1))"'], interval: 30s, timeout: 5s, start_period: 20s, retries: 3 }
     <<: *restart-unless
 
   frontend:
@@ -222,67 +147,33 @@ services:
     container_name: backtest-frontend
     ports: ['127.0.0.1:80:80']
     depends_on: { api: { condition: service_healthy } }
-    healthcheck:
-      <<: *hc-wget
-      test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:80/']
-      start_period: 5s
+    healthcheck: { <<: *hc-wget, test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:80/'], start_period: 5s }
     <<: *restart-unless
 
   data-fetcher:
     build: { context: ., dockerfile: data-fetcher/Dockerfile }
     container_name: backtest-data-fetcher
     ports: ['127.0.0.1:15003:5003']
-    environment:
-      {
-        DATA_FETCHER_PORT: '5003',
-        GIN_MODE: release,
-        DATA_SERVICE_AUTH_TOKEN: '${DATA_SERVICE_AUTH_TOKEN:-dev-data-service-auth-token}',
-        DATABASE_URL: 'postgresql://backtest_app:backtest_app_dev@postgres:5432/backtest',
-      }
-    healthcheck:
-      <<: *hc-wget
-      test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:5003/api/data/health']
-      start_period: 10s
+    environment: { DATA_FETCHER_PORT: '5003', GIN_MODE: release, DATA_SERVICE_AUTH_TOKEN: '${DATA_SERVICE_AUTH_TOKEN:-dev-data-service-auth-token}', DATABASE_URL: 'postgresql://backtest_app:backtest_app_dev@postgres:5432/backtest' }
+    healthcheck: { <<: *hc-wget, test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:5003/api/data/health'], start_period: 10s }
     <<: *restart-unless
 
   prometheus:
     image: prom/prometheus:v2.54.0
     container_name: backtest-prometheus
     ports: ['127.0.0.1:9090:9090']
-    volumes:
-      - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - ./docker/prometheus/rules.yml:/etc/prometheus/rules.yml:ro
-      - prometheus-data:/prometheus
-    command:
-      [
-        '--config.file=/etc/prometheus/prometheus.yml',
-        '--storage.tsdb.path=/prometheus',
-        '--storage.tsdb.retention.time=7d',
-        '--web.enable-lifecycle',
-      ]
+    volumes: ['./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro', './docker/prometheus/rules.yml:/etc/prometheus/rules.yml:ro', prometheus-data:/prometheus]
+    command: ['--config.file=/etc/prometheus/prometheus.yml', '--storage.tsdb.path=/prometheus', '--storage.tsdb.retention.time=7d', '--web.enable-lifecycle']
     depends_on: [alertmanager, api, engine-go, data-fetcher]
-    healthcheck:
-      <<: *hc-wget
-      test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:9090/-/healthy']
+    healthcheck: { <<: *hc-wget, test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:9090/-/healthy'] }
     <<: *restart-unless
 
   alertmanager-config:
     image: alpine:3.20
     container_name: backtest-alertmanager-config
-    command:
-      [
-        'sh',
-        '-c',
-        'apk add --no-cache gettext > /dev/null 2>&1 && envsubst < /tpl/alertmanager.yml > /rendered/alertmanager.yml && echo rendered',
-      ]
-    environment:
-      {
-        FEISHU_WEBHOOK: '${FEISHU_WEBHOOK:-http://127.0.0.1:9999/dummy}',
-        DINGTALK_WEBHOOK: '${DINGTALK_WEBHOOK:-http://127.0.0.1:9999/dummy}',
-      }
-    volumes:
-      - ./docker/alertmanager/alertmanager.yml:/tpl/alertmanager.yml:ro
-      - alertmanager-rendered:/rendered
+    command: ['sh', '-c', 'apk add --no-cache gettext > /dev/null 2>&1 && envsubst < /tpl/alertmanager.yml > /rendered/alertmanager.yml && echo rendered']
+    environment: { FEISHU_WEBHOOK: '${FEISHU_WEBHOOK:-http://127.0.0.1:9999/dummy}', DINGTALK_WEBHOOK: '${DINGTALK_WEBHOOK:-http://127.0.0.1:9999/dummy}' }
+    volumes: ['./docker/alertmanager/alertmanager.yml:/tpl/alertmanager.yml:ro', alertmanager-rendered:/rendered]
 
   alertmanager:
     image: prom/alertmanager:v0.27.0
@@ -290,28 +181,16 @@ services:
     ports: ['127.0.0.1:9093:9093']
     command: ['--config.file=/etc/alertmanager/alertmanager.yml', '--storage.path=/alertmanager']
     depends_on: { alertmanager-config: { condition: service_completed_successfully } }
-    volumes:
-      - alertmanager-rendered:/etc/alertmanager:ro
-      - alertmanager-data:/alertmanager
-    healthcheck:
-      <<: *hc-wget
-      test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:9093/-/healthy']
+    volumes: [alertmanager-rendered:/etc/alertmanager:ro, alertmanager-data:/alertmanager]
+    healthcheck: { <<: *hc-wget, test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:9093/-/healthy'] }
     <<: *restart-unless
 
   grafana:
     image: grafana/grafana:11.3.0
     container_name: backtest-grafana
     ports: ['127.0.0.1:3000:3000']
-    environment:
-      {
-        GF_SECURITY_ADMIN_USER: '${GRAFANA_ADMIN_USER:-admin}',
-        GF_SECURITY_ADMIN_PASSWORD: '${GRAFANA_ADMIN_PASSWORD:-admin}',
-        GF_USERS_ALLOW_SIGN_UP: 'false',
-      }
-    volumes:
-      - ./docker/grafana/provisioning:/etc/grafana/provisioning:ro
-      - ./docker/grafana/dashboards:/var/lib/grafana/dashboards:ro
-      - grafana-data:/var/lib/grafana
+    environment: { GF_SECURITY_ADMIN_USER: '${GRAFANA_ADMIN_USER:-admin}', GF_SECURITY_ADMIN_PASSWORD: '${GRAFANA_ADMIN_PASSWORD:-admin}', GF_USERS_ALLOW_SIGN_UP: 'false' }
+    volumes: ['./docker/grafana/provisioning:/etc/grafana/provisioning:ro', './docker/grafana/dashboards:/var/lib/grafana/dashboards:ro', grafana-data:/var/lib/grafana]
     depends_on: [prometheus]
     <<: *restart-unless
 
@@ -320,16 +199,14 @@ services:
     profiles: ['edge'] # 边缘网关/站点监控，默认不拉起
     container_name: backtest-uptime-kuma
     ports: ['127.0.0.1:3001:3001']
-    volumes:
-      - uptime-kuma-data:/app/data
+    volumes: [uptime-kuma-data:/app/data]
     <<: *restart-unless
 
   postgres-exporter:
     image: quay.io/prometheuscommunity/postgres-exporter:v0.15.0
     container_name: backtest-postgres-exporter
     ports: ['127.0.0.1:9187:9187']
-    environment:
-      { DATA_SOURCE_NAME: 'postgresql://backtest:backtest@postgres:5432/backtest?sslmode=disable' }
+    environment: { DATA_SOURCE_NAME: 'postgresql://backtest:backtest@postgres:5432/backtest?sslmode=disable' }
     depends_on: { postgres: { condition: service_healthy } }
     <<: *restart-unless
 
@@ -347,16 +224,8 @@ services:
     container_name: backtest-ofelia
     command: daemon --docker
     depends_on: { postgres: { condition: service_healthy } }
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-    labels:
-      ofelia.job-exec.walg-backup.schedule: '0 18 * * *'
-      ofelia.job-exec.walg-backup.container: 'backtest-postgres'
-      ofelia.job-exec.walg-backup.command: >
-        bash -c "wal-g backup-push /var/lib/postgresql/data && wal-g delete retain 7 --confirm"
-      ofelia.job-exec.walg-verify.schedule: '0 19 * * 6'
-      ofelia.job-exec.walg-verify.container: 'backtest-postgres'
-      ofelia.job-exec.walg-verify.command: 'wal-g wal-verify integrity'
+    volumes: [/var/run/docker.sock:/var/run/docker.sock:ro]
+    labels: { ofelia.job-exec.walg-backup.schedule: '0 18 * * *', ofelia.job-exec.walg-backup.container: backtest-postgres, ofelia.job-exec.walg-backup.command: "bash -c \"wal-g backup-push /var/lib/postgresql/data && wal-g delete retain 7 --confirm\"\n", ofelia.job-exec.walg-verify.schedule: '0 19 * * 6', ofelia.job-exec.walg-verify.container: backtest-postgres, ofelia.job-exec.walg-verify.command: 'wal-g wal-verify integrity' }
     <<: *restart-unless
 
   minio:
@@ -365,13 +234,8 @@ services:
     ports: ['127.0.0.1:9000:9000', '127.0.0.1:9001:9001']
     environment: { MINIO_ROOT_USER: minioadmin, MINIO_ROOT_PASSWORD: minioadmin }
     command: server /data --console-address ":9001"
-    volumes:
-      - minio-data:/data
-    healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:9000/minio/health/live']
-      interval: 10s
-      timeout: 5s
-      retries: 3
+    volumes: [minio-data:/data]
+    healthcheck: { test: ['CMD', 'curl', '-f', 'http://localhost:9000/minio/health/live'], interval: 10s, timeout: 5s, retries: 3 }
 
   postgres-cdc:
     <<: *timescale
@@ -379,19 +243,8 @@ services:
     container_name: backtest-postgres-cdc
     ports: ['127.0.0.1:5433:5432']
     environment: { <<: *env-pg }
-    command:
-      [
-        'postgres',
-        '-c',
-        'wal_level=logical',
-        '-c',
-        'max_replication_slots=10',
-        '-c',
-        'max_wal_senders=10',
-      ]
-    volumes:
-      - pgdata-cdc:/var/lib/postgresql/data
-      - ./docker/postgres-init:/docker-entrypoint-initdb.d
+    command: ['postgres', '-c', 'wal_level=logical', '-c', 'max_replication_slots=10', '-c', 'max_wal_senders=10']
+    volumes: [pgdata-cdc:/var/lib/postgresql/data, ./docker/postgres-init:/docker-entrypoint-initdb.d]
     healthcheck: *hc-pg
 
   zookeeper:
@@ -400,12 +253,8 @@ services:
     container_name: backtest-zookeeper
     ports: ['127.0.0.1:2181:2181']
     environment: { ZOOKEEPER_CLIENT_PORT: 2181, ZOOKEEPER_TICK_TIME: 2000 }
-    volumes:
-      - zookeeper-data:/var/lib/zookeeper/data
-      - zookeeper-logs:/var/lib/zookeeper/log
-    healthcheck:
-      <<: *hc-10x5
-      test: ['CMD-SHELL', 'echo ruok | nc -w 2 127.0.0.1 2181 | grep imok']
+    volumes: [zookeeper-data:/var/lib/zookeeper/data, zookeeper-logs:/var/lib/zookeeper/log]
+    healthcheck: { <<: *hc-10x5, test: ['CMD-SHELL', 'echo ruok | nc -w 2 127.0.0.1 2181 | grep imok'] }
     <<: *restart-unless
 
   kafka:
@@ -413,23 +262,10 @@ services:
     profiles: ['cdc']
     container_name: backtest-kafka
     ports: ['127.0.0.1:9092:9092']
-    environment:
-      KAFKA_BROKER_ID: 1
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:29092,LISTENER_LOCAL://0.0.0.0:9092
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,LISTENER_LOCAL://localhost:9092
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,LISTENER_LOCAL:PLAINTEXT
-      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
-    volumes:
-      - kafka-data:/var/lib/kafka/data
+    environment: { KAFKA_BROKER_ID: 1, KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181', KAFKA_LISTENERS: 'PLAINTEXT://0.0.0.0:29092,LISTENER_LOCAL://0.0.0.0:9092', KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT://kafka:29092,LISTENER_LOCAL://localhost:9092', KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: 'PLAINTEXT:PLAINTEXT,LISTENER_LOCAL:PLAINTEXT', KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT, KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1, KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true' }
+    volumes: [kafka-data:/var/lib/kafka/data]
     depends_on: { zookeeper: { condition: service_healthy } }
-    healthcheck:
-      test: ['CMD', 'kafka-topics', '--bootstrap-server', 'localhost:9092', '--list']
-      interval: 15s
-      timeout: 10s
-      retries: 6
+    healthcheck: { test: ['CMD', 'kafka-topics', '--bootstrap-server', 'localhost:9092', '--list'], interval: 15s, timeout: 10s, retries: 6 }
     <<: *restart-unless
 
   connect:
@@ -437,25 +273,9 @@ services:
     profiles: ['cdc']
     container_name: backtest-debezium-connect
     ports: ['127.0.0.1:8083:8083']
-    environment:
-      {
-        BOOTSTRAP_SERVERS: kafka:29092,
-        GROUP_ID: backtest-debezium,
-        CONFIG_STORAGE_TOPIC: backtest.connect.configs,
-        OFFSET_STORAGE_TOPIC: backtest.connect.offsets,
-        STATUS_STORAGE_TOPIC: backtest.connect.status,
-        KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter,
-        VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter,
-      }
-    depends_on:
-      postgres-cdc: { condition: service_healthy }
-      kafka: { condition: service_healthy }
-    healthcheck:
-      test: ['CMD-SHELL', 'curl -sf http://localhost:8083/connectors >/dev/null || exit 1']
-      interval: 15s
-      timeout: 5s
-      retries: 6
-      start_period: 30s
+    environment: { BOOTSTRAP_SERVERS: 'kafka:29092', GROUP_ID: backtest-debezium, CONFIG_STORAGE_TOPIC: backtest.connect.configs, OFFSET_STORAGE_TOPIC: backtest.connect.offsets, STATUS_STORAGE_TOPIC: backtest.connect.status, KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter, VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter }
+    depends_on: { postgres-cdc: { condition: service_healthy }, kafka: { condition: service_healthy } }
+    healthcheck: { test: ['CMD-SHELL', 'curl -sf http://localhost:8083/connectors >/dev/null || exit 1'], interval: 15s, timeout: 5s, retries: 6, start_period: 30s }
     <<: *restart-unless
 
   apisix:
@@ -464,15 +284,10 @@ services:
     container_name: backtest-apisix
     <<: *restart-unless
     environment: [APISIX_STAND_ALONE=true]
-    volumes:
-      - ./config/apisix/apisix.yaml:/usr/local/apisix/conf/apisix.yaml:ro
-      - ./config/apisix/config.yaml:/usr/local/apisix/conf/config.yaml:ro
+    volumes: ['./config/apisix/apisix.yaml:/usr/local/apisix/conf/apisix.yaml:ro', './config/apisix/config.yaml:/usr/local/apisix/conf/config.yaml:ro']
     ports: ['127.0.0.1:9080:9080', '127.0.0.1:9443:9443', '127.0.0.1:9091:9091']
     depends_on: { api: { condition: service_healthy } }
-    healthcheck:
-      <<: *hc-10x5
-      test: ['CMD', 'curl', '-f', 'http://localhost:9080/apisix/health']
-      start_period: 10s
+    healthcheck: { <<: *hc-10x5, test: ['CMD', 'curl', '-f', 'http://localhost:9080/apisix/health'], start_period: 10s }
 
 volumes:
   pgdata:

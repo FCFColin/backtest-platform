@@ -41,3 +41,6 @@ docker/grafana/dashboards/backtest-platform.json
 # i18n bundles (hand-packed multi-entry-per-line format; prettier would expand back to 1 key/line)
 packages/frontend/src/i18n/locales/
 
+# Compose orchestration (dense flow-style YAML; prettier re-expands to 515 lines and breaks anchors layout)
+docker-compose.yml
+
