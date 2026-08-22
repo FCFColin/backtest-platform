@@ -38,3 +38,6 @@ scc_*.json
 # Machine-consumed data (compact form, not human-formatted)
 docker/grafana/dashboards/backtest-platform.json
 
+# i18n bundles (hand-packed multi-entry-per-line format; prettier would expand back to 1 key/line)
+packages/frontend/src/i18n/locales/
+
