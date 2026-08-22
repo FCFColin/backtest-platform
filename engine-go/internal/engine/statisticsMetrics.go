@@ -25,11 +25,8 @@ func CalcMWRR(cashflows []Cashflow) float64 {
 	if len(cashflows) == 0 {
 		return 0
 	}
-	hasNegative, hasPositive := false, false
-	for _, cf := range cashflows {
-		hasNegative = hasNegative || cf.Value < 0
-		hasPositive = hasPositive || cf.Value > 0
-	}
+	hasNegative := slices.ContainsFunc(cashflows, func(cf Cashflow) bool { return cf.Value < 0 })
+	hasPositive := slices.ContainsFunc(cashflows, func(cf Cashflow) bool { return cf.Value > 0 })
 	// IRR 需同时存在投入（负）与回收（正）现金流，单边现金流无定义（防 bisect 收敛到区间端点）
 	if !hasNegative || !hasPositive {
 		return 0
@@ -80,14 +77,18 @@ func CalcTotalReturn(startValue, endValue float64) float64 {
 	}
 	return endValue/startValue - 1
 }
-func sliceExtreme(values []float64, fn func([]float64) float64) float64 {
+func MaxValue(values []float64) float64 {
 	if len(values) == 0 {
 		return 0
 	}
-	return fn(values)
+	return slices.Max(values)
 }
-func MaxValue(values []float64) float64 { return sliceExtreme(values, slices.Max) }
-func MinValue(values []float64) float64 { return sliceExtreme(values, slices.Min) }
+func MinValue(values []float64) float64 {
+	if len(values) == 0 {
+		return 0
+	}
+	return slices.Min(values)
+}
 func ratioPositive(values []float64) float64 {
 	if len(values) == 0 {
 		return 0
@@ -130,10 +131,7 @@ func CalcBeta(portfolioReturns, benchmarkReturns []float64) float64 {
 	if pr == nil {
 		return 0
 	}
-	if varB := mathutil.Covariance(br, br); varB != 0 {
-		return mathutil.Covariance(pr, br) / varB
-	}
-	return 0
+	return safeRatio(mathutil.Covariance(pr, br), mathutil.Covariance(br, br))
 }
 func CalcAlpha(cagr, beta, benchmarkCagr float64) float64 {
 	return cagr - (riskFreeRate + beta*(benchmarkCagr-riskFreeRate))
@@ -154,10 +152,7 @@ func CalcDiversificationRatio(weights []float64, assetDailyReturns [][]float64, 
 	}
 	return weightedStd / portStd
 }
-func CalcRSquared(portfolioReturns, benchmarkReturns []float64) float64 {
-	corr := CalcCorrelation(portfolioReturns, benchmarkReturns)
-	return corr * corr
-}
+func CalcRSquared(pr, br []float64) float64 { c := CalcCorrelation(pr, br); return c * c }
 func CalcTrackingError(portfolioReturns, benchmarkReturns []float64) float64 {
 	pr, br := alignPair(portfolioReturns, benchmarkReturns)
 	if pr == nil {
@@ -173,29 +168,20 @@ func CalcInformationRatio(alpha, trackingError float64) float64 {
 	return safeRatio(alpha, trackingError)
 }
 func CalcCaptureRatio(pr, br []float64, upside bool) float64 {
-	filter := upsideFilter(upside)
-	n := min(len(pr), len(br))
-	if n < 1 {
-		return 0
-	}
-	var portfolioProduct, benchmarkProduct float64 = 1, 1
-	count := 0
-	for i := 0; i < n; i++ {
+	filter, portfolioProduct, benchmarkProduct, count := upsideFilter(upside), 1.0, 1.0, 0
+	for i := 0; i < min(len(pr), len(br)); i++ {
 		if filter(br[i]) {
-			portfolioProduct *= (1 + pr[i])
-			benchmarkProduct *= (1 + br[i])
+			portfolioProduct *= 1 + pr[i]
+			benchmarkProduct *= 1 + br[i]
 			count++
 		}
 	}
-	if count == 0 || benchmarkProduct <= 0 {
+	geoMean := func(product float64) float64 { return math.Pow(product, 1.0/float64(count)) - 1 }
+	benchmarkGeoMean := geoMean(benchmarkProduct)
+	if count == 0 || benchmarkProduct <= 0 || benchmarkGeoMean == 0 {
 		return 0
 	}
-	portfolioGeoMean := math.Pow(portfolioProduct, 1.0/float64(count)) - 1
-	benchmarkGeoMean := math.Pow(benchmarkProduct, 1.0/float64(count)) - 1
-	if benchmarkGeoMean == 0 {
-		return 0
-	}
-	return portfolioGeoMean / benchmarkGeoMean
+	return geoMean(portfolioProduct) / benchmarkGeoMean
 }
 func sortedReturnsPercentile(returns []float64) []float64 {
 	if len(returns) < 2 {
@@ -220,10 +206,7 @@ func CalcVaR(dailyReturns []float64, confidence float64) float64 {
 }
 func CalcCVaR(dailyReturns []float64, confidence float64) float64 {
 	return tailMetric(dailyReturns, confidence, func(sorted []float64, cutoff int) float64 {
-		if cutoff == 0 {
-			return -sorted[0]
-		}
-		return -mathutil.Mean(sorted[:cutoff])
+		return -mathutil.Mean(sorted[:max(cutoff, 1)])
 	})
 }
 func standardizedMomentSum(returns []float64, power float64) (sum float64, n int, ok bool) {
@@ -254,12 +237,6 @@ func CalcExcessKurtosis(returns []float64) float64 {
 		return 0
 	}
 	return (float64(n*(n+1))/float64((n-1)*(n-2)*(n-3)))*sum - (3.0*float64((n-1)*(n-1)))/float64((n-2)*(n-3))
-}
-func calcConditionalCorr(pr, br []float64, upside bool) float64 {
-	return calcFiltered(pr, br, upsideFilter(upside), CalcCorrelation)
-}
-func calcConditionalBeta(pr, br []float64, upside bool) float64 {
-	return calcFiltered(pr, br, upsideFilter(upside), CalcBeta)
 }
 func CalcTreynor(cagr, beta float64) float64        { return safeRatio(cagr-riskFreeRate, beta) }
 func CalcM2(sharpe, benchmarkStdev float64) float64 { return sharpe*benchmarkStdev + riskFreeRate }
@@ -316,16 +293,13 @@ func CalcMaxDrawdown(values []float64) MaxDrawdownResult {
 
 // CalcAvgDrawdown 返回处于回撤状态期间的日均水下深度（非各回撤事件的均值）。
 func CalcAvgDrawdown(values []float64) float64 {
-	r := reduceDrawdowns(values, [2]float64{}, func(a [2]float64, dd float64, _, _ int) [2]float64 {
+	totals := reduceDrawdowns(values, [2]float64{}, func(a [2]float64, dd float64, _, _ int) [2]float64 {
 		if dd > 0 {
 			return [2]float64{a[0] + dd, a[1] + 1}
 		}
 		return a
 	})
-	if r[1] == 0 {
-		return 0
-	}
-	return r[0] / r[1]
+	return safeRatio(totals[0], totals[1])
 }
 func CalcUlcerIndex(values []float64) float64 {
 	n := len(values)
@@ -411,11 +385,10 @@ func resampleByPeriod(values []float64, dates []string, monthly bool) []periodBu
 		if !monthly {
 			m = 0
 		}
-		k := key{y, m}
-		if b, ok := buckets[k]; ok {
+		if b, ok := buckets[key{y, m}]; ok {
 			b.last = v
 		} else {
-			buckets[k] = &periodBucket{y, m, v, v}
+			buckets[key{y, m}] = &periodBucket{y, m, v, v}
 		}
 	}
 	out := make([]periodBucket, 0, len(buckets))
@@ -455,10 +428,8 @@ func parseYearMonth(dateStr string) (int, int) {
 			return t.Year(), int(t.Month()) - 1
 		}
 	}
-	if len(dateStr) >= 4 {
-		if t, err := time.Parse("2006", dateStr[:4]); err == nil {
-			return t.Year(), 0
-		}
+	if t, err := time.Parse("2006", dateStr[:min(4, len(dateStr))]); err == nil {
+		return t.Year(), 0
 	}
 	return 0, 0
 }
@@ -481,30 +452,27 @@ func rollingWindowSuccessRate(annualReturns []float64, years int, withdrawalRate
 	}
 	return float64(successes) / float64(numWindows)
 }
+
 type PWRAllYears struct {
 	PWR10Y, SWR10Y, PWR20Y, SWR20Y, PWR30Y, SWR30Y, PWR40Y, SWR40Y float64
 }
 
 func CalcPWRAllYears(annualReturns []float64) PWRAllYears {
 	var r PWRAllYears
-	pwrFields := []*float64{&r.PWR10Y, &r.PWR20Y, &r.PWR30Y, &r.PWR40Y}
-	swrFields := []*float64{&r.SWR10Y, &r.SWR20Y, &r.SWR30Y, &r.SWR40Y}
-	for i, y := range []int{10, 20, 30, 40} {
-		if len(annualReturns) >= y {
-			*pwrFields[i] = CalcSWR(annualReturns, y, 1.0)
-			*swrFields[i] = CalcSWR(annualReturns, y, 0.95)
+	fields := []*float64{&r.PWR10Y, &r.SWR10Y, &r.PWR20Y, &r.SWR20Y, &r.PWR30Y, &r.SWR30Y, &r.PWR40Y, &r.SWR40Y}
+	for i, years := range [...]int{10, 20, 30, 40} {
+		if len(annualReturns) >= years {
+			*fields[2*i], *fields[2*i+1] = CalcSWR(annualReturns, years, 1.0), CalcSWR(annualReturns, years, 0.95)
 		}
 	}
 	return r
 }
 
 type benchmarkMetrics struct {
-	Beta, Alpha, RSquared, TrackingError, InformationRatio float64
-	UpsideCapture, DownsideCapture, CaptureSpread          float64
-	BenchmarkCorrelation                                   float64
-	UpsideCorrelation, DownsideCorrelation                 float64
-	UpsideBeta, DownsideBeta                               float64
-	Treynor, M2, AlphaDaily, ActiveReturn                  float64
+	Beta, Alpha, RSquared, TrackingError, InformationRatio              float64
+	UpsideCapture, DownsideCapture, CaptureSpread, BenchmarkCorrelation float64
+	UpsideCorrelation, DownsideCorrelation, UpsideBeta, DownsideBeta    float64
+	Treynor, M2, AlphaDaily, ActiveReturn                               float64
 }
 
 func computeBenchmarkMetrics(portfolioReturns, benchmarkReturns []float64, cagr, benchmarkCagr float64) benchmarkMetrics {
@@ -513,6 +481,7 @@ func computeBenchmarkMetrics(portfolioReturns, benchmarkReturns []float64, cagr,
 	trackingErr := CalcTrackingError(portfolioReturns, benchmarkReturns)
 	upsideDaily := CalcCaptureRatio(portfolioReturns, benchmarkReturns, true)
 	downsideDaily := CalcCaptureRatio(portfolioReturns, benchmarkReturns, false)
+	benchmarkStd := CalcAnnualizedStdev(benchmarkReturns)
 	return benchmarkMetrics{
 		Beta:                 beta,
 		Alpha:                alpha,
@@ -523,12 +492,12 @@ func computeBenchmarkMetrics(portfolioReturns, benchmarkReturns []float64, cagr,
 		DownsideCapture:      downsideDaily,
 		CaptureSpread:        upsideDaily - downsideDaily,
 		BenchmarkCorrelation: CalcCorrelation(portfolioReturns, benchmarkReturns),
-		UpsideCorrelation:    calcConditionalCorr(portfolioReturns, benchmarkReturns, true),
-		DownsideCorrelation:  calcConditionalCorr(portfolioReturns, benchmarkReturns, false),
-		UpsideBeta:           calcConditionalBeta(portfolioReturns, benchmarkReturns, true),
-		DownsideBeta:         calcConditionalBeta(portfolioReturns, benchmarkReturns, false),
+		UpsideCorrelation:    calcFiltered(portfolioReturns, benchmarkReturns, upsideFilter(true), CalcCorrelation),
+		DownsideCorrelation:  calcFiltered(portfolioReturns, benchmarkReturns, upsideFilter(false), CalcCorrelation),
+		UpsideBeta:           calcFiltered(portfolioReturns, benchmarkReturns, upsideFilter(true), CalcBeta),
+		DownsideBeta:         calcFiltered(portfolioReturns, benchmarkReturns, upsideFilter(false), CalcBeta),
 		Treynor:              CalcTreynor(cagr, beta),
-		M2:                   CalcM2(CalcSharpe(cagr, CalcAnnualizedStdev(benchmarkReturns)), CalcAnnualizedStdev(benchmarkReturns)),
+		M2:                   CalcM2(CalcSharpe(cagr, benchmarkStd), benchmarkStd),
 		AlphaDaily:           calcAlphaDaily(portfolioReturns, benchmarkReturns, beta),
 		ActiveReturn:         cagr - benchmarkCagr,
 	}
