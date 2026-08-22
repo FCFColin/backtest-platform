@@ -3,21 +3,11 @@ import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AlertTriangle, Play, TrendingDown, TrendingUp } from 'lucide-react';
 import { ComputeToolShell, type ComputeToolConfig } from '@/components/shells/index.js';
-import {
-  AffixInput,
-  Card,
-  LoadingButton,
-  PortfolioLabel,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/uiComponents';
+import * as U from '@/components/ui/uiComponents';
 import { Field, FieldLabel } from '@/components/form/Field';
 import { BasicParamsFields } from '../../components/BacktestParamsForm.js';
 import PortfolioEditor from '../../components/PortfolioEditor.js';
-import { fmtNum, fmtPct, mergeRowsByDate } from '@/utils/format';
+import * as F from '@/utils/format';
 import { getPortfolioColor } from '@/lib/chart-theme.js';
 import { SimpleTable, type SimpleTableColumn } from '@/components/tables.js';
 import { TimeSeriesLineChart } from '@/components/charts/TimeSeriesLineChart.js';
@@ -47,8 +37,8 @@ type CompareResult = {
   growthCurve: Array<{ date: string; value: number }>;
 };
 const toResult = (p: any, label: string): CompareResult => {
-  const c = p.growthCurve ?? [];
-  const s = p.statistics as any;
+  const c = p.growthCurve ?? [],
+    s = p.statistics as any;
   return {
     label,
     cagr: s?.cagr ?? 0,
@@ -63,6 +53,14 @@ const toResult = (p: any, label: string): CompareResult => {
     growthCurve: c,
   };
 };
+const WIN_T =
+  "has a higher final value ({{lsValue}} vs {{dcaValue}}), exceeding by {{pct}}%. However, Lump Sum's max drawdown ({{lsMdd}}) is typically larger than DCA's ({{dcaMdd}}), bearing greater psychological pressure in falling markets.";
+const LOSE_T =
+  'has a higher final value ({{dcaValue}} vs {{lsValue}}), exceeding by {{pct}}%. DCA reduces average cost through batch purchases, achieving better returns in falling markets.';
+const LUMP_WARN =
+  'Although Lump Sum performs better in this historical period, this is a hindsight result. Lump Sum carries greater timing risk at entry; entering at market peaks may cause significant losses. While DCA has a lower final value, it reduces timing risk through staggered entries, suitable for investors with lower risk tolerance.';
+const DCA_WARN =
+  'DCA performs better in this historical period, indicating the market experienced significant volatility or declines during this time. DCA reduces average cost through batch purchases, but if the market continues to rise, Lump Sum typically achieves higher returns. Investment decisions should consider personal risk tolerance and market judgment.';
 function useLumpSumVsDCAState(t: TFunction) {
   const s = useSetterState({
     startDate: DEFAULT_BACKTEST_START_DATE,
@@ -127,12 +125,12 @@ function useLumpSumVsDCAState(t: TFunction) {
       const [lr, dr] = await Promise.all([post(lumpBody), post(dcaBody)]);
       if (!lr.ok) throw new Error(`${i18n.t('Lump sum backtest failed')}: HTTP ${lr.status}`);
       if (!dr.ok) throw new Error(`${i18n.t('DCA backtest failed')}: HTTP ${dr.status}`);
-      const lj = await lr.json();
-      const dj = await dr.json();
+      const lj = await lr.json(),
+        dj = await dr.json();
       if (lj.success === false) throw new Error(lj.error || i18n.t('Lump sum backtest failed'));
       if (dj.success === false) throw new Error(dj.error || i18n.t('DCA backtest failed'));
-      const lp = (lj.data ?? lj).portfolios?.[0];
-      const dp = (dj.data ?? dj).portfolios?.[0];
+      const lp = (lj.data ?? lj).portfolios?.[0],
+        dp = (dj.data ?? dj).portfolios?.[0];
       if (!lp) throw new Error(i18n.t('Lump sum has no result'));
       if (!dp) throw new Error(i18n.t('DCA has no result'));
       s.setResults([toResult(lp, i18n.t('Lump Sum')), toResult(dp, i18n.t('DCA'))]);
@@ -167,10 +165,10 @@ const STATS_ROWS = [
 ];
 const REQ = new Set(['finalValue', 'cagr', 'stdev', 'maxDrawdown', 'sharpe', 'sortino']);
 function StatsTable({
-  results,
-  fmtPct,
-  fmtNum,
-  fmtMoney,
+  results: r,
+  fmtPct: fp,
+  fmtNum: fn,
+  fmtMoney: fm,
 }: {
   results: CompareResult[];
   fmtPct: (v: number) => string;
@@ -178,41 +176,41 @@ function StatsTable({
   fmtMoney: (v: number) => string;
 }) {
   const { t } = useTranslation();
-  const fmtVal = (k: string, v: number) =>
+  const fv = (k: string, v: number) =>
     k === 'finalValue'
-      ? fmtMoney(v)
+      ? fm(v)
       : k === 'maxDrawdownDuration'
         ? t('{{count}} days', { count: v })
         : ['cagr', 'stdev', 'maxDrawdown'].includes(k)
-          ? fmtPct(v)
-          : fmtNum(v);
+          ? fp(v)
+          : fn(v);
   const cols: SimpleTableColumn<(typeof STATS_ROWS)[number]>[] = [
     {
       key: 'metric',
       label: t('Metric'),
-      render: (r) => <span className="text-fg-secondary">{t(r.label)}</span>,
+      render: (x) => <span className="text-fg-secondary">{t(x.label)}</span>,
     },
-    ...results.map((r, i) => ({
-      key: r.label,
-      label: <PortfolioLabel color={getPortfolioColor(i)} name={r.label} />,
+    ...r.map((x, i) => ({
+      key: x.label,
+      label: <U.PortfolioLabel color={getPortfolioColor(i)} name={x.label} />,
       align: 'right' as const,
       render: (row: (typeof STATS_ROWS)[number]) =>
-        r[row.key] != null ? fmtVal(row.key, r[row.key] as number) : '—',
+        x[row.key] != null ? fv(row.key, x[row.key] as number) : '—',
     })),
   ];
   return (
     <SimpleTable
       columns={cols}
-      data={STATS_ROWS.filter((r) => results.some((x) => x[r.key] != null) || REQ.has(r.key))}
-      rowKey={(r) => r.key}
+      data={STATS_ROWS.filter((x) => r.some((y) => y[x.key] != null) || REQ.has(x.key))}
+      rowKey={(x) => x.key}
     />
   );
 }
 function ConclusionAnalysis({
   ls,
   dca,
-  fmtPct,
-  fmtMoney,
+  fmtPct: fp,
+  fmtMoney: fm,
 }: {
   ls: CompareResult;
   dca: CompareResult;
@@ -220,18 +218,18 @@ function ConclusionAnalysis({
   fmtMoney: (v: number) => string;
 }) {
   const { t } = useTranslation();
-  const win = ls.finalValue > dca.finalValue;
-  const diff = Math.abs(ls.finalValue - dca.finalValue);
-  const pct = ls.finalValue ? (diff / ls.finalValue) * 100 : 0;
-  const mdd = Math.abs(ls.maxDrawdown - dca.maxDrawdown);
+  const win = ls.finalValue > dca.finalValue,
+    diff = Math.abs(ls.finalValue - dca.finalValue),
+    pct = ls.finalValue ? (diff / ls.finalValue) * 100 : 0,
+    mdd = Math.abs(ls.maxDrawdown - dca.maxDrawdown);
   const cards = [
     {
       label: t('Winning Strategy'),
       val: t(win ? 'Lump Sum' : 'DCA'),
       color: getPortfolioColor(win ? 0 : 1),
     },
-    { label: t('Final Value Difference'), val: `${fmtMoney(diff)} (${pct.toFixed(1)}%)` },
-    { label: t('Max Drawdown Difference'), val: fmtPct(mdd) },
+    { label: t('Final Value Difference'), val: `${fm(diff)} (${pct.toFixed(1)}%)` },
+    { label: t('Max Drawdown Difference'), val: fp(mdd) },
   ];
   return (
     <div className="mb-5 rounded-lg bg-input-bg p-4">
@@ -262,44 +260,38 @@ function ConclusionAnalysis({
           {t(win ? 'Lump Sum' : 'DCA')}
         </strong>
         {t(
-          win
-            ? "has a higher final value ({{lsValue}} vs {{dcaValue}}), exceeding by {{pct}}%. However, Lump Sum's max drawdown ({{lsMdd}}) is typically larger than DCA's ({{dcaMdd}}), bearing greater psychological pressure in falling markets."
-            : 'has a higher final value ({{dcaValue}} vs {{lsValue}}), exceeding by {{pct}}%. DCA reduces average cost through batch purchases, achieving better returns in falling markets.',
+          win ? WIN_T : LOSE_T,
           win
             ? {
-                lsValue: fmtMoney(ls.finalValue),
-                dcaValue: fmtMoney(dca.finalValue),
+                lsValue: fm(ls.finalValue),
+                dcaValue: fm(dca.finalValue),
                 pct: pct.toFixed(1),
-                lsMdd: fmtPct(ls.maxDrawdown),
-                dcaMdd: fmtPct(dca.maxDrawdown),
+                lsMdd: fp(ls.maxDrawdown),
+                dcaMdd: fp(dca.maxDrawdown),
               }
-            : {
-                dcaValue: fmtMoney(dca.finalValue),
-                lsValue: fmtMoney(ls.finalValue),
-                pct: pct.toFixed(1),
-              },
+            : { dcaValue: fm(dca.finalValue), lsValue: fm(ls.finalValue), pct: pct.toFixed(1) },
         )}
       </div>
     </div>
   );
 }
-function LumpSumVsDCAParamsForm({ state }: { state: LumpSumVsDCAState }) {
+function LumpSumVsDCAParamsForm({ state: s }: { state: LumpSumVsDCAState }) {
   const { t } = useTranslation();
   return (
     <div className="flex flex-col gap-4">
       <BasicParamsFields
-        startDate={state.startDate}
-        endDate={state.endDate}
-        startingValue={state.startingValue}
-        baseCurrency={state.baseCurrency}
-        adjustForInflation={state.adjustForInflation}
+        startDate={s.startDate}
+        endDate={s.endDate}
+        startingValue={s.startingValue}
+        baseCurrency={s.baseCurrency}
+        adjustForInflation={s.adjustForInflation}
         onChange={(f, v) => {
           const m: Record<string, (x: never) => void> = {
-            startDate: state.setStartDate,
-            endDate: state.setEndDate,
-            startingValue: state.setStartingValue,
-            baseCurrency: state.setBaseCurrency,
-            adjustForInflation: state.setAdjustForInflation,
+            startDate: s.setStartDate,
+            endDate: s.setEndDate,
+            startingValue: s.setStartingValue,
+            baseCurrency: s.setBaseCurrency,
+            adjustForInflation: s.setAdjustForInflation,
           };
           m[f]?.(v as never);
         }}
@@ -311,25 +303,25 @@ function LumpSumVsDCAParamsForm({ state }: { state: LumpSumVsDCAState }) {
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <Field>
             <FieldLabel htmlFor="lumpsum-dca-frequency">{t('DCA Frequency')}</FieldLabel>
-            <Select
-              value={state.dcaFrequency}
-              onValueChange={(v) => state.setDcaFrequency(v as DcaFrequency)}
+            <U.Select
+              value={s.dcaFrequency}
+              onValueChange={(v) => s.setDcaFrequency(v as DcaFrequency)}
             >
-              <SelectTrigger id="lumpsum-dca-frequency">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent position="popper" sideOffset={4}>
-                <SelectItem value="monthly">{t('Monthly')}</SelectItem>
-                <SelectItem value="quarterly">{t('Quarterly')}</SelectItem>
-              </SelectContent>
-            </Select>
+              <U.SelectTrigger id="lumpsum-dca-frequency">
+                <U.SelectValue />
+              </U.SelectTrigger>
+              <U.SelectContent position="popper" sideOffset={4}>
+                <U.SelectItem value="monthly">{t('Monthly')}</U.SelectItem>
+                <U.SelectItem value="quarterly">{t('Quarterly')}</U.SelectItem>
+              </U.SelectContent>
+            </U.Select>
           </Field>
           <Field>
             <FieldLabel>{t('DCA Periods')}</FieldLabel>
-            <AffixInput
+            <U.AffixInput
               type="number"
-              value={state.dcaPeriods}
-              onChange={(e) => state.setDcaPeriods(Number(e.target.value) || 1)}
+              value={s.dcaPeriods}
+              onChange={(e) => s.setDcaPeriods(Number(e.target.value) || 1)}
               min={1}
               max={360}
               suffix={t('periods')}
@@ -337,11 +329,11 @@ function LumpSumVsDCAParamsForm({ state }: { state: LumpSumVsDCAState }) {
           </Field>
           <Field>
             <FieldLabel>{t('Per-Period Amount')}</FieldLabel>
-            <AffixInput
+            <U.AffixInput
               type="text"
-              prefix={state.baseCurrency === 'usd' ? '$' : '¥'}
+              prefix={s.baseCurrency === 'usd' ? '$' : '¥'}
               className="opacity-70"
-              value={Math.round(state.startingValue / state.dcaPeriods).toLocaleString()}
+              value={Math.round(s.startingValue / s.dcaPeriods).toLocaleString()}
               readOnly
             />
           </Field>
@@ -349,82 +341,71 @@ function LumpSumVsDCAParamsForm({ state }: { state: LumpSumVsDCAState }) {
       </div>
       <PortfolioEditor
         singleMode
-        assets={state.assets}
-        totalWeight={state.totalWeight}
-        onAdd={state.addAsset}
-        onRemove={state.removeAsset}
-        onUpdate={state.updateAsset}
+        assets={s.assets}
+        totalWeight={s.totalWeight}
+        onAdd={s.addAsset}
+        onRemove={s.removeAsset}
+        onUpdate={s.updateAsset}
       />
-      <LoadingButton
-        isLoading={state.isLoading}
-        onClick={state.runComparison}
+      <U.LoadingButton
+        isLoading={s.isLoading}
+        onClick={s.runComparison}
         loadingText={t('Comparing...')}
         className="w-full"
       >
         <Play className="size-4" />
         {t('Start Comparison')}
-      </LoadingButton>
+      </U.LoadingButton>
     </div>
   );
 }
-function LumpSumVsDCAResults({ state }: { state: LumpSumVsDCAState }) {
+function LumpSumVsDCAResults({ state: s }: { state: LumpSumVsDCAState }) {
   const { t } = useTranslation();
-  const fmtMoney = (v: number) =>
-    `${state.baseCurrency === 'usd' ? '$' : '¥'}${v.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+  const fm = (v: number) =>
+    `${s.baseCurrency === 'usd' ? '$' : '¥'}${v.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
   const chartData = useMemo(
     () =>
-      mergeRowsByDate(
-        state.results.map((r) => ({
+      F.mergeRowsByDate(
+        s.results.map((r) => ({
           key: r.label,
           rows: r.growthCurve,
           value: (p: { date: string; value: number }) => p.value,
         })),
       ),
-    [state.results],
+    [s.results],
   );
-  if (state.error)
+  if (s.error)
     return (
-      <Card className="mb-3 p-6 text-center text-danger">
-        {t('Comparison failed')}: {state.error}
-      </Card>
+      <U.Card className="mb-3 p-6 text-center text-danger">
+        {t('Comparison failed')}: {s.error}
+      </U.Card>
     );
-  if (state.results.length !== 2) return null;
-  const win = state.results[0].finalValue > state.results[1].finalValue;
+  if (s.results.length !== 2) return null;
+  const win = s.results[0].finalValue > s.results[1].finalValue;
   return (
-    <Card className="p-5">
-      <ConclusionAnalysis
-        ls={state.results[0]}
-        dca={state.results[1]}
-        fmtPct={fmtPct}
-        fmtMoney={fmtMoney}
-      />
+    <U.Card className="p-5">
+      <ConclusionAnalysis ls={s.results[0]} dca={s.results[1]} fmtPct={F.fmtPct} fmtMoney={fm} />
       <div className="mb-3 text-body font-semibold text-fg">{t('Growth Curve Comparison')}</div>
       <TimeSeriesLineChart
         data={chartData}
-        series={state.results.map((r, i) => ({
+        series={s.results.map((r, i) => ({
           dataKey: r.label,
           legendName: r.label,
           color: getPortfolioColor(i),
         }))}
-        tooltipValueFormatter={(v: number) => [fmtMoney(v), '']}
+        tooltipValueFormatter={(v: number) => [fm(v), '']}
       />
       <div className="mb-3 mt-6 text-body font-semibold text-fg">{t('Statistics Comparison')}</div>
-      <StatsTable results={state.results} fmtPct={fmtPct} fmtNum={fmtNum} fmtMoney={fmtMoney} />
+      <StatsTable results={s.results} fmtPct={F.fmtPct} fmtNum={F.fmtNum} fmtMoney={fm} />
       <div className="mt-4 flex items-start gap-2.5 rounded-lg bg-input-bg p-3">
         <AlertTriangle className="mt-0.5 size-4 shrink-0 text-warning" />
         <div className="text-body leading-relaxed text-fg-tertiary">
           <strong className="text-fg-secondary">{t('Risk Warning:')}</strong>
-          {win
-            ? t(
-                'Although Lump Sum performs better in this historical period, this is a hindsight result. Lump Sum carries greater timing risk at entry; entering at market peaks may cause significant losses. While DCA has a lower final value, it reduces timing risk through staggered entries, suitable for investors with lower risk tolerance.',
-              )
-            : t(
-                'DCA performs better in this historical period, indicating the market experienced significant volatility or declines during this time. DCA reduces average cost through batch purchases, but if the market continues to rise, Lump Sum typically achieves higher returns. Investment decisions should consider personal risk tolerance and market judgment.',
-              )}
+          {win ? t(LUMP_WARN) : t(DCA_WARN)}
           {t('Historical performance does not guarantee future returns.')}
         </div>
       </div>
-    </Card>
+    </U.Card>
   );
 }
 const config: ComputeToolConfig<LumpSumVsDCAState> = {

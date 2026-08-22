@@ -3,30 +3,10 @@ import { useTranslation, Trans } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router';
 import { MoreHorizontal, Download } from 'lucide-react';
 import { useBacktestStore } from '@/store/backtestStore';
-import {
-  Card,
-  Button,
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  PortfolioLabel,
-  PortfolioDot,
-} from '@/components/ui/uiComponents';
-import {
-  StatisticsTable,
-  ExtendedMetricsTable,
-  WithdrawalRatesCard,
-} from '@/components/statistics-table/StatisticsTable.js';
+import * as U from '@/components/ui/uiComponents';
+import * as ST from '@/components/statistics-table/StatisticsTable.js';
 import { getPortfolioColor } from '@/lib/chart-theme.js';
-import {
-  downloadJSON,
-  dateSuffixedFilename,
-  downloadCSV,
-  formatISODate,
-  fmtPct,
-  fmtNum,
-} from '@/utils/format';
+import * as F from '@/utils/format';
 import { SimpleTable, type SimpleTableColumn } from '@/components/tables.js';
 import { TabFallback } from '@/components/shells';
 import ChartCard from '@/components/ChartCard.js';
@@ -44,90 +24,99 @@ import {
   toStatsRecord,
   createEmptyStatistics,
 } from '@backtest/shared';
-type RABProps = {
+const SCLS =
+  'sticky top-15 z-40 h-14 bg-sticky-bg/95 backdrop-blur-md border-b border-border shadow-md';
+const ICLS = 'h-14 bg-transparent border-b border-border-subtle';
+const ROWCLS = 'flex items-center justify-between gap-3';
+const DTCLS = 'text-caption text-fg-tertiary whitespace-nowrap';
+const DDCLS = 'text-caption font-mono tabular-nums font-semibold text-right';
+const CARDMCLS = 'flex-shrink-0 min-w-[130px] p-3';
+const LBLCLS = 'text-label-tiny text-fg-tertiary mb-1 whitespace-nowrap';
+const VALCLS = 'text-body font-mono tabular-nums font-semibold';
+const ACTCLS = 'shrink-0 text-brand border-b-2 border-brand rounded-b-none';
+const BAND_KEY = 'Deviation Bands: {{absolute}} Absolute / {{relative}} Relative';
+function ResultsActionBar({
+  timeRange: r,
+  onExport: o,
+}: {
   timeRange: { start: string; end: string; years: number };
   onExport?: (f: 'csv' | 'json') => void;
-};
-function ResultsActionBar({ timeRange, onExport }: RABProps) {
+}) {
   const { t } = useTranslation();
   const [sticky, setSticky] = useState(false);
-  const sentinelRef = useRef<HTMLDivElement>(null);
+  const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    const o = new IntersectionObserver(([e]) => setSticky(!e.isIntersecting), { threshold: 0 });
-    if (sentinelRef.current) o.observe(sentinelRef.current);
-    return () => o.disconnect();
+    const ob = new IntersectionObserver(([e]) => setSticky(!e.isIntersecting), { threshold: 0 });
+    if (ref.current) ob.observe(ref.current);
+    return () => ob.disconnect();
   }, []);
-  const years = Number.isInteger(timeRange.years) ? timeRange.years : +timeRange.years.toFixed(1);
+  const y = Number.isInteger(r.years) ? r.years : +r.years.toFixed(1);
   return (
     <>
-      <div ref={sentinelRef} className="h-0" />
-      <div
-        className={cn(
-          'transition-all duration-200',
-          sticky
-            ? 'sticky top-15 z-40 h-14 bg-sticky-bg/95 backdrop-blur-md border-b border-border shadow-md'
-            : 'h-14 bg-transparent border-b border-border-subtle',
-        )}
-      >
+      <div ref={ref} className="h-0" />
+      <div className={cn('transition-all duration-200', sticky ? SCLS : ICLS)}>
         <div className="max-w-[1440px] mx-auto h-full px-6 flex items-center gap-4">
           <div className="flex items-center gap-3">
             <h2 className="text-h3">{t('Results')}</h2>
             <span className="text-caption text-fg-tertiary font-mono tabular-nums">
               {t('{{years}} yrs · {{start}} to {{end}}', {
-                years,
-                start: formatISODate(timeRange.start),
-                end: formatISODate(timeRange.end),
+                years: y,
+                start: F.formatISODate(r.start),
+                end: F.formatISODate(r.end),
               })}
             </span>
           </div>
           <div className="flex-1" />
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="secondary" size="sm">
+          <U.DropdownMenu>
+            <U.DropdownMenuTrigger asChild>
+              <U.Button variant="secondary" size="sm">
                 <Download className="h-4 w-4 mr-1.5" />
                 {t('Export')}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => onExport?.('csv')}>
-                {t('CSV (Data)')}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onExport?.('json')}>
+              </U.Button>
+            </U.DropdownMenuTrigger>
+            <U.DropdownMenuContent align="end">
+              <U.DropdownMenuItem onClick={() => o?.('csv')}>{t('CSV (Data)')}</U.DropdownMenuItem>
+              <U.DropdownMenuItem onClick={() => o?.('json')}>
                 {t('JSON (Full Config + Results)')}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+              </U.DropdownMenuItem>
+            </U.DropdownMenuContent>
+          </U.DropdownMenu>
         </div>
       </div>
     </>
   );
 }
 const SUMMARY_METRIC_CONFIGS: [string, keyof Statistics, (v: number) => string, string][] = [
-  ['stats.cagr', 'cagr', fmtPct, 'summary-cagr'],
-  ['stats.totalReturn', 'totalReturn', fmtPct, 'summary-total-return'],
-  ['Max Drawdown', 'maxDrawdown', fmtPct, 'summary-max-drawdown'],
-  ['backtest.sharpeRatio', 'sharpe', fmtNum, 'summary-sharpe'],
-  ['lumpSumDca.stats.sortino', 'sortino', fmtNum, 'summary-sortino'],
-  ['summarySidebar.bestYear', 'bestYear', fmtPct, 'summary-best-year'],
-  ['summarySidebar.worstYear', 'worstYear', fmtPct, 'summary-worst-year'],
+  ['stats.cagr', 'cagr', F.fmtPct, 'summary-cagr'],
+  ['stats.totalReturn', 'totalReturn', F.fmtPct, 'summary-total-return'],
+  ['Max Drawdown', 'maxDrawdown', F.fmtPct, 'summary-max-drawdown'],
+  ['backtest.sharpeRatio', 'sharpe', F.fmtNum, 'summary-sharpe'],
+  ['lumpSumDca.stats.sortino', 'sortino', F.fmtNum, 'summary-sortino'],
+  ['summarySidebar.bestYear', 'bestYear', F.fmtPct, 'summary-best-year'],
+  ['summarySidebar.worstYear', 'worstYear', F.fmtPct, 'summary-worst-year'],
 ];
-type SSProps = {
+function SummarySidebar({
+  stats: s,
+  totalYears: ty,
+  positiveYears: py,
+  name,
+  color,
+}: {
   stats: Statistics;
   totalYears: number;
   positiveYears: number;
   name?: string;
   color?: string;
-};
-function SummarySidebar({ stats, totalYears, positiveYears, name, color }: SSProps) {
+}) {
   const { t } = useTranslation();
-  const metrics = SUMMARY_METRIC_CONFIGS.map(([labelKey, key, format, testId]) => ({
-    labelKey,
-    value: format(stats[key] as number),
-    colorClass: getColorClass(stats[key] as number),
-    testId,
+  const m = SUMMARY_METRIC_CONFIGS.map(([k, key, f, id]) => ({
+    labelKey: k,
+    value: f(s[key] as number),
+    colorClass: getColorClass(s[key] as number),
+    testId: id,
   })).concat({
     labelKey: 'summarySidebar.positiveYears',
-    value: `${positiveYears} / ${totalYears}`,
+    value: `${py} / ${ty}`,
     colorClass: 'text-fg',
     testId: 'summary-positive-years',
   });
@@ -138,50 +127,30 @@ function SummarySidebar({ stats, totalYears, positiveYears, name, color }: SSPro
         role="list"
         aria-label={t('Key Metrics')}
       >
-        {metrics.map((m) => (
-          <Card
-            key={m.labelKey}
-            role="listitem"
-            className="flex-shrink-0 min-w-[130px] p-3"
-            data-testid={m.testId}
-          >
-            <div className="text-label-tiny text-fg-tertiary mb-1 whitespace-nowrap">
-              {t(m.labelKey)}
-            </div>
-            <div className={cn('text-body font-mono tabular-nums font-semibold', m.colorClass)}>
-              {m.value}
-            </div>
-          </Card>
+        {m.map((x) => (
+          <U.Card key={x.labelKey} role="listitem" className={CARDMCLS} data-testid={x.testId}>
+            <div className={LBLCLS}>{t(x.labelKey)}</div>
+            <div className={cn(VALCLS, x.colorClass)}>{x.value}</div>
+          </U.Card>
         ))}
       </div>
-      <Card className="hidden lg:block p-4 lg:sticky lg:top-15" data-testid="summary-sidebar">
+      <U.Card className="hidden lg:block p-4 lg:sticky lg:top-15" data-testid="summary-sidebar">
         <h3 className="text-h3 mb-3">{t('Key Metrics')}</h3>
         {name && (
           <div className="flex items-center gap-1.5 mb-3">
-            <PortfolioDot color={color ?? ''} className="shrink-0" />
+            <U.PortfolioDot color={color ?? ''} className="shrink-0" />
             <span className="text-caption text-fg-secondary truncate">{name}</span>
           </div>
         )}
         <dl className="space-y-2.5">
-          {metrics.map((m) => (
-            <div
-              key={m.labelKey}
-              className="flex items-center justify-between gap-3"
-              data-testid={m.testId}
-            >
-              <dt className="text-caption text-fg-tertiary whitespace-nowrap">{t(m.labelKey)}</dt>
-              <dd
-                className={cn(
-                  'text-caption font-mono tabular-nums font-semibold text-right',
-                  m.colorClass,
-                )}
-              >
-                {m.value}
-              </dd>
+          {m.map((x) => (
+            <div key={x.labelKey} className={ROWCLS} data-testid={x.testId}>
+              <dt className={DTCLS}>{t(x.labelKey)}</dt>
+              <dd className={cn(DDCLS, x.colorClass)}>{x.value}</dd>
             </div>
           ))}
         </dl>
-      </Card>
+      </U.Card>
     </>
   );
 }
@@ -234,11 +203,11 @@ const ALL_TABS = [
   { key: 'regression', labelKey: 'tabs.regression' },
 ];
 const PRIMARY_TABS = new Set(['summary', 'returns', 'yearlyReturns', 'rolling', 'drawdown']);
-const COMMON_STATS_PROPS = (pf: PortfolioResult[]) => ({
+const toCommon = (pf: PortfolioResult[]) => ({
   portfolios: pf.map((p) => ({ id: p.name, name: p.name, stats: toStatsRecord(p.statistics) })),
   colors: pf.map((_, i) => getPortfolioColor(i)),
 });
-const mapDrawdown = (pf: PortfolioResult[]) =>
+const mapDD = (pf: PortfolioResult[]) =>
   pf.map((p) => ({
     id: p.name,
     name: p.name,
@@ -246,67 +215,63 @@ const mapDrawdown = (pf: PortfolioResult[]) =>
   }));
 function TabBar() {
   const { t } = useTranslation();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const urlTab = searchParams.get('tab');
-  const activeTab = useBacktestStore((s) => s.activeTab);
-  const setActiveTab = useBacktestStore((s) => s.setActiveTab);
+  const [sp, setSp] = useSearchParams();
+  const urlTab = sp.get('tab');
+  const active = useBacktestStore((s) => s.activeTab);
+  const setActive = useBacktestStore((s) => s.setActiveTab);
   useEffect(() => {
-    if (urlTab && urlTab !== activeTab) setActiveTab(urlTab);
-  }, [urlTab, activeTab, setActiveTab]);
-  const selectTab = (tab: string) => {
-    if (tab === activeTab) return;
-    setActiveTab(tab);
-    const next = new URLSearchParams(searchParams);
-    next.set('tab', tab);
-    setSearchParams(next);
+    if (urlTab && urlTab !== active) setActive(urlTab);
+  }, [urlTab, active, setActive]);
+  const sel = (tab: string) => {
+    if (tab === active) return;
+    setActive(tab);
+    const n = new URLSearchParams(sp);
+    n.set('tab', tab);
+    setSp(n);
   };
-  const moreTabs = ALL_TABS.filter((tab) => !PRIMARY_TABS.has(tab.key));
-  const activeMore = moreTabs.find((tab) => tab.key === activeTab);
+  const more = ALL_TABS.filter((x) => !PRIMARY_TABS.has(x.key));
+  const actMore = more.find((x) => x.key === active);
   return (
     <div className="flex items-center justify-between gap-2 border-b border-border-subtle pb-2 mb-3">
       <div className="flex items-center gap-1 overflow-x-auto">
-        {ALL_TABS.filter((tab) => PRIMARY_TABS.has(tab.key)).map((tab) => (
-          <Button
-            key={tab.key}
-            variant={activeTab === tab.key ? 'secondary' : 'ghost'}
+        {ALL_TABS.filter((x) => PRIMARY_TABS.has(x.key)).map((x) => (
+          <U.Button
+            key={x.key}
+            variant={active === x.key ? 'secondary' : 'ghost'}
             size="sm"
-            className={
-              activeTab === tab.key
-                ? 'shrink-0 text-brand border-b-2 border-brand rounded-b-none'
-                : 'shrink-0'
-            }
-            aria-pressed={activeTab === tab.key}
-            onClick={() => selectTab(tab.key)}
+            className={active === x.key ? ACTCLS : 'shrink-0'}
+            aria-pressed={active === x.key}
+            onClick={() => sel(x.key)}
           >
-            {t(tab.labelKey)}
-          </Button>
+            {t(x.labelKey)}
+          </U.Button>
         ))}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="sm" className="shrink-0">
+        <U.DropdownMenu>
+          <U.DropdownMenuTrigger asChild>
+            <U.Button variant="ghost" size="sm" className="shrink-0">
               <MoreHorizontal className="size-4" />
-              {activeMore ? t(activeMore.labelKey) : t('More')}
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start">
-            {moreTabs.map((tab) => (
-              <DropdownMenuItem
-                key={tab.key}
-                className={activeTab === tab.key ? 'bg-hover text-fg' : undefined}
-                onClick={() => selectTab(tab.key)}
+              {actMore ? t(actMore.labelKey) : t('More')}
+            </U.Button>
+          </U.DropdownMenuTrigger>
+          <U.DropdownMenuContent align="start">
+            {more.map((x) => (
+              <U.DropdownMenuItem
+                key={x.key}
+                className={active === x.key ? 'bg-hover text-fg' : undefined}
+                onClick={() => sel(x.key)}
               >
-                {t(tab.labelKey)}
-              </DropdownMenuItem>
+                {t(x.labelKey)}
+              </U.DropdownMenuItem>
             ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
+          </U.DropdownMenuContent>
+        </U.DropdownMenu>
       </div>
     </div>
   );
 }
 type Ctx = { pf: PortfolioResult[]; pfs: Portfolio[]; baseCurrency?: string; r: BacktestResult };
 const TAB_RENDERERS: Record<string, (c: Ctx) => ReactNode> = {
-  summary: ({ pf, baseCurrency }) => {
+  summary: ({ pf, baseCurrency: cur }) => {
     const f = pf[0];
     const ar = f?.annualReturns ?? [];
     return (
@@ -325,15 +290,15 @@ const TAB_RENDERERS: Record<string, (c: Ctx) => ReactNode> = {
               name: p.name,
               growthCurve: p.growthCurve ?? [],
             }))}
-            currency={baseCurrency}
+            currency={cur}
           />
-          <L.DrawdownChart portfolios={mapDrawdown(pf)} />
-          <StatisticsTable
-            {...COMMON_STATS_PROPS(pf)}
-            currency={baseCurrency}
-            extendedTable={<ExtendedMetricsTable {...COMMON_STATS_PROPS(pf)} />}
+          <L.DrawdownChart portfolios={mapDD(pf)} />
+          <ST.StatisticsTable
+            {...toCommon(pf)}
+            currency={cur}
+            extendedTable={<ST.ExtendedMetricsTable {...toCommon(pf)} />}
           />
-          <WithdrawalRatesCard portfolios={pf} />
+          <ST.WithdrawalRatesCard portfolios={pf} />
           <L.DrawdownEpisodes episodes={f?.drawdownEpisodes ?? []} />
         </div>
       </div>
@@ -351,7 +316,7 @@ const TAB_RENDERERS: Record<string, (c: Ctx) => ReactNode> = {
   yearlyReturns: ({ pf, r }) => (
     <L.YearlyReturnsTable portfolios={pf} benchmarkGrowth={r?.benchmarkGrowth} />
   ),
-  drawdown: ({ pf }) => <L.UnderwaterCurve portfolios={mapDrawdown(pf)} />,
+  drawdown: ({ pf }) => <L.UnderwaterCurve portfolios={mapDD(pf)} />,
   rolling: ({ pf }) => <L.RollingReturnChart portfolios={pf} />,
   seasonality: ({ pf }) => <L.SeasonalityChart portfolios={pf} />,
   riskReturn: ({ pf }) => <L.RiskReturnScatter portfolios={pf} />,
@@ -383,133 +348,126 @@ const TAB_RENDERERS: Record<string, (c: Ctx) => ReactNode> = {
   telltale: ({ pf }) => <L.TelltaleChart portfolios={pf} />,
   regression: ({ pf }) => <L.RegressionChart portfolios={pf} />,
 };
-function computeTimeRange(r: BacktestResult) {
-  const g = r.portfolios[0]?.growthCurve,
-    first = g?.[0]?.date,
-    last = g?.[g.length - 1]?.date;
-  const years =
-    first && last ? (new Date(last).getTime() - new Date(first).getTime()) / 864e5 / 365.25 : 0;
-  return { start: first ?? '—', end: last ?? '—', years };
-}
 export function ResultsContent() {
   const { t } = useTranslation();
   const results = useBacktestStore((s) => s.results);
-  const resultsStale = useBacktestStore((s) => s.resultsStale);
-  const error = useBacktestStore((s) => s.error);
-  const isLoading = useBacktestStore((s) => s.isLoading);
-  const runBacktest = useBacktestStore((s) => s.runBacktest);
+  const stale = useBacktestStore((s) => s.resultsStale);
+  const err = useBacktestStore((s) => s.error);
+  const loading = useBacktestStore((s) => s.isLoading);
+  const run = useBacktestStore((s) => s.runBacktest);
   const activeTab = useBacktestStore((s) => s.activeTab);
-  const portfolios = useBacktestStore((s) => s.portfolios);
-  const baseCurrency = useBacktestStore((s) => s.parameters.baseCurrency);
-  const enrichSeries = useBacktestStore((s) => s.enrichSeries);
-  const hasResults = !!results && results.portfolios.length > 0;
-  const prevHasResults = useRef(hasResults);
+  const pfs = useBacktestStore((s) => s.portfolios);
+  const cur = useBacktestStore((s) => s.parameters.baseCurrency);
+  const enrich = useBacktestStore((s) => s.enrichSeries);
+  const has = !!results && results.portfolios.length > 0;
+  const prev = useRef(has);
   useEffect(() => {
-    if (hasResults && !prevHasResults.current)
+    if (has && !prev.current)
       document.getElementById('results')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    prevHasResults.current = hasResults;
-  }, [hasResults]);
+    prev.current = has;
+  }, [has]);
   const TAB_SERIES = {
     rolling: ['rollingReturns'],
     turnover: ['allocationHistory'],
     allocation: ['allocationHistory'],
     summary: ['drawdownEpisodes'],
   } as const;
-
   useEffect(() => {
-    const series = TAB_SERIES[activeTab as keyof typeof TAB_SERIES];
-    if (results && series) void enrichSeries(series as never);
-  }, [activeTab, results, enrichSeries]);
-  if (!hasResults) {
+    const s = TAB_SERIES[activeTab as keyof typeof TAB_SERIES];
+    if (results && s) void enrich(s as never);
+  }, [activeTab, results, enrich]);
+  if (!has)
     return (
       <ResultsShell
-        error={error}
-        isLoading={isLoading}
+        error={err}
+        isLoading={loading}
         hasResults={false}
         loadingLabel={t('Backtesting...')}
         emptyTitle={t(
           'Configure parameters and portfolios, then click "Run Backtest" to see results',
         )}
-        onRetry={() => void runBacktest()}
+        onRetry={() => void run()}
       >
         {null}
       </ResultsShell>
     );
-  }
+  const g = results.portfolios[0]?.growthCurve;
+  const first = g?.[0]?.date;
+  const last = g?.[g.length - 1]?.date;
+  const years =
+    first && last ? (new Date(last).getTime() - new Date(first).getTime()) / 864e5 / 365.25 : 0;
+  const range = { start: first ?? '—', end: last ?? '—', years };
+  const csvRows = (pf: PortfolioResult) =>
+    pf.growthCurve.map((pt, i) => ({
+      date: pt.date,
+      ...Object.fromEntries(
+        results.portfolios.map((p) => [p.name, p.growthCurve[i]?.value?.toFixed(4) ?? '']),
+      ),
+    }));
   return (
     <div className="space-y-4">
-      {error && <ErrorBanner message={error} className="mb-2" />}
-      {resultsStale && (
+      {err && <ErrorBanner message={err} className="mb-2" />}
+      {stale && (
         <ErrorBanner
           variant="warning"
           message={
             <span className="flex flex-wrap items-center gap-2">
               {t('Parameters changed. Results are out of date.')}
-              <Button size="sm" variant="secondary" onClick={() => void runBacktest()}>
+              <U.Button size="sm" variant="secondary" onClick={() => void run()}>
                 {t('Run Backtest')}
-              </Button>
+              </U.Button>
             </span>
           }
         />
       )}
       <ResultsActionBar
-        timeRange={computeTimeRange(results)}
-        onExport={(format) => {
-          if (format === 'json') {
-            downloadJSON(results, dateSuffixedFilename('backtest-results', 'json'));
-          } else {
+        timeRange={range}
+        onExport={(f) => {
+          if (f === 'json')
+            F.downloadJSON(results, F.dateSuffixedFilename('backtest-results', 'json'));
+          else {
             const pf = results?.portfolios?.[0];
-            if (pf?.growthCurve?.length) {
-              downloadCSV(
-                pf.growthCurve.map((pt, i) => ({
-                  date: pt.date,
-                  ...Object.fromEntries(
-                    results.portfolios.map((p) => [
-                      p.name,
-                      p.growthCurve[i]?.value?.toFixed(4) ?? '',
-                    ]),
-                  ),
-                })),
-                'backtest-results',
-              );
-            }
+            if (pf?.growthCurve?.length) F.downloadCSV(csvRows(pf), 'backtest-results');
           }
         }}
       />
-      <Card className="p-5">
+      <U.Card className="p-5">
         <TabBar />
         <Suspense fallback={<TabFallback />}>
           {TAB_RENDERERS[activeTab]?.({
             pf: results.portfolios,
-            pfs: portfolios,
-            baseCurrency,
+            pfs,
+            baseCurrency: cur,
             r: results as never,
           })}
         </Suspense>
-      </Card>
+      </U.Card>
       <p className="text-xs text-fg-tertiary">
         <Trans i18nKey="stats.survivorshipBiasWarning" components={{ link: <Link to="/help" /> }} />
       </p>
     </div>
   );
 }
-type RBPortfolios = Pick<
-  Portfolio,
-  'name' | 'rebalanceFrequency' | 'rebalanceThreshold' | 'rebalanceOffset' | 'rebalanceBands'
->;
-function RebalancingStats({ portfolios }: { portfolios: RBPortfolios[] }) {
+function RebalancingStats({
+  portfolios: pf,
+}: {
+  portfolios: Pick<
+    Portfolio,
+    'name' | 'rebalanceFrequency' | 'rebalanceThreshold' | 'rebalanceOffset' | 'rebalanceBands'
+  >[];
+}) {
   const { t } = useTranslation();
-  if (!portfolios.some((p) => p.rebalanceFrequency && p.rebalanceFrequency !== 'none'))
+  if (!pf.some((p) => p.rebalanceFrequency && p.rebalanceFrequency !== 'none'))
     return (
       <ChartCard title={t('Rebalancing')}>
         <ChartEmptyState message={t('No data')} />
       </ChartCard>
     );
-  const columns: SimpleTableColumn<(typeof portfolios)[number]>[] = [
+  const cols: SimpleTableColumn<(typeof pf)[number]>[] = [
     {
       key: 'name',
       label: t('Portfolio'),
-      render: (p, i) => <PortfolioLabel color={getPortfolioColor(i)} name={p.name} />,
+      render: (p, i) => <U.PortfolioLabel color={getPortfolioColor(i)} name={p.name} />,
     },
     {
       key: 'rebalanceFrequency',
@@ -533,7 +491,7 @@ function RebalancingStats({ portfolios }: { portfolios: RBPortfolios[] }) {
       label: t('Rebalancing Bands'),
       render: (p) =>
         p.rebalanceBands?.enabled
-          ? t('Deviation Bands: {{absolute}} Absolute / {{relative}} Relative', {
+          ? t(BAND_KEY, {
               absolute: p.rebalanceBands.absoluteBand ?? '-',
               relative: p.rebalanceBands.relativeBand ?? '-',
             })
@@ -542,7 +500,7 @@ function RebalancingStats({ portfolios }: { portfolios: RBPortfolios[] }) {
   ];
   return (
     <ChartCard title={t('Rebalancing')}>
-      <SimpleTable columns={columns} data={portfolios} rowKey={(p) => p.name} />
+      <SimpleTable columns={cols} data={pf} rowKey={(p) => p.name} />
     </ChartCard>
   );
 }
