@@ -25,34 +25,42 @@ import { cn } from '@/lib/utils';
 import { SimpleLineChart, SimpleAreaChart } from '@/components/charts/sharedChartContent.js';
 import { ToolPageLayout } from '../../components/layout/ToolPageLayout.js';
 import { fmtPct, fmtCompact } from '@/utils/format';
-type SetState = React.Dispatch<React.SetStateAction<Record<string, number>>>;
+
+type State = Record<string, number>;
+type SetState = React.Dispatch<React.SetStateAction<State>>;
+type TFn = (key: string, opts?: Record<string, unknown>) => string;
+type DPt = { year: number; value: number };
+type ResultTone = 'brand' | 'success' | 'warning' | 'danger' | 'muted' | 'default';
+const TONE_CLASS: Record<ResultTone, string> = {
+  brand: 'text-brand',
+  success: 'text-success',
+  warning: 'text-warning',
+  danger: 'text-danger',
+  muted: 'text-fg-secondary',
+  default: 'text-fg',
+};
+type Row = { label: string; value: string; tone?: ResultTone };
+const R = (label: string, value: string, tone?: ResultTone): Row => ({ label, value, tone });
+
 function normCdf(x: number) {
   const y = x / Math.SQRT2,
-    s = y < 0 ? -1 : 1,
     a = Math.abs(y),
-    t = 1 / (1 + 0.3275911 * a);
-  const e = Math.exp(-a * a);
-  const p =
-    ((((1.061405429 * t - 1.453152027) * t + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t;
-  return 0.5 * (1 + s * (1 - p * e));
+    t = 1 / (1 + 0.3275911 * a),
+    e = Math.exp(-a * a),
+    p =
+      ((((1.061405429 * t - 1.453152027) * t + 1.421413741) * t - 0.284496736) * t + 0.254829592) *
+      t;
+  return 0.5 * (1 + (y < 0 ? -1 : 1) * (1 - p * e));
 }
-function Field({
-  label,
-  value,
-  onChange,
-  suffix,
-  min,
-  max,
-  step = 0.1,
-}: {
-  label: string;
+type FieldDef = { key: string; label: string; default: number; suffix?: string } & Partial<
+  Record<'step' | 'min' | 'max', number>
+>;
+type FieldProps = Omit<FieldDef, 'key' | 'default'> & {
   value: number;
   onChange: (v: number) => void;
-  suffix?: string;
-  min?: number;
-  max?: number;
-  step?: number;
-}) {
+};
+
+function Field({ label, value, onChange, suffix, min, max, step = 0.1 }: FieldProps) {
   const id = useId();
   return (
     <FieldShell>
@@ -70,24 +78,7 @@ function Field({
     </FieldShell>
   );
 }
-type ResultTone = 'brand' | 'success' | 'warning' | 'danger' | 'muted' | 'default';
-const TONE_CLASS: Record<ResultTone, string> = {
-  brand: 'text-brand',
-  success: 'text-success',
-  warning: 'text-warning',
-  danger: 'text-danger',
-  muted: 'text-fg-secondary',
-  default: 'text-fg',
-};
-function ResultRow({
-  label,
-  value,
-  tone = 'default',
-}: {
-  label: ReactNode;
-  value: ReactNode;
-  tone?: ResultTone;
-}) {
+function ResultRow({ label, value, tone = 'default' }: Row) {
   return (
     <div className="flex items-center justify-between border-b border-border-subtle py-1.5 last:border-b-0">
       <span className="text-label text-fg-tertiary">{label}</span>
@@ -113,17 +104,9 @@ function CalcCard({
   title: string;
   defaultOpen?: boolean;
   cols?: 2 | 3;
-  fields?: {
-    label: string;
-    value: number;
-    onChange: (v: number) => void;
-    suffix?: string;
-    min?: number;
-    max?: number;
-    step?: number;
-  }[];
+  fields?: FieldProps[];
   extra?: ReactNode;
-  rows?: { label: string; value: string; tone?: ResultTone }[];
+  rows?: Row[];
   rowsClassName?: string;
   chart?: ReactNode;
   info?: string;
@@ -178,10 +161,7 @@ function CalcCard({
     </Card>
   );
 }
-function MiniChart({
-  type = 'area',
-  ...props
-}: { type?: 'area' | 'line' } & Parameters<typeof SimpleAreaChart>[0]) {
+function MiniChart({ type = 'area', ...props }: MiniChartProps) {
   const C = type === 'line' ? SimpleLineChart : SimpleAreaChart;
   return (
     <div className="mt-3">
@@ -189,32 +169,23 @@ function MiniChart({
     </div>
   );
 }
+type MiniChartProps = { type?: 'area' | 'line' } & Parameters<typeof SimpleAreaChart>[0];
+type ComputeResult = {
+  rows: Row[];
+  chart?: ReactNode;
+  info?: string;
+  extra?: ReactNode;
+  rowsClassName?: string;
+};
 interface CalcConfig {
   icon: ElementType;
   title: string;
   defaultOpen?: boolean;
   cols?: 2 | 3;
-  fields: {
-    key: string;
-    label: string;
-    default: number;
-    suffix?: string;
-    step?: number;
-    min?: number;
-    max?: number;
-  }[];
+  fields: FieldDef[];
   info?: string;
-  extra?: (state: Record<string, number>, setState: SetState) => ReactNode;
-  compute: (
-    state: Record<string, number>,
-    t: (key: string, opts?: Record<string, unknown>) => string,
-  ) => {
-    rows: { label: string; value: string; tone?: ResultTone }[];
-    chart?: ReactNode;
-    info?: string;
-    extra?: ReactNode;
-    rowsClassName?: string;
-  };
+  extra?: (state: State, setState: SetState) => ReactNode;
+  compute: (state: State, t: TFn) => ComputeResult;
 }
 const correlationExtra: CalcConfig['extra'] = (s, set) => (
   <Field
@@ -257,6 +228,18 @@ function createCalculator(config: CalcConfig) {
     );
   };
 }
+const yearArea = (t: TFn, data: DPt[], height: number): ReactNode => (
+  <MiniChart
+    data={data}
+    height={height}
+    xDataKey="year"
+    showLegend={false}
+    xTickInterval="preserveStartEnd"
+    yTickFormatter={fmtCompact}
+    tooltipFormatter={(v: number) => [fmtCompact(v), t('Final Value')]}
+    series={[{ dataKey: 'value', color: getPortfolioColor(0), width: 2, areaOpacity: 0.12 }]}
+  />
+);
 const CAGR = createCalculator({
   icon: TrendingUp,
   title: 'CAGR Calculator',
@@ -270,7 +253,7 @@ const CAGR = createCalculator({
   info: 'Formula: CAGR = (Final Value / Initial Value)^(1 / Years) - 1',
   compute: (s) => {
     const c = s.initial > 0 && s.years > 0 ? Math.pow(s.finalVal / s.initial, 1 / s.years) - 1 : 0;
-    return { rows: [{ label: 'CAGR', value: fmtPct(c), tone: 'brand' }] };
+    return { rows: [R('CAGR', fmtPct(c), 'brand')] };
   },
 });
 const FutureValue = createCalculator({
@@ -286,34 +269,22 @@ const FutureValue = createCalculator({
   compute: (s, t) => {
     const r = s.cagr / 100,
       mr = r / 12,
-      ms = s.years * 12;
-    const curve: Array<{ year: number; value: number }> = [];
+      ms = s.years * 12,
+      curve: DPt[] = [];
     let acc = s.initial;
-    for (let tt = 0; tt <= ms; tt++) {
-      if (tt % 12 === 0) curve.push({ year: tt / 12, value: acc });
-      if (tt < ms) acc = acc * (1 + mr) + s.monthly;
+    for (let m = 0; m <= ms; m++) {
+      if (m % 12 === 0) curve.push({ year: m / 12, value: acc });
+      if (m < ms) acc = acc * (1 + mr) + s.monthly;
     }
     const fv = acc,
       tc = s.initial + s.monthly * ms;
     return {
       rows: [
-        { label: 'Final Value', value: fmtCompact(fv), tone: 'brand' },
-        { label: 'Total Contribution', value: fmtCompact(tc) },
-        { label: 'Investment Gain', value: fmtCompact(fv - tc), tone: 'success' },
+        R('Final Value', fmtCompact(fv), 'brand'),
+        R('Total Contribution', fmtCompact(tc)),
+        R('Investment Gain', fmtCompact(fv - tc), 'success'),
       ],
-      chart: (
-        <MiniChart
-          type="area"
-          data={curve}
-          height={240}
-          xDataKey="year"
-          showLegend={false}
-          xTickInterval="preserveStartEnd"
-          yTickFormatter={fmtCompact}
-          tooltipFormatter={(v: number) => [fmtCompact(v), t('Final Value')]}
-          series={[{ dataKey: 'value', color: getPortfolioColor(0), width: 2, areaOpacity: 0.12 }]}
-        />
-      ),
+      chart: yearArea(t, curve, 240),
     };
   },
 });
@@ -326,26 +297,13 @@ const CAGRAssumption = createCalculator({
     { key: 'initial', label: 'Initial Capital', default: 10000, step: 1000 },
   ],
   compute: (s, t) => {
-    const r = s.cagr / 100;
     const curve = Array.from({ length: s.years + 1 }, (_, i) => ({
       year: i,
-      value: s.initial * Math.pow(1 + r, i),
+      value: s.initial * Math.pow(1 + s.cagr / 100, i),
     }));
     return {
-      rows: [{ label: 'Final Value', value: fmtCompact(curve[s.years].value), tone: 'brand' }],
-      chart: (
-        <MiniChart
-          type="area"
-          data={curve}
-          height={200}
-          xDataKey="year"
-          showLegend={false}
-          xTickInterval="preserveStartEnd"
-          yTickFormatter={fmtCompact}
-          tooltipFormatter={(v: number) => [fmtCompact(v), t('Final Value')]}
-          series={[{ dataKey: 'value', color: getPortfolioColor(0), width: 2, areaOpacity: 0.12 }]}
-        />
-      ),
+      rows: [R('Final Value', fmtCompact(curve[s.years].value), 'brand')],
+      chart: yearArea(t, curve, 200),
     };
   },
 });
@@ -362,31 +320,26 @@ const SWR = createCalculator({
   compute: (s, t) => {
     const mu = s.expectedReturn / 100,
       sigma = s.volatility / 100,
-      p = s.sT / 100;
-    const swr = Math.min(
-      Math.max(
-        mu - 0.5 * sigma ** 2 - ((1.645 + (p - 0.95) * 10 * 0.842) * sigma) / Math.sqrt(s.rY),
-        0,
-      ),
-      0.1,
-    );
+      p = s.sT / 100,
+      swr = Math.min(
+        Math.max(
+          mu - 0.5 * sigma ** 2 - ((1.645 + (p - 0.95) * 10 * 0.842) * sigma) / Math.sqrt(s.rY),
+          0,
+        ),
+        0.1,
+      );
     let r = 1;
     const pts = Array.from({ length: s.rY }, (_, i) => {
-      r *= (1 + s.expectedReturn / 100) * (1 - swr);
+      r *= (1 + mu) * (1 - swr);
       return { year: i + 1, ratio: r };
     });
     return {
       rows: [
-        { label: t('Estimated SWR'), value: fmtPct(swr), tone: 'brand' },
-        {
-          label: t('Annual Withdrawal (per $1M)'),
-          value: String(Math.round(swr * 1_000_000)),
-          tone: 'success',
-        },
+        R(t('Estimated SWR'), fmtPct(swr), 'brand'),
+        R(t('Annual Withdrawal (per $1M)'), String(Math.round(swr * 1_000_000)), 'success'),
       ],
       chart: (
         <MiniChart
-          type="area"
           data={pts}
           height={160}
           xDataKey="year"
@@ -411,30 +364,23 @@ const AssetAllocationRisk = createCalculator({
   info: 'Formula: σp = √(ws²σs² + wb²σb² + 2wswbσsσbρ)',
   extra: correlationExtra,
   compute: (s) => {
-    const wS = s.sPct / 100,
-      wB = s.bPct / 100,
-      sS = s.stockVol / 100,
-      sB = s.bondVol / 100,
-      rho = s.corr ?? 0.2;
-    const pV = Math.sqrt(wS ** 2 * sS ** 2 + wB ** 2 * sB ** 2 + 2 * wS * wB * rho * sS * sB),
-      pV2 = pV * pV;
+    const ws = s.sPct / 100,
+      wb = s.bPct / 100,
+      vs = s.stockVol / 100,
+      vb = s.bondVol / 100,
+      rho = s.corr ?? 0.2,
+      pv = Math.sqrt(ws ** 2 * vs ** 2 + wb ** 2 * vb ** 2 + 2 * ws * wb * rho * vs * vb),
+      pv2 = pv * pv,
+      sw = ws * vs + wb * vb - pv,
+      ss = ws ** 2 * vs ** 2 + ws * wb * rho * vs * vb,
+      sb = wb ** 2 * vb ** 2 + ws * wb * rho * vs * vb;
     return {
       rowsClassName: 'mt-2',
       rows: [
-        { label: 'Portfolio Volatility', value: fmtPct(pV), tone: 'brand' },
-        {
-          label: 'Diversification Benefit',
-          value: fmtPct(wS * sS + wB * sB - pV),
-          tone: 'success',
-        },
-        {
-          label: 'Stock Risk Contribution',
-          value: fmtPct((wS ** 2 * sS ** 2 + wS * wB * rho * sS * sB) / pV2),
-        },
-        {
-          label: 'Bond Risk Contribution',
-          value: fmtPct((wB ** 2 * sB ** 2 + wS * wB * rho * sS * sB) / pV2),
-        },
+        R('Portfolio Volatility', fmtPct(pv), 'brand'),
+        R('Diversification Benefit', fmtPct(sw), 'success'),
+        R('Stock Risk Contribution', fmtPct(ss / pv2)),
+        R('Bond Risk Contribution', fmtPct(sb / pv2)),
       ],
     };
   },
@@ -456,13 +402,9 @@ const LeverageDecay = createCalculator({
       td = 1 - Math.pow(1 - drag, s.years);
     return {
       rows: [
-        { label: t('Annual Volatility Drag'), value: fmtPct(drag), tone: 'warning' },
-        {
-          label: t('{{years}}-Year Total Decay', { years: s.years }),
-          value: fmtPct(td),
-          tone: 'danger',
-        },
-        { label: t('Effective Loss'), value: fmtPct(-td), tone: 'danger' },
+        R(t('Annual Volatility Drag'), fmtPct(drag), 'warning'),
+        R(t('{{years}}-Year Total Decay', { years: s.years }), fmtPct(td), 'danger'),
+        R(t('Effective Loss'), fmtPct(-td), 'danger'),
       ],
     };
   },
@@ -485,9 +427,9 @@ const LeverageETF = createCalculator({
       lv = l * sigma;
     return {
       rows: [
-        { label: 'Leveraged CAGR', value: fmtPct(lc), tone: 'brand' },
-        { label: 'Leveraged Volatility', value: fmtPct(lv), tone: 'warning' },
-        { label: 'Leveraged Sharpe', value: (lc / lv).toFixed(3) },
+        R('Leveraged CAGR', fmtPct(lc), 'brand'),
+        R('Leveraged Volatility', fmtPct(lv), 'warning'),
+        R('Leveraged Sharpe', (lc / lv).toFixed(3)),
       ],
     };
   },
@@ -512,10 +454,10 @@ const KellyLeverage = createCalculator({
       hc = rf + hk * (mu - rf) - (hk ** 2 * sigma ** 2) / 2;
     return {
       rows: [
-        { label: 'Kelly Optimal', value: `${k.toFixed(3)}x`, tone: 'brand' },
-        { label: 'Half Kelly', value: `${hk.toFixed(3)}x`, tone: 'muted' },
-        { label: 'Kelly Expected CAGR', value: fmtPct(oc) },
-        { label: 'Half Kelly Expected CAGR', value: fmtPct(hc) },
+        R('Kelly Optimal', `${k.toFixed(3)}x`, 'brand'),
+        R('Half Kelly', `${hk.toFixed(3)}x`, 'muted'),
+        R('Kelly Expected CAGR', fmtPct(oc)),
+        R('Half Kelly Expected CAGR', fmtPct(hc)),
       ],
     };
   },
@@ -532,29 +474,29 @@ const OptionLeverage = createCalculator({
   ],
   info: 'Option Formula: Leverage Ratio = (Black-Scholes Delta × Underlying Price) / Option Price',
   compute: (s) => {
+    const sp = s.spotPrice,
+      st = s.strikePrice,
+      op = s.optionPrice;
     let lev = 0,
       delta = 0,
       intr = 0,
       tv = 0;
-    if (s.optionPrice > 0 && s.spotPrice > 0) {
-      intr = Math.max(s.spotPrice - s.strikePrice, 0);
-      const sigma = s.impliedVol / 100,
-        sq = Math.sqrt(s.daysToExpiry / 365),
-        d1 =
-          sigma > 0 && sq > 0 && s.strikePrice > 0
-            ? (Math.log(s.spotPrice / s.strikePrice) + (sigma ** 2 * (s.daysToExpiry / 365)) / 2) /
-              (sigma * sq)
-            : 0;
+    if (op > 0 && sp > 0) {
+      const sg = s.impliedVol / 100,
+        tq = s.daysToExpiry / 365,
+        sq = Math.sqrt(tq),
+        d1 = sg > 0 && sq > 0 && st > 0 ? (Math.log(sp / st) + (sg ** 2 * tq) / 2) / (sg * sq) : 0;
       delta = normCdf(d1);
-      lev = (delta * s.spotPrice) / s.optionPrice;
-      tv = s.optionPrice - intr;
+      lev = (delta * sp) / op;
+      intr = Math.max(sp - st, 0);
+      tv = op - intr;
     }
     return {
       rows: [
-        { label: 'Leverage Ratio', value: `${lev.toFixed(2)}x`, tone: 'brand' },
-        { label: 'Approximate Delta', value: delta.toFixed(4), tone: 'muted' },
-        { label: 'Intrinsic Value', value: intr.toFixed(2) },
-        { label: 'Time Value', value: tv.toFixed(2) },
+        R('Leverage Ratio', `${lev.toFixed(2)}x`, 'brand'),
+        R('Approximate Delta', delta.toFixed(4), 'muted'),
+        R('Intrinsic Value', intr.toFixed(2)),
+        R('Time Value', tv.toFixed(2)),
       ],
     };
   },
@@ -574,35 +516,32 @@ const TwoFund = createCalculator({
       muB = s.cagrB / 100,
       sA = s.volA / 100,
       sB = s.volB / 100,
-      rho = s.corr ?? 0.2;
-    const pts: Array<{ wA: number; cagr: number; vol: number }> = [];
-    for (let w = 0; w <= 100; w += 2) {
-      const wA = w / 100,
-        wB = 1 - wA;
-      pts.push({
-        wA,
-        cagr: (wA * muA + wB * muB) * 100,
-        vol: Math.sqrt(wA ** 2 * sA ** 2 + wB ** 2 * sB ** 2 + 2 * wA * wB * rho * sA * sB) * 100,
-      });
-    }
-    const cov = rho * sA * sB,
-      denom = sA ** 2 + sB ** 2 - 2 * cov;
-    let mwA = denom !== 0 ? (sB ** 2 - cov) / denom : 0.5;
-    mwA = Math.max(0, Math.min(1, mwA));
-    const mvc = (mwA * muA + (1 - mwA) * muB) * 100,
+      rho = s.corr ?? 0.2,
+      cov = rho * sA * sB,
+      denom = sA ** 2 + sB ** 2 - 2 * cov,
+      mwA = Math.max(0, Math.min(1, denom !== 0 ? (sB ** 2 - cov) / denom : 0.5)),
+      mvc = (mwA * muA + (1 - mwA) * muB) * 100,
       mvv =
         Math.sqrt(mwA ** 2 * sA ** 2 + (1 - mwA) ** 2 * sB ** 2 + 2 * mwA * (1 - mwA) * cov) * 100;
     return {
       rowsClassName: 'mt-1',
       rows: [
-        { label: 'Min Variance Weight', value: `${(mwA * 100).toFixed(1)}%`, tone: 'brand' },
-        { label: 'Min Variance CAGR', value: `${mvc.toFixed(2)}%` },
-        { label: 'Min Variance Volatility', value: `${mvv.toFixed(2)}%` },
+        R('Min Variance Weight', `${(mwA * 100).toFixed(1)}%`, 'brand'),
+        R('Min Variance CAGR', `${mvc.toFixed(2)}%`),
+        R('Min Variance Volatility', `${mvv.toFixed(2)}%`),
       ],
       chart: (
         <MiniChart
           type="line"
-          data={pts}
+          data={Array.from({ length: 51 }, (_, i) => {
+            const wA = i / 50,
+              wB = 1 - wA;
+            return {
+              wA,
+              cagr: (wA * muA + wB * muB) * 100,
+              vol: Math.sqrt(wA ** 2 * sA ** 2 + wB ** 2 * sB ** 2 + 2 * wA * wB * cov) * 100,
+            };
+          })}
           height={220}
           xDataKey="vol"
           xType="number"
