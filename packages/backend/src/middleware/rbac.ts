@@ -15,7 +15,8 @@ export enum Permission {
   STRATEGY_MANAGE = 'strategy:manage',
 }
 
-const ROLE_PERMISSIONS: Record<Role, Set<Permission>> = {
+// 供测试 mock 复用同一权限矩阵（middlewareMocks.ts），勿视为 dead export
+export const ROLE_PERMISSIONS: Record<Role, Set<Permission>> = {
   admin: new Set(Object.values(Permission)),
   analyst: new Set([
     Permission.BACKTEST_RUN,
