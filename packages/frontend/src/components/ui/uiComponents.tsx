@@ -1,6 +1,6 @@
-/* eslint-disable react-refresh/only-export-components */
+/* eslint-disable react-refresh/only-export-components, @typescript-eslint/no-explicit-any */
 import * as React from 'react';
-import { type ReactNode, type ButtonHTMLAttributes } from 'react';
+import { type ReactNode } from 'react';
 import { Slot } from '@radix-ui/react-slot';
 import * as CheckboxPrimitive from '@radix-ui/react-checkbox';
 import * as CollapsiblePrimitive from '@radix-ui/react-collapsible';
@@ -17,19 +17,13 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { Check, Circle, ChevronDown, ChevronUp, Info, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type WrapComp = React.ComponentType<any> | keyof React.JSX.IntrinsicElements;
-const wrapPrimitive = <T extends WrapComp>(
+const wrapPrimitive = <T extends React.ComponentType<any> | keyof React.JSX.IntrinsicElements>(
   Comp: T,
   baseClass: string,
-  displayName?: string,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  name?: string,
   content?: (children: ReactNode, props: any) => ReactNode,
 ) => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const Element = Comp as React.JSXElementConstructor<any>;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const Wrapped = React.forwardRef<any, React.ComponentPropsWithoutRef<T>>(
     ({ className, children, ...props }, ref) => (
       <Element ref={ref} className={cn(baseClass, className as string)} {...props}>
@@ -37,8 +31,7 @@ const wrapPrimitive = <T extends WrapComp>(
       </Element>
     ),
   );
-  Wrapped.displayName =
-    displayName ?? (Comp as { displayName?: string }).displayName ?? 'Primitive';
+  Wrapped.displayName = name ?? (Comp as { displayName?: string }).displayName ?? 'Primitive';
   return Wrapped;
 };
 const contentAnim =
@@ -64,8 +57,7 @@ export const badgeVariants = cva(
     defaultVariants: { variant: 'asset', size: 'default' },
   },
 );
-export interface BadgeProps
-  extends React.HTMLAttributes<HTMLDivElement>, VariantProps<typeof badgeVariants> {}
+export type BadgeProps = React.HTMLAttributes<HTMLDivElement> & VariantProps<typeof badgeVariants>;
 export const Badge = ({ className, variant, size, ...props }: BadgeProps) => (
   <div className={cn(badgeVariants({ variant, size }), className)} {...props} />
 );
@@ -95,10 +87,8 @@ export const buttonVariants = cva(
     defaultVariants: { variant: 'secondary', size: 'default' },
   },
 );
-interface ButtonProps
-  extends ButtonHTMLAttributes<HTMLButtonElement>, VariantProps<typeof buttonVariants> {
-  asChild?: boolean;
-}
+type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> &
+  VariantProps<typeof buttonVariants> & { asChild?: boolean };
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant, size, asChild = false, type = 'button', ...props }, ref) => {
     const Comp = asChild ? Slot : 'button';
@@ -127,17 +117,13 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
     />
   ),
 );
-interface AffixInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'prefix'> {
-  prefix?: React.ReactNode;
-  suffix?: React.ReactNode;
-}
+type AffixInputProps = Omit<InputProps, 'prefix'> & { prefix?: ReactNode; suffix?: ReactNode };
+const AFFIX_SPAN = 'pointer-events-none absolute z-10 text-fg-tertiary';
 export const AffixInput = React.forwardRef<HTMLInputElement, AffixInputProps>(
   ({ className, prefix, suffix, ...props }, ref) => (
     <div className="relative flex items-center">
       {prefix !== undefined && (
-        <span className="pointer-events-none absolute left-3 z-10 font-mono text-body text-fg-tertiary">
-          {prefix}
-        </span>
+        <span className={cn(AFFIX_SPAN, 'left-3 font-mono text-body')}>{prefix}</span>
       )}
       <Input
         ref={ref}
@@ -145,9 +131,7 @@ export const AffixInput = React.forwardRef<HTMLInputElement, AffixInputProps>(
         {...props}
       />
       {suffix !== undefined && (
-        <span className="pointer-events-none absolute right-3 z-10 text-caption text-fg-tertiary">
-          {suffix}
-        </span>
+        <span className={cn(AFFIX_SPAN, 'right-3 text-caption')}>{suffix}</span>
       )}
     </div>
   ),
@@ -164,17 +148,17 @@ const alertVariants = cva(
     defaultVariants: { variant: 'default' },
   },
 );
-export const Alert = React.forwardRef<
-  HTMLDivElement,
-  React.HTMLAttributes<HTMLDivElement> & VariantProps<typeof alertVariants>
->(({ className, variant, role, ...props }, ref) => (
-  <div
-    ref={ref}
-    role={role ?? (variant === 'destructive' ? 'alert' : 'status')}
-    className={cn(alertVariants({ variant }), className)}
-    {...props}
-  />
-));
+type AlertProps = React.HTMLAttributes<HTMLDivElement> & VariantProps<typeof alertVariants>;
+export const Alert = React.forwardRef<HTMLDivElement, AlertProps>(
+  ({ className, variant, role, ...props }, ref) => (
+    <div
+      ref={ref}
+      role={role ?? (variant === 'destructive' ? 'alert' : 'status')}
+      className={cn(alertVariants({ variant }), className)}
+      {...props}
+    />
+  ),
+);
 export const AlertDescription = wrapPrimitive(
   'div',
   'text-body text-fg-secondary [&_p]:leading-relaxed',
@@ -283,25 +267,19 @@ export const SelectTrigger = wrapPrimitive(
     </>
   ),
 );
-const makeSelectScrollButton = (
-  Primitive: typeof SelectPrimitive.ScrollUpButton,
-  Icon: typeof ChevronUp,
-  name: string,
-) =>
-  wrapPrimitive(Primitive, 'flex cursor-default items-center justify-center py-1', name, () => (
-    <Icon className="h-4 w-4 text-fg-tertiary" />
-  ));
-const SelectScrollUpButton = makeSelectScrollButton(
+const SelectScrollUpButton = wrapPrimitive(
   SelectPrimitive.ScrollUpButton,
-  ChevronUp,
+  'flex cursor-default items-center justify-center py-1',
   'SelectScrollUpButton',
+  () => <ChevronUp className="h-4 w-4 text-fg-tertiary" />,
 );
-const SelectScrollDownButton = makeSelectScrollButton(
+const SelectScrollDownButton = wrapPrimitive(
   SelectPrimitive.ScrollDownButton,
-  ChevronDown,
+  'flex cursor-default items-center justify-center py-1',
   'SelectScrollDownButton',
+  () => <ChevronDown className="h-4 w-4 text-fg-tertiary" />,
 );
-const SelectContent = React.forwardRef<
+export const SelectContent = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.Content>
 >(({ className, children, position = 'popper', ...props }, ref) => (
@@ -347,7 +325,6 @@ export const SelectItem = wrapPrimitive(
     </>
   ),
 );
-export { SelectContent };
 export const Separator = ({
   className,
   orientation = 'horizontal',
@@ -404,19 +381,20 @@ const TooltipContent = React.forwardRef<
   </TooltipPrimitive.Portal>
 ));
 TooltipContent.displayName = 'TooltipContent';
-// prettier-ignore
 export const InfoTooltip = ({ description }: { description: string }) => (
   <TooltipPrimitive.Root>
     <TooltipPrimitive.Trigger asChild>
-      <Info className="size-3 shrink-0 cursor-help text-fg-tertiary" aria-label={description} tabIndex={0} role="img" />
+      <Info
+        className="size-3 shrink-0 cursor-help text-fg-tertiary"
+        aria-label={description}
+        tabIndex={0}
+        role="img"
+      />
     </TooltipPrimitive.Trigger>
     <TooltipContent>{description}</TooltipContent>
   </TooltipPrimitive.Root>
 );
-interface LoadingButtonProps extends ButtonProps {
-  isLoading: boolean;
-  loadingText?: string;
-}
+type LoadingButtonProps = ButtonProps & { isLoading: boolean; loadingText?: string };
 export function LoadingButton({
   isLoading,
   loadingText,
@@ -440,44 +418,26 @@ export function LoadingButton({
     </Button>
   );
 }
-// prettier-ignore
-const SPINNER_SIZES: Record<number, string> = { 4: 'size-4', 5: 'size-5', 6: 'size-6', 8: 'size-8' };
-export function Spinner({ size = 5, className }: { size?: number; className?: string }) {
-  return (
-    <div
-      className={cn(
-        'animate-spin rounded-full border-2 border-current border-t-transparent text-fg-tertiary',
-        SPINNER_SIZES[size],
-        className,
-      )}
-    />
-  );
-}
-export function PortfolioDot({ color, className }: { color: string; className?: string }) {
-  return (
-    <span
-      className={cn('inline-block size-2.5 rounded-full flex-shrink-0', className)}
-      style={{ background: color }}
-    />
-  );
-}
-export function PortfolioLabel({
-  color,
-  name,
-  className,
-}: {
-  color: string;
-  name: string;
-  className?: string;
-}) {
-  return (
-    <span className={cn('inline-flex items-center gap-1.5', className)}>
-      <PortfolioDot color={color} />
-      {name}
-    </span>
-  );
-}
-export function MiniSelect<T extends string | number>({
+const SPIN_BASE =
+  'animate-spin rounded-full border-2 border-current border-t-transparent text-fg-tertiary';
+const SPIN_SIZES: Record<number, string> = { 4: 'size-4', 5: 'size-5', 6: 'size-6', 8: 'size-8' };
+export const Spinner = ({ size = 5, className }: { size?: number; className?: string }) => (
+  <div className={cn(SPIN_BASE, SPIN_SIZES[size], className)} />
+);
+type DotProps = { color: string; className?: string };
+export const PortfolioDot = ({ color, className }: DotProps) => (
+  <span
+    className={cn('inline-block size-2.5 rounded-full flex-shrink-0', className)}
+    style={{ background: color }}
+  />
+);
+export const PortfolioLabel = ({ color, name, className }: DotProps & { name: string }) => (
+  <span className={cn('inline-flex items-center gap-1.5', className)}>
+    <PortfolioDot color={color} />
+    {name}
+  </span>
+);
+export const MiniSelect = <T extends string | number>({
   value,
   onChange,
   options,
@@ -491,23 +451,21 @@ export function MiniSelect<T extends string | number>({
   width?: number;
   className?: string;
   'aria-label'?: string;
-}) {
-  return (
-    <select
-      aria-label={ariaLabel}
-      value={value}
-      onChange={(e) => onChange(e.target.value as T)}
-      className={cn(
-        'bg-input-bg text-fg border border-border-subtle rounded font-medium cursor-pointer text-xs px-2 py-1',
-        className,
-      )}
-      style={width !== undefined ? { width } : undefined}
-    >
-      {options.map((o) => (
-        <option key={String(o.value)} value={o.value}>
-          {o.label}
-        </option>
-      ))}
-    </select>
-  );
-}
+}) => (
+  <select
+    aria-label={ariaLabel}
+    value={value}
+    onChange={(e) => onChange(e.target.value as T)}
+    className={cn(
+      'bg-input-bg text-fg border border-border-subtle rounded font-medium cursor-pointer text-xs px-2 py-1',
+      className,
+    )}
+    style={width !== undefined ? { width } : undefined}
+  >
+    {options.map((o) => (
+      <option key={String(o.value)} value={o.value}>
+        {o.label}
+      </option>
+    ))}
+  </select>
+);
