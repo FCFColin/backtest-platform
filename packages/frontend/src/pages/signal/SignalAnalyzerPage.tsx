@@ -14,8 +14,7 @@ import * as T from '../../components/tables.js';
 import { TimeSeriesLineChart } from '@/components/charts/TimeSeriesLineChart.js';
 import { ResultsShell } from '@/components/resultsShell.js';
 import { TableEmpty } from '@/components/stateDisplay.js';
-import { ComputeToolShell } from '@/components/shells/index.js';
-import type { ComputeToolConfig } from '@/components/shells/index.js';
+import { createComputeToolPage } from '@/components/shells/index.js';
 import * as Sig from './signalState.js';
 import {
   SignalAnalyzerParamsPanel,
@@ -48,6 +47,11 @@ const BUY_CLS = 'font-semibold text-success',
   GRID5 = 'grid grid-cols-2 gap-3 md:grid-cols-5',
   GRID3 = 'grid grid-cols-3 gap-3',
   PARAM_GRID = 'grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3';
+const SIGS = [
+  { k: 'signal1', n: 'Signal 1', g: 'Sig1', w: 1.5 },
+  { k: 'signal2', n: 'Signal 2', g: 'Sig2', w: 1.5 },
+  { k: 'combined', n: 'Combined Signal', g: 'Portfolio', w: 2.5 },
+] as const;
 const StatCardGrid = ({ items }: { items: { label: string; value: string }[] }) => (
   <div className={GRID5}>
     {items.map((r) => (
@@ -55,12 +59,10 @@ const StatCardGrid = ({ items }: { items: { label: string; value: string }[] }) 
     ))}
   </div>
 );
+const fmtStat = (v: number | undefined, f: string) =>
+  f === 'int' ? String(v) : f === 'pct' ? fmtPct(v) : fmtRatio(v);
 const toItems = (s: Record<string, number>, t: TFunction) =>
-  STAT_COLS.map((c) => ({
-    label: t(c.label),
-    value:
-      c.fmt === 'int' ? String(s[c.key]) : c.fmt === 'pct' ? fmtPct(s[c.key]) : fmtRatio(s[c.key]),
-  }));
+  STAT_COLS.map((c) => ({ label: t(c.label), value: fmtStat(s[c.key], c.fmt) }));
 const dirCol = (
   k: 'signal1' | 'signal2' | 'combined',
   l: string,
@@ -78,45 +80,53 @@ const dirCol = (
     ),
   sortValue: (r) => r[k] ?? '',
 });
-const mk = (k: string, l: string, r: (x: any) => any, s: (x: any) => any) =>
-  ({ key: k, label: l, render: r, sortValue: s }) as T.TableColumn<any>;
-function DualSignalResultsPanel({
-  results,
-  error,
-  isLoading,
-}: Sig.ResultsPanelProps<Sig.DualSignalResponse>) {
+const mk = (k: string, l: string, g: (r: any) => any, f: (v: any) => any) =>
+  ({ key: k, label: l, render: (r: any) => f(g(r)), sortValue: g }) as T.TableColumn<any>;
+const EquityChart = ({
+  d,
+  name,
+  t,
+}: {
+  d: SignalAnalysisResult['equityCurve'];
+  name: string;
+  t: TFunction;
+}) => (
+  <TimeSeriesLineChart
+    data={downsample(d, 400)}
+    referenceY={10000}
+    series={[{ dataKey: 'value', legendName: name }]}
+    tooltipValueFormatter={(v) => [fmtAmount(v), t('Equity')]}
+    tooltipLabelFormatter={(l) => `${t('Date')}: ${l}`}
+  />
+);
+const shellProps = (t: TFunction, e: string | null, r: unknown, l: boolean) => ({
+  error: e,
+  errorPrefix: t('Analysis failed: '),
+  isLoading: l,
+  hasResults: !!r,
+  emptyTitle: t('Set parameters and click "Run Analysis" to view results'),
+});
+function DualSignalResultsPanel({ state }: { state: Sig.UseDualSignalStateResult }) {
   const { t } = useTranslation();
+  const { results, error, isLoading } = state;
   const [page, setPage] = useState(0);
   useEffect(() => setPage(0), [results]);
   const cmp = results ? results.comparison.filter((r) => r.signal1 || r.signal2 || r.combined) : [];
   const rows = results
-    ? [
-        { name: t('Signal 1'), stats: results.signal1.statistics },
-        { name: t('Signal 2'), stats: results.signal2.statistics },
-        { name: t('Combined Signal'), stats: results.combined.statistics },
-      ]
+    ? SIGS.map(({ k, n }) => ({ name: t(n), stats: results[k].statistics }))
     : [];
-  const eq = results
-    ? (() => {
-        const m = new Map<string, Record<string, number | string>>(),
-          a = [
-            { k: 'signal1', c: results.signal1.equityCurve },
-            { k: 'signal2', c: results.signal2.equityCurve },
-            { k: 'combined', c: results.combined.equityCurve },
-          ];
-        for (const s of a)
-          for (const p of s.c) {
-            if (!m.has(p.date)) m.set(p.date, { date: p.date });
-            m.get(p.date)![s.k] = p.value;
-          }
-        return [...m.values()].sort((a, b) => (a.date as string).localeCompare(b.date as string));
-      })()
-    : [];
+  const eq = (() => {
+    const m = new Map<string, Record<string, number | string>>();
+    for (const { k } of SIGS)
+      for (const p of results?.[k].equityCurve ?? []) {
+        if (!m.has(p.date)) m.set(p.date, { date: p.date });
+        m.get(p.date)![k] = p.value;
+      }
+    return [...m.values()].sort((a, b) => (a.date as string).localeCompare(b.date as string));
+  })();
   const cmpCols = [
     { key: 'date', label: t('Date'), sortValue: (r: any) => r.date },
-    dirCol('signal1', t('Signal 1'), t),
-    dirCol('signal2', t('Signal 2'), t),
-    dirCol('combined', t('Combined Signal'), t),
+    ...SIGS.map(({ k, n }) => dirCol(k, t(n), t)),
   ];
   const statCols = [
     { key: 'metric', label: t('Metric'), render: (c: any) => t(c.label) },
@@ -124,21 +134,18 @@ function DualSignalResultsPanel({
       key: `s${i}`,
       label: <U.PortfolioLabel color={getPortfolioColor(i)} name={r.name} />,
       align: 'right' as const,
-      render: (c: (typeof STAT_COLS)[number]) => {
-        const v = (r.stats as Record<string, number>)[c.key];
-        return c.fmt === 'int' ? String(v) : c.fmt === 'pct' ? fmtPct(v) : fmtRatio(v);
-      },
+      render: (c: (typeof STAT_COLS)[number]) =>
+        fmtStat((r.stats as Record<string, number>)[c.key], c.fmt),
     })),
   ];
+  const NavBtn = (l: string, d: boolean, o: () => void) => (
+    <U.Button type="button" variant="ghost" size="sm" onClick={o} disabled={d}>
+      {l}
+    </U.Button>
+  );
   const total = Math.ceil(cmp.length / 100);
   return (
-    <ResultsShell
-      error={error}
-      errorPrefix={t('Analysis failed: ')}
-      isLoading={isLoading}
-      hasResults={!!results}
-      emptyTitle={t('Set parameters and click "Run Analysis" to view results')}
-    >
+    <ResultsShell {...shellProps(t, error, results, isLoading)}>
       <div className="flex flex-col gap-4">
         <ResultsSection title={t('Combined Signal Stats vs Single Signal Stats')}>
           <T.SimpleTable columns={statCols} data={STAT_COLS} rowKey={(r) => r.key} />
@@ -151,24 +158,10 @@ function DualSignalResultsPanel({
                   {page * 100 + 1}–{Math.min((page + 1) * 100, cmp.length)} / {cmp.length}
                 </span>
                 <span className="flex gap-2">
-                  <U.Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setPage((p) => Math.max(0, p - 1))}
-                    disabled={page === 0}
-                  >
-                    {t('Prev')}
-                  </U.Button>
-                  <U.Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setPage((p) => Math.min(total - 1, p + 1))}
-                    disabled={page >= total - 1}
-                  >
-                    {t('Next')}
-                  </U.Button>
+                  {NavBtn(t('Prev'), page === 0, () => setPage((p) => Math.max(0, p - 1)))}
+                  {NavBtn(t('Next'), page >= total - 1, () =>
+                    setPage((p) => Math.min(total - 1, p + 1)),
+                  )}
                 </span>
               </div>
               <T.SortableTable
@@ -186,11 +179,7 @@ function DualSignalResultsPanel({
           <TimeSeriesLineChart
             data={downsample(eq, 400)}
             referenceY={10000}
-            series={[
-              { dataKey: 'signal1', legendName: t('Sig1'), strokeWidth: 1.5 },
-              { dataKey: 'signal2', legendName: t('Sig2'), strokeWidth: 1.5 },
-              { dataKey: 'combined', legendName: t('Portfolio'), strokeWidth: 2.5 },
-            ]}
+            series={SIGS.map(({ k, g, w }) => ({ dataKey: k, legendName: t(g), strokeWidth: w }))}
             tooltipLabelFormatter={(l) => `${t('Date')}: ${l}`}
           />
         </ResultsSection>
@@ -198,13 +187,9 @@ function DualSignalResultsPanel({
     </ResultsShell>
   );
 }
-function SignalAnalyzerResultsPanel({
-  error,
-  results,
-  isLoading,
-  onRetry,
-}: Sig.ResultsPanelProps<SignalAnalysisResult> & { onRetry?: () => void }) {
+function SignalAnalyzerResultsPanel({ state }: { state: Sig.UseSignalAnalyzerStateResult }) {
   const { t } = useTranslation();
+  const { error, results, isLoading, runAnalysis } = state;
   const cols = [
     { key: 'date', label: t('Date'), sortValue: (r: any) => r.date },
     {
@@ -212,9 +197,7 @@ function SignalAnalyzerResultsPanel({
       label: t('Type'),
       sortValue: (r: any) => r.type,
       render: (r: any) => (
-        <span
-          className={r.type === 'buy' ? 'text-success font-semibold' : 'text-danger font-semibold'}
-        >
+        <span className={r.type === 'buy' ? BUY_CLS : SELL_CLS}>
           {r.type === 'buy' ? t('Buy') : t('Sell')}
         </span>
       ),
@@ -227,14 +210,7 @@ function SignalAnalyzerResultsPanel({
     },
   ];
   return (
-    <ResultsShell
-      error={error}
-      errorPrefix={t('Analysis failed: ')}
-      isLoading={isLoading}
-      hasResults={!!results}
-      emptyTitle={t('Set parameters and click "Run Analysis" to view results')}
-      onRetry={onRetry}
-    >
+    <ResultsShell {...shellProps(t, error, results, isLoading)} onRetry={runAnalysis}>
       {results && (
         <div className="flex flex-col gap-4">
           <StatCardGrid items={toItems(results.statistics as any, t)} />
@@ -258,13 +234,7 @@ function SignalAnalyzerResultsPanel({
               )}
             </U.TabsContent>
             <U.TabsContent value="equity">
-              <TimeSeriesLineChart
-                data={downsample(results.equityCurve, 400)}
-                referenceY={10000}
-                series={[{ dataKey: 'value', legendName: t('Equity') }]}
-                tooltipValueFormatter={(v) => [fmtAmount(v), t('Equity')]}
-                tooltipLabelFormatter={(l) => `${t('Date')}: ${l}`}
-              />
+              <EquityChart d={results.equityCurve} name={t('Equity')} t={t} />
             </U.TabsContent>
           </U.Tabs>
         </div>
@@ -272,42 +242,18 @@ function SignalAnalyzerResultsPanel({
     </ResultsShell>
   );
 }
-function MultiSignalResultsPanel({
-  results,
-  error,
-  isLoading,
-}: Sig.ResultsPanelProps<Sig.MultiSignalResponse>) {
+function MultiSignalResultsPanel({ state }: { state: Sig.UseMultiSignalStateResult }) {
   const { t } = useTranslation();
+  const { error, results, isLoading } = state;
   const cols = [
     { key: 'index', label: '#', sortValue: (r: any) => r.index },
     { key: 'indicator', label: t('Metric'), sortValue: (r: any) => r.indicator },
-    mk(
-      'contribution',
-      t('Contribution (Avg Return)'),
-      (r: any) => fmtPct(r.contribution),
-      (r: any) => r.contribution,
-    ),
-    mk(
-      'winRate',
-      t('Win Rate'),
-      (r: any) => fmtPct(r.statistics.winRate),
-      (r: any) => r.statistics.winRate,
-    ),
-    mk(
-      'totalSignals',
-      t('Signals'),
-      (r: any) => String(r.statistics.totalSignals),
-      (r: any) => r.statistics.totalSignals,
-    ),
+    mk('contribution', t('Contribution (Avg Return)'), (r: any) => r.contribution, fmtPct),
+    mk('winRate', t('Win Rate'), (r: any) => r.statistics.winRate, fmtPct),
+    mk('totalSignals', t('Signals'), (r: any) => r.statistics.totalSignals, String),
   ];
   return (
-    <ResultsShell
-      error={error}
-      errorPrefix={t('Analysis failed: ')}
-      isLoading={isLoading}
-      hasResults={!!results}
-      emptyTitle={t('Set parameters and click "Run Analysis" to view results')}
-    >
+    <ResultsShell {...shellProps(t, error, results, isLoading)}>
       <div className="flex flex-col gap-4">
         <ResultsSection title={t('Aggregated Signal Statistics')}>
           {results && <StatCardGrid items={toItems(results.aggregated.statistics as any, t)} />}
@@ -325,59 +271,27 @@ function MultiSignalResultsPanel({
           )}
         </ResultsSection>
         <ResultsSection title={t('Equity Curve')}>
-          <TimeSeriesLineChart
-            data={downsample(results?.aggregated.equityCurve ?? [], 400)}
-            referenceY={10000}
-            series={[{ dataKey: 'value', legendName: t('Aggregated Equity') }]}
-            tooltipValueFormatter={(v) => [fmtAmount(v), t('Equity')]}
-            tooltipLabelFormatter={(l) => `${t('Date')}: ${l}`}
+          <EquityChart
+            d={results?.aggregated.equityCurve ?? []}
+            name={t('Aggregated Equity')}
+            t={t}
           />
         </ResultsSection>
       </div>
     </ResultsShell>
   );
 }
-export default function SignalAnalyzerPage() {
-  return (
-    <ComputeToolShell
-      config={
-        {
-          titleKey: 'signal.analyzer.title',
-          params: ({ state }) => <SignalAnalyzerParamsPanel state={state} />,
-          results: ({ state }) => (
-            <SignalAnalyzerResultsPanel
-              error={state.error}
-              results={state.results}
-              isLoading={state.isLoading}
-              onRetry={state.runAnalysis}
-            />
-          ),
-        } as ComputeToolConfig<Sig.UseSignalAnalyzerStateResult>
-      }
-      state={Sig.useSignalAnalyzerState()}
-    />
-  );
-}
-export function DualSignalPage() {
-  return (
-    <ComputeToolShell
-      config={
-        {
-          titleKey: 'signal.dual.title',
-          params: ({ state }) => <DualSignalParamsPanel state={state} />,
-          results: ({ state }) => (
-            <DualSignalResultsPanel
-              results={state.results}
-              error={state.error}
-              isLoading={state.isLoading}
-            />
-          ),
-        } as ComputeToolConfig<Sig.UseDualSignalStateResult>
-      }
-      state={Sig.useDualSignalState()}
-    />
-  );
-}
+// eslint-disable-next-line react-refresh/only-export-components -- 工厂生成的页面组件
+export default createComputeToolPage(Sig.useSignalAnalyzerState, {
+  titleKey: 'signal.analyzer.title',
+  params: SignalAnalyzerParamsPanel,
+  results: SignalAnalyzerResultsPanel,
+});
+export const DualSignalPage = createComputeToolPage(Sig.useDualSignalState, {
+  titleKey: 'signal.dual.title',
+  params: DualSignalParamsPanel,
+  results: DualSignalResultsPanel,
+});
 function MultiSignalParams({ state }: { state: Sig.UseMultiSignalStateResult }) {
   const { t } = useTranslation();
   const tid = useId(),
@@ -503,23 +417,8 @@ function MultiSignalParams({ state }: { state: Sig.UseMultiSignalStateResult }) 
     </div>
   );
 }
-export function MultiSignalPage() {
-  return (
-    <ComputeToolShell
-      config={
-        {
-          titleKey: 'signal.multi.title',
-          params: ({ state }) => <MultiSignalParams state={state} />,
-          results: ({ state }) => (
-            <MultiSignalResultsPanel
-              results={state.results}
-              error={state.error}
-              isLoading={state.isLoading}
-            />
-          ),
-        } as ComputeToolConfig<Sig.UseMultiSignalStateResult>
-      }
-      state={Sig.useMultiSignalState()}
-    />
-  );
-}
+export const MultiSignalPage = createComputeToolPage(Sig.useMultiSignalState, {
+  titleKey: 'signal.multi.title',
+  params: MultiSignalParams,
+  results: MultiSignalResultsPanel,
+});
