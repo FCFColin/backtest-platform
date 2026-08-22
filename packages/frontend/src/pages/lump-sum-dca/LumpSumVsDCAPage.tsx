@@ -23,36 +23,23 @@ import {
 import { validateAssetWeights } from '@/utils/validation';
 type DcaFrequency = 'monthly' | 'quarterly';
 type LumpSumAsset = { ticker: string; weight: number };
+const NUM_KEYS = ['cagr', 'stdev', 'maxDrawdown', 'sharpe', 'sortino'] as const;
+const OPT_KEYS = ['calmar', 'maxDrawdownDuration', 'ulcerIndex'] as const;
 type CompareResult = {
   label: string;
-  cagr: number;
-  stdev: number;
-  maxDrawdown: number;
-  sharpe: number;
-  sortino: number;
-  calmar?: number;
-  maxDrawdownDuration?: number;
-  ulcerIndex?: number;
-  finalValue: number;
-  growthCurve: Array<{ date: string; value: number }>;
-};
-const toResult = (p: any, label: string): CompareResult => {
-  const c = p.growthCurve ?? [],
-    s = p.statistics as any;
-  return {
-    label,
-    cagr: s?.cagr ?? 0,
-    stdev: s?.stdev ?? 0,
-    maxDrawdown: s?.maxDrawdown ?? 0,
-    sharpe: s?.sharpe ?? 0,
-    sortino: s?.sortino ?? 0,
-    calmar: s?.calmar,
-    maxDrawdownDuration: s?.maxDrawdownDuration,
-    ulcerIndex: s?.ulcerIndex,
-    finalValue: c.length ? c[c.length - 1].value : 0,
-    growthCurve: c,
+} & Record<(typeof NUM_KEYS)[number], number> &
+  Partial<Record<(typeof OPT_KEYS)[number], number>> & {
+    finalValue: number;
+    growthCurve: Array<{ date: string; value: number }>;
   };
-};
+const toResult = (p: any, label: string): CompareResult =>
+  ({
+    label,
+    ...Object.fromEntries(NUM_KEYS.map((k) => [k, p.statistics?.[k] ?? 0])),
+    ...Object.fromEntries(OPT_KEYS.map((k) => [k, p.statistics?.[k]])),
+    finalValue: p.growthCurve?.length ? p.growthCurve[p.growthCurve.length - 1].value : 0,
+    growthCurve: p.growthCurve ?? [],
+  }) as CompareResult;
 const WIN_T =
   "has a higher final value ({{lsValue}} vs {{dcaValue}}), exceeding by {{pct}}%. However, Lump Sum's max drawdown ({{lsMdd}}) is typically larger than DCA's ({{dcaMdd}}), bearing greater psychological pressure in falling markets.";
 const LOSE_T =
@@ -100,21 +87,16 @@ function useLumpSumVsDCAState(t: TFunction) {
         rebalanceOffset: 0,
         drag: 0,
       };
+      const leg = {
+        id: `dca-${Date.now()}`,
+        amount: Math.round(s.startingValue / s.dcaPeriods),
+        type: 'contribution' as const,
+        frequency: s.dcaFrequency,
+      };
       const lumpBody = { portfolios: [{ ...def, name: 'lumpSum' }], parameters: { ...base } };
       const dcaBody = {
         portfolios: [{ ...def, name: 'dca' }],
-        parameters: {
-          ...base,
-          startingValue: 0,
-          cashflowLegs: [
-            {
-              id: `dca-${Date.now()}`,
-              amount: Math.round(s.startingValue / s.dcaPeriods),
-              type: 'contribution' as const,
-              frequency: (s.dcaFrequency === 'monthly' ? 'monthly' : 'quarterly') as DcaFrequency,
-            },
-          ],
-        },
+        parameters: { ...base, startingValue: 0, cashflowLegs: [leg] },
       };
       const post = (b: unknown) =>
         apiFetch('/api/v1/backtest/portfolio', {
@@ -140,8 +122,6 @@ function useLumpSumVsDCAState(t: TFunction) {
     ...s,
     isLoading,
     error,
-    run,
-    setError,
     assets,
     setAssets,
     addAsset,
@@ -152,18 +132,19 @@ function useLumpSumVsDCAState(t: TFunction) {
   };
 }
 type LumpSumVsDCAState = ReturnType<typeof useLumpSumVsDCAState>;
-const STATS_ROWS = [
-  { key: 'finalValue' as const, label: 'lumpSumDca.stats.finalValue' },
-  { key: 'cagr' as const, label: 'stats.cagr' },
-  { key: 'stdev' as const, label: 'backtest.stdev' },
-  { key: 'maxDrawdown' as const, label: 'Max Drawdown' },
-  { key: 'sharpe' as const, label: 'backtest.sharpeRatio' },
-  { key: 'sortino' as const, label: 'lumpSumDca.stats.sortino' },
-  { key: 'calmar' as const, label: 'lumpSumDca.stats.calmar' },
-  { key: 'maxDrawdownDuration' as const, label: 'analysis.maxDrawdownDuration' },
-  { key: 'ulcerIndex' as const, label: 'analysis.ulcerIndex' },
+type StatRow = { key: keyof CompareResult; label: string };
+const STATS_ROWS: StatRow[] = [
+  { key: 'finalValue', label: 'lumpSumDca.stats.finalValue' },
+  { key: 'cagr', label: 'stats.cagr' },
+  { key: 'stdev', label: 'backtest.stdev' },
+  { key: 'maxDrawdown', label: 'Max Drawdown' },
+  { key: 'sharpe', label: 'backtest.sharpeRatio' },
+  { key: 'sortino', label: 'lumpSumDca.stats.sortino' },
+  { key: 'calmar', label: 'lumpSumDca.stats.calmar' },
+  { key: 'maxDrawdownDuration', label: 'analysis.maxDrawdownDuration' },
+  { key: 'ulcerIndex', label: 'analysis.ulcerIndex' },
 ];
-const REQ = new Set(['finalValue', 'cagr', 'stdev', 'maxDrawdown', 'sharpe', 'sortino']);
+const REQ = new Set(['finalValue', ...NUM_KEYS]);
 function StatsTable({
   results: r,
   fmtPct: fp,
@@ -176,15 +157,13 @@ function StatsTable({
   fmtMoney: (v: number) => string;
 }) {
   const { t } = useTranslation();
-  const fv = (k: string, v: number) =>
-    k === 'finalValue'
-      ? fm(v)
-      : k === 'maxDrawdownDuration'
-        ? t('{{count}} days', { count: v })
-        : ['cagr', 'stdev', 'maxDrawdown'].includes(k)
-          ? fp(v)
-          : fn(v);
-  const cols: SimpleTableColumn<(typeof STATS_ROWS)[number]>[] = [
+  const fmt = (k: string, v: number) => {
+    if (k === 'finalValue') return fm(v);
+    if (k === 'maxDrawdownDuration') return t('{{count}} days', { count: v });
+    if (['cagr', 'stdev', 'maxDrawdown'].includes(k)) return fp(v);
+    return fn(v);
+  };
+  const cols: SimpleTableColumn<StatRow>[] = [
     {
       key: 'metric',
       label: t('Metric'),
@@ -194,8 +173,7 @@ function StatsTable({
       key: x.label,
       label: <U.PortfolioLabel color={getPortfolioColor(i)} name={x.label} />,
       align: 'right' as const,
-      render: (row: (typeof STATS_ROWS)[number]) =>
-        x[row.key] != null ? fv(row.key, x[row.key] as number) : '—',
+      render: (row: StatRow) => (x[row.key] != null ? fmt(row.key, x[row.key] as number) : '—'),
     })),
   ];
   return (
@@ -220,16 +198,12 @@ function ConclusionAnalysis({
   const { t } = useTranslation();
   const win = ls.finalValue > dca.finalValue,
     diff = Math.abs(ls.finalValue - dca.finalValue),
-    pct = ls.finalValue ? (diff / ls.finalValue) * 100 : 0,
-    mdd = Math.abs(ls.maxDrawdown - dca.maxDrawdown);
+    pct = ls.finalValue ? (diff / ls.finalValue) * 100 : 0;
+  const wc = getPortfolioColor(win ? 0 : 1);
   const cards = [
-    {
-      label: t('Winning Strategy'),
-      val: t(win ? 'Lump Sum' : 'DCA'),
-      color: getPortfolioColor(win ? 0 : 1),
-    },
+    { label: t('Winning Strategy'), val: t(win ? 'Lump Sum' : 'DCA'), color: wc },
     { label: t('Final Value Difference'), val: `${fm(diff)} (${pct.toFixed(1)}%)` },
-    { label: t('Max Drawdown Difference'), val: fp(mdd) },
+    { label: t('Max Drawdown Difference'), val: fp(Math.abs(ls.maxDrawdown - dca.maxDrawdown)) },
   ];
   return (
     <div className="mb-5 rounded-lg bg-input-bg p-4">
@@ -256,21 +230,14 @@ function ConclusionAnalysis({
       </div>
       <div className="text-body leading-relaxed text-fg-secondary">
         {t('In the selected time range, ')}
-        <strong style={{ color: getPortfolioColor(win ? 0 : 1) }}>
-          {t(win ? 'Lump Sum' : 'DCA')}
-        </strong>
-        {t(
-          win ? WIN_T : LOSE_T,
-          win
-            ? {
-                lsValue: fm(ls.finalValue),
-                dcaValue: fm(dca.finalValue),
-                pct: pct.toFixed(1),
-                lsMdd: fp(ls.maxDrawdown),
-                dcaMdd: fp(dca.maxDrawdown),
-              }
-            : { dcaValue: fm(dca.finalValue), lsValue: fm(ls.finalValue), pct: pct.toFixed(1) },
-        )}
+        <strong style={{ color: wc }}>{t(win ? 'Lump Sum' : 'DCA')}</strong>
+        {t(win ? WIN_T : LOSE_T, {
+          lsValue: fm(ls.finalValue),
+          dcaValue: fm(dca.finalValue),
+          pct: pct.toFixed(1),
+          lsMdd: fp(ls.maxDrawdown),
+          dcaMdd: fp(dca.maxDrawdown),
+        })}
       </div>
     </div>
   );
@@ -286,14 +253,9 @@ function LumpSumVsDCAParamsForm({ state: s }: { state: LumpSumVsDCAState }) {
         baseCurrency={s.baseCurrency}
         adjustForInflation={s.adjustForInflation}
         onChange={(f, v) => {
-          const m: Record<string, (x: never) => void> = {
-            startDate: s.setStartDate,
-            endDate: s.setEndDate,
-            startingValue: s.setStartingValue,
-            baseCurrency: s.setBaseCurrency,
-            adjustForInflation: s.setAdjustForInflation,
-          };
-          m[f]?.(v as never);
+          // setter 命名约定来自 useSetterState：set + 首字母大写字段名
+          const setters = s as unknown as Record<string, ((x: never) => void) | undefined>;
+          setters[`set${f[0].toUpperCase()}${f.slice(1)}`]?.(v as never);
         }}
       />
       <div className="mt-4">
@@ -424,7 +386,5 @@ const config: ComputeToolConfig<LumpSumVsDCAState> = {
   results: ({ state }) => <LumpSumVsDCAResults state={state} />,
 };
 export default function LumpSumVsDCAPage() {
-  const { t } = useTranslation();
-  const s = useLumpSumVsDCAState(t);
-  return <ComputeToolShell config={config} state={s} />;
+  return <ComputeToolShell config={config} state={useLumpSumVsDCAState(useTranslation().t)} />;
 }
