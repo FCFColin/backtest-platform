@@ -37,14 +37,18 @@ import {
   calculatorResultSchema,
   factorRegressionResultSchema,
 } from '../../../packages/backend/src/schemas/engineSchemas.js';
+const fh = dataServiceMocks.fetchHistoryData;
+const ce = engineMocks.callEngineStrict;
+const rng = (s = '2020-01-01', e = '2024-01-01') => ({ startDate: s, endDate: e });
+const md = (data: unknown) => ({ data, degraded: false });
 const sigHist = [
   { date: '2020-01-01', activeSignals: ['sig-1'], weights: [{ ticker: 'SPY', weight: 100 }] },
 ];
 const post = (s: TestServer, p: string, b: unknown) => reqJson(`${s.url}${p}`, 'POST', b);
 const setup = async (e: unknown, d?: unknown) => {
   vi.clearAllMocks();
-  if (d !== void 0) dataServiceMocks.fetchHistoryData.mockResolvedValue(d);
-  engineMocks.callEngineStrict.mockResolvedValue(e);
+  if (d !== void 0) fh.mockResolvedValue(md(d));
+  ce.mockResolvedValue(e);
   return startExpressApp((a) => a.use('/api/v1', analysisRoutes));
 };
 const pcaRes = {
@@ -60,39 +64,37 @@ const optRes = {
   optimalPath: [],
   requiredContribution: 20000,
 };
+const goalBase = {
+  initialAmount: 1e5,
+  years: 20,
+  assets: [{ ticker: 'SPY', weight: 100 }],
+  numSimulations: 1000,
+};
+const goalValid = { targetAmount: 1e6, ...goalBase };
 const CASES: any[] = [
   {
     name: 'PCA',
     path: '/api/v1/pca/analyze',
-    validBody: { tickers: ['SPY', 'QQQ', 'IWM'], startDate: '2020-01-01', endDate: '2024-01-01' },
+    validBody: { tickers: ['SPY', 'QQQ', 'IWM'], ...rng() },
     engineResult: pcaRes,
-    data: {
-      data: { SPY: { '2020-01-01': 300 }, QQQ: { '2020-01-01': 200 }, IWM: { '2020-01-01': 150 } },
-      degraded: false,
-    },
+    data: { SPY: { '2020-01-01': 300 }, QQQ: { '2020-01-01': 200 }, IWM: { '2020-01-01': 150 } },
     expectSuccess: (b: any) => {
       expect((b.data.eigenvalues as unknown[]).length).toBe(3);
       expect((b.data.explainedVarianceRatio as number[])[0]).toBe(0.83);
     },
-    tickerBody: { tickers: ['spy', 'SPY', 'QQQ'], startDate: '2020-01-01', endDate: '2024-01-01' },
+    tickerBody: { tickers: ['spy', 'SPY', 'QQQ'], ...rng() },
     expectTickerArgs: (a: any) => expect(a[0]).toEqual(['SPY', 'QQQ']),
     validationCases: [
-      ['tickers 少于 2 个', { tickers: ['SPY'], startDate: '2020-01-01', endDate: '2024-01-01' }],
+      ['tickers 少于 2 个', { tickers: ['SPY'], ...rng() }],
       ['缺少 startDate', { tickers: ['SPY', 'QQQ', 'IWM'], endDate: '2024-01-01' }],
     ],
     notFoundCases: [
-      [
-        '部分标的价格数据缺失',
-        {
-          data: { SPY: { '2020-01-01': 300 }, QQQ: {}, IWM: { '2020-01-01': 150 } },
-          degraded: false,
-        },
-      ],
+      ['部分标的价格数据缺失', { SPY: { '2020-01-01': 300 }, QQQ: {}, IWM: { '2020-01-01': 150 } }],
     ],
     extraCases: [
       [
         '重复 ticker 去重后不足 2 个应返回 422',
-        { tickers: ['SPY', 'spy'], startDate: '2020-01-01', endDate: '2024-01-01' },
+        { tickers: ['SPY', 'spy'], ...rng() },
         422,
         'VALIDATION_ERROR',
       ],
@@ -101,95 +103,45 @@ const CASES: any[] = [
   {
     name: 'LETF',
     path: '/api/v1/letf/analyze',
-    validBody: {
-      letfTicker: 'TQQQ',
-      benchmarkTicker: 'QQQ',
-      leverage: 3,
-      startDate: '2020-01-01',
-      endDate: '2024-01-01',
-    },
+    validBody: { letfTicker: 'TQQQ', benchmarkTicker: 'QQQ', leverage: 3, ...rng() },
     engineResult: letfRes,
-    data: { data: { TQQQ: { '2020-01-01': 30 }, QQQ: { '2020-01-01': 200 } }, degraded: false },
+    data: { TQQQ: { '2020-01-01': 30 }, QQQ: { '2020-01-01': 200 } },
     expectSuccess: (b: any) => {
       expect((b.data.slippageCurve as unknown[]).length).toBe(1);
       expect(b.data.annualDecay).toBe(0.05);
     },
-    tickerBody: {
-      letfTicker: 'tqqq',
-      benchmarkTicker: 'qqq',
-      leverage: 3,
-      startDate: '2020-01-01',
-      endDate: '2024-01-01',
-    },
+    tickerBody: { letfTicker: 'tqqq', benchmarkTicker: 'qqq', leverage: 3, ...rng() },
     expectTickerArgs: (a: any) => {
       expect(a[0]).toEqual(['TQQQ', 'QQQ']);
       expect(a[1]).toBe('2020-01-01');
       expect(a[2]).toBe('2024-01-01');
     },
     validationCases: [
-      [
-        '缺少 letfTicker',
-        { benchmarkTicker: 'QQQ', leverage: 3, startDate: '2020-01-01', endDate: '2024-01-01' },
-      ],
-      [
-        'leverage 为负数',
-        {
-          letfTicker: 'TQQQ',
-          benchmarkTicker: 'QQQ',
-          leverage: -1,
-          startDate: '2020-01-01',
-          endDate: '2024-01-01',
-        },
-      ],
+      ['缺少 letfTicker', { benchmarkTicker: 'QQQ', leverage: 3, ...rng() }],
+      ['leverage 为负数', { letfTicker: 'TQQQ', benchmarkTicker: 'QQQ', leverage: -1, ...rng() }],
     ],
     notFoundCases: [
-      ['LETF 价格数据缺失', { data: { TQQQ: {}, QQQ: { '2020-01-01': 200 } }, degraded: false }],
-      ['基准价格数据缺失', { data: { TQQQ: { '2020-01-01': 30 }, QQQ: {} }, degraded: false }],
+      ['LETF 价格数据缺失', { TQQQ: {}, QQQ: { '2020-01-01': 200 } }],
+      ['基准价格数据缺失', { TQQQ: { '2020-01-01': 30 }, QQQ: {} }],
     ],
     extraCases: [],
   },
   {
     name: 'GoalOptimizer',
     path: '/api/v1/goal-optimizer/optimize',
-    validBody: {
-      targetAmount: 1e6,
-      initialAmount: 1e5,
-      years: 20,
-      assets: [{ ticker: 'SPY', weight: 100 }],
-      numSimulations: 1000,
-    },
+    validBody: goalValid,
     engineResult: optRes,
-    data: { data: { SPY: { '2020-01-01': 300 } }, degraded: false },
+    data: { SPY: { '2020-01-01': 300 } },
     expectSuccess: (b: any) => {
       expect(b.data.successProbability).toBe(0.85);
       expect((b.data.probabilityCurve as unknown[]).length).toBe(1);
     },
     validationCases: [
-      [
-        '缺少 targetAmount',
-        {
-          initialAmount: 1e5,
-          years: 20,
-          assets: [{ ticker: 'SPY', weight: 100 }],
-          numSimulations: 1000,
-        },
-      ],
-      [
-        'targetAmount 为负数',
-        {
-          targetAmount: -100,
-          initialAmount: 1e5,
-          years: 20,
-          assets: [{ ticker: 'SPY', weight: 100 }],
-          numSimulations: 1000,
-        },
-      ],
-      [
-        '空 assets 数组',
-        { targetAmount: 1e6, initialAmount: 1e5, years: 20, assets: [], numSimulations: 1000 },
-      ],
+      ['缺少 targetAmount', goalBase],
+      ['targetAmount 为负数', { ...goalValid, targetAmount: -100 }],
+      ['空 assets 数组', { ...goalValid, assets: [] }],
     ],
-    notFoundCases: [['价格数据缺失', { data: {}, degraded: false }]],
+    notFoundCases: [['价格数据缺失', {}]],
     extraCases: [],
   },
 ];
@@ -198,20 +150,20 @@ describe.each(CASES)('analysisRoutes - %s: POST %s', (c) => {
   it('有效参数应返回分析结果', async () => {
     const { res, body } = await post(s(), c.path, c.validBody);
     expect(res.status).toBe(200);
-    expect(engineMocks.callEngineStrict).toHaveBeenCalledTimes(1);
+    expect(ce).toHaveBeenCalledTimes(1);
     c.expectSuccess(body as { data: Record<string, unknown> });
   });
   if (c.tickerBody && c.expectTickerArgs)
     it('应将 ticker 转大写并去重后调用 fetchHistoryData', async () => {
       await post(s(), c.path, c.tickerBody);
-      c.expectTickerArgs!(dataServiceMocks.fetchHistoryData.mock.calls[0]);
+      c.expectTickerArgs!(fh.mock.calls[0]);
     });
   (it.each as any)(c.validationCases)('%s 应返回 400', async (_n: any, b: any) => {
     const { res } = await post(s(), c.path, b);
     expect(res.status).toBe(400);
   });
   (it.each as any)(c.notFoundCases)('%s 应返回 404', async (_n: any, d: any) => {
-    dataServiceMocks.fetchHistoryData.mockResolvedValue(d);
+    fh.mockResolvedValue(md(d));
     const { res } = await post(s(), c.path, c.validBody);
     expect(res.status).toBe(404);
   });
@@ -221,7 +173,7 @@ describe.each(CASES)('analysisRoutes - %s: POST %s', (c) => {
     expect(j.error.code).toBe(code);
   });
   it('引擎抛错时应返回 500', async () => {
-    engineMocks.callEngineStrict.mockRejectedValueOnce(new Error(`${c.name} engine error`));
+    ce.mockRejectedValueOnce(new Error(`${c.name} engine error`));
     const { res } = await post(s(), c.path, c.validBody);
     expect(res.status).toBe(500);
   });
@@ -236,14 +188,15 @@ describe('FactorRegression', () => {
     endDate: '2020-12',
   };
   const m = { monthlyReturns: [0.01], ffData: [{ mktRF: 0.02 }] };
+  const FR = '/api/v1/analysis/factor-regression';
   it('完整参数应返回 200 + 引擎结果', async () => {
-    const { res, body } = await post(s(), '/api/v1/analysis/factor-regression', v);
+    const { res, body } = await post(s(), FR, v);
     expect(res.status).toBe(200);
     expect(body.data).toEqual({ alpha: 0.01, beta: 1.05 });
   });
   it('省略 factors/startDate/endDate 时使用默认值', async () => {
-    await post(s(), '/api/v1/analysis/factor-regression', m);
-    expect(engineMocks.callEngineStrict).toHaveBeenCalledWith(
+    await post(s(), FR, m);
+    expect(ce).toHaveBeenCalledWith(
       '/api/engine/factor-regression',
       {
         monthlyReturns: [0.01],
@@ -260,12 +213,12 @@ describe('FactorRegression', () => {
     ['monthlyReturns 为空数组', { monthlyReturns: [], ffData: [{ mktRF: 0.02 }] }],
     ['ffData 为空数组', { monthlyReturns: [0.01], ffData: [] }],
   ])('%s 应返回 400', async (_n, b) => {
-    const { res } = await post(s(), '/api/v1/analysis/factor-regression', b);
+    const { res } = await post(s(), FR, b);
     expect(res.status).toBe(400);
   });
   it('引擎抛错应返回 500', async () => {
-    engineMocks.callEngineStrict.mockRejectedValueOnce(new Error('fr boom'));
-    const { res } = await post(s(), '/api/v1/analysis/factor-regression', m);
+    ce.mockRejectedValueOnce(new Error('fr boom'));
+    const { res } = await post(s(), FR, m);
     expect(res.status).toBe(500);
   });
 });
@@ -282,7 +235,7 @@ describe('Calculator', () => {
   ])('%s 类型应返回 200 且透传 payload 到引擎', async (t, b, e) => {
     const { res } = await post(s(), `/api/v1/calculators/${t}`, b);
     expect(res.status).toBe(200);
-    expect(engineMocks.callEngineStrict).toHaveBeenCalledWith(
+    expect(ce).toHaveBeenCalledWith(
       '/api/engine/calculators',
       e,
       calculatorResultSchema[t as keyof typeof calculatorResultSchema],
@@ -293,15 +246,13 @@ describe('Calculator', () => {
     expect(res.status).toBe(422);
   });
   it('引擎不可用应返回 503', async () => {
-    engineMocks.callEngineStrict.mockRejectedValueOnce(
-      new engineMocks.EngineUnavailableError('/api/engine/calculators'),
-    );
+    ce.mockRejectedValueOnce(new engineMocks.EngineUnavailableError('/api/engine/calculators'));
     const { res, body } = await post(s(), '/api/v1/calculators/cagr', {});
     expect(res.status).toBe(503);
     expect(body.error.code).toBe('ENGINE_UNAVAILABLE');
   });
   it('引擎抛错应返回 500', async () => {
-    engineMocks.callEngineStrict.mockRejectedValueOnce(new Error('calc boom'));
+    ce.mockRejectedValueOnce(new Error('calc boom'));
     const { res } = await post(s(), '/api/v1/calculators/cagr', {});
     expect(res.status).toBe(500);
   });
@@ -328,28 +279,29 @@ const mkReq = (o?: Record<string, unknown>) => ({
   startingValue: 10000,
   rebalanceFrequency: 'monthly' as const,
 });
-describe('tacticalRoutes - POST /api/tactical/backtest', () => {
-  const s = withServer(() => {
+const tacSetup = (engine: (m: typeof ce) => void) =>
+  withServer(() => {
     vi.clearAllMocks();
-    dataServiceMocks.fetchHistoryData.mockResolvedValue({
-      data: createMockPriceData({ numDays: 3, startPrice: 300 }),
-      degraded: false,
-    });
-    engineMocks.callEngineStrict
+    fh.mockResolvedValue(md(createMockPriceData({ numDays: 3, startPrice: 300 })));
+    engine(ce);
+    return startExpressApp((a) => a.use('/api/v1', analysisRoutes));
+  });
+describe('tacticalRoutes - POST /api/tactical/backtest', () => {
+  const s = tacSetup((m) =>
+    m
       .mockResolvedValueOnce({
         portfolio: mockPortfolioResult({ name: 'Portfolio' }),
         signalHistory: sigHist,
       })
-      .mockResolvedValueOnce({ portfolios: [mockPortfolioResult({ name: 'Portfolio' })] });
-    return startExpressApp((a) => a.use('/api/v1', analysisRoutes));
-  });
+      .mockResolvedValueOnce({ portfolios: [mockPortfolioResult({ name: 'Portfolio' })] }),
+  );
   it('有效参数应返回回测结果和基准', async () => {
     const { res, body } = await post(s(), '/api/v1/tactical/backtest', mkReq());
     expect(res.status).toBe(200);
     expect(body.data.signalHistory).toHaveLength(1);
   });
   it('无效标的数据应返回 404', async () => {
-    dataServiceMocks.fetchHistoryData.mockResolvedValue({ data: {}, degraded: false });
+    fh.mockResolvedValue({ data: {}, degraded: false });
     const { res } = await post(s(), '/api/v1/tactical/backtest', mkReq());
     expect(res.status).toBe(404);
   });
@@ -369,15 +321,12 @@ describe('tacticalRoutes - POST /api/tactical/backtest', () => {
     expect(res.status).toBe(400);
   });
   it('引擎抛错时应返回 500', async () => {
-    engineMocks.callEngineStrict
-      .mockReset()
-      .mockRejectedValueOnce(new Error('tactical engine error'));
+    ce.mockReset().mockRejectedValueOnce(new Error('tactical engine error'));
     const { res } = await post(s(), '/api/v1/tactical/backtest', mkReq());
     expect(res.status).toBe(500);
   });
   it('基准回测失败应 fail-closed', async () => {
-    engineMocks.callEngineStrict
-      .mockReset()
+    ce.mockReset()
       .mockResolvedValueOnce({
         portfolio: mockPortfolioResult({ name: 'P' }),
         signalHistory: sigHist,
@@ -388,13 +337,8 @@ describe('tacticalRoutes - POST /api/tactical/backtest', () => {
   });
 });
 describe('tacticalRoutes - POST /api/tactical/what-if', () => {
-  const s = withServer(() => {
-    vi.clearAllMocks();
-    dataServiceMocks.fetchHistoryData.mockResolvedValue({
-      data: createMockPriceData({ numDays: 3, startPrice: 300 }),
-      degraded: false,
-    });
-    engineMocks.callEngineStrict.mockResolvedValue({
+  const s = tacSetup((m) =>
+    m.mockResolvedValue({
       signalHistory: [
         {
           date: '2020-01-03',
@@ -402,9 +346,8 @@ describe('tacticalRoutes - POST /api/tactical/what-if', () => {
           weights: [{ ticker: 'SPY', weight: 100 }],
         },
       ],
-    });
-    return startExpressApp((a) => a.use('/api/v1', analysisRoutes));
-  });
+    }),
+  );
   it('有效参数应返回信号状态', async () => {
     const { res, body } = await post(s(), '/api/v1/tactical/what-if', {
       tickers: ['SPY'],
@@ -418,7 +361,7 @@ describe('tacticalRoutes - POST /api/tactical/what-if', () => {
     expect(res.status).toBe(400);
   });
   it('引擎抛错应返回 500', async () => {
-    engineMocks.callEngineStrict.mockRejectedValueOnce(new Error('what-if error'));
+    ce.mockRejectedValueOnce(new Error('what-if error'));
     const { res } = await post(s(), '/api/v1/tactical/what-if', {
       tickers: ['SPY'],
       strategy: mkStrat(),
@@ -453,11 +396,8 @@ describe('tacticalGridRoutes - POST /api/tactical-grid/search', () => {
   const s = withServer(() => {
     vi.clearAllMocks();
     queueMocks.add.mockResolvedValue({ id: 'grid-job-123' });
-    dataServiceMocks.fetchHistoryData.mockResolvedValue({
-      data: createMockPriceData({ numDays: 30, startPrice: 301 }),
-      degraded: false,
-    });
-    engineMocks.callEngineStrict.mockResolvedValue(gridRes);
+    fh.mockResolvedValue(md(createMockPriceData({ numDays: 30, startPrice: 301 })));
+    ce.mockResolvedValue(gridRes);
     return startExpressApp((a) => a.use('/api/v1', jobRoutes));
   });
   const g = (b: unknown) => post(s(), '/api/v1/tactical-grid/search', b);
@@ -467,35 +407,16 @@ describe('tacticalGridRoutes - POST /api/tactical-grid/search', () => {
     expect(body).toMatchObject({ success: true, data: { jobId: 'grid-job-123' } });
   });
   it.each([
-    [
-      '缺少 indicator',
-      (r: Record<string, unknown>) => {
-        delete r.indicator;
-      },
-    ],
-    [
-      '空 tickers 数组',
-      (r: Record<string, unknown>) => {
-        r.tickers = [];
-      },
-    ],
-    [
-      '无效日期格式',
-      (r: Record<string, unknown>) => {
-        r.startDate = 'not-a-date';
-      },
-    ],
-  ])('%s应返回 400', async (_n, mut) => {
-    const req = mkGridReq() as unknown as Record<string, unknown>;
-    mut(req);
-    const { res } = await g(req);
+    ['缺少 indicator', { indicator: undefined }],
+    ['空 tickers 数组', { tickers: [] }],
+    ['无效日期格式', { startDate: 'not-a-date' }],
+  ])('%s应返回 400', async (_n, patch: Record<string, unknown>) => {
+    const { res } = await g({ ...mkGridReq(), ...patch });
     expect(res.status).toBe(400);
   });
   it('参数组合超过上限应返回 422', async () => {
-    const r = mkGridReq();
-    r.param1 = { min: 1, max: 100, step: 1 };
-    r.param2 = { min: 1, max: 100, step: 1 };
-    const { res } = await g(r);
+    const wide = { min: 1, max: 100, step: 1 };
+    const { res } = await g({ ...mkGridReq(), param1: wide, param2: wide });
     expect(res.status).toBe(422);
   });
   it('BullMQ 不可用时应回退到同步执行', async () => {
@@ -506,19 +427,19 @@ describe('tacticalGridRoutes - POST /api/tactical-grid/search', () => {
   });
   it('同步回退时价格数据缺失应返回 400', async () => {
     queueMocks.add.mockRejectedValue(new Error('Redis unavailable'));
-    dataServiceMocks.fetchHistoryData.mockResolvedValue({ data: {}, degraded: false });
+    fh.mockResolvedValue({ data: {}, degraded: false });
     const { res } = await g(mkGridReq());
     expect(res.status).toBe(400);
   });
   it('同步回退引擎抛错应返回 500', async () => {
     queueMocks.add.mockRejectedValue(new Error('Redis unavailable'));
-    engineMocks.callEngineStrict.mockRejectedValue(new Error('grid engine error'));
+    ce.mockRejectedValue(new Error('grid engine error'));
     const { res } = await g(mkGridReq());
     expect(res.status).toBe(500);
   });
   it('BullMQ 回退同步执行超时应返回 503', async () => {
     queueMocks.add.mockRejectedValue(new Error('Redis unavailable'));
-    dataServiceMocks.fetchHistoryData.mockImplementation(() => new Promise(() => {}));
+    fh.mockImplementation(() => new Promise(() => {}));
     const { res } = await g(mkGridReq());
     expect(res.status).toBe(503);
   });
