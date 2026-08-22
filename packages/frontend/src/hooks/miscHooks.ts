@@ -22,21 +22,18 @@ export function useOrgAuth() {
 export function useAsyncAction() {
   const [isLoading, setIsLoading] = useState(false),
     [error, setError] = useState<string | null>(null);
-  const run = useCallback(
-    <T>(t: () => Promise<T>) => (
-      setIsLoading(true),
-      setError(null),
-      t()
-        .catch(
-          (e: unknown) => (
-            setError(e instanceof Error ? e.message : i18n.t('Operation failed')),
-            undefined as T
-          ),
-        )
-        .finally(() => setIsLoading(false)) as Promise<T | undefined>
-    ),
-    [],
-  );
+  const run = useCallback(async <T>(t: () => Promise<T>) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      return await t();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : i18n.t('Operation failed'));
+      return undefined;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
   const reset = useCallback(() => (setIsLoading(false), setError(null)), []);
   return { isLoading, error, run, reset, setError };
 }
@@ -69,8 +66,8 @@ export function useAssetList<T extends AW>(d: T[], f: () => T, n = 1) {
 export function useMediaQuery(q: string) {
   const [m, setM] = useState(() => typeof window !== 'undefined' && window.matchMedia(q).matches);
   useEffect(() => {
-    const w = window.matchMedia(q);
-    const h = (e: MediaQueryListEvent) => setM(e.matches);
+    const w = window.matchMedia(q),
+      h = (e: MediaQueryListEvent) => setM(e.matches);
     w.addEventListener('change', h);
     return () => w.removeEventListener('change', h);
   }, [q]);
@@ -114,10 +111,9 @@ export function useAdminFetch<T>(u: string, p: Parser<T>, init: T, name: string)
   const fetch = () =>
     run(async () => {
       try {
-        const r = await apiFetch(u);
-        if (!r.ok) return;
-        const j = await r.json();
-        if (j.success && j.data) {
+        const r = await apiFetch(u),
+          j = r.ok ? await r.json() : null;
+        if (j?.success && j?.data) {
           setData(p(j.data));
           setLastRefresh(new Date().toLocaleTimeString(i18n.language));
         }
@@ -134,27 +130,22 @@ export function useComputeTool<R>(c: () => Promise<R>, v?: () => string | null) 
   const runCompute = useCallback(() => {
     const e = v?.();
     if (e) return void setError(e);
-    run(async () => {
-      setResults(await c());
-    });
+    run(() => c().then(setResults));
   }, [c, v, run, setError]);
-  const reset = useCallback(() => {
-    resetAction();
-    setResults(null);
-  }, [resetAction]);
+  const reset = useCallback(() => (resetAction(), setResults(null)), [resetAction]);
   return { isLoading, error, results, runCompute, setResults, reset };
 }
 export function useAnalysisState<S extends Dict, R>(e: string, i: S, b: B<S>, v: V<S>) {
-  const s = useSetterState(i);
-  const {
-    isLoading,
-    error,
-    results,
-    runCompute: runAnalysis,
-  } = useComputeTool<R>(
-    async () => apiPostJSON<R>(e, b(s), i18n.t('Analysis failed')),
-    () => v(s),
-  );
+  const s = useSetterState(i),
+    {
+      isLoading,
+      error,
+      results,
+      runCompute: runAnalysis,
+    } = useComputeTool<R>(
+      async () => apiPostJSON<R>(e, b(s), i18n.t('Analysis failed')),
+      () => v(s),
+    );
   return { ...s, isLoading, error, results, runAnalysis };
 }
 interface TickerMeta {
@@ -169,9 +160,9 @@ const tickerMetaCache = new Map<string, TickerMeta>();
 export function useTickerMeta(ticker: string): TickerMeta | null {
   const [meta, setMeta] = useState<TickerMeta | null>(null);
   useEffect(() => {
-    if (!ticker) return void setMeta(null);
-    const up = ticker.toUpperCase();
-    if (tickerMetaCache.has(up)) return setMeta(tickerMetaCache.get(up) ?? null);
+    const up = ticker.toUpperCase(),
+      hit = ticker ? tickerMetaCache.get(up) : undefined;
+    if (!ticker || hit) return setMeta(hit ?? null);
     const t = setTimeout(async () => {
       try {
         const r = await apiFetch(`/api/v1/data/ticker-meta?ticker=${encodeURIComponent(up)}`, {
@@ -206,22 +197,14 @@ function createResourceCache<T>(
 function useCachedResource<T>(cache: ResourceCache<T>): T | null {
   const [data, setData] = useState<T | null>(cache.data);
   useEffect(() => {
-    if (cache.data && (!cache.ttl || Date.now() - cache.time < cache.ttl)) {
-      setData(cache.data);
-      return;
-    }
+    if (cache.data && (!cache.ttl || Date.now() - cache.time < cache.ttl))
+      return void setData(cache.data);
     if (!cache.pending)
       cache.pending = cache
         .fetcher()
-        .then((d) => {
-          cache.data = d;
-          cache.time = Date.now();
-          return d;
-        })
+        .then((d) => ((cache.data = d), (cache.time = Date.now()), d))
         .catch(() => null as T)
-        .finally(() => {
-          cache.pending = null;
-        });
+        .finally(() => (cache.pending = null));
     cache.pending!.then(setData);
   }, [cache]);
   return data;
@@ -248,9 +231,7 @@ export function useIdleTimeout(timeoutMs: number, enabled: boolean): void {
     triggered.current = false;
     lastActivity.current = Date.now();
     ACTIVITY_EVENTS.forEach((e) => window.addEventListener(e, resetActivity, { passive: true }));
-    const onVis = () => {
-      if (document.visibilityState === 'visible') checkTimeout();
-    };
+    const onVis = () => document.visibilityState === 'visible' && checkTimeout();
     document.addEventListener('visibilitychange', onVis);
     const id = setInterval(checkTimeout, 60_000);
     return () => {
@@ -273,10 +254,7 @@ interface Announcement {
 const announceCache = createResourceCache<Announcement[]>(() =>
   apiFetch('/api/v1/announcements', { silent: true })
     .then((r) => (r.ok ? r.json() : { data: [] }))
-    .then((j) => {
-      const d = j.data ?? j ?? [];
-      return Array.isArray(d) ? d : [];
-    })
+    .then((j) => (Array.isArray(j.data ?? j) ? (j.data ?? j) : []))
     .catch(() => []),
 );
 export function useAnnouncements() {
@@ -288,12 +266,12 @@ export function useAnnouncements() {
       if (s) setReadIds(new Set(JSON.parse(s)));
     } catch {}
   }, []);
-  const list = announcements ?? [];
-  const markAllRead = useCallback(() => {
-    const all = new Set(announcements?.map((a) => a.id) ?? []);
-    setReadIds(all);
-    localStorage.setItem('announcements-read', JSON.stringify([...all]));
-  }, [announcements]);
+  const list = announcements ?? [],
+    markAllRead = useCallback(() => {
+      const all = new Set(announcements?.map((a) => a.id) ?? []);
+      setReadIds(all);
+      localStorage.setItem('announcements-read', JSON.stringify([...all]));
+    }, [announcements]);
   return {
     announcements: list,
     unreadCount: list.filter((a) => !readIds.has(a.id)).length,
@@ -306,32 +284,27 @@ interface DataMeta {
   earliestDate: string;
   dataPointCount: number;
 }
+const metaInitial = (): DataMeta | null => {
+  try {
+    const g = (window as { __INITIAL_DATA__?: Dict }).__INITIAL_DATA__,
+      d = g && ((g.data ?? g) as Partial<DataMeta>);
+    return d?.tickerCount !== undefined && d?.lastUpdated
+      ? ({
+          ...d,
+          earliestDate: d.earliestDate || '',
+          dataPointCount: d.dataPointCount || 0,
+        } as DataMeta)
+      : null;
+  } catch {}
+  return null;
+};
 const metaCache = createResourceCache<DataMeta | null>(
   () =>
     apiFetch('/api/v1/data/meta', { silent: true })
       .then((r) => (r.ok ? r.json() : null))
-      .then((j) => {
-        const d = j?.data ?? j;
-        return d?.lastUpdated ? d : null;
-      })
+      .then((j) => ((j?.data ?? j)?.lastUpdated ? (j?.data ?? j) : null))
       .catch(() => null),
-  (() => {
-    try {
-      const g =
-        typeof window !== 'undefined'
-          ? (window as { __INITIAL_DATA__?: Record<string, unknown> }).__INITIAL_DATA__
-          : null;
-      const d = (g && (g.data ?? g)) as Partial<DataMeta>;
-      if (d?.tickerCount !== undefined && d?.lastUpdated)
-        return {
-          lastUpdated: d.lastUpdated,
-          tickerCount: d.tickerCount,
-          earliestDate: d.earliestDate || '',
-          dataPointCount: d.dataPointCount || 0,
-        };
-    } catch {}
-    return null;
-  })(),
+  metaInitial(),
   5 * 60 * 1000,
 );
 export const useDataMeta = (): DataMeta | null => useCachedResource(metaCache);
@@ -353,27 +326,19 @@ export function useChartCalcWorker<T>(task: WorkerTask | null) {
     w.onmessage = (e: MessageEvent<{ id: number; result: T; error?: string }>) => {
       if (dead || e.data.id !== lastId.current) return;
       setIsPending(false);
-      if (e.data.error) setError(e.data.error);
-      else {
-        setData(e.data.result);
-        setError(null);
-      }
+      setError(e.data.error ?? null);
+      if (!e.data.error) setData(e.data.result);
     };
-    return () => {
-      dead = true;
-      w.terminate();
-      workerRef.current = null;
-    };
+    return () => ((dead = true), w.terminate(), void (workerRef.current = null));
   }, []);
   useEffect(() => {
     if (!task || !workerRef.current) return;
-    const k = task.type + ':' + JSON.stringify(task.payload);
+    const k = task.type + ':' + JSON.stringify(task.payload),
+      id = (lastId.current = idRef.current++);
     if (k === lastKey.current) return;
     lastKey.current = k;
     setIsPending(true);
-    const id = idRef.current++;
-    lastId.current = id;
-    workerRef.current.postMessage({ id, type: task.type, payload: task.payload });
+    workerRef.current.postMessage({ id, ...task });
   }, [task]);
   return { data, isPending, error };
 }
