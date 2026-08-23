@@ -1,8 +1,8 @@
 # count-loc.ps1 — scc 行数统计
-# 基线 179,541 行；目标 <= 100,000 行（AGENTS.md）
+# 基线 89,355 行（2026-08-23 首轮压缩收口，原基线 179,541 已达成 -50.2%）；目标 <= 100,000 行（AGENTS.md）
 
 $root = Split-Path -Parent $PSScriptRoot
-$baseline = 179541
+$baseline = 89355
 $target = 100000
 $exclude = 'node_modules,dist,dist-ssr,.dev-logs,coverage,.git,data,report,.turbo,.cache,.vite,playwright-report,test-results,docs/audit,.github,.husky,.devcontainer,docker,config,k8s'
 
