@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next';
 import * as L from 'lucide-react';
 import { Link } from 'react-router';
 import { Card, Button, Input } from '@/components/ui/uiComponents';
-import { cn } from '@/lib/utils';
 import { ComputeToolShell, type ComputeToolConfig } from '../../components/shells/index.js';
 import BacktestParamsForm from '@/components/BacktestParamsForm.js';
 import PortfolioEditor from '@/components/PortfolioEditor.js';
@@ -15,7 +14,12 @@ import type { SavedPortfolio } from '@/utils/portfolioStorage';
 import { RunButton } from '@/components/form/sharedFields';
 import { TableEmpty } from '@/components/stateDisplay.js';
 import { ResultsContent } from './BacktestResults.js';
+
 const HERO_KEY = 'backtest-hero-expanded';
+const TAGLINE =
+  'Professional tools for backtesting portfolios, asset allocations, and retirement cashflows';
+const INTRO =
+  'This platform is a portfolio backtesting tool supporting ETFs, stocks, funds, synthetic tickers, and custom sequences. Compare multiple portfolios over the same historical period, test rebalancing rules, and simulate cashflow contributions or withdrawals.';
 const TOOLS = [
   { labelKey: 'nav.monteCarlo', path: '/monte-carlo' },
   { labelKey: 'nav.portfolioOptimize', path: '/optimizer' },
@@ -24,28 +28,31 @@ const TOOLS = [
   { labelKey: 'nav.pca', path: '/pca' },
   { labelKey: 'nav.letfAnalysis', path: '/letf-slippage' },
 ] as const;
+const CARD_CL =
+  'p-5 bg-surface border border-border-subtle hover:border-border transition-all duration-150 hover:-translate-y-0.5 hover:shadow-lg cursor-default group';
+const ICON_CL = 'p-2 bg-brand-subtle/8 rounded-lg group-hover:bg-brand-subtle/12 transition-colors';
+const TOOL_CL =
+  'text-caption px-2.5 py-1 bg-brand-subtle/8 text-brand rounded-md hover:bg-brand-subtle/15 transition-colors';
+const MORE_CL = 'text-caption text-brand hover:underline flex items-center gap-1';
+const CHEV_CL = 'h-4 w-4 ml-1';
+const ROW_CL =
+  'flex items-center gap-1.5 px-2.5 py-2 border-b border-border-subtle last:border-b-0';
+const ROW_BTN_CL = 'flex-1 text-left bg-transparent border-none cursor-pointer p-0';
+const fmtDate = (d: string, lang: string) => new Date(d).toLocaleString(lang);
+
 type CapProps = {
   icon: ComponentType<{ className?: string }>;
   title: string;
   items?: string[];
   tools?: { label: string; path: string }[];
-  linkLabel?: string;
-  linkTo?: string;
+  link?: [string, string];
   subtitle?: string;
 };
-function CapabilityCard({
-  icon: Icon,
-  title,
-  items,
-  tools,
-  linkLabel,
-  linkTo,
-  subtitle,
-}: CapProps) {
+function CapabilityCard({ icon: Icon, title, items, tools, link, subtitle }: CapProps) {
   return (
-    <Card className="p-5 bg-surface border border-border-subtle hover:border-border transition-all duration-150 hover:-translate-y-0.5 hover:shadow-lg cursor-default group">
+    <Card className={CARD_CL}>
       <div className="flex items-center gap-3 mb-4">
-        <div className="p-2 bg-brand-subtle/8 rounded-lg group-hover:bg-brand-subtle/12 transition-colors">
+        <div className={ICON_CL}>
           <Icon className="h-5 w-5 text-brand" />
         </div>
         <h3 className="text-h3">{title}</h3>
@@ -63,23 +70,16 @@ function CapabilityCard({
       {tools && (
         <div className="flex flex-wrap gap-2 mb-4">
           {tools.map((x) => (
-            <Link
-              key={x.path}
-              to={x.path}
-              className="text-caption px-2.5 py-1 bg-brand-subtle/8 text-brand rounded-md hover:bg-brand-subtle/15 transition-colors"
-            >
+            <Link key={x.path} to={x.path} className={TOOL_CL}>
               {x.label}
             </Link>
           ))}
         </div>
       )}
       {subtitle && <p className="text-caption text-fg-tertiary mt-2">{subtitle}</p>}
-      {linkLabel && linkTo && (
-        <Link
-          to={linkTo}
-          className="text-caption text-brand hover:underline flex items-center gap-1"
-        >
-          {linkLabel} <L.ArrowRight className="h-3 w-3" />
+      {link && (
+        <Link to={link[1]} className={MORE_CL}>
+          {link[0]} <L.ArrowRight className="h-3 w-3" />
         </Link>
       )}
     </Card>
@@ -104,16 +104,14 @@ export function BacktestHero() {
       icon: L.Settings,
       title: t('What You Can Model'),
       items: t('backtest.hero.model.items', { returnObjects: true }) as string[],
-      linkLabel: t('Start Configuring'),
-      linkTo: '#parameters',
+      link: [t('Start Configuring'), '#parameters'],
     },
     {
       icon: L.BarChart3,
       title: t('Metrics You Can Inspect'),
       items: t('backtest.hero.inspect.items', { returnObjects: true }) as string[],
-      linkLabel: t('View Results'),
-      linkTo: '#results',
       subtitle: '60+',
+      link: [t('View Results'), '#results'],
     },
     {
       icon: L.Rocket,
@@ -122,17 +120,13 @@ export function BacktestHero() {
     },
   ];
   return (
-    <section className={cn('page-container', 'pt-4 pb-6')} data-testid="page-hero">
+    <section className="page-container pt-4 pb-6" data-testid="page-hero">
       <div className="flex items-start justify-between mb-4">
         <div>
           <h1 className="text-display md:text-display-xl text-fg mb-3" data-testid="page-title">
             {t('nav.portfolioBacktest')}
           </h1>
-          <p className="text-h2 text-fg-secondary font-normal max-w-[720px]">
-            {t(
-              'Professional tools for backtesting portfolios, asset allocations, and retirement cashflows',
-            )}
-          </p>
+          <p className="text-h2 text-fg-secondary font-normal max-w-[720px]">{t(TAGLINE)}</p>
         </div>
         <Button
           variant="ghost"
@@ -141,19 +135,13 @@ export function BacktestHero() {
           className="text-caption text-fg-tertiary hover:text-fg"
         >
           {t(exp ? 'Hide Intro' : 'Show Intro')}{' '}
-          {exp ? (
-            <L.ChevronUp className="h-4 w-4 ml-1" />
-          ) : (
-            <L.ChevronDown className="h-4 w-4 ml-1" />
-          )}
+          {exp ? <L.ChevronUp className={CHEV_CL} /> : <L.ChevronDown className={CHEV_CL} />}
         </Button>
       </div>
       {exp ? (
         <>
           <p className="text-body text-fg-tertiary max-w-[860px] mb-8 leading-relaxed">
-            {t(
-              'This platform is a portfolio backtesting tool supporting ETFs, stocks, funds, synthetic tickers, and custom sequences. Compare multiple portfolios over the same historical period, test rebalancing rules, and simulate cashflow contributions or withdrawals.',
-            )}
+            {t(INTRO)}
           </p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {cards.map((c) => (
@@ -186,20 +174,15 @@ function useBacktestPageState() {
     if (!d) return;
     localStorage.removeItem('bt_load_from_optimizer');
     try {
-      const j = JSON.parse(d);
-      const ps: Portfolio[] = (j.portfolios || []).map((p: Portfolio) => ({
-        ...p,
-        id: p.id || `portfolio-${Date.now()}`,
-      }));
-      if (ps.length && j.parameters)
-        load({ portfolios: ps, parameters: j.parameters as BacktestParameters });
+      const j = JSON.parse(d) as { portfolios?: Portfolio[]; parameters?: BacktestParameters };
+      const ps = (j.portfolios ?? []).map((p) => ({ ...p, id: p.id || `portfolio-${Date.now()}` }));
+      if (ps.length && j.parameters) load({ portfolios: ps, parameters: j.parameters });
     } catch {
       useToastStore
         .getState()
         .addToast('warning', t('Optimizer data format error, unable to load'));
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- 仅在挂载时从 URL/optimizer 加载配置
-  }, [load, loaded, setLoaded]);
+  }, [load, loaded, setLoaded, t]);
   const [saveOpen, setSaveOpen] = useState(false);
   const [name, setName] = useState('');
   const [loadOpen, setLoadOpen] = useState(false);
@@ -224,15 +207,12 @@ function useBacktestPageState() {
       setSaveOpen(false);
     },
     toggleLoad: async () => {
-      const next = !loadOpen;
-      setLoadOpen(next);
+      setLoadOpen(!loadOpen);
       setSaveOpen(false);
-      if (next) setSaved(await PS.listNamedConfigs());
+      if (!loadOpen) setSaved(await PS.listNamedConfigs());
     },
     loadCfg: (c: SavedPortfolio) => {
-      useBacktestStore
-        .getState()
-        .loadFromShare({ portfolios: c.portfolios, parameters: c.parameters });
+      load({ portfolios: c.portfolios, parameters: c.parameters });
       useToastStore.getState().addToast('success', t('Scheme loaded'));
       setLoadOpen(false);
     },
@@ -303,18 +283,11 @@ function BacktestToolbar({ state: s }: { state: S }) {
             <TableEmpty message={t('No saved schemes')} className="px-3 py-3 text-caption" />
           ) : (
             s.saved.map((c) => (
-              <div
-                key={c.id}
-                className="flex items-center gap-1.5 px-2.5 py-2 border-b border-border-subtle last:border-b-0"
-              >
-                <button
-                  onClick={() => s.loadCfg(c)}
-                  className="flex-1 text-left bg-transparent border-none cursor-pointer p-0"
-                >
+              <div key={c.id} className={ROW_CL}>
+                <button onClick={() => s.loadCfg(c)} className={ROW_BTN_CL}>
                   <div className="text-body font-medium text-fg">{c.name}</div>
                   <div className="text-caption text-fg-tertiary">
-                    {new Date(c.savedAt).toLocaleString(i18n.language)} · {c.portfolios.length}{' '}
-                    {t('portfolios')}
+                    {fmtDate(c.savedAt, i18n.language)} · {c.portfolios.length} {t('portfolios')}
                   </div>
                 </button>
                 <Button
@@ -334,6 +307,10 @@ function BacktestToolbar({ state: s }: { state: S }) {
     </div>
   );
 }
+const REL = [
+  ...TOOLS.slice(0, 3).map((x) => ({ titleKey: x.labelKey, href: x.path })),
+  { titleKey: 'nav.assetAnalysis', href: '/analysis' },
+];
 const config: ComputeToolConfig<S> = {
   titleKey: 'nav.portfolioBacktest',
   hidePageTitle: true,
@@ -342,12 +319,7 @@ const config: ComputeToolConfig<S> = {
     { titleKey: 'backtest.seoModelable', descKey: 'backtest.seoModelableDesc' },
     { titleKey: 'analysis.seoViewable', descKey: 'backtest.seoViewableDesc' },
   ],
-  relatedTools: [
-    { titleKey: 'nav.monteCarlo', href: '/monte-carlo' },
-    { titleKey: 'nav.portfolioOptimize', href: '/optimizer' },
-    { titleKey: 'nav.efficientFrontier', href: '/efficient-frontier' },
-    { titleKey: 'nav.assetAnalysis', href: '/analysis' },
-  ],
+  relatedTools: REL,
   params: BacktestParamsForm,
   afterParams: ({ state }) => (
     <Card className="p-5">
