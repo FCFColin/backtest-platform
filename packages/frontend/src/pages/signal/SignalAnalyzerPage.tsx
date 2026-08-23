@@ -22,14 +22,10 @@ import {
   IndicatorSelect,
 } from './SignalParamsPanel.js';
 const AGG = [
-  {
-    value: 'weighted',
-    label: 'signal.multi.aggregationWeighted',
-    desc: 'signal.multi.descWeighted',
-  },
-  { value: 'voting', label: 'signal.multi.aggregationVoting', desc: 'signal.multi.descVoting' },
-  { value: 'rank', label: 'signal.multi.aggregationRank', desc: 'signal.multi.descRank' },
-];
+  ['weighted', 'signal.multi.aggregationWeighted', 'signal.multi.descWeighted'],
+  ['voting', 'signal.multi.aggregationVoting', 'signal.multi.descVoting'],
+  ['rank', 'signal.multi.aggregationRank', 'signal.multi.descRank'],
+].map(([value, label, desc]) => ({ value, label, desc }));
 const ROW_CLS = 'h-9 w-16 font-mono tabular-nums';
 const STAT_COLS = [
   { key: 'totalSignals', label: 'signal.dual.statTotalSignals', fmt: 'int' },
@@ -55,7 +51,7 @@ const SIGS = [
 const StatCardGrid = ({ items }: { items: { label: string; value: string }[] }) => (
   <div className={GRID5}>
     {items.map((r) => (
-      <StatCard key={r.label} label={r.label} value={r.value} />
+      <StatCard key={r.label} {...r} />
     ))}
   </div>
 );
@@ -63,6 +59,14 @@ const fmtStat = (v: number | undefined, f: string) =>
   f === 'int' ? String(v) : f === 'pct' ? fmtPct(v) : fmtRatio(v);
 const toItems = (s: Record<string, number>, t: TFunction) =>
   STAT_COLS.map((c) => ({ label: t(c.label), value: fmtStat(s[c.key], c.fmt) }));
+const DIR_META: Record<string, readonly [string, string]> = {
+  buy: [BUY_CLS, 'Buy'],
+  sell: [SELL_CLS, 'Sell'],
+};
+const DirCell = ({ v, t }: { v?: string | null; t: TFunction }) => {
+  const m = DIR_META[v ?? ''];
+  return <span className={m ? m[0] : NONE_CLS}>{m ? t(m[1]) : '-'}</span>;
+};
 const dirCol = (
   k: 'signal1' | 'signal2' | 'combined',
   l: string,
@@ -70,27 +74,13 @@ const dirCol = (
 ): T.TableColumn<Sig.DualSignalResponse['comparison'][number]> => ({
   key: k,
   label: l,
-  render: (r) =>
-    r[k] === 'buy' ? (
-      <span className={BUY_CLS}>{t('Buy')}</span>
-    ) : r[k] === 'sell' ? (
-      <span className={SELL_CLS}>{t('Sell')}</span>
-    ) : (
-      <span className={NONE_CLS}>-</span>
-    ),
+  render: (r) => <DirCell v={r[k]} t={t} />,
   sortValue: (r) => r[k] ?? '',
 });
 const mk = (k: string, l: string, g: (r: any) => any, f: (v: any) => any) =>
   ({ key: k, label: l, render: (r: any) => f(g(r)), sortValue: g }) as T.TableColumn<any>;
-const EquityChart = ({
-  d,
-  name,
-  t,
-}: {
-  d: SignalAnalysisResult['equityCurve'];
-  name: string;
-  t: TFunction;
-}) => (
+type EqCurve = SignalAnalysisResult['equityCurve'];
+const EquityChart = ({ d, name, t }: { d: EqCurve; name: string; t: TFunction }) => (
   <TimeSeriesLineChart
     data={downsample(d, 400)}
     referenceY={10000}
@@ -112,38 +102,34 @@ function DualSignalResultsPanel({ state }: { state: Sig.UseDualSignalStateResult
   const [page, setPage] = useState(0);
   useEffect(() => setPage(0), [results]);
   const cmp = results ? results.comparison.filter((r) => r.signal1 || r.signal2 || r.combined) : [];
-  const rows = results
-    ? SIGS.map(({ k, n }) => ({ name: t(n), stats: results[k].statistics }))
-    : [];
-  const eq = (() => {
-    const m = new Map<string, Record<string, number | string>>();
-    for (const { k } of SIGS)
-      for (const p of results?.[k].equityCurve ?? []) {
-        if (!m.has(p.date)) m.set(p.date, { date: p.date });
-        m.get(p.date)![k] = p.value;
-      }
-    return [...m.values()].sort((a, b) => (a.date as string).localeCompare(b.date as string));
-  })();
   const cmpCols = [
     { key: 'date', label: t('Date'), sortValue: (r: any) => r.date },
     ...SIGS.map(({ k, n }) => dirCol(k, t(n), t)),
   ];
   const statCols = [
     { key: 'metric', label: t('Metric'), render: (c: any) => t(c.label) },
-    ...rows.map((r, i) => ({
+    ...SIGS.map(({ k, n }, i) => ({
       key: `s${i}`,
-      label: <U.PortfolioLabel color={getPortfolioColor(i)} name={r.name} />,
+      label: <U.PortfolioLabel color={getPortfolioColor(i)} name={t(n)} />,
       align: 'right' as const,
-      render: (c: (typeof STAT_COLS)[number]) =>
-        fmtStat((r.stats as Record<string, number>)[c.key], c.fmt),
+      render: (c: any) => fmtStat((results?.[k].statistics as any)[c.key], c.fmt),
     })),
   ];
+  const eq = (() => {
+    const m = new Map<string, Record<string, number | string>>();
+    for (const { k } of SIGS)
+      for (const p of results?.[k].equityCurve ?? []) {
+        m.set(p.date, { date: p.date, ...m.get(p.date), [k]: p.value });
+      }
+    return [...m.values()].sort((a, b) => (a.date as string).localeCompare(b.date as string));
+  })();
   const NavBtn = (l: string, d: boolean, o: () => void) => (
     <U.Button type="button" variant="ghost" size="sm" onClick={o} disabled={d}>
       {l}
     </U.Button>
   );
   const total = Math.ceil(cmp.length / 100);
+  const nav = (dir: number) => setPage((p) => Math.min(Math.max(0, p + dir), total - 1));
   return (
     <ResultsShell {...shellProps(t, error, results, isLoading)}>
       <div className="flex flex-col gap-4">
@@ -158,10 +144,8 @@ function DualSignalResultsPanel({ state }: { state: Sig.UseDualSignalStateResult
                   {page * 100 + 1}–{Math.min((page + 1) * 100, cmp.length)} / {cmp.length}
                 </span>
                 <span className="flex gap-2">
-                  {NavBtn(t('Prev'), page === 0, () => setPage((p) => Math.max(0, p - 1)))}
-                  {NavBtn(t('Next'), page >= total - 1, () =>
-                    setPage((p) => Math.min(total - 1, p + 1)),
-                  )}
+                  {NavBtn(t('Prev'), page === 0, () => nav(-1))}
+                  {NavBtn(t('Next'), page >= total - 1, () => nav(1))}
                 </span>
               </div>
               <T.SortableTable
@@ -190,23 +174,19 @@ function DualSignalResultsPanel({ state }: { state: Sig.UseDualSignalStateResult
 function SignalAnalyzerResultsPanel({ state }: { state: Sig.UseSignalAnalyzerStateResult }) {
   const { t } = useTranslation();
   const { error, results, isLoading, runAnalysis } = state;
-  const cols = [
-    { key: 'date', label: t('Date'), sortValue: (r: any) => r.date },
+  const cols: T.TableColumn<any>[] = [
+    { key: 'date', label: t('Date'), sortValue: (r) => r.date },
     {
       key: 'type',
       label: t('Type'),
-      sortValue: (r: any) => r.type,
-      render: (r: any) => (
-        <span className={r.type === 'buy' ? BUY_CLS : SELL_CLS}>
-          {r.type === 'buy' ? t('Buy') : t('Sell')}
-        </span>
-      ),
+      sortValue: (r) => r.type,
+      render: (r) => <DirCell v={r.type} t={t} />,
     },
     {
       key: 'price',
       label: t('Price'),
-      render: (r: any) => fmtAmount(r.price),
-      sortValue: (r: any) => r.price,
+      render: (r) => fmtAmount(r.price),
+      sortValue: (r) => r.price,
     },
   ];
   return (
@@ -297,24 +277,9 @@ function MultiSignalParams({ state }: { state: Sig.UseMultiSignalStateResult }) 
   const tid = useId(),
     sid = useId(),
     eid = useId();
-  const {
-    signals,
-    weights,
-    aggregationMethod: am,
-    addSignal,
-    removeSignal,
-    updateSignal,
-    updateWeight,
-    setAggregationMethod,
-    ticker,
-    startDate,
-    endDate,
-    setTicker,
-    setStartDate,
-    setEndDate,
-    isLoading,
-    runAnalysis,
-  } = state;
+  const { signals, weights, aggregationMethod: am, addSignal, removeSignal } = state;
+  const { updateSignal, updateWeight, setAggregationMethod, ticker, startDate } = state;
+  const { endDate, setTicker, setStartDate, setEndDate, isLoading, runAnalysis } = state;
   return (
     <div className="flex flex-col gap-5">
       <section className="flex flex-col gap-2">
@@ -398,10 +363,9 @@ function MultiSignalParams({ state }: { state: Sig.UseMultiSignalStateResult }) 
           <LabeledField htmlFor={tid} label={t('Ticker')}>
             <U.Input
               id={tid}
-              type="text"
               value={ticker}
-              onChange={(e) => setTicker(e.target.value)}
               placeholder={t('e.g. SPY')}
+              onChange={(e) => setTicker(e.target.value)}
             />
           </LabeledField>
           <DateField id={sid} label={t('Start Date')} value={startDate} onChange={setStartDate} />
