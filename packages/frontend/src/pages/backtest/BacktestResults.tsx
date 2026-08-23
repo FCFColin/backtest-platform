@@ -33,13 +33,10 @@ const CARDMCLS = 'flex-shrink-0 min-w-[130px] p-3';
 const LBLCLS = 'text-label-tiny text-fg-tertiary mb-1 whitespace-nowrap';
 const VALCLS = 'text-body font-mono tabular-nums font-semibold';
 const ACTCLS = 'shrink-0 text-brand border-b-2 border-brand rounded-b-none';
-function ResultsActionBar({
-  timeRange: r,
-  onExport: o,
-}: {
-  timeRange: { start: string; end: string; years: number };
-  onExport?: (f: 'csv' | 'json') => void;
-}) {
+type TimeRange = { start: string; end: string; years: number };
+const EMPTY_TITLE = 'Configure parameters and portfolios, then click "Run Backtest" to see results';
+type ActionBarProps = { timeRange: TimeRange; onExport?: (f: 'csv' | 'json') => void };
+function ResultsActionBar({ timeRange: r, onExport: o }: ActionBarProps) {
   const { t } = useTranslation();
   const [sticky, setSticky] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -91,26 +88,12 @@ const SUMMARY_METRIC_CONFIGS: [string, keyof Statistics | null, (v: number) => s
   ['summarySidebar.worstYear', 'worstYear', F.fmtPct, 'summary-worst-year'],
   ['summarySidebar.positiveYears', null, F.fmtNum, 'summary-positive-years'],
 ];
-function SummarySidebar({
-  stats: s,
-  totalYears: ty,
-  positiveYears: py,
-  name,
-  color,
-}: {
-  stats: Statistics;
-  totalYears: number;
-  positiveYears: number;
-  name?: string;
-  color?: string;
-}) {
+type SidebarProps = { stats: Statistics; ty: number; py: number; name?: string; color?: string };
+function SummarySidebar({ stats: s, ty, py, name, color }: SidebarProps) {
   const { t } = useTranslation();
-  const m = SUMMARY_METRIC_CONFIGS.map(([labelKey, key, fmt, testId]) => ({
-    labelKey,
-    value: key ? fmt(s[key] as number) : `${py} / ${ty}`,
-    colorClass: key ? getColorClass(s[key] as number) : 'text-fg',
-    testId,
-  }));
+  const v = (k: keyof Statistics | null, f: (n: number) => string) =>
+    k ? f(s[k] as number) : `${py} / ${ty}`;
+  const c = (k: keyof Statistics | null) => (k ? getColorClass(s[k] as number) : 'text-fg');
   return (
     <>
       <div
@@ -118,10 +101,10 @@ function SummarySidebar({
         role="list"
         aria-label={t('Key Metrics')}
       >
-        {m.map((x) => (
-          <U.Card key={x.labelKey} role="listitem" className={CARDMCLS} data-testid={x.testId}>
-            <div className={LBLCLS}>{t(x.labelKey)}</div>
-            <div className={cn(VALCLS, x.colorClass)}>{x.value}</div>
+        {SUMMARY_METRIC_CONFIGS.map(([lk, k, f, id]) => (
+          <U.Card key={lk} role="listitem" className={CARDMCLS} data-testid={id}>
+            <div className={LBLCLS}>{t(lk)}</div>
+            <div className={cn(VALCLS, c(k))}>{v(k, f)}</div>
           </U.Card>
         ))}
       </div>
@@ -134,10 +117,10 @@ function SummarySidebar({
           </div>
         )}
         <dl className="space-y-2.5">
-          {m.map((x) => (
-            <div key={x.labelKey} className={ROWCLS} data-testid={x.testId}>
-              <dt className="text-caption text-fg-tertiary whitespace-nowrap">{t(x.labelKey)}</dt>
-              <dd className={cn(DDCLS, x.colorClass)}>{x.value}</dd>
+          {SUMMARY_METRIC_CONFIGS.map(([lk, k, f, id]) => (
+            <div key={lk} className={ROWCLS} data-testid={id}>
+              <dt className="text-caption text-fg-tertiary whitespace-nowrap">{t(lk)}</dt>
+              <dd className={cn(DDCLS, c(k))}>{v(k, f)}</dd>
             </div>
           ))}
         </dl>
@@ -180,10 +163,10 @@ const toCommon = (pf: PortfolioResult[]) => ({
 const toGrowth = (pf: PortfolioResult[]) =>
   pf.map((p) => ({ id: p.name, name: p.name, growthCurve: p.growthCurve ?? [] }));
 const mapDD = (pf: PortfolioResult[]) =>
-  pf.map((p) => ({
-    id: p.name,
-    name: p.name,
-    drawdownCurve: (p.drawdownCurve ?? []).map((pt) => ({ date: pt.date, drawdown: pt.drawdown })),
+  pf.map(({ name, drawdownCurve: dc }) => ({
+    id: name,
+    name,
+    drawdownCurve: (dc ?? []).map(({ date, drawdown }) => ({ date, drawdown })),
   }));
 const toAlloc = (pf: PortfolioResult[], pfs: Portfolio[]) =>
   pf.map((rp, idx) => ({
@@ -201,11 +184,9 @@ function TabBar() {
   useEffect(() => {
     if (urlTab && urlTab !== active) setActive(urlTab);
   }, [urlTab, active, setActive]);
-  const sel = (tab: string) => {
-    if (tab === active) return;
-    setActive(tab);
-    setSp(new URLSearchParams({ ...Object.fromEntries(sp), tab }));
-  };
+  const sel = (tab: string) =>
+    tab !== active &&
+    (setActive(tab), setSp(new URLSearchParams({ ...Object.fromEntries(sp), tab })));
   const more = ALL_TABS.filter((x) => !PRIMARY_TABS.has(x.key));
   return (
     <div className="flex items-center justify-between gap-2 border-b border-border-subtle pb-2 mb-3">
@@ -255,10 +236,10 @@ const TAB_RENDERERS: Record<string, (c: Ctx) => ReactNode> = {
       <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-4 items-start">
         <SummarySidebar
           stats={f?.statistics ?? createEmptyStatistics()}
+          ty={ar.length}
+          py={ar.filter((r) => r.return > 0).length}
           name={f?.name}
           color={getPortfolioColor(0)}
-          totalYears={ar.length}
-          positiveYears={ar.filter((r) => r.return > 0).length}
         />
         <div className="space-y-4 min-w-0">
           <L.GrowthChart portfolios={toGrowth(pf)} currency={cur} />
@@ -310,11 +291,10 @@ export function ResultsContent() {
   const stale = useBacktestStore((s) => s.resultsStale);
   const err = useBacktestStore((s) => s.error);
   const loading = useBacktestStore((s) => s.isLoading);
-  const run = useBacktestStore((s) => s.runBacktest);
   const activeTab = useBacktestStore((s) => s.activeTab);
   const pfs = useBacktestStore((s) => s.portfolios);
   const cur = useBacktestStore((s) => s.parameters.baseCurrency);
-  const enrich = useBacktestStore((s) => s.enrichSeries);
+  const { runBacktest: run, enrichSeries: enrich } = useBacktestStore.getState();
   const has = !!results && results.portfolios.length > 0;
   const prev = useRef(has);
   useEffect(() => {
@@ -323,8 +303,8 @@ export function ResultsContent() {
     prev.current = has;
   }, [has]);
   useEffect(() => {
-    const s = TAB_SERIES[activeTab as keyof typeof TAB_SERIES];
-    if (results && s) void enrich(s as never);
+    const s = results && TAB_SERIES[activeTab as keyof typeof TAB_SERIES];
+    if (s) void enrich(s as never);
   }, [activeTab, results, enrich]);
   if (!has)
     return (
@@ -333,13 +313,10 @@ export function ResultsContent() {
         isLoading={loading}
         hasResults={false}
         loadingLabel={t('Backtesting...')}
-        emptyTitle={t(
-          'Configure parameters and portfolios, then click "Run Backtest" to see results',
-        )}
+        emptyTitle={t(EMPTY_TITLE)}
         onRetry={() => void run()}
-      >
-        {null}
-      </ResultsShell>
+        children={null}
+      />
     );
   const ps = results.portfolios;
   const [first, last] = [ps[0]?.growthCurve?.[0]?.date, ps[0]?.growthCurve?.slice(-1)[0]?.date];
@@ -387,44 +364,36 @@ type RebP = Pick<
 >;
 function RebalancingStats({ portfolios: pf }: { portfolios: RebP[] }) {
   const { t } = useTranslation();
-  if (!pf.some((p) => p.rebalanceFrequency && p.rebalanceFrequency !== 'none'))
-    return (
-      <ChartCard title={t('Rebalancing')}>
-        <ChartEmptyState message={t('No data')} />
-      </ChartCard>
-    );
   const col = (
     key: string,
     label: string,
     render: (p: RebP, i: number) => ReactNode,
     align?: 'left' | 'right',
   ): SimpleTableColumn<RebP> => ({ key, label, render, align });
+  const freq = ({ rebalanceFrequency: fq }: RebP) => t(REBALANCE_LABELS[fq] || fq);
+  const thr = ({ rebalanceFrequency: fq, rebalanceThreshold: th }: RebP) =>
+    fq === 'threshold' ? `${th ?? 5}%` : '-';
+  const bands = ({ rebalanceBands: b }: RebP) => {
+    if (!b?.enabled) return t('Deviation Bands Disabled');
+    const q = { absolute: b.absoluteBand ?? '-', relative: b.relativeBand ?? '-' };
+    return t('Deviation Bands: {{absolute}} Absolute / {{relative}} Relative', q);
+  };
   const cols: SimpleTableColumn<RebP>[] = [
     col('name', t('Portfolio'), (p, i) => (
       <U.PortfolioLabel color={getPortfolioColor(i)} name={p.name} />
     )),
-    col('rebalanceFrequency', t('Rebalancing Frequency'), (p) =>
-      t(REBALANCE_LABELS[p.rebalanceFrequency] || p.rebalanceFrequency),
-    ),
+    col('rebalanceFrequency', t('Rebalancing Frequency'), freq),
     col('rebalanceOffset', t('Offset Days'), (p) => String(p.rebalanceOffset ?? 0), 'right'),
-    col(
-      'rebalanceThreshold',
-      t('Deviation Threshold'),
-      (p) => (p.rebalanceFrequency === 'threshold' ? `${p.rebalanceThreshold ?? 5}%` : '-'),
-      'right',
-    ),
-    col('rebalanceBands', t('Rebalancing Bands'), (p) =>
-      p.rebalanceBands?.enabled
-        ? t('Deviation Bands: {{absolute}} Absolute / {{relative}} Relative', {
-            absolute: p.rebalanceBands.absoluteBand ?? '-',
-            relative: p.rebalanceBands.relativeBand ?? '-',
-          })
-        : t('Deviation Bands Disabled'),
-    ),
+    col('rebalanceThreshold', t('Deviation Threshold'), thr, 'right'),
+    col('rebalanceBands', t('Rebalancing Bands'), bands),
   ];
   return (
     <ChartCard title={t('Rebalancing')}>
-      <SimpleTable columns={cols} data={pf} rowKey={(p) => p.name} />
+      {pf.some((p) => p.rebalanceFrequency && p.rebalanceFrequency !== 'none') ? (
+        <SimpleTable columns={cols} data={pf} rowKey={(p) => p.name} />
+      ) : (
+        <ChartEmptyState message={t('No data')} />
+      )}
     </ChartCard>
   );
 }
