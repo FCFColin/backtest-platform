@@ -13,6 +13,10 @@ import {
   createLoginLockoutMocks,
   createMembershipServiceMocks,
 } from '../../helpers/authFixtures.js';
+
+type VFn = ReturnType<typeof vi.fn>;
+type ReqU = Request & { user?: Record<string, unknown> };
+
 const mocks = vi.hoisted(() => ({
   config: {} as Record<string, unknown>,
   jwtAuth: {} as Record<string, unknown>,
@@ -39,21 +43,19 @@ vi.mock('../../../packages/backend/src/config/index.js', () => {
 vi.mock('../../../packages/backend/src/middleware/jwtAuth.js', () =>
   createAuthJwtAuthMocks(mocks.jwtAuth),
 );
-vi.mock('../../../packages/backend/src/application/auth/userService.js', () => {
+function userModuleMocks(overrides: Record<string, unknown>) {
   if (!mocks.userService.verifyUser) createAuthUserServiceMocks(mocks.userService);
-  return {
-    ...mocks.userService,
+  return { ...mocks.userService, ...overrides };
+}
+vi.mock('../../../packages/backend/src/application/auth/userService.js', () =>
+  userModuleMocks({
     issueEmailVerificationToken: mocks.registration.issueEmailVerificationToken,
     verifyEmailToken: mocks.registration.verifyEmailToken,
-  };
-});
-vi.mock('../../../packages/backend/src/repositories/userRepo.js', () => {
-  if (!mocks.userService.verifyUser) createAuthUserServiceMocks(mocks.userService);
-  return {
-    ...mocks.userService,
-    getUserByEmail: mocks.registration.getUserByEmail,
-  };
-});
+  }),
+);
+vi.mock('../../../packages/backend/src/repositories/userRepo.js', () =>
+  userModuleMocks({ getUserByEmail: mocks.registration.getUserByEmail }),
+);
 vi.mock('../../../packages/backend/src/application/auth/loginLockout.js', () =>
   createLoginLockoutMocks(mocks.loginLockout),
 );
@@ -63,49 +65,36 @@ vi.mock('../../../packages/backend/src/application/org/membershipService.js', ()
 vi.mock('../../../packages/backend/src/middleware/rbac.js', () => ({
   Role: { ADMIN: 'admin', ANALYST: 'analyst', READONLY: 'readonly' },
 }));
-vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () => ({
-  appRedis: {
-    ping: vi.fn().mockResolvedValue('PONG'),
-    get: vi.fn(),
-    set: vi.fn(),
-    del: vi.fn(),
-    on: vi.fn(),
-    publish: vi.fn().mockResolvedValue(0),
-  },
-  isSentinelMode: false,
-  bullmqConnectionOptions: {},
-}));
+vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () => {
+  const bare = () => ({ get: vi.fn(), set: vi.fn(), del: vi.fn(), on: vi.fn() });
+  const mv = (v: unknown) => vi.fn().mockResolvedValue(v);
+  return {
+    appRedis: { ...bare(), ping: mv('PONG'), publish: mv(0) },
+    isSentinelMode: false,
+    bullmqConnectionOptions: {},
+  };
+});
 vi.mock('../../../packages/backend/src/infrastructure/mailService.js', () => ({
   sendVerificationEmail: mocks.registration.sendVerificationEmail,
 }));
 import authRoutes from '../../../packages/backend/src/routes/authRoutes.js';
-type VFn = ReturnType<typeof vi.fn>;
-type ReqU = Request & { user?: Record<string, unknown> };
+
 const fn = (m: Record<string, unknown>, k: string): VFn => m[k] as VFn;
 const expSoon = () => Math.floor(Date.now() / 1000) + 900;
 const OID = '11111111-1111-4111-8111-111111111111';
 const DUP_ERR = Object.assign(new Error('duplicate key'), { code: '23505' });
 const SWITCH_ORG_ID = '55555555-5555-4555-8555-555555555555';
-function injectUser(sub = 'user-switch', role = 'analyst', extra: Record<string, unknown> = {}) {
-  fn(mocks.jwtAuth, 'jwtAuth').mockImplementation(
-    (req: Request, _res: Response, next: NextFunction) => {
-      (req as ReqU).user = { sub, role, exp: expSoon(), ...extra };
-      next();
-    },
-  );
-}
-function parseCookies(req: Request, _res: Response, next: NextFunction) {
+const injectUser = (sub = 'user-switch', role = 'analyst', extra: Record<string, unknown> = {}) =>
+  fn(mocks.jwtAuth, 'jwtAuth').mockImplementation((req: ReqU, _res: Response, nx: NextFunction) => {
+    req.user = { sub, role, exp: expSoon(), ...extra };
+    nx();
+  });
+const parseCookies = (req: Request, _res: Response, next: NextFunction) => {
   req.cookies = Object.fromEntries(
-    (req.headers.cookie ?? '')
-      .split(';')
-      .filter(Boolean)
-      .map((c) => {
-        const [k, ...v] = c.trim().split('=');
-        return [k, v.join('=')];
-      }),
+    [...(req.headers.cookie ?? '').matchAll(/([^;=]+)=([^;]*)/g)].map((m) => [m[1].trim(), m[2]]),
   );
   next();
-}
+};
 const apiPost = (u: string, b?: unknown, h: Record<string, string> = {}) =>
   reqJson(u, 'POST', b, h);
 const apiDelete = (u: string, h: Record<string, string> = {}) => reqJson(u, 'DELETE', undefined, h);
@@ -131,9 +120,7 @@ const inactiveOrg = mockOrg({ orgStatus: 'suspended' });
 describe('authRoutes - 登录与会话端点', () => {
   const getServer = withServer(() => {
     vi.clearAllMocks();
-    fn(mocks.jwtAuth, 'jwtAuth').mockImplementation((_q: unknown, _r: Response, nx: NextFunction) =>
-      nx(),
-    );
+    fn(mocks.jwtAuth, 'jwtAuth').mockImplementation((_q, _r, nx) => nx());
     mocks.config.NODE_ENV = 'production';
     fn(mocks.jwtAuth, 'generateToken').mockResolvedValue('access-token-mock');
     fn(mocks.jwtAuth, 'generateRefreshToken').mockResolvedValue('refresh-token-mock');
@@ -212,7 +199,7 @@ describe('authRoutes - 登录与会话端点', () => {
     ['已撤销 refresh token', 'revoked-token', null],
     ['缺失 refresh cookie', undefined, 'REFRESH_TOKEN_MISSING'],
   ])('%s 应返回 401', async (_n, token, code) => {
-    const h = token === undefined ? {} : { Cookie: `rt=${token}` };
+    const h: Record<string, string> = token === undefined ? {} : { Cookie: `rt=${token}` };
     if (token !== undefined) fn(mocks.jwtAuth, 'refreshAccessToken').mockResolvedValueOnce(null);
     const { res, body } = await apiPost(url('/refresh'), {}, h);
     expect(res.status).toBe(401);
@@ -299,14 +286,9 @@ describe('authRegistrationRoutes', () => {
   });
   const regUrl = (p: string) => `${getServer().url}/api/v1/auth/${p}`;
   const EMAIL = 'new@example.com';
-  const validRegisterBody = {
-    username: 'nu',
-    email: EMAIL,
-    password: 'secret123456',
-    orgName: 'Acme',
-  };
+  const regBody = { username: 'nu', email: EMAIL, password: 'secret123456', orgName: 'Acme' };
   it('注册成功应返回 201 + userId', async () => {
-    const { res, body } = await apiPost(regUrl('register'), validRegisterBody);
+    const { res, body } = await apiPost(regUrl('register'), regBody);
     expect(res.status).toBe(201);
     expect(body.data.userId).toBe('user-uuid-123');
     expect(mocks.registration.issueEmailVerificationToken).toHaveBeenCalledWith('user-uuid-123');
@@ -316,7 +298,7 @@ describe('authRegistrationRoutes', () => {
     fn(mocks.registration, 'getUserByEmail').mockResolvedValueOnce(
       userRecord('existing-user', 'analyst'),
     );
-    const { res, body } = await apiPost(regUrl('register'), validRegisterBody);
+    const { res, body } = await apiPost(regUrl('register'), regBody);
     expect(res.status).toBe(409);
     expect(body.error.code).toBe('EMAIL_TAKEN');
     expect(fn(mocks.userService, 'registerUser')).not.toHaveBeenCalled();
@@ -326,14 +308,14 @@ describe('authRegistrationRoutes', () => {
     ['其他异常', new Error('connection lost'), 500, 'REGISTER_FAILED'],
   ])('userService 抛出%s 应返回 %i %s', async (_n, err, status, code) => {
     fn(mocks.userService, 'registerUser').mockRejectedValueOnce(err);
-    const { res, body } = await apiPost(regUrl('register'), validRegisterBody);
+    const { res, body } = await apiPost(regUrl('register'), regBody);
     expect(res.status).toBe(status);
     expect(body.error.code).toBe(code);
     expect(mocks.registration.sendVerificationEmail).not.toHaveBeenCalled();
   });
   it('验证邮件发送失败不应阻塞注册', async () => {
     fn(mocks.registration, 'sendVerificationEmail').mockRejectedValueOnce(new Error('smtp down'));
-    const { res } = await apiPost(regUrl('register'), validRegisterBody);
+    const { res } = await apiPost(regUrl('register'), regBody);
     expect(res.status).toBe(201);
   });
   it('verify-email 缺 token 应返回 400', async () => {
