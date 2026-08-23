@@ -32,7 +32,8 @@ type Bp = {
   adjustForInflation: boolean;
 };
 type A = Array<{ ticker: string; weight: number }>;
-type NumKey = 'cagr' | 'stdev' | 'maxDrawdown' | 'sharpe' | 'sortino';
+const NUM_KEYS = ['cagr', 'stdev', 'maxDrawdown', 'sharpe', 'sortino'] as const;
+type NumKey = (typeof NUM_KEYS)[number];
 type Bands = Record<'absoluteBand' | 'relativeBand', number | ''>;
 type Curve = Array<{ date: string; value: number }>;
 type PortRes = { statistics?: Record<string, number>; growthCurve?: Curve };
@@ -70,6 +71,9 @@ async function postPortfolio(b: unknown): Promise<[number, Record<string, unknow
   });
   return [r.status, r.ok ? ((await r.json()) as Record<string, unknown>) : null];
 }
+function firstPortfolio(j: Record<string, unknown>) {
+  return ((j.data ?? j) as { portfolios?: PortRes[] }).portfolios?.[0];
+}
 async function fetchFreqResult(f: S.RebalanceFrequency, a: A, p: Bp, s: Bands) {
   const o = REBALANCE_OPTIONS.find((v) => v.value === f)!,
     b = buildBody(o.label, a, f, 0, p),
@@ -86,37 +90,25 @@ async function fetchFreqResult(f: S.RebalanceFrequency, a: A, p: Bp, s: Bands) {
     throw new Error(
       (j.error as string) || i18n.t('Backtest failed ({{label}})', { label: o.label }),
     );
-  const w = ((j.data ?? j) as { portfolios?: PortRes[] }).portfolios?.[0];
+  const w = firstPortfolio(j);
   if (!w) throw new Error(i18n.t('No results ({{label}})', { label: o.label }));
   const st = w.statistics ?? {};
   return {
     frequency: f,
     label: o.label,
     color: o.color,
-    cagr: st.cagr ?? 0,
-    stdev: st.stdev ?? 0,
-    maxDrawdown: st.maxDrawdown ?? 0,
-    sharpe: st.sharpe ?? 0,
-    sortino: st.sortino ?? 0,
+    ...(Object.fromEntries(NUM_KEYS.map((k) => [k, st[k] ?? 0])) as Record<NumKey, number>),
     growthCurve: w.growthCurve,
   } satisfies FreqResult;
 }
 async function fetchOffsetResult(o: number, f: S.RebalanceFrequency, a: A, p: Bp) {
   const [, j] = await postPortfolio(buildBody(`offset-${o}`, a, f, o, p));
-  if (!j) return { offset: o, cagr: 0 };
-  return {
-    offset: o,
-    cagr:
-      ((j.data ?? j) as { portfolios?: Array<{ statistics?: Record<string, number> }> })
-        .portfolios?.[0]?.statistics?.cagr ?? 0,
-  };
+  return { offset: o, cagr: (j && firstPortfolio(j)?.statistics?.cagr) ?? 0 };
 }
-const TABS = [
-  { key: 'scatter', labelKey: 'rebalancingSensitivity.tab.scatter' },
-  { key: 'distributions', labelKey: 'rebalancingSensitivity.tab.distributions' },
-  { key: 'offset', labelKey: 'rebalancingSensitivity.tab.offset' },
-  { key: 'table', labelKey: 'rebalancingSensitivity.tab.table' },
-];
+const TABS = ['scatter', 'distributions', 'offset', 'table'].map((key) => ({
+  key,
+  labelKey: `rebalancingSensitivity.tab.${key}`,
+}));
 function useRebalSetters() {
   return useSetterState({
     startDate: DEFAULT_BACKTEST_START_DATE,
@@ -141,13 +133,15 @@ function createRebalancingRunners(s: ReturnType<typeof useRebalSetters>, p: Bp, 
     const v = assets.filter((a) => a.ticker.trim() !== '');
     if (!v.length) return i18n.t('Please add at least one ticker');
     const e = validateAssetWeights(assets);
-    return e
-      ? e
-      : s.selectedFreqs.length
-        ? v
-        : i18n.t('Please select at least one rebalancing frequency');
+    return (
+      e || (s.selectedFreqs.length ? v : i18n.t('Please select at least one rebalancing frequency'))
+    );
   };
-  const runOffsetScanInner = async (f: RebalanceFrequency, v: A) => {
+  const runOffsetScan = async (
+    f: RebalanceFrequency,
+    v: A = assets.filter((a) => a.ticker.trim() !== ''),
+  ) => {
+    if (!v.length) return;
     s.setIsLoadingOffset(true);
     s.setOffsetResults([]);
     try {
@@ -169,40 +163,26 @@ function createRebalancingRunners(s: ReturnType<typeof useRebalSetters>, p: Bp, 
       const all = await Promise.all(s.selectedFreqs.map((f) => fetchFreqResult(f, v, p, s)));
       all.sort((a, b) => FREQ_ORDER[a.frequency] - FREQ_ORDER[b.frequency]);
       s.setResults(all);
-      if (s.selectedFreqs.length) void runOffsetScanInner(s.selectedFreqs[0], v);
+      if (s.selectedFreqs.length) void runOffsetScan(s.selectedFreqs[0], v);
     } catch (e) {
       s.setError(e instanceof Error ? e.message : i18n.t('Analysis failed'));
     } finally {
       s.setIsLoading(false);
     }
   };
-  const runOffsetScan = async (f: RebalanceFrequency) => {
-    const v = assets.filter((a) => a.ticker.trim() !== '');
-    if (v.length) await runOffsetScanInner(f, v);
-  };
   return { runSensitivity, runOffsetScan };
 }
 function useRebalancingState() {
   const s = useRebalSetters();
+  const freqs = s.selectedFreqs;
   const toggleFreq = (f: RebalanceFrequency) =>
-    s.setSelectedFreqs(
-      s.selectedFreqs.includes(f)
-        ? s.selectedFreqs.filter((x) => x !== f)
-        : [...s.selectedFreqs, f],
-    );
+    s.setSelectedFreqs(freqs.includes(f) ? freqs.filter((x) => x !== f) : [...freqs, f]);
   const { assets, addAsset, removeAsset, updateAsset, totalWeight } = useAssetList<A[number]>(
     [...DEFAULT_60_40_ASSETS],
     () => ({ ticker: '', weight: 0 }),
     0,
   );
-  const p: Bp = {
-    startDate: s.startDate,
-    endDate: s.endDate,
-    startingValue: s.startingValue,
-    baseCurrency: s.baseCurrency,
-    adjustForInflation: s.adjustForInflation,
-  };
-  const { runSensitivity, runOffsetScan } = createRebalancingRunners(s, p, assets);
+  const { runSensitivity, runOffsetScan } = createRebalancingRunners(s, s, assets);
   return {
     ...s,
     toggleFreq,
@@ -226,31 +206,18 @@ const TABLE_COLS: Array<[string, NumKey, (v: number) => string]> = [
 function ResultsPanel({ s }: { s: RebalancingState }) {
   const { t } = useTranslation();
   const scatterData = s.results.map((r) => ({
+    ...r,
     volatility: r.stdev * 100,
     cagr: r.cagr * 100,
-    label: r.label,
-    color: r.color,
-    sharpe: r.sharpe,
     maxDrawdown: r.maxDrawdown * 100,
-    sortino: r.sortino,
-  }));
-  const distData = s.results.map((r) => ({
-    name: t(`rebalancingSensitivity.freq.${r.frequency}`),
-    CAGR: Number((r.cagr * 100).toFixed(2)),
-    fill: r.color,
-  }));
-  const offsetData = s.offsetResults.map((r) => ({
-    offset: `+${r.offset}d`,
-    cagr: Number((r.cagr * 100).toFixed(2)),
   }));
   const offsetGrowthData = s.results.find((r) => r.frequency === s.offsetFreq)?.growthCurve ?? [];
-  const best = {
-    cagr: Math.max(...s.results.map((x) => x.cagr)),
-    stdev: Math.min(...s.results.map((x) => x.stdev)),
-    maxDrawdown: Math.min(...s.results.map((x) => x.maxDrawdown)),
-    sharpe: Math.max(...s.results.map((x) => x.sharpe)),
-    sortino: Math.max(...s.results.map((x) => x.sortino)),
-  };
+  const best = Object.fromEntries(
+    NUM_KEYS.map((k) => [
+      k,
+      (k === 'stdev' || k === 'maxDrawdown' ? Math.min : Math.max)(...s.results.map((x) => x[k])),
+    ]),
+  );
   return (
     <ResultsShell
       error={s.error}
@@ -288,7 +255,11 @@ function ResultsPanel({ s }: { s: RebalancingState }) {
           </UI.TabsContent>
           <UI.TabsContent value="distributions">
             <Charts.BarChartContent
-              data={distData}
+              data={s.results.map((r) => ({
+                name: t(`rebalancingSensitivity.freq.${r.frequency}`),
+                CAGR: Number((r.cagr * 100).toFixed(2)),
+                fill: r.color,
+              }))}
               seriesNames={['CAGR']}
               xDataKey="name"
               height={400}
@@ -301,10 +272,9 @@ function ResultsPanel({ s }: { s: RebalancingState }) {
               <span className="text-body text-fg-tertiary">{t('Frequency')}:</span>
               <UI.Select
                 value={s.offsetFreq}
-                onValueChange={(v) => {
-                  const f = v as RebalanceFrequency;
-                  s.setOffsetFreq(f);
-                  void s.runOffsetScan(f);
+                onValueChange={(f) => {
+                  s.setOffsetFreq(f as RebalanceFrequency);
+                  void s.runOffsetScan(f as RebalanceFrequency);
                 }}
               >
                 <UI.SelectTrigger className="h-9 w-32" aria-label={t('Frequency')}>
@@ -321,7 +291,10 @@ function ResultsPanel({ s }: { s: RebalancingState }) {
               {s.isLoadingOffset && <Loader2 className="size-4 animate-spin text-fg-tertiary" />}
             </div>
             <Charts.BarChartContent
-              data={offsetData.map((d) => ({ offset: d.offset, CAGR: d.cagr }))}
+              data={s.offsetResults.map((r) => ({
+                offset: `+${r.offset}d`,
+                CAGR: Number((r.cagr * 100).toFixed(2)),
+              }))}
               seriesNames={['CAGR']}
               xDataKey="offset"
               height={250}
@@ -330,7 +303,7 @@ function ResultsPanel({ s }: { s: RebalancingState }) {
             />
             {offsetGrowthData.length > 0 && (
               <Charts.SimpleLineChart
-                data={offsetGrowthData.map((d) => ({ date: d.date, value: d.value }))}
+                data={offsetGrowthData}
                 series={[{ dataKey: 'value', color: getPortfolioColor(0) }]}
                 xDataKey="date"
                 height={250}
@@ -359,18 +332,14 @@ function ResultsPanel({ s }: { s: RebalancingState }) {
                       <td className="border-b border-border-subtle px-3 py-2 text-label text-fg">
                         <UI.PortfolioLabel color={r.color} name={r.label} />
                       </td>
-                      {TABLE_COLS.map(([, key, fmt]) => {
-                        const v = r[key],
-                          hot = v === best[key];
-                        return (
-                          <td
-                            key={key}
-                            className={`${TD_CLS} ${hot ? 'font-bold text-success' : 'text-fg'}`}
-                          >
-                            {fmt(v)}
-                          </td>
-                        );
-                      })}
+                      {TABLE_COLS.map(([, key, fmt]) => (
+                        <td
+                          key={key}
+                          className={`${TD_CLS} ${r[key] === best[key] ? 'font-bold text-success' : 'text-fg'}`}
+                        >
+                          {fmt(r[key])}
+                        </td>
+                      ))}
                     </tr>
                   ))}
                 </tbody>
