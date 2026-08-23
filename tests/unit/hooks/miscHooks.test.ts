@@ -1,34 +1,30 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 
-const { apiFetchMock, apiPostJSONMock, authStoreMock, reportErrorMock, toastMock } = vi.hoisted(
-  () => ({
-    apiFetchMock: vi.fn(),
-    apiPostJSONMock: vi.fn(),
-    reportErrorMock: vi.fn(),
-    toastMock: vi.fn(),
-    authStoreMock: {
-      logout: vi.fn().mockResolvedValue(undefined),
-      isAuthenticated: () => true,
-      org: { id: 'org-1' },
-      user: { orgRole: 'admin' },
-    },
-  }),
-);
+const { fetchM, postM, errM, toastM, authStore } = vi.hoisted(() => ({
+  fetchM: vi.fn(),
+  postM: vi.fn(),
+  errM: vi.fn(),
+  toastM: vi.fn(),
+  authStore: {
+    logout: vi.fn().mockResolvedValue(undefined),
+    isAuthenticated: () => true,
+    org: { id: 'org-1' },
+    user: { orgRole: 'admin' },
+  },
+}));
 
 vi.mock('react-router', () => ({ useNavigate: vi.fn() }));
 vi.mock('../../../packages/frontend/src/store/authStore', () => ({
-  useAuthStore: (selector: (s: typeof authStoreMock) => unknown) => selector(authStoreMock),
+  useAuthStore: (selector: (s: typeof authStore) => unknown) => selector(authStore),
 }));
 vi.mock('../../../packages/frontend/src/store/toastStore', () => ({
-  useToastStore: { getState: () => ({ addToast: toastMock }) },
+  useToastStore: { getState: () => ({ addToast: toastM }) },
 }));
-vi.mock('../../../packages/frontend/src/utils/errorReporter', () => ({
-  reportError: reportErrorMock,
-}));
+vi.mock('../../../packages/frontend/src/utils/errorReporter', () => ({ reportError: errM }));
 vi.mock('../../../packages/frontend/src/utils/apiClient', () => ({
-  apiFetch: apiFetchMock,
-  apiPostJSON: apiPostJSONMock,
+  apiFetch: fetchM,
+  apiPostJSON: postM,
   apiPost: vi.fn(),
   apiDelete: vi.fn(),
 }));
@@ -47,45 +43,19 @@ import {
   useDataMeta,
 } from '../../../packages/frontend/src/hooks/miscHooks';
 
-function stubMatchMedia(matches: boolean) {
-  const listeners: Array<(e: { matches: boolean }) => void> = [];
-  const mq = {
-    matches,
-    media: '',
-    onchange: null,
-    addListener: vi.fn(),
-    removeListener: vi.fn(),
-    addEventListener: vi.fn((_t: string, cb: (e: { matches: boolean }) => void) =>
-      listeners.push(cb),
-    ),
-    removeEventListener: vi.fn(),
-    dispatchEvent: vi.fn(),
-  };
-  vi.stubGlobal(
-    'matchMedia',
-    vi.fn(() => mq),
-  );
-  return { mq, listeners };
-}
-
 describe('usePolling', () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());
 
-  it('enabled=true 时应立即调用并按间隔轮询', () => {
+  it.each([
+    ['enabled=true 时应立即调用并按间隔轮询', { immediate: true }, 1, 2],
+    ['immediate=false 时不立即调用', { immediate: false }, 0, 1],
+  ])('%s', (_n, opts, initCount, nextCount) => {
     const fn = vi.fn();
-    renderHook(() => usePolling(fn, 1000, { immediate: true }));
-    expect(fn).toHaveBeenCalledTimes(1);
+    renderHook(() => usePolling(fn, 1000, opts));
+    expect(fn).toHaveBeenCalledTimes(initCount);
     act(() => vi.advanceTimersByTime(1000));
-    expect(fn).toHaveBeenCalledTimes(2);
-  });
-
-  it('immediate=false 时不立即调用', () => {
-    const fn = vi.fn();
-    renderHook(() => usePolling(fn, 1000, { immediate: false }));
-    expect(fn).not.toHaveBeenCalled();
-    act(() => vi.advanceTimersByTime(1000));
-    expect(fn).toHaveBeenCalledTimes(1);
+    expect(fn).toHaveBeenCalledTimes(nextCount);
   });
 
   it('enabled=false 时不轮询', () => {
@@ -107,7 +77,7 @@ describe('usePolling', () => {
 describe('useTickerMeta', () => {
   beforeEach(() => {
     vi.useFakeTimers();
-    apiFetchMock.mockReset();
+    fetchM.mockReset();
   });
   afterEach(() => vi.useRealTimers());
 
@@ -117,36 +87,22 @@ describe('useTickerMeta', () => {
   });
 
   it('应延迟请求并返回解包后的 ticker meta', async () => {
-    apiFetchMock.mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        success: true,
-        data: { ticker: 'AAPL', name: 'Apple', exchange: 'NASDAQ', currency: 'usd' },
-      }),
-    });
+    const meta = { ticker: 'AAPL', name: 'Apple', exchange: 'NASDAQ', currency: 'usd' };
+    fetchM.mockResolvedValue({ ok: true, json: async () => ({ success: true, data: meta }) });
     const { result } = renderHook(() => useTickerMeta('AAPL'));
     expect(result.current).toBeNull();
-    await act(async () => {
-      vi.advanceTimersByTime(300);
-    });
-    expect(result.current).toEqual({
-      ticker: 'AAPL',
-      name: 'Apple',
-      exchange: 'NASDAQ',
-      currency: 'usd',
-    });
+    await act(async () => vi.advanceTimersByTime(300));
+    expect(result.current).toEqual(meta);
   });
 
   it.each([
     ['API 失败', { ok: false }],
     ['API 抛异常', null],
   ])('%s 应返回 null', async (_n, mockValue) => {
-    if (mockValue === null) apiFetchMock.mockRejectedValue(new Error('network'));
-    else apiFetchMock.mockResolvedValue(mockValue);
+    if (mockValue === null) fetchM.mockRejectedValue(new Error('network'));
+    else fetchM.mockResolvedValue(mockValue);
     const { result } = renderHook(() => useTickerMeta('FAIL'));
-    await act(async () => {
-      vi.advanceTimersByTime(300);
-    });
+    await act(async () => vi.advanceTimersByTime(300));
     expect(result.current).toBeNull();
   });
 });
@@ -190,7 +146,11 @@ describe('useChartAnimation', () => {
   afterEach(() => vi.unstubAllGlobals());
 
   it('大数据集/减动偏好应关闭动画', () => {
-    stubMatchMedia(true);
+    const mq = { matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() };
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn(() => mq),
+    );
     const { result } = renderHook(() => useChartAnimation(true));
     expect(result.current).toEqual({ isAnimationActive: false });
   });
@@ -198,42 +158,33 @@ describe('useChartAnimation', () => {
 
 describe('useAdminFetch', () => {
   beforeEach(() => {
-    apiFetchMock.mockReset();
-    reportErrorMock.mockReset();
-    toastMock.mockReset();
+    fetchM.mockReset();
+    errM.mockReset();
+    toastM.mockReset();
   });
 
   it('成功路径应解析数据', async () => {
-    apiFetchMock.mockResolvedValue({
-      ok: true,
-      json: async () => ({ success: true, data: { n: 3 } }),
-    });
+    fetchM.mockResolvedValue({ ok: true, json: async () => ({ success: true, data: { n: 3 } }) });
     const parser = vi.fn((d: Record<string, unknown>) => ({ count: d.n as number }));
     const { result } = renderHook(() =>
       useAdminFetch<{ count: number }>('/api/v1/admin/x', parser, { count: 0 }, 'TestComp'),
     );
-    await act(async () => {
-      result.current.fetch();
-    });
+    await act(async () => result.current.fetch());
     expect(result.current.data).toEqual({ count: 3 });
   });
 
   it('响应非成功时保持初始数据', async () => {
-    apiFetchMock.mockResolvedValue({ ok: true, json: async () => ({ success: false }) });
+    fetchM.mockResolvedValue({ ok: true, json: async () => ({ success: false }) });
     const { result } = renderHook(() => useAdminFetch<number>('/u', () => 1, 0, 'C'));
-    await act(async () => {
-      result.current.fetch();
-    });
+    await act(async () => result.current.fetch());
     expect(result.current.data).toBe(0);
   });
 
   it('请求异常时报错并弹出 toast', async () => {
-    apiFetchMock.mockRejectedValue(new Error('net'));
+    fetchM.mockRejectedValue(new Error('net'));
     const { result } = renderHook(() => useAdminFetch<number>('/u', () => 1, 0, 'C'));
-    await act(async () => {
-      result.current.fetch();
-    });
-    expect(reportErrorMock).toHaveBeenCalled();
+    await act(async () => result.current.fetch());
+    expect(errM).toHaveBeenCalled();
     expect(result.current.loading).toBe(false);
   });
 });
@@ -242,9 +193,7 @@ describe('useComputeTool', () => {
   it('校验通过时执行计算并写入 results', async () => {
     const compute = vi.fn().mockResolvedValue({ ok: true });
     const { result } = renderHook(() => useComputeTool(compute, () => null));
-    await act(async () => {
-      result.current.runCompute();
-    });
+    await act(async () => result.current.runCompute());
     expect(result.current.results).toEqual({ ok: true });
   });
 
@@ -259,77 +208,63 @@ describe('useComputeTool', () => {
   it('reset 应清空 results', async () => {
     const compute = vi.fn().mockResolvedValue(1);
     const { result } = renderHook(() => useComputeTool(compute, () => null));
-    await act(async () => {
-      result.current.runCompute();
-    });
+    await act(async () => result.current.runCompute());
     act(() => result.current.reset());
     expect(result.current.results).toBeNull();
   });
 });
 
 describe('useAnalysisState', () => {
-  beforeEach(() => apiPostJSONMock.mockReset());
+  beforeEach(() => postM.mockReset());
 
-  it('校验失败时设置 error', () => {
-    const { result } = renderHook(() =>
+  const setup = (v: () => string | null) =>
+    renderHook(() =>
       useAnalysisState<{ a: number }, { r: number }>(
         '/api/v1/analysis/x',
         { a: 1 },
         (s) => ({ a: s.a }),
-        () => 'bad input',
+        v,
       ),
     );
+
+  it('校验失败时设置 error', () => {
+    const { result } = setup(() => 'bad input');
     act(() => result.current.runAnalysis());
-    expect(apiPostJSONMock).not.toHaveBeenCalled();
+    expect(postM).not.toHaveBeenCalled();
     expect(result.current.error).toBe('bad input');
   });
 
   it('校验通过时调用 apiPostJSON', async () => {
-    apiPostJSONMock.mockResolvedValue({ r: 7 });
-    const { result } = renderHook(() =>
-      useAnalysisState<{ a: number }, { r: number }>(
-        '/api/v1/analysis/x',
-        { a: 1 },
-        (s) => ({ a: s.a }),
-        () => null,
-      ),
-    );
-    await act(async () => {
-      result.current.runAnalysis();
-    });
+    postM.mockResolvedValue({ r: 7 });
+    const { result } = setup(() => null);
+    await act(async () => result.current.runAnalysis());
     expect(result.current.results).toEqual({ r: 7 });
   });
 });
 
 describe('useDataMeta', () => {
-  beforeEach(() => apiFetchMock.mockReset());
+  beforeEach(() => fetchM.mockReset());
 
   it('应通过 apiFetch 拉取数据元信息', async () => {
-    apiFetchMock.mockResolvedValue({
-      ok: true,
-      json: async () => ({ success: true, data: { lastUpdated: '2024-01-01', tickerCount: 2 } }),
-    });
+    const meta = { lastUpdated: '2024-01-01', tickerCount: 2 };
+    fetchM.mockResolvedValue({ ok: true, json: async () => ({ success: true, data: meta }) });
     const { result } = renderHook(() => useDataMeta());
     await act(async () => {});
-    expect(result.current).toEqual({ lastUpdated: '2024-01-01', tickerCount: 2 });
+    expect(result.current).toEqual(meta);
   });
 });
 
 describe('useChartCalcWorker', () => {
-  type WorkerMsg = { data: { id: number; result?: number; error?: string } };
-  let worker: {
-    posted: { id: number; type: string; payload: unknown[] }[];
-    onmessage: ((e: WorkerMsg) => void) | null;
-    terminate: ReturnType<typeof vi.fn>;
-  };
+  type Msg = { id: number; result?: number; error?: string };
   class FakeWorker {
-    onmessage: ((e: WorkerMsg) => void) | null = null;
+    onmessage: ((e: { data: Msg }) => void) | null = null;
     posted: { id: number; type: string; payload: unknown[] }[] = [];
     terminate = vi.fn();
     postMessage(msg: { id: number; type: string; payload: unknown[] }) {
       this.posted.push(msg);
     }
   }
+  let worker: FakeWorker;
 
   beforeEach(() => {
     worker = new FakeWorker();
@@ -338,27 +273,22 @@ describe('useChartCalcWorker', () => {
   afterEach(() => vi.unstubAllGlobals());
 
   it('应提交任务、接收结果并忽略过期消息', () => {
+    const send = (data: Msg) => act(() => worker.onmessage?.({ data }));
     const task = { type: 'rolling', payload: [1, 2] };
     const { result, rerender, unmount } = renderHook(({ t }) => useChartCalcWorker<number>(t), {
       initialProps: { t: task },
     });
     expect(worker.posted).toHaveLength(1);
     expect(result.current.isPending).toBe(true);
-    act(() => {
-      worker.onmessage?.({ data: { id: 0, result: 42 } });
-    });
+    send({ id: 0, result: 42 });
     expect(result.current.data).toBe(42);
-    act(() => {
-      worker.onmessage?.({ data: { id: 99, result: 1 } });
-    });
+    send({ id: 99, result: 1 });
     expect(result.current.data).toBe(42);
     rerender({ t: { type: 'rolling', payload: [1, 2] } });
     expect(worker.posted).toHaveLength(1);
     rerender({ t: { type: 'std', payload: [] } });
     expect(worker.posted).toHaveLength(2);
-    act(() => {
-      worker.onmessage?.({ data: { id: 1, error: 'boom' } });
-    });
+    send({ id: 1, error: 'boom' });
     expect(result.current.error).toBe('boom');
     unmount();
     expect(worker.terminate).toHaveBeenCalled();
