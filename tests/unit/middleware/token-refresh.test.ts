@@ -10,12 +10,12 @@ import {
   fsMocks,
   mockUser,
   mockMembershipActive,
+  membershipMocks,
   setupRsaKeys,
   resetRsaConfig,
   reloadJwtAuthModule,
 } from './jwtAuth.shared.js';
 import { getUserById } from '../../../packages/backend/src/repositories/userRepo.js';
-import { membershipMocks } from './jwtAuth.shared.js';
 import {
   generateRefreshToken,
   refreshAccessToken,
@@ -30,7 +30,7 @@ import { idempotencyKey } from '../../../packages/backend/src/middleware/idempot
 
 beforeEach(() => (vi.clearAllMocks(), redisMocks.useRedisSuccess(), mockMembershipActive()));
 
-async function expiredTokenByFakeTimers(s: number) {
+async function expiredToken(s: number) {
   vi.useFakeTimers();
   const t = await generateRefreshToken('expired-user', 'admin');
   vi.advanceTimersByTime(s * 1000);
@@ -39,9 +39,8 @@ async function expiredTokenByFakeTimers(s: number) {
 const expireStoredToken = async (u: string) => {
   const t = await generateRefreshToken(u, 'admin'),
     k = `refresh_token:${sha256Hex(t)}`,
-    e = JSON.parse(redisMocks.store.get(k)!);
-  e.expiresAt = Math.floor(Date.now() / 1000) - 10;
-  redisMocks.store.set(k, JSON.stringify(e));
+    v = JSON.parse(redisMocks.store.get(k)!);
+  redisMocks.store.set(k, JSON.stringify({ ...v, expiresAt: Math.floor(Date.now() / 1000) - 10 }));
   return t;
 };
 const o1 = { tenantId: 'org-1', orgRole: 'owner', platformAdmin: true } as const;
@@ -79,6 +78,10 @@ const throwing = (msg: string) => (): never => {
 };
 const checkRedis = (t: string) =>
   expect(redisMocks.store.has(`refresh_token:${sha256Hex(t)}`)).toBe(false);
+const runKey = (...a: Parameters<typeof fx.createIdempotencyReqRes>) => {
+  const r = fx.createIdempotencyReqRes(...a);
+  return (idempotencyKey(r.req, r.res, r.next), r);
+};
 describe('Refresh Token 生命周期与 Redis', () => {
   beforeEach(() => mockUser());
   it('生成：64 位 hex、写入 Redis（TTL + family + 集合）', async () => {
@@ -123,8 +126,8 @@ describe('Refresh Token 生命周期与 Redis', () => {
     await refreshAccessToken(t3);
     await revokeRefreshToken(t3);
     expect(redisMocks.store.has(`refresh_token:used:${sha256Hex(t3)}`)).toBe(false);
-    const a1 = await generateRefreshToken('revoke-all-user', 'admin');
-    const a2 = await generateRefreshToken('revoke-all-user', 'analyst');
+    const a1 = await generateRefreshToken('revoke-all-user', 'admin'),
+      a2 = await generateRefreshToken('revoke-all-user', 'analyst');
     await revokeAllUserSessions('revoke-all-user');
     expect(await refreshAccessToken(a1)).toBeNull();
     expect(await refreshAccessToken(a2)).toBeNull();
@@ -132,11 +135,7 @@ describe('Refresh Token 生命周期与 Redis', () => {
   });
   it.each([
     ['不存在的 token', async () => 'nonexistent-token', undefined],
-    [
-      'TTL 过期（fake timers）',
-      () => expiredTokenByFakeTimers(mocks.config.JWT_REFRESH_TTL + 60),
-      undefined,
-    ],
+    ['TTL 过期（fake timers）', () => expiredToken(mocks.config.JWT_REFRESH_TTL + 60), undefined],
     ['Redis entry 已过期', async () => expireStoredToken('redis-expired'), checkRedis],
   ])('%s 应返回 null 并清理', async (_n, build, extra) => {
     const t = await build();
@@ -150,8 +149,8 @@ describe('Refresh Token 生命周期与 Redis', () => {
     await expect(refreshAccessToken(t)).rejects.toThrow(RedisUnavailableError);
   });
   it('成员资格已移除时应拒绝刷新并撤销 family', async () => {
-    const t = await generateRefreshToken('removed-member', 'admin', void 0, oRem as any);
-    const e = JSON.parse(redisMocks.store.get(`refresh_token:${sha256Hex(t)}`)!);
+    const t = await generateRefreshToken('removed-member', 'admin', void 0, oRem as any),
+      e = JSON.parse(redisMocks.store.get(`refresh_token:${sha256Hex(t)}`)!);
     mockMembershipActive();
     vi.mocked(membershipMocks.getMembership).mockResolvedValueOnce(null);
     expect(await refreshAccessToken(t)).toBeNull();
@@ -212,14 +211,12 @@ describe('getOrCache* 密钥加载（jwtSigner）', () => {
     Object.assign(mocks.config, { NODE_ENV: 'test', JWT_ALGORITHM: 'RS256' });
   });
   it('生产环境应从环境变量加载密钥', async () => {
-    await setupRsaKeys('production');
-    const m = await reloadJwtAuthModule();
+    const m = (await setupRsaKeys('production'), await reloadJwtAuthModule());
     expect(await m.getOrCachePrivateKey()).toBeTruthy();
     expect(await m.getOrCachePublicKey()).toBeTruthy();
   });
   it('密钥加载应缓存', async () => {
-    mocks.config.NODE_ENV = 'development';
-    const m = await reloadJwtAuthModule();
+    const m = ((mocks.config.NODE_ENV = 'development'), await reloadJwtAuthModule());
     expect(await m.getOrCachePrivateKey()).toBe(await m.getOrCachePrivateKey());
     expect(await m.getOrCachePublicKey()).toBe(await m.getOrCachePublicKey());
     expect(await m.getOrCacheHS256Key()).toBe(await m.getOrCacheHS256Key());
@@ -238,24 +235,23 @@ describe('getOrCache* 密钥加载（jwtSigner）', () => {
     mocks.config.JWT_PRIVATE_KEY = '';
     mocks.config.JWT_PRIVATE_KEY_FILE = p;
     mocks.config.NODE_ENV = 'production';
-    const m = await reloadJwtAuthModule();
-    const pr = m.getOrCachePrivateKey();
-    if (pat) await expect(pr).rejects.toThrow(pat);
-    else await expect(pr).rejects.toThrow();
+    const m = await reloadJwtAuthModule(),
+      pr = m.getOrCachePrivateKey();
+    await expect(pr).rejects.toThrow(pat ?? undefined);
   });
   it('HS256 密钥应从 JWT_SECRET 派生并完成签发验证', async () => {
     mocks.config.JWT_ALGORITHM = 'HS256';
-    const m = await reloadJwtAuthModule();
-    const k = await m.getOrCacheHS256Key();
+    const m = await reloadJwtAuthModule(),
+      k = await m.getOrCacheHS256Key();
     expect(k).toBeTruthy();
-    const tok = await m.generateToken('hs256-test', 'analyst');
-    const { payload } = await jwtVerify(tok, k, { algorithms: ['HS256'] });
+    const tok = await m.generateToken('hs256-test', 'analyst'),
+      { payload } = await jwtVerify(tok, k, { algorithms: ['HS256'] });
     expect(payload.sub).toBe('hs256-test');
   });
 });
 describe('idempotencyKey 中间件', () => {
-  async function passOnce(r: ReturnType<typeof fx.createIdempotencyReqRes>, b: unknown, c = 200) {
-    idempotencyKey(r.req, r.res, r.next);
+  async function passOnce(k: string, b: unknown, c = 200) {
+    const r = runKey(k);
     await vi.waitFor(() => expect(r.next).toHaveBeenCalledTimes(1));
     r.res.statusCode = c;
     r.res.json(b);
@@ -265,17 +261,11 @@ describe('idempotencyKey 中间件', () => {
     ['Redis 不可用', true],
   ])('%s 时非 POST/无 Key 请求应直接放行', (_n, down) => {
     if (down) redisMocks.useMemoryFallback();
-    for (const m of ['GET', 'POST']) {
-      const { req, res, next } = fx.createIdempotencyReqRes(void 0, m, '/api/test', true);
-      idempotencyKey(req, res, next);
-      expect(next).toHaveBeenCalledTimes(1);
-    }
+    for (const m of ['GET', 'POST'])
+      expect(runKey(void 0, m, '/api/test', true).next).toHaveBeenCalledTimes(1);
   });
-  it('超长 Key（>128 字符）应返回 400', () => {
-    const { req, res, next } = fx.createIdempotencyReqRes(fx.mockLongIdempotencyKey());
-    idempotencyKey(req, res, next);
-    expect(res.status).toHaveBeenCalledWith(400);
-  });
+  it('超长 Key（>128 字符）应返回 400', () =>
+    expect(runKey(fx.mockLongIdempotencyKey()).res.status).toHaveBeenCalledWith(400));
   it.each([
     ['首次放行+重复返回缓存', 'dup-key-basic', false],
     ['Redis 写入+二次读取', 'redis-dup-key', true],
@@ -284,36 +274,27 @@ describe('idempotencyKey 中间件', () => {
     ['换行符注入 Key', fx.NEWLINE_INJECTION_KEY, false],
   ])('%s', async (_n, k, a) => {
     const c = { success: true, data: 'cached' };
-    const r1 = fx.createIdempotencyReqRes(k);
-    await passOnce(r1, c);
+    await passOnce(k, c);
     if (a)
       await vi.waitFor(() => expect(redisMocks.store.has(`idempotency:127.0.0.1:${k}`)).toBe(true));
-    const r2 = fx.createIdempotencyReqRes(k);
-    idempotencyKey(r2.req, r2.res, r2.next);
+    const r2 = runKey(k);
     await vi.waitFor(() => expect(r2.res.status).toHaveBeenCalledWith(200));
     expect(r2.res.json).toHaveBeenCalledWith(c);
     if (a) expect(redisMocks.get).toHaveBeenCalledWith(`idempotency:127.0.0.1:${k}`);
   });
   it('5xx 响应不应被缓存', async () => {
-    const k = 'server-error-key';
-    const r1 = fx.createIdempotencyReqRes(k);
-    await passOnce(r1, { success: false }, 503);
-    expect(redisMocks.store.has(`idempotency:${k}`)).toBe(false);
-    const r2 = fx.createIdempotencyReqRes(k);
-    idempotencyKey(r2.req, r2.res, r2.next);
+    await passOnce('server-error-key', { success: false }, 503);
+    expect(redisMocks.store.has(`idempotency:server-error-key`)).toBe(false);
+    const r2 = runKey('server-error-key');
     await vi.waitFor(() => expect(r2.next).toHaveBeenCalledTimes(1));
   });
   it('并发相同 Key：仅一个执行 handler', async () => {
-    const k = 'race-condition-key-12345';
-    const c = { success: true, data: 'first-response' };
-    const r1 = fx.createIdempotencyReqRes(k);
-    await passOnce(r1, c);
-    const cs = Array.from({ length: 4 }, () => fx.createIdempotencyReqRes(k));
+    const k = 'race-condition-key-12345',
+      c = { success: true, data: 'first-response' };
+    await passOnce(k, c);
+    const cs = Array.from({ length: 4 }, () => runKey(k));
     await Promise.all(
-      cs.map(async ({ req, res, next }) => {
-        idempotencyKey(req, res, next);
-        await vi.waitFor(() => expect(res.status).toHaveBeenCalledWith(200));
-      }),
+      cs.map(({ res }) => vi.waitFor(() => expect(res.status).toHaveBeenCalledWith(200))),
     );
     for (const { res, next } of cs) {
       expect(next).not.toHaveBeenCalled();
@@ -323,11 +304,10 @@ describe('idempotencyKey 中间件', () => {
   it('幂等结果写入失败应记录 warn 且不阻塞响应', async () => {
     redisMocks.set.mockResolvedValueOnce('OK');
     redisMocks.set.mockRejectedValueOnce(new Error('redis set failed'));
-    const { req, res, next } = fx.createIdempotencyReqRes('redis-write-fail');
-    idempotencyKey(req, res, next);
-    await vi.waitFor(() => expect(next).toHaveBeenCalledTimes(1));
-    res.statusCode = 200;
-    expect(() => res.json({ success: true })).not.toThrow();
+    const r = runKey('redis-write-fail');
+    await vi.waitFor(() => expect(r.next).toHaveBeenCalledTimes(1));
+    r.res.statusCode = 200;
+    expect(() => r.res.json({ success: true })).not.toThrow();
   });
   it.each([
     ['Redis ping 失败', () => redisMocks.useMemoryFallback()],
@@ -341,19 +321,16 @@ describe('idempotencyKey 中间件', () => {
     ],
   ])('%s 时应 fail-closed 返回 503', async (_n, a) => {
     a();
-    const { req, res, next } = fx.createIdempotencyReqRes('redis-down-key');
-    idempotencyKey(req, res, next);
-    await vi.waitFor(() => expect(res.status).toHaveBeenCalledWith(503));
-    expect(next).not.toHaveBeenCalled();
+    const r = runKey('redis-down-key');
+    await vi.waitFor(() => expect(r.res.status).toHaveBeenCalledWith(503));
+    expect(r.next).not.toHaveBeenCalled();
   });
   it('Redis ready/error 事件应更新可用性', async () => {
     redisMocks.useMemoryFallback();
-    const r1 = fx.createIdempotencyReqRes('redis-state-key');
-    idempotencyKey(r1.req, r1.res, r1.next);
+    const r1 = runKey('redis-state-key');
     await vi.waitFor(() => expect(r1.res.status).toHaveBeenCalledWith(503));
     redisMocks.useRedisSuccess();
-    const r2 = fx.createIdempotencyReqRes('redis-state-key-2');
-    idempotencyKey(r2.req, r2.res, r2.next);
+    const r2 = runKey('redis-state-key-2');
     await vi.waitFor(() => expect(r2.next).toHaveBeenCalledTimes(1));
   });
 });
