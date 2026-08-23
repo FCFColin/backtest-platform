@@ -22,6 +22,17 @@ import { useMediaQuery } from '@/hooks/miscHooks.js';
 type BaseProps = { r: MonteCarloResult; sv: number };
 type RefLine = { label: string; color: string; value: string };
 type DistProps = BaseProps & { dm: mcu.DistMetric; setDm: (v: mcu.DistMetric) => void };
+type FanRng = (d: mcu.FanDataPoint) => [number, number];
+const H4 = 'mb-3 text-sm font-semibold tabular-nums text-fg-secondary';
+const OK_COLOR = 'hsl(var(--success))';
+const BTN = 'rounded-md border px-3 py-1 text-caption font-medium transition-colors duration-150';
+const BTN_ON = 'border-brand bg-brand text-brand-fg';
+const BTN_OFF = 'border-border bg-input-bg text-fg-secondary hover:bg-hover hover:text-fg';
+const toMarkLine = ({ label: l, color, value }: RefLine) => ({
+  xAxis: l,
+  lineStyle: { color, type: 'dashed', width: 1.5 },
+  label: { formatter: value, position: 'top', color, fontSize: 11 },
+});
 function NoDataCard() {
   const { t } = useTranslation();
   return (
@@ -57,15 +68,7 @@ function HistogramChart({
       barMaxWidth: 60,
     },
   ];
-  if (rl?.length)
-    s[0].markLine = {
-      silent: true,
-      data: rl.map((r) => ({
-        xAxis: r.label,
-        lineStyle: { color: r.color, type: 'dashed', width: 1.5 },
-        label: { formatter: r.value, position: 'top', color: r.color, fontSize: 11 },
-      })),
-    };
+  if (rl?.length) s[0].markLine = { silent: true, data: rl.map(toMarkLine) };
   const o: EChartsOption = {
     grid: { top: 20, right: 20, bottom: 20, left: 60 },
     xAxis: cu.categoryAxis(
@@ -82,18 +85,11 @@ function HistogramChart({
 function McDistTab({ r, dm, setDm, sv }: DistProps) {
   const { t } = useTranslation();
   if (!r.perPathMetrics?.length) return <NoDataCard />;
-  const {
-    data,
-    medianLabel: medL,
-    meanLabel: meanL,
-    medianVal: medV,
-    meanVal,
-  } = mcu.buildDistHistogram(r.perPathMetrics, dm, sv);
-  const defs = [
-    { k: 'charts.annualReturn.median', lb: medL, ci: 2, v: medV },
-    { k: 'charts.annualReturn.mean', lb: meanL, ci: 1, v: meanVal },
-  ];
-  const rl = defs.map(({ k, lb, ci, v }) => ({
+  const h = mcu.buildDistHistogram(r.perPathMetrics, dm, sv);
+  const rl = [
+    { k: 'charts.annualReturn.median', lb: h.medianLabel, ci: 2, v: h.medianVal },
+    { k: 'charts.annualReturn.mean', lb: h.meanLabel, ci: 1, v: h.meanVal },
+  ].map(({ k, lb, ci, v }) => ({
     label: lb,
     color: getPortfolioColor(ci),
     value: t(k, { value: v !== undefined ? mcu.METRIC_FORMAT[dm](v) : '' }),
@@ -107,18 +103,13 @@ function McDistTab({ r, dm, setDm, sv }: DistProps) {
             key={k}
             type="button"
             onClick={() => setDm(k)}
-            className={cn(
-              'rounded-md border px-3 py-1 text-caption font-medium transition-colors duration-150',
-              dm === k
-                ? 'border-brand bg-brand text-brand-fg'
-                : 'border-border bg-input-bg text-fg-secondary hover:bg-hover hover:text-fg',
-            )}
+            className={cn(BTN, dm === k ? BTN_ON : BTN_OFF)}
           >
             {labels[k]}
           </button>
         ))}
       </div>
-      <HistogramChart data={data} referenceLines={rl} />
+      <HistogramChart data={h.data} referenceLines={rl} />
     </Card>
   );
 }
@@ -170,12 +161,7 @@ function FanChart({ data }: { data: mcu.FanDataPoint[] }) {
       ? { areaStyle: { color: c, opacity: op } }
       : { itemStyle: { opacity: 0 } }),
   });
-  const bandPair = (
-    nm: string,
-    rng: (d: mcu.FanDataPoint) => [number, number],
-    op: number,
-    lb: string,
-  ) => [
+  const bandPair = (nm: string, rng: FanRng, op: number, lb: string) => [
     mkBand(
       nm,
       data.map((d) => rng(d)[0]),
@@ -211,13 +197,12 @@ function FanChart({ data }: { data: mcu.FanDataPoint[] }) {
       const d = mm.get(Number(p.axisValue));
       if (!d) return '';
       const f = mcu.dollarKFormatter;
-      const [lo95, hi95] = d.band5_95;
-      const [lo75, hi75] = d.band25_75;
+      const { p50, band25_75: b25, band5_95: b95 } = d;
       const dot = `<span style="background:${c};width:8px;height:8px;display:inline-block;border-radius:2px"></span>`;
       return [
-        cu.tooltipRow(dot, t('Median'), f(d.p50)),
-        cu.tooltipRow(p.marker, t('monteCarlo.fanChart.band25_75'), `${f(lo75)} – ${f(hi75)}`),
-        cu.tooltipRow(p.marker, t('monteCarlo.fanChart.band5_95'), `${f(lo95)} – ${f(hi95)}`),
+        cu.tooltipRow(dot, t('Median'), f(p50)),
+        cu.tooltipRow(p.marker, t('monteCarlo.fanChart.band25_75'), `${f(b25[0])} – ${f(b25[1])}`),
+        cu.tooltipRow(p.marker, t('monteCarlo.fanChart.band5_95'), `${f(b95[0])} – ${f(b95[1])}`),
       ].join('');
     }),
     series: s as EChartsOption['series'],
@@ -239,9 +224,7 @@ function McTermHist({ r, sv }: BaseProps) {
   }));
   return (
     <Card className="p-5">
-      <h4 className="mb-3 text-sm font-semibold text-fg-secondary tabular-nums">
-        {t('Terminal Value Distribution')}
-      </h4>
+      <h4 className={H4}>{t('Terminal Value Distribution')}</h4>
       <HistogramChart
         data={h.data}
         height={300}
@@ -287,9 +270,7 @@ function McRangeTab({ r, sv }: BaseProps) {
   return (
     <div className="flex flex-col gap-4">
       <Card className="p-5">
-        <h4 className="mb-3 text-sm font-semibold tabular-nums text-fg-secondary">
-          {t('Monte Carlo Fan Chart')}
-        </h4>
+        <h4 className={H4}>{t('Monte Carlo Fan Chart')}</h4>
         <FanChart data={data} />
       </Card>
       <McTermHist r={r} sv={sv} />
@@ -318,14 +299,11 @@ function McSummaryTab({ r, sv }: BaseProps) {
 function ResultsDisplay({ s, r, idx }: { s: mcu.McState; r: MonteCarloResult; idx: number }) {
   const { t } = useTranslation();
   const { activeTab: at, startingValue: sv, distMetric: dm, setDistMetric: setDm } = s;
+  const st = r.statistics;
   const ms = [
-    { label: t('Median Final Value'), value: fmtAmount(r.statistics.medianFinalValue * sv) },
-    { label: t('Mean Final Value'), value: fmtAmount(r.statistics.meanFinalValue * sv) },
-    {
-      label: t('Capital Preservation'),
-      value: fmtPct(r.statistics.successRate, 1),
-      color: 'hsl(var(--success))',
-    },
+    { label: t('Median Final Value'), value: fmtAmount(st.medianFinalValue * sv) },
+    { label: t('Mean Final Value'), value: fmtAmount(st.meanFinalValue * sv) },
+    { label: t('Capital Preservation'), value: fmtPct(st.successRate, 1), color: OK_COLOR },
     { label: t('Simulation Count'), value: `${r.perPathMetrics?.length ?? s.numSimulations}` },
   ];
   const tabs: [mcu.ResultTab, React.ReactNode][] = [
@@ -378,12 +356,8 @@ function ResultsPanel({ s }: { s: mcu.McState }) {
     >
       <div className="flex flex-col gap-6">
         {s.results1 && <ResultsDisplay s={s} r={s.results1} idx={0} />}
-        {s.results2 && (
-          <>
-            <Separator />
-            <ResultsDisplay s={s} r={s.results2} idx={1} />
-          </>
-        )}
+        {s.results2 && <Separator />}
+        {s.results2 && <ResultsDisplay s={s} r={s.results2} idx={1} />}
       </div>
     </ResultsShell>
   );
