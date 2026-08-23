@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import type { Request, Response, NextFunction } from 'express';
+import type { NextFunction, Request, Response } from 'express';
 import { startExpressApp, reqJson } from '../../helpers/expressApp.js';
 import { withServer } from '../../helpers/serverLifecycle.js';
 import { expectError } from '../../helpers/routeAssertions.js';
@@ -80,35 +80,30 @@ vi.mock('../../../packages/backend/src/infrastructure/mailService.js', () => ({
 }));
 import authRoutes from '../../../packages/backend/src/routes/authRoutes.js';
 type VFn = ReturnType<typeof vi.fn>;
+type ReqU = Request & { user?: Record<string, unknown> };
 const fn = (m: Record<string, unknown>, k: string): VFn => m[k] as VFn;
+const expSoon = () => Math.floor(Date.now() / 1000) + 900;
+const OID = '11111111-1111-4111-8111-111111111111';
+const DUP_ERR = Object.assign(new Error('duplicate key'), { code: '23505' });
+const SWITCH_ORG_ID = '55555555-5555-4555-8555-555555555555';
 function injectUser(sub = 'user-switch', role = 'analyst', extra: Record<string, unknown> = {}) {
   fn(mocks.jwtAuth, 'jwtAuth').mockImplementation(
-    (req: Request, _r: Response, next: NextFunction) => {
-      (req as Request & { user?: Record<string, unknown> }).user = {
-        sub,
-        role,
-        exp: Math.floor(Date.now() / 1000) + 900,
-        ...extra,
-      };
+    (req: Request, _res: Response, next: NextFunction) => {
+      (req as ReqU).user = { sub, role, exp: expSoon(), ...extra };
       next();
     },
   );
 }
-function passthroughJwtAuth() {
-  fn(mocks.jwtAuth, 'jwtAuth').mockImplementation(
-    (_r: Request, _res: Response, next: NextFunction) => next(),
-  );
-}
 function parseCookies(req: Request, _res: Response, next: NextFunction) {
-  const h = req.headers.cookie;
-  req.cookies = h
-    ? Object.fromEntries(
-        h.split(';').map((c) => {
-          const [k, ...v] = c.trim().split('=');
-          return [k, v.join('=')];
-        }),
-      )
-    : {};
+  req.cookies = Object.fromEntries(
+    (req.headers.cookie ?? '')
+      .split(';')
+      .filter(Boolean)
+      .map((c) => {
+        const [k, ...v] = c.trim().split('=');
+        return [k, v.join('=')];
+      }),
+  );
   next();
 }
 const apiPost = (u: string, b?: unknown, h: Record<string, string> = {}) =>
@@ -123,7 +118,7 @@ function mockVerifyUser(id = 'user-123', role = 'admin') {
 }
 function mockOrg(overrides: Record<string, unknown> = {}) {
   return {
-    orgId: '11111111-1111-4111-8111-111111111111',
+    orgId: OID,
     orgName: 'Acme',
     orgSlug: 'acme',
     orgPlan: 'pro',
@@ -132,10 +127,13 @@ function mockOrg(overrides: Record<string, unknown> = {}) {
     ...overrides,
   };
 }
+const inactiveOrg = mockOrg({ orgStatus: 'suspended' });
 describe('authRoutes - 登录与会话端点', () => {
   const getServer = withServer(() => {
     vi.clearAllMocks();
-    passthroughJwtAuth();
+    fn(mocks.jwtAuth, 'jwtAuth').mockImplementation((_q: unknown, _r: Response, nx: NextFunction) =>
+      nx(),
+    );
     mocks.config.NODE_ENV = 'production';
     fn(mocks.jwtAuth, 'generateToken').mockResolvedValue('access-token-mock');
     fn(mocks.jwtAuth, 'generateRefreshToken').mockResolvedValue('refresh-token-mock');
@@ -144,8 +142,9 @@ describe('authRoutes - 登录与会话端点', () => {
       app.use('/api/v1/auth', authRoutes);
     });
   });
-  const loginUrl = () => `${getServer().url}/api/v1/auth/login/password`;
-  const switchUrl = () => `${getServer().url}/api/v1/auth/switch-org`;
+  const url = (p: string) => `${getServer().url}/api/v1/auth${p}`;
+  const loginUrl = () => url('/login/password');
+  const switchUrl = () => url('/switch-org');
   it('正确凭证应返回 access token 并通过 Set-Cookie 下发 refresh token', async () => {
     mockVerifyUser('user-123', 'admin');
     const { res, body } = await apiPost(loginUrl(), validPasswordLoginPayload);
@@ -169,7 +168,7 @@ describe('authRoutes - 登录与会话端点', () => {
     ['switch-org 缺少 orgId', '/switch-org', {}],
   ])('%s 应返回 400', async (_n, path, payload) => {
     injectUser();
-    const { res, body } = await apiPost(`${getServer().url}/api/v1/auth${path}`, payload);
+    const { res, body } = await apiPost(url(path), payload);
     expectError(res, body, 400, 'VALIDATION_ERROR');
   });
   it('账户锁定时应返回 429', async () => {
@@ -188,14 +187,11 @@ describe('authRoutes - 登录与会话端点', () => {
     expect(res.status).toBe(200);
     expect(body.data.role).toBe(expectedRole);
     if (org) {
-      expect(body.data.org.orgId).toBe('11111111-1111-4111-8111-111111111111');
+      expect(body.data.org.orgId).toBe(OID);
       expect(mocks.jwtAuth.generateToken).toHaveBeenCalledWith(
         userId,
         'admin',
-        expect.objectContaining({
-          tenantId: '11111111-1111-4111-8111-111111111111',
-          orgRole: 'owner',
-        }),
+        expect.objectContaining({ tenantId: OID, orgRole: 'owner' }),
       );
     } else {
       expect(body.data.org).toBeNull();
@@ -206,11 +202,7 @@ describe('authRoutes - 登录与会话端点', () => {
       accessToken: 'new-access-token',
       refreshToken: 'new-refresh-token',
     });
-    const { res, body } = await apiPost(
-      `${getServer().url}/api/v1/auth/refresh`,
-      {},
-      { Cookie: 'rt=valid-refresh-token' },
-    );
+    const { res, body } = await apiPost(url('/refresh'), {}, { Cookie: 'rt=valid-refresh-token' });
     expect(res.status).toBe(200);
     expect(body.data.accessToken).toBe('new-access-token');
     expect(res.headers.get('set-cookie')).toContain('rt=');
@@ -220,12 +212,9 @@ describe('authRoutes - 登录与会话端点', () => {
     ['已撤销 refresh token', 'revoked-token', null],
     ['缺失 refresh cookie', undefined, 'REFRESH_TOKEN_MISSING'],
   ])('%s 应返回 401', async (_n, token, code) => {
+    const h = token === undefined ? {} : { Cookie: `rt=${token}` };
     if (token !== undefined) fn(mocks.jwtAuth, 'refreshAccessToken').mockResolvedValueOnce(null);
-    const { res, body } = await apiPost(
-      `${getServer().url}/api/v1/auth/refresh`,
-      {},
-      token !== undefined ? { Cookie: `rt=${token}` } : {},
-    );
+    const { res, body } = await apiPost(url('/refresh'), {}, h);
     expect(res.status).toBe(401);
     if (code) expect(body.error.code).toBe(code);
   });
@@ -234,7 +223,7 @@ describe('authRoutes - 登录与会话端点', () => {
     ['未携带 refresh cookie 也应返回成功', undefined, false],
   ])('logout %s', async (_n, headers, expectRevoke) => {
     if (expectRevoke) fn(mocks.jwtAuth, 'revokeRefreshToken').mockResolvedValueOnce(undefined);
-    const { res } = await apiDelete(`${getServer().url}/api/v1/auth/logout`, headers);
+    const { res } = await apiDelete(url('/logout'), headers);
     expect(res.status).toBe(200);
     if (expectRevoke) {
       expect(mocks.jwtAuth.revokeRefreshToken).toHaveBeenCalledWith('token-to-revoke');
@@ -243,28 +232,16 @@ describe('authRoutes - 登录与会话端点', () => {
   });
   it.each([
     ['GET /me 未认证应返回 401', '/me', 'GET', undefined, 'UNAUTHORIZED'],
-    [
-      'switch-org 未认证应返回 401',
-      '/switch-org',
-      'POST',
-      { orgId: '55555555-5555-4555-8555-555555555555' },
-      null,
-    ],
-  ])('%s', async (_n, path, method, body, code) => {
-    const { res, body: json } = await reqJson(
-      `${getServer().url}/api/v1/auth${path}`,
-      method,
-      body,
-    );
+    ['switch-org 未认证应返回 401', '/switch-org', 'POST', { orgId: SWITCH_ORG_ID }, null],
+  ])('%s', async (_n, path, method, payload, code) => {
+    const { res, body: json } = await reqJson(url(path), method, payload);
     expect(res.status).toBe(401);
     if (code) expect(json.error.code).toBe(code);
   });
   it('GET /me jwtAuth 注入 user 时应返回用户信息', async () => {
-    const exp = Math.floor(Date.now() / 1000) + 900;
+    const exp = expSoon();
     injectUser('user-me', 'admin', { exp });
-    const { res, body } = await apiGet(`${getServer().url}/api/v1/auth/me`, {
-      Authorization: 'Bearer valid-token',
-    });
+    const { res, body } = await apiGet(url('/me'), { Authorization: 'Bearer valid-token' });
     expect(res.status).toBe(200);
     expect(body.data.userId).toBe('user-me');
     expect(body.data.role).toBe('admin');
@@ -273,9 +250,7 @@ describe('authRoutes - 登录与会话端点', () => {
   it('DELETE /me 已认证用户应撤销会话并匿名化账户', async () => {
     injectUser('user-delete-me', 'analyst');
     fn(mocks.userService, 'anonymizeUser').mockResolvedValueOnce(true);
-    const { res, body } = await apiDelete(`${getServer().url}/api/v1/auth/me`, {
-      Authorization: 'Bearer valid-token',
-    });
+    const { res, body } = await apiDelete(url('/me'), { Authorization: 'Bearer valid-token' });
     expect(res.status).toBe(200);
     expect(body.data.anonymized).toBe(true);
     expect(mocks.jwtAuth.revokeAllUserSessions).toHaveBeenCalledWith('user-delete-me');
@@ -292,12 +267,7 @@ describe('authRoutes - 登录与会话端点', () => {
   });
   it.each([
     ['非该组织成员', null, 'NOT_A_MEMBER', '33333333-3333-4333-8333-333333333333'],
-    [
-      '组织非 active',
-      mockOrg({ orgStatus: 'suspended' }),
-      'ORG_INACTIVE',
-      '44444444-4444-4444-8444-444444444444',
-    ],
+    ['组织非 active', inactiveOrg, 'ORG_INACTIVE', '44444444-4444-4444-8444-444444444444'],
   ])('switch-org %s 应返回 403 %s', async (_n, membership, code, orgId) => {
     injectUser();
     fn(mocks.membershipService, 'getMembership').mockResolvedValueOnce(membership);
@@ -310,9 +280,7 @@ describe('authRoutes - 登录与会话端点', () => {
     fn(mocks.membershipService, 'getUserMemberships').mockResolvedValueOnce([
       mockOrg({ orgId, orgName: 'Delta', orgSlug: 'delta', role: 'analyst' }),
     ]);
-    const { res, body } = await apiGet(`${getServer().url}/api/v1/auth/orgs`, {
-      Authorization: 'Bearer t',
-    });
+    const { res, body } = await apiGet(url('/orgs'), { Authorization: 'Bearer t' });
     expect(res.status).toBe(200);
     expect(body.data.orgs).toHaveLength(1);
     expect(body.data.orgs[0].slug).toBe('delta');
@@ -354,12 +322,7 @@ describe('authRegistrationRoutes', () => {
     expect(fn(mocks.userService, 'registerUser')).not.toHaveBeenCalled();
   });
   it.each([
-    [
-      '唯一约束冲突',
-      Object.assign(new Error('duplicate key value violates unique constraint'), { code: '23505' }),
-      409,
-      'ACCOUNT_CONFLICT',
-    ],
+    ['唯一约束冲突', DUP_ERR, 409, 'ACCOUNT_CONFLICT'],
     ['其他异常', new Error('connection lost'), 500, 'REGISTER_FAILED'],
   ])('userService 抛出%s 应返回 %i %s', async (_n, err, status, code) => {
     fn(mocks.userService, 'registerUser').mockRejectedValueOnce(err);
