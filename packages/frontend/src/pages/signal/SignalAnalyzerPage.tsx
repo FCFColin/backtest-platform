@@ -26,7 +26,6 @@ const AGG = [
   ['voting', 'signal.multi.aggregationVoting', 'signal.multi.descVoting'],
   ['rank', 'signal.multi.aggregationRank', 'signal.multi.descRank'],
 ].map(([value, label, desc]) => ({ value, label, desc }));
-const ROW_CLS = 'h-9 w-16 font-mono tabular-nums';
 const STAT_COLS = [
   { key: 'totalSignals', label: 'signal.dual.statTotalSignals', fmt: 'int' },
   { key: 'winRate', label: 'Win Rate', fmt: 'pct' },
@@ -37,6 +36,7 @@ const STAT_COLS = [
 const BUY_CLS = 'font-semibold text-success',
   SELL_CLS = 'font-semibold text-danger',
   NONE_CLS = 'text-fg-tertiary',
+  ROW_CLS = 'h-9 w-16 font-mono tabular-nums',
   PAG_CLS =
     'flex items-center justify-between border-b border-border px-4 py-2 text-caption text-fg-tertiary',
   SIG_ROW_CLS = 'flex flex-wrap items-center gap-2 rounded-md bg-input-bg/50 p-3 hover:bg-hover',
@@ -67,18 +67,16 @@ const DirCell = ({ v, t }: { v?: string | null; t: TFunction }) => {
   const m = DIR_META[v ?? ''];
   return <span className={m ? m[0] : NONE_CLS}>{m ? t(m[1]) : '-'}</span>;
 };
-const dirCol = (
-  k: 'signal1' | 'signal2' | 'combined',
-  l: string,
-  t: TFunction,
-): T.TableColumn<Sig.DualSignalResponse['comparison'][number]> => ({
-  key: k,
-  label: l,
-  render: (r) => <DirCell v={r[k]} t={t} />,
-  sortValue: (r) => r[k] ?? '',
-});
 const mk = (k: string, l: string, g: (r: any) => any, f: (v: any) => any) =>
   ({ key: k, label: l, render: (r: any) => f(g(r)), sortValue: g }) as T.TableColumn<any>;
+const dirRender = (t: TFunction) => (v: any) => <DirCell v={v} t={t} />;
+const numProps = (v: number, on: (n: number) => any, ti: string, xtra?: string) => ({
+  type: 'number' as const,
+  className: xtra ? `${ROW_CLS} ${xtra}` : ROW_CLS,
+  value: v,
+  title: ti,
+  onChange: (e: { target: { value: string } }) => on(Number(e.target.value)),
+});
 type EqCurve = SignalAnalysisResult['equityCurve'];
 const EquityChart = ({ d, name, t }: { d: EqCurve; name: string; t: TFunction }) => (
   <TimeSeriesLineChart
@@ -102,9 +100,14 @@ function DualSignalResultsPanel({ state }: { state: Sig.UseDualSignalStateResult
   const [page, setPage] = useState(0);
   useEffect(() => setPage(0), [results]);
   const cmp = results ? results.comparison.filter((r) => r.signal1 || r.signal2 || r.combined) : [];
-  const cmpCols = [
-    { key: 'date', label: t('Date'), sortValue: (r: any) => r.date },
-    ...SIGS.map(({ k, n }) => dirCol(k, t(n), t)),
+  const cmpCols: T.TableColumn<Sig.DualSignalResponse['comparison'][number]>[] = [
+    { key: 'date', label: t('Date'), sortValue: (r) => r.date },
+    ...SIGS.map(({ k, n }) => ({
+      key: k,
+      label: t(n),
+      render: (r: (typeof cmp)[number]) => <DirCell v={r[k]} t={t} />,
+      sortValue: (r: (typeof cmp)[number]) => r[k] ?? '',
+    })),
   ];
   const statCols = [
     { key: 'metric', label: t('Metric'), render: (c: any) => t(c.label) },
@@ -118,9 +121,8 @@ function DualSignalResultsPanel({ state }: { state: Sig.UseDualSignalStateResult
   const eq = (() => {
     const m = new Map<string, Record<string, number | string>>();
     for (const { k } of SIGS)
-      for (const p of results?.[k].equityCurve ?? []) {
+      for (const p of results?.[k].equityCurve ?? [])
         m.set(p.date, { date: p.date, ...m.get(p.date), [k]: p.value });
-      }
     return [...m.values()].sort((a, b) => (a.date as string).localeCompare(b.date as string));
   })();
   const NavBtn = (l: string, d: boolean, o: () => void) => (
@@ -176,18 +178,8 @@ function SignalAnalyzerResultsPanel({ state }: { state: Sig.UseSignalAnalyzerSta
   const { error, results, isLoading, runAnalysis } = state;
   const cols: T.TableColumn<any>[] = [
     { key: 'date', label: t('Date'), sortValue: (r) => r.date },
-    {
-      key: 'type',
-      label: t('Type'),
-      sortValue: (r) => r.type,
-      render: (r) => <DirCell v={r.type} t={t} />,
-    },
-    {
-      key: 'price',
-      label: t('Price'),
-      render: (r) => fmtAmount(r.price),
-      sortValue: (r) => r.price,
-    },
+    mk('type', t('Type'), (r) => r.type, dirRender(t)),
+    mk('price', t('Price'), (r) => r.price, fmtAmount),
   ];
   return (
     <ResultsShell {...shellProps(t, error, results, isLoading)} onRetry={runAnalysis}>
@@ -287,52 +279,38 @@ function MultiSignalParams({ state }: { state: Sig.UseMultiSignalStateResult }) 
         <FieldDescription>
           {t('Add multiple technical-indicator signals; each can be removed individually')}
         </FieldDescription>
-        {signals.map((s, i) => (
-          <div key={s.id} className={SIG_ROW_CLS}>
-            <IndicatorSelect
-              value={s.indicator}
-              onChange={(v) => updateSignal(s.id, { indicator: v })}
-              triggerClassName="h-9 w-[120px]"
-            />
-            <U.Input
-              type="number"
-              className={ROW_CLS}
-              value={s.period}
-              min={2}
-              title={t('Period')}
-              onChange={(e) => updateSignal(s.id, { period: Number(e.target.value) })}
-            />
-            <U.Input
-              type="number"
-              className={ROW_CLS}
-              value={s.threshold}
-              title={t('Threshold')}
-              onChange={(e) => updateSignal(s.id, { threshold: Number(e.target.value) })}
-            />
-            {am === 'weighted' && (
-              <U.Input
-                type="number"
-                step="0.1"
-                className={`${ROW_CLS} w-[72px]`}
-                value={weights[i] ?? 0}
-                title={t('Weight')}
-                onChange={(e) => updateWeight(i, Number(e.target.value))}
+        {signals.map((s, i) => {
+          const up = (p: Partial<Sig.SignalItem>) => updateSignal(s.id, p);
+          return (
+            <div key={s.id} className={SIG_ROW_CLS}>
+              <IndicatorSelect
+                value={s.indicator}
+                onChange={(v) => updateSignal(s.id, { indicator: v })}
+                triggerClassName="h-9 w-[120px]"
               />
-            )}
-            {signals.length > 1 && (
-              <U.Button
-                variant="destructive"
-                size="icon"
-                className="h-9 w-9"
-                onClick={() => removeSignal(s.id)}
-                title={t('Remove')}
-                aria-label={t('Remove')}
-              >
-                <X className="size-4" />
-              </U.Button>
-            )}
-          </div>
-        ))}
+              <U.Input {...numProps(s.period, (n) => up({ period: n }), t('Period'))} min={2} />
+              <U.Input {...numProps(s.threshold, (n) => up({ threshold: n }), t('Threshold'))} />
+              {am === 'weighted' && (
+                <U.Input
+                  {...numProps(weights[i] ?? 0, (n) => updateWeight(i, n), t('Weight'), 'w-[72px]')}
+                  step="0.1"
+                />
+              )}
+              {signals.length > 1 && (
+                <U.Button
+                  variant="destructive"
+                  size="icon"
+                  className="h-9 w-9"
+                  onClick={() => removeSignal(s.id)}
+                  title={t('Remove')}
+                  aria-label={t('Remove')}
+                >
+                  <X className="size-4" />
+                </U.Button>
+              )}
+            </div>
+          );
+        })}
         <U.Button variant="secondary" size="sm" className="w-fit" onClick={addSignal}>
           <Plus className="size-4" />
           {t('Add Signal')}
