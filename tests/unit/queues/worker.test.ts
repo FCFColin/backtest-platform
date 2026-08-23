@@ -36,12 +36,8 @@ const signalCapture = vi.hoisted(() => {
   const captured: { SIGTERM?: () => void; SIGINT?: () => void } = {};
   const originalOn = process.on;
   process.on = ((event: string, handler: (...args: unknown[]) => void) => {
-    if (event === 'SIGTERM') {
-      captured.SIGTERM = handler as () => void;
-      return process;
-    }
-    if (event === 'SIGINT') {
-      captured.SIGINT = handler as () => void;
+    if (event === 'SIGTERM' || event === 'SIGINT') {
+      captured[event] = handler as () => void;
       return process;
     }
     return originalOn.call(process, event as never, handler as never);
@@ -79,6 +75,7 @@ function makeJob(data: BacktestJobData, id = 'job-1'): Job<BacktestJobData> {
   } as unknown as Job<BacktestJobData>;
 }
 const TENANT = '11111111-1111-1111-1111-111111111111';
+const inflightKey = `inflight:${TENANT}`;
 function mockOrg(plan = 'pro') {
   vi.mocked(getOrg).mockResolvedValueOnce({
     orgId: TENANT,
@@ -100,31 +97,18 @@ describe('processBacktestJob - 任务分发', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
+  const gridOk = { success: true, data: { totalCombinations: 4, topResults: [] } };
+  const gridFail = { success: false, error: '参数组合过多(250)，请缩小参数范围（上限200）' };
+  const optOk = { success: true, data: { results: [], totalCombinations: 10 } };
+  const optFail = { success: false, error: '优化失败' };
   it.each<[string, BacktestJobData['type'], unknown]>([
-    [
-      'grid-search 成功时返回 completed',
-      'grid-search',
-      { success: true, data: { totalCombinations: 4, topResults: [] } },
-    ],
-    [
-      'grid-search 返回 success:false 时仍将完整结果作为 result',
-      'grid-search',
-      { success: false, error: '参数组合过多(250)，请缩小参数范围（上限200）' },
-    ],
-    [
-      'optimizer 成功时返回 completed',
-      'optimizer',
-      { success: true, data: { results: [], totalCombinations: 10 } },
-    ],
-    [
-      'optimizer 返回 success:false 时仍将完整结果作为 result',
-      'optimizer',
-      { success: false, error: '优化失败' },
-    ],
+    ['grid-search 成功时返回 completed', 'grid-search', gridOk],
+    ['grid-search 返回 success:false 时仍将完整结果作为 result', 'grid-search', gridFail],
+    ['optimizer 成功时返回 completed', 'optimizer', optOk],
+    ['optimizer 返回 success:false 时仍将完整结果作为 result', 'optimizer', optFail],
   ])('%s', async (_n, type, mockResult) => {
     const target = type === 'optimizer' ? executeOptimization : executeGridSearch;
-    if (mockResult instanceof Error) vi.mocked(target).mockRejectedValueOnce(mockResult);
-    else vi.mocked(target).mockResolvedValueOnce(mockResult as never);
+    vi.mocked(target).mockResolvedValueOnce(mockResult as never);
     const job = makeJob({ type, payload: { indicator: 'sma' } } as BacktestJobData);
     const result = await processBacktestJob(job);
     expect(target).toHaveBeenCalledWith(job.data.payload);
@@ -191,12 +175,9 @@ describe('processBacktestJob - 任务分发', () => {
       data: { ok: 1 },
     });
   });
+  const engineDown = new engineMocks.EngineUnavailableError('/api/engine/backtest');
   it.each([
-    [
-      'EngineUnavailableError 时应释放 claim 并重抛以触发 BullMQ 重试',
-      new engineMocks.EngineUnavailableError('/api/engine/backtest'),
-      true,
-    ],
+    ['EngineUnavailableError 时应释放 claim 并重抛以触发 BullMQ 重试', engineDown, true],
     ['handler 抛 DelayedError 时应直接重抛（不释放 claim）', new DelayedError('内部延迟'), false],
   ])('%s', async (_n, err, releaseExpected) => {
     vi.mocked(executeOptimization).mockRejectedValueOnce(err as never);
@@ -216,53 +197,36 @@ describe('processBacktestJob - 任务分发', () => {
   });
 
   describe('tenant-fair 调度（ADR-010）', () => {
+    const noop = () => {};
+    const noIncr = () => expect(appRedis.incr).not.toHaveBeenCalled();
+    const noDecr = () => expect(appRedis.decr).not.toHaveBeenCalled();
+    const decrCheck = () => expect(appRedis.decr).toHaveBeenCalledWith(inflightKey);
+    const slotCheck = () => {
+      expect(appRedis.incr).toHaveBeenCalledWith(inflightKey);
+      expect(appRedis.decr).toHaveBeenCalledWith(inflightKey);
+    };
     const proSlot = () => {
       mockOrg('pro');
       vi.mocked(appRedis.incr).mockResolvedValueOnce(1);
     };
+    const orgFails = () => {
+      vi.mocked(getOrg).mockRejectedValueOnce(new Error('DB 连接失败'));
+      vi.mocked(appRedis.incr).mockResolvedValueOnce(1);
+    };
+    const incrFails = () => {
+      mockOrg('pro');
+      vi.mocked(appRedis.incr).mockRejectedValueOnce(new Error('Redis 连接失败'));
+    };
+    const decrFailsSetup = () => {
+      proSlot();
+      vi.mocked(appRedis.decr).mockRejectedValueOnce(new Error('Redis 关闭中'));
+    };
     it.each<[string, string | undefined, () => void, () => void]>([
-      [
-        '未携带 tenantId 时跳过在途门控（不触碰 Redis）',
-        undefined,
-        () => {},
-        () => expect(appRedis.incr).not.toHaveBeenCalled(),
-      ],
-      [
-        '在途数未超上限时正常处理并释放名额',
-        TENANT,
-        proSlot,
-        () => {
-          expect(appRedis.incr).toHaveBeenCalledWith(`inflight:${TENANT}`);
-          expect(appRedis.decr).toHaveBeenCalledWith(`inflight:${TENANT}`);
-        },
-      ],
-      [
-        'getOrg 抛异常时应回落到 free 计划并发上限（fail-safe）',
-        TENANT,
-        () => {
-          vi.mocked(getOrg).mockRejectedValueOnce(new Error('DB 连接失败'));
-          vi.mocked(appRedis.incr).mockResolvedValueOnce(1);
-        },
-        () => expect(appRedis.decr).toHaveBeenCalledWith(`inflight:${TENANT}`),
-      ],
-      [
-        'Redis incr 抛异常时应跳过 fairness 门控',
-        TENANT,
-        () => {
-          mockOrg('pro');
-          vi.mocked(appRedis.incr).mockRejectedValueOnce(new Error('Redis 连接失败'));
-        },
-        () => expect(appRedis.decr).not.toHaveBeenCalled(),
-      ],
-      [
-        'releaseTenantSlot 中 decr 失败应被吞掉（finally 不抛错）',
-        TENANT,
-        () => {
-          proSlot();
-          vi.mocked(appRedis.decr).mockRejectedValueOnce(new Error('Redis 关闭中'));
-        },
-        () => {},
-      ],
+      ['未携带 tenantId 时跳过在途门控（不触碰 Redis）', undefined, noop, noIncr],
+      ['在途数未超上限时正常处理并释放名额', TENANT, proSlot, slotCheck],
+      ['getOrg 抛异常时应回落到 free 计划并发上限（fail-safe）', TENANT, orgFails, decrCheck],
+      ['Redis incr 抛异常时应跳过 fairness 门控', TENANT, incrFails, noDecr],
+      ['releaseTenantSlot 中 decr 失败应被吞掉（finally 不抛错）', TENANT, decrFailsSetup, noop],
     ])('%s', async (_n, tenantId, setup, check) => {
       setup();
       mockOptSuccess();
@@ -283,7 +247,7 @@ describe('processBacktestJob - 任务分发', () => {
     const job = makeJob({ type: 'optimizer', payload: {}, tenantId: TENANT });
     await expect(processBacktestJob(job)).rejects.toBeInstanceOf(DelayedError);
     expect(job.moveToDelayed).toHaveBeenCalledWith(expect.any(Number), 'tok');
-    expect(appRedis.decr).toHaveBeenCalledWith(`inflight:${TENANT}`);
+    expect(appRedis.decr).toHaveBeenCalledWith(inflightKey);
     expect(executeOptimization).not.toHaveBeenCalled();
     expect(tryClaimJobProcessing).not.toHaveBeenCalled();
   });
