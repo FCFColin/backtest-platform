@@ -1,5 +1,4 @@
-import { useState, useId } from 'react';
-import type { ElementType, ReactNode } from 'react';
+import { useState, useId, type ElementType, type ReactNode } from 'react';
 import {
   ChevronDown,
   PieChart,
@@ -41,24 +40,18 @@ const TONE_CLASS: Record<ResultTone, string> = {
 };
 type Row = { label: string; value: string; tone?: ResultTone };
 const R = (label: string, value: string, tone?: ResultTone): Row => ({ label, value, tone });
+const NORM_CDF_COEFFS = [1.061405429, -1.453152027, 1.421413741, -0.284496736, 0.254829592];
 
 function normCdf(x: number) {
   const y = x / Math.SQRT2,
     a = Math.abs(y),
     t = 1 / (1 + 0.3275911 * a),
-    e = Math.exp(-a * a),
-    p =
-      ((((1.061405429 * t - 1.453152027) * t + 1.421413741) * t - 0.284496736) * t + 0.254829592) *
-      t;
-  return 0.5 * (1 + (y < 0 ? -1 : 1) * (1 - p * e));
+    p = NORM_CDF_COEFFS.reduce((acc, c) => acc * t + c) * t;
+  return 0.5 * (1 + (y < 0 ? -1 : 1) * (1 - p * Math.exp(-a * a)));
 }
-type FieldDef = { key: string; label: string; default: number; suffix?: string } & Partial<
-  Record<'step' | 'min' | 'max', number>
->;
-type FieldProps = Omit<FieldDef, 'key' | 'default'> & {
-  value: number;
-  onChange: (v: number) => void;
-};
+type FieldBase = { suffix?: string; step?: number; min?: number; max?: number };
+type FieldDef = FieldBase & { key: string; label: string; default: number };
+type FieldProps = FieldBase & { label: string; value: number; onChange: (v: number) => void };
 
 function Field({ label, value, onChange, suffix, min, max, step = 0.1 }: FieldProps) {
   const id = useId();
@@ -88,95 +81,6 @@ function ResultRow({ label, value, tone = 'default' }: Row) {
     </div>
   );
 }
-function CalcCard({
-  icon: Icon,
-  title,
-  defaultOpen = false,
-  cols = 2,
-  fields = [],
-  extra,
-  rows = [],
-  rowsClassName = 'mt-3',
-  chart,
-  info,
-}: {
-  icon: ElementType;
-  title: string;
-  defaultOpen?: boolean;
-  cols?: 2 | 3;
-  fields?: FieldProps[];
-  extra?: ReactNode;
-  rows?: Row[];
-  rowsClassName?: string;
-  chart?: ReactNode;
-  info?: string;
-}) {
-  const [open, setOpen] = useState(defaultOpen);
-  return (
-    <Card className="overflow-hidden bg-elevated">
-      <Collapsible open={open} onOpenChange={setOpen} className="w-full">
-        <CollapsibleTrigger
-          className={cn(
-            'flex w-full items-center gap-2.5 p-4 text-left',
-            'transition-colors duration-150 hover:bg-hover',
-          )}
-        >
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-brand/10">
-            <Icon className="size-4 text-brand" />
-          </span>
-          <h3 className="flex-1 text-h3 text-fg">{title}</h3>
-          <ChevronDown
-            className={cn(
-              'size-4 shrink-0 text-fg-tertiary transition-transform duration-200',
-              open && 'rotate-180',
-            )}
-          />
-        </CollapsibleTrigger>
-        <CollapsibleContent>
-          <div className="p-4 pt-0">
-            {fields.length > 0 && (
-              <div className={cols === 3 ? 'grid grid-cols-3 gap-3' : 'grid grid-cols-2 gap-3'}>
-                {fields.map((f) => (
-                  <Field key={f.label} {...f} />
-                ))}
-              </div>
-            )}
-            {extra && <div className="mt-3">{extra}</div>}
-            {rows.length > 0 && (
-              <div className={rowsClassName}>
-                {rows.map((r) => (
-                  <ResultRow key={r.label} {...r} />
-                ))}
-              </div>
-            )}
-            {chart}
-            {info && (
-              <div className="mt-2.5 rounded-md bg-input-bg p-3 text-caption leading-relaxed text-fg-tertiary">
-                {info}
-              </div>
-            )}
-          </div>
-        </CollapsibleContent>
-      </Collapsible>
-    </Card>
-  );
-}
-function MiniChart({ type = 'area', ...props }: MiniChartProps) {
-  const C = type === 'line' ? SimpleLineChart : SimpleAreaChart;
-  return (
-    <div className="mt-3">
-      <C {...props} />
-    </div>
-  );
-}
-type MiniChartProps = { type?: 'area' | 'line' } & Parameters<typeof SimpleAreaChart>[0];
-type ComputeResult = {
-  rows: Row[];
-  chart?: ReactNode;
-  info?: string;
-  extra?: ReactNode;
-  rowsClassName?: string;
-};
 interface CalcConfig {
   icon: ElementType;
   title: string;
@@ -185,8 +89,85 @@ interface CalcConfig {
   fields: FieldDef[];
   info?: string;
   extra?: (state: State, setState: SetState) => ReactNode;
-  compute: (state: State, t: TFn) => ComputeResult;
+  compute: (state: State, t: TFn) => { rows?: Row[]; rowsClassName?: string; chart?: ReactNode };
 }
+function createCalculator(config: CalcConfig) {
+  return function Calculator() {
+    const { t } = useTranslation();
+    const { fields, cols = 2, icon: Icon, title, info, extra, compute } = config;
+    const [open, setOpen] = useState(config.defaultOpen ?? false);
+    const [state, setState] = useState<State>(() =>
+      Object.fromEntries(fields.map((f) => [f.key, f.default])),
+    );
+    const { rows = [], rowsClassName = 'mt-3', chart } = compute(state, t);
+    const extraNode = extra?.(state, setState);
+    return (
+      <Card className="overflow-hidden bg-elevated">
+        <Collapsible open={open} onOpenChange={setOpen} className="w-full">
+          <CollapsibleTrigger className="flex w-full items-center gap-2.5 p-4 text-left transition-colors duration-150 hover:bg-hover">
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-brand/10">
+              <Icon className="size-4 text-brand" />
+            </span>
+            <h3 className="flex-1 text-h3 text-fg">{t(title)}</h3>
+            <ChevronDown
+              className={`size-4 shrink-0 text-fg-tertiary transition-transform duration-200${open ? ' rotate-180' : ''}`}
+            />
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <div className="p-4 pt-0">
+              {fields.length > 0 && (
+                <div className={cols === 3 ? 'grid grid-cols-3 gap-3' : 'grid grid-cols-2 gap-3'}>
+                  {fields.map((f) => (
+                    <Field
+                      {...f}
+                      key={f.label}
+                      label={t(f.label)}
+                      value={state[f.key]}
+                      suffix={f.suffix ? t(f.suffix) : undefined}
+                      onChange={(v) => setState((prev) => ({ ...prev, [f.key]: v }))}
+                    />
+                  ))}
+                </div>
+              )}
+              {extraNode && <div className="mt-3">{extraNode}</div>}
+              {rows.length > 0 && (
+                <div className={rowsClassName}>
+                  {rows.map((r) => (
+                    <ResultRow key={r.label} {...r} />
+                  ))}
+                </div>
+              )}
+              {chart}
+              {info && (
+                <div className="mt-2.5 rounded-md bg-input-bg p-3 text-caption leading-relaxed text-fg-tertiary">
+                  {t(info)}
+                </div>
+              )}
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
+      </Card>
+    );
+  };
+}
+function MiniChart({ type = 'area', showLegend = false, ...props }: MiniChartProps) {
+  const C = type === 'line' ? SimpleLineChart : SimpleAreaChart;
+  return (
+    <div className="mt-3">
+      <C showLegend={showLegend} {...props} />
+    </div>
+  );
+}
+type MiniChartProps = { type?: 'area' | 'line' } & Parameters<typeof SimpleAreaChart>[0];
+const yearArea = (t: TFn, data: DPt[], height: number): ReactNode => (
+  <MiniChart
+    data={data}
+    height={height}
+    yTickFormatter={fmtCompact}
+    tooltipFormatter={(v: number) => [fmtCompact(v), t('Final Value')]}
+    series={[{ dataKey: 'value', color: getPortfolioColor(0), width: 2, areaOpacity: 0.12 }]}
+  />
+);
 const correlationExtra: CalcConfig['extra'] = (s, set) => (
   <Field
     label="Correlation"
@@ -195,49 +176,6 @@ const correlationExtra: CalcConfig['extra'] = (s, set) => (
     step={0.05}
     min={-1}
     max={1}
-  />
-);
-function createCalculator(config: CalcConfig) {
-  return function Calculator() {
-    const { t } = useTranslation();
-    const [state, setState] = useState<Record<string, number>>(() =>
-      Object.fromEntries(config.fields.map((f) => [f.key, f.default])),
-    );
-    const result = config.compute(state, t);
-    return (
-      <CalcCard
-        icon={config.icon}
-        title={t(config.title)}
-        defaultOpen={config.defaultOpen}
-        cols={config.cols}
-        fields={config.fields.map((f) => ({
-          label: t(f.label),
-          value: state[f.key],
-          onChange: (v: number) => setState((prev) => ({ ...prev, [f.key]: v })),
-          suffix: f.suffix ? t(f.suffix) : undefined,
-          step: f.step,
-          min: f.min,
-          max: f.max,
-        }))}
-        extra={config.extra?.(state, setState)}
-        rows={result.rows}
-        rowsClassName={result.rowsClassName}
-        chart={result.chart}
-        info={result.info ? t(result.info) : undefined}
-      />
-    );
-  };
-}
-const yearArea = (t: TFn, data: DPt[], height: number): ReactNode => (
-  <MiniChart
-    data={data}
-    height={height}
-    xDataKey="year"
-    showLegend={false}
-    xTickInterval="preserveStartEnd"
-    yTickFormatter={fmtCompact}
-    tooltipFormatter={(v: number) => [fmtCompact(v), t('Final Value')]}
-    series={[{ dataKey: 'value', color: getPortfolioColor(0), width: 2, areaOpacity: 0.12 }]}
   />
 );
 const CAGR = createCalculator({
@@ -343,7 +281,6 @@ const SWR = createCalculator({
           data={pts}
           height={160}
           xDataKey="year"
-          showLegend={false}
           yTickFormatter={(v) => v.toFixed(1)}
           tooltipFormatter={(v: number) => [v.toFixed(3), t('Asset Ratio')]}
           series={[{ dataKey: 'ratio', color: getPortfolioColor(2), width: 2, areaOpacity: 0.12 }]}
@@ -542,12 +479,10 @@ const TwoFund = createCalculator({
               vol: Math.sqrt(wA ** 2 * sA ** 2 + wB ** 2 * sB ** 2 + 2 * wA * wB * cov) * 100,
             };
           })}
-          height={220}
           xDataKey="vol"
           xType="number"
           xLabel={t('Volatility')}
           yLabel="CAGR"
-          showLegend={false}
           xTickFormatter={(v) => `${Number(v).toFixed(1)}%`}
           yTickFormatter={(v) => `${v.toFixed(1)}%`}
           tooltipFormatter={(v: number, name: string) => [
