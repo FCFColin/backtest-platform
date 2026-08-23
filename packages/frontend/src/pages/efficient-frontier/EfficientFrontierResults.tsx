@@ -50,10 +50,6 @@ const pc = (p: EfficientFrontierPoint) => ({
   expectedReturn: +(p.expectedReturn * 100).toFixed(2),
   sharpeRatio: p.sharpeRatio,
 });
-const pctRow = (q: EfficientFrontierPoint, i: number): Record<string, number | string> => ({
-  point: i + 1,
-  ...Object.fromEntries(Object.entries(q.weights).map(([k, w]) => [k, +(w * 100).toFixed(1)])),
-});
 function useEfficientFrontierState() {
   const nav = useNavigate();
   const [tickers, setTickers] = useState(['VTI', 'VXUS', 'BND', 'TLT']);
@@ -78,13 +74,16 @@ function useEfficientFrontierState() {
     const f = results?.frontier ?? [],
       sp = f.map((p) => p.sharpeRatio);
     return {
-      maxSharpe: f.length
-        ? f.reduce((b, p) => (p.sharpeRatio > b.sharpeRatio ? p : b), f[0])
-        : undefined,
+      maxSharpe: f[0] && f.reduce((b, p) => (p.sharpeRatio > b.sharpeRatio ? p : b)),
       sharpeRange: sp.length ? { min: Math.min(...sp), max: Math.max(...sp) } : { min: 0, max: 1 },
       scatterData: f.map(pc),
-      allocationData: f.map(pctRow),
-      allAssetTickers: f.length ? Object.keys(f[0].weights) : [],
+      allocationData: f.map((p, i) => ({
+        point: i + 1,
+        ...Object.fromEntries(
+          Object.entries(p.weights).map(([k, w]) => [k, +(w * 100).toFixed(1)]),
+        ),
+      })),
+      allAssetTickers: Object.keys(f[0]?.weights ?? {}),
     };
   }, [results]);
   const runFrontier = () => {
@@ -121,9 +120,8 @@ function useEfficientFrontierState() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(btBody),
       });
-      if (!btRes.ok) return s.setCorrelationError(i18n.t('Correlation matrix computation failed'));
-      const d = await btRes.json().then((j) => j.data ?? j);
-      if (d.assetTickers && d.assetCorrelations)
+      const d = btRes.ok ? await btRes.json().then((j) => j.data ?? j) : null;
+      if (d?.assetTickers && d.assetCorrelations)
         s.setCorrelations({ tickers: d.assetTickers, matrix: d.assetCorrelations });
       else s.setCorrelationError(i18n.t('Correlation matrix computation failed'));
     });
@@ -133,10 +131,7 @@ function useEfficientFrontierState() {
     if (!q) return;
     const body = buildSinglePortfolioBody(
       i18n.t('Portfolio'),
-      Object.entries(q.weights).map(([k, w]) => ({
-        ticker: k,
-        weight: Math.round(w * 10000) / 100,
-      })),
+      Object.entries(q.weights).map(([k, w]) => ({ ticker: k, weight: Math.round(w * 1e4) / 100 })),
       { id: `portfolio-${Date.now()}-1`, rebalanceFrequency: s.rebalanceFrequency || 'quarterly' },
       buildBacktestParameters(startDate, endDate),
     );
@@ -144,13 +139,11 @@ function useEfficientFrontierState() {
     nav('/');
   };
   return {
-    nav,
     tickers,
     setTickers,
     isLoading,
     error,
     run: runFrontier,
-    setError,
     ...s,
     maxSharpe,
     sharpeRange,
@@ -163,6 +156,12 @@ function useEfficientFrontierState() {
 type FrontierState = ReturnType<typeof useEfficientFrontierState>;
 function FrontierParams({ state: s }: { state: FrontierState }) {
   const { t } = useTranslation();
+  const selects = [
+    ['Solve Speed', s.solveSpeed, s.setSolveSpeed, SOLVE_OPTS],
+    ['Rebalancing Frequency', s.rebalanceFrequency, s.setRebalanceFrequency, REBAL_OPTS],
+    ['Return Objective', s.returnObjective, s.setReturnObjective, RET_OPTS],
+    ['Solver', s.solver, s.setSolver, SOLVER_OPTS],
+  ] as unknown as [string, string, (v: string) => void, [string, string][]][];
   return (
     <div className="flex flex-col gap-5">
       <AssetSelectionField
@@ -197,14 +196,7 @@ function FrontierParams({ state: s }: { state: FrontierState }) {
           </FieldShell>
         </div>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {(
-            [
-              ['Solve Speed', s.solveSpeed, s.setSolveSpeed, SOLVE_OPTS],
-              ['Rebalancing Frequency', s.rebalanceFrequency, s.setRebalanceFrequency, REBAL_OPTS],
-              ['Return Objective', s.returnObjective, s.setReturnObjective, RET_OPTS],
-              ['Solver', s.solver, s.setSolver, SOLVER_OPTS],
-            ] as unknown as [string, string, (v: string) => void, [string, string][]][]
-          ).map(([l, v, c, o]) => (
+          {selects.map(([l, v, c, o]) => (
             <SelectField key={l} label={t(l)} value={v} onChange={c} options={toOpts(o, t)} />
           ))}
           <FieldShell>
@@ -235,61 +227,19 @@ function FrontierParams({ state: s }: { state: FrontierState }) {
     </div>
   );
 }
-function FrontierScatterChart({ state: s }: { state: FrontierState }) {
-  const { t } = useTranslation();
-  const frontier = s.results?.frontier ?? [];
-  const series: any[] = s.scatterData.map((e) => ({
-    data: [e],
-    color: sColor(e.sharpeRatio, s.sharpeRange.min, s.sharpeRange.max),
-    symbolSize: 6,
-  }));
-  if (s.maxSharpe)
-    series.push({
-      data: [pc(s.maxSharpe)],
-      color: getPortfolioColor(0),
-      symbol: 'star',
-      symbolSize: 12,
-    });
-  return (
-    <div>
-      <div className="mb-3 flex items-center justify-between">
-        <h3 className="text-h3 font-semibold text-fg">{t('nav.efficientFrontier')}</h3>
-        <Button onClick={() => s.handleLoadInBacktester()} variant="ghost">
-          <ArrowRight className="size-4" />
-          {t('Load in backtester')}
-        </Button>
-      </div>
-      <XYScatterChart
-        xKey="expectedVolatility"
-        yKey="expectedReturn"
-        xName={t('Volatility (%)')}
-        yName={t('Return (%)')}
-        zRange={[60, 60]}
-        height={400}
-        tooltipFormatter={(v: number) => `${v.toFixed(2)}%`}
-        series={series}
-        onClick={({ seriesIndex }) => {
-          const q = seriesIndex !== undefined ? (frontier[seriesIndex] ?? s.maxSharpe) : undefined;
-          if (q) s.setSelectedPoint(q);
-        }}
-      />
-    </div>
-  );
-}
 function FrontierResults({ state: s }: { state: FrontierState }) {
   const { t } = useTranslation();
-  const {
-    maxSharpe,
-    allocationData,
-    allAssetTickers: tickers,
-    correlations: corr,
-    selectedPoint: sel,
-    rebalanceFrequency: rf,
-    allowCash: ac,
-    returnObjective: ro,
-    solver: sv,
-    handleLoadInBacktester: load,
-  } = s;
+  const frontier = s.results?.frontier ?? [];
+  const series: any[] = [
+    ...s.scatterData.map((e) => ({
+      data: [e],
+      color: sColor(e.sharpeRatio, s.sharpeRange.min, s.sharpeRange.max),
+      symbolSize: 6,
+    })),
+    ...(s.maxSharpe
+      ? [{ data: [pc(s.maxSharpe)], color: getPortfolioColor(0), symbol: 'star', symbolSize: 12 }]
+      : []),
+  ];
   const weightBlock = (weights: Record<string, number>, title: string) => (
     <div>
       <div className="mb-2 text-caption text-fg-tertiary">{title}</div>
@@ -311,35 +261,52 @@ function FrontierResults({ state: s }: { state: FrontierState }) {
       </div>
     </div>
   );
-  const statsBlock = (pt: EfficientFrontierPoint) => {
-    const rows: [string, string, string][] = [
-      [t('Expected Return'), fmtPct(pt.expectedReturn), 'hsl(var(--success))'],
-      [t('Expected Volatility'), fmtPct(pt.expectedVolatility), 'hsl(var(--warning))'],
-      [t('Sharpe Ratio'), pt.sharpeRatio.toFixed(2), 'hsl(var(--brand))'],
-    ];
-    return (
-      <div className="flex flex-col gap-2">
-        {rows.map(([label, value, color]) => (
-          <MiniStatCard
-            key={label}
-            className="bg-elevated p-2.5"
-            label={label}
-            value={value}
-            color={color}
-          />
-        ))}
-      </div>
-    );
-  };
+  const statsBlock = (pt: EfficientFrontierPoint) => (
+    <div className="flex flex-col gap-2">
+      {[
+        [t('Expected Return'), fmtPct(pt.expectedReturn), 'hsl(var(--success))'],
+        [t('Expected Volatility'), fmtPct(pt.expectedVolatility), 'hsl(var(--warning))'],
+        [t('Sharpe Ratio'), pt.sharpeRatio.toFixed(2), 'hsl(var(--brand))'],
+      ].map(([label, value, color]) => (
+        <MiniStatCard key={label} className="bg-elevated p-2.5" {...{ label, value, color }} />
+      ))}
+    </div>
+  );
+  const sel = s.selectedPoint;
+  const rfLabel =
+    t(`efficientFrontier.rebalanceFreq.${s.rebalanceFrequency}`, { defaultValue: '' }) ||
+    s.rebalanceFrequency;
   return (
     <div className="flex flex-col gap-6">
-      <FrontierScatterChart state={s} />
-      {allocationData.length > 0 && tickers.length > 0 && (
+      <div>
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className="text-h3 font-semibold text-fg">{t('nav.efficientFrontier')}</h3>
+          <Button onClick={() => s.handleLoadInBacktester()} variant="ghost">
+            <ArrowRight className="size-4" />
+            {t('Load in backtester')}
+          </Button>
+        </div>
+        <XYScatterChart
+          xKey="expectedVolatility"
+          yKey="expectedReturn"
+          xName={t('Volatility (%)')}
+          yName={t('Return (%)')}
+          zRange={[60, 60]}
+          height={400}
+          tooltipFormatter={(v: number) => `${v.toFixed(2)}%`}
+          series={series}
+          onClick={({ seriesIndex: i }) => {
+            const q = i === undefined ? undefined : (frontier[i] ?? s.maxSharpe);
+            if (q) s.setSelectedPoint(q);
+          }}
+        />
+      </div>
+      {s.allocationData.length > 0 && s.allAssetTickers.length > 0 && (
         <div>
           <h3 className="mb-3 mt-6 text-h3 font-semibold text-fg">{t('Frontier Allocations')}</h3>
           <SimpleChart
             type="area"
-            data={allocationData}
+            data={s.allocationData}
             xDataKey="point"
             height={300}
             xLabel={t('Frontier Point')}
@@ -347,7 +314,7 @@ function FrontierResults({ state: s }: { state: FrontierState }) {
             yDomain={[0, 100]}
             tooltipFormatter={(v: number) => `${v}%`}
             showLegend={false}
-            series={tickers.map((ticker, i) => ({
+            series={s.allAssetTickers.map((ticker, i) => ({
               dataKey: ticker,
               color: getPortfolioColor(i),
               stackId: '1',
@@ -355,7 +322,7 @@ function FrontierResults({ state: s }: { state: FrontierState }) {
             }))}
           />
           <div className="mt-2 flex flex-wrap justify-center gap-4">
-            {tickers.map((ticker, i) => (
+            {s.allAssetTickers.map((ticker, i) => (
               <div key={ticker} className="flex items-center gap-1 text-caption">
                 <span
                   className="inline-block size-3 rounded"
@@ -367,13 +334,13 @@ function FrontierResults({ state: s }: { state: FrontierState }) {
           </div>
         </div>
       )}
-      {corr && corr.tickers.length >= 2 && (
+      {s.correlations && s.correlations.tickers.length >= 2 && (
         <div>
           <h3 className="mb-3 mt-6 text-h3 font-semibold text-fg">{t('Correlation Matrix')}</h3>
           <MatrixHeatmap
-            rowLabels={corr.tickers}
-            columnLabels={corr.tickers}
-            matrix={corr.matrix}
+            rowLabels={s.correlations.tickers}
+            columnLabels={s.correlations.tickers}
+            matrix={s.correlations.matrix}
             getBackgroundColor={getCorrelationColor}
             getTextColor={getCorrelationTextColor}
             formatValue={(v) => v.toFixed(2)}
@@ -384,7 +351,7 @@ function FrontierResults({ state: s }: { state: FrontierState }) {
         <div className="mt-4 rounded-md bg-input-bg p-4">
           <div className="mb-2 flex items-center justify-between">
             <h3 className="text-label font-semibold text-fg">{t('Selected Portfolio Details')}</h3>
-            <Button onClick={() => load(sel)} variant="ghost" size="sm">
+            <Button onClick={() => s.handleLoadInBacktester(sel)} variant="ghost" size="sm">
               <ArrowRight className="size-3.5" />
               {t('Load')}
             </Button>
@@ -395,12 +362,12 @@ function FrontierResults({ state: s }: { state: FrontierState }) {
           </div>
         </div>
       )}
-      {maxSharpe && (
+      {s.maxSharpe && (
         <div>
           <h3 className="mb-3 mt-6 text-h3 font-semibold text-fg">{t('Max Sharpe Portfolio')}</h3>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {weightBlock(maxSharpe.weights, t('Weight'))}
-            <div className="flex flex-col gap-3">{statsBlock(maxSharpe)}</div>
+            {weightBlock(s.maxSharpe.weights, t('Weight'))}
+            <div className="flex flex-col gap-3">{statsBlock(s.maxSharpe)}</div>
           </div>
         </div>
       )}
@@ -410,22 +377,22 @@ function FrontierResults({ state: s }: { state: FrontierState }) {
           metrics={[
             {
               label: t('Rebalancing Frequency'),
-              value: t(`efficientFrontier.rebalanceFreq.${rf}`, { defaultValue: '' }) || rf,
+              value: rfLabel,
               color: 'hsl(var(--fg-secondary))',
             },
             {
               label: t('Allow Cash Allocation'),
-              value: ac ? t('Yes') : t('No'),
-              color: ac ? 'hsl(var(--success))' : 'hsl(var(--fg-tertiary))',
+              value: s.allowCash ? t('Yes') : t('No'),
+              color: s.allowCash ? 'hsl(var(--success))' : 'hsl(var(--fg-tertiary))',
             },
             {
               label: t('Return Objective'),
-              value: ro === 'maxCagr' ? t('Max CAGR') : t('Min Vol'),
+              value: s.returnObjective === 'maxCagr' ? t('Max CAGR') : t('Min Vol'),
               color: 'hsl(var(--fg-secondary))',
             },
             {
               label: t('Solver'),
-              value: t(`efficientFrontier.solver.${sv}`, { defaultValue: sv }),
+              value: t(`efficientFrontier.solver.${s.solver}`, { defaultValue: s.solver }),
               color: 'hsl(var(--fg-secondary))',
             },
           ]}
