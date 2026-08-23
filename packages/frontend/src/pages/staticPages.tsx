@@ -1,20 +1,7 @@
 import { useState, type ReactNode, type FormEvent, type ComponentType } from 'react';
 import { Link } from 'react-router';
 import { useTranslation } from 'react-i18next';
-import {
-  BarChart3,
-  Shield,
-  Globe,
-  Clock,
-  Database,
-  Mail,
-  MessageSquare,
-  GitCommit,
-  Plus,
-  Wrench,
-  Bug,
-  Calendar,
-} from 'lucide-react';
+import * as L from 'lucide-react';
 import { Badge, Button, Input } from '@/components/ui/uiComponents';
 import { Field, FieldLabel } from '@/components/form/Field';
 import { StaticPageShell } from '@/components/layout/ToolPageLayout.js';
@@ -23,10 +10,10 @@ import aboutData from './about/aboutData.json';
 import { PLANS, planPrice, planPeriod } from '@/lib/pricing';
 
 const FEATURE_ICONS: Record<string, ComponentType<{ className?: string }>> = {
-  Shield,
-  Globe,
-  Clock,
-  Database,
+  Shield: L.Shield,
+  Globe: L.Globe,
+  Clock: L.Clock,
+  Database: L.Database,
 };
 
 function InfoCard({
@@ -66,7 +53,7 @@ function AboutContent() {
   return (
     <div>
       <div className="mb-6 flex items-center gap-3">
-        <BarChart3 className="size-8 text-brand" />
+        <L.BarChart3 className="size-8 text-brand" />
         <div>
           <div className="text-h2 font-bold text-fg">{t('Backtest Platform')}</div>
           <div className="text-label text-fg-tertiary">{t('v1.0.0 · Multi-tenant SaaS')}</div>
@@ -79,7 +66,7 @@ function AboutContent() {
       </div>
       <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(220px,1fr))]">
         {features.map((f) => {
-          const Icon = FEATURE_ICONS[f.iconName] ?? Shield;
+          const Icon = FEATURE_ICONS[f.iconName] ?? L.Shield;
           return (
             <InfoCard
               key={f.titleKey}
@@ -165,23 +152,13 @@ function UpgradeContent() {
   );
 }
 
-const ABOUT_TABS = [
-  { key: 'about', labelKey: 'About', to: '/about', titleKey: 'about.title', C: AboutContent },
-  {
-    key: 'limits',
-    labelKey: 'about.tabs.limits',
-    to: '/limits',
-    titleKey: 'about.limitsTitle',
-    C: LimitsContent,
-  },
-  {
-    key: 'upgrade',
-    labelKey: 'about.tabs.upgrade',
-    to: '/upgrade',
-    titleKey: 'about.upgradeTitle',
-    C: UpgradeContent,
-  },
-] as const;
+const ABOUT_TABS = (
+  [
+    ['about', 'About', 'about.title', AboutContent],
+    ['limits', 'about.tabs.limits', 'about.limitsTitle', LimitsContent],
+    ['upgrade', 'about.tabs.upgrade', 'about.upgradeTitle', UpgradeContent],
+  ] as const
+).map(([key, labelKey, titleKey, C]) => ({ key, labelKey, titleKey, to: `/${key}`, C }));
 
 export function AboutPage({ section }: { section?: string }) {
   const { t } = useTranslation();
@@ -206,14 +183,11 @@ export function AboutPage({ section }: { section?: string }) {
 }
 
 type ChangeType = 'added' | 'improved' | 'fixed';
-const CHANGE_META: Record<
-  ChangeType,
-  { labelKey: string; variant: 'success' | 'asset' | 'secondary'; icon: ReactNode }
-> = {
-  added: { labelKey: 'Added', variant: 'success', icon: <Plus className="size-3" /> },
-  improved: { labelKey: 'Improved', variant: 'asset', icon: <Wrench className="size-3" /> },
-  fixed: { labelKey: 'Fixed', variant: 'secondary', icon: <Bug className="size-3" /> },
-};
+const CHANGE_META = {
+  added: { labelKey: 'Added', variant: 'success', Icon: L.Plus },
+  improved: { labelKey: 'Improved', variant: 'asset', Icon: L.Wrench },
+  fixed: { labelKey: 'Fixed', variant: 'secondary', Icon: L.Bug },
+} as const;
 
 export function ChangelogPage() {
   const { t } = useTranslation();
@@ -244,7 +218,7 @@ export function ChangelogPage() {
               <div className="mb-1 flex flex-wrap items-center gap-3">
                 <span className="text-h2 font-bold text-fg">{v.version}</span>
                 <span className="flex items-center gap-1 text-caption text-fg-tertiary">
-                  <Calendar className="size-3" />
+                  <L.Calendar className="size-3" />
                   {v.date}
                 </span>
                 {v.highlight && (
@@ -263,7 +237,7 @@ export function ChangelogPage() {
                         size="sm"
                         className="mt-0.5 shrink-0 min-w-[44px] justify-center"
                       >
-                        {cfg.icon}
+                        <cfg.Icon className="size-3" />
                         {t(cfg.labelKey)}
                       </Badge>
                       <span className="text-label leading-relaxed text-fg-secondary">{c.text}</span>
@@ -276,7 +250,7 @@ export function ChangelogPage() {
         ))}
       </div>
       <div className="mt-2 flex items-center gap-2 rounded-lg bg-input-bg p-4 text-caption text-fg-tertiary">
-        <GitCommit className="size-4" />
+        <L.GitCommit className="size-4" />
         {t("For the full commit history, see the project's Git repository.")}
       </div>
     </StaticPageShell>
@@ -315,7 +289,7 @@ export function ContactPage() {
       </p>
       <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
         <a href="mailto:support@example.com" className={CONTACT_CLS}>
-          <Mail className="size-5 text-brand" />
+          <L.Mail className="size-5 text-brand" />
           <div>
             <div className="text-body font-semibold">{t('Email Support')}</div>
             <div className="text-caption text-fg-tertiary">support@example.com</div>
@@ -324,7 +298,7 @@ export function ContactPage() {
       </div>
       <form onSubmit={handleSubmit}>
         <div className="mb-4 flex items-center gap-2 text-body font-semibold text-fg">
-          <MessageSquare className="size-4" />
+          <L.MessageSquare className="size-4" />
           {t('Send Feedback')}
         </div>
         <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -355,7 +329,7 @@ export function ContactPage() {
           />
         </Field>
         <Button type="submit" variant="primary">
-          <Mail className="size-4" />
+          <L.Mail className="size-4" />
           {t('Send Feedback')}
         </Button>
       </form>
