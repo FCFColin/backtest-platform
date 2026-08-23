@@ -236,6 +236,14 @@ const patchParams = <T extends CF>(
   );
 const patchAssets = (set: SetFn, id: string, fn: (p: Portfolio) => Portfolio) =>
   set((s) => stale({ portfolios: s.portfolios.map((p) => (p.id === id ? fn(p) : p)) }));
+type PfMaker = (n: number, s: BacktestState) => Portfolio | null | undefined;
+const pushPf = (set: SetFn, get: GetFn, mk: PfMaker) => {
+  const n = get().portfolioCounter + 1;
+  set((s) => {
+    const pf = mk(n, s);
+    return pf ? stale({ portfolioCounter: n, portfolios: [...s.portfolios, pf] }) : s;
+  });
+};
 function crudActions<T extends CF>(
   set: SetFn,
   key: 'cashflowLegs' | 'oneTimeCashflows',
@@ -249,28 +257,15 @@ function crudActions<T extends CF>(
   };
 }
 export const useBacktestStore = create<BacktestState>()((set, get) => {
-  const cf = crudActions(
-    set,
-    'cashflowLegs',
-    () =>
-      ({
-        id: `cf-${Date.now()}`,
-        amount: 0,
-        type: 'contribution',
-        frequency: 'yearly',
-      }) as CashflowLeg,
-  );
-  const ot = crudActions(
-    set,
-    'oneTimeCashflows',
-    (s) =>
-      ({
-        id: `otc-${Date.now()}`,
-        amount: 0,
-        type: 'contribution',
-        date: s.parameters.startDate,
-      }) as OneTimeCashflow,
-  );
+  const cfBase = { amount: 0, type: 'contribution' } as const;
+  const mkCf = (): CashflowLeg => ({ id: `cf-${Date.now()}`, ...cfBase, frequency: 'yearly' });
+  const mkOtc = (s: BacktestState): OneTimeCashflow => ({
+    id: `otc-${Date.now()}`,
+    ...cfBase,
+    date: s.parameters.startDate,
+  });
+  const cf = crudActions(set, 'cashflowLegs', mkCf);
+  const ot = crudActions(set, 'oneTimeCashflows', mkOtc);
   return {
     portfolios: [] as Portfolio[],
     portfolioCounter: 0,
@@ -282,71 +277,43 @@ export const useBacktestStore = create<BacktestState>()((set, get) => {
     hasLoadedFromShare: false,
     _abortController: null as AbortController | null,
     parameters: defaultParameters as BacktestParameters,
-    addPortfolio: (p?: string) => {
-      const n = get().portfolioCounter + 1;
-      set((s) =>
-        stale({
-          portfolioCounter: n,
-          portfolios: [
-            ...s.portfolios,
-            p ? createPortfolioFromPreset(p, n) : createEmptyPortfolio(n),
-          ],
-        }),
-      );
-    },
+    addPortfolio: (p?: string) =>
+      pushPf(set, get, (n) => (p ? createPortfolioFromPreset(p, n) : createEmptyPortfolio(n))),
     removePortfolio: (id: string) =>
       set((s) => stale({ portfolios: s.portfolios.filter((x) => x.id !== id) })),
-    duplicatePortfolio: (id: string) => {
-      const n = get().portfolioCounter + 1;
-      set((s) => {
+    duplicatePortfolio: (id: string) =>
+      pushPf(set, get, (n, s) => {
         const src = s.portfolios.find((x) => x.id === id);
-        return !src
-          ? s
-          : stale({
-              portfolioCounter: n,
-              portfolios: [
-                ...s.portfolios,
-                {
-                  ...src,
-                  id: `portfolio-${Date.now()}-${n}`,
-                  name: `${src.name} (${i18n.t('Copy')})`,
-                  assets: src.assets.map((a) => ({ ...a })),
-                },
-              ],
-            });
-      });
-    },
+        if (!src) return;
+        return {
+          ...src,
+          id: `portfolio-${Date.now()}-${n}`,
+          name: `${src.name} (${i18n.t('Copy')})`,
+          assets: src.assets.map((a) => ({ ...a })),
+        };
+      }),
     updatePortfolio: (id, u) => patchAssets(set, id, (p) => ({ ...p, ...u })),
-    addGlidepath: (name: string, fromId: string, toId: string, years: number) => {
-      const n = get().portfolioCounter + 1;
-      set((s) => {
+    addGlidepath: (name: string, fromId: string, toId: string, years: number) =>
+      pushPf(set, get, (n, s) => {
         const f = s.portfolios.find((x) => x.id === fromId);
         const t = s.portfolios.find((x) => x.id === toId);
-        return !f || !t
-          ? s
-          : stale({
-              portfolioCounter: n,
-              portfolios: [
-                ...s.portfolios,
-                {
-                  id: `glidepath-${Date.now()}-${n}`,
-                  name,
-                  assets: f.assets.map((a) => ({ ...a })),
-                  rebalanceFrequency: f.rebalanceFrequency,
-                  rebalanceOffset: f.rebalanceOffset,
-                  drag: f.drag ?? 0,
-                  isGlidepath: true,
-                  glidepathFrom: fromId,
-                  glidepathTo: toId,
-                  glidepathYears: years,
-                  glidepathToWeights: f.assets.map(
-                    (a) => (t.assets.find((x) => x.ticker === a.ticker)?.weight ?? 0) / 100,
-                  ),
-                },
-              ],
-            });
-      });
-    },
+        if (!f || !t) return;
+        return {
+          id: `glidepath-${Date.now()}-${n}`,
+          name,
+          assets: f.assets.map((a) => ({ ...a })),
+          rebalanceFrequency: f.rebalanceFrequency,
+          rebalanceOffset: f.rebalanceOffset,
+          drag: f.drag ?? 0,
+          isGlidepath: true,
+          glidepathFrom: fromId,
+          glidepathTo: toId,
+          glidepathYears: years,
+          glidepathToWeights: f.assets.map(
+            (a) => (t.assets.find((x) => x.ticker === a.ticker)?.weight ?? 0) / 100,
+          ),
+        };
+      }),
     addCashflowLeg: cf.add,
     removeCashflowLeg: cf.remove,
     updateCashflowLeg: cf.update,
