@@ -49,6 +49,7 @@ function ResultsActionBar({
     return () => ob.disconnect();
   }, []);
   const y = Number.isInteger(r.years) ? r.years : +r.years.toFixed(1);
+  const d = { years: y, start: F.formatISODate(r.start), end: F.formatISODate(r.end) };
   return (
     <>
       <div ref={ref} className="h-0" />
@@ -57,11 +58,7 @@ function ResultsActionBar({
           <div className="flex items-center gap-3">
             <h2 className="text-h3">{t('Results')}</h2>
             <span className="text-caption text-fg-tertiary font-mono tabular-nums">
-              {t('{{years}} yrs · {{start}} to {{end}}', {
-                years: y,
-                start: F.formatISODate(r.start),
-                end: F.formatISODate(r.end),
-              })}
+              {t('{{years}} yrs · {{start}} to {{end}}', d)}
             </span>
           </div>
           <div className="flex-1" />
@@ -84,7 +81,7 @@ function ResultsActionBar({
     </>
   );
 }
-const SUMMARY_METRIC_CONFIGS: [string, keyof Statistics, (v: number) => string, string][] = [
+const SUMMARY_METRIC_CONFIGS: [string, keyof Statistics | null, (v: number) => string, string][] = [
   ['stats.cagr', 'cagr', F.fmtPct, 'summary-cagr'],
   ['stats.totalReturn', 'totalReturn', F.fmtPct, 'summary-total-return'],
   ['Max Drawdown', 'maxDrawdown', F.fmtPct, 'summary-max-drawdown'],
@@ -92,6 +89,7 @@ const SUMMARY_METRIC_CONFIGS: [string, keyof Statistics, (v: number) => string, 
   ['lumpSumDca.stats.sortino', 'sortino', F.fmtNum, 'summary-sortino'],
   ['summarySidebar.bestYear', 'bestYear', F.fmtPct, 'summary-best-year'],
   ['summarySidebar.worstYear', 'worstYear', F.fmtPct, 'summary-worst-year'],
+  ['summarySidebar.positiveYears', null, F.fmtNum, 'summary-positive-years'],
 ];
 function SummarySidebar({
   stats: s,
@@ -107,17 +105,12 @@ function SummarySidebar({
   color?: string;
 }) {
   const { t } = useTranslation();
-  const m = SUMMARY_METRIC_CONFIGS.map(([k, key, f, id]) => ({
-    labelKey: k,
-    value: f(s[key] as number),
-    colorClass: getColorClass(s[key] as number),
-    testId: id,
-  })).concat({
-    labelKey: 'summarySidebar.positiveYears',
-    value: `${py} / ${ty}`,
-    colorClass: 'text-fg',
-    testId: 'summary-positive-years',
-  });
+  const m = SUMMARY_METRIC_CONFIGS.map(([labelKey, key, fmt, testId]) => ({
+    labelKey,
+    value: key ? fmt(s[key] as number) : `${py} / ${ty}`,
+    colorClass: key ? getColorClass(s[key] as number) : 'text-fg',
+    testId,
+  }));
   return (
     <>
       <div
@@ -176,10 +169,9 @@ const L = {
   CashflowsLog: lz(() => import('@/components/CashflowsLog'), 'CashflowsLog'),
   TurnoverTaxReport: lz(() => import('@/components/TurnoverTaxReport'), 'TurnoverTaxReport'),
 };
-const ALL_TABS =
-  'summary:tabs.summary|myMetrics:My Metrics|returns:tabs.returnsDist|yearlyReturns:Annual Returns|rolling:tabs.rolling|seasonality:Seasonality|riskReturn:tabs.riskReturn|drawdown:tabs.drawdown|cashflows:tabs.cashflows|rebalancing:tabs.rebalancing|turnover:tabs.turnover|allocation:Asset Allocation|pies:Allocation Pies|correlation:Correlation|telltale:tabs.telltale|regression:tabs.regression'
-    .split('|')
-    .map(([key, labelKey]) => ({ key, labelKey }));
+const TAB_SPEC =
+  'summary:tabs.summary|myMetrics:My Metrics|returns:tabs.returnsDist|yearlyReturns:Annual Returns|rolling:tabs.rolling|seasonality:Seasonality|riskReturn:tabs.riskReturn|drawdown:tabs.drawdown|cashflows:tabs.cashflows|rebalancing:tabs.rebalancing|turnover:tabs.turnover|allocation:Asset Allocation|pies:Allocation Pies|correlation:Correlation|telltale:tabs.telltale|regression:tabs.regression';
+const ALL_TABS = TAB_SPEC.split('|').map(([key, labelKey]) => ({ key, labelKey }));
 const PRIMARY_TABS = new Set(['summary', 'returns', 'yearlyReturns', 'rolling', 'drawdown']);
 const toCommon = (pf: PortfolioResult[]) => ({
   portfolios: pf.map((p) => ({ id: p.name, name: p.name, stats: toStatsRecord(p.statistics) })),
@@ -194,15 +186,12 @@ const mapDD = (pf: PortfolioResult[]) =>
     drawdownCurve: (p.drawdownCurve ?? []).map((pt) => ({ date: pt.date, drawdown: pt.drawdown })),
   }));
 const toAlloc = (pf: PortfolioResult[], pfs: Portfolio[]) =>
-  pf.map(
-    (rp, idx) =>
-      ({
-        name: rp.name,
-        assets: pfs[idx]?.assets ?? [],
-        growthCurve: rp.growthCurve,
-        allocationHistory: rp.allocationHistory,
-      }) as never,
-  );
+  pf.map((rp, idx) => ({
+    name: rp.name,
+    assets: pfs[idx]?.assets ?? [],
+    growthCurve: rp.growthCurve,
+    allocationHistory: rp.allocationHistory,
+  })) as never;
 function TabBar() {
   const { t } = useTranslation();
   const [sp, setSp] = useSearchParams();
@@ -218,7 +207,6 @@ function TabBar() {
     setSp(new URLSearchParams({ ...Object.fromEntries(sp), tab }));
   };
   const more = ALL_TABS.filter((x) => !PRIMARY_TABS.has(x.key));
-  const actMore = more.find((x) => x.key === active);
   return (
     <div className="flex items-center justify-between gap-2 border-b border-border-subtle pb-2 mb-3">
       <div className="flex items-center gap-1 overflow-x-auto">
@@ -238,7 +226,7 @@ function TabBar() {
           <U.DropdownMenuTrigger asChild>
             <U.Button variant="ghost" size="sm" className="shrink-0">
               <MoreHorizontal className="size-4" />
-              {actMore ? t(actMore.labelKey) : t('More')}
+              {t(more.find((x) => x.key === active)?.labelKey ?? 'More')}
             </U.Button>
           </U.DropdownMenuTrigger>
           <U.DropdownMenuContent align="start">
@@ -258,10 +246,11 @@ function TabBar() {
   );
 }
 type Ctx = { pf: PortfolioResult[]; pfs: Portfolio[]; baseCurrency?: string; r: BacktestResult };
+const { StatisticsTable, ExtendedMetricsTable } = ST;
 const TAB_RENDERERS: Record<string, (c: Ctx) => ReactNode> = {
   summary: ({ pf, baseCurrency: cur }) => {
-    const f = pf[0];
-    const ar = f?.annualReturns ?? [];
+    const [f, ar] = [pf[0], pf[0]?.annualReturns ?? []];
+    const c = toCommon(pf);
     return (
       <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-4 items-start">
         <SummarySidebar
@@ -274,11 +263,7 @@ const TAB_RENDERERS: Record<string, (c: Ctx) => ReactNode> = {
         <div className="space-y-4 min-w-0">
           <L.GrowthChart portfolios={toGrowth(pf)} currency={cur} />
           <L.DrawdownChart portfolios={mapDD(pf)} />
-          <ST.StatisticsTable
-            {...toCommon(pf)}
-            currency={cur}
-            extendedTable={<ST.ExtendedMetricsTable {...toCommon(pf)} />}
-          />
+          <StatisticsTable {...c} currency={cur} extendedTable={<ExtendedMetricsTable {...c} />} />
           <ST.WithdrawalRatesCard portfolios={pf} />
           <L.DrawdownEpisodes episodes={f?.drawdownEpisodes ?? []} />
         </div>
@@ -286,14 +271,10 @@ const TAB_RENDERERS: Record<string, (c: Ctx) => ReactNode> = {
     );
   },
   myMetrics: ({ pf }) => <L.CustomMetricsTable portfolios={pf} />,
-  returns: ({ pf }) => (
-    <>
-      <L.AnnualReturnChart portfolios={pf} />
-      {pf.map((x) => (
-        <L.MonthlyHeatmap key={x.name} portfolio={x} />
-      ))}
-    </>
-  ),
+  returns: ({ pf }) => [
+    <L.AnnualReturnChart key="ar" portfolios={pf} />,
+    ...pf.map((x) => <L.MonthlyHeatmap key={x.name} portfolio={x} />),
+  ],
   yearlyReturns: ({ pf, r }) => (
     <L.YearlyReturnsTable portfolios={pf} benchmarkGrowth={r?.benchmarkGrowth} />
   ),
@@ -361,12 +342,18 @@ export function ResultsContent() {
       </ResultsShell>
     );
   const ps = results.portfolios;
-  const g = ps[0]?.growthCurve;
-  const [first, last] = [g?.[0]?.date, g?.[g.length - 1]?.date];
-  const years =
-    first && last ? (new Date(last).getTime() - new Date(first).getTime()) / 864e5 / 365.25 : 0;
-  const range = { start: first ?? '—', end: last ?? '—', years };
+  const [first, last] = [ps[0]?.growthCurve?.[0]?.date, ps[0]?.growthCurve?.slice(-1)[0]?.date];
+  const span = first && last ? Date.parse(last) - Date.parse(first) : 0;
+  const range = { start: first ?? '—', end: last ?? '—', years: span / 864e5 / 365.25 };
   const ctx = { pf: ps, pfs, baseCurrency: cur, r: results as never };
+  const staleMsg = (
+    <span className="flex flex-wrap items-center gap-2">
+      {t('Parameters changed. Results are out of date.')}
+      <U.Button size="sm" variant="secondary" onClick={() => void run()}>
+        {t('Run Backtest')}
+      </U.Button>
+    </span>
+  );
   const csvRows = (pf: PortfolioResult) =>
     pf.growthCurve.map((pt, i) => ({
       date: pt.date,
@@ -375,19 +362,7 @@ export function ResultsContent() {
   return (
     <div className="space-y-4">
       {err && <ErrorBanner message={err} className="mb-2" />}
-      {stale && (
-        <ErrorBanner
-          variant="warning"
-          message={
-            <span className="flex flex-wrap items-center gap-2">
-              {t('Parameters changed. Results are out of date.')}
-              <U.Button size="sm" variant="secondary" onClick={() => void run()}>
-                {t('Run Backtest')}
-              </U.Button>
-            </span>
-          }
-        />
-      )}
+      {stale && <ErrorBanner variant="warning" message={staleMsg} />}
       <ResultsActionBar
         timeRange={range}
         onExport={(f) => {

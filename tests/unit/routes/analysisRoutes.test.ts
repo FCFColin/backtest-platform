@@ -13,9 +13,7 @@ import { engineMocks } from '../../helpers/engineFixture.js';
 import { createMockPriceData, mockPortfolioResult } from '../../helpers/storeFixtures.js';
 const dataServiceMocks = vi.hoisted(() => ({ fetchHistoryData: vi.fn() }));
 const queueMocks = vi.hoisted(() => ({ add: vi.fn() }));
-vi.hoisted(() => {
-  process.env.SYNC_COMPUTE_TIMEOUT_MS = '500';
-});
+vi.hoisted(() => (process.env.SYNC_COMPUTE_TIMEOUT_MS = '500'));
 vi.mock('../../../packages/backend/src/infrastructure/dataFacade.js', () => ({
   fetchHistoryData: dataServiceMocks.fetchHistoryData,
 }));
@@ -33,17 +31,13 @@ vi.mock('../../../packages/backend/src/utils/metrics.js', async (o) => {
 });
 import analysisRoutes from '../../../packages/backend/src/routes/analysisRoutes.js';
 import { jobRoutes } from '../../../packages/backend/src/routes/jobRoutes.js';
-import {
-  calculatorResultSchema,
-  factorRegressionResultSchema,
-} from '../../../packages/backend/src/schemas/engineSchemas.js';
+import * as schemas from '../../../packages/backend/src/schemas/engineSchemas.js';
 const fh = dataServiceMocks.fetchHistoryData;
 const ce = engineMocks.callEngineStrict;
 const rng = (s = '2020-01-01', e = '2024-01-01') => ({ startDate: s, endDate: e });
 const md = (data: unknown) => ({ data, degraded: false });
-const sigHist = [
-  { date: '2020-01-01', activeSignals: ['sig-1'], weights: [{ ticker: 'SPY', weight: 100 }] },
-];
+const wts = [{ ticker: 'SPY', weight: 100 }];
+const sigHist = [{ date: '2020-01-01', activeSignals: ['sig-1'], weights: wts }];
 const post = (s: TestServer, p: string, b: unknown) => reqJson(`${s.url}${p}`, 'POST', b);
 const setup = async (e: unknown, d?: unknown) => {
   vi.clearAllMocks();
@@ -205,7 +199,7 @@ describe('FactorRegression', () => {
         startDate: '',
         endDate: '',
       },
-      factorRegressionResultSchema,
+      schemas.factorRegressionResultSchema,
     );
   });
   it.each([
@@ -225,20 +219,16 @@ describe('FactorRegression', () => {
 describe('Calculator', () => {
   const s = withServer(() => setup({ result: 'ok' }));
   it.each([
-    [
-      'cagr',
-      { initialAmount: 10000, years: 10, rate: 0.07 },
-      { type: 'cagr', initialAmount: 10000, years: 10, rate: 0.07 },
-    ],
-    ['swr', {}, { type: 'swr' }],
-    ['frontier', {}, { type: 'frontier' }],
-  ])('%s 类型应返回 200 且透传 payload 到引擎', async (t, b, e) => {
+    ['cagr', { initialAmount: 10000, years: 10, rate: 0.07 }],
+    ['swr', {}],
+    ['frontier', {}],
+  ])('%s 类型应返回 200 且透传 payload 到引擎', async (t, b) => {
     const { res } = await post(s(), `/api/v1/calculators/${t}`, b);
     expect(res.status).toBe(200);
     expect(ce).toHaveBeenCalledWith(
       '/api/engine/calculators',
-      e,
-      calculatorResultSchema[t as keyof typeof calculatorResultSchema],
+      { type: t, ...b },
+      schemas.calculatorResultSchema[t as keyof typeof schemas.calculatorResultSchema],
     );
   });
   it('无效 type 应返回 422', async () => {
@@ -257,28 +247,25 @@ describe('Calculator', () => {
     expect(res.status).toBe(500);
   });
 });
+const sig = {
+  id: 'sig-1',
+  name: 'SMA Signal',
+  conditions: [{ indicator: 'sma', period: 20, operator: 'cross_above', threshold: 0 }],
+  targetWeights: wts,
+};
 const mkStrat = () => ({
   id: 'strat-1',
   name: 'Test Strategy',
-  signals: [
-    {
-      id: 'sig-1',
-      name: 'SMA Signal',
-      conditions: [
-        { indicator: 'sma' as const, period: 20, operator: 'cross_above' as const, threshold: 0 },
-      ],
-      targetWeights: [{ ticker: 'SPY', weight: 100 }],
-    },
-  ],
-  aggregationMethod: 'weighted_average' as const,
+  signals: [sig],
+  aggregationMethod: 'weighted_average',
 });
-const mkReq = (o?: Record<string, unknown>) => ({
-  strategy: o ?? mkStrat(),
+const baseReq = {
   startDate: '2020-01-01',
   endDate: '2020-01-03',
   startingValue: 10000,
-  rebalanceFrequency: 'monthly' as const,
-});
+  rebalanceFrequency: 'monthly',
+};
+const mkReq = (o?: Record<string, unknown>) => ({ strategy: o ?? mkStrat(), ...baseReq });
 const tacSetup = (engine: (m: typeof ce) => void) =>
   withServer(() => {
     vi.clearAllMocks();
@@ -301,20 +288,12 @@ describe('tacticalRoutes - POST /api/tactical/backtest', () => {
     expect(body.data.signalHistory).toHaveLength(1);
   });
   it('无效标的数据应返回 404', async () => {
-    fh.mockResolvedValue({ data: {}, degraded: false });
+    fh.mockResolvedValue(md({}));
     const { res } = await post(s(), '/api/v1/tactical/backtest', mkReq());
     expect(res.status).toBe(404);
   });
   it.each([
-    [
-      '缺少 strategy',
-      {
-        startDate: '2020-01-01',
-        endDate: '2020-01-03',
-        startingValue: 10000,
-        rebalanceFrequency: 'monthly',
-      },
-    ],
+    ['缺少 strategy', baseReq],
     ['空 signals 数组', mkReq({ ...mkStrat(), signals: [] })],
   ])('%s 应返回 400', async (_n, r) => {
     const { res } = await post(s(), '/api/v1/tactical/backtest', r);
@@ -337,22 +316,11 @@ describe('tacticalRoutes - POST /api/tactical/backtest', () => {
   });
 });
 describe('tacticalRoutes - POST /api/tactical/what-if', () => {
-  const s = tacSetup((m) =>
-    m.mockResolvedValue({
-      signalHistory: [
-        {
-          date: '2020-01-03',
-          activeSignals: ['SMA Signal'],
-          weights: [{ ticker: 'SPY', weight: 100 }],
-        },
-      ],
-    }),
-  );
+  const hist = { date: '2020-01-03', activeSignals: ['SMA Signal'], weights: wts };
+  const s = tacSetup((m) => m.mockResolvedValue({ signalHistory: [hist] }));
+  const wiReq = { tickers: ['SPY'], strategy: mkStrat() };
   it('有效参数应返回信号状态', async () => {
-    const { res, body } = await post(s(), '/api/v1/tactical/what-if', {
-      tickers: ['SPY'],
-      strategy: mkStrat(),
-    });
+    const { res, body } = await post(s(), '/api/v1/tactical/what-if', wiReq);
     expect(res.status).toBe(200);
     expect(body.data[0]).toMatchObject({ ticker: 'SPY', signalType: 'buy' });
   });
@@ -362,23 +330,20 @@ describe('tacticalRoutes - POST /api/tactical/what-if', () => {
   });
   it('引擎抛错应返回 500', async () => {
     ce.mockRejectedValueOnce(new Error('what-if error'));
-    const { res } = await post(s(), '/api/v1/tactical/what-if', {
-      tickers: ['SPY'],
-      strategy: mkStrat(),
-    });
+    const { res } = await post(s(), '/api/v1/tactical/what-if', wiReq);
     expect(res.status).toBe(500);
   });
 });
 const mkGridReq = () => ({
-  indicator: 'sma' as const,
+  indicator: 'sma',
   param1: { min: 10, max: 20, step: 10 },
   param2: { min: 10, max: 20, step: 10 },
   tickers: ['SPY'],
   startDate: '2020-01-01',
   endDate: '2024-01-01',
   startingValue: 10000,
-  rebalanceFrequency: 'monthly' as const,
-  objective: 'maxCAGR' as const,
+  rebalanceFrequency: 'monthly',
+  objective: 'maxCAGR',
 });
 const gridRes = {
   results: [{ param1: 10, param2: 10, cagr: 0.1, maxDrawdown: 0.05, sharpe: 1.5 }],
@@ -425,32 +390,22 @@ describe('tacticalGridRoutes - POST /api/tactical-grid/search', () => {
     expect(res.status).toBe(200);
     expect(body.data.results).toHaveLength(1);
   });
-  it('同步回退时价格数据缺失应返回 400', async () => {
+  (it.each as any)([
+    ['同步回退时价格数据缺失应返回 400', () => fh.mockResolvedValue(md({})), 400],
+    ['同步回退引擎抛错应返回 500', () => ce.mockRejectedValue(new Error('grid engine error')), 500],
+    ['BullMQ 回退同步执行超时应返回 503', () => fh.mockReturnValue(new Promise(() => {})), 503],
+  ])('%s', async (_n: any, arrange: any, sc: any) => {
     queueMocks.add.mockRejectedValue(new Error('Redis unavailable'));
-    fh.mockResolvedValue({ data: {}, degraded: false });
+    arrange();
     const { res } = await g(mkGridReq());
-    expect(res.status).toBe(400);
-  });
-  it('同步回退引擎抛错应返回 500', async () => {
-    queueMocks.add.mockRejectedValue(new Error('Redis unavailable'));
-    ce.mockRejectedValue(new Error('grid engine error'));
-    const { res } = await g(mkGridReq());
-    expect(res.status).toBe(500);
-  });
-  it('BullMQ 回退同步执行超时应返回 503', async () => {
-    queueMocks.add.mockRejectedValue(new Error('Redis unavailable'));
-    fh.mockImplementation(() => new Promise(() => {}));
-    const { res } = await g(mkGridReq());
-    expect(res.status).toBe(503);
+    expect(res.status).toBe(sc);
   });
 });
 describe('认证用户请求', () => {
   const server = useTestServer('/api/v1', jobRoutes, {
     clearMocks: true,
     auth: { user: { sub: 'user-123', role: 'admin' }, tenantId: 'tenant-456' },
-    configure: () => {
-      queueMocks.add.mockResolvedValue({ id: 'grid-job-auth-789' });
-    },
+    configure: () => queueMocks.add.mockResolvedValue({ id: 'grid-job-auth-789' }),
   });
   it('应设置 ownerUserId 为实际用户 ID', async () => {
     await server.post('/tactical-grid/search', mkGridReq());
