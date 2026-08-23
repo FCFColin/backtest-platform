@@ -6,25 +6,20 @@ export const AXIS_TEXT = {
   fontFamily: 'Geist Mono Variable',
 } as const;
 export const BORDER_SOFT = 'hsl(var(--border-subtle))';
-function axisLabel(formatter?: (v: number) => string, fontSize?: number) {
-  return {
-    ...AXIS_TEXT,
-    ...(formatter ? { formatter } : {}),
-    ...(fontSize !== undefined ? { fontSize } : {}),
-  };
+function axisLabel<F>(formatter?: F, fontSize?: number) {
+  return { ...AXIS_TEXT, ...(formatter && { formatter }), ...(fontSize != null && { fontSize }) };
 }
 export function chartGrid(
   margin: { top?: number; right?: number; bottom?: number; left?: number } = CHART_MARGIN,
   opts: { legendBottom?: number; dataZoomBottom?: number } = {},
 ) {
+  const lb = opts.legendBottom ?? 0;
+  const dz = opts.dataZoomBottom ?? 0;
   return {
     left: margin.left ?? CHART_MARGIN.left,
     right: margin.right ?? CHART_MARGIN.right,
     top: margin.top ?? CHART_MARGIN.top,
-    bottom:
-      (margin.bottom ?? CHART_MARGIN.bottom) +
-      (opts.legendBottom ?? 0) +
-      (opts.dataZoomBottom ?? 0),
+    bottom: (margin.bottom ?? CHART_MARGIN.bottom) + lb + dz,
   };
 }
 export function chartLegend(
@@ -33,7 +28,7 @@ export function chartLegend(
   return {
     ...(opts.top !== undefined ? { top: opts.top } : { bottom: opts.bottom ?? 0 }),
     textStyle: { color: 'hsl(var(--fg-tertiary))', fontSize: 12 },
-    ...(opts.formatter ? { formatter: opts.formatter } : {}),
+    ...(opts.formatter && { formatter: opts.formatter }),
   };
 }
 function axisName(name: string | undefined, nameGap: number, nameRotate = 0) {
@@ -41,14 +36,24 @@ function axisName(name: string | undefined, nameGap: number, nameRotate = 0) {
     ? { name, nameLocation: 'middle' as const, nameGap, nameRotate, nameTextStyle: AXIS_TEXT }
     : {};
 }
-export function valueXAxis(
-  opts: {
-    formatter?: (v: number) => string;
-    name?: string;
-    nameGap?: number;
-    fontSize?: number;
-  } = {},
-) {
+type ValueAxisOpts = {
+  formatter?: (v: number) => string;
+  min?: number;
+  max?: number;
+  type?: 'log';
+  name?: string;
+  nameGap?: number;
+  fontSize?: number;
+};
+type CategoryAxisOpts = {
+  formatter?: (v: string) => string;
+  interval?: number | 'auto' | ((index: number, value: string) => boolean);
+  name?: string;
+  nameGap?: number;
+  fontSize?: number;
+  preserveStartEnd?: boolean;
+};
+export function valueXAxis(opts: ValueAxisOpts = {}) {
   return {
     type: 'value' as const,
     ...axisName(opts.name, opts.nameGap ?? 34),
@@ -58,21 +63,11 @@ export function valueXAxis(
     splitLine: { show: false },
   };
 }
-export function valueYAxis(
-  opts: {
-    formatter?: (v: number) => string;
-    min?: number;
-    max?: number;
-    type?: 'log';
-    name?: string;
-    nameGap?: number;
-    fontSize?: number;
-  } = {},
-) {
+export function valueYAxis(opts: ValueAxisOpts = {}) {
   return {
     type: (opts.type ?? 'value') as 'value' | 'log',
-    ...(opts.min !== undefined ? { min: opts.min } : {}),
-    ...(opts.max !== undefined ? { max: opts.max } : {}),
+    ...(opts.min != null && { min: opts.min }),
+    ...(opts.max != null && { max: opts.max }),
     ...axisName(opts.name, opts.nameGap ?? 52, 90),
     axisLabel: axisLabel(opts.formatter, opts.fontSize),
     axisLine: { show: false },
@@ -80,27 +75,15 @@ export function valueYAxis(
     splitLine: { lineStyle: { color: BORDER_SOFT, opacity: 0.6 } },
   };
 }
-export function categoryAxis(
-  data: (string | number)[],
-  opts: {
-    formatter?: (v: string) => string;
-    interval?: number | 'auto' | ((index: number, value: string) => boolean);
-    name?: string;
-    nameGap?: number;
-    fontSize?: number;
-    preserveStartEnd?: boolean;
-  } = {},
-) {
+export function categoryAxis(data: (string | number)[], opts: CategoryAxisOpts = {}) {
   return {
     type: 'category' as const,
     data,
     ...axisName(opts.name, opts.nameGap ?? 30),
     axisLabel: {
-      ...AXIS_TEXT,
-      ...(opts.fontSize !== undefined ? { fontSize: opts.fontSize } : {}),
-      ...(opts.interval !== undefined ? { interval: opts.interval } : {}),
-      ...(opts.formatter ? { formatter: opts.formatter } : {}),
-      ...(opts.preserveStartEnd ? { showMinLabel: true, showMaxLabel: true } : {}),
+      ...axisLabel(opts.formatter, opts.fontSize),
+      ...(opts.interval != null && { interval: opts.interval }),
+      ...(opts.preserveStartEnd && { showMinLabel: true, showMaxLabel: true }),
     },
     axisLine: { lineStyle: { color: BORDER_SOFT } },
     axisTick: { show: false },
@@ -125,71 +108,62 @@ export function markLineData(referenceLines: ReferenceLine[], defaultColor: stri
       lineStyle: {
         color: rl.color ?? defaultColor,
         type: rl.dash ?? 'dashed',
-        ...(rl.width ? { width: rl.width } : {}),
+        ...(rl.width && { width: rl.width }),
       },
-      ...(rl.label
-        ? {
-            label: {
-              formatter: rl.label,
-              position: 'insideEndTop' as const,
-              color: rl.labelColor ?? defaultColor,
-              fontSize: rl.labelFontSize ?? 11,
-            },
-          }
-        : {}),
+      ...(rl.label && {
+        label: {
+          formatter: rl.label,
+          position: 'insideEndTop' as const,
+          color: rl.labelColor ?? defaultColor,
+          fontSize: rl.labelFontSize ?? 11,
+        },
+      }),
     })),
   };
 }
-export function scatterLabel() {
-  return {
-    show: true,
-    position: 'right' as const,
-    formatter: (p: { name: string }) => p.name,
-    color: 'hsl(var(--fg-tertiary))',
-    fontSize: 11,
-  };
-}
-export function escapeHtml(value: string): string {
-  return value.replace(/[&<>"']/g, (ch) => `&#${ch.charCodeAt(0)};`);
-}
+export const scatterLabel = () => ({
+  show: true,
+  position: 'right' as const,
+  formatter: (p: { name: string }) => p.name,
+  color: 'hsl(var(--fg-tertiary))',
+  fontSize: 11,
+});
+export const escapeHtml = (value: string): string =>
+  value.replace(/[&<>"']/g, (ch) => `&#${ch.charCodeAt(0)};`);
 export const tooltipRow = (marker: string, name: string, value: string) =>
   `<div style="display:flex;align-items:center;gap:8px;padding:2px 0">${marker}<span style="color:hsl(var(--fg-tertiary))">${escapeHtml(name)}</span><span style="margin-left:auto;font-weight:600;font-family:monospace;color:hsl(var(--fg))">${escapeHtml(value)}</span></div>`;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- ECharts tooltip formatter 类型过于复杂，手动构造 option
-export function tooltipOption(formatter: unknown, trigger: 'axis' | 'item' = 'axis'): any {
-  return {
-    trigger,
-    backgroundColor: 'hsl(var(--chart-tooltip-bg))',
-    borderColor: 'hsl(var(--border-strong))',
-    borderWidth: 1,
-    padding: [12, 12],
-    textStyle: { color: 'hsl(var(--fg))', fontSize: 12 },
-    extraCssText:
-      'backdrop-filter: blur(8px); border-radius: 8px; box-shadow: var(--tooltip-shadow);',
-    confine: true,
-    formatter,
-  };
-}
+export const tooltipOption = (formatter: unknown, trigger: 'axis' | 'item' = 'axis'): any => ({
+  trigger,
+  backgroundColor: 'hsl(var(--chart-tooltip-bg))',
+  borderColor: 'hsl(var(--border-strong))',
+  borderWidth: 1,
+  padding: [12, 12],
+  textStyle: { color: 'hsl(var(--fg))', fontSize: 12 },
+  extraCssText:
+    'backdrop-filter: blur(8px); border-radius: 8px; box-shadow: var(--tooltip-shadow);',
+  confine: true,
+  formatter,
+});
+type TooltipParam = {
+  axisValue: string | number;
+  seriesName: string;
+  marker: string;
+  value: number | [unknown, number];
+};
 export function axisTooltipFormatter(
   labelFormatter?: (label: string) => string,
   valueFormatter?: (value: number, name: string) => [string, string] | string,
 ) {
-  return (
-    params: Array<{
-      axisValue: string | number;
-      seriesName: string;
-      marker: string;
-      value: number | [unknown, number];
-    }>,
-  ) => {
+  return (params: TooltipParam[]) => {
     const first = params[0];
-    const header = labelFormatter
-      ? labelFormatter(String(first?.axisValue ?? ''))
-      : String(first?.axisValue ?? '');
+    const label = String(first?.axisValue ?? '');
+    const header = labelFormatter ? labelFormatter(label) : label;
     const rows = params
       .map((p) => {
         const raw = Array.isArray(p.value) ? p.value[1] : p.value;
-        const num = raw == null ? NaN : Number(raw);
-        if (Number.isNaN(num)) return tooltipRow(p.marker, p.seriesName, '—');
+        const num = Number(raw);
+        if (raw == null || Number.isNaN(num)) return tooltipRow(p.marker, p.seriesName, '—');
         const f = valueFormatter ? valueFormatter(num, p.seriesName) : String(num);
         const [v, n] = Array.isArray(f) ? f : [f, p.seriesName];
         return tooltipRow(p.marker, n, String(v));
@@ -205,6 +179,7 @@ export function axisTooltipFormatter(
 
 export type RollingMetricKey = 'cagr' | 'volatility' | 'excess' | 'skewness' | 'kurtosis' | 'kelly';
 export type RiskMetricKey = 'stdev' | 'maxDrawdown' | 'avgDrawdown' | 'ulcerIndex';
+type RollingPoint = { date: string; value: number };
 function calcMoments(w: number[]) {
   const mean = w.reduce((s, r) => s + r, 0) / w.length;
   return { mean, variance: w.reduce((s, r) => s + (r - mean) ** 2, 0) / (w.length - 1) };
@@ -214,21 +189,17 @@ function calcCagr(w: number[], wd: number) {
   for (const r of w) p *= 1 + r;
   return Math.pow(p, TRADING_DAYS_PER_YEAR / wd) - 1;
 }
-function calcVolatility(w: number[]) {
-  return Math.sqrt(calcMoments(w).variance) * Math.sqrt(TRADING_DAYS_PER_YEAR);
-}
 function calcSkewness(w: number[]) {
-  const n = w.length,
-    { mean, variance } = calcMoments(w);
+  const { mean, variance } = calcMoments(w);
   if (variance === 0) return 0;
-  const stdev = Math.sqrt(variance);
+  const n = w.length,
+    stdev = Math.sqrt(variance);
   return (n / ((n - 1) * (n - 2))) * w.reduce((s, r) => s + ((r - mean) / stdev) ** 3, 0);
 }
 function calcKurtosis(w: number[]) {
   const n = w.length;
-  if (n < 4) return 0;
   const { mean, variance } = calcMoments(w);
-  if (variance === 0) return 0;
+  if (n < 4 || variance === 0) return 0;
   const stdev = Math.sqrt(variance);
   return (
     ((n * (n + 1)) / ((n - 1) * (n - 2) * (n - 3))) *
@@ -236,24 +207,23 @@ function calcKurtosis(w: number[]) {
     (3 * (n - 1) ** 2) / ((n - 2) * (n - 3))
   );
 }
-function calcKelly(w: number[]) {
-  const { mean, variance } = calcMoments(w);
-  return variance > 0 ? mean / variance : 0;
-}
 const METRIC_CALCULATORS: Record<string, (w: number[], wd: number) => number> = {
   cagr: calcCagr,
-  volatility: calcVolatility,
+  volatility: (w) => Math.sqrt(calcMoments(w).variance) * Math.sqrt(TRADING_DAYS_PER_YEAR),
   skewness: calcSkewness,
   kurtosis: calcKurtosis,
-  kelly: calcKelly,
+  kelly: (w) => {
+    const { mean, variance } = calcMoments(w);
+    return variance > 0 ? mean / variance : 0;
+  },
 };
 export function computeRollingMetric(
   dailyReturns: number[],
   dates: string[],
   windowDays: number,
   metric: RollingMetricKey,
-): Array<{ date: string; value: number }> {
-  const result: Array<{ date: string; value: number }> = [];
+): RollingPoint[] {
+  const result: RollingPoint[] = [];
   if (dailyReturns.length < windowDays) return result;
   const calc = METRIC_CALCULATORS[metric];
   for (let i = windowDays; i <= dailyReturns.length; i++) {
@@ -267,8 +237,8 @@ export function computeRollingExcessReturn(
   benchmarkDailyReturns: number[],
   dates: string[],
   windowDays: number,
-): Array<{ date: string; value: number }> {
-  const result: Array<{ date: string; value: number }> = [];
+): RollingPoint[] {
+  const result: RollingPoint[] = [];
   const n = Math.min(dailyReturns.length, benchmarkDailyReturns.length);
   if (n < windowDays) return result;
   for (let i = windowDays; i <= n; i++) {
@@ -318,10 +288,10 @@ export function computeRollingCorrelation(
   const result: RollingCorrelationPoint[] = [];
   const step = Math.max(1, Math.floor((n - windowSize) / maxPoints));
   for (let start = 0; start + windowSize <= n; start += step) {
-    const xSlice = baseReturns.slice(start, start + windowSize);
-    const ySlice = targetReturns.slice(start, start + windowSize);
-    const xMean = xSlice.reduce((s, v) => s + v, 0) / windowSize;
-    const yMean = ySlice.reduce((s, v) => s + v, 0) / windowSize;
+    const xSlice = baseReturns.slice(start, start + windowSize),
+      ySlice = targetReturns.slice(start, start + windowSize),
+      xMean = xSlice.reduce((s, v) => s + v, 0) / windowSize,
+      yMean = ySlice.reduce((s, v) => s + v, 0) / windowSize;
     let ssXY = 0,
       ssXX = 0,
       ssYY = 0;
@@ -332,10 +302,8 @@ export function computeRollingCorrelation(
       ssXX += dx * dx;
       ssYY += dy * dy;
     }
-    result.push({
-      date: dates[start + windowSize - 1] || '',
-      value: +(ssXX > 1e-12 && ssYY > 1e-12 ? ssXY / Math.sqrt(ssXX * ssYY) : 0).toFixed(4),
-    });
+    const corr = ssXX > 1e-12 && ssYY > 1e-12 ? ssXY / Math.sqrt(ssXX * ssYY) : 0;
+    result.push({ date: dates[start + windowSize - 1] || '', value: +corr.toFixed(4) });
   }
   return result;
 }
