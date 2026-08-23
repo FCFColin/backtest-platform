@@ -19,14 +19,14 @@ import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 const wrapPrimitive = <T extends React.ComponentType<any> | keyof React.JSX.IntrinsicElements>(
   Comp: T,
-  baseClass: string,
+  cls: string,
   name?: string,
   content?: (children: ReactNode, props: any) => ReactNode,
 ) => {
   const Element = Comp as React.JSXElementConstructor<any>;
   const Wrapped = React.forwardRef<any, React.ComponentPropsWithoutRef<T>>(
     ({ className, children, ...props }, ref) => (
-      <Element ref={ref} className={cn(baseClass, className as string)} {...props}>
+      <Element ref={ref} className={cn(cls, className as string)} {...props}>
         {content ? content(children, props) : children}
       </Element>
     ),
@@ -204,7 +204,6 @@ export const DropdownMenuContent = React.forwardRef<
     />
   </DropdownMenuPrimitive.Portal>
 ));
-DropdownMenuContent.displayName = DropdownMenuPrimitive.Content.displayName;
 export const DropdownMenuItem = wrapPrimitive(
   DropdownMenuPrimitive.Item,
   cn(itemBase, 'px-2 py-1.5 [&_svg]:size-4 [&_svg]:mr-2'),
@@ -267,18 +266,8 @@ export const SelectTrigger = wrapPrimitive(
     </>
   ),
 );
-const SelectScrollUpButton = wrapPrimitive(
-  SelectPrimitive.ScrollUpButton,
-  'flex cursor-default items-center justify-center py-1',
-  'SelectScrollUpButton',
-  () => <ChevronUp className="h-4 w-4 text-fg-tertiary" />,
-);
-const SelectScrollDownButton = wrapPrimitive(
-  SelectPrimitive.ScrollDownButton,
-  'flex cursor-default items-center justify-center py-1',
-  'SelectScrollDownButton',
-  () => <ChevronDown className="h-4 w-4 text-fg-tertiary" />,
-);
+const POPPER_VIEWPORT =
+  'h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)]';
 export const SelectContent = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.Content>
@@ -295,21 +284,18 @@ export const SelectContent = React.forwardRef<
       position={position}
       {...props}
     >
-      <SelectScrollUpButton />
-      <SelectPrimitive.Viewport
-        className={cn(
-          'p-1',
-          position === 'popper' &&
-            'h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)]',
-        )}
-      >
+      <SelectPrimitive.ScrollUpButton className="flex cursor-default items-center justify-center py-1">
+        <ChevronUp className="h-4 w-4 text-fg-tertiary" />
+      </SelectPrimitive.ScrollUpButton>
+      <SelectPrimitive.Viewport className={cn('p-1', position === 'popper' && POPPER_VIEWPORT)}>
         {children}
       </SelectPrimitive.Viewport>
-      <SelectScrollDownButton />
+      <SelectPrimitive.ScrollDownButton className="flex cursor-default items-center justify-center py-1">
+        <ChevronDown className="h-4 w-4 text-fg-tertiary" />
+      </SelectPrimitive.ScrollDownButton>
     </SelectPrimitive.Content>
   </SelectPrimitive.Portal>
 ));
-SelectContent.displayName = SelectPrimitive.Content.displayName;
 export const SelectItem = wrapPrimitive(
   SelectPrimitive.Item,
   'relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-body text-fg-secondary outline-none transition-colors duration-150 focus:bg-hover focus:text-fg data-[disabled]:pointer-events-none data-[disabled]:opacity-50 data-[state=checked]:text-brand',
@@ -340,9 +326,7 @@ export const Separator = ({
     {...props}
   />
 );
-export const Skeleton = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-  <div className={cn('animate-pulse rounded-md bg-input-bg', className)} {...props} />
-);
+export const Skeleton = wrapPrimitive('div', 'animate-pulse rounded-md bg-input-bg', 'Skeleton');
 export const Switch = wrapPrimitive(
   SwitchPrimitive.Root,
   'peer inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border border-border bg-input-bg transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-brand data-[state=checked]:border-brand',
@@ -380,7 +364,6 @@ const TooltipContent = React.forwardRef<
     />
   </TooltipPrimitive.Portal>
 ));
-TooltipContent.displayName = 'TooltipContent';
 export const InfoTooltip = ({ description }: { description: string }) => (
   <TooltipPrimitive.Root>
     <TooltipPrimitive.Trigger asChild>
@@ -394,25 +377,17 @@ export const InfoTooltip = ({ description }: { description: string }) => (
     <TooltipContent>{description}</TooltipContent>
   </TooltipPrimitive.Root>
 );
-type LoadingButtonProps = ButtonProps & { isLoading: boolean; loadingText?: string };
 export function LoadingButton({
   isLoading,
   loadingText,
-  type = 'button',
   variant = 'primary',
   disabled,
   children,
   ...rest
-}: LoadingButtonProps) {
+}: ButtonProps & { isLoading: boolean; loadingText?: string }) {
   const { t } = useTranslation();
   return (
-    <Button
-      type={type}
-      variant={variant}
-      disabled={isLoading || disabled}
-      aria-busy={isLoading}
-      {...rest}
-    >
+    <Button variant={variant} disabled={isLoading || disabled} aria-busy={isLoading} {...rest}>
       {isLoading && <Loader2 className="animate-spin" />}
       {isLoading ? (loadingText ?? t('Loading...')) : children}
     </Button>
