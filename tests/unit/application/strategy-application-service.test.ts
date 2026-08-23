@@ -26,6 +26,7 @@ import {
   collectTickers,
 } from '../../../packages/backend/src/application/tactical-application-service.js';
 import { executeGridSearch } from '../../../packages/backend/src/application/grid-application-service.js';
+import type { TacticalGridRequest } from '../../../packages/backend/src/application/grid-application-service.js';
 import {
   signalResultSchema,
   tacticalGridResultSchema,
@@ -278,6 +279,9 @@ describe('strategy-application-services', () => {
   });
 
   describe('executeGridSearch', () => {
+    // 错误路径用例故意传非法/缺省 body，测试边界处显式放宽类型
+    const grid = (b: Record<string, unknown>) =>
+      executeGridSearch(b as unknown as TacticalGridRequest);
     function validBody(overrides: Record<string, unknown> = {}): Record<string, unknown> {
       return {
         indicator: 'sma',
@@ -293,7 +297,7 @@ describe('strategy-application-services', () => {
 
     it('returns error when indicator/param1/param2 missing', async () => {
       await expect(
-        executeGridSearch({
+        grid({
           tickers: ['SPY'],
           startDate: '2020-01-01',
           endDate: '2020-12-31',
@@ -302,15 +306,11 @@ describe('strategy-application-services', () => {
     });
 
     it('returns error when tickers is empty', async () => {
-      await expect(executeGridSearch(validBody({ tickers: [] }))).rejects.toThrow(
-        '请至少输入一个标的代码',
-      );
+      await expect(grid(validBody({ tickers: [] }))).rejects.toThrow('请至少输入一个标的代码');
     });
 
     it('returns error when startDate or endDate missing', async () => {
-      await expect(executeGridSearch(validBody({ startDate: undefined }))).rejects.toThrow(
-        '缺少起止日期',
-      );
+      await expect(grid(validBody({ startDate: undefined }))).rejects.toThrow('缺少起止日期');
     });
 
     it('returns error when total combinations exceed limit', async () => {
@@ -318,7 +318,7 @@ describe('strategy-application-services', () => {
         param1: { min: 1, max: 15, step: 1 },
         param2: { min: 1, max: 15, step: 1 },
       });
-      await expect(executeGridSearch(body)).rejects.toThrow(/参数组合过多/);
+      await expect(grid(body)).rejects.toThrow(/参数组合过多/);
     });
 
     it('returns error when price data not found', async () => {
@@ -326,7 +326,7 @@ describe('strategy-application-services', () => {
         data: { SPY: {} },
         degraded: false,
       });
-      await expect(executeGridSearch(validBody())).rejects.toThrow('未找到 SPY 的价格数据');
+      await expect(grid(validBody())).rejects.toThrow('未找到 SPY 的价格数据');
     });
 
     it('returns error when trading days are fewer than required', async () => {
@@ -336,9 +336,7 @@ describe('strategy-application-services', () => {
         },
         degraded: false,
       });
-      await expect(executeGridSearch(validBody())).rejects.toThrow(
-        '有效交易日不足，无法运行网格搜索',
-      );
+      await expect(grid(validBody())).rejects.toThrow('有效交易日不足，无法运行网格搜索');
     });
 
     it('returns success on valid grid search', async () => {
@@ -352,7 +350,7 @@ describe('strategy-application-services', () => {
       });
       mockEngine({ result: 'ok', combinations: 20 });
 
-      const result = await executeGridSearch(validBody());
+      const result = await grid(validBody());
       expect(result.data).toBeDefined();
       expect((result.data as Record<string, unknown>).result).toBe('ok');
       expect(engineMocks.callEngineStrict).toHaveBeenCalledWith(

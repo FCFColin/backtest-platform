@@ -11,7 +11,7 @@ export { signAuditEntry };
 export type AuditAction =
   'CREATE' | 'UPDATE' | 'DELETE' | 'LOGIN' | 'LOGOUT' | 'READ' | 'EXPORT' | 'CONFIG';
 
-interface AuditLogEntry {
+export interface AuditLogEntry {
   eventType: string;
   userId?: string | null;
   orgId?: string | null;

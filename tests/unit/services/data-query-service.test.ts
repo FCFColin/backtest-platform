@@ -173,7 +173,13 @@ describe('callGoDataService', () => {
 });
 
 describe('P0-03: 响应体大小限制（MAX_RESPONSE_BODY_SIZE=100 bytes）', () => {
-  it.each([
+  type BodySizeCase = {
+    name: string;
+    data: string;
+    headers?: Record<string, string>;
+    chunkSize?: number;
+  };
+  it.each<BodySizeCase>([
     { name: 'Content-Length 超限', data: '', headers: { 'content-length': '200' } },
     { name: '无 Content-Length 但数据超限', data: 'x'.repeat(200), headers: {} },
     { name: '分块发送时超限', data: 'x'.repeat(120), chunkSize: 30, headers: {} },
@@ -186,7 +192,7 @@ describe('P0-03: 响应体大小限制（MAX_RESPONSE_BODY_SIZE=100 bytes）', (
     mockFetchResponse({ data, headers, chunkSize });
     await expect(callGoDataService('/api/data/price/SPY')).rejects.toThrow(/response too large/i);
   });
-  it.each([
+  it.each<BodySizeCase>([
     { name: '正常响应在限制内', data: '{"success":true}', headers: {} },
     {
       name: '正常响应有 Content-Length',

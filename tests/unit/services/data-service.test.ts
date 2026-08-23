@@ -259,7 +259,10 @@ describe('dataFacade 编排', () => {
     dataCacheMocks.readCache.mockResolvedValue(o.cached ?? null);
     if (o.go) dataQueryMocks.fetchMissingFromGoService.mockResolvedValue(o.go);
   }
-  it.each([
+  // 期望对象字段因用例而异，统一放宽为可选索引访问
+  /* eslint-disable-next-line @typescript-eslint/no-explicit-any -- 期望字段因用例而异 */
+  type Exp = { data: unknown } & Record<string, any>;
+  it.each<[string, string[], Record<string, unknown>, Exp]>([
     [
       '全部 DB 命中',
       ['AAPL', 'MSFT'],

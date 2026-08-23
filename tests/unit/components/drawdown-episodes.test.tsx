@@ -16,6 +16,7 @@ const makeEpisode = (overrides: Partial<DrawdownEpisode> = {}): DrawdownEpisode 
   recoveryFactor: 1.2,
   cagrDuring: -0.05,
   ulcerDuring: 8.5,
+  returnFromPeakToTrough: 0.1,
   ...overrides,
 });
 

@@ -12,7 +12,7 @@ const METHOD_ACTION: Record<string, AuditAction> = {
   DELETE: 'DELETE',
 };
 
-interface AuditEventInput {
+export interface AuditEventInput {
   orgId?: unknown;
   userId?: unknown;
   method?: unknown;

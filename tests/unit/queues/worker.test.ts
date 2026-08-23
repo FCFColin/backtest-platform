@@ -89,7 +89,11 @@ function mockOrg(plan = 'pro') {
   });
 }
 function mockOptSuccess() {
-  vi.mocked(executeOptimization).mockResolvedValueOnce({ success: true, data: { ok: 1 } });
+  // 故意携带类型外冗余字段 success，验证 worker 对完整结果的透传
+  vi.mocked(executeOptimization).mockResolvedValueOnce({
+    success: true,
+    data: { ok: 1 },
+  } as Awaited<ReturnType<typeof executeOptimization>>);
 }
 
 describe('processBacktestJob - 任务分发', () => {
