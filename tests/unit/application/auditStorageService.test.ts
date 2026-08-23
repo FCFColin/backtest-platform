@@ -12,11 +12,7 @@ const minioMocks = vi.hoisted(() => ({
   uploadAuditObject: vi.fn().mockResolvedValue(true),
   isMinioConfigured: vi.fn(() => true),
 }));
-vi.mock('../../../packages/backend/src/infrastructure/minioStorage.js', () => ({
-  ensureBucketExists: minioMocks.ensureBucketExists,
-  uploadAuditObject: minioMocks.uploadAuditObject,
-  isMinioConfigured: minioMocks.isMinioConfigured,
-}));
+vi.mock('../../../packages/backend/src/infrastructure/minioStorage.js', () => minioMocks);
 import { config } from '../../../packages/backend/src/config/index.js';
 import {
   signAuditEntry,
@@ -31,17 +27,18 @@ const TEST_KEY = 'test-audit-hmac-key-very-secret-32bytes';
 const LOG_ID = '00000000-0000-0000-0000-000000000001';
 const ORG_ID = '00000000-0000-0000-0000-000000000010';
 const USER_ID = '00000000-0000-0000-0000-000000000020';
-const hmac = (p: unknown) =>
-  crypto
-    .createHmac('sha256', TEST_KEY)
-    .update(typeof p === 'string' ? p : JSON.stringify(p))
-    .digest('hex');
-const callSql = (i: number) => poolMocks.pool.query.mock.calls[i][0] as string;
-const callArgs = (i: number) => poolMocks.pool.query.mock.calls[i][1] as unknown[];
-const findUpdateCall = () =>
-  poolMocks.pool.query.mock.calls.find(
-    (c: unknown[]) => typeof c[0] === 'string' && (c[0] as string).includes('UPDATE audit_logs'),
-  );
+const str = (v: unknown) => (typeof v === 'string' ? v : JSON.stringify(v));
+const hmac = (v: unknown) => crypto.createHmac('sha256', TEST_KEY).update(str(v)).digest('hex');
+const q = poolMocks.pool.query;
+const callSql = (i: number) => q.mock.calls[i][0] as string;
+const callArgs = (i: number) => q.mock.calls[i][1] as unknown[];
+const sqlFind = (s: string) => q.mock.calls.find((c) => String(c[0]).includes(s));
+const onceRows = (...rows: unknown[][]) =>
+  rows.forEach((r) => q.mockResolvedValueOnce({ rows: r }));
+const queueExport = (payload: unknown, sig: string) => {
+  q.mockResolvedValueOnce({ rows: [makeDbRow({ payload, hmac_signature: sig })] });
+  q.mockResolvedValueOnce({ rows: [{ payload_text: str(payload), hmac_signature: sig }] });
+};
 function makeEntry(o: Partial<AuditLogEntry> = {}): AuditLogEntry {
   return {
     eventType: 'AuditEvent',
@@ -55,38 +52,27 @@ function makeEntry(o: Partial<AuditLogEntry> = {}): AuditLogEntry {
     ...o,
   };
 }
-function makeDbRow(o: Record<string, unknown> = {}) {
-  return {
-    id: LOG_ID,
-    event_type: 'AuditEvent',
-    user_id: USER_ID,
-    org_id: ORG_ID,
-    ip_address: '127.0.0.1',
-    action: 'CREATE',
-    resource_type: 'backtest_run',
-    resource_id: 'run-1',
-    payload: { method: 'POST', path: '/api/v1/backtest' },
-    hmac_signature: '',
-    object_key: null,
-    exported_at: null,
-    created_at: new Date('2026-07-25T10:00:00Z'),
-    ...o,
-  };
-}
-function setupExport(payload: unknown, sig: string) {
-  poolMocks.pool.query.mockResolvedValueOnce({
-    rows: [makeDbRow({ payload, hmac_signature: sig })],
-  });
-  poolMocks.pool.query.mockResolvedValueOnce({
-    rows: [{ payload_text: JSON.stringify(payload), hmac_signature: sig }],
-  });
-  poolMocks.pool.query.mockResolvedValue({ rows: [] });
-}
+const makeDbRow = (o: Record<string, unknown> = {}) => ({
+  id: LOG_ID,
+  event_type: 'AuditEvent',
+  user_id: USER_ID,
+  org_id: ORG_ID,
+  ip_address: '127.0.0.1',
+  action: 'CREATE',
+  resource_type: 'backtest_run',
+  resource_id: 'run-1',
+  payload: { method: 'POST', path: '/api/v1/backtest' },
+  hmac_signature: '',
+  object_key: null,
+  exported_at: null,
+  created_at: new Date('2026-07-25T10:00:00Z'),
+  ...o,
+});
 describe('auditStorageService', () => {
   let originalKey: string;
   beforeEach(() => {
     vi.clearAllMocks();
-    poolMocks.pool.query.mockResolvedValue({ rows: [] });
+    q.mockResolvedValue({ rows: [] });
     minioMocks.ensureBucketExists.mockResolvedValue(undefined);
     minioMocks.uploadAuditObject.mockResolvedValue(true);
     minioMocks.isMinioConfigured.mockReturnValue(true);
@@ -115,15 +101,10 @@ describe('auditStorageService', () => {
     });
   });
   describe('writeAuditLog', () => {
-    const canonicalPayload = (entry: AuditLogEntry): string => JSON.stringify(entry.payload);
     it('应 INSERT 并回写 HMAC 签名（覆盖 jsonb 规范化后的精确字节）', async () => {
       const entry = makeEntry();
-      const payloadText = canonicalPayload(entry);
-      poolMocks.pool.query
-        .mockResolvedValueOnce({ rows: [] })
-        .mockResolvedValueOnce({ rows: [] })
-        .mockResolvedValueOnce({ rows: [{ id: LOG_ID, payload: payloadText }] })
-        .mockResolvedValueOnce({ rows: [] });
+      const payloadText = JSON.stringify(entry.payload);
+      onceRows([], [], [{ id: LOG_ID, payload: payloadText }], []);
       expect(await writeAuditLog(entry, poolClient)).toBe(LOG_ID);
       expect(callSql(2)).toContain('INSERT INTO audit_logs');
       expect(callSql(2)).toContain('RETURNING id, payload::text');
@@ -132,19 +113,13 @@ describe('auditStorageService', () => {
       expect(args[1]).toBe(USER_ID);
       expect(args[4]).toBe('CREATE');
       expect(args[8]).toBe('');
-      const update = poolMocks.pool.query.mock.calls.find((c) =>
-        (c[0] as string).includes('UPDATE audit_logs SET hmac_signature'),
-      );
+      const update = sqlFind('UPDATE audit_logs SET hmac_signature');
       expect(update).toBeDefined();
       expect(update![1][1]).toBe(hmac(payloadText));
       expect(update![1][2]).toBeNull();
     });
     it('可选字段为 null 时应传 null 而非 undefined', async () => {
-      poolMocks.pool.query
-        .mockResolvedValueOnce({ rows: [] })
-        .mockResolvedValueOnce({ rows: [] })
-        .mockResolvedValueOnce({ rows: [{ id: LOG_ID, payload: '{}' }] })
-        .mockResolvedValueOnce({ rows: [] });
+      onceRows([], [], [{ id: LOG_ID, payload: '{}' }], []);
       await writeAuditLog(
         makeEntry({ userId: null, orgId: null, resourceType: null, resourceId: null }),
         poolClient,
@@ -156,53 +131,37 @@ describe('auditStorageService', () => {
       expect(args[6]).toBeNull();
     });
     it('重复 outbox 投递冲突时应返回已有 id（幂等，不重复插入）', async () => {
-      poolMocks.pool.query
-        .mockResolvedValueOnce({ rows: [] })
-        .mockResolvedValueOnce({ rows: [] })
-        .mockResolvedValueOnce({ rows: [] })
-        .mockResolvedValueOnce({ rows: [{ id: LOG_ID }] });
+      onceRows([], [], [], [{ id: LOG_ID }]);
       const result = await writeAuditLog(makeEntry(), poolClient, 'outbox-1');
       expect(result).toBe(LOG_ID);
-      expect(poolMocks.pool.query.mock.calls[2][0]).toContain('ON CONFLICT (outbox_event_id)');
-      expect(
-        poolMocks.pool.query.mock.calls.some((c) => (c[0] as string).includes('UPDATE audit_logs')),
-      ).toBe(false);
+      expect(q.mock.calls[2][0]).toContain('ON CONFLICT (outbox_event_id)');
+      expect(q.mock.calls.some((c) => String(c[0]).includes('UPDATE audit_logs'))).toBe(false);
     });
     it('P0 回归：jsonb 键序规范化后签名仍可验证（写读字节一致）', async () => {
       const canonicalText =
         '{"method":"POST","result":"ok","timestamp":"2026-07-25T10:00:00Z","userAgent":"ua","statusCode":200}';
-      poolMocks.pool.query
-        .mockResolvedValueOnce({ rows: [] })
-        .mockResolvedValueOnce({ rows: [] })
-        .mockResolvedValueOnce({ rows: [{ id: LOG_ID, payload: canonicalText }] })
-        .mockResolvedValueOnce({ rows: [] });
-      const id = await writeAuditLog(makeEntry(), poolClient);
-      expect(id).toBe(LOG_ID);
-      const update = poolMocks.pool.query.mock.calls.find((c) =>
-        (c[0] as string).includes('UPDATE audit_logs SET hmac_signature'),
-      );
-      expect(update![1][1]).toBe(hmac(canonicalText));
-      poolMocks.pool.query.mockResolvedValueOnce({
-        rows: [{ payload_text: canonicalText, hmac_signature: hmac(canonicalText) }],
-      });
+      onceRows([], [], [{ id: LOG_ID, payload: canonicalText }], []);
+      expect(await writeAuditLog(makeEntry(), poolClient)).toBe(LOG_ID);
+      expect(sqlFind('UPDATE audit_logs SET hmac_signature')![1][1]).toBe(hmac(canonicalText));
+      onceRows([{ payload_text: canonicalText, hmac_signature: hmac(canonicalText) }]);
       expect((await verifyAuditIntegrity(LOG_ID)).valid).toBe(true);
     });
   });
   describe('getUnexportedAuditLogs', () => {
     it('应查询 exported_at IS NULL 的记录（按 created_at 正序）', async () => {
-      poolMocks.pool.query.mockResolvedValueOnce({ rows: [makeDbRow()] });
+      q.mockResolvedValueOnce({ rows: [makeDbRow()] });
       expect(await getUnexportedAuditLogs(50)).toHaveLength(1);
       expect(callSql(0)).toContain('WHERE exported_at IS NULL');
       expect(callSql(0)).toContain('ORDER BY created_at ASC');
       expect(callArgs(0)[0]).toBe(50);
     });
     it.each([100, 50])('默认/自定义 limit 应正确传递（limit=%i）', async (limit) => {
-      poolMocks.pool.query.mockResolvedValueOnce({ rows: [] });
+      q.mockResolvedValueOnce({ rows: [] });
       await getUnexportedAuditLogs(limit === 100 ? undefined : limit);
       expect(callArgs(0)[0]).toBe(limit);
     });
     it('DB 行应正确映射为 camelCase + ISO 时间戳', async () => {
-      poolMocks.pool.query.mockResolvedValueOnce({
+      q.mockResolvedValueOnce({
         rows: [
           makeDbRow({
             exported_at: new Date('2026-07-25T12:00:00Z'),
@@ -237,37 +196,26 @@ describe('auditStorageService', () => {
     });
     it('空 ID 数组应直接返回（不调用 query）', async () => {
       await markExported([], 'audit/key');
-      expect(poolMocks.pool.query).not.toHaveBeenCalled();
+      expect(q).not.toHaveBeenCalled();
     });
   });
   describe('verifyAuditIntegrity', () => {
+    const VALID_PAYLOAD = { method: 'POST', path: '/api/v1/backtest' };
     it.each([
-      {
-        name: '有效签名应返回 valid=true',
-        payload: { method: 'POST', path: '/api/v1/backtest' },
-        sig: hmac(JSON.stringify({ method: 'POST', path: '/api/v1/backtest' })),
-        valid: true,
-      },
-      {
-        name: '篡改 payload 后应返回 valid=false',
-        payload: { method: 'DELETE', path: '/api/v1/admin/keys/xxx' },
-        sig: hmac(JSON.stringify({ method: 'POST', path: '/api/v1/backtest' })),
-        valid: false,
-      },
-      {
-        name: '篡改 hmac_signature 后应返回 valid=false',
-        payload: { method: 'POST' },
-        sig: 'a'.repeat(64),
-        valid: false,
-      },
-    ])('$name', async ({ payload, sig, valid }) => {
-      poolMocks.pool.query.mockResolvedValueOnce({
-        rows: [{ payload_text: JSON.stringify(payload), hmac_signature: sig }],
-      });
+      ['有效签名应返回 valid=true', VALID_PAYLOAD, hmac(VALID_PAYLOAD), true],
+      [
+        '篡改 payload 后应返回 valid=false',
+        { method: 'DELETE', path: '/api/v1/admin/keys/xxx' },
+        hmac(VALID_PAYLOAD),
+        false,
+      ],
+      ['篡改 hmac_signature 后应返回 valid=false', { method: 'POST' }, 'a'.repeat(64), false],
+    ])('%s', async (_n, payload, sig, valid) => {
+      onceRows([{ payload_text: str(payload), hmac_signature: sig }]);
       expect((await verifyAuditIntegrity(LOG_ID)).valid).toBe(valid);
     });
     it('日志不存在时应返回 valid=false + 空签名', async () => {
-      poolMocks.pool.query.mockResolvedValueOnce({ rows: [] });
+      q.mockResolvedValueOnce({ rows: [] });
       expect(await verifyAuditIntegrity(LOG_ID)).toMatchObject({
         valid: false,
         expected: '',
@@ -276,22 +224,20 @@ describe('auditStorageService', () => {
     });
     it('未配置 AUDIT_HMAC_KEY 时应返回 valid=false（fail-closed，D2-010）', async () => {
       config.AUDIT_HMAC_KEY = '';
-      poolMocks.pool.query.mockResolvedValueOnce({
-        rows: [{ payload_text: '{"a":1}', hmac_signature: 'some-sig' }],
-      });
+      onceRows([{ payload_text: '{"a":1}', hmac_signature: 'some-sig' }]);
       expect(await verifyAuditIntegrity(LOG_ID)).toMatchObject({ valid: false, expected: '' });
     });
   });
   describe('exportPendingAuditLogs', () => {
     it('无待导出记录时应返回空结果', async () => {
-      poolMocks.pool.query.mockResolvedValueOnce({ rows: [] });
+      q.mockResolvedValueOnce({ rows: [] });
       const result = await exportPendingAuditLogs();
       expect(result).toMatchObject({ processed: 0, exported: 0, skipped: 0 });
       expect(result.objectKeys).toHaveLength(0);
     });
     it('MinIO 未配置时应跳过导出（fail-closed）', async () => {
       minioMocks.isMinioConfigured.mockReturnValue(false);
-      poolMocks.pool.query.mockResolvedValueOnce({ rows: [makeDbRow()] });
+      q.mockResolvedValueOnce({ rows: [makeDbRow()] });
       const result = await exportPendingAuditLogs();
       expect(result).toMatchObject({ processed: 1, exported: 0, minioConfigured: false });
       expect(minioMocks.ensureBucketExists).not.toHaveBeenCalled();
@@ -300,7 +246,7 @@ describe('auditStorageService', () => {
     it('MinIO 已配置时应上传 JSONL 并标记已导出', async () => {
       const payload = { method: 'POST' };
       const signature = hmac(payload);
-      setupExport(payload, signature);
+      queueExport(payload, signature);
       const result = await exportPendingAuditLogs();
       expect(result).toMatchObject({ processed: 1, exported: 1, skipped: 0 });
       expect(result.objectKeys).toHaveLength(1);
@@ -315,35 +261,23 @@ describe('auditStorageService', () => {
         eventType: 'AuditEvent',
         hmacSignature: signature,
       });
-      expect(findUpdateCall()).toBeDefined();
-      expect(findUpdateCall()![0] as string).toContain('exported_at = NOW()');
+      expect(sqlFind('UPDATE audit_logs')).toBeDefined();
+      expect(sqlFind('UPDATE audit_logs')![0]).toContain('exported_at = NOW()');
     });
     it('HMAC 校验失败的记录应被跳过（不写入 WORM）', async () => {
       const payload = { method: 'POST' };
-      const tamperedSig = 'b'.repeat(64);
-      poolMocks.pool.query.mockResolvedValueOnce({
-        rows: [makeDbRow({ payload, hmac_signature: tamperedSig })],
-      });
-      poolMocks.pool.query.mockResolvedValueOnce({
-        rows: [{ payload_text: JSON.stringify(payload), hmac_signature: tamperedSig }],
-      });
+      queueExport(payload, 'b'.repeat(64));
       const result = await exportPendingAuditLogs();
       expect(result).toMatchObject({ processed: 1, skipped: 1, exported: 0 });
       expect(minioMocks.uploadAuditObject).not.toHaveBeenCalled();
     });
     it('上传失败时不应标记已导出（下次重试）', async () => {
       const payload = { method: 'POST' };
-      const signature = hmac(payload);
-      poolMocks.pool.query.mockResolvedValueOnce({
-        rows: [makeDbRow({ payload, hmac_signature: signature })],
-      });
-      poolMocks.pool.query.mockResolvedValueOnce({
-        rows: [{ payload_text: JSON.stringify(payload), hmac_signature: signature }],
-      });
       minioMocks.uploadAuditObject.mockResolvedValue(false);
+      queueExport(payload, hmac(payload));
       const result = await exportPendingAuditLogs();
       expect(result.exported).toBe(0);
-      expect(findUpdateCall()).toBeUndefined();
+      expect(sqlFind('UPDATE audit_logs')).toBeUndefined();
     });
   });
 });
