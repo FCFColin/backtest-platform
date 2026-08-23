@@ -26,7 +26,6 @@ import { ToolPageLayout } from '../../components/layout/ToolPageLayout.js';
 import { fmtPct, fmtCompact } from '@/utils/format';
 
 type State = Record<string, number>;
-type SetState = React.Dispatch<React.SetStateAction<State>>;
 type TFn = (key: string, opts?: Record<string, unknown>) => string;
 type DPt = { year: number; value: number };
 type ResultTone = 'brand' | 'success' | 'warning' | 'danger' | 'muted' | 'default';
@@ -40,6 +39,7 @@ const TONE_CLASS: Record<ResultTone, string> = {
 };
 type Row = { label: string; value: string; tone?: ResultTone };
 const R = (label: string, value: string, tone?: ResultTone): Row => ({ label, value, tone });
+const INFO_CLS = 'mt-2.5 rounded-md bg-input-bg p-3 text-caption leading-relaxed text-fg-tertiary';
 const NORM_CDF_COEFFS = [1.061405429, -1.453152027, 1.421413741, -0.284496736, 0.254829592];
 
 function normCdf(x: number) {
@@ -88,7 +88,7 @@ interface CalcConfig {
   cols?: 2 | 3;
   fields: FieldDef[];
   info?: string;
-  extra?: (state: State, setState: SetState) => ReactNode;
+  extra?: (state: State, setState: React.Dispatch<React.SetStateAction<State>>) => ReactNode;
   compute: (state: State, t: TFn) => { rows?: Row[]; rowsClassName?: string; chart?: ReactNode };
 }
 function createCalculator(config: CalcConfig) {
@@ -115,34 +115,26 @@ function createCalculator(config: CalcConfig) {
           </CollapsibleTrigger>
           <CollapsibleContent>
             <div className="p-4 pt-0">
-              {fields.length > 0 && (
-                <div className={cols === 3 ? 'grid grid-cols-3 gap-3' : 'grid grid-cols-2 gap-3'}>
-                  {fields.map((f) => (
-                    <Field
-                      {...f}
-                      key={f.label}
-                      label={t(f.label)}
-                      value={state[f.key]}
-                      suffix={f.suffix ? t(f.suffix) : undefined}
-                      onChange={(v) => setState((prev) => ({ ...prev, [f.key]: v }))}
-                    />
-                  ))}
-                </div>
-              )}
+              <div className={cols === 3 ? 'grid grid-cols-3 gap-3' : 'grid grid-cols-2 gap-3'}>
+                {fields.map((f) => (
+                  <Field
+                    {...f}
+                    key={f.label}
+                    label={t(f.label)}
+                    value={state[f.key]}
+                    suffix={f.suffix ? t(f.suffix) : undefined}
+                    onChange={(v) => setState((prev) => ({ ...prev, [f.key]: v }))}
+                  />
+                ))}
+              </div>
               {extraNode && <div className="mt-3">{extraNode}</div>}
-              {rows.length > 0 && (
-                <div className={rowsClassName}>
-                  {rows.map((r) => (
-                    <ResultRow key={r.label} {...r} />
-                  ))}
-                </div>
-              )}
+              <div className={rowsClassName}>
+                {rows.map((r) => (
+                  <ResultRow key={r.label} {...r} />
+                ))}
+              </div>
               {chart}
-              {info && (
-                <div className="mt-2.5 rounded-md bg-input-bg p-3 text-caption leading-relaxed text-fg-tertiary">
-                  {t(info)}
-                </div>
-              )}
+              {info && <div className={INFO_CLS}>{t(info)}</div>}
             </div>
           </CollapsibleContent>
         </Collapsible>
@@ -239,10 +231,8 @@ const CAGRAssumption = createCalculator({
       year: i,
       value: s.initial * Math.pow(1 + s.cagr / 100, i),
     }));
-    return {
-      rows: [R('Final Value', fmtCompact(curve[s.years].value), 'brand')],
-      chart: yearArea(t, curve, 200),
-    };
+    const fv = curve[s.years].value;
+    return { rows: [R('Final Value', fmtCompact(fv), 'brand')], chart: yearArea(t, curve, 200) };
   },
 });
 const SWR = createCalculator({
@@ -258,14 +248,8 @@ const SWR = createCalculator({
   compute: (s, t) => {
     const mu = s.expectedReturn / 100,
       sigma = s.volatility / 100,
-      p = s.sT / 100,
-      swr = Math.min(
-        Math.max(
-          mu - 0.5 * sigma ** 2 - ((1.645 + (p - 0.95) * 10 * 0.842) * sigma) / Math.sqrt(s.rY),
-          0,
-        ),
-        0.1,
-      );
+      z = 1.645 + (s.sT / 100 - 0.95) * 10 * 0.842,
+      swr = Math.min(Math.max(mu - 0.5 * sigma ** 2 - (z * sigma) / Math.sqrt(s.rY), 0), 0.1);
     let r = 1;
     const pts = Array.from({ length: s.rY }, (_, i) => {
       r *= (1 + mu) * (1 - swr);
@@ -282,7 +266,7 @@ const SWR = createCalculator({
           height={160}
           xDataKey="year"
           yTickFormatter={(v) => v.toFixed(1)}
-          tooltipFormatter={(v: number) => [v.toFixed(3), t('Asset Ratio')]}
+          tooltipFormatter={(v) => [v.toFixed(3), t('Asset Ratio')]}
           series={[{ dataKey: 'ratio', color: getPortfolioColor(2), width: 2, areaOpacity: 0.12 }]}
         />
       ),
@@ -413,21 +397,17 @@ const OptionLeverage = createCalculator({
   compute: (s) => {
     const sp = s.spotPrice,
       st = s.strikePrice,
-      op = s.optionPrice;
-    let lev = 0,
-      delta = 0,
-      intr = 0,
-      tv = 0;
-    if (op > 0 && sp > 0) {
-      const sg = s.impliedVol / 100,
-        tq = s.daysToExpiry / 365,
-        sq = Math.sqrt(tq),
-        d1 = sg > 0 && sq > 0 && st > 0 ? (Math.log(sp / st) + (sg ** 2 * tq) / 2) / (sg * sq) : 0;
-      delta = normCdf(d1);
-      lev = (delta * sp) / op;
-      intr = Math.max(sp - st, 0);
-      tv = op - intr;
-    }
+      op = s.optionPrice,
+      ok = op > 0 && sp > 0,
+      sg = s.impliedVol / 100,
+      tq = s.daysToExpiry / 365,
+      sq = Math.sqrt(tq),
+      bs = ok && sg > 0 && sq > 0 && st > 0,
+      d1 = bs ? (Math.log(sp / st) + (sg ** 2 * tq) / 2) / (sg * sq) : 0,
+      delta = bs ? normCdf(d1) : 0,
+      intr = ok ? Math.max(sp - st, 0) : 0,
+      tv = ok ? op - intr : 0,
+      lev = ok ? (delta * sp) / op : 0;
     return {
       rows: [
         R('Leverage Ratio', `${lev.toFixed(2)}x`, 'brand'),
@@ -457,9 +437,15 @@ const TwoFund = createCalculator({
       cov = rho * sA * sB,
       denom = sA ** 2 + sB ** 2 - 2 * cov,
       mwA = Math.max(0, Math.min(1, denom !== 0 ? (sB ** 2 - cov) / denom : 0.5)),
+      pv = (a: number, b: number) =>
+        Math.sqrt(a ** 2 * sA ** 2 + b ** 2 * sB ** 2 + 2 * a * b * cov),
       mvc = (mwA * muA + (1 - mwA) * muB) * 100,
-      mvv =
-        Math.sqrt(mwA ** 2 * sA ** 2 + (1 - mwA) ** 2 * sB ** 2 + 2 * mwA * (1 - mwA) * cov) * 100;
+      mvv = pv(mwA, 1 - mwA) * 100;
+    const frontier = Array.from({ length: 51 }, (_, i) => {
+      const wA = i / 50,
+        wB = 1 - wA;
+      return { wA, cagr: (wA * muA + wB * muB) * 100, vol: pv(wA, wB) * 100 };
+    });
     return {
       rowsClassName: 'mt-1',
       rows: [
@@ -470,25 +456,14 @@ const TwoFund = createCalculator({
       chart: (
         <MiniChart
           type="line"
-          data={Array.from({ length: 51 }, (_, i) => {
-            const wA = i / 50,
-              wB = 1 - wA;
-            return {
-              wA,
-              cagr: (wA * muA + wB * muB) * 100,
-              vol: Math.sqrt(wA ** 2 * sA ** 2 + wB ** 2 * sB ** 2 + 2 * wA * wB * cov) * 100,
-            };
-          })}
+          data={frontier}
           xDataKey="vol"
           xType="number"
           xLabel={t('Volatility')}
           yLabel="CAGR"
           xTickFormatter={(v) => `${Number(v).toFixed(1)}%`}
           yTickFormatter={(v) => `${v.toFixed(1)}%`}
-          tooltipFormatter={(v: number, name: string) => [
-            `${v.toFixed(2)}%`,
-            name === 'cagr' ? 'CAGR' : name,
-          ]}
+          tooltipFormatter={(v, name) => [`${v.toFixed(2)}%`, name === 'cagr' ? 'CAGR' : name]}
           tooltipLabelFormatter={(l) =>
             t('Volatility: {{value}}', { value: `${Number(l).toFixed(2)}%` })
           }
@@ -500,25 +475,24 @@ const TwoFund = createCalculator({
 });
 export default function CalculatorsPage() {
   const { t } = useTranslation();
+  const grid = (
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <CAGR />
+      <FutureValue />
+      <LeverageDecay />
+      <SWR />
+      <AssetAllocationRisk />
+      <CAGRAssumption />
+      <LeverageETF />
+      <KellyLeverage />
+      <TwoFund />
+      <OptionLeverage />
+    </div>
+  );
   return (
     <div className="page-container flex flex-col gap-3 pb-4">
       <h1 className="text-page-title text-fg">{t('Investment Calculators')}</h1>
-      <ToolPageLayout
-        params={
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-            <CAGR />
-            <FutureValue />
-            <LeverageDecay />
-            <SWR />
-            <AssetAllocationRisk />
-            <CAGRAssumption />
-            <LeverageETF />
-            <KellyLeverage />
-            <TwoFund />
-            <OptionLeverage />
-          </div>
-        }
-      />
+      <ToolPageLayout params={grid} />
     </div>
   );
 }
