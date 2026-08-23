@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- 动态结果需 any */
-import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AlertTriangle, Play, TrendingDown, TrendingUp } from 'lucide-react';
 import { ComputeToolShell, type ComputeToolConfig } from '@/components/shells/index.js';
@@ -23,6 +22,7 @@ import {
 import { validateAssetWeights } from '@/utils/validation';
 type DcaFrequency = 'monthly' | 'quarterly';
 type LumpSumAsset = { ticker: string; weight: number };
+const BLANK = (): LumpSumAsset => ({ ticker: '', weight: 0 });
 const NUM_KEYS = ['cagr', 'stdev', 'maxDrawdown', 'sharpe', 'sortino'] as const;
 const OPT_KEYS = ['calmar', 'maxDrawdownDuration', 'ulcerIndex'] as const;
 type CompareResult = {
@@ -40,6 +40,7 @@ const toResult = (p: any, label: string): CompareResult =>
     finalValue: p.growthCurve?.length ? p.growthCurve[p.growthCurve.length - 1].value : 0,
     growthCurve: p.growthCurve ?? [],
   }) as CompareResult;
+const curveVal = (p: { date: string; value: number }) => p.value;
 const WIN_T =
   "has a higher final value ({{lsValue}} vs {{dcaValue}}), exceeding by {{pct}}%. However, Lump Sum's max drawdown ({{lsMdd}}) is typically larger than DCA's ({{dcaMdd}}), bearing greater psychological pressure in falling markets.";
 const LOSE_T =
@@ -59,16 +60,15 @@ function useLumpSumVsDCAState(t: TFunction) {
     dcaPeriods: 12,
     results: [] as CompareResult[],
   });
-  const { isLoading, error, run, setError } = useAsyncAction();
-  const { assets, setAssets, addAsset, removeAsset, updateAsset, totalWeight } =
-    useAssetList<LumpSumAsset>([...DEFAULT_60_40_ASSETS], () => ({ ticker: '', weight: 0 }), 0);
+  const act = useAsyncAction();
+  const list = useAssetList<LumpSumAsset>([...DEFAULT_60_40_ASSETS], BLANK, 0);
   const runComparison = () => {
-    const v = assets.filter((a) => a.ticker.trim() !== '');
-    if (!v.length) return setError(t('Please add at least one ticker'));
-    const e = validateAssetWeights(assets);
-    if (e) return setError(e);
+    const v = list.assets.filter((a) => a.ticker.trim() !== '');
+    if (!v.length) return act.setError(t('Please add at least one ticker'));
+    const e = validateAssetWeights(list.assets);
+    if (e) return act.setError(e);
     s.setResults([]);
-    run(async () => {
+    act.run(async () => {
       const base = {
         startDate: s.startDate,
         endDate: s.endDate,
@@ -118,21 +118,12 @@ function useLumpSumVsDCAState(t: TFunction) {
       s.setResults([toResult(lp, i18n.t('Lump Sum')), toResult(dp, i18n.t('DCA'))]);
     });
   };
-  return {
-    ...s,
-    isLoading,
-    error,
-    assets,
-    setAssets,
-    addAsset,
-    removeAsset,
-    updateAsset,
-    totalWeight,
-    runComparison,
-  };
+  return { ...s, ...act, ...list, runComparison };
 }
 type LumpSumVsDCAState = ReturnType<typeof useLumpSumVsDCAState>;
 type StatRow = { key: keyof CompareResult; label: string };
+type Fmt = (v: number) => string;
+type Fmts = { pct: Fmt; num: Fmt; money: Fmt };
 const STATS_ROWS: StatRow[] = [
   { key: 'finalValue', label: 'lumpSumDca.stats.finalValue' },
   { key: 'cagr', label: 'stats.cagr' },
@@ -145,17 +136,8 @@ const STATS_ROWS: StatRow[] = [
   { key: 'ulcerIndex', label: 'analysis.ulcerIndex' },
 ];
 const REQ = new Set(['finalValue', ...NUM_KEYS]);
-function StatsTable({
-  results: r,
-  fmtPct: fp,
-  fmtNum: fn,
-  fmtMoney: fm,
-}: {
-  results: CompareResult[];
-  fmtPct: (v: number) => string;
-  fmtNum: (v: number) => string;
-  fmtMoney: (v: number) => string;
-}) {
+function StatsTable({ results: r, f }: { results: CompareResult[]; f: Fmts }) {
+  const { pct: fp, num: fn, money: fm } = f;
   const { t } = useTranslation();
   const fmt = (k: string, v: number) => {
     if (k === 'finalValue') return fm(v);
@@ -184,22 +166,14 @@ function StatsTable({
     />
   );
 }
-function ConclusionAnalysis({
-  ls,
-  dca,
-  fmtPct: fp,
-  fmtMoney: fm,
-}: {
-  ls: CompareResult;
-  dca: CompareResult;
-  fmtPct: (v: number) => string;
-  fmtMoney: (v: number) => string;
-}) {
+function ConclusionAnalysis({ ls, dca, f }: { ls: CompareResult; dca: CompareResult; f: Fmts }) {
+  const { pct: fp, money: fm } = f;
   const { t } = useTranslation();
   const win = ls.finalValue > dca.finalValue,
     diff = Math.abs(ls.finalValue - dca.finalValue),
     pct = ls.finalValue ? (diff / ls.finalValue) * 100 : 0;
-  const wc = getPortfolioColor(win ? 0 : 1);
+  const wc = getPortfolioColor(win ? 0 : 1),
+    Icon = win ? TrendingUp : TrendingDown;
   const cards = [
     { label: t('Winning Strategy'), val: t(win ? 'Lump Sum' : 'DCA'), color: wc },
     { label: t('Final Value Difference'), val: `${fm(diff)} (${pct.toFixed(1)}%)` },
@@ -208,11 +182,7 @@ function ConclusionAnalysis({
   return (
     <div className="mb-5 rounded-lg bg-input-bg p-4">
       <div className="mb-2.5 flex items-center gap-2">
-        {win ? (
-          <TrendingUp className="size-5 text-success" />
-        ) : (
-          <TrendingDown className="size-5 text-brand" />
-        )}
+        <Icon className={`size-5 ${win ? 'text-success' : 'text-brand'}`} />
         <span className="text-body font-semibold text-fg">{t('Conclusion Analysis')}</span>
       </div>
       <div className="mb-3 grid grid-cols-3 gap-3">
@@ -325,16 +295,9 @@ function LumpSumVsDCAResults({ state: s }: { state: LumpSumVsDCAState }) {
   const { t } = useTranslation();
   const fm = (v: number) =>
     `${s.baseCurrency === 'usd' ? '$' : '¥'}${v.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
-  const chartData = useMemo(
-    () =>
-      F.mergeRowsByDate(
-        s.results.map((r) => ({
-          key: r.label,
-          rows: r.growthCurve,
-          value: (p: { date: string; value: number }) => p.value,
-        })),
-      ),
-    [s.results],
+  const fmts = { pct: F.fmtPct, num: F.fmtNum, money: fm };
+  const chartData = F.mergeRowsByDate(
+    s.results.map((r) => ({ key: r.label, rows: r.growthCurve, value: curveVal })),
   );
   if (s.error)
     return (
@@ -346,7 +309,7 @@ function LumpSumVsDCAResults({ state: s }: { state: LumpSumVsDCAState }) {
   const win = s.results[0].finalValue > s.results[1].finalValue;
   return (
     <U.Card className="p-5">
-      <ConclusionAnalysis ls={s.results[0]} dca={s.results[1]} fmtPct={F.fmtPct} fmtMoney={fm} />
+      <ConclusionAnalysis ls={s.results[0]} dca={s.results[1]} f={fmts} />
       <div className="mb-3 text-body font-semibold text-fg">{t('Growth Curve Comparison')}</div>
       <TimeSeriesLineChart
         data={chartData}
@@ -358,7 +321,7 @@ function LumpSumVsDCAResults({ state: s }: { state: LumpSumVsDCAState }) {
         tooltipValueFormatter={(v: number) => [fm(v), '']}
       />
       <div className="mb-3 mt-6 text-body font-semibold text-fg">{t('Statistics Comparison')}</div>
-      <StatsTable results={s.results} fmtPct={F.fmtPct} fmtNum={F.fmtNum} fmtMoney={fm} />
+      <StatsTable results={s.results} f={fmts} />
       <div className="mt-4 flex items-start gap-2.5 rounded-lg bg-input-bg p-3">
         <AlertTriangle className="mt-0.5 size-4 shrink-0 text-warning" />
         <div className="text-body leading-relaxed text-fg-tertiary">
