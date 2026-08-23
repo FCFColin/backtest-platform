@@ -1,5 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
-import type { FormEvent } from 'react';
+import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Users, Loader2, Mail, Send, Trash2 } from 'lucide-react';
 import { StandardPageShell } from '../components/shells/index.js';
@@ -10,44 +9,30 @@ import { Button, Card } from '@/components/ui/uiComponents';
 import { apiFetch } from '@/utils/apiClient';
 import i18n from '../i18n/index.js';
 import type { OrgRole } from '@backtest/shared/types/org';
-interface Member {
-  userId: string;
-  username: string;
-  email: string | null;
-  role: string;
-  createdAt: string;
-}
-interface Invitation {
-  id: string;
-  email: string;
-  role: string;
-  expiresAt: string;
-  acceptedAt: string | null;
-}
+
+type Member = { userId: string; username: string; email: string | null; role: string };
+type Invitation = { id: string; email: string; role: string; acceptedAt: string | null };
 const ROLES = ['admin', 'analyst', 'readonly'] as const;
 type Role = Exclude<OrgRole, 'owner'>;
+const TH = 'text-left text-xs font-semibold text-fg-tertiary px-[10px] py-2';
+const TD = 'text-label text-fg-secondary py-2 px-[10px]';
+const INPUT = 'bg-input-bg text-fg border border-border-subtle rounded font-medium';
+const DEL_BTN = 'inline-flex items-center bg-transparent border-0 cursor-pointer text-danger';
+const JSON_HEADERS = { 'Content-Type': 'application/json' };
 
-function useOrgMembersState(isAdmin: boolean) {
+function useOrgMembersState(admin: boolean) {
   const [members, setMembers] = useState<Member[]>([]);
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const withBusy = async (fn: () => Promise<void>) => {
-    setBusy(true);
-    try {
-      await fn();
-    } finally {
-      setBusy(false);
-    }
-  };
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const [mRes, iRes] = await Promise.all([
         apiFetch('/api/v1/orgs/members'),
-        isAdmin ? apiFetch('/api/v1/orgs/invitations') : Promise.resolve(null),
+        admin ? apiFetch('/api/v1/orgs/invitations') : Promise.resolve(null),
       ]);
       if (mRes.ok) setMembers((await mRes.json())?.data ?? []);
       if (iRes && iRes.ok) setInvitations((await iRes.json())?.data ?? []);
@@ -56,44 +41,41 @@ function useOrgMembersState(isAdmin: boolean) {
     } finally {
       setLoading(false);
     }
-  }, [isAdmin]);
-  const changeRole = async (userId: string, role: string) => {
-    await withBusy(async () => {
-      const res = await apiFetch(`/api/v1/orgs/members/${userId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ role }),
-      });
-      if (!res.ok) setError((await res.json())?.detail || i18n.t('Failed to update role'));
-      else await load();
-    });
+  }, [admin]);
+  const req = (url: string, method: string, body?: unknown) =>
+    body === undefined
+      ? apiFetch(url, { method })
+      : apiFetch(url, { method, headers: JSON_HEADERS, body: JSON.stringify(body) });
+  const act = async (failMsg: string, doReq: () => Promise<Response>, clearError = false) => {
+    setBusy(true);
+    try {
+      if (clearError) setError(null);
+      const res = await doReq();
+      if (res.ok) await load();
+      else setError((await res.json())?.detail || i18n.t(failMsg));
+    } finally {
+      setBusy(false);
+    }
   };
-  const removeMember = async (userId: string) => {
-    await withBusy(async () => {
-      const res = await apiFetch(`/api/v1/orgs/members/${userId}`, { method: 'DELETE' });
-      if (!res.ok) setError((await res.json())?.detail || i18n.t('Failed to remove member'));
-      else await load();
-    });
-  };
-  const sendInvite = async (email: string, role: string) => {
-    await withBusy(async () => {
-      setError(null);
-      const res = await apiFetch('/api/v1/orgs/invitations', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim(), role }),
-      });
-      if (!res.ok) setError((await res.json())?.detail || i18n.t('Failed to send invitation'));
-      else await load();
-    });
-  };
-  const revokeInvite = async (id: string) => {
-    await withBusy(async () => {
-      const res = await apiFetch(`/api/v1/orgs/invitations/${id}`, { method: 'DELETE' });
-      if (!res.ok) setError((await res.json())?.detail || i18n.t('Failed to revoke invitation'));
-      else await load();
-    });
-  };
+  const changeRole = (userId: string, role: string) =>
+    act('Failed to update role', () =>
+      req(`/api/v1/orgs/members/${userId}`, 'PATCH', {
+        role,
+      }),
+    );
+  const removeMember = (userId: string) =>
+    act('Failed to remove member', () => req(`/api/v1/orgs/members/${userId}`, 'DELETE'));
+  const sendInvite = (email: string, role: string) =>
+    act(
+      'Failed to send invitation',
+      () => {
+        setError(null);
+        return req('/api/v1/orgs/invitations', 'POST', { email: email.trim(), role });
+      },
+      true,
+    );
+  const revokeInvite = (id: string) =>
+    act('Failed to revoke invitation', () => req(`/api/v1/orgs/invitations/${id}`, 'DELETE'));
   return {
     members,
     invitations,
@@ -107,26 +89,13 @@ function useOrgMembersState(isAdmin: boolean) {
     revokeInvite,
   };
 }
-const TH = 'text-left text-xs font-semibold text-fg-tertiary px-[10px] py-2';
-const TD = 'text-label text-fg-secondary py-2 px-[10px]';
+
 export default function OrgMembersPage() {
   const { t } = useTranslation();
   const { org, isAdmin } = useOrgAuth();
-  const {
-    members,
-    invitations,
-    loading,
-    error,
-    busy,
-    load,
-    changeRole,
-    removeMember,
-    sendInvite,
-    revokeInvite,
-  } = useOrgMembersState(isAdmin);
-  useEffect(() => {
-    void load();
-  }, [load]);
+  const s = useOrgMembersState(isAdmin);
+  const { load } = s;
+  useEffect(() => void load(), [load]);
   return (
     <StandardPageShell
       config={{ titleKey: 'Org Members', headerExtra: <Users className="w-5 h-5 text-brand" /> }}
@@ -135,27 +104,27 @@ export default function OrgMembersPage() {
         <p className="text-label text-fg-tertiary mb-4">
           {org ? `${t('Organization:')}${org.name}` : t('Organization:')}
         </p>
-        {error ? (
-          <ErrorBanner message={error} style={{ marginBottom: 14 }} />
-        ) : loading ? (
+        {s.error ? (
+          <ErrorBanner message={s.error} style={{ marginBottom: 14 }} />
+        ) : s.loading ? (
           <div className="p-[30px] text-center text-fg-tertiary">
             <Loader2 className="w-5 h-5 animate-spin mx-auto" />
           </div>
         ) : (
           <>
             <MemberTable
-              members={members}
-              isAdmin={isAdmin}
-              busy={busy}
-              onChangeRole={changeRole}
-              onRemoveMember={removeMember}
+              members={s.members}
+              admin={isAdmin}
+              busy={s.busy}
+              onRole={s.changeRole}
+              onRemove={s.removeMember}
             />
             {isAdmin && (
               <InviteDialog
-                invitations={invitations}
-                busy={busy}
-                sendInvite={sendInvite}
-                onRevokeInvite={revokeInvite}
+                invitations={s.invitations}
+                busy={s.busy}
+                invite={s.sendInvite}
+                onRevoke={s.revokeInvite}
               />
             )}
           </>
@@ -164,102 +133,115 @@ export default function OrgMembersPage() {
     </StandardPageShell>
   );
 }
+
+function TableHead({ labels }: { labels: string[] }) {
+  const { t } = useTranslation();
+  return (
+    <thead>
+      <tr>
+        {labels.map((l) => (
+          <th key={l} scope="col" className={TH}>
+            {t(l)}
+          </th>
+        ))}
+      </tr>
+    </thead>
+  );
+}
+
 function RoleSelect({
   value,
   disabled,
-  onChange,
   className,
+  onChange,
 }: {
   value: string;
   disabled?: boolean;
-  onChange: (role: Role) => void;
   className?: string;
+  onChange: (role: Role) => void;
 }) {
   return (
-    <select
-      value={value}
-      disabled={disabled}
-      onChange={(e) => onChange(e.target.value as Role)}
-      className={className}
-    >
+    <select {...{ value, disabled, className }} onChange={(e) => onChange(e.target.value as Role)}>
       {ROLES.map((r) => (
-        <option key={r} value={r}>
-          {r}
-        </option>
+        <option key={r}>{r}</option>
       ))}
     </select>
   );
 }
+
+function ConfirmTrash({
+  question,
+  title,
+  disabled,
+  onConfirm,
+}: {
+  question: string;
+  title: string;
+  disabled: boolean;
+  onConfirm: () => void;
+}) {
+  const [dialog, confirm] = useConfirmDialog();
+  return (
+    <>
+      <button
+        onClick={() => confirm(question, onConfirm, true)}
+        disabled={disabled}
+        title={title}
+        className={DEL_BTN}
+      >
+        <Trash2 className="w-4 h-4" />
+      </button>
+      {dialog}
+    </>
+  );
+}
+
 function MemberTable({
   members,
-  isAdmin,
+  admin,
   busy,
-  onChangeRole,
-  onRemoveMember,
+  onRole,
+  onRemove,
 }: {
   members: Member[];
-  isAdmin: boolean;
+  admin: boolean;
   busy: boolean;
-  onChangeRole: (userId: string, role: string) => void;
-  onRemoveMember: (userId: string) => void;
+  onRole: (userId: string, role: string) => void;
+  onRemove: (userId: string) => void;
 }) {
   const { t } = useTranslation();
-  const [confirmDialog, confirm] = useConfirmDialog();
   return (
     <div className="overflow-x-auto">
       <table className="w-full border-collapse mb-6">
-        <thead>
-          <tr>
-            <th scope="col" className={TH}>
-              {t('User')}
-            </th>
-            <th scope="col" className={TH}>
-              {t('Email')}
-            </th>
-            <th scope="col" className={TH}>
-              {t('Role')}
-            </th>
-            {isAdmin && (
-              <th scope="col" className={TH}>
-                {t('Action')}
-              </th>
-            )}
-          </tr>
-        </thead>
+        <TableHead labels={['User', 'Email', 'Role', ...(admin ? ['Action'] : [])]} />
         <tbody>
           {members.map((m) => (
             <tr key={m.userId}>
               <td className={TD}>{m.username}</td>
               <td className={TD}>{m.email ?? '-'}</td>
               <td className={TD}>
-                {isAdmin && m.role !== 'owner' ? (
+                {admin && m.role !== 'owner' ? (
                   <RoleSelect
                     value={m.role}
                     disabled={busy}
-                    onChange={(r) => void onChangeRole(m.userId, r)}
-                    className="bg-input-bg text-fg border border-border-subtle rounded font-medium h-[32px]"
+                    onChange={(r) => void onRole(m.userId, r)}
+                    className={`${INPUT} h-[32px]`}
                   />
                 ) : (
                   <span className="capitalize">{m.role}</span>
                 )}
               </td>
-              {isAdmin && (
+              {admin && (
                 <td className={TD}>
                   {m.role !== 'owner' && (
-                    <button
-                      onClick={() =>
-                        confirm(
-                          t('Remove member {{name}}? This cannot be undone.', { name: m.username }),
-                          () => onRemoveMember(m.userId),
-                          true,
-                        )
-                      }
-                      disabled={busy}
+                    <ConfirmTrash
+                      question={t('Remove member {{name}}? This cannot be undone.', {
+                        name: m.username,
+                      })}
                       title={t('Remove Member')}
-                      className="inline-flex items-center bg-transparent border-0 cursor-pointer text-danger"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                      disabled={busy}
+                      onConfirm={() => onRemove(m.userId)}
+                    />
                   )}
                 </td>
               )}
@@ -267,27 +249,27 @@ function MemberTable({
           ))}
         </tbody>
       </table>
-      {confirmDialog}
     </div>
   );
 }
+
 function InviteDialog({
   invitations,
   busy,
-  sendInvite,
-  onRevokeInvite,
+  invite,
+  onRevoke,
 }: {
   invitations: Invitation[];
   busy: boolean;
-  sendInvite: (email: string, role: Role) => Promise<void>;
-  onRevokeInvite: (id: string) => void;
+  invite: (email: string, role: Role) => Promise<void>;
+  onRevoke: (id: string) => void;
 }) {
   const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<Role>('analyst');
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    void sendInvite(email, role).then(() => setEmail(''));
+    void invite(email, role).then(() => setEmail(''));
   };
   return (
     <div>
@@ -301,53 +283,34 @@ function InviteDialog({
           placeholder={t('Invite email')}
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="bg-input-bg text-fg border border-border-subtle rounded font-medium h-[38px] flex-[1_1_220px]"
+          className={`${INPUT} h-[38px] flex-[1_1_220px]`}
         />
-        <RoleSelect
-          value={role}
-          onChange={setRole}
-          className="bg-input-bg text-fg border border-border-subtle rounded font-medium h-[38px]"
-        />
+        <RoleSelect value={role} onChange={setRole} className={`${INPUT} h-[38px]`} />
         <Button type="submit" variant="primary" className="h-[38px] px-4" disabled={busy}>
           <Send className="w-4 h-4" /> {t('Send Invitation')}
         </Button>
       </form>
       {invitations.length > 0 && (
-        <InvitationTable invitations={invitations} busy={busy} onRevokeInvite={onRevokeInvite} />
+        <InvitationTable invitations={invitations} busy={busy} onRevoke={onRevoke} />
       )}
     </div>
   );
 }
+
 function InvitationTable({
   invitations,
   busy,
-  onRevokeInvite,
+  onRevoke,
 }: {
   invitations: Invitation[];
   busy: boolean;
-  onRevokeInvite: (id: string) => void;
+  onRevoke: (id: string) => void;
 }) {
   const { t } = useTranslation();
-  const [confirmDialog, confirm] = useConfirmDialog();
   return (
     <div className="overflow-x-auto">
       <table className="w-full border-collapse">
-        <thead>
-          <tr>
-            <th scope="col" className={TH}>
-              {t('Email')}
-            </th>
-            <th scope="col" className={TH}>
-              {t('Role')}
-            </th>
-            <th scope="col" className={TH}>
-              {t('Status')}
-            </th>
-            <th scope="col" className={TH}>
-              {t('Action')}
-            </th>
-          </tr>
-        </thead>
+        <TableHead labels={['Email', 'Role', 'Status', 'Action']} />
         <tbody>
           {invitations.map((inv) => (
             <tr key={inv.id}>
@@ -356,27 +319,18 @@ function InvitationTable({
               <td className={TD}>{inv.acceptedAt ? t('Accepted') : t('Pending')}</td>
               <td className={TD}>
                 {!inv.acceptedAt && (
-                  <button
-                    onClick={() =>
-                      confirm(
-                        t('Revoke invitation for {{email}}?', { email: inv.email }),
-                        () => onRevokeInvite(inv.id),
-                        true,
-                      )
-                    }
-                    disabled={busy}
+                  <ConfirmTrash
+                    question={t('Revoke invitation for {{email}}?', { email: inv.email })}
                     title={t('Revoke Invitation')}
-                    className="inline-flex items-center bg-transparent border-0 cursor-pointer text-danger"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                    disabled={busy}
+                    onConfirm={() => onRevoke(inv.id)}
+                  />
                 )}
               </td>
             </tr>
           ))}
         </tbody>
       </table>
-      {confirmDialog}
     </div>
   );
 }
