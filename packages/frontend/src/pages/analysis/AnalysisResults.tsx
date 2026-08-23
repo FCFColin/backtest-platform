@@ -6,26 +6,17 @@ import { type AssetAnalysisResult } from '@backtest/shared';
 import { getPortfolioColor } from '@/lib/chart-theme.js';
 import { getColorClass } from '@/components/charts/chartUtils.js';
 import { ResultsShell } from '@/components/resultsShell.js';
-import {
-  Tabs,
-  TabsList,
-  TabsTrigger,
-  TabsContent,
-  PortfolioLabel,
-  AffixInput,
-  buttonVariants,
-} from '@/components/ui/uiComponents';
+import * as U from '@/components/ui/uiComponents';
 import { Field } from '@/components/form/Field';
 import { LabeledField, DollarInput, RunButton, DateField } from '@/components/form/sharedFields';
 import { TickerTagInput } from '@/components/form/TickerTagInput.js';
 import { AllHistoryCheckbox } from '@/components/params/toolFields.js';
 import { useAnalysisData, computePairRollingCorrelation } from '../../hooks/useAnalysisData.js';
 import { apiFetch } from '../../utils/apiClient.js';
-import { downsample } from '../../utils/format.js';
 import { createComputeToolPage, TabFallback } from '../../components/shells/index.js';
 import { TOOL_LINKS } from '../../components/shells/constants.js';
 import { useComputeTool, useSetterState } from '../../hooks/miscHooks.js';
-import { fmtPct, fmtNum } from '@/utils/format';
+import { downsample, fmtPct, fmtNum } from '@/utils/format';
 import { SimpleTable, type SimpleTableColumn } from '@/components/tables.js';
 import { rowsFromMeta } from '../../components/statistics-table/columns.js';
 import type { StatRow } from '../../components/statistics-table/types.js';
@@ -41,15 +32,16 @@ const TABS = [
   { key: 'risk-return', labelKey: 'Risk vs Return' },
   { key: 'returns', labelKey: 'tabs.returns' },
 ] as const;
+interface FetchCtx {
+  startDate: string;
+  endDate: string;
+  startingValue: number;
+  rollingWindow: number;
+  correlationWindow: number;
+}
 async function fetchAnalysisResult(
   tks: string[],
-  ctx: {
-    startDate: string;
-    endDate: string;
-    startingValue: number;
-    rollingWindow: number;
-    correlationWindow: number;
-  },
+  ctx: FetchCtx,
   t: (k: string) => string,
 ): Promise<AssetAnalysisResult> {
   const c = new AbortController();
@@ -80,14 +72,13 @@ async function fetchAnalysisResult(
     });
     if (!r.ok || j.success === false) {
       const e = j.error;
-      throw new Error(
+      const d =
         (typeof e === 'object' &&
           e &&
           'detail' in e &&
           String((e as { detail?: string }).detail)) ||
-          (typeof e === 'string' && e) ||
-          (!r.ok ? `HTTP ${r.status}` : t('Analysis failed')),
-      );
+        (typeof e === 'string' && e);
+      throw new Error(d || (!r.ok ? `HTTP ${r.status}` : t('Analysis failed')));
     }
     const raw = (j.data ?? j) as Record<string, unknown>;
     const tickers = (raw.tickers ?? raw.assets ?? []) as AssetAnalysisResult['tickers'];
@@ -126,18 +117,7 @@ function useAnalysisPageState() {
     setResults,
     runCompute: runAnalysis,
   } = useComputeTool<AssetAnalysisResult>(
-    () =>
-      fetchAnalysisResult(
-        tickers.filter(Boolean).map(normalizeTicker),
-        {
-          startDate: s.startDate,
-          endDate: s.endDate,
-          startingValue: s.startingValue,
-          rollingWindow: s.rollingWindow,
-          correlationWindow: s.correlationWindow,
-        },
-        t,
-      ),
+    () => fetchAnalysisResult(tickers.filter(Boolean).map(normalizeTicker), s, t),
     () => (tickers.filter(Boolean).length ? null : t('Please enter at least one ticker')),
   );
   return { tickers, ...s, isLoading, error, results, setTickers, setResults, runAnalysis };
@@ -204,7 +184,7 @@ function AnalysisParamsPanel(p: AnalysisPageState) {
       </LabeledField>
       {mf.map(([id, lb, v, s]) => (
         <LabeledField key={id} htmlFor={id} label={t(lb)}>
-          <AffixInput
+          <U.AffixInput
             id={id}
             type="number"
             className="pr-14"
@@ -220,7 +200,7 @@ function AnalysisParamsPanel(p: AnalysisPageState) {
           onClick={p.runAnalysis}
           label={t('Run Analysis')}
           loadingLabel={t('Analyzing...')}
-          className={cn(buttonVariants({ variant: 'primary', size: 'default' }), 'w-auto')}
+          className={cn(U.buttonVariants({ variant: 'primary', size: 'default' }), 'w-auto')}
         />
       </div>
     </div>
@@ -296,20 +276,20 @@ function AnalysisResultsPanel({ state: s }: { state: AnalysisPageState }) {
       emptyIcon={LineChart}
     >
       {results && (
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="flex w-full justify-start overflow-x-auto">
+        <U.Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <U.TabsList className="flex w-full justify-start overflow-x-auto">
             {TABS.map((x) => (
-              <TabsTrigger key={x.key} value={x.key}>
+              <U.TabsTrigger key={x.key} value={x.key}>
                 {t(x.labelKey)}
-              </TabsTrigger>
+              </U.TabsTrigger>
             ))}
-          </TabsList>
+          </U.TabsList>
           {TABS.map((x) => (
-            <TabsContent key={x.key} value={x.key} className="pt-4">
+            <U.TabsContent key={x.key} value={x.key} className="pt-4">
               <Suspense fallback={<TabFallback />}>{tabMap[x.key](results)}</Suspense>
-            </TabsContent>
+            </U.TabsContent>
           ))}
-        </Tabs>
+        </U.Tabs>
       )}
     </ResultsShell>
   );
@@ -346,28 +326,19 @@ const StatsTable = memo(function StatsTable({
   tickers: AssetAnalysisResult['tickers'];
 }) {
   const { t } = useTranslation();
-  const fmt = (v: number | undefined, f: StatRow['fmt']) =>
-    f === 'duration'
-      ? v == null
-        ? '—'
-        : `${v} ${t('days')}`
-      : f === 'pct'
-        ? fmtPct(v)
-        : fmtNum(v, 2);
+  const fmt = (v: number | undefined, f: StatRow['fmt'], days: string) =>
+    f === 'duration' ? (v == null ? '—' : `${v} ${days}`) : f === 'pct' ? fmtPct(v) : fmtNum(v, 2);
   const rows = STATS_COLUMNS.filter((c) => tickers.some((x) => x.statistics[c.key] != null));
+  const metricLabel = (c: StatRow) => (c.label.includes('.') ? t(c.label) : c.label);
   const cols: SimpleTableColumn<StatRow>[] = [
-    {
-      key: 'metric',
-      label: t('Metric'),
-      render: (c) => (c.label.includes('.') ? t(c.label) : c.label),
-    },
+    { key: 'metric', label: t('Metric'), render: metricLabel },
     ...tickers.map((x, i) => ({
       key: x.ticker,
-      label: <PortfolioLabel color={getPortfolioColor(i)} name={x.ticker} />,
+      label: <U.PortfolioLabel color={getPortfolioColor(i)} name={x.ticker} />,
       align: 'right' as const,
       render: (c: StatRow) => {
         const v = x.statistics[c.key] as number | undefined;
-        const txt = fmt(v, c.fmt);
+        const txt = fmt(v, c.fmt, t('days'));
         return c.colorize && v != null ? <span className={getColorClass(v)}>{txt}</span> : txt;
       },
     })),
