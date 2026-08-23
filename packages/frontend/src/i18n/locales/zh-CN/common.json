@@ -284,7 +284,7 @@
   "Risk": "风险",   "Risk Contribution Calculator": "风险贡献计算器",   "Risk Warning:": "风险提示：",
   "Risk vs Return": "风险 vs 收益",   "Risk-Free Rate": "无风险利率",   "Role": "角色",   "Rolling Correlation": "滚动相关性",
   "Rolling Return": "滚动收益",   "Rolling Window": "滚动窗口",   "Run Analysis": "开始分析",   "Run Backtest": "运行回测",
-  "Run Mode": "运行模式",   "Run Tactical Backtest": "运行战术回测",   "Run standard Monte Carlo simulation": "运行标准蒙特卡洛模拟",
+  "Run Mode": "运行模式",   "Run Multi-Signal Analysis": "运行多信号分析",   "Run Tactical Backtest": "运行战术回测",   "Run standard Monte Carlo simulation": "运行标准蒙特卡洛模拟",
   "Running regression...": "回归分析中...",   "Running...": "运行中...",   "Runtime Environment": "运行环境",
   "Safe Withdrawal Rate (SWR) Calculator": "安全提款率 (SWR) 计算器",
   "Sample Points": "采样点数",   "Sample Tickers": "样本标的",   "Save": "保存",   "Save as JSON": "保存为JSON",

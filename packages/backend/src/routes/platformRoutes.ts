@@ -75,98 +75,77 @@ router.post(
 
 // 前端错误/性能上报：无需认证
 function handleFrontendReport(req: Request, res: Response): void {
-  const {
-    type,
-    message,
-    stack,
-    traceId,
-    context,
-    timestamp,
-    url,
-    userAgent,
-    value,
-    metric,
-    endpoint,
-    route,
-    statusCode,
-    component,
-    phase,
-  } = req.body;
-  const logPayload: Record<string, unknown> = {
-    type,
-    traceId,
-    timestamp,
-    url: url?.slice(0, 500),
-    userAgent: userAgent?.slice(0, 200),
+  const b = req.body;
+  const p: Record<string, unknown> = {
+    type: b.type,
+    traceId: b.traceId,
+    timestamp: b.timestamp,
+    url: b.url?.slice(0, 500),
+    userAgent: b.userAgent?.slice(0, 200),
   };
-
-  const vitalMetric = () => {
-    if (typeof metric === 'string' && typeof value === 'number')
-      recordFrontendWebVital(metric, value);
-  };
-  const apiMetric = () => {
-    if (typeof endpoint === 'string' && typeof value === 'number')
-      recordFrontendApiCall(
-        endpoint,
-        req.method || 'GET',
-        typeof statusCode === 'number' ? statusCode : 0,
-        value,
-      );
-  };
-  const compMetric = () => {
-    if (typeof component === 'string' && typeof phase === 'string' && typeof value === 'number')
-      recordFrontendComponentRender(component, phase, value);
-  };
-  const pageMetric = () => {
-    if (typeof metric === 'string' && typeof value === 'number')
-      recordFrontendPageLoad(metric, value);
-  };
-
-  const handlers: Record<string, () => void> = {
-    vital: () => {
-      logger.info(
-        { ...logPayload, vital: { metric, value, route } },
-        '[frontend-vital] Web Vital reported',
-      );
-      vitalMetric();
-    },
-    api_timing: () => {
-      logger.debug(
-        { ...logPayload, apiTiming: { endpoint, duration: value, statusCode, route } },
-        '[frontend-api-timing] API call timing reported',
-      );
-      apiMetric();
-    },
-    component_render: () => {
-      logger.debug(
-        { ...logPayload, componentRender: { component, phase, duration: value } },
-        '[frontend-component-render] Component render timing reported',
-      );
-      compMetric();
-    },
-    page_timing: () => {
-      logger.info(
-        { ...logPayload, pageTiming: { metric, value, route } },
-        '[frontend-page-timing] Page timing reported',
-      );
-      pageMetric();
-    },
-    navigation: () => {
-      logger.debug(
-        { ...logPayload, navigation: { route, duration: value } },
-        '[frontend-navigation] Route navigation reported',
-      );
-    },
-  };
+  const str = (v: unknown) => typeof v === 'string';
+  const num = () => typeof b.value === 'number';
 
   (
-    handlers[type] ??
-    (() => {
-      logger.warn(
-        { ...logPayload, frontendError: { message, stack: stack?.slice(0, 2000), context } },
+    ({
+      vital: () => {
+        logger.info(
+          { ...p, vital: { metric: b.metric, value: b.value, route: b.route } },
+          '[frontend-vital] Web Vital reported',
+        );
+        if (str(b.metric) && num()) recordFrontendWebVital(b.metric, b.value);
+      },
+      api_timing: () => {
+        logger.debug(
+          {
+            ...p,
+            apiTiming: {
+              endpoint: b.endpoint,
+              duration: b.value,
+              statusCode: b.statusCode,
+              route: b.route,
+            },
+          },
+          '[frontend-api-timing] API call timing reported',
+        );
+        if (str(b.endpoint) && num())
+          recordFrontendApiCall(
+            b.endpoint,
+            req.method || 'GET',
+            typeof b.statusCode === 'number' ? b.statusCode : 0,
+            b.value,
+          );
+      },
+      component_render: () => {
+        logger.debug(
+          { ...p, componentRender: { component: b.component, phase: b.phase, duration: b.value } },
+          '[frontend-component-render] Component render timing reported',
+        );
+        if (str(b.component) && str(b.phase) && num())
+          recordFrontendComponentRender(b.component, b.phase, b.value);
+      },
+      page_timing: () => {
+        logger.info(
+          { ...p, pageTiming: { metric: b.metric, value: b.value, route: b.route } },
+          '[frontend-page-timing] Page timing reported',
+        );
+        if (str(b.metric) && num()) recordFrontendPageLoad(b.metric, b.value);
+      },
+      navigation: () => {
+        logger.debug(
+          { ...p, navigation: { route: b.route, duration: b.value } },
+          '[frontend-navigation] Route navigation reported',
+        );
+      },
+    })[b.type as string] ??
+    (() =>
+      void logger.warn(
+        {
+          ...p,
+          frontendError: { message: b.message, stack: b.stack?.slice(0, 2000), context: b.context },
+        },
         '[frontend-error] Client error reported',
-      );
-    })
+      ))
   )();
   res.status(202).json({ success: true });
 }

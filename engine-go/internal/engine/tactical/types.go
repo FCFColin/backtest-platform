@@ -86,18 +86,18 @@ type HeatmapData struct {
 	Objective    string       `json:"objective"`
 }
 type TacticalGridRequest struct {
-	Indicator          string                        `json:"indicator"`
-	Param1             ParamRange                    `json:"param1"`
-	Param2             ParamRange                    `json:"param2"`
-	Dates              []string                      `json:"dates"`
-	Prices             []float64                     `json:"prices"`
-	TradingTicker      string                        `json:"tradingTicker"`
-	StartDate          string                        `json:"startDate"`
-	EndDate            string                        `json:"endDate"`
-	StartingValue      float64                       `json:"startingValue"`
-	RebalanceFrequency string                        `json:"rebalanceFrequency"`
-	Objective          string                        `json:"objective"`
-	TopN               *int                          `json:"topN,omitempty"`
+	Indicator          string     `json:"indicator"`
+	Param1             ParamRange `json:"param1"`
+	Param2             ParamRange `json:"param2"`
+	Dates              []string   `json:"dates"`
+	Prices             []float64  `json:"prices"`
+	TradingTicker      string     `json:"tradingTicker"`
+	StartDate          string     `json:"startDate"`
+	EndDate            string     `json:"endDate"`
+	StartingValue      float64    `json:"startingValue"`
+	RebalanceFrequency string     `json:"rebalanceFrequency"`
+	Objective          string     `json:"objective"`
+	TopN               *int       `json:"topN,omitempty"`
 }
 type TacticalGridResponse struct {
 	TotalCombinations int                      `json:"totalCombinations"`

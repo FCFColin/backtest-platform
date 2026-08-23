@@ -315,11 +315,11 @@ function FactorRegressionResultsPanel({ state: s }: { state: RegressionState }) 
               <Card className="p-4">
                 <BarChartContent
                   data={r.residuals.map((v, i) => ({ index: i, value: v }))}
-                  seriesNames={[t('Residuals')]}
+                  seriesNames={[t('Residual')]}
                   xDataKey="index"
                   height={200}
                   yTickFormatter={(v) => v.toFixed(3)}
-                  tooltipValueFormatter={(v) => [v.toFixed(4), t('Residuals')]}
+                  tooltipValueFormatter={(v) => [v.toFixed(4), t('Residual')]}
                   signColorSingleSeries
                   showLegend={false}
                   xTickFontSize={9}
