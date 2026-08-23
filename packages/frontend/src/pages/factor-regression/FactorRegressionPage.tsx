@@ -14,11 +14,7 @@ import { AllHistoryCheckbox } from '@/components/params/toolFields.js';
 import PortfolioEditor from '../../components/PortfolioEditor.js';
 import { Field, FieldLabel } from '../../components/form/Field.js';
 import { DateField, RunButton } from '@/components/form/sharedFields';
-import {
-  DEFAULT_BACKTEST_START_DATE,
-  DEFAULT_END_DATE,
-  DEFAULT_60_40_ASSETS,
-} from '@/utils/constants';
+import * as C from '@/utils/constants';
 import { validateAssetWeights } from '@/utils/validation';
 import { getPortfolioColor } from '@/lib/chart-theme.js';
 import { apiPostJSON, apiGetJSON } from '../../utils/apiClient.js';
@@ -36,6 +32,7 @@ const FACTOR_OPTIONS = [
 ] as const;
 const pc = getPortfolioColor;
 const FACTOR_COLORS = { alpha: pc(0), beta: pc(1), smb: pc(2), hml: pc(3) } as const;
+const newAsset = (): AssetItem => ({ ticker: '', weight: 0 });
 let ffCache: FFDataPoint[] | null = null;
 async function loadFF(): Promise<FFDataPoint[]> {
   if (ffCache) return ffCache;
@@ -97,11 +94,10 @@ async function fetchRegression(
   for (let i = 0; i < longest.dailyReturns.length; i++) {
     const d = longest.dates[i];
     if (!d) continue;
-    let ret = 0;
-    for (const tr of tks) {
+    const ret = tks.reduce((a, tr) => {
       const j = tr.dates.indexOf(d);
-      if (j >= 0) ret += tr.dailyReturns[j] * (w.get(tr.ticker) ?? 0);
-    }
+      return j >= 0 ? a + tr.dailyReturns[j] * (w.get(tr.ticker) ?? 0) : a;
+    }, 0);
     const k = d.slice(0, 7);
     agg.set(k, (agg.get(k) ?? 1) * (1 + ret));
   }
@@ -119,23 +115,18 @@ async function fetchRegression(
 }
 function useFactorRegressionState(t: TFunction) {
   const s = useSetterState({
-    startDate: DEFAULT_BACKTEST_START_DATE,
-    endDate: DEFAULT_END_DATE,
+    startDate: C.DEFAULT_BACKTEST_START_DATE,
+    endDate: C.DEFAULT_END_DATE,
     selectedFactors: ['mktRF', 'smb', 'hml'] as string[],
     result: null as FactorRegressionResult | null,
   });
-  const { assets, addAsset, removeAsset, updateAsset, totalWeight } = useAssetList<AssetItem>(
-    [...DEFAULT_60_40_ASSETS],
-    () => ({ ticker: '', weight: 0 }),
-    0,
-  );
+  const list = useAssetList([...C.DEFAULT_60_40_ASSETS], newAsset, 0);
+  const { assets } = list;
   const { isLoading, error, run, setError } = useAsyncAction();
-  const toggleFactor = (k: string) =>
-    s.setSelectedFactors(
-      s.selectedFactors.includes(k)
-        ? s.selectedFactors.filter((x) => x !== k)
-        : [...s.selectedFactors, k],
-    );
+  const toggleFactor = (k: string) => {
+    const f = s.selectedFactors;
+    s.setSelectedFactors(f.includes(k) ? f.filter((x) => x !== k) : [...f, k]);
+  };
   const runRegression = () => {
     const valid = assets.filter((x) => x.ticker.trim() !== '');
     if (valid.length === 0) return setError(t('Please add at least one ticker'));
@@ -153,19 +144,9 @@ function useFactorRegressionState(t: TFunction) {
       }
     });
   };
-  return {
-    ...s,
-    assets,
-    totalWeight,
-    isLoading,
-    error,
-    runRegression,
-    toggleFactor,
-    addAsset,
-    removeAsset,
-    updateAsset,
-  };
+  return { ...s, ...list, isLoading, error, runRegression, toggleFactor };
 }
+
 function FactorRegressionParamsPanel({ state: s }: { state: RegressionState }) {
   const { t } = useTranslation();
   return (
@@ -186,32 +167,27 @@ function FactorRegressionParamsPanel({ state: s }: { state: RegressionState }) {
         onChange={s.setStartDate}
       />
       <DateField id="fr-end-date" label={t('End Date')} value={s.endDate} onChange={s.setEndDate} />
-      <div className="col-span-full">
-        <Field>
-          <FieldLabel>{t('Factor Selection (Multi-select)')}</FieldLabel>
-          <div className="flex flex-wrap gap-2">
-            {FACTOR_OPTIONS.map(([k, l, d]) => {
-              const a = s.selectedFactors.includes(k);
-              return (
-                <button
-                  key={k}
-                  type="button"
-                  onClick={() => s.toggleFactor(k)}
-                  aria-pressed={a}
-                  className={badgeVariants({
-                    variant: a ? 'asset' : 'secondary',
-                    size: 'sm',
-                    className: 'cursor-pointer',
-                  })}
-                >
-                  {t(l)}
-                  <span className="font-normal opacity-70">({t(d)})</span>
-                </button>
-              );
-            })}
-          </div>
-        </Field>
-      </div>
+      <Field className="col-span-full">
+        <FieldLabel>{t('Factor Selection (Multi-select)')}</FieldLabel>
+        <div className="flex flex-wrap gap-2">
+          {FACTOR_OPTIONS.map(([k, l, d]) => (
+            <button
+              key={k}
+              type="button"
+              onClick={() => s.toggleFactor(k)}
+              aria-pressed={s.selectedFactors.includes(k)}
+              className={badgeVariants({
+                variant: s.selectedFactors.includes(k) ? 'asset' : 'secondary',
+                size: 'sm',
+                className: 'cursor-pointer',
+              })}
+            >
+              {t(l)}
+              <span className="font-normal opacity-70">({t(d)})</span>
+            </button>
+          ))}
+        </div>
+      </Field>
       <div className="col-span-full">
         <PortfolioEditor
           singleMode
@@ -233,15 +209,8 @@ function FactorRegressionParamsPanel({ state: s }: { state: RegressionState }) {
     </div>
   );
 }
-function RegressionResultTable({
-  result: r,
-  selectedFactors: f,
-}: {
-  result: FactorRegressionResult;
-  selectedFactors: string[];
-}) {
-  const { t } = useTranslation();
-  const C = FACTOR_COLORS;
+function regressionTable(r: FactorRegressionResult, f: string[], t: TFunction) {
+  const F = FACTOR_COLORS;
   const d = {
     alpha: t(
       "Portfolio excess return (annualized); positive means outperforming the factor model's expectation",
@@ -253,10 +222,10 @@ function RegressionResultTable({
   };
   const maybe = (on: boolean, x: [string, string, string, string, string]) => (on ? [x] : []);
   const specs: Array<[string, string, string, string, string]> = [
-    ['Alpha', C.alpha, fmtPct(r.alpha), r.alpha >= 0 ? 'text-success' : 'text-danger', d.alpha],
-    ['Beta (MKT-RF)', C.beta, fmtNum(r.beta, 3), 'text-fg', d.beta],
-    ...maybe(f.includes('smb'), ['SMB', C.smb, fmtNum(r.smb, 3), 'text-fg', d.smb]),
-    ...maybe(f.includes('hml'), ['HML', C.hml, fmtNum(r.hml, 3), 'text-fg', d.hml]),
+    ['Alpha', F.alpha, fmtPct(r.alpha), r.alpha >= 0 ? 'text-success' : 'text-danger', d.alpha],
+    ['Beta (MKT-RF)', F.beta, fmtNum(r.beta, 3), 'text-fg', d.beta],
+    ...maybe(f.includes('smb'), ['SMB', F.smb, fmtNum(r.smb, 3), 'text-fg', d.smb]),
+    ...maybe(f.includes('hml'), ['HML', F.hml, fmtNum(r.hml, 3), 'text-fg', d.hml]),
     ['R\u00B2', 'transparent', fmtNum(r.rSquared, 3), 'text-fg', d.r2],
   ];
   const rows = specs.map(([l, c, v, s, x]) => ({ label: l, color: c, value: v, cls: s, desc: x }));
@@ -308,7 +277,7 @@ function FactorRegressionResultsPanel({ state: s }: { state: RegressionState }) 
             ))}
           </div>
           <CollapsibleSection title={t('Fama-French Three-Factor Regression Results')} defaultOpen>
-            <RegressionResultTable result={r} selectedFactors={selectedFactors} />
+            {regressionTable(r, selectedFactors, t)}
           </CollapsibleSection>
           {r.residuals.length > 0 && (
             <CollapsibleSection title={t('Regression Residuals')} defaultOpen>
