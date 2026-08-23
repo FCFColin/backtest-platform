@@ -16,10 +16,11 @@ import { ResultsShell } from '@/components/resultsShell.js';
 import { MetricsGrid } from '@/components/ui/MetricsGrid';
 import { Field, FieldLabel } from '@/components/form/Field.js';
 import { CollapsibleSection } from '@/components/cards.js';
-import { SectionHeader, PercentInput } from '@/components/form/sharedFields';
-import { DollarInput, RunButton } from '@/components/form/sharedFields';
+import * as sf from '@/components/form/sharedFields';
 import SinglePortfolioEditor from '@/components/PortfolioEditor.js';
+
 type GoalAsset = { ticker: string; weight: number };
+
 function useGoalOptimizerState(t: TFunction) {
   const s = useSetterState({
     targetAmount: 1000000,
@@ -29,18 +30,10 @@ function useGoalOptimizerState(t: TFunction) {
     maxVolatility: '' as number | '',
     numSimulations: 1000,
   });
-  const { assets, addAsset, removeAsset, updateAsset, totalWeight } = useAssetList<GoalAsset>(
-    [...DEFAULT_60_40_ASSETS],
-    () => ({ ticker: '', weight: 0 }),
-    1,
-  );
-  const valid = assets.filter((a) => a.ticker.trim());
-  const {
-    isLoading,
-    error,
-    results,
-    runCompute: runOptimize,
-  } = useComputeTool<GoalOptimizerResult>(
+  const blank = (): GoalAsset => ({ ticker: '', weight: 0 });
+  const al = useAssetList<GoalAsset>([...DEFAULT_60_40_ASSETS], blank, 1);
+  const valid = al.assets.filter((a) => a.ticker.trim());
+  const ct = useComputeTool<GoalOptimizerResult>(
     async () => {
       const c: { maxDrawdown?: number; maxVolatility?: number } = {};
       if (s.maxDrawdown !== '') c.maxDrawdown = s.maxDrawdown / 100;
@@ -64,64 +57,46 @@ function useGoalOptimizerState(t: TFunction) {
     },
     () => {
       if (!valid.length) return t('Please add at least one ticker');
-      if (totalWeight !== 100) return t('Total weight must equal 100%');
+      if (al.totalWeight !== 100) return t('Total weight must equal 100%');
       if (s.targetAmount <= 0 || s.initialAmount <= 0 || s.years <= 0)
         return t('Target amount, initial amount, and time range must be positive');
       return null;
     },
   );
-  const o = {
-    assets,
-    addAsset,
-    removeAsset,
-    updateAsset,
-    totalWeight,
-    isLoading,
-    error,
-    results,
-    runOptimize,
-  };
-  return { ...s, ...o };
+  return { ...s, ...al, ...ct, runOptimize: ct.runCompute };
 }
 type GoalState = ReturnType<typeof useGoalOptimizerState>;
 const G = { top: 10, right: 20, bottom: 5, left: 60 };
+const GRID = 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4';
+
 function GoalOptimizerResultsPanel({ state: s }: { state: GoalState }) {
   const { t } = useTranslation();
   const r = s.results;
-  const g = getPortfolioColor;
-  const c0 = g(0),
-    c1 = g(1),
-    c2 = g(2),
-    c3 = g(3);
+  const [c0, c1, c2, c3] = [0, 1, 2, 3].map(getPortfolioColor);
   const p = r?.successProbability;
   const pc = !r ? '' : p! >= 0.7 ? 'hsl(var(--success))' : p! >= 0.4 ? c1 : 'hsl(var(--danger))';
-  const tc = c3;
   const b = {
     value: s.targetAmount,
     label: t('Target'),
-    color: tc,
+    color: c3,
     dash: 'dashed' as const,
     width: 1.5,
-    labelColor: tc,
+    labelColor: c3,
     labelFontSize: 11,
   };
-  const ref = (a: 'x' | 'y') => [{ axis: a, ...b }];
+  const ref = (axis: 'x' | 'y') => [{ axis, ...b }];
   const rec = r?.recommendation;
   const metrics = rec
     ? [
-        { l: t('Expected Annual Return'), v: fmtPct(rec.expectedReturn) },
-        { l: t('Required Annual Contribution'), v: fmtAmount(rec.requiredContribution) },
-        { l: t('Success Rate'), v: fmtPct(rec.successRate), c: pc },
+        { label: t('Expected Annual Return'), value: fmtPct(rec.expectedReturn) },
+        { label: t('Required Annual Contribution'), value: fmtAmount(rec.requiredContribution) },
+        { label: t('Success Rate'), value: fmtPct(rec.successRate), color: pc },
       ]
     : [];
-  const prob = {
-    dataKey: 'probability',
-    name: t('Probability'),
-    color: c0,
-    width: 2,
-    smooth: true,
-    areaOpacity: 0.3,
-  };
+  const P = t('Probability');
+  const s1 = [
+    { dataKey: 'probability', name: P, color: c0, width: 2, smooth: true, areaOpacity: 0.3 },
+  ];
   const ser2 = [
     { dataKey: 'p90', name: 'P90', color: c2, width: 1.5, smooth: true },
     { dataKey: 'median', name: t('Median'), color: c0, width: 2.5, smooth: true },
@@ -166,10 +141,10 @@ function GoalOptimizerResultsPanel({ state: s }: { state: GoalState }) {
               xType="number"
               xTickFormatter={(v) => `$${(Number(v) / 1000).toFixed(0)}k`}
               yTickFormatter={(v: number) => fmtPct(v, 1)}
-              tooltipFormatter={(v: number) => [fmtPct(v), t('Probability')]}
+              tooltipFormatter={(v: number) => [fmtPct(v), P]}
               tooltipLabelFormatter={(l) => fmtAmount(Number(l))}
               ariaLabel={t('Final Value Probability Distribution')}
-              series={[prob]}
+              series={s1}
               referenceLines={ref('x')}
             />
           </ChartCard>
@@ -190,113 +165,86 @@ function GoalOptimizerResultsPanel({ state: s }: { state: GoalState }) {
             />
           </ChartCard>
           <ChartCard title={t('Recommended Configuration')}>
-            <MetricsGrid
-              columns={3}
-              variant="border"
-              metrics={metrics.map((m) => ({ label: m.l, value: m.v, color: m.c }))}
-            />
+            <MetricsGrid columns={3} variant="border" metrics={metrics} />
           </ChartCard>
         </div>
       )}
     </ResultsShell>
   );
 }
-function GoalSettingsSection({
-  targetAmount: ta,
-  initialAmount: ia,
-  years: y,
-  setTargetAmount: sta,
-  setInitialAmount: sia,
-  setYears: sy,
-}: GoalState) {
-  const { t } = useTranslation();
-  const f = [
-    { id: 'go-target', label: t('Target Amount'), v: ta, s: sta },
-    { id: 'go-initial', label: t('Initial Amount'), v: ia, s: sia },
-  ];
-  return (
-    <section className="flex flex-col gap-3">
-      <SectionHeader
-        title={t('Goal Settings')}
-        info={t(
-          'Set your financial goal: target amount, initial amount, and investment time horizon',
-        )}
-        variant="label"
-      />
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {f.map((x) => (
-          <Field key={x.id}>
-            <FieldLabel htmlFor={x.id}>{x.label}</FieldLabel>
-            <DollarInput
-              id={x.id}
-              min={0}
-              value={x.v}
-              onChange={(e) => x.s(Number(e.target.value))}
-            />
-          </Field>
-        ))}
-        <Field>
-          <FieldLabel htmlFor="go-years">{t('Time Horizon')}</FieldLabel>
-          <AffixInput
-            id="go-years"
-            type="number"
-            min={1}
-            value={y}
-            onChange={(e) => sy(Number(e.target.value))}
-            suffix={t('y')}
-          />
-        </Field>
-      </div>
-    </section>
-  );
-}
-function AssetConfigSection({ state: s }: { state: GoalState }) {
-  const { t } = useTranslation();
-  return (
-    <section className="flex flex-col gap-3">
-      <SectionHeader
-        title={t('Asset Allocation')}
-        info={t('Add tickers and weights; total weight must equal 100%')}
-      />
-      <SinglePortfolioEditor
-        singleMode
-        assets={s.assets}
-        totalWeight={s.totalWeight}
-        onAdd={s.addAsset}
-        onRemove={s.removeAsset}
-        onUpdate={s.updateAsset}
-        wrapInSection={false}
-      />
-    </section>
-  );
-}
-function ConstraintsAndSimulation({
-  maxDrawdown: dd,
-  maxVolatility: vol,
-  numSimulations: n,
-  setMaxDrawdown: sdd,
-  setMaxVolatility: svol,
-  setNumSimulations: sn,
-}: GoalState) {
+
+function GoalOptimizerParamsPanel({ state: s }: { state: GoalState }) {
   const { t } = useTranslation();
   const ne = (v: string) => (v === '' ? '' : Number(v));
-  const f = [
-    { id: 'go-maxdd', label: t('Max Drawdown Limit'), v: dd, s: sdd },
-    { id: 'go-maxvol', label: t('Max Vol'), v: vol, s: svol },
+  const money = [
+    { id: 'go-target', label: t('Target Amount'), v: s.targetAmount, s: s.setTargetAmount },
+    { id: 'go-initial', label: t('Initial Amount'), v: s.initialAmount, s: s.setInitialAmount },
+  ];
+  const limits = [
+    { id: 'go-maxdd', label: t('Max Drawdown Limit'), v: s.maxDrawdown, s: s.setMaxDrawdown },
+    { id: 'go-maxvol', label: t('Max Vol'), v: s.maxVolatility, s: s.setMaxVolatility },
   ];
   return (
-    <>
+    <div className="flex flex-col gap-5">
+      <section className="flex flex-col gap-3">
+        <sf.SectionHeader
+          title={t('Goal Settings')}
+          info={t(
+            'Set your financial goal: target amount, initial amount, and investment time horizon',
+          )}
+          variant="label"
+        />
+        <div className={GRID}>
+          {money.map((x) => (
+            <Field key={x.id}>
+              <FieldLabel htmlFor={x.id}>{x.label}</FieldLabel>
+              <sf.DollarInput
+                id={x.id}
+                min={0}
+                value={x.v}
+                onChange={(e) => x.s(+e.target.value)}
+              />
+            </Field>
+          ))}
+          <Field>
+            <FieldLabel htmlFor="go-years">{t('Time Horizon')}</FieldLabel>
+            <AffixInput
+              id="go-years"
+              type="number"
+              min={1}
+              value={s.years}
+              onChange={(e) => s.setYears(Number(e.target.value))}
+              suffix={t('y')}
+            />
+          </Field>
+        </div>
+      </section>
+      <section className="flex flex-col gap-3">
+        <sf.SectionHeader
+          title={t('Asset Allocation')}
+          info={t('Add tickers and weights; total weight must equal 100%')}
+        />
+        <SinglePortfolioEditor
+          singleMode
+          assets={s.assets}
+          totalWeight={s.totalWeight}
+          onAdd={s.addAsset}
+          onRemove={s.removeAsset}
+          onUpdate={s.updateAsset}
+          wrapInSection={false}
+        />
+      </section>
       <CollapsibleSection
         title={t('Constraints')}
         description={t(
           'Optional: set max drawdown and max volatility constraints; simulation will filter paths that violate them',
         )}
       >
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {f.map((x) => (
+        <div className={GRID}>
+          {limits.map((x) => (
             <Field key={x.id}>
               <FieldLabel htmlFor={x.id}>{x.label}</FieldLabel>
-              <PercentInput
+              <sf.PercentInput
                 id={x.id}
                 min={0}
                 max={100}
@@ -309,13 +257,13 @@ function ConstraintsAndSimulation({
         </div>
       </CollapsibleSection>
       <section className="flex flex-col gap-3">
-        <SectionHeader
+        <sf.SectionHeader
           title={t('Simulation Parameters')}
           info={t(
             'Number of Monte Carlo simulations; more is more accurate but slower (default 1000, max 10000)',
           )}
         />
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className={GRID}>
           <Field>
             <FieldLabel htmlFor="go-sims">{t('Simulation Count')}</FieldLabel>
             <Input
@@ -323,23 +271,13 @@ function ConstraintsAndSimulation({
               type="number"
               min={100}
               max={10000}
-              value={n}
-              onChange={(e) => sn(Number(e.target.value))}
+              value={s.numSimulations}
+              onChange={(e) => s.setNumSimulations(Number(e.target.value))}
             />
           </Field>
         </div>
       </section>
-    </>
-  );
-}
-function GoalOptimizerParamsPanel({ state: s }: { state: GoalState }) {
-  const { t } = useTranslation();
-  return (
-    <div className="flex flex-col gap-5">
-      <GoalSettingsSection {...s} />
-      <AssetConfigSection state={s} />
-      <ConstraintsAndSimulation {...s} />
-      <RunButton
+      <sf.RunButton
         isLoading={s.isLoading}
         onClick={s.runOptimize}
         label={t('Start Optimization')}
