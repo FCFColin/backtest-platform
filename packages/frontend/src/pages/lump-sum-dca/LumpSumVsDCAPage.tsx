@@ -25,13 +25,16 @@ type LumpSumAsset = { ticker: string; weight: number };
 const BLANK = (): LumpSumAsset => ({ ticker: '', weight: 0 });
 const NUM_KEYS = ['cagr', 'stdev', 'maxDrawdown', 'sharpe', 'sortino'] as const;
 const OPT_KEYS = ['calmar', 'maxDrawdownDuration', 'ulcerIndex'] as const;
+const MONO = 'font-mono text-body font-semibold';
+const FG2 = 'hsl(var(--fg-secondary))';
+const CAP = 'mb-1.5 text-caption font-semibold text-fg-tertiary';
+const ERR_CARD = 'mb-3 p-6 text-center text-danger';
 type CompareResult = {
   label: string;
+  finalValue: number;
+  growthCurve: Array<{ date: string; value: number }>;
 } & Record<(typeof NUM_KEYS)[number], number> &
-  Partial<Record<(typeof OPT_KEYS)[number], number>> & {
-    finalValue: number;
-    growthCurve: Array<{ date: string; value: number }>;
-  };
+  Partial<Record<(typeof OPT_KEYS)[number], number>>;
 const toResult = (p: any, label: string): CompareResult =>
   ({
     label,
@@ -40,7 +43,7 @@ const toResult = (p: any, label: string): CompareResult =>
     finalValue: p.growthCurve?.length ? p.growthCurve[p.growthCurve.length - 1].value : 0,
     growthCurve: p.growthCurve ?? [],
   }) as CompareResult;
-const curveVal = (p: { date: string; value: number }) => p.value;
+const curveVal = ({ value }: { date: string; value: number }) => value;
 const WIN_T =
   "has a higher final value ({{lsValue}} vs {{dcaValue}}), exceeding by {{pct}}%. However, Lump Sum's max drawdown ({{lsMdd}}) is typically larger than DCA's ({{dcaMdd}}), bearing greater psychological pressure in falling markets.";
 const LOSE_T =
@@ -63,58 +66,49 @@ function useLumpSumVsDCAState(t: TFunction) {
   const act = useAsyncAction();
   const list = useAssetList<LumpSumAsset>([...DEFAULT_60_40_ASSETS], BLANK, 0);
   const runComparison = () => {
-    const v = list.assets.filter((a) => a.ticker.trim() !== '');
-    if (!v.length) return act.setError(t('Please add at least one ticker'));
-    const e = validateAssetWeights(list.assets);
-    if (e) return act.setError(e);
+    const v = list.assets.filter((a) => a.ticker.trim() !== ''),
+      err = !v.length ? t('Please add at least one ticker') : validateAssetWeights(list.assets);
+    if (err) return act.setError(err);
     s.setResults([]);
     act.run(async () => {
+      const { startDate, endDate, startingValue, baseCurrency, adjustForInflation } = s;
       const base = {
-        startDate: s.startDate,
-        endDate: s.endDate,
-        startingValue: s.startingValue,
-        baseCurrency: s.baseCurrency,
-        adjustForInflation: s.adjustForInflation,
+        startDate,
+        endDate,
+        startingValue,
+        baseCurrency,
+        adjustForInflation,
         rollingWindowMonths: 12,
         benchmarkTicker: '',
-        cashflowLegs: [],
-        oneTimeCashflows: [],
-      };
-      const def = {
-        name: 'portfolio',
-        assets: v,
-        rebalanceFrequency: 'quarterly' as const,
-        rebalanceOffset: 0,
-        drag: 0,
       };
       const leg = {
         id: `dca-${Date.now()}`,
-        amount: Math.round(s.startingValue / s.dcaPeriods),
+        amount: Math.round(startingValue / s.dcaPeriods),
         type: 'contribution' as const,
         frequency: s.dcaFrequency,
       };
-      const lumpBody = { portfolios: [{ ...def, name: 'lumpSum' }], parameters: { ...base } };
-      const dcaBody = {
-        portfolios: [{ ...def, name: 'dca' }],
-        parameters: { ...base, startingValue: 0, cashflowLegs: [leg] },
-      };
-      const post = (b: unknown) =>
+      const post = (name: string, parameters: object) =>
         apiFetch('/api/v1/backtest/portfolio', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(b),
+          body: JSON.stringify({
+            portfolios: [
+              { name, assets: v, drag: 0, rebalanceOffset: 0, rebalanceFrequency: 'quarterly' },
+            ],
+            parameters,
+          }),
         });
-      const [lr, dr] = await Promise.all([post(lumpBody), post(dcaBody)]);
+      const [lr, dr] = await Promise.all([
+        post('lumpSum', { ...base, cashflowLegs: [], oneTimeCashflows: [] }),
+        post('dca', { ...base, startingValue: 0, cashflowLegs: [leg] }),
+      ]);
       if (!lr.ok) throw new Error(`${i18n.t('Lump sum backtest failed')}: HTTP ${lr.status}`);
       if (!dr.ok) throw new Error(`${i18n.t('DCA backtest failed')}: HTTP ${dr.status}`);
-      const lj = await lr.json(),
-        dj = await dr.json();
+      const [lj, dj] = [await lr.json(), await dr.json()];
       if (lj.success === false) throw new Error(lj.error || i18n.t('Lump sum backtest failed'));
       if (dj.success === false) throw new Error(dj.error || i18n.t('DCA backtest failed'));
-      const lp = (lj.data ?? lj).portfolios?.[0],
-        dp = (dj.data ?? dj).portfolios?.[0];
-      if (!lp) throw new Error(i18n.t('Lump sum has no result'));
-      if (!dp) throw new Error(i18n.t('DCA has no result'));
+      const [lp, dp] = [(lj.data ?? lj).portfolios?.[0], (dj.data ?? dj).portfolios?.[0]];
+      if (!lp || !dp) throw new Error(i18n.t(lp ? 'DCA has no result' : 'Lump sum has no result'));
       s.setResults([toResult(lp, i18n.t('Lump Sum')), toResult(dp, i18n.t('DCA'))]);
     });
   };
@@ -139,12 +133,9 @@ const REQ = new Set(['finalValue', ...NUM_KEYS]);
 function StatsTable({ results: r, f }: { results: CompareResult[]; f: Fmts }) {
   const { pct: fp, num: fn, money: fm } = f;
   const { t } = useTranslation();
-  const fmt = (k: string, v: number) => {
-    if (k === 'finalValue') return fm(v);
-    if (k === 'maxDrawdownDuration') return t('{{count}} days', { count: v });
-    if (['cagr', 'stdev', 'maxDrawdown'].includes(k)) return fp(v);
-    return fn(v);
-  };
+  const fmters: Record<string, Fmt> = { finalValue: fm, cagr: fp, stdev: fp, maxDrawdown: fp };
+  const fmt = (k: string, v: number) =>
+    k === 'maxDrawdownDuration' ? t('{{count}} days', { count: v }) : (fmters[k] ?? fn)(v);
   const cols: SimpleTableColumn<StatRow>[] = [
     {
       key: 'metric',
@@ -153,18 +144,13 @@ function StatsTable({ results: r, f }: { results: CompareResult[]; f: Fmts }) {
     },
     ...r.map((x, i) => ({
       key: x.label,
-      label: <U.PortfolioLabel color={getPortfolioColor(i)} name={x.label} />,
       align: 'right' as const,
+      label: <U.PortfolioLabel color={getPortfolioColor(i)} name={x.label} />,
       render: (row: StatRow) => (x[row.key] != null ? fmt(row.key, x[row.key] as number) : '—'),
     })),
   ];
-  return (
-    <SimpleTable
-      columns={cols}
-      data={STATS_ROWS.filter((x) => r.some((y) => y[x.key] != null) || REQ.has(x.key))}
-      rowKey={(x) => x.key}
-    />
-  );
+  const rows = STATS_ROWS.filter((x) => r.some((y) => y[x.key] != null) || REQ.has(x.key));
+  return <SimpleTable columns={cols} data={rows} rowKey={(x) => x.key} />;
 }
 function ConclusionAnalysis({ ls, dca, f }: { ls: CompareResult; dca: CompareResult; f: Fmts }) {
   const { pct: fp, money: fm } = f;
@@ -189,10 +175,7 @@ function ConclusionAnalysis({ ls, dca, f }: { ls: CompareResult; dca: CompareRes
         {cards.map((c) => (
           <div key={c.label} className="rounded-lg bg-elevated p-3">
             <div className="mb-1 text-caption text-fg-tertiary">{c.label}</div>
-            <div
-              className="font-mono text-body font-semibold"
-              style={{ color: c.color ?? 'hsl(var(--fg-secondary))' }}
-            >
+            <div className={MONO} style={{ color: c.color ?? FG2 }}>
               {c.val}
             </div>
           </div>
@@ -214,14 +197,11 @@ function ConclusionAnalysis({ ls, dca, f }: { ls: CompareResult; dca: CompareRes
 }
 function LumpSumVsDCAParamsForm({ state: s }: { state: LumpSumVsDCAState }) {
   const { t } = useTranslation();
+  const setFreq = (v: string) => s.setDcaFrequency(v as DcaFrequency);
   return (
     <div className="flex flex-col gap-4">
       <BasicParamsFields
-        startDate={s.startDate}
-        endDate={s.endDate}
-        startingValue={s.startingValue}
-        baseCurrency={s.baseCurrency}
-        adjustForInflation={s.adjustForInflation}
+        {...s}
         onChange={(f, v) => {
           // setter 命名约定来自 useSetterState：set + 首字母大写字段名
           const setters = s as unknown as Record<string, ((x: never) => void) | undefined>;
@@ -229,16 +209,11 @@ function LumpSumVsDCAParamsForm({ state: s }: { state: LumpSumVsDCAState }) {
         }}
       />
       <div className="mt-4">
-        <div className="mb-1.5 text-caption font-semibold text-fg-tertiary">
-          {t('DCA Parameters')}
-        </div>
+        <div className={CAP}>{t('DCA Parameters')}</div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <Field>
             <FieldLabel htmlFor="lumpsum-dca-frequency">{t('DCA Frequency')}</FieldLabel>
-            <U.Select
-              value={s.dcaFrequency}
-              onValueChange={(v) => s.setDcaFrequency(v as DcaFrequency)}
-            >
+            <U.Select value={s.dcaFrequency} onValueChange={setFreq}>
               <U.SelectTrigger id="lumpsum-dca-frequency">
                 <U.SelectValue />
               </U.SelectTrigger>
@@ -301,12 +276,11 @@ function LumpSumVsDCAResults({ state: s }: { state: LumpSumVsDCAState }) {
   );
   if (s.error)
     return (
-      <U.Card className="mb-3 p-6 text-center text-danger">
+      <U.Card className={ERR_CARD}>
         {t('Comparison failed')}: {s.error}
       </U.Card>
     );
   if (s.results.length !== 2) return null;
-  const win = s.results[0].finalValue > s.results[1].finalValue;
   return (
     <U.Card className="p-5">
       <ConclusionAnalysis ls={s.results[0]} dca={s.results[1]} f={fmts} />
@@ -326,7 +300,7 @@ function LumpSumVsDCAResults({ state: s }: { state: LumpSumVsDCAState }) {
         <AlertTriangle className="mt-0.5 size-4 shrink-0 text-warning" />
         <div className="text-body leading-relaxed text-fg-tertiary">
           <strong className="text-fg-secondary">{t('Risk Warning:')}</strong>
-          {win ? t(LUMP_WARN) : t(DCA_WARN)}
+          {t(s.results[0].finalValue > s.results[1].finalValue ? LUMP_WARN : DCA_WARN)}
           {t('Historical performance does not guarantee future returns.')}
         </div>
       </div>
