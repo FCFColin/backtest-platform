@@ -21,62 +21,50 @@ vi.mock('../../../packages/backend/src/db/pool.js', () => ({
 }));
 import * as poolModule from '../../../packages/backend/src/db/pool.js';
 
-import {
-  orgRoleToGlobalRole,
-  getUserMemberships,
-  getMembership,
-  resolveDefaultOrg,
-  isPlatformAdmin,
-  listOrgMembers,
-  updateMemberRole,
-  removeMember,
-  getOrg,
-  updateOrgName,
-} from '../../../packages/backend/src/application/org/membershipService.js';
-import {
-  createInvitation,
-  listInvitations,
-  revokeInvitation,
-  acceptInvitation,
-} from '../../../packages/backend/src/application/org/invitationService.js';
+import * as svc from '../../../packages/backend/src/application/org/membershipService.js';
+import * as inv from '../../../packages/backend/src/application/org/invitationService.js';
 
 beforeEach(() => vi.clearAllMocks());
 
-function row(orgId: string, role: string, status = 'active') {
-  return {
-    org_id: orgId,
-    role,
-    org_name: `Org ${orgId}`,
-    org_slug: `org-${orgId}`,
-    org_plan: 'free',
-    org_status: status,
-  };
-}
+const row = (orgId: string, role: string, status = 'active') => ({
+  org_id: orgId,
+  role,
+  org_name: `Org ${orgId}`,
+  org_slug: `org-${orgId}`,
+  org_plan: 'free',
+  org_status: status,
+});
+
+const membership = (orgId: string, role: string) => ({
+  orgId,
+  orgName: `Org ${orgId}`,
+  orgSlug: `org-${orgId}`,
+  orgPlan: 'free',
+  orgStatus: 'active',
+  role,
+});
 
 const ORG = '11111111-1111-1111-1111-111111111111';
 const INV_ID = '22222222-2222-2222-2222-222222222222';
 const USER = '33333333-3333-3333-3333-333333333333';
 
-function invRow(overrides: Record<string, unknown> = {}) {
-  return {
-    id: INV_ID,
-    org_id: ORG,
-    email: 'a@b.com',
-    role: 'analyst',
-    invited_by: USER,
-    expires_at: new Date(Date.now() + 86400000),
-    accepted_at: null,
-    created_at: new Date('2026-01-01T00:00:00Z'),
-    ...overrides,
-  };
-}
+const invRow = (overrides: Record<string, unknown> = {}) => ({
+  id: INV_ID,
+  org_id: ORG,
+  email: 'a@b.com',
+  role: 'analyst',
+  invited_by: USER,
+  expires_at: new Date(Date.now() + 86400000),
+  accepted_at: null,
+  created_at: new Date('2026-01-01T00:00:00Z'),
+  ...overrides,
+});
 
-function mockInviteLookup(invite: Record<string, unknown> | null): void {
+const mockInviteLookup = (invite: Record<string, unknown> | null) =>
   dbMocks.client.query
     .mockResolvedValueOnce(undefined)
     .mockResolvedValueOnce({ rows: invite ? [invite] : [] })
     .mockResolvedValueOnce({ rows: invite ? [{ email: invite.email ?? 'a@b.com' }] : [] });
-}
 
 describe('orgRoleToGlobalRole', () => {
   it.each([
@@ -84,30 +72,17 @@ describe('orgRoleToGlobalRole', () => {
     ['其它角色应原样返回', 'analyst', 'analyst'],
     ['readonly 应原样返回', 'readonly', 'readonly'],
   ] as const)('%s', (_n, role, expected) => {
-    expect(orgRoleToGlobalRole(role)).toBe(expected);
+    expect(svc.orgRoleToGlobalRole(role)).toBe(expected);
   });
 });
 
 describe('getUserMemberships', () => {
   it.each([
-    [
-      '应映射数据库行为 Membership 对象',
-      [{ rows: [row('a', 'owner')] }],
-      [
-        {
-          orgId: 'a',
-          orgName: 'Org a',
-          orgSlug: 'org-a',
-          orgPlan: 'free',
-          orgStatus: 'active',
-          role: 'owner',
-        },
-      ],
-    ],
+    ['映射为 Membership 对象', [{ rows: [row('a', 'owner')] }], [membership('a', 'owner')]],
     ['无成员关系时应返回空数组', [{ rows: [] }], []],
   ])('%s', async (_n, queryResult, expected) => {
     dbMocks.query.mockResolvedValueOnce(queryResult[0]);
-    expect(await getUserMemberships('u1')).toEqual(expected);
+    expect(await svc.getUserMemberships('u1')).toEqual(expected);
   });
 });
 
@@ -117,7 +92,7 @@ describe('getMembership', () => {
     ['不属于组织时应返回 null', [{ rows: [] }], false],
   ])('%s', async (_n, queryResult, found) => {
     dbMocks.query.mockResolvedValueOnce(queryResult[0]);
-    const m = await getMembership('u1', 'a');
+    const m = await svc.getMembership('u1', 'a');
     if (found) {
       expect(m?.orgId).toBe('a');
       expect(m?.role).toBe('analyst');
@@ -129,12 +104,7 @@ describe('getMembership', () => {
 
 describe('resolveDefaultOrg', () => {
   it.each([
-    [
-      '应优先选择角色优先级最高的组织（owner > analyst）',
-      [row('a', 'analyst'), row('b', 'owner')],
-      'b',
-      'owner',
-    ],
+    ['角色优先级选最高（owner > analyst）', [row('a', 'analyst'), row('b', 'owner')], 'b', 'owner'],
     [
       '应跳过非 active 组织优先选 active',
       [row('a', 'owner', 'suspended'), row('b', 'readonly', 'active')],
@@ -150,7 +120,7 @@ describe('resolveDefaultOrg', () => {
     ['无成员关系时应返回 null', [], null, null],
   ])('%s', async (_n, rows, orgId, role) => {
     dbMocks.query.mockResolvedValueOnce({ rows });
-    const m = await resolveDefaultOrg('u1');
+    const m = await svc.resolveDefaultOrg('u1');
     if (orgId === null) {
       expect(m).toBeNull();
     } else {
@@ -168,7 +138,7 @@ describe('isPlatformAdmin', () => {
   ])('%s', async (_n, result, expected) => {
     if (result instanceof Error) dbMocks.query.mockRejectedValueOnce(result);
     else dbMocks.query.mockResolvedValueOnce(result);
-    expect(await isPlatformAdmin('u1')).toBe(expected);
+    expect(await svc.isPlatformAdmin('u1')).toBe(expected);
   });
 });
 
@@ -185,7 +155,7 @@ describe('listOrgMembers', () => {
     dbMocks.query.mockResolvedValueOnce({
       rows: [memberRow('u1', 'owner'), memberRow('u2', 'analyst')],
     });
-    const result = await listOrgMembers('org-1');
+    const result = await svc.listOrgMembers('org-1');
     expect(result).toHaveLength(2);
     expect(result[0]).toMatchObject({
       userId: 'u1',
@@ -198,38 +168,28 @@ describe('listOrgMembers', () => {
 
   it('空组织应返回空数组', async () => {
     dbMocks.query.mockResolvedValueOnce({ rows: [] });
-    expect(await listOrgMembers('org-empty')).toEqual([]);
+    expect(await svc.listOrgMembers('org-empty')).toEqual([]);
   });
 
   it('email 为 null 时应映射为 null', async () => {
     dbMocks.query.mockResolvedValueOnce({
       rows: [{ ...memberRow('u3', 'readonly'), email: null }],
     });
-    const result = await listOrgMembers('org-1');
-    expect(result[0].email).toBeNull();
+    expect((await svc.listOrgMembers('org-1'))[0]?.email).toBeNull();
   });
 });
 
 describe.each([
-  ['updateMemberRole', updateMemberRole, 'UPDATE memberships m SET role'],
-  ['removeMember', removeMember, 'DELETE FROM memberships m'],
+  ['updateMemberRole', svc.updateMemberRole, 'UPDATE memberships m SET role'],
+  ['removeMember', svc.removeMember, 'DELETE FROM memberships m'],
 ] as const)('%s', (_fnName, fn, sqlFrag) => {
-  it.each<[string, unknown, unknown, unknown, string]>([
-    ['单语句条件更新命中应返回 ok', { rows: [{ id: 'm1' }] }, undefined, undefined, 'ok'],
-    ['成员不存在应返回 not_found', { rows: [] }, { rows: [] }, undefined, 'not_found'],
-    [
-      '最后一个 owner 应返回 last_owner',
-      { rows: [] },
-      { rows: [{ role: 'owner' }] },
-      undefined,
-      'last_owner',
-    ],
-  ])('%s', async (_n, q1, q2, q3, expected) => {
-    dbMocks.query.mockResolvedValueOnce(q1);
-    if (q2) dbMocks.query.mockResolvedValueOnce(q2);
-    if (q3) dbMocks.query.mockResolvedValueOnce(q3);
-    const r = await fn('org-1', 'u1', 'admin');
-    expect(r).toBe(expected);
+  it.each<[string, unknown[], string]>([
+    ['单语句条件更新命中应返回 ok', [{ rows: [{ id: 'm1' }] }], 'ok'],
+    ['成员不存在应返回 not_found', [{ rows: [] }, { rows: [] }], 'not_found'],
+    ['末位 owner 应返回 last_owner', [{ rows: [] }, { rows: [{ role: 'owner' }] }], 'last_owner'],
+  ])('%s', async (_n, results, expected) => {
+    for (const r of results) dbMocks.query.mockResolvedValueOnce(r);
+    expect(await fn('org-1', 'u1', 'admin')).toBe(expected);
     if (expected === 'ok') {
       expect(dbMocks.query.mock.calls.some((c) => String(c[0]).includes(sqlFrag))).toBe(true);
     }
@@ -246,7 +206,7 @@ describe('getOrg', () => {
     ['不存在应返回 null', { rows: [] }, null],
   ])('%s', async (_n, result, expected) => {
     dbMocks.query.mockResolvedValueOnce(result);
-    const org = await getOrg('org-1');
+    const org = await svc.getOrg('org-1');
     if (expected === null) expect(org).toBeNull();
     else expect(org).toMatchObject(expected as Record<string, string>);
   });
@@ -258,7 +218,7 @@ describe('updateOrgName', () => {
     ['无匹配组织应返回 false', { rowCount: 0 }, false],
   ])('%s', async (_n, result, expected) => {
     dbMocks.query.mockResolvedValueOnce(result);
-    expect(await updateOrgName('org-1', 'New Name')).toBe(expected);
+    expect(await svc.updateOrgName('org-1', 'New Name')).toBe(expected);
     if (expected) {
       expect(dbMocks.query).toHaveBeenCalledWith(
         expect.stringContaining('UPDATE organizations SET name'),
@@ -273,13 +233,12 @@ describe('createInvitation', () => {
     dbMocks.client.query
       .mockResolvedValueOnce({ rowCount: 0 }) // DELETE 历史待处理
       .mockResolvedValueOnce({ rows: [invRow()] }); // INSERT RETURNING
-    const created = await createInvitation(ORG, 'a@b.com', 'analyst', USER);
+    const created = await inv.createInvitation(ORG, 'a@b.com', 'analyst', USER);
 
     expect(created.token).toMatch(/^[A-Za-z0-9_-]+$/);
     expect(created.id).toBe(INV_ID);
     expect(dbMocks.client.query.mock.calls[0][0]).toContain('DELETE FROM invitations');
-    const insertParams = dbMocks.client.query.mock.calls[1][1] as unknown[];
-    const tokenHash = insertParams[3] as string;
+    const tokenHash = (dbMocks.client.query.mock.calls[1][1] as unknown[])[3] as string;
     expect(tokenHash).toMatch(/^[0-9a-f]{64}$/);
     expect(tokenHash).not.toContain(created.token);
   });
@@ -288,63 +247,51 @@ describe('createInvitation', () => {
 describe('listInvitations / revokeInvitation', () => {
   it('list 应经 withTenantReadOnly（RLS 隔离）并按 org_id 过滤映射记录', async () => {
     dbMocks.client.query.mockResolvedValueOnce({ rows: [invRow()] });
-    const list = await listInvitations(ORG);
+    const list = await inv.listInvitations(ORG);
     expect(list).toHaveLength(1);
     expect(list[0]).toMatchObject({ id: INV_ID, orgId: ORG, email: 'a@b.com', role: 'analyst' });
-    expect(vi.mocked(poolModule.withTenantReadOnly)).toHaveBeenCalledTimes(1);
-    expect(vi.mocked(poolModule.withTenantReadOnly)).toHaveBeenCalledWith(
-      ORG,
-      expect.any(Function),
-    );
+    const wtr = vi.mocked(poolModule.withTenantReadOnly);
+    expect(wtr).toHaveBeenCalledTimes(1);
+    expect(wtr).toHaveBeenCalledWith(ORG, expect.any(Function));
     expect(dbMocks.client.query.mock.calls[0][1]).toEqual([ORG]);
   });
 
-  it('revoke 应以 org_id 收敛且仅作用于未接受邀请', async () => {
-    dbMocks.client.query.mockResolvedValueOnce({ rowCount: 0 });
-    expect(await revokeInvitation(ORG, INV_ID)).toBe(false);
+  it.each([
+    ['revoke 成功返回 true', { rowCount: 1 }, true],
+    ['revoke 应以 org_id 收敛且仅作用于未接受邀请', { rowCount: 0 }, false],
+  ])('%s', async (_n, result, ok) => {
+    dbMocks.client.query.mockResolvedValueOnce(result);
+    expect(await inv.revokeInvitation(ORG, INV_ID)).toBe(ok);
     const [sql, params] = dbMocks.client.query.mock.calls[0];
     expect(sql).toContain('accepted_at IS NULL');
     expect(params).toEqual([INV_ID, ORG]);
-  });
-
-  it('revoke 成功返回 true', async () => {
-    dbMocks.client.query.mockResolvedValueOnce({ rowCount: 1 });
-    expect(await revokeInvitation(ORG, INV_ID)).toBe(true);
   });
 });
 
 describe('acceptInvitation', () => {
   it('非法/空令牌应直接拒绝', async () => {
-    expect(await acceptInvitation('', USER)).toEqual({ ok: false, reason: 'invalid' });
+    expect(await inv.acceptInvitation('', USER)).toEqual({ ok: false, reason: 'invalid' });
     expect(dbMocks.client.query).not.toHaveBeenCalled();
   });
 
-  it('令牌不存在应返回 invalid', async () => {
-    mockInviteLookup(null);
-    const result = await acceptInvitation('sometoken', USER);
-    expect(result).toEqual({ ok: false, reason: 'invalid' });
-    expect(dbMocks.client.query).toHaveBeenCalledWith('COMMIT');
-  });
-
-  it('已接受应返回 already', async () => {
-    mockInviteLookup(invRow({ accepted_at: new Date() }));
-    expect(await acceptInvitation('sometoken', USER)).toEqual({ ok: false, reason: 'already' });
-  });
-
-  it('已过期应返回 expired', async () => {
-    mockInviteLookup(invRow({ expires_at: new Date(Date.now() - 1000) }));
-    expect(await acceptInvitation('sometoken', USER)).toEqual({ ok: false, reason: 'expired' });
+  it.each<[string, Record<string, unknown> | null, { ok: boolean; reason: string }]>([
+    ['令牌不存在应返回 invalid', null, { ok: false, reason: 'invalid' }],
+    ['已接受应返回 already', { accepted_at: new Date() }, { ok: false, reason: 'already' }],
+    ['已过期应返回 expired', { expires_at: new Date(0) }, { ok: false, reason: 'expired' }],
+  ])('%s', async (_n, overrides, expected) => {
+    mockInviteLookup(overrides && invRow(overrides));
+    expect(await inv.acceptInvitation('sometoken', USER)).toEqual(expected);
+    if (expected.reason === 'invalid') expect(dbMocks.client.query).toHaveBeenCalledWith('COMMIT');
   });
 
   it('有效令牌应 upsert membership、标记已接受并提交', async () => {
     mockInviteLookup(invRow());
     dbMocks.client.query.mockResolvedValue(undefined);
-    const result = await acceptInvitation('sometoken', USER);
+    const result = await inv.acceptInvitation('sometoken', USER);
     expect(result).toEqual({ ok: true, orgId: ORG, role: 'analyst' });
     expect(dbMocks.client.query).toHaveBeenCalledWith('COMMIT');
-    const insertCall = dbMocks.client.query.mock.calls.find((c) =>
-      String(c[0]).includes('INSERT INTO memberships'),
-    );
+    const calls = dbMocks.client.query.mock.calls;
+    const insertCall = calls.find((c) => String(c[0]).includes('INSERT INTO memberships'));
     expect(insertCall?.[1]).toEqual([ORG, USER, 'analyst']);
   });
 
@@ -354,14 +301,11 @@ describe('acceptInvitation', () => {
       .mockResolvedValueOnce({ rows: [invRow()] })
       .mockResolvedValueOnce({ rows: [{ email: 'other@example.com' }] })
       .mockResolvedValue(undefined);
-    const result = await acceptInvitation('sometoken', USER);
+    const result = await inv.acceptInvitation('sometoken', USER);
     expect(result).toEqual({ ok: false, reason: 'invalid' });
-    const emailCall = dbMocks.client.query.mock.calls.find((c) =>
-      String(c[0]).includes('SELECT email FROM users'),
-    );
+    const calls = dbMocks.client.query.mock.calls;
+    const emailCall = calls.find((c) => String(c[0]).includes('SELECT email FROM users'));
     expect(emailCall?.[1]).toEqual([USER]);
-    expect(
-      dbMocks.client.query.mock.calls.some((c) => String(c[0]).includes('INSERT INTO memberships')),
-    ).toBe(false);
+    expect(calls.some((c) => String(c[0]).includes('INSERT INTO memberships'))).toBe(false);
   });
 });
