@@ -333,10 +333,10 @@ export function useChartCalcWorker<T>(task: WorkerTask | null) {
   }, []);
   useEffect(() => {
     if (!task || !workerRef.current) return;
-    const k = task.type + ':' + JSON.stringify(task.payload),
-      id = (lastId.current = idRef.current++);
+    const k = task.type + ':' + JSON.stringify(task.payload);
     if (k === lastKey.current) return;
     lastKey.current = k;
+    const id = (lastId.current = idRef.current++);
     setIsPending(true);
     workerRef.current.postMessage({ id, ...task });
   }, [task]);

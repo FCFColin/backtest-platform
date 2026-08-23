@@ -85,7 +85,7 @@ function CapabilityCard({
     </Card>
   );
 }
-function BacktestHero() {
+export function BacktestHero() {
   const { t } = useTranslation();
   const [exp, setExp] = useState(() => {
     try {

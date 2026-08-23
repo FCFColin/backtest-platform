@@ -253,24 +253,21 @@ describe('analysis-service', () => {
 
   describe('runAnalysis', () => {
     const params = mockBacktestParams({ startDate: '2020-01-01', endDate: '2020-12-31' });
+    const DATE_RANGE = {
+      requested: { start: '2020-01-01', end: '2020-12-31' },
+      actual: { start: '2020-01-02', end: '2020-12-30' },
+      clamped: false,
+    };
     const prep = (over: Record<string, unknown> = {}) =>
       helpersMocks.preparePriceDataAndWarnings.mockResolvedValue({
         priceData: {},
         warnings: [],
         invalidTickers: [],
-        effectiveStartDate: '2020-01-02',
-        effectiveEndDate: '2020-12-30',
         allTickers: new Set<string>(),
+        dateRange: DATE_RANGE,
         ...over,
       });
-    beforeEach(() => {
-      prep({});
-      helpersMocks.calculateDateRange.mockReturnValue({
-        requested: { start: '2020-01-01', end: '2020-12-31' },
-        actual: { start: '2020-01-02', end: '2020-12-30' },
-        clamped: false,
-      });
-    });
+    beforeEach(() => prep({}));
     it('正常路径：获取数据、调用引擎、返回组装结果', async () => {
       prep({ priceData: mockPriceData });
       mockEngine({

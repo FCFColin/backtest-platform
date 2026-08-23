@@ -44,7 +44,11 @@ export function portfolioToDomain(raw: Portfolio): DomainPortfolio {
   return translateDomainError(() => DomainPortfolio.fromDTO(raw));
 }
 
-function preparePortfolioBacktest(
+export function portfolioToEngineBody(raw: Portfolio): Record<string, unknown> {
+  return portfolioToDomain(raw).toEngineBody();
+}
+
+export function preparePortfolioBacktest(
   portfolios: Portfolio[],
   parameters: BacktestParameters,
 ): { domainPortfolios: DomainPortfolio[]; allTickers: Set<string> } {
@@ -59,18 +63,16 @@ function preparePortfolioBacktest(
   return { domainPortfolios, allTickers };
 }
 
-function clampParametersToDataRange<T extends Pick<BacktestParameters, 'startDate' | 'endDate'>>(
-  parameters: T,
-  effectiveStartDate: string,
-  effectiveEndDate: string,
-): T {
+export function clampParametersToDataRange<
+  T extends Pick<BacktestParameters, 'startDate' | 'endDate'>,
+>(parameters: T, effectiveStartDate: string, effectiveEndDate: string): T {
   return effectiveStartDate !== parameters.startDate || effectiveEndDate !== parameters.endDate
     ? { ...parameters, startDate: effectiveStartDate, endDate: effectiveEndDate }
     : parameters;
 }
 
 /** 根据 priceData 识别无效 ticker，填充 warnings。 */
-function collectInvalidTickerWarnings(
+export function collectInvalidTickerWarnings(
   allTickers: Set<string>,
   priceData: Record<string, unknown>,
   warnings: Warning[],
@@ -121,7 +123,7 @@ function inferDateRangeFromData(
   return minDate && maxDate ? { min: minDate, max: maxDate } : null;
 }
 
-function calculateDateRange(
+export function calculateDateRange(
   startDate: string,
   endDate: string,
   effectiveStartDate: string,

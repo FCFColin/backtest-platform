@@ -84,7 +84,7 @@ async function runAnalysisWithFetch<T>(
   return { data: await run(priceData), warnings, degraded, degradedWarning };
 }
 
-function validatePcaRequest(req: PCARequest): string[] {
+export function validatePcaRequest(req: PCARequest): string[] {
   if (!Array.isArray(req.tickers) || req.tickers.length === 0) {
     throw new ValidationError('Missing or invalid field: tickers (must be a non-empty array)');
   }
@@ -137,7 +137,7 @@ export async function executeLetfAnalyzeWithFetch(req: LETFRequest) {
   );
 }
 
-function validateGoalOptimizerAssets(request: GoalOptimizerRequest): string[] {
+export function validateGoalOptimizerAssets(request: GoalOptimizerRequest): string[] {
   const validAssets = request.assets.filter((a) => a.ticker && a.ticker.trim());
   if (validAssets.length === 0) {
     throw new ValidationError('Please add at least one valid ticker');
