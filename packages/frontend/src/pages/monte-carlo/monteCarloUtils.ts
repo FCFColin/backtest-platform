@@ -1,10 +1,6 @@
 ﻿import { useSetterState } from '@/hooks/miscHooks.js';
 import type { TFunction } from 'i18next';
-import {
-  type MonteCarloResult,
-  type PerPathMetrics,
-  type BacktestParameters,
-} from '@backtest/shared';
+import type { MonteCarloResult, PerPathMetrics, BacktestParameters } from '@backtest/shared';
 import { apiFetch } from '@/utils/apiClient';
 import i18n from '@/i18n/index.js';
 import { validatePortfolioCore } from '@/utils/validation';
@@ -32,12 +28,11 @@ export const RESULT_TABS: { key: ResultTab; label: string }[] = [
   { key: 'distributions', label: 'Distributions' },
   { key: 'scenarios', label: 'Scenarios' },
 ];
+const assetsOf = (...aw: [string, number][]): PortfolioState['assets'] =>
+  aw.map(([ticker, weight]) => ({ ticker, weight }));
 const DEFAULT_ASSETS: Record<1 | 2, PortfolioState['assets']> = {
   1: DEFAULT_60_40_ASSETS,
-  2: [
-    { ticker: 'VXUS', weight: 50 },
-    { ticker: 'BND', weight: 50 },
-  ],
+  2: assetsOf(['VXUS', 50], ['BND', 50]),
 };
 const createDefaultPortfolio = (suffix: number): PortfolioState => ({
   name: i18n.t('Portfolio {{suffix}}', { suffix }),
@@ -45,25 +40,13 @@ const createDefaultPortfolio = (suffix: number): PortfolioState => ({
   rebalanceFrequency: 'yearly',
 });
 const PRESETS: [string, PortfolioState['assets'], number, number, number, number, number][] = [
-  ['monteCarlo.presets.preset6040', DEFAULT_ASSETS[1], 20, 500, 100000, 1, 5],
-  ['monteCarlo.presets.presetAllStockDCA', [{ ticker: 'VTI', weight: 100 }], 30, 1000, 50000, 1, 5],
-  [
-    'monteCarlo.presets.presetThreeFund',
-    [
-      { ticker: 'VTI', weight: 50 },
-      { ticker: 'VXUS', weight: 30 },
-      { ticker: 'BND', weight: 20 },
-    ],
-    25,
-    500,
-    200000,
-    2,
-    8,
-  ],
+  ['preset6040', DEFAULT_ASSETS[1], 20, 500, 100000, 1, 5],
+  ['presetAllStockDCA', assetsOf(['VTI', 100]), 30, 1000, 50000, 1, 5],
+  ['presetThreeFund', assetsOf(['VTI', 50], ['VXUS', 30], ['BND', 20]), 25, 500, 200000, 2, 8],
 ];
 export function buildPresets(t: McSetters): Array<{ label: string; onClick: () => void }> {
   return PRESETS.map(([labelKey, assets, years, sims, value, min, max]) => ({
-    label: i18n.t(labelKey),
+    label: i18n.t(`monteCarlo.presets.${labelKey}`),
     onClick: () => {
       t.setPortfolioMode(1);
       t.setPortfolios([{ ...createDefaultPortfolio(1), assets }]);
@@ -75,6 +58,7 @@ export function buildPresets(t: McSetters): Array<{ label: string; onClick: () =
     },
   }));
 }
+const weightSum = (p: PortfolioState) => p.assets.reduce((s, a) => s + (a.weight || 0), 0);
 function usePortfolioOperations(
   portfolios: PortfolioState[],
   setPortfolios: (v: PortfolioState[]) => void,
@@ -91,10 +75,8 @@ function usePortfolioOperations(
       update(pIdx, {
         assets: portfolios[pIdx].assets.map((a, i) => (i === aIdx ? { ...a, [field]: val } : a)),
       }),
-    getTotalWeight: (pIdx: number) =>
-      portfolios[pIdx].assets.reduce((s, a) => s + (a.weight || 0), 0),
-    isComplete: (pIdx: number) =>
-      portfolios[pIdx].assets.reduce((s, a) => s + (a.weight || 0), 0) === 100,
+    getTotalWeight: (pIdx: number) => weightSum(portfolios[pIdx]),
+    isComplete: (pIdx: number) => weightSum(portfolios[pIdx]) === 100,
   };
 }
 const validatePortfolios = (
@@ -125,11 +107,7 @@ async function fetchMcResult(
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      portfolio: {
-        name: p.name,
-        assets: p.assets.filter((a) => a.ticker.trim()),
-        rebalanceFrequency: p.rebalanceFrequency,
-      },
+      portfolio: { ...p, assets: p.assets.filter((a) => a.ticker.trim()) },
       ...reqBody,
     }),
   });
@@ -160,13 +138,8 @@ const MC_INITIAL = {
   goal2: 'minMaxDrawdown',
   goalWeight: 50,
 };
-function useMcSetters(): typeof MC_INITIAL & {
-  [K in keyof typeof MC_INITIAL as `set${Capitalize<string & K>}`]: (
-    v: (typeof MC_INITIAL)[K],
-  ) => void;
-} {
-  return useSetterState(MC_INITIAL);
-}
+// useSetterState already returns the state plus `set<PascalCase>` setters for every key.
+const useMcSetters = () => useSetterState(MC_INITIAL);
 type McSetters = ReturnType<typeof useMcSetters>;
 type PortfolioOps = ReturnType<typeof usePortfolioOperations>;
 async function executeSimulation(s: McSetters, ops: PortfolioOps): Promise<void> {
@@ -228,16 +201,9 @@ export const metricLabels = (t: TFunction) =>
 export const METRIC_FORMAT = Object.fromEntries(
   DIST_METRICS.map((m) => [m.key, m.format]),
 ) as Record<DistMetric, (v: number) => string>;
-const SUMMARY_QUANTILES: Array<[string, number]> = [
-  ['Min', 0],
-  ['P10', 0.1],
-  ['P25', 0.25],
-  ['P50', 0.5],
-  ['Mean', -1],
-  ['P75', 0.75],
-  ['P90', 0.9],
-  ['Max', 1],
-];
+// -1 encodes the Mean row; other values are quantile fractions.
+const FRACTIONS = { Min: 0, P10: 0.1, P25: 0.25, P50: 0.5, Mean: -1, P75: 0.75, P90: 0.9, Max: 1 };
+const SUMMARY_QUANTILES = Object.entries(FRACTIONS);
 export const SUMMARY_STATS = SUMMARY_QUANTILES.map(([name]) => name).concat('Std');
 export interface FanDataPoint {
   month: number;
@@ -262,15 +228,8 @@ export function buildTerminalHistogram(r: MonteCarloResult, startingValue: numbe
   const vals = metrics.map((m) => m.finalValue * startingValue);
   const { bins, labelFor } = buildBinData(vals, 25, dollarKFormatter);
   const [p5Val, p50Val, p95Val] = [0.05, 0.5, 0.95].map((f) => percentile(vals, f));
-  return {
-    data: bins,
-    p5Val,
-    p50Val,
-    p95Val,
-    p5Label: labelFor(p5Val),
-    p50Label: labelFor(p50Val),
-    p95Label: labelFor(p95Val),
-  };
+  const [p5Label, p50Label, p95Label] = [p5Val, p50Val, p95Val].map(labelFor);
+  return { data: bins, p5Val, p50Val, p95Val, p5Label, p50Label, p95Label };
 }
 export const monthFormatter = (v: number) => (Number.isInteger(v / 12) ? `${v / 12}y` : '');
 export const dollarKFormatter = (v: number) => `$${(v / 1000).toFixed(0)}k`;
@@ -316,8 +275,8 @@ export function buildSummaryData(r: MonteCarloResult, startingValue: number, t: 
     const vals = metricValues(metrics, key, startingValue);
     const p = (f: number) => percentile(vals, f),
       m = mean(vals),
-      s = std(vals),
-      fmt = METRIC_FORMAT[key];
+      s = std(vals);
+    const fmt = METRIC_FORMAT[key];
     const values: Record<string, string> = { Std: key === 'finalValue' ? fmtAmount(s) : fmtNum(s) };
     for (const [name, frac] of SUMMARY_QUANTILES)
       values[name] = fmt(
@@ -346,13 +305,9 @@ export function buildDistHistogram(
   const { bins, labelFor } = buildBinData(vals, 40, BIN_FORMATTERS[metric]);
   const medianVal = percentile(vals, 0.5),
     meanVal = mean(vals);
-  return {
-    data: bins,
-    medianLabel: labelFor(medianVal),
-    meanLabel: labelFor(meanVal),
-    medianVal,
-    meanVal,
-  };
+  const medianLabel = labelFor(medianVal),
+    meanLabel = labelFor(meanVal);
+  return { data: bins, medianVal, meanVal, medianLabel, meanLabel };
 }
 export function buildScenarioData(r: MonteCarloResult, startingValue: number) {
   const rp = r.representativePaths;
