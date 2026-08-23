@@ -33,7 +33,16 @@ const h2Cls = 'mb-3 mt-6 text-body font-semibold text-fg';
 const capCls = 'mb-1.5 text-caption font-medium text-fg-secondary';
 const symCls = 'text-body text-fg-tertiary font-mono shrink-0';
 const numProps = { type: 'number', className: 'font-mono tabular-nums' } as const;
+const sufCls = 'text-caption text-fg-tertiary shrink-0';
 const PG = PL.ParamGroup;
+const inp = (base: any, s: any, k: string, x: any = {}) => (
+  <UI.Input
+    {...base}
+    value={s.form[k]}
+    onChange={(e) => s.patchForm({ [k]: e.target.value })}
+    {...x}
+  />
+);
 const freqLabel = (f: any, v?: number) =>
   f === 'threshold'
     ? i18n.t('Threshold ({{value}}%)', { value: v })
@@ -174,29 +183,15 @@ const CONS_DEFS = [
   ['enableMaxDD', 'maxDD', 'maxDrawdownConstraint', 'maxDrawdownPlaceholder', 'maxDrawdown'],
   ['enableMinCagr', 'minCagr', 'cagrConstraint', 'cagrPlaceholder', 'minCagr'],
 ] as const;
+const rangeFlds = (p: string) =>
+  [
+    ['Min', `${p}Min`],
+    ['Max', `${p}Max`],
+    ['backtest.optimizer.step', `${p}Step`],
+  ] as const;
 const RANGE_DEFS = [
-  [
-    'backtest.optimizer.thresholdRange',
-    '',
-    '%',
-    '0.5',
-    [
-      ['Min', 'thrMin'],
-      ['Max', 'thrMax'],
-      ['backtest.optimizer.step', 'thrStep'],
-    ],
-  ],
-  [
-    'backtest.optimizer.capitalRange',
-    '$',
-    '',
-    '1000',
-    [
-      ['Min', 'capMin'],
-      ['Max', 'capMax'],
-      ['backtest.optimizer.step', 'capStep'],
-    ],
-  ],
+  ['backtest.optimizer.thresholdRange', '', '%', '0.5', rangeFlds('thr')],
+  ['backtest.optimizer.capitalRange', '$', '', '1000', rangeFlds('cap')],
 ] as const;
 const DATE_FLS = [
   ['startDate', 'Start Date', 'date'],
@@ -205,6 +200,7 @@ const DATE_FLS = [
 ] as const;
 export function OptimizerParams({ s }: { s: BacktestOptimizerState }) {
   const { t } = useTranslation();
+  const sym = useSettingsStore((x: any) => x.currency) === 'cny' ? '¥' : '$';
   return (
     <PL.ParamsPanel>
       <PG title={t('Portfolio Allocation')} info={t('Add tickers and weights for optimization')}>
@@ -218,7 +214,44 @@ export function OptimizerParams({ s }: { s: BacktestOptimizerState }) {
           wrapInSection={false}
         />
       </PG>
-      <ParameterSpaceSection s={s} />
+      <PG
+        title={t('Parameter Space')}
+        info={t('Set the search range for rebalance frequency and thresholds')}
+      >
+        <div className="flex flex-col gap-3">
+          <div>
+            <div className={capCls}>{t('Rebalancing Frequency')}</div>
+            <div className="flex flex-wrap gap-2">
+              {REBALANCE_FREQUENCY_OPTIONS.map(({ value, label }) => (
+                <UI.Button
+                  key={value}
+                  variant={s.frequencies.includes(value) ? 'primary' : 'secondary'}
+                  size="sm"
+                  onClick={() => s.toggleFreq(value)}
+                >
+                  {t(label)}
+                </UI.Button>
+              ))}
+            </div>
+          </div>
+          {RANGE_DEFS.map(([tk, pre, suf, stp, flds]) => (
+            <div key={tk}>
+              <div className={capCls}>{t(tk)}</div>
+              <PL.ParamRow>
+                {flds.map(([lk, fk]) => (
+                  <PL.ParamCard key={lk} label={t(lk)}>
+                    <div className="flex items-center gap-2">
+                      {pre && <span className={symCls}>{sym}</span>}
+                      {inp(numProps, s, fk, { step: stp })}
+                      {suf && <span className={sufCls}>{suf}</span>}
+                    </div>
+                  </PL.ParamCard>
+                ))}
+              </PL.ParamRow>
+            </div>
+          ))}
+        </div>
+      </PG>
       <PG title={t('Objective')} info={t('Select optimization objective and constraints')}>
         <PL.ParamRow>
           <PL.ParamCard label={t('Target')}>
@@ -249,15 +282,12 @@ export function OptimizerParams({ s }: { s: BacktestOptimizerState }) {
                 </span>
               </label>
               <div className="flex flex-1 items-center gap-2">
-                <UI.Input
-                  {...numProps}
-                  step="0.1"
-                  value={s.form[vk]}
-                  onChange={(e) => s.patchForm({ [vk]: e.target.value })}
-                  placeholder={t(`backtest.optimizer.${pk}`)}
-                  disabled={!s.form[ek]}
-                />
-                <span className="text-caption text-fg-tertiary shrink-0">%</span>
+                {inp(numProps, s, vk, {
+                  step: '0.1',
+                  placeholder: t(`backtest.optimizer.${pk}`),
+                  disabled: !s.form[ek],
+                })}
+                <span className={sufCls}>%</span>
               </div>
             </div>
           ))}
@@ -267,12 +297,7 @@ export function OptimizerParams({ s }: { s: BacktestOptimizerState }) {
         <PL.ParamRow>
           {DATE_FLS.map(([k, lk, ty, pk]) => (
             <PL.ParamCard key={k} label={t(lk)}>
-              <UI.Input
-                type={ty}
-                value={s.form[k]}
-                onChange={(e) => s.patchForm({ [k]: e.target.value })}
-                placeholder={pk ? t(`backtest.optimizer.${pk}`) : undefined}
-              />
+              {inp({}, s, k, { type: ty, placeholder: pk && t(`backtest.optimizer.${pk}`) })}
             </PL.ParamCard>
           ))}
         </PL.ParamRow>
@@ -371,73 +396,17 @@ export function OptimizerResults({ s }: { s: BacktestOptimizerState }) {
     </ResultsShell>
   );
 }
-function ParameterSpaceSection({ s }: { s: BacktestOptimizerState }) {
-  const { t } = useTranslation();
-  const cur = useSettingsStore((x: any) => x.currency);
-  const sym = cur === 'cny' ? '¥' : '$';
-  return (
-    <PG
-      title={t('Parameter Space')}
-      info={t('Set the search range for rebalance frequency and thresholds')}
-    >
-      <div className="flex flex-col gap-3">
-        <div>
-          <div className={capCls}>{t('Rebalancing Frequency')}</div>
-          <div className="flex flex-wrap gap-2">
-            {REBALANCE_FREQUENCY_OPTIONS.map(({ value, label }) => (
-              <UI.Button
-                key={value}
-                variant={s.frequencies.includes(value) ? 'primary' : 'secondary'}
-                size="sm"
-                onClick={() => s.toggleFreq(value)}
-              >
-                {t(label)}
-              </UI.Button>
-            ))}
-          </div>
-        </div>
-        {RANGE_DEFS.map(([tk, pre, suf, stp, flds]) => (
-          <div key={tk}>
-            <div className={capCls}>{t(tk)}</div>
-            <PL.ParamRow>
-              {flds.map(([lk, fk]) => (
-                <PL.ParamCard key={lk} label={t(lk)}>
-                  <div className="flex items-center gap-2">
-                    {pre && <span className={symCls}>{sym}</span>}
-                    <UI.Input
-                      {...numProps}
-                      step={stp}
-                      value={s.form[fk]}
-                      onChange={(e) => s.patchForm({ [fk]: e.target.value })}
-                    />
-                    {suf && <span className="text-caption text-fg-tertiary shrink-0">{suf}</span>}
-                  </div>
-                </PL.ParamCard>
-              ))}
-            </PL.ParamRow>
-          </div>
-        ))}
-      </div>
-    </PG>
-  );
-}
+const OPT = 'backtest.optimizer.';
 const config: ComputeToolConfig<BacktestOptimizerState> = {
-  titleKey: 'backtest.optimizer.pageTitle',
+  titleKey: `${OPT}pageTitle`,
   seoDescKey: 'optimizer.seoDesc',
   seoFeatures: [
-    {
-      titleKey: 'backtest.optimizer.featureParamSpaceTitle',
-      descKey: 'backtest.optimizer.featureParamSpaceDesc',
-    },
-    {
-      titleKey: 'backtest.optimizer.featureMultiObjectiveTitle',
-      descKey: 'backtest.optimizer.featureMultiObjectiveDesc',
-    },
+    { titleKey: `${OPT}featureParamSpaceTitle`, descKey: `${OPT}featureParamSpaceDesc` },
+    { titleKey: `${OPT}featureMultiObjectiveTitle`, descKey: `${OPT}featureMultiObjectiveDesc` },
   ],
   params: ({ state }: any) => <OptimizerParams s={state} />,
   results: ({ state }: any) => <OptimizerResults s={state} />,
 };
 export default function BacktestOptimizerPage() {
-  const s = useOptimizerState();
-  return <ComputeToolShell config={config} state={s} />;
+  return <ComputeToolShell config={config} state={useOptimizerState()} />;
 }
