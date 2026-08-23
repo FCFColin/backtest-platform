@@ -2,13 +2,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- ECharts 动态构造需 any */
 import { ArrowRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { getCorrelationColor, getPortfolioColor } from '@/lib/chart-theme.js';
+import { getCorrelationColor, getPortfolioColor as portColor } from '@/lib/chart-theme.js';
 import { getCorrelationTextColor } from '@/components/charts/chartUtils.js';
 import { MatrixHeatmap } from '@/components/charts/tables.js';
 import { SimpleChart, XYScatterChart } from '@/components/charts/sharedChartContent.js';
-import { Checkbox, Input, AffixInput, Button } from '@/components/ui/uiComponents';
+import { Checkbox, Input, Button } from '@/components/ui/uiComponents';
 import { Field as FieldShell, FieldLabel } from '@/components/form/Field';
 import { SectionHeader, SelectField, RunButton, DateField } from '@/components/form/sharedFields';
+import { PercentInput } from '@/components/form/sharedFields';
 import { AssetSelectionField, AllHistoryCheckbox } from '@/components/params/toolFields.js';
 import { ErrorBanner } from '@/components/stateDisplay';
 import { ResultsShell } from '@/components/resultsShell';
@@ -36,6 +37,9 @@ const REBAL_OPTS = cvt(
 );
 const RET_OPTS = cvt('maxCagr:backtest.optimizer.maxCagr,minVolatility:Minimize Volatility');
 const SOLVER_OPTS = cvt('markowitz:Markowitz,nsga2:NSGA-II');
+const C_OK = 'hsl(var(--success))',
+  C_FG2 = 'hsl(var(--fg-secondary))',
+  C_FG3 = 'hsl(var(--fg-tertiary))';
 const toOpts = <V extends string>(a: readonly (readonly [V, string])[], t: (k: string) => string) =>
   a.map(([v, l]) => ({ value: v, label: t(l) }));
 const sColor = (s: number, lo: number, hi: number) =>
@@ -50,6 +54,8 @@ const pc = (p: EfficientFrontierPoint) => ({
   expectedReturn: +(p.expectedReturn * 100).toFixed(2),
   sharpeRatio: p.sharpeRatio,
 });
+const pctWeights = (w: Record<string, number>) =>
+  Object.fromEntries(Object.entries(w).map(([k, x]) => [k, +(x * 100).toFixed(1)]));
 function useEfficientFrontierState() {
   const nav = useNavigate();
   const [tickers, setTickers] = useState(['VTI', 'VXUS', 'BND', 'TLT']);
@@ -70,19 +76,14 @@ function useEfficientFrontierState() {
   });
   const { startDate, endDate, results, setResults } = s;
   const { isLoading, error, run, setError } = useAsyncAction();
-  const { maxSharpe, sharpeRange, scatterData, allocationData, allAssetTickers } = useMemo(() => {
+  const derived = useMemo(() => {
     const f = results?.frontier ?? [],
       sp = f.map((p) => p.sharpeRatio);
     return {
       maxSharpe: f[0] && f.reduce((b, p) => (p.sharpeRatio > b.sharpeRatio ? p : b)),
       sharpeRange: sp.length ? { min: Math.min(...sp), max: Math.max(...sp) } : { min: 0, max: 1 },
       scatterData: f.map(pc),
-      allocationData: f.map((p, i) => ({
-        point: i + 1,
-        ...Object.fromEntries(
-          Object.entries(p.weights).map(([k, w]) => [k, +(w * 100).toFixed(1)]),
-        ),
-      })),
+      allocationData: f.map((p, i) => ({ point: i + 1, ...pctWeights(p.weights) })),
       allAssetTickers: Object.keys(f[0]?.weights ?? {}),
     };
   }, [results]);
@@ -127,7 +128,7 @@ function useEfficientFrontierState() {
     });
   };
   const handleLoadInBacktester = (p?: EfficientFrontierPoint) => {
-    const q = p || maxSharpe;
+    const q = p || derived.maxSharpe;
     if (!q) return;
     const body = buildSinglePortfolioBody(
       i18n.t('Portfolio'),
@@ -145,11 +146,7 @@ function useEfficientFrontierState() {
     error,
     run: runFrontier,
     ...s,
-    maxSharpe,
-    sharpeRange,
-    scatterData,
-    allocationData,
-    allAssetTickers,
+    ...derived,
     handleLoadInBacktester,
   };
 }
@@ -201,11 +198,9 @@ function FrontierParams({ state: s }: { state: FrontierState }) {
           ))}
           <FieldShell>
             <FieldLabel>{t('Min Inclusion Weight')}</FieldLabel>
-            <AffixInput
-              type="number"
+            <PercentInput
               min={0}
               max={100}
-              suffix="%"
               value={s.minInclusionWeight}
               onChange={(e) => s.setMinInclusionWeight(Number(e.target.value))}
             />
@@ -229,17 +224,17 @@ function FrontierParams({ state: s }: { state: FrontierState }) {
 }
 function FrontierResults({ state: s }: { state: FrontierState }) {
   const { t } = useTranslation();
-  const frontier = s.results?.frontier ?? [];
-  const series: any[] = [
-    ...s.scatterData.map((e) => ({
-      data: [e],
-      color: sColor(e.sharpeRatio, s.sharpeRange.min, s.sharpeRange.max),
-      symbolSize: 6,
-    })),
-    ...(s.maxSharpe
-      ? [{ data: [pc(s.maxSharpe)], color: getPortfolioColor(0), symbol: 'star', symbolSize: 12 }]
-      : []),
-  ];
+  const frontier = s.results?.frontier ?? [],
+    rb = s.rebalanceFrequency,
+    rfLabel = t(`efficientFrontier.rebalanceFreq.${rb}`, { defaultValue: '' }) || rb,
+    sel = s.selectedPoint,
+    ms = s.maxSharpe;
+  const series: any[] = s.scatterData.map((e) => ({
+    data: [e],
+    color: sColor(e.sharpeRatio, s.sharpeRange.min, s.sharpeRange.max),
+    symbolSize: 6,
+  }));
+  if (ms) series.push({ data: [pc(ms)], color: portColor(0), symbol: 'star', symbolSize: 12 });
   const weightBlock = (weights: Record<string, number>, title: string) => (
     <div>
       <div className="mb-2 text-caption text-fg-tertiary">{title}</div>
@@ -250,7 +245,7 @@ function FrontierResults({ state: s }: { state: FrontierState }) {
             <div className="h-4 flex-1 overflow-hidden rounded-sm bg-input-bg">
               <div
                 className="h-full rounded-sm"
-                style={{ width: `${w * 100}%`, backgroundColor: getPortfolioColor(i) }}
+                style={{ width: `${w * 100}%`, backgroundColor: portColor(i) }}
               />
             </div>
             <span className="font-mono text-caption tabular-nums text-fg-tertiary">
@@ -264,7 +259,7 @@ function FrontierResults({ state: s }: { state: FrontierState }) {
   const statsBlock = (pt: EfficientFrontierPoint) => (
     <div className="flex flex-col gap-2">
       {[
-        [t('Expected Return'), fmtPct(pt.expectedReturn), 'hsl(var(--success))'],
+        [t('Expected Return'), fmtPct(pt.expectedReturn), C_OK],
         [t('Expected Volatility'), fmtPct(pt.expectedVolatility), 'hsl(var(--warning))'],
         [t('Sharpe Ratio'), pt.sharpeRatio.toFixed(2), 'hsl(var(--brand))'],
       ].map(([label, value, color]) => (
@@ -272,10 +267,18 @@ function FrontierResults({ state: s }: { state: FrontierState }) {
       ))}
     </div>
   );
-  const sel = s.selectedPoint;
-  const rfLabel =
-    t(`efficientFrontier.rebalanceFreq.${s.rebalanceFrequency}`, { defaultValue: '' }) ||
-    s.rebalanceFrequency;
+  const legend = s.allAssetTickers.map((ticker, i) => (
+    <div key={ticker} className="flex items-center gap-1 text-caption">
+      <span className="inline-block size-3 rounded" style={{ backgroundColor: portColor(i) }} />
+      <span className="text-fg-tertiary">{ticker}</span>
+    </div>
+  ));
+  const metrics = [
+    ['Rebalancing Frequency', rfLabel, C_FG2],
+    ['Allow Cash Allocation', s.allowCash ? t('Yes') : t('No'), s.allowCash ? C_OK : C_FG3],
+    ['Return Objective', s.returnObjective === 'maxCagr' ? t('Max CAGR') : t('Min Vol'), C_FG2],
+    ['Solver', t(`efficientFrontier.solver.${s.solver}`, { defaultValue: s.solver }), C_FG2],
+  ].map(([label, value, color]) => ({ label: t(label), value, color }));
   return (
     <div className="flex flex-col gap-6">
       <div>
@@ -296,7 +299,7 @@ function FrontierResults({ state: s }: { state: FrontierState }) {
           tooltipFormatter={(v: number) => `${v.toFixed(2)}%`}
           series={series}
           onClick={({ seriesIndex: i }) => {
-            const q = i === undefined ? undefined : (frontier[i] ?? s.maxSharpe);
+            const q = i === undefined ? undefined : (frontier[i] ?? ms);
             if (q) s.setSelectedPoint(q);
           }}
         />
@@ -316,22 +319,12 @@ function FrontierResults({ state: s }: { state: FrontierState }) {
             showLegend={false}
             series={s.allAssetTickers.map((ticker, i) => ({
               dataKey: ticker,
-              color: getPortfolioColor(i),
+              color: portColor(i),
               stackId: '1',
               areaOpacity: 0.8,
             }))}
           />
-          <div className="mt-2 flex flex-wrap justify-center gap-4">
-            {s.allAssetTickers.map((ticker, i) => (
-              <div key={ticker} className="flex items-center gap-1 text-caption">
-                <span
-                  className="inline-block size-3 rounded"
-                  style={{ backgroundColor: getPortfolioColor(i) }}
-                />
-                <span className="text-fg-tertiary">{ticker}</span>
-              </div>
-            ))}
-          </div>
+          <div className="mt-2 flex flex-wrap justify-center gap-4">{legend}</div>
         </div>
       )}
       {s.correlations && s.correlations.tickers.length >= 2 && (
@@ -362,61 +355,37 @@ function FrontierResults({ state: s }: { state: FrontierState }) {
           </div>
         </div>
       )}
-      {s.maxSharpe && (
+      {ms && (
         <div>
           <h3 className="mb-3 mt-6 text-h3 font-semibold text-fg">{t('Max Sharpe Portfolio')}</h3>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {weightBlock(s.maxSharpe.weights, t('Weight'))}
-            <div className="flex flex-col gap-3">{statsBlock(s.maxSharpe)}</div>
+            {weightBlock(ms.weights, t('Weight'))}
+            <div className="flex flex-col gap-3">{statsBlock(ms)}</div>
           </div>
         </div>
       )}
       <div>
         <h3 className="mb-3 mt-6 text-h3 font-semibold text-fg">{t('Parameters Summary')}</h3>
-        <MetricsGrid
-          metrics={[
-            {
-              label: t('Rebalancing Frequency'),
-              value: rfLabel,
-              color: 'hsl(var(--fg-secondary))',
-            },
-            {
-              label: t('Allow Cash Allocation'),
-              value: s.allowCash ? t('Yes') : t('No'),
-              color: s.allowCash ? 'hsl(var(--success))' : 'hsl(var(--fg-tertiary))',
-            },
-            {
-              label: t('Return Objective'),
-              value: s.returnObjective === 'maxCagr' ? t('Max CAGR') : t('Min Vol'),
-              color: 'hsl(var(--fg-secondary))',
-            },
-            {
-              label: t('Solver'),
-              value: t(`efficientFrontier.solver.${s.solver}`, { defaultValue: s.solver }),
-              color: 'hsl(var(--fg-secondary))',
-            },
-          ]}
-        />
+        <MetricsGrid metrics={metrics} />
       </div>
     </div>
   );
 }
 function FrontierResultsView({ state: s }: { state: FrontierState }) {
-  const { t } = useTranslation();
+  const { t } = useTranslation(),
+    ce = s.correlationError;
   return (
     <ResultsShell
       error={s.error}
       errorPrefix={`${t('Calculation failed')}: `}
       isLoading={s.isLoading}
-      hasResults={!!s.results && s.results.frontier.length > 0}
+      hasResults={!!s.results?.frontier.length}
       loadingLabel={t('Calculating...')}
       emptyTitle={t('Set parameters and click "Calculate Efficient Frontier" to view results')}
       onRetry={s.run}
     >
       <div className="flex flex-col gap-3">
-        {s.correlationError && !s.error && (
-          <ErrorBanner message={s.correlationError} variant="warning" />
-        )}
+        {ce && !s.error && <ErrorBanner message={ce} variant="warning" />}
         {s.results && s.results.frontier.length > 0 && <FrontierResults state={s} />}
       </div>
     </ResultsShell>
