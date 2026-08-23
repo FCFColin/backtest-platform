@@ -17,26 +17,16 @@ export interface PortfolioFieldProps {
   onUpdate: (id: string, patch: Partial<Portfolio>) => void;
 }
 
-interface SelectCoreProps {
-  value: string;
-  onChange: (v: string) => void;
-}
-function MiniSelect({
-  value,
-  onChange,
-  items,
-  cls = 'h-8 w-[120px]',
-}: SelectCoreProps & {
-  items: [string, string][];
-  cls?: string;
-}) {
+type SelectCoreProps = { value: string; onChange: (v: string) => void };
+
+function MiniSelect(p: SelectCoreProps & { items: [string, string][]; cls?: string }) {
   return (
-    <UI.Select value={value} onValueChange={onChange}>
-      <UI.SelectTrigger className={cls}>
+    <UI.Select value={p.value} onValueChange={p.onChange}>
+      <UI.SelectTrigger className={p.cls ?? 'h-8 w-[120px]'}>
         <UI.SelectValue />
       </UI.SelectTrigger>
       <UI.SelectContent>
-        {items.map(([v, l]) => (
+        {p.items.map(([v, l]) => (
           <UI.SelectItem key={v} value={v}>
             {l}
           </UI.SelectItem>
@@ -45,21 +35,13 @@ function MiniSelect({
     </UI.Select>
   );
 }
-function PortfolioSelect({
-  value,
-  onChange,
-  portfolios,
-  label,
-}: SelectCoreProps & {
-  portfolios: StorePortfolio[];
-  label: string;
-}) {
+function PortfolioSelect(p: SelectCoreProps & { portfolios: StorePortfolio[]; label: string }) {
   return (
-    <ParamCard label={label}>
+    <ParamCard label={p.label}>
       <MiniSelect
-        value={value}
-        onChange={onChange}
-        items={portfolios.map((p, i) => [p.id, p.name || `${label} ${i + 1}`])}
+        value={p.value}
+        onChange={p.onChange}
+        items={p.portfolios.map((pf, i) => [pf.id, pf.name || `${p.label} ${i + 1}`])}
       />
     </ParamCard>
   );
@@ -74,28 +56,21 @@ function GlidepathFields(p: {
   onYearsChange: (v: number) => void;
 }) {
   const { t } = useTranslation();
+  const sel = (lb: string, val: string, on: (v: string) => void) => (
+    <PortfolioSelect value={val} portfolios={p.portfolios} label={t(lb)} onChange={on} />
+  );
   return (
     <>
-      <PortfolioSelect
-        value={p.from}
-        onChange={p.onFromChange}
-        portfolios={p.portfolios}
-        label={t('Source Portfolio')}
-      />
-      <PortfolioSelect
-        value={p.to}
-        onChange={p.onToChange}
-        portfolios={p.portfolios}
-        label={t('Target Portfolio')}
-      />
+      {sel('Source Portfolio', p.from, p.onFromChange)}
+      {sel('Target Portfolio', p.to, p.onToChange)}
       <ParamCard label={t('Transition Years')}>
         <UI.Input
           type="number"
-          value={p.years}
-          onChange={(e) => p.onYearsChange(Number(e.target.value) || 1)}
           min={1}
           max={50}
+          value={p.years}
           className="h-8 w-[60px] font-mono tabular-nums"
+          onChange={(e) => p.onYearsChange(Number(e.target.value) || 1)}
         />
       </ParamCard>
     </>
@@ -146,12 +121,12 @@ export function GlidepathForm(p: {
     </div>
   );
 }
-export function GlidepathConfig({
-  portfolio,
-  nonGlidepathPortfolios,
-  onUpdate,
-}: PortfolioFieldProps & { nonGlidepathPortfolios: StorePortfolio[] }) {
+export function GlidepathConfig(
+  p: PortfolioFieldProps & { nonGlidepathPortfolios: StorePortfolio[] },
+) {
   const { t } = useTranslation();
+  const { portfolio } = p;
+  const base = portfolio.glidepathToWeights ?? portfolio.assets.map(() => 0);
   return (
     <div className="p-2 mb-1.5 bg-elevated rounded-md border border-border-subtle">
       <div className="text-label-tiny font-semibold text-brand mb-1.5 tracking-tight">
@@ -162,20 +137,19 @@ export function GlidepathConfig({
           from={portfolio.glidepathFrom ?? ''}
           to={portfolio.glidepathTo ?? ''}
           years={portfolio.glidepathYears ?? 10}
-          portfolios={nonGlidepathPortfolios}
-          onFromChange={(v) => onUpdate(portfolio.id, { glidepathFrom: v })}
-          onToChange={(v) => onUpdate(portfolio.id, { glidepathTo: v })}
-          onYearsChange={(v) => onUpdate(portfolio.id, { glidepathYears: v })}
+          portfolios={p.nonGlidepathPortfolios}
+          onFromChange={(v) => p.onUpdate(portfolio.id, { glidepathFrom: v })}
+          onToChange={(v) => p.onUpdate(portfolio.id, { glidepathTo: v })}
+          onYearsChange={(v) => p.onUpdate(portfolio.id, { glidepathYears: v })}
         />
       </div>
       <div className="mt-1.5 text-label-tiny text-fg-tertiary">Target Weights</div>
       <div className="flex flex-wrap gap-1.5 mt-1">
         {portfolio.assets.map((asset, ai) => {
           const w = portfolio.glidepathToWeights?.[ai];
-          const base = portfolio.glidepathToWeights ?? portfolio.assets.map(() => 0);
           return (
             <div key={ai} className="flex flex-col gap-0.5 min-w-[90px]">
-              <label className="text-micro text-fg-tertiary whitespace-nowrap overflow-hidden text-ellipsis">
+              <label className="text-micro text-fg-tertiary truncate">
                 {asset.ticker || `Asset ${ai + 1}`}
               </label>
               <div className="flex items-center gap-1 h-7">
@@ -189,7 +163,7 @@ export function GlidepathConfig({
                   onChange={(e) => {
                     const next = [...base];
                     next[ai] = e.target.value === '' ? 0 : Number(e.target.value) / 100;
-                    onUpdate(portfolio.id, { glidepathToWeights: next });
+                    p.onUpdate(portfolio.id, { glidepathToWeights: next });
                   }}
                 />
                 <span className="text-caption text-fg-tertiary shrink-0">%</span>
@@ -201,42 +175,38 @@ export function GlidepathConfig({
     </div>
   );
 }
-export function AssetWeightRow({
-  asset,
-  onUpdate,
-  onDelete,
-}: {
+export function AssetWeightRow(p: {
   asset: Asset;
   onUpdate: (a: Asset) => void;
   onDelete: () => void;
 }) {
   const { t } = useTranslation();
-  const meta = useTickerMeta(asset.ticker);
+  const meta = useTickerMeta(p.asset.ticker);
   return (
     <div className="group">
       <div className="flex flex-wrap items-center gap-2">
         <UI.Input
-          value={asset.ticker}
+          value={p.asset.ticker}
           placeholder="VTI"
           className="w-full min-w-[200px] flex-1 sm:w-[220px] sm:flex-none font-mono uppercase h-9"
-          onChange={(e) => onUpdate({ ...asset, ticker: e.target.value.toUpperCase() })}
+          onChange={(e) => p.onUpdate({ ...p.asset, ticker: e.target.value.toUpperCase() })}
         />
         <UI.Input
           type="number"
-          value={asset.weight}
+          value={p.asset.weight}
           min={0}
           max={100}
           step={0.1}
           className="w-[100px] font-mono tabular-nums text-right h-9"
-          onChange={(e) => onUpdate({ ...asset, weight: Number(e.target.value) })}
+          onChange={(e) => p.onUpdate({ ...p.asset, weight: Number(e.target.value) })}
         />
         <span className="text-caption text-fg-tertiary w-4">%</span>
         <UI.Button
           variant="ghost"
           size="icon"
           className="h-7 w-7 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 transition-opacity hover:text-danger"
-          onClick={onDelete}
-          aria-label={t('Remove {{ticker}}', { ticker: asset.ticker })}
+          onClick={p.onDelete}
+          aria-label={t('Remove {{ticker}}', { ticker: p.asset.ticker })}
         >
           <X className="h-3.5 w-3.5" />
         </UI.Button>
@@ -279,34 +249,34 @@ export function NumField(p: NumFieldProps) {
     </div>
   );
 }
-export function RebalanceControls({
-  portfolio,
-  rebalanceOptions,
-  onUpdate,
-}: PortfolioFieldProps & { rebalanceOptions: { value: RebalanceFrequency; label: string }[] }) {
+export function RebalanceControls(
+  p: PortfolioFieldProps & { rebalanceOptions: { value: RebalanceFrequency; label: string }[] },
+) {
   const { t } = useTranslation();
   return (
     <>
       <MiniSelect
-        value={portfolio.rebalanceFrequency}
+        value={p.portfolio.rebalanceFrequency}
         cls="h-8 w-[110px] shrink-0"
-        items={rebalanceOptions.map((o) => [o.value, o.label])}
-        onChange={(v) => onUpdate(portfolio.id, { rebalanceFrequency: v as RebalanceFrequency })}
+        items={p.rebalanceOptions.map((o) => [o.value, o.label])}
+        onChange={(v) =>
+          p.onUpdate(p.portfolio.id, { rebalanceFrequency: v as RebalanceFrequency })
+        }
       />
       <NumField
-        value={portfolio.rebalanceOffset ?? 0}
+        value={p.portfolio.rebalanceOffset ?? 0}
         min={0}
         max={252}
         title={t('Trading days offset from period end')}
         suffix={t('Offset')}
-        onChange={(v) => onUpdate(portfolio.id, { rebalanceOffset: v || 0 })}
+        onChange={(v) => p.onUpdate(p.portfolio.id, { rebalanceOffset: v || 0 })}
       />
-      {portfolio.rebalanceFrequency === 'threshold' && (
+      {p.portfolio.rebalanceFrequency === 'threshold' && (
         <NumField
-          value={portfolio.rebalanceThreshold ?? 5}
+          value={p.portfolio.rebalanceThreshold ?? 5}
           min={1}
           max={50}
-          onChange={(v) => onUpdate(portfolio.id, { rebalanceThreshold: v })}
+          onChange={(v) => p.onUpdate(p.portfolio.id, { rebalanceThreshold: v })}
         />
       )}
     </>
