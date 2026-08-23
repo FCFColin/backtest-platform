@@ -1,10 +1,9 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   dbMocks,
   loggerMocks,
-  redisMocks,
-  circuitBreakerMocks,
-  goDataServiceClientMocks,
+  redisMocks as rd,
+  circuitBreakerMocks as cb,
+  goDataServiceClientMocks as goSvc,
   dataQueryMocks,
   dataCacheMocks,
   dateUtilsMocks,
@@ -22,6 +21,10 @@ import {
   invalidateAllCache,
 } from '../../../packages/backend/src/infrastructure/dataFacade.js';
 
+type Fail = 'reject' | 'open';
+
+const goRes = (data: unknown) => JSON.stringify({ success: true, data });
+
 beforeEach(() => {
   setupDefault();
 });
@@ -31,71 +34,43 @@ describe('fetchHistoryData', () => {
     setupRedisDown();
   });
   it('PostgreSQL 正常查询时应返回 DB 中的价格数据', async () => {
+    const row = (t: string, c: number) => ({ ticker: t, date: new Date('2024-01-02'), close: c });
     setValid(['AAPL', 'BND']);
-    circuitBreakerMocks.instance.fire.mockResolvedValue(
-      rows(
-        { ticker: 'AAPL', date: new Date('2024-01-02'), close: 185.5 },
-        { ticker: 'BND', date: new Date('2024-01-02'), close: 72.3 },
-      ),
-    );
+    cb.instance.fire.mockResolvedValue(rows(row('AAPL', 185.5), row('BND', 72.3)));
     const { data: result } = await fetchHistoryData(['AAPL', 'BND'], '2024-01-01', '2024-01-31');
     expect(result.AAPL).toEqual({ '2024-01-02': 185.5 });
     expect(result.BND).toEqual({ '2024-01-02': 72.3 });
   });
-  it.each([
-    [
-      'DB 查询失败',
-      ['AAPL'],
-      () => circuitBreakerMocks.instance.fire.mockRejectedValue(new Error('connection lost')),
-      true,
-    ],
-    [
-      '熔断器 Open',
-      ['AAPL'],
-      () => {
-        circuitBreakerMocks.instance.opened = true;
-      },
-      false,
-    ],
-    ['空结果集', ['UNKNOWN'], () => {}, false],
-  ])('%s 时应返回空对象', async (_n, tickers, arrange, expectWarn) => {
-    arrange();
+  it.each<[string, string[], Fail | null]>([
+    ['DB 查询失败', ['AAPL'], 'reject'],
+    ['熔断器 Open', ['AAPL'], 'open'],
+    ['空结果集', ['UNKNOWN'], null],
+  ])('%s 时应返回空对象', async (_n, tickers, fail) => {
+    if (fail === 'reject') cb.instance.fire.mockRejectedValue(new Error('connection lost'));
+    else if (fail === 'open') cb.instance.opened = true;
     const { data: result } = await fetchHistoryData(tickers, '2024-01-01', '2024-01-31');
     expect(result).toEqual({});
-    if (expectWarn) expect(loggerMocks.warn).toHaveBeenCalled();
+    if (fail === 'reject') expect(loggerMocks.warn).toHaveBeenCalled();
   });
 });
 
 describe('validateTickers', () => {
   it('DB 可用时应通过 tickers 表验证', async () => {
-    circuitBreakerMocks.instance.fire.mockResolvedValue({
-      rows: [{ ticker: 'AAPL' }, { ticker: 'BND' }],
-    });
+    cb.instance.fire.mockResolvedValue({ rows: [{ ticker: 'AAPL' }, { ticker: 'BND' }] });
     const result = await validateTickers(['AAPL', 'BND', 'UNKNOWN']);
     expect(result.valid).toEqual(['AAPL', 'BND']);
     expect(result.unknown).toEqual(['UNKNOWN']);
   });
-  it.each([
-    ['空 ticker 列表', () => {}, [], false],
-    [
-      '熔断器 Open',
-      () => {
-        circuitBreakerMocks.instance.opened = true;
-      },
-      ['AAPL'],
-      true,
-    ],
-    [
-      'DB 查询失败',
-      () => circuitBreakerMocks.instance.fire.mockRejectedValue(new Error('db down')),
-      ['BROKEN'],
-      false,
-    ],
-  ])('%s 应返回 unknown', async (_n, setup, input, fireNotCalled) => {
-    setup();
+  it.each<[string, string[], Fail | null]>([
+    ['空 ticker 列表', [], null],
+    ['熔断器 Open', ['AAPL'], 'open'],
+    ['DB 查询失败', ['BROKEN'], 'reject'],
+  ])('%s 应返回 unknown', async (_n, input, fail) => {
+    if (fail === 'open') cb.instance.opened = true;
+    else if (fail === 'reject') cb.instance.fire.mockRejectedValue(new Error('db down'));
     const result = await validateTickers(input);
     expect(result).toEqual({ valid: [], unknown: input, invalid: [] });
-    if (fireNotCalled) expect(circuitBreakerMocks.instance.fire).not.toHaveBeenCalled();
+    if (fail === 'open') expect(cb.instance.fire).not.toHaveBeenCalled();
   });
 });
 
@@ -114,7 +89,7 @@ describe('initDb', () => {
 
 describe('searchTickers', () => {
   it('DB 可用时应通过全文搜索返回结果', async () => {
-    circuitBreakerMocks.instance.fire.mockResolvedValue({
+    cb.instance.fire.mockResolvedValue({
       rows: [{ ticker: '600519.SH', category: '贵州茅台', market: 'A股' }],
     });
     const result = await searchTickers('茅台');
@@ -128,56 +103,47 @@ describe('searchTickers', () => {
     ['A'.repeat(101), undefined, false],
     ['茅台', 'A股;DROP', false],
   ])('恶意/超长 query "%s" 应返回空数组', async (query, market, noDbCall) => {
-    const result =
-      market === undefined ? await searchTickers(query) : await searchTickers(query, market);
-    expect(result).toEqual([]);
-    if (noDbCall) expect(circuitBreakerMocks.instance.fire).not.toHaveBeenCalled();
+    expect(await searchTickers(query, market)).toEqual([]);
+    if (noDbCall) expect(cb.instance.fire).not.toHaveBeenCalled();
   });
   it('DB 失败时应调用 Go 数据服务', async () => {
-    circuitBreakerMocks.instance.fire.mockRejectedValue(new Error('db down'));
-    goDataServiceClientMocks.callGoDataService.mockResolvedValue(
-      JSON.stringify({ success: true, data: [{ ticker: 'AAPL', name: 'Apple', market: '美股' }] }),
-    );
-    expect(await searchTickers('AAPL')).toEqual([
-      { ticker: 'AAPL', name: 'Apple', market: '美股' },
-    ]);
+    cb.instance.fire.mockRejectedValue(new Error('db down'));
+    const apple = [{ ticker: 'AAPL', name: 'Apple', market: '美股' }];
+    goSvc.callGoDataService.mockResolvedValue(goRes(apple));
+    expect(await searchTickers('AAPL')).toEqual(apple);
   });
   it('DB 与 Go 均失败时应返回空数组', async () => {
-    circuitBreakerMocks.instance.opened = true;
-    goDataServiceClientMocks.callGoDataService.mockRejectedValue(new Error('connection refused'));
+    cb.instance.opened = true;
+    goSvc.callGoDataService.mockRejectedValue(new Error('connection refused'));
     expect(await searchTickers('茅台')).toEqual([]);
   });
   it('带 market 过滤时 DB 查询应附加 market 参数', async () => {
-    circuitBreakerMocks.instance.fire.mockResolvedValue({
+    cb.instance.fire.mockResolvedValue({
       rows: [{ ticker: '000001.SZ', category: '平安银行', market: 'A股' }],
     });
     await searchTickers('平安', 'A股');
-    expect(circuitBreakerMocks.instance.fire).toHaveBeenCalledWith(
-      expect.stringContaining('market = $3'),
-      ['simple', '平安', 'A股'],
-    );
+    expect(cb.instance.fire).toHaveBeenCalledWith(expect.stringContaining('market = $3'), [
+      'simple',
+      '平安',
+      'A股',
+    ]);
   });
 });
 
 describe('缓存失效', () => {
   beforeEach(() => {
-    circuitBreakerMocks.instance.opened = false;
-    redisMocks.ping.mockResolvedValue('PONG');
-    redisMocks.scan.mockResolvedValue(['0', []]);
+    cb.instance.opened = false;
+    rd.ping.mockResolvedValue('PONG');
+    rd.scan.mockResolvedValue(['0', []]);
   });
   it('全量失效时应清空 L1 并删除 Redis 缓存', async () => {
-    redisMocks.scan.mockResolvedValue([
-      '0',
-      ['cache:org:shared:price:AAPL', 'cache:org:shared:price:BND'],
-    ]);
+    const keys = ['cache:org:shared:price:AAPL', 'cache:org:shared:price:BND'];
+    rd.scan.mockResolvedValue(['0', keys]);
     await invalidateAllCache();
-    expect(redisMocks.del).toHaveBeenCalledWith(
-      'cache:org:shared:price:AAPL',
-      'cache:org:shared:price:BND',
-    );
+    expect(rd.del).toHaveBeenCalledWith(...keys);
   });
   it('Redis scan 失败时全量失效仍应完成', async () => {
-    redisMocks.scan.mockRejectedValue(new Error('scan failed'));
+    rd.scan.mockRejectedValue(new Error('scan failed'));
     await expect(invalidateAllCache()).resolves.toBeUndefined();
   });
 });
@@ -185,44 +151,42 @@ describe('缓存失效', () => {
 describe('fetchHistoryData 扩展', () => {
   beforeEach(async () => {
     setupRedisDown();
-    redisMocks.emit('error');
+    rd.emit('error');
     await invalidateAllCache();
   });
-  it.each([
-    [
-      'Redis 缓存损坏回退 Go',
-      async () => {
-        redisMocks.ping.mockResolvedValue('PONG');
-        redisMocks.get.mockResolvedValue('{ corrupted json');
-      },
-    ],
-    [
-      '缓存未命中走 Go 并写入缓存',
-      async () => {
-        redisMocks.ping.mockResolvedValue('PONG');
-        redisMocks.get.mockResolvedValue(null);
-      },
-    ],
-  ])('%s', async (_n, arrangeRedis) => {
+  it.each<[string, string | null]>([
+    ['Redis 缓存损坏回退 Go', '{ corrupted json'],
+    ['缓存未命中走 Go 并写入缓存', null],
+  ])('%s', async (_n, cached) => {
+    rd.ping.mockResolvedValue('PONG');
+    rd.get.mockResolvedValue(cached);
     setValid(['AAPL']);
-    await arrangeRedis();
-    goDataServiceClientMocks.callGoDataService.mockResolvedValue(
-      JSON.stringify({ success: true, data: [{ date: '2024-01-02', close: 99.0 }] }),
-    );
+    goSvc.callGoDataService.mockResolvedValue(goRes([{ date: '2024-01-02', close: 99.0 }]));
     const { data: result } = await fetchHistoryData(['AAPL'], '2024-01-01', '2024-01-31');
     expect(result.AAPL).toEqual({ '2024-01-02': 99.0 });
-    expect(redisMocks.set).toHaveBeenCalled();
+    expect(rd.set).toHaveBeenCalled();
   });
   it('Go 数据服务调用失败时应返回空', async () => {
     setValid(['FAIL']);
-    goDataServiceClientMocks.callGoDataService.mockRejectedValue(new Error('server error'));
+    goSvc.callGoDataService.mockRejectedValue(new Error('server error'));
     expect((await fetchHistoryData(['FAIL'], '2024-01-01', '2024-01-31')).data).toEqual({});
   });
 });
 
 describe('dataFacade 编排', () => {
   let facade: typeof import('../../../packages/backend/src/infrastructure/dataFacade.js');
+  const dq = dataQueryMocks;
+  const dc = dataCacheMocks;
   const d = (t: string, v: number) => ({ [t]: { '2024-01-02': v } });
+  const g = (t: string, p: number, dg = false) => ({ result: d(t, p), degraded: dg });
+  const toResult = (p: Record<string, number>) =>
+    Object.fromEntries(Object.entries(p).map(([k, v]) => [k, { '2024-01-02': v }]));
+  const aapl = ['AAPL'];
+  const two = ['AAPL', 'MSFT'];
+  const pr1 = { AAPL: 100 };
+  const pr2 = { AAPL: 100, MSFT: 200 };
+  const dAapl = d('AAPL', 100);
+  const dBoth = { ...dAapl, ...d('MSFT', 200) };
 
   beforeEach(async () => {
     vi.resetModules();
@@ -233,110 +197,74 @@ describe('dataFacade 编排', () => {
       DEFAULT_START_DATE: '2000-01-01',
     }));
     dateUtilsMocks.toDateStr.mockReturnValue('2024-01-01');
-    dataCacheMocks.getCacheKey.mockReturnValue('cache-key');
+    dc.getCacheKey.mockReturnValue('cache-key');
     facade = await import('../../../packages/backend/src/infrastructure/dataFacade.js');
   });
   function mockSetup(o: {
     valid?: string[];
     invalid?: string[];
     unknown?: string[];
-    result?: Record<string, unknown>;
+    p?: Record<string, number>;
     missing?: string[];
-    dbDegraded?: boolean;
+    dbDeg?: boolean;
     cached?: unknown;
     go?: Record<string, unknown>;
   }) {
-    dataQueryMocks.validateTickers.mockResolvedValue({
+    dq.validateTickers.mockResolvedValue({
       valid: o.valid ?? [],
       invalid: o.invalid ?? [],
       unknown: o.unknown ?? [],
     });
-    dataQueryMocks.queryPricesFromDb.mockResolvedValue({
-      result: o.result ?? {},
+    dq.queryPricesFromDb.mockResolvedValue({
+      result: toResult(o.p ?? {}),
       missing: o.missing ?? [],
-      dbDegraded: o.dbDegraded ?? false,
+      dbDegraded: o.dbDeg ?? false,
     });
-    dataCacheMocks.readCache.mockResolvedValue(o.cached ?? null);
-    if (o.go) dataQueryMocks.fetchMissingFromGoService.mockResolvedValue(o.go);
+    dc.readCache.mockResolvedValue(o.cached ?? null);
+    if (o.go) dq.fetchMissingFromGoService.mockResolvedValue(o.go);
   }
   // 期望对象字段因用例而异，统一放宽为可选索引访问
   /* eslint-disable-next-line @typescript-eslint/no-explicit-any -- 期望字段因用例而异 */
   type Exp = { data: unknown } & Record<string, any>;
   it.each<[string, string[], Record<string, unknown>, Exp]>([
-    [
-      '全部 DB 命中',
-      ['AAPL', 'MSFT'],
-      { valid: ['AAPL', 'MSFT'], result: { ...d('AAPL', 100), ...d('MSFT', 200) } },
-      { data: { ...d('AAPL', 100), ...d('MSFT', 200) }, noCacheRead: true, noGo: true },
-    ],
-    [
-      '存在非法标的',
-      ['AAPL', 'BAD!'],
-      { valid: ['AAPL'], invalid: ['BAD!'], result: d('AAPL', 100) },
-      { data: d('AAPL', 100) },
-    ],
+    ['全部 DB 命中', two, { valid: two, p: pr2 }, { data: dBoth, noCacheRead: true, noGo: true }],
+    ['存在非法标的', ['AAPL', 'BAD!'], { valid: aapl, invalid: ['BAD!'], p: pr1 }, { data: dAapl }],
     ['全部非法', ['BAD1', 'BAD2'], { invalid: ['BAD1', 'BAD2'] }, { data: {}, noDb: true }],
-    [
-      'DB 降级',
-      ['AAPL'],
-      { valid: ['AAPL'], result: d('AAPL', 100), dbDegraded: true },
-      { data: d('AAPL', 100), degraded: true },
-    ],
+    ['DB 降级', ['AAPL'], { valid: aapl, p: pr1, dbDeg: true }, { data: dAapl, degraded: true }],
     [
       '缓存命中补缺',
-      ['AAPL', 'MSFT'],
-      { valid: ['AAPL'], result: d('AAPL', 100), missing: ['MSFT'], cached: d('MSFT', 200) },
-      { data: { ...d('AAPL', 100), ...d('MSFT', 200) }, noGo: true },
+      two,
+      { valid: aapl, p: pr1, missing: ['MSFT'], cached: d('MSFT', 200) },
+      { data: dBoth, noGo: true },
     ],
     [
       'Go 补齐',
-      ['AAPL', 'MSFT'],
-      {
-        valid: ['AAPL'],
-        result: d('AAPL', 100),
-        missing: ['MSFT'],
-        go: { result: d('MSFT', 200), degraded: false },
-      },
-      { data: { ...d('AAPL', 100), ...d('MSFT', 200) }, goArgs: ['MSFT'] },
+      two,
+      { valid: aapl, p: pr1, missing: ['MSFT'], go: g('MSFT', 200) },
+      { data: dBoth, goArgs: ['MSFT'] },
     ],
     [
       'Go degraded',
-      ['AAPL', 'MSFT'],
-      {
-        valid: ['AAPL'],
-        result: d('AAPL', 100),
-        missing: ['MSFT'],
-        go: { result: d('MSFT', 200), degraded: true },
-      },
-      { data: { ...d('AAPL', 100), ...d('MSFT', 200) }, degraded: true, goArgs: ['MSFT'] },
+      two,
+      { valid: aapl, p: pr1, missing: ['MSFT'], go: g('MSFT', 200, true) },
+      { data: dBoth, degraded: true, goArgs: ['MSFT'] },
     ],
     [
       '双重降级',
-      ['AAPL', 'MSFT'],
-      {
-        valid: ['AAPL'],
-        result: d('AAPL', 100),
-        missing: ['MSFT'],
-        dbDegraded: true,
-        go: { result: d('MSFT', 200), degraded: true },
-      },
-      { data: { ...d('AAPL', 100), ...d('MSFT', 200) }, degraded: true, goArgs: ['MSFT'] },
+      two,
+      { valid: aapl, p: pr1, missing: ['MSFT'], dbDeg: true, go: g('MSFT', 200, true) },
+      { data: dBoth, degraded: true, goArgs: ['MSFT'] },
     ],
     [
       'Go 部分失败',
       ['AAPL', 'MSFT', 'GOOG'],
-      {
-        valid: ['AAPL'],
-        result: {},
-        missing: ['MSFT', 'GOOG'],
-        go: { result: d('MSFT', 200), degraded: false },
-      },
+      { valid: aapl, missing: ['MSFT', 'GOOG'], go: g('MSFT', 200) },
       { data: d('MSFT', 200), degraded: true, goArgs: ['MSFT', 'GOOG'] },
     ],
     [
       '默认日期',
       ['NEW'],
-      { unknown: ['NEW'], go: { result: d('NEW', 50), degraded: false } },
+      { unknown: ['NEW'], go: g('NEW', 50) },
       { data: d('NEW', 50), defaultDates: true },
     ],
   ])('%s', async (_n, tickers, o, e) => {
@@ -348,11 +276,11 @@ describe('dataFacade 编排', () => {
     );
     expect(res.data).toEqual(e.data);
     expect(res.degraded).toBe(e.degraded ?? false);
-    if (e.noCacheRead) expect(dataCacheMocks.readCache).not.toHaveBeenCalled();
-    if (e.noGo) expect(dataQueryMocks.fetchMissingFromGoService).not.toHaveBeenCalled();
-    if (e.noDb) expect(dataQueryMocks.queryPricesFromDb).not.toHaveBeenCalled();
+    if (e.noCacheRead) expect(dc.readCache).not.toHaveBeenCalled();
+    if (e.noGo) expect(dq.fetchMissingFromGoService).not.toHaveBeenCalled();
+    if (e.noDb) expect(dq.queryPricesFromDb).not.toHaveBeenCalled();
     if (e.goArgs) {
-      expect(dataQueryMocks.fetchMissingFromGoService).toHaveBeenCalledWith(
+      expect(dq.fetchMissingFromGoService).toHaveBeenCalledWith(
         expect.arrayContaining(e.goArgs),
         e.defaultDates ? '' : '2024-01-02',
         e.defaultDates ? '' : '2024-01-03',
@@ -362,7 +290,7 @@ describe('dataFacade 编排', () => {
     }
   });
   it('底层 validateTickers 抛错时向上传播', async () => {
-    dataQueryMocks.validateTickers.mockRejectedValue(new Error('boom'));
+    dq.validateTickers.mockRejectedValue(new Error('boom'));
     await expect(facade.fetchHistoryData(['AAPL'], '2024-01-02', '2024-01-03')).rejects.toThrow(
       'boom',
     );
