@@ -53,27 +53,22 @@ const evil = {
   maliciousKey: 'strip-me',
 };
 const sent = () => m.callEngineStrict.mock.calls[0][1] as any;
-const h1 = async (url: string, c: EngineCase) => {
-  m.callEngineStrict.mockResolvedValue(t1);
-  const { res } = await postJson(url, { ...c.validBody(), tickers: 'AAPL BND' });
+const tk = (mock: any, body: any, ck: (d: any) => void) => async (url: string, c: EngineCase) => {
+  m.callEngineStrict.mockResolvedValue(mock);
+  const { res, json } = await postJson(url, { ...c.validBody(), tickers: body });
   expect(res.status).toBe(200);
-  expect(sent().tickers).toEqual(['AAPL', 'BND']);
+  ck(json.data);
 };
-const h2 = async (url: string, c: EngineCase) => {
-  m.callEngineStrict.mockResolvedValue(t2);
-  const { res, json } = await postJson(url, { ...c.validBody(), tickers: ['AAPL'] });
-  expect(res.status).toBe(200);
-  expect(json.data.tickers).toEqual([{ ticker: 'AAPL', cagr: 0.1 }]);
-};
+const h1 = tk(t1, 'AAPL BND', () => expect(sent().tickers).toEqual(['AAPL', 'BND']));
+const h2 = tk(t2, ['AAPL'], (d) => expect(d.tickers).toEqual([{ ticker: 'AAPL', cagr: 0.1 }]));
 const h3 = async (url: string, c: EngineCase) => {
   await postJson(url, c.validBody());
   expect(sent().mcParams).toEqual(expMc);
 };
 const h4 = async (url: string) => {
   await postJson(url, { portfolio: VP(), parameters: P(), mcParams: evil });
-  const mp = sent().mcParams;
-  expect(mp).toEqual({ numSimulations: 50 });
-  expect(mp).not.toHaveProperty('maliciousKey');
+  expect(sent().mcParams).toEqual({ numSimulations: 50 });
+  expect(sent().mcParams).not.toHaveProperty('maliciousKey');
 };
 const h5 = async (url: string, c: EngineCase) => {
   const body = { ...c.validBody(), objective: 'minVolatility', numIterations: 50000 };
@@ -81,8 +76,9 @@ const h5 = async (url: string, c: EngineCase) => {
   expect(res.status).toBe(200);
   expect(sent().numIterations).toBe(50000);
 };
-type RawEngineCase = Omit<EngineCase, 'path' | 'enginePath'>;
-const rawEngineCases: RawEngineCase[] = [
+const fp = { weights: { AAPL: 1 }, expectedReturn: 0.1, expectedVolatility: 0.2, sharpeRatio: 0.5 };
+const metrics = { expectedReturn: 0.1, expectedVolatility: 0.15, sharpeRatio: 1.2 };
+const rawEngineCases: Omit<EngineCase, 'path' | 'enginePath'>[] = [
   {
     name: 'analysis',
     errorCode: 'ANALYSIS_ERROR',
@@ -112,12 +108,7 @@ const rawEngineCases: RawEngineCase[] = [
   {
     name: 'optimize',
     errorCode: 'OPTIMIZATION_ERROR',
-    result: {
-      optimalWeights: { AAPL: 0.6, BND: 0.4 },
-      expectedReturn: 0.1,
-      expectedVolatility: 0.15,
-      sharpeRatio: 1.2,
-    },
+    result: { optimalWeights: { AAPL: 0.6, BND: 0.4 }, ...metrics },
     validBody: () => ({ tickers: ['AAPL', 'BND'], objective: 'maxSharpe', parameters: P() }),
     invalidBodies: [
       ['无效 objective', { tickers: ['AAPL'], objective: 'invalidObjective', parameters: P() }],
@@ -128,11 +119,7 @@ const rawEngineCases: RawEngineCase[] = [
   {
     name: 'efficient-frontier',
     errorCode: 'EFFICIENT_FRONTIER_ERROR',
-    result: {
-      frontier: [
-        { weights: { AAPL: 1 }, expectedReturn: 0.1, expectedVolatility: 0.2, sharpeRatio: 0.5 },
-      ],
-    },
+    result: { frontier: [fp] },
     validBody: () => ({ tickers: ['AAPL', 'BND'], parameters: P(), numPoints: 10 }),
     invalidBodies: [
       ['空 tickers 数组', { tickers: [], parameters: P() }],
@@ -163,6 +150,8 @@ const mockSignalResult = {
   equityCurve: [{ date: '2020-01-01', value: 10000 }],
 };
 const noTicker = (): any => ((r: any) => (delete r.ticker, r))(mkSig());
+const dualPair = () => ({ signal1: mkSig('SPY'), signal2: mkSig('QQQ') });
+const rsi = { ...mkSig('SPY'), indicator: 'rsi', period: 14, threshold: 30 };
 const signalCases: SignalCase[] = [
   {
     path: '/api/v1/signal/analyze',
@@ -178,19 +167,14 @@ const signalCases: SignalCase[] = [
     path: '/api/v1/signal/dual',
     data: { SPY: { '2020-01-01': 300 }, QQQ: { '2020-01-01': 200 } },
     engineResult: { ...mockSignalResult, equityCurve: [] },
-    validReq: () => ({ signal1: mkSig('SPY'), signal2: mkSig('QQQ'), combinationMethod: 'and' }),
-    validation: [
-      ['缺少 combinationMethod', () => ({ signal1: mkSig('SPY'), signal2: mkSig('QQQ') })],
-    ],
+    validReq: () => ({ ...dualPair(), combinationMethod: 'and' }),
+    validation: [['缺少 combinationMethod', dualPair]],
   },
   {
     path: '/api/v1/signal/multi',
     data: { SPY: { '2020-01-01': 300, '2020-01-02': 301 } },
     engineResult: { ...mockSignalResult, equityCurve: [] },
-    validReq: () => ({
-      signals: [mkSig('SPY'), { ...mkSig('SPY'), indicator: 'rsi', period: 14, threshold: 30 }],
-      aggregationMethod: 'voting',
-    }),
+    validReq: () => ({ signals: [mkSig('SPY'), rsi], aggregationMethod: 'voting' }),
     validation: [
       ['空 signals 数组', () => ({ signals: [], aggregationMethod: 'voting' })],
       ['缺少 aggregationMethod', () => ({ signals: [mkSig('SPY')] })],
@@ -239,30 +223,23 @@ describe('backtestRoutes - POST /api/v1/backtest/portfolio', () => {
   });
   it('X-Backtest-Sync: true 时仍走异步路径返回 202', async () => {
     queueMocks.add.mockResolvedValue({ id: 'job-async-002' });
-    const res = await fetch(url(), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Backtest-Sync': 'true' },
-      body: JSON.stringify(createValidRequestBody()),
+    const { res, body: j } = await reqJson(url(), 'POST', createValidRequestBody(), {
+      'X-Backtest-Sync': 'true',
     });
     expect(res.status).toBe(202);
-    const j = await res.json();
     expect(j).toMatchObject({ success: true, data: { jobId: 'job-async-002' } });
   });
-});
-describe('backtestRoutes - POST /api/v1/backtest/portfolio/series', () => {
-  const getServer = withServer(() => setupPortfolioServer(backtestRoutes, m));
-  const url = () => `${getServer().url}/api/v1/backtest/portfolio/series`;
+  const surl = () => `${getServer().url}/api/v1/backtest/portfolio/series`;
   it('缓存命中时应返回请求的序列字段', async () => {
     const b = createValidRequestBody();
     await setCache(cacheKey(b.portfolios, b.parameters, void 0), mockBacktestResult());
-    const { res, json } = await postJson(url(), { ...b, series: ['rollingReturns'] });
+    const { res, json } = await postJson(surl(), { ...b, series: ['rollingReturns'] });
     expect(res.status).toBe(200);
     expect(json.data.portfolios[0].rollingReturns).toEqual([]);
   });
   it('缓存未命中时应返回 404', async () => {
-    const b = createValidRequestBody();
-    b.parameters = { ...P(), startingValue: 99999 };
-    const { res } = await postJson(url(), { ...b, series: ['rollingReturns'] });
+    const b = { ...createValidRequestBody(), parameters: { ...P(), startingValue: 99999 } };
+    const { res } = await postJson(surl(), { ...b, series: ['rollingReturns'] });
     expect(res.status).toBe(404);
   });
 });
@@ -365,6 +342,7 @@ describe('jobRoutes - GET /api/v1/jobs/:id', () => {
   const ta = mkJob('job-tenant-a', { tenantId: 'org-a' });
   const ok = mkJob('job-tenant-ok', { userId: 'someone', tenantId: 'org-a' });
   const pa = mkJob('job-tenant-pa', { userId: 'someone', tenantId: 'org-a' });
+  const TEST_HDRS = ['x-test-sub', 'x-test-role', 'x-test-tenant', 'x-test-platform'];
   it.each([
     ['越权访问他人任务', oj, ['attacker', 'analyst'], 404],
     ['所有者本人可访问', mj, ['owner-user', 'analyst'], 200],
@@ -373,9 +351,7 @@ describe('jobRoutes - GET /api/v1/jobs/:id', () => {
     ['平台管理员可跨租户', pa, ['op', 'admin', 'org-b', 'true'], 200],
   ])('%s', async (_n: unknown, job: any, hd: string[], exp: number) => {
     queueMocks.getJob.mockResolvedValue(job);
-    const h: Record<string, string> = { 'x-test-sub': hd[0], 'x-test-role': hd[1] };
-    if (hd[2]) h['x-test-tenant'] = hd[2];
-    if (hd[3]) h['x-test-platform'] = hd[3];
+    const h = Object.fromEntries(hd.map((v, i) => [TEST_HDRS[i], v]));
     const { res } = await get(`${getServer().url}/api/v1/jobs/${job.id}`, h);
     expect(res.status).toBe(exp);
   });
@@ -396,10 +372,9 @@ describe('jobRoutes - GET /api/v1/jobs/:id', () => {
     expect(json.error).toMatchObject({ status: 500, title: 'JOB_STATUS_ERROR' });
   });
   it('active 状态归一化为 running', async () => {
-    queueMocks.getJob.mockResolvedValue(
-      createMockJob({ id: 'ja', finishedOn: void 0, getState: st('active') }),
-    );
-    const { json } = await get(`${getServer().url}/api/v1/jobs/job-active`);
+    const ja = createMockJob({ id: 'ja', finishedOn: void 0, getState: st('active') });
+    queueMocks.getJob.mockResolvedValue(ja);
+    const { json } = await get(`${getServer().url}/api/v1/jobs/${ja.id}`);
     expect(json.data).toMatchObject({ status: 'running' });
     expect(json.data).not.toHaveProperty('result');
   });
