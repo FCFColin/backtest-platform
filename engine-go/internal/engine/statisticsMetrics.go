@@ -37,9 +37,6 @@ func CalcMWRR(cashflows []Cashflow) float64 {
 	return bisect(-0.99, 100, 200, func(rate float64) bool { return npv(rate) > 0 })
 }
 func CalcAnnualizedStdev(dailyReturns []float64) float64 {
-	if len(dailyReturns) < 2 {
-		return 0
-	}
 	return mathutil.Std(dailyReturns) * math.Sqrt(tradingDaysPerYear)
 }
 func safeRatio(num, denom float64) float64 {
@@ -57,9 +54,6 @@ func CalcSortino(cagr float64, dailyReturns []float64) float64 {
 }
 func CalcCorrelation(returns1, returns2 []float64) float64 {
 	r1, r2 := alignPair(returns1, returns2)
-	if r1 == nil {
-		return 0
-	}
 	v1, v2 := mathutil.Covariance(r1, r1), mathutil.Covariance(r2, r2)
 	if v1 == 0 || v2 == 0 {
 		return 0
@@ -72,18 +66,14 @@ func CalcTotalReturn(startValue, endValue float64) float64 {
 	}
 	return endValue/startValue - 1
 }
-func MaxValue(values []float64) float64 {
+func extrema(values []float64, pick func([]float64) float64) float64 {
 	if len(values) == 0 {
 		return 0
 	}
-	return slices.Max(values)
+	return pick(values)
 }
-func MinValue(values []float64) float64 {
-	if len(values) == 0 {
-		return 0
-	}
-	return slices.Min(values)
-}
+func MaxValue(values []float64) float64 { return extrema(values, slices.Max[[]float64]) }
+func MinValue(values []float64) float64 { return extrema(values, slices.Min[[]float64]) }
 func ratioPositive(values []float64) float64 {
 	count := 0
 	for _, v := range values {
@@ -112,9 +102,6 @@ func RiskFreeDaily() float64   { return math.Pow(1+riskFreeRate, 1.0/tradingDays
 func RiskFreeMonthly() float64 { return math.Pow(1+riskFreeRate, 1.0/12.0) - 1 }
 func CalcBeta(portfolioReturns, benchmarkReturns []float64) float64 {
 	pr, br := alignPair(portfolioReturns, benchmarkReturns)
-	if pr == nil {
-		return 0
-	}
 	return safeRatio(mathutil.Covariance(pr, br), mathutil.Covariance(br, br))
 }
 func CalcAlpha(cagr, beta, benchmarkCagr float64) float64 {
@@ -123,11 +110,10 @@ func CalcAlpha(cagr, beta, benchmarkCagr float64) float64 {
 
 // CalcDiversificationRatio 加权资产日波动 / 组合日波动；数据不足或组合零波动返回 0（不可计算）。
 func CalcDiversificationRatio(weights []float64, assetDailyReturns [][]float64, portfolioDailyReturns []float64) float64 {
-	portStd := mathutil.Std(portfolioDailyReturns)
+	portStd, weightedStd := mathutil.Std(portfolioDailyReturns), 0.0
 	if len(weights) == 0 || len(weights) != len(assetDailyReturns) || len(portfolioDailyReturns) < 2 || portStd == 0 {
 		return 0
 	}
-	var weightedStd float64
 	for i := range weights {
 		weightedStd += weights[i] * mathutil.Std(assetDailyReturns[i])
 	}
@@ -136,9 +122,6 @@ func CalcDiversificationRatio(weights []float64, assetDailyReturns [][]float64, 
 func CalcRSquared(pr, br []float64) float64 { c := CalcCorrelation(pr, br); return c * c }
 func CalcTrackingError(portfolioReturns, benchmarkReturns []float64) float64 {
 	pr, br := alignPair(portfolioReturns, benchmarkReturns)
-	if pr == nil {
-		return 0
-	}
 	diffs := make([]float64, len(pr))
 	for i := range pr {
 		diffs[i] = pr[i] - br[i]
@@ -149,9 +132,9 @@ func CalcInformationRatio(alpha, trackingError float64) float64 {
 	return safeRatio(alpha, trackingError)
 }
 func CalcCaptureRatio(pr, br []float64, upside bool) float64 {
-	filter, pp, bp, count := upsideFilter(upside), 1.0, 1.0, 0
+	pp, bp, count := 1.0, 1.0, 0
 	for i := 0; i < min(len(pr), len(br)); i++ {
-		if filter(br[i]) {
+		if upside == (br[i] > 0) {
 			pp *= 1 + pr[i]
 			bp *= 1 + br[i]
 			count++
@@ -208,14 +191,13 @@ func calcAlphaDaily(dailyReturns, benchDailyReturns []float64, beta float64) flo
 	if len(dailyReturns) == 0 || len(benchDailyReturns) == 0 {
 		return 0
 	}
-	rfDaily := RiskFreeDaily()
-	return mathutil.Mean(dailyReturns) - (rfDaily + beta*(mathutil.Mean(benchDailyReturns)-rfDaily))
+	return mathutil.Mean(dailyReturns) - (RiskFreeDaily() + beta*(mathutil.Mean(benchDailyReturns)-RiskFreeDaily()))
 }
-func calcFiltered(pr, br []float64, filter func(float64) bool, calc func([]float64, []float64) float64) float64 {
+func calcFiltered(pr, br []float64, upside bool, calc func([]float64, []float64) float64) float64 {
 	n := min(len(pr), len(br))
 	pFilt, bFilt := make([]float64, 0, n), make([]float64, 0, n)
 	for i := 0; i < n; i++ {
-		if filter(br[i]) {
+		if upside == (br[i] > 0) {
 			pFilt = append(pFilt, pr[i])
 			bFilt = append(bFilt, br[i])
 		}
@@ -224,9 +206,6 @@ func calcFiltered(pr, br []float64, filter func(float64) bool, calc func([]float
 		return 0
 	}
 	return calc(pFilt, bFilt)
-}
-func upsideFilter(upside bool) func(float64) bool {
-	return func(r float64) bool { return upside == (r > 0) }
 }
 
 type MaxDrawdownResult struct {
@@ -263,11 +242,8 @@ func CalcAvgDrawdown(values []float64) float64 {
 	return safeRatio(totals[0], totals[1])
 }
 func CalcUlcerIndex(values []float64) float64 {
-	if len(values) == 0 {
-		return 0
-	}
 	sumSq := reduceDrawdowns(values, 0.0, func(acc, dd float64, _, _ int) float64 { return acc + dd*dd })
-	return math.Sqrt(sumSq / float64(len(values)))
+	return math.Sqrt(safeRatio(sumSq, float64(len(values))))
 }
 func CalcCalmar(cagr, maxDrawdown float64) float64 { return safeRatio(cagr, maxDrawdown) }
 func CalcUPI(cagr, ulcerIndex float64) float64     { return safeRatio(cagr-riskFreeRate, ulcerIndex) }
@@ -336,18 +312,16 @@ type periodBucket struct {
 }
 
 func resampleByPeriod(values []float64, dates []string, monthly bool) []periodBucket {
-	type key struct{ y, m int }
-	buckets := make(map[key]*periodBucket)
+	buckets := map[int]*periodBucket{}
 	for i, v := range values {
 		y, m := parseYearMonth(dates[i])
 		if !monthly {
 			m = 0
 		}
-		if b, ok := buckets[key{y, m}]; ok {
-			b.last = v
-		} else {
-			buckets[key{y, m}] = &periodBucket{y, m, v, v}
+		if buckets[y*12+m] == nil {
+			buckets[y*12+m] = &periodBucket{y, m, v, v}
 		}
+		buckets[y*12+m].last = v
 	}
 	out := make([]periodBucket, 0, len(buckets))
 	for _, b := range buckets {
@@ -441,10 +415,10 @@ func computeBenchmarkMetrics(portfolioReturns, benchmarkReturns []float64, cagr,
 		RSquared:      CalcRSquared(pr, br),
 		UpsideCapture: upside, DownsideCapture: downside, CaptureSpread: upside - downside,
 		BenchmarkCorrelation: CalcCorrelation(pr, br),
-		UpsideCorrelation:    calcFiltered(pr, br, upsideFilter(true), CalcCorrelation),
-		DownsideCorrelation:  calcFiltered(pr, br, upsideFilter(false), CalcCorrelation),
-		UpsideBeta:           calcFiltered(pr, br, upsideFilter(true), CalcBeta),
-		DownsideBeta:         calcFiltered(pr, br, upsideFilter(false), CalcBeta),
+		UpsideCorrelation:    calcFiltered(pr, br, true, CalcCorrelation),
+		DownsideCorrelation:  calcFiltered(pr, br, false, CalcCorrelation),
+		UpsideBeta:           calcFiltered(pr, br, true, CalcBeta),
+		DownsideBeta:         calcFiltered(pr, br, false, CalcBeta),
 		Treynor:              CalcTreynor(cagr, beta),
 		M2:                   CalcM2(CalcSharpe(cagr, benchStd), benchStd),
 		AlphaDaily:           calcAlphaDaily(pr, br, beta),
