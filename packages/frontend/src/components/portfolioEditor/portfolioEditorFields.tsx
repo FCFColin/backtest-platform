@@ -18,6 +18,8 @@ export interface PortfolioFieldProps {
 }
 
 type SelectCoreProps = { value: string; onChange: (v: string) => void };
+type GpVals = Pick<Portfolio, 'glidepathFrom' | 'glidepathTo' | 'glidepathYears'>;
+type GpProps = { g: GpVals; portfolios: StorePortfolio[]; set: (q: Partial<GpVals>) => void };
 
 function MiniSelect(p: SelectCoreProps & { items: [string, string][]; cls?: string }) {
   return (
@@ -46,31 +48,24 @@ function PortfolioSelect(p: SelectCoreProps & { portfolios: StorePortfolio[]; la
     </ParamCard>
   );
 }
-function GlidepathFields(p: {
-  from: string;
-  to: string;
-  years: number;
-  portfolios: StorePortfolio[];
-  onFromChange: (v: string) => void;
-  onToChange: (v: string) => void;
-  onYearsChange: (v: number) => void;
-}) {
+function GlidepathFields(p: GpProps) {
   const { t } = useTranslation();
-  const sel = (lb: string, val: string, on: (v: string) => void) => (
-    <PortfolioSelect value={val} portfolios={p.portfolios} label={t(lb)} onChange={on} />
+  const { g, set, portfolios } = p;
+  const sel = (lb: string, v: string, f: (x: string) => Partial<GpVals>) => (
+    <PortfolioSelect value={v} portfolios={portfolios} label={t(lb)} onChange={(x) => set(f(x))} />
   );
   return (
     <>
-      {sel('Source Portfolio', p.from, p.onFromChange)}
-      {sel('Target Portfolio', p.to, p.onToChange)}
+      {sel('Source Portfolio', g.glidepathFrom ?? '', (x) => ({ glidepathFrom: x }))}
+      {sel('Target Portfolio', g.glidepathTo ?? '', (x) => ({ glidepathTo: x }))}
       <ParamCard label={t('Transition Years')}>
         <UI.Input
           type="number"
           min={1}
           max={50}
-          value={p.years}
+          value={g.glidepathYears ?? 10}
           className="h-8 w-[60px] font-mono tabular-nums"
-          onChange={(e) => p.onYearsChange(Number(e.target.value) || 1)}
+          onChange={(e) => set({ glidepathYears: Number(e.target.value) || 1 })}
         />
       </ParamCard>
     </>
@@ -82,8 +77,16 @@ export function GlidepathForm(p: {
   onCancel: () => void;
 }) {
   const { t } = useTranslation();
-  const [gp, setGp] = useState({ name: '', from: '', to: '', years: 10 });
-  const ok = gp.from && gp.to && gp.from !== gp.to;
+  const [gp, setGp] = useState({ glidepathFrom: '', glidepathTo: '', glidepathYears: 10 });
+  const [name, setName] = useState('');
+  const { onConfirm, onCancel, nonGlidepathPortfolios: avail } = p;
+  const { glidepathFrom: from, glidepathTo: to, glidepathYears: yrs } = gp;
+  const ok = from && to && from !== to;
+  const btn = (vr: 'primary' | 'secondary', on: () => void, lb: string, dis?: boolean) => (
+    <UI.Button variant={vr} size="sm" className="text-caption" disabled={dis} onClick={on}>
+      {t(lb)}
+    </UI.Button>
+  );
   return (
     <div className="p-3 mb-2 bg-elevated rounded-lg border border-border-subtle">
       <div className="text-label font-semibold text-fg mb-2">{t('New Glide Path')}</div>
@@ -91,32 +94,14 @@ export function GlidepathForm(p: {
         <ParamCard label={t('Name')}>
           <UI.Input
             type="text"
-            value={gp.name}
-            onChange={(e) => setGp((s) => ({ ...s, name: e.target.value }))}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
             className="h-8 w-[120px]"
           />
         </ParamCard>
-        <GlidepathFields
-          from={gp.from}
-          to={gp.to}
-          years={gp.years}
-          portfolios={p.nonGlidepathPortfolios}
-          onFromChange={(v) => setGp((s) => ({ ...s, from: v }))}
-          onToChange={(v) => setGp((s) => ({ ...s, to: v }))}
-          onYearsChange={(v) => setGp((s) => ({ ...s, years: v }))}
-        />
-        <UI.Button
-          variant="primary"
-          size="sm"
-          className="text-caption"
-          disabled={!ok}
-          onClick={() => ok && p.onConfirm(gp.name, gp.from, gp.to, gp.years)}
-        >
-          {t('Confirm')}
-        </UI.Button>
-        <UI.Button variant="secondary" size="sm" className="text-caption" onClick={p.onCancel}>
-          {t('Cancel')}
-        </UI.Button>
+        <GlidepathFields g={gp} portfolios={avail} set={(q) => setGp((s) => ({ ...s, ...q }))} />
+        {btn('primary', () => ok && onConfirm(name, from, to, yrs), 'Confirm', !ok)}
+        {btn('secondary', onCancel, 'Cancel')}
       </div>
     </div>
   );
@@ -125,7 +110,7 @@ export function GlidepathConfig(
   p: PortfolioFieldProps & { nonGlidepathPortfolios: StorePortfolio[] },
 ) {
   const { t } = useTranslation();
-  const { portfolio } = p;
+  const { portfolio, onUpdate, nonGlidepathPortfolios: avail } = p;
   const base = portfolio.glidepathToWeights ?? portfolio.assets.map(() => 0);
   return (
     <div className="p-2 mb-1.5 bg-elevated rounded-md border border-border-subtle">
@@ -133,15 +118,7 @@ export function GlidepathConfig(
         {t('Glide Path Configuration')}
       </div>
       <div className="flex flex-wrap gap-2 items-end">
-        <GlidepathFields
-          from={portfolio.glidepathFrom ?? ''}
-          to={portfolio.glidepathTo ?? ''}
-          years={portfolio.glidepathYears ?? 10}
-          portfolios={p.nonGlidepathPortfolios}
-          onFromChange={(v) => p.onUpdate(portfolio.id, { glidepathFrom: v })}
-          onToChange={(v) => p.onUpdate(portfolio.id, { glidepathTo: v })}
-          onYearsChange={(v) => p.onUpdate(portfolio.id, { glidepathYears: v })}
-        />
+        <GlidepathFields g={portfolio} portfolios={avail} set={(q) => onUpdate(portfolio.id, q)} />
       </div>
       <div className="mt-1.5 text-label-tiny text-fg-tertiary">Target Weights</div>
       <div className="flex flex-wrap gap-1.5 mt-1">
@@ -163,7 +140,7 @@ export function GlidepathConfig(
                   onChange={(e) => {
                     const next = [...base];
                     next[ai] = e.target.value === '' ? 0 : Number(e.target.value) / 100;
-                    p.onUpdate(portfolio.id, { glidepathToWeights: next });
+                    onUpdate(portfolio.id, { glidepathToWeights: next });
                   }}
                 />
                 <span className="text-caption text-fg-tertiary shrink-0">%</span>
