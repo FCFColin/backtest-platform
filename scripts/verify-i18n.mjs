@@ -218,6 +218,11 @@ console.log(reportJson);
 
 const reportDir = resolve(ROOT, 'docs/audit/reports');
 mkdirSync(reportDir, { recursive: true });
+// D-5a 静态采样快照：供 D-5b 运行时采样做差集的安全候选前置
+writeFileSync(
+  join(reportDir, 'i18n-used-keys-static.json'),
+  JSON.stringify({ timestamp: new Date().toISOString(), usedKeys: [...usedKeys].sort() }, null, 2),
+);
 const reportPath = join(reportDir, 'p0-0-2-i18n-baseline.json');
 writeFileSync(reportPath, reportJson);
 
