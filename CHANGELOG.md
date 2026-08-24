@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- feat(engine-go 授权待执行)：用户裁决金样本重基线授权 gonum 化（statisticsMetrics 现为手搓统计，gonum 引用=0）
+- fix(backend 治理待裁)：jobSubmission 队列降级兜底向 compute 响应透传 degraded 字段——与 ADR-008 字面冲突，语义裁决挂起（C-023 FAIL 保持可见，不掩盖）
+- refactor(frontend): 重删死导出 ResultsPanelProps；signalState 收敛
+- fix(contract)+docs(adr): 契约扫描器适配表驱动路由注册（8 路由缺口修复）；ADR-013 补录实现适配策略与运行时枚举终局方案
+- fix(scripts): verify-i18n 输出完整 unused 列表 + ns 分组 + 动态键保护桶；returnObjects 中间节点叶键并入 used（防 D-5 误删，used 845→850 / unused 513→508）+ 统计口径注释块
+- fix(scripts): count-loc.ps1 基线硬编码改为本地账本滚动对比（docs/audit/loc-ledger.jsonl）
+- test: auth-routes TS2554 修复、OrgMembersPage exhaustive-deps 回归修复
+- chore(tests治理): TestKit 六模块建后按实测裁决回滚（详见会话报告）；tests 密度实测入账（jscpd 6.3%/beforeEach×123 均 8 行）
+- docs(adr): ADR-013 契约扫描器实现适配
+
 - feat(frontend): 货币切换支持（DollarInput ¥/$）+ 图表工具打磨（tooltip 转义、坐标轴首尾刻度、dataZoom 主题化、品牌色）+ admin/表单可访问性完善（aria-label、年份截断）
 - refactor(frontend): ticker 标签输入、图表空态/参考线、signal 结果面板、portfolio 编辑器 props 契约、tactical 参数共享类型收编
 - refactor(frontend): UI 组件令牌化与 InfoTooltip 复用收敛
