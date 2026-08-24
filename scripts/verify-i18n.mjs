@@ -1,4 +1,12 @@
 #!/usr/bin/env node
+// ── 统计口径（ADR-013 同期治理，修改任一函数前必读）──────────────
+// 叶键：flatten() 的终端节点（string/number/boolean/null/数组整体）；
+//      空字符串计叶。zhKeyCount/unusedZh 均基于叶键全集。
+// used 来源四通道：t('..')/t("..")、i18nKey|titleKey|descKey 属性、
+//      t(`模板.${dyn}`)（${}→[^.]+ 单段通配，对 allPaths 正则匹配）、
+//      returnObjects 中间节点（命中非叶路径时其后代叶键并入 used，见下方叶扩展）。
+// protectedDynamicKeys：DYNAMIC_KEY_PREFIXES 命中的未引用键，不计入 unused。
+// 退出码语义不变：PASS=undefinedInSource 为空 → 0；FAIL → 非 0。
 import { readFileSync, readdirSync, statSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -159,6 +167,16 @@ const undefinedInSource = [...usedKeys].filter(
       ? [...zhAllPaths].some((p) => new RegExp(`^${k.slice(1)}$`).test(p))
       : zhAllPaths.has(k)),
 );
+// returnObjects 语义补全：used 键命中中间分组节点时，其全部后代叶键视为已使用，
+// 否则 D-5 会据 unused 误删运行时实际在用的子叶（删除事故防线）
+for (const k of [...usedKeys]) {
+  if (!k.startsWith('~') && !zhKeys.has(k) && zhAllPaths.has(k)) {
+    for (const leaf of Object.keys(zhFlat)) {
+      if (leaf.startsWith(`${k}.`)) usedKeys.add(leaf);
+    }
+  }
+}
+
 const unusedRaw = [...zhKeys].filter((k) => !usedKeys.has(k) && !k.startsWith('_'));
 
 // §5-D 动态 key 保护桶：t(`x.${dyn}`) 模板串接对静态扫描不可见，
