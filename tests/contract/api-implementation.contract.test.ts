@@ -111,6 +111,13 @@ function extractRoutesFromFile(
     }
   }
 
+  // 表驱动注册（如 authRoutes 的 ROUTES 数组 + router[method] 循环）：
+  // 元组以 ['method', '/path' 起始且独占一行（prettier printWidth 保证），锚定行首避免误配其他数组字面量。
+  const tableRegex = /^\s*\['(get|post|put|delete|patch)',\s*['"`]([^'"`]+)['"`]/gm;
+  while ((match = tableRegex.exec(content)) !== null) {
+    routes.push({ method: match[1].toUpperCase(), path: match[2] });
+  }
+
   // 辅助函数注册（registerSignalRoute(mode, '/signal/analyze', schema)）：路径为字符串字面量参数。
   const helperRegex = /registerSignalRoute\(\s*'\w+'\s*,\s*'([^']+)'\s*,/g;
   while ((match = helperRegex.exec(content)) !== null) {
