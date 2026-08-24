@@ -5,3 +5,12 @@ printf '%s' "$msg" | grep -qE '^(feat|fix|refactor|chore|docs|test|ci)(\([^)]*\)
   echo "ERROR: 提交信息须遵循 Conventional Commits: <type>(<scope>): <description>" >&2
   exit 1
 }
+# ε-2 / R-02：fix: 类型的 commit body 必须包含 Repro:<命令> 行
+case "$msg" in
+  fix:*|fix\(*)
+    printf '%s' "$msg" | grep -q 'Repro:' || {
+      echo "ERROR: fix: 类型必须在 body 中包含 Repro:<命令> 行（R-02）" >&2
+      exit 1
+    }
+    ;;
+esac
