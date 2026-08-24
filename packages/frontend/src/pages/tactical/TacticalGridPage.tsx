@@ -8,35 +8,31 @@ import { ResultsShell } from '@/components/resultsShell';
 import { fmtPct, fmtNum, fmtAmount } from '@/utils/format';
 import { HeatmapView } from '@/components/HeatmapView';
 import type { TacticalGridResponse, TopCombinationResult } from './tacticalGridUtils';
-import { useTacticalGridState } from '@/hooks/useTacticalGridState.js';
-import type { TacticalGridState } from '@/hooks/useTacticalGridState.js';
+import { useTacticalGridState, type TacticalGridState } from '@/hooks/useTacticalGridState.js';
 import { INDICATOR_OPTIONS } from './TacticalUtils';
 import {
   OBJECTIVE_OPTIONS,
+  type GridParamRange as Range,
   type IndicatorType,
   type ObjectiveType,
-  type GridParamRange,
 } from './tacticalGridUtils';
 import { ComputeToolShell, type ComputeToolConfig } from '../../components/shells/index.js';
 import { ParamSection } from './TacticalSignalEditor';
 import { BacktestParamsFields } from './sharedBacktestParams';
 import { Field, FieldLabel, FieldDescription } from '@/components/form/Field';
 
-const RANGE_FIELDS: { key: keyof GridParamRange; label: string; min?: number; step?: number }[] = [
+const RANGE_FIELDS: { key: keyof Range; label: string; min?: number; step?: number }[] = [
   { key: 'min', label: 'Min' },
   { key: 'max', label: 'Max' },
   { key: 'step', label: 'backtest.optimizer.step', min: 0.1, step: 0.5 },
 ];
+const HINTS = {
+  rsi: 'Enter when RSI falls below oversold threshold, exit when above 100-threshold',
+  ma: 'Enter when price breaks through MA±threshold%, exit when falls below MA∓threshold%',
+};
 
-function ParamRangeRow({
-  range,
-  onChange,
-  inputMin,
-}: {
-  range: GridParamRange;
-  onChange: (v: GridParamRange) => void;
-  inputMin?: number;
-}) {
+type RangeRowProps = { range: Range; onChange: (v: Range) => void; inputMin?: number };
+function ParamRangeRow({ range, onChange, inputMin }: RangeRowProps) {
   const { t } = useTranslation();
   return (
     <div className="grid grid-cols-3 gap-2">
@@ -77,41 +73,28 @@ function SignalGridSection({ state }: { state: TacticalGridState }) {
           <FieldLabel>{paramLabels.p2}</FieldLabel>
           <ParamRangeRow range={param2} onChange={setParam2} />
         </Field>
-        <FieldDescription>
-          {indicator === 'rsi'
-            ? t('Enter when RSI falls below oversold threshold, exit when above 100-threshold')
-            : t(
-                'Enter when price breaks through MA±threshold%, exit when falls below MA∓threshold%',
-              )}
-        </FieldDescription>
+        <FieldDescription>{t(indicator === 'rsi' ? HINTS.rsi : HINTS.ma)}</FieldDescription>
       </div>
     </ParamSection>
   );
 }
-function GridBacktestParamsSection({ state }: { state: TacticalGridState }) {
-  const { t } = useTranslation();
-  const { ticker, setTicker } = state;
-  return (
-    <BacktestParamsFields idPrefix="grid" state={state}>
-      <LabeledField htmlFor="grid-ticker" label={t('Ticker')}>
-        <Input
-          id="grid-ticker"
-          type="text"
-          value={ticker}
-          onChange={(e) => setTicker(e.target.value)}
-          placeholder={t('e.g. SPY')}
-        />
-      </LabeledField>
-    </BacktestParamsFields>
-  );
-}
 function GridParamsPanel({ state }: { state: TacticalGridState }) {
   const { t } = useTranslation();
-  const { objective, setObjective, isLoading, runSearch } = state;
+  const { objective, setObjective, isLoading, runSearch, ticker, setTicker } = state;
   return (
     <div className="flex flex-col gap-4">
       <SignalGridSection state={state} />
-      <GridBacktestParamsSection state={state} />
+      <BacktestParamsFields idPrefix="grid" state={state}>
+        <LabeledField htmlFor="grid-ticker" label={t('Ticker')}>
+          <Input
+            id="grid-ticker"
+            type="text"
+            value={ticker}
+            onChange={(e) => setTicker(e.target.value)}
+            placeholder={t('e.g. SPY')}
+          />
+        </LabeledField>
+      </BacktestParamsFields>
       <ParamSection title={t('Objective')}>
         <SelectField
           label={t('Objective')}
@@ -132,11 +115,15 @@ function GridParamsPanel({ state }: { state: TacticalGridState }) {
 type ParamLabels = { p1: string; p2: string };
 type GridSectionProps = { results: TacticalGridResponse; paramLabels: ParamLabels };
 type StatTone = 'brand' | 'success' | 'default';
+type RankedResult = TopCombinationResult & { rank: number };
+type RankedColumn = [keyof RankedResult, string, ((v: number) => string | number)?];
 const TONE_CLASS: Record<StatTone, string> = {
   brand: 'text-brand',
   success: 'text-success',
   default: 'text-fg',
 };
+const STAT_CARD_CLS = 'rounded-lg border border-border-subtle bg-input-bg/30 px-3 py-2.5';
+const STAT_VALUE_CLS = 'mt-0.5 font-mono text-h2 tabular-nums';
 function ResultsSummary({ results, paramLabels }: GridSectionProps) {
   const { t } = useTranslation();
   const b = results.bestCombination;
@@ -150,48 +137,33 @@ function ResultsSummary({ results, paramLabels }: GridSectionProps) {
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
       {stats.map((s) => (
-        <div
-          key={s.label}
-          className="rounded-lg border border-border-subtle bg-input-bg/30 px-3 py-2.5"
-        >
+        <div key={s.label} className={STAT_CARD_CLS}>
           <div className="text-caption text-fg-tertiary">{s.label}</div>
-          <div
-            className={`mt-0.5 font-mono text-h2 tabular-nums ${TONE_CLASS[s.tone ?? 'default']}`}
-          >
-            {s.value}
-          </div>
+          <div className={`${STAT_VALUE_CLS} ${TONE_CLASS[s.tone ?? 'default']}`}>{s.value}</div>
         </div>
       ))}
     </div>
   );
 }
-type RankedResult = TopCombinationResult & { rank: number };
-function buildTopColumns(
-  t: (k: string) => string,
-  paramLabels: ParamLabels,
-): TableColumn<RankedResult>[] {
+function buildTopColumns(t: (k: string) => string, paramLabels: ParamLabels) {
   const num = (v: number | string) => <span className="font-mono tabular-nums">{v}</span>;
-  const col = (
-    key: keyof RankedResult,
-    label: string,
-    fmt?: (v: number) => string | number,
-  ): TableColumn<RankedResult> => ({
+  const cols: RankedColumn[] = [
+    ['rank', '#'],
+    ['param1', paramLabels.p1],
+    ['param2', paramLabels.p2],
+    ['cagr', t('stats.cagr'), fmtPct],
+    ['maxDrawdown', t('Max Drawdown'), fmtPct],
+    ['sharpe', 'Sharpe', (v) => fmtNum(v, 3)],
+    ['stdev', t('Volatility'), fmtPct],
+    ['calmar', 'Calmar', (v) => fmtNum(v, 3)],
+    ['totalReturn', t('stats.totalReturn'), fmtPct],
+  ];
+  return cols.map(([key, label, fmt]): TableColumn<RankedResult> => ({
     key,
     label,
     sortValue: (r) => r[key] as number,
     render: (r) => num(fmt ? fmt(r[key] as number) : (r[key] as number)),
-  });
-  return [
-    col('rank', '#'),
-    col('param1', paramLabels.p1),
-    col('param2', paramLabels.p2),
-    col('cagr', t('stats.cagr'), fmtPct),
-    col('maxDrawdown', t('Max Drawdown'), fmtPct),
-    col('sharpe', 'Sharpe', (v) => fmtNum(v, 3)),
-    col('stdev', t('Volatility'), fmtPct),
-    col('calmar', 'Calmar', (v) => fmtNum(v, 3)),
-    col('totalReturn', t('stats.totalReturn'), fmtPct),
-  ];
+  }));
 }
 function TopCombinationsTable({ results, paramLabels }: GridSectionProps) {
   const { t } = useTranslation();
