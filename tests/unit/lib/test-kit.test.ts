@@ -1,9 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { ValidationError } from '../../../packages/backend/src/utils/errors.js';
-import { reqJson } from '../../helpers/expressApp.js';
-import { withServer } from '../../helpers/serverLifecycle.js';
-import { decodePayload } from '../../helpers/authFixtures.js';
 import {
+  decodePayload,
   expectDegraded,
   expectOutboxWritten,
   expectProblem,
@@ -11,8 +9,10 @@ import {
   mkAuthedReq,
   mkEngineReq,
   mkPortfolio,
+  reqJson,
   runAuthMatrix,
   runRouteCases,
+  withServer,
   type ApiResult,
   type MkAppOptions,
 } from '../../helpers/testKit/index.js';
