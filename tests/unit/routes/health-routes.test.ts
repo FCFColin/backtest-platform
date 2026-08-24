@@ -3,6 +3,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { startExpressApp } from '../../helpers/expressApp.js';
 import { withServer } from '../../helpers/serverLifecycle.js';
 import { mockConfigModule } from '../../helpers/mockFactories.js';
+import { expectFetchOk } from '../../helpers/routeAssertions.js';
 import { redisModuleMock } from '../../helpers/redisFixture.js';
 
 const originalFetch = globalThis.fetch;
@@ -71,11 +72,7 @@ describe('healthRoutes', () => {
 
   describe('GET /api/health', () => {
     it('应返回轻量存活状态，不暴露依赖拓扑', async () => {
-      const res = await fetch(`${getServer().url}/api/health`);
-      const body = await res.json();
-
-      expect(res.status).toBe(200);
-      expect(body.success).toBe(true);
+      const { body } = await expectFetchOk(`${getServer().url}/api/health`);
       expect(body.data.status).toBe('ok');
       expect(body.data.timestamp).toBeDefined();
       expect(body.data.engine).toBeUndefined();
@@ -87,11 +84,7 @@ describe('healthRoutes', () => {
     it('无鉴权且 Go 引擎可用时应返回 status=ok', async () => {
       globalThis.fetch = createFetchMock({ goEngine: { ok: true, status: 200 } }) as typeof fetch;
 
-      const res = await fetch(`${getServer().url}/api/ready`);
-      const body = await res.json();
-
-      expect(res.status).toBe(200);
-      expect(body.success).toBe(true);
+      const { body } = await expectFetchOk(`${getServer().url}/api/ready`);
       expect(body.data.status).toBe('ok');
       expect(body.data.engine.go).toBe(true);
       expect(body.data.dependencies.database).toBe(true);

@@ -2,6 +2,7 @@ import '../../helpers/loggerMock.js';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useTestServer } from '../../helpers/expressApp.js';
 import { mockConfigModule } from '../../helpers/mockFactories.js';
+import { expectFetchOk } from '../../helpers/routeAssertions.js';
 
 const callServiceMock = vi.hoisted(() => vi.fn());
 
@@ -104,10 +105,7 @@ describe('adminRoutes - GET /api/admin/stats 与 /system', () => {
   });
 
   it('服务健康时应返回完整统计数据', async () => {
-    const res = await fetch(`${url()}/api/admin/stats`);
-    const body = await res.json();
-    expect(res.status).toBe(200);
-    expect(body.success).toBe(true);
+    const { body } = await expectFetchOk(`${url()}/api/admin/stats`);
     expect(body.data.services.go_engine.status).toBe('healthy');
     expect(body.data.services.go_data_service.status).toBe('healthy');
     expect(body.data.services.go_engine.version).toBe('1.0.0');
@@ -119,10 +117,7 @@ describe('adminRoutes - GET /api/admin/stats 与 /system', () => {
   });
 
   it('应返回系统资源信息', async () => {
-    const res = await fetch(`${url()}/api/admin/system`);
-    const body = await res.json();
-    expect(res.status).toBe(200);
-    expect(body.success).toBe(true);
+    const { body } = await expectFetchOk(`${url()}/api/admin/system`);
     expect(body.data.memory.rss).toBeGreaterThan(0);
     expect(body.data.memory.heap_total).toBeGreaterThan(0);
     expect(body.data.memory.rss_mb).toBeGreaterThan(0);
@@ -154,19 +149,14 @@ describe('adminRoutes - GET /api/admin/stats 与 /system', () => {
   it('scanTickersStats 返回 null 时 stats 应使用兜底空对象', async () => {
     engineServiceMocks.scanTickersStats.mockResolvedValue(null);
 
-    const res = await fetch(`${url()}/api/admin/stats`);
-    const body = await res.json();
-    expect(res.status).toBe(200);
-    expect(body.success).toBe(true);
+    const { body } = await expectFetchOk(`${url()}/api/admin/stats`);
     expect(body.data.data_stats.total_tickers).toBe(0);
   });
 
   it('scanTickersStats 返回 null 时 system 应使用兜底空对象', async () => {
     engineServiceMocks.scanTickersStats.mockResolvedValue(null);
 
-    const res = await fetch(`${url()}/api/admin/system`);
-    const body = await res.json();
-    expect(res.status).toBe(200);
+    const { body } = await expectFetchOk(`${url()}/api/admin/system`);
     expect(body.data.data_directory.total_size_mb).toBe(0);
     expect(body.data.data_directory.ticker_file_count).toBe(0);
   });
@@ -198,14 +188,15 @@ describe('apiKeyRoutes', () => {
       createdAt: '2026-01-01T00:00:00.000Z',
       plaintext: 'bpk_live_secretplaintext',
     });
-    const res = await fetch(`${url()}/api/v1/keys`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: 'CI key' }),
-    });
-    const body = await res.json();
-    expect(res.status).toBe(201);
-    expect(body.success).toBe(true);
+    const { body } = await expectFetchOk(
+      `${url()}/api/v1/keys`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: 'CI key' }),
+      },
+      201,
+    );
     expect(body.data.apiKey).toBe('bpk_live_secretplaintext');
     expect(apiKeyServiceMocks.createApiKey).toHaveBeenCalledWith(ORG, 'CI key', 'user-1');
   });
