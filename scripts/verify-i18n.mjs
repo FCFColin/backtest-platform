@@ -16,18 +16,21 @@ const srcDir = join(ROOT, 'packages/frontend/src');
  * @param {string} lang - Locale dir name (e.g. 'zh-CN').
  * @returns {Record<string, unknown>} Merged namespace object.
  */
-function loadMerged(lang) {
+function loadMergedWithNs(lang) {
   const merged = {};
+  const nsOf = {};
   const dir = join(LOCALES_DIR, lang);
   for (const name of readdirSync(dir)) {
     if (!name.endsWith('.json')) continue;
+    const ns = name.replace(/\.json$/, '');
     const data = JSON.parse(readFileSync(join(dir, name), 'utf-8'));
+    for (const k of Object.keys(flatten(data))) nsOf[k] = ns;
     Object.assign(merged, data);
   }
-  return merged;
+  return { merged, nsOf };
 }
 
-const zh = loadMerged('zh-CN');
+const { merged: zh, nsOf } = loadMergedWithNs('zh-CN');
 /**
  * Flatten nested object to dot-notation keys.
  * @param {Record<string, unknown>} obj - Object to flatten.
@@ -156,14 +159,39 @@ const undefinedInSource = [...usedKeys].filter(
       ? [...zhAllPaths].some((p) => new RegExp(`^${k.slice(1)}$`).test(p))
       : zhAllPaths.has(k)),
 );
-const unusedZh = [...zhKeys].filter((k) => !usedKeys.has(k) && !k.startsWith('_'));
+const unusedRaw = [...zhKeys].filter((k) => !usedKeys.has(k) && !k.startsWith('_'));
+
+// §5-D 动态 key 保护桶：t(`x.${dyn}`) 模板串接对静态扫描不可见，
+// 这些前缀下的全部叶子键不得计入 unused（含常量中转，如 BacktestOptimizerPage 的 OPT）。
+const DYNAMIC_KEY_PREFIXES = [
+  'dataEngine.',
+  'nav.',
+  'account.preferences.',
+  'backtest.optimizer.',
+  'efficientFrontier.rebalanceFreq.',
+  'efficientFrontier.solver.',
+  'legal.',
+  'monteCarlo.presets.',
+  'rebalancingSensitivity.tab.',
+];
+const isProtected = (k) => DYNAMIC_KEY_PREFIXES.some((p) => k.startsWith(p));
+const unusedZh = unusedRaw.filter((k) => !isProtected(k));
+
+const unusedByNamespace = {};
+for (const k of unusedZh) {
+  const ns = nsOf[k] ?? 'unknown';
+  unusedByNamespace[ns] = (unusedByNamespace[ns] ?? 0) + 1;
+}
 
 const report = {
   timestamp: new Date().toISOString(),
   zhKeyCount: zhKeys.size,
   usedKeyCount: usedKeys.size,
   undefinedInSource,
-  unusedZh: unusedZh.slice(0, 20),
+  unusedCount: unusedZh.length,
+  protectedDynamicKeys: unusedRaw.length - unusedZh.length,
+  unusedByNamespace,
+  unusedZh,
   status: undefinedInSource.length === 0 ? 'PASS' : 'FAIL',
 };
 
