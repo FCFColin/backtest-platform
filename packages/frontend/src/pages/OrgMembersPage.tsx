@@ -87,7 +87,8 @@ export default function OrgMembersPage() {
   const { t } = useTranslation();
   const { org, isAdmin } = useOrgAuth();
   const s = useOrgMembersState(isAdmin);
-  useEffect(() => void s.load(), [s.load]);
+  const { load } = s;
+  useEffect(() => void load(), [load]);
   return (
     <StandardPageShell
       config={{ titleKey: 'Org Members', headerExtra: <Users className="w-5 h-5 text-brand" /> }}
