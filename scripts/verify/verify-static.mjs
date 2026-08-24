@@ -179,10 +179,17 @@ await runCheck(results, 'C-022', () => {
 
 // ── C-023: ADR-008 degraded 字段验证 ──────────────────────────
 // engine/compute 端点 fail-closed 503 无 degraded（ADR-008）；degraded 仅限数据端点(Go data-fetcher 降级)
+// jobSubmission.ts 豁免：ADR-008 补充条款（2026-08-24 C-023 裁决）——其 degraded 为
+// 数据级标记（所用行情缺失），与服务级 fail-closed 正交，P-2 要求其可见。
 await runCheck(results, 'C-023', () => {
   const refs = grepInCode(/degraded/, 'packages/backend/src/routes', {
     extensions: ['.ts'],
-  }).filter((m) => !m.file.includes('dataRoutes') && !m.file.includes('routeUtils'));
+  }).filter(
+    (m) =>
+      !m.file.includes('dataRoutes') &&
+      !m.file.includes('routeUtils') &&
+      !m.file.includes('jobSubmission'),
+  );
   const pass = refs.length === 0;
   return {
     status: pass ? 'PASS' : 'FAIL',

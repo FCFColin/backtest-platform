@@ -21,3 +21,10 @@ SaaS 付费用户期望"同输入恒得同输出"。旧 callRustWithFallback 在
 - (+) 正确性优先：权威结果或明确"暂不可用"，杜绝数值不一致
 - (-) 引擎全挂时计算端点不可用（通过 Go 多副本 + HPA + 熔断缓解）
 - (-) 客户端需处理 503 + Retry-After 退避重试
+
+## 补充（2026-08-24，C-023 裁决）
+
+compute 端点可透传 data.degraded 标记，语义为"所用行情数据存在缺失"，
+与计算服务自身的 fail-closed 行为正交。compute 自身失败仍须 503，
+不得以 degraded 代替成功。载体：jobSubmission.ts 队列不可用同步兜底路径
+（P-2 要求 degraded 三处一致可见，压制将致 grid 页静默展示不可信结果）。
