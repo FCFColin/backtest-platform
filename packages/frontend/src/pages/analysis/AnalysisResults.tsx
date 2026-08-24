@@ -32,13 +32,15 @@ const TABS = [
   { key: 'risk-return', labelKey: 'Risk vs Return' },
   { key: 'returns', labelKey: 'tabs.returns' },
 ] as const;
-interface FetchCtx {
-  startDate: string;
-  endDate: string;
-  startingValue: number;
-  rollingWindow: number;
-  correlationWindow: number;
-}
+const PAGE_DEFAULTS = {
+  startDate: DEFAULT_BACKTEST_START_DATE,
+  endDate: DEFAULT_END_DATE,
+  startingValue: 10000,
+  rollingWindow: 12,
+  correlationWindow: 12,
+  activeTab: 'summary',
+};
+type FetchCtx = Omit<typeof PAGE_DEFAULTS, 'activeTab'>;
 async function fetchAnalysisResult(
   tks: string[],
   ctx: FetchCtx,
@@ -71,13 +73,10 @@ async function fetchAnalysisResult(
       );
     });
     if (!r.ok || j.success === false) {
-      const e = j.error;
+      const e = j.error as { detail?: unknown } | string | undefined;
       const d =
-        (typeof e === 'object' &&
-          e &&
-          'detail' in e &&
-          String((e as { detail?: string }).detail)) ||
-        (typeof e === 'string' && e);
+        (typeof e === 'object' && e !== null && 'detail' in e ? String(e.detail) : '') ||
+        (typeof e === 'string' ? e : '');
       throw new Error(d || (!r.ok ? `HTTP ${r.status}` : t('Analysis failed')));
     }
     const raw = (j.data ?? j) as Record<string, unknown>;
@@ -102,14 +101,7 @@ async function fetchAnalysisResult(
 function useAnalysisPageState() {
   const { t } = useTranslation();
   const [tickers, setTickers] = useState(['SPY', 'TLT', 'GLD']);
-  const s = useSetterState({
-    startDate: DEFAULT_BACKTEST_START_DATE,
-    endDate: DEFAULT_END_DATE,
-    startingValue: 10000,
-    rollingWindow: 12,
-    correlationWindow: 12,
-    activeTab: 'summary',
-  });
+  const s = useSetterState(PAGE_DEFAULTS);
   const {
     isLoading,
     error,
@@ -126,15 +118,9 @@ type AnalysisPageState = ReturnType<typeof useAnalysisPageState>;
 function AnalysisParamsPanel(p: AnalysisPageState) {
   const { t } = useTranslation();
   const all = p.startDate === '' && p.endDate === '';
+  const ds = DEFAULT_BACKTEST_START_DATE;
   const df: [string, string, string, (v: string) => void, string, boolean][] = [
-    [
-      'analysis-start-date',
-      'Start Date',
-      p.startDate,
-      p.setStartDate,
-      DEFAULT_BACKTEST_START_DATE,
-      all,
-    ],
+    ['analysis-start-date', 'Start Date', p.startDate, p.setStartDate, ds, all],
     ['analysis-end-date', 'End Date', p.endDate, p.setEndDate, DEFAULT_END_DATE, all],
   ];
   const mf: [string, string, number, (v: number) => void][] = [
@@ -219,25 +205,19 @@ const RollingCorrelationChart = LR('RollingCorrelationChart');
 const RollingMetricsChart = LR('RollingMetricsChart');
 const RiskReturnChart = LRR('RiskReturnChart');
 const AnnualReturnChart = lazy(() => import('../../components/charts/AnnualReturnChart.js'));
-function CorrelationsBetaTab({
-  results,
-  correlationWindow: w,
-}: {
-  results: AssetAnalysisResult;
-  correlationWindow: number;
-}) {
-  const [pair, setPair] = useState<[number, number]>([0, Math.min(1, results.tickers.length - 1)]);
-  const tickers = results.tickers.map((x) => x.ticker);
-  const { betaMatrix } = useAnalysisData(results);
+function CorrelationsBetaTab(p: { results: AssetAnalysisResult; correlationWindow: number }) {
+  const tickers = p.results.tickers.map((x) => x.ticker);
+  const [pair, setPair] = useState<[number, number]>([0, Math.min(1, tickers.length - 1)]);
+  const { betaMatrix } = useAnalysisData(p.results);
   const rollingCorrData = useMemo(
-    () => computePairRollingCorrelation(results.tickers, pair, w),
-    [results, pair, w],
+    () => computePairRollingCorrelation(p.results.tickers, pair, p.correlationWindow),
+    [p.results, pair, p.correlationWindow],
   );
   return (
     <div className="space-y-6">
-      <CorrelationMatrixTable tickers={results.tickers} correlations={results.correlations} />
+      <CorrelationMatrixTable tickers={p.results.tickers} correlations={p.results.correlations} />
       <BetaMatrixTable tickers={tickers} betaMatrix={betaMatrix} />
-      {results.tickers.length >= 2 && (
+      {p.results.tickers.length >= 2 && (
         <RollingCorrelationChart
           tickers={tickers}
           rollingPair={pair}
@@ -320,19 +300,15 @@ const STATS_KEYS = [
   'beta',
 ] as const;
 const STATS_COLUMNS: StatRow[] = rowsFromMeta(STATS_KEYS);
-const StatsTable = memo(function StatsTable({
-  tickers,
-}: {
-  tickers: AssetAnalysisResult['tickers'];
-}) {
+const StatsTable = memo(function StatsTable(p: { tickers: AssetAnalysisResult['tickers'] }) {
   const { t } = useTranslation();
   const fmt = (v: number | undefined, f: StatRow['fmt'], days: string) =>
     f === 'duration' ? (v == null ? '—' : `${v} ${days}`) : f === 'pct' ? fmtPct(v) : fmtNum(v, 2);
-  const rows = STATS_COLUMNS.filter((c) => tickers.some((x) => x.statistics[c.key] != null));
+  const rows = STATS_COLUMNS.filter((c) => p.tickers.some((x) => x.statistics[c.key] != null));
   const metricLabel = (c: StatRow) => (c.label.includes('.') ? t(c.label) : c.label);
   const cols: SimpleTableColumn<StatRow>[] = [
     { key: 'metric', label: t('Metric'), render: metricLabel },
-    ...tickers.map((x, i) => ({
+    ...p.tickers.map((x, i) => ({
       key: x.ticker,
       label: <U.PortfolioLabel color={getPortfolioColor(i)} name={x.ticker} />,
       align: 'right' as const,
