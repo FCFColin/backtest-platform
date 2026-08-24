@@ -2,7 +2,7 @@ import { Router, type Request, type Response } from 'express';
 import { fetchCpiForRoute, SYNTHETIC_TICKERS } from '../infrastructure/dataServices.js';
 import { sendProblem } from '../utils/errors.js';
 import { crudRouteHandler, sendData, sendDegraded } from './routeUtils.js';
-import { createTtlCache } from '../utils/ttlCache.js';
+import { createTtlCache, withTtlCache } from '../utils/ttlCache.js';
 import { callService } from '../utils/httpClient.js';
 import { config } from '../config/index.js';
 import {
@@ -67,14 +67,8 @@ router.get(
   '/meta',
   crudRouteHandler(
     async (_req: Request, res: Response): Promise<void> => {
-      const cached = metaCache.get('meta');
-      if (cached) {
-        sendData(res, cached);
-        return;
-      }
       try {
-        const data = await queryMeta();
-        metaCache.set('meta', data);
+        const data = await withTtlCache(metaCache, 'meta', queryMeta);
         sendData(res, data);
       } catch {
         sendDegraded(res, {}, '数据元信息暂不可用，返回空快照');
@@ -124,28 +118,21 @@ router.get(
         });
         return;
       }
-      const cached = tickerMetaCache.get(ticker);
-      if (cached) {
-        res.set('Cache-Control', 'public, max-age=60');
-        sendData(res, cached);
-        return;
-      }
-      try {
-        const data = await queryTickerMeta(ticker);
-        if (!data) {
-          sendProblem(res, 404, 'TICKER_NOT_FOUND', 'Not Found', {
-            detail: `ticker ${ticker} 未知`,
-          });
-          return;
-        }
-        tickerMetaCache.set(ticker, data);
-        res.set('Cache-Control', 'public, max-age=60');
-        sendData(res, data);
-      } catch {
+      const data = await withTtlCache(tickerMetaCache, ticker, () => queryTickerMeta(ticker)).catch(
+        () => undefined,
+      );
+      if (data === undefined) {
         sendProblem(res, 503, 'DATA_UNAVAILABLE', 'Service Unavailable', {
           detail: '元数据暂不可用，请稍后重试',
         });
+        return;
       }
+      if (!data) {
+        sendProblem(res, 404, 'TICKER_NOT_FOUND', 'Not Found', { detail: `ticker ${ticker} 未知` });
+        return;
+      }
+      res.set('Cache-Control', 'public, max-age=60');
+      sendData(res, data);
     },
     { logMsg: 'Ticker meta fetch error', code: 'TICKER_META_ERROR', endpoint: 'data-ticker-meta' },
   ),

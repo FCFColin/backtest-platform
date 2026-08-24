@@ -13,7 +13,7 @@ import {
   recordFrontendComponentRender,
   recordFrontendPageLoad,
 } from '../utils/metrics.js';
-import { createTtlCache } from '../utils/ttlCache.js';
+import { createTtlCache, withTtlCache } from '../utils/ttlCache.js';
 
 const router = Router();
 
@@ -23,23 +23,23 @@ router.get(
   '/announcements',
   crudRouteHandler(
     async (_req: Request, res: Response): Promise<void> => {
-      const cached = announcementCache.get('announcements');
-      if (cached) {
-        res.set('Cache-Control', 'public, max-age=60');
-        sendData(res, cached);
-        return;
-      }
       const readPool = getReadPool();
       if (!readPool) {
         sendProblem(res, 503, 'DATABASE_UNAVAILABLE');
         return;
       }
-      const { rows } = await readPool.query(
-        `SELECT id, title, body, category, severity, published_at FROM announcements WHERE (expires_at IS NULL OR expires_at > NOW()) ORDER BY published_at DESC LIMIT 50`,
-      );
-      announcementCache.set('announcements', rows);
-      res.set('Cache-Control', 'public, max-age=60');
-      sendData(res, rows);
+      const sendRows = (rows: object[]): void => {
+        res.set('Cache-Control', 'public, max-age=60');
+        sendData(res, rows);
+      };
+      const rows =
+        (await withTtlCache(announcementCache, 'announcements', async () => {
+          const { rows } = await readPool.query(
+            `SELECT id, title, body, category, severity, published_at FROM announcements WHERE (expires_at IS NULL OR expires_at > NOW()) ORDER BY published_at DESC LIMIT 50`,
+          );
+          return rows;
+        })) ?? [];
+      sendRows(rows);
     },
     { logMsg: 'Announcements fetch error', code: 'ANNOUNCEMENTS_FETCH_ERROR' },
   ),
