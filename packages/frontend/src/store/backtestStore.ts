@@ -64,10 +64,7 @@ export interface BacktestState {
   addOneTimeCashflow: () => void;
   removeOneTimeCashflow: (id: string) => void;
   updateOneTimeCashflow: (id: string, updates: Partial<OneTimeCashflow>) => void;
-  updateParameter: <K extends keyof BacktestParameters>(
-    key: K,
-    value: BacktestParameters[K],
-  ) => void;
+  updateParameter: <K extends keyof BacktestParameters>(k: K, v: BacktestParameters[K]) => void;
   runBacktest: () => Promise<void>;
   enrichSeries: (series: BacktestSeriesField[]) => Promise<void>;
   setActiveTab: (tab: string) => void;
@@ -75,9 +72,8 @@ export interface BacktestState {
   loadFromShare: (data: { portfolios: Portfolio[]; parameters: BacktestParameters }) => void;
   getShareableState: () => { portfolios: Portfolio[]; parameters: BacktestParameters };
 }
-export type SetFn = (
-  p: Partial<BacktestState> | ((s: BacktestState) => Partial<BacktestState>),
-) => void;
+type StatePatch = Partial<BacktestState> | ((s: BacktestState) => Partial<BacktestState>);
+export type SetFn = (p: StatePatch) => void;
 export type GetFn = () => BacktestState;
 let currentRequestId = 0;
 export async function pollJobStatus(
@@ -85,8 +81,7 @@ export async function pollJobStatus(
   signal: AbortSignal,
   rid: number | null,
 ): Promise<Record<string, unknown>> {
-  let d = 50;
-  while (true) {
+  for (let d = 50; ; d = Math.min(d * 2, 500)) {
     await cancellableSleep(d, signal);
     if (signal.aborted || (rid !== null && rid !== currentRequestId))
       throw new DOMException('Aborted', 'AbortError');
@@ -101,7 +96,6 @@ export async function pollJobStatus(
       throw new Error(
         x.error || i18n.t('Backtest failed. Please check ticker symbols and parameters.'),
       );
-    d = Math.min(d * 2, 500);
   }
 }
 const setIfCurrent = (set: SetFn, rid: number, patch: Partial<BacktestState>) => {
@@ -110,8 +104,7 @@ const setIfCurrent = (set: SetFn, rid: number, patch: Partial<BacktestState>) =>
 const stale = <T>(p: T): T & { resultsStale: true } => ({ ...p, resultsStale: true });
 async function runBacktestAction(set: SetFn, get: GetFn): Promise<void> {
   const rid = ++currentRequestId;
-  const prev = get()._abortController;
-  if (prev) prev.abort();
+  get()._abortController?.abort();
   const ctrl = new AbortController();
   set({ _abortController: ctrl, isLoading: true, error: null });
   const { portfolios, parameters } = get();
@@ -154,6 +147,7 @@ async function runBacktestAction(set: SetFn, get: GetFn): Promise<void> {
     setIfCurrent(set, rid, { isLoading: false, _abortController: null });
   }
 }
+const isEmptyField = (v: unknown) => v === undefined || (Array.isArray(v) && v.length === 0);
 async function enrichSeriesAction(
   set: SetFn,
   get: GetFn,
@@ -161,12 +155,7 @@ async function enrichSeriesAction(
 ): Promise<void> {
   const { portfolios, parameters, results } = get();
   if (!results?.portfolios?.length) return;
-  const missing = series.filter((f) =>
-    results.portfolios.some((p) => {
-      const v = p[f];
-      return v === undefined || (Array.isArray(v) && v.length === 0);
-    }),
-  );
+  const missing = series.filter((f) => results.portfolios.some((p) => isEmptyField(p[f])));
   if (!missing.length) return;
   try {
     const res = await apiFetch('/api/v1/backtest/portfolio/series', {
@@ -198,30 +187,6 @@ async function enrichSeriesAction(
   } catch (e) {
     reportError(e, { component: 'backtestStore', action: 'enrichBacktestSeries' });
   }
-}
-function loadFromShareAction(
-  set: SetFn,
-  get: GetFn,
-  data: { portfolios: Portfolio[]; parameters: BacktestParameters },
-): void {
-  useSettingsStore.getState().setCurrency(data.parameters.baseCurrency ?? 'usd');
-  const maxId = data.portfolios.reduce((m, p) => {
-    const x = p.id?.match(/-(\d+)$/);
-    return x ? Math.max(m, parseInt(x[1])) : m;
-  }, get().portfolioCounter);
-  set({
-    portfolios: data.portfolios.map((p) => ({
-      ...p,
-      id: p.id || `portfolio-${Date.now()}-${maxId + 1}`,
-    })),
-    parameters: { ...defaultParameters, ...data.parameters },
-    results: null,
-    resultsStale: false,
-    error: null,
-    activeTab: 'summary' as const,
-    portfolioCounter: maxId,
-    hasLoadedFromShare: true,
-  });
 }
 type CF = CashflowLeg | OneTimeCashflow;
 const patchParams = <T extends CF>(
@@ -326,11 +291,26 @@ export const useBacktestStore = create<BacktestState>()((set, get) => {
     enrichSeries: (series: BacktestSeriesField[]) => enrichSeriesAction(set, get, series),
     setActiveTab: (t: string) => set({ activeTab: t }),
     setHasLoadedFromShare: (v: boolean) => set({ hasLoadedFromShare: v }),
-    loadFromShare: (d: { portfolios: Portfolio[]; parameters: BacktestParameters }) =>
-      loadFromShareAction(set, get, d),
-    getShareableState: () => {
-      const { portfolios, parameters } = get();
-      return { portfolios, parameters };
+    loadFromShare: (data) => {
+      useSettingsStore.getState().setCurrency(data.parameters.baseCurrency ?? 'usd');
+      const maxId = data.portfolios.reduce((m, p) => {
+        const x = p.id?.match(/-(\d+)$/);
+        return x ? Math.max(m, parseInt(x[1])) : m;
+      }, get().portfolioCounter);
+      set({
+        portfolios: data.portfolios.map((p) => ({
+          ...p,
+          id: p.id || `portfolio-${Date.now()}-${maxId + 1}`,
+        })),
+        parameters: { ...defaultParameters, ...data.parameters },
+        results: null,
+        resultsStale: false,
+        error: null,
+        activeTab: 'summary',
+        portfolioCounter: maxId,
+        hasLoadedFromShare: true,
+      });
     },
+    getShareableState: () => ({ portfolios: get().portfolios, parameters: get().parameters }),
   };
 });
