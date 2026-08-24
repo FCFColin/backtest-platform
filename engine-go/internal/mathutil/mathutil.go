@@ -3,6 +3,7 @@ package mathutil
 import (
 	"math"
 	"math/rand"
+	"slices"
 	"sort"
 )
 
@@ -91,15 +92,7 @@ func Histogram(values []float64, binCount int) (counts []int, minVal, maxVal flo
 	if len(values) == 0 || binCount <= 0 {
 		return nil, 0, 0
 	}
-	minVal, maxVal = values[0], values[0]
-	for _, v := range values[1:] {
-		if v < minVal {
-			minVal = v
-		}
-		if v > maxVal {
-			maxVal = v
-		}
-	}
+	minVal, maxVal = slices.Min(values), slices.Max(values)
 	counts = make([]int, binCount)
 	if maxVal == minVal {
 		counts[0] = len(values)
