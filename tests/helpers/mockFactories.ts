@@ -85,8 +85,8 @@ export function mockBacktestQueue(
   return { backtestQueue: { add, ...(getJob ? { getJob } : {}) } };
 }
 
-export function createMetricsMocks() {
-  return {
+export function createMetricsMocks(picks?: readonly string[]) {
+  const all: Record<string, unknown> = {
     registerSemaphoreMetrics: vi.fn(),
     registerCircuitBreakerMetrics: vi.fn(),
     recordCacheHit: vi.fn(),
@@ -99,6 +99,11 @@ export function createMetricsMocks() {
     recordBacktestRequest: vi.fn(),
     recordDegradedResponse: vi.fn(),
   };
+  if (!picks) return all;
+  const missing = picks.filter((k) => !(k in all));
+  if (missing.length > 0)
+    throw new Error(`createMetricsMocks: unknown pick(s): ${missing.join(', ')}`);
+  return Object.fromEntries(picks.map((k) => [k, all[k]]));
 }
 
 interface RedisMocksOptions {
@@ -292,21 +297,46 @@ export function createMockClient(): PoolClient & { query: ReturnType<typeof vi.f
 interface PoolDbMocks {
   query: ReturnType<typeof vi.fn>;
   withTenant?: ReturnType<typeof vi.fn>;
+  /** 缺省时回退到 withTenant（保持既有共享路由语义） */
+  withTenantReadOnly?: ReturnType<typeof vi.fn>;
 }
 
-export function createPoolModuleMock(dbMocks: PoolDbMocks) {
-  const client = () => ({ query: dbMocks.query });
+export interface PoolModuleMockOptions {
+  /** 覆盖默认连接形状（默认 `{ query }`）；getPool/getReadPool/withTenant 复用同一 client */
+  client?: unknown;
+  /** 完全接管 getPool 实现（优先于默认 client 包装） */
+  getPool?: () => unknown;
+  /** 追加/覆盖模块级导出成员（如 withTransaction / closeDb / pool） */
+  exports?: Record<string, unknown>;
+}
+
+export function createPoolModuleMock(
+  dbMocks?: Partial<PoolDbMocks>,
+  opts: PoolModuleMockOptions = {},
+) {
+  const client = () =>
+    opts.client ?? {
+      query: dbMocks?.query ?? vi.fn().mockResolvedValue({ rows: [], rowCount: 0 }),
+    };
   const withTenant = <T>(
     tenantId: string,
     fn: (c: ReturnType<typeof client>) => Promise<T> | T,
   ) => {
-    dbMocks.withTenant?.(tenantId);
+    dbMocks?.withTenant?.(tenantId);
+    return fn(client());
+  };
+  const withTenantReadOnly = <T>(
+    tenantId: string,
+    fn: (c: ReturnType<typeof client>) => Promise<T> | T,
+  ) => {
+    (dbMocks?.withTenantReadOnly ?? dbMocks?.withTenant)?.(tenantId);
     return fn(client());
   };
   return {
-    getPool: () => client(),
+    getPool: opts.getPool ?? (() => client()),
     getReadPool: () => client(),
     withTenant,
-    withTenantReadOnly: withTenant,
+    withTenantReadOnly,
+    ...opts.exports,
   };
 }

@@ -3,7 +3,7 @@ import { describe, it, expect, vi } from 'vitest';
 import {
   startExpressApp,
   useTestServer,
-  type TestRequest,
+  injectAuth,
   postJson,
   reqJson,
 } from '../../helpers/expressApp.js';
@@ -301,17 +301,12 @@ describe('backtestRoutes - GET /api/v1/backtest/runs/:jobId', () => {
   });
 });
 describe('jobRoutes - GET /api/v1/jobs/:id', () => {
-  const authMw = (req: TestRequest, _res: any, next: any) => {
-    req.user = {
-      sub: (req.headers['x-test-sub'] as string) || 'admin-user',
-      role: (req.headers['x-test-role'] as string) || 'admin',
-      platform_admin: (req.headers['x-test-platform'] as string) === 'true',
-      iat: 0,
-      exp: 0,
-    };
-    req.tenantId = (req.headers['x-test-tenant'] as string) || void 0;
-    next();
-  };
+  const authMw = injectAuth((req) => ({
+    sub: (req.headers['x-test-sub'] as string) || 'admin-user',
+    role: (req.headers['x-test-role'] as string) || 'admin',
+    platformAdmin: (req.headers['x-test-platform'] as string) === 'true',
+    tenantId: (req.headers['x-test-tenant'] as string) || undefined,
+  }));
   const boot = () => startExpressApp((a) => (a.use(authMw), a.use('/api/v1', jobRoutes)));
   const getServer = withServer(() => (vi.clearAllMocks(), boot()));
   it('任务存在且已完成时应返回结果', async () => {

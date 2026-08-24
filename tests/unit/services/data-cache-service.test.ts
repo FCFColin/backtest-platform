@@ -1,5 +1,6 @@
 import '../../helpers/loggerMock.js';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { createMetricsMocks } from '../../helpers/mockFactories.js';
 
 const { redisStub, healthMock, markUnhealthy } = vi.hoisted(() => {
   const store = new Map<string, { value: string; expiresAt: number }>();
@@ -46,10 +47,9 @@ const { redisStub, healthMock, markUnhealthy } = vi.hoisted(() => {
   return { redisStub, healthMock, markUnhealthy };
 });
 
-vi.mock('../../../packages/backend/src/utils/metrics.js', () => ({
-  recordCacheHit: vi.fn(),
-  recordCacheEviction: vi.fn(),
-}));
+vi.mock('../../../packages/backend/src/utils/metrics.js', () =>
+  createMetricsMocks(['recordCacheHit', 'recordCacheEviction']),
+);
 
 vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () => ({
   appRedis: redisStub,

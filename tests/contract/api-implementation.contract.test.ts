@@ -6,15 +6,14 @@ import { pathToFileURL } from 'url';
 import { fileURLToPath } from 'url';
 import { generateOpenApiDocument } from '../../packages/backend/src/schemas/openapi-registry.js';
 import { redisModuleMock } from '../helpers/redisFixture.js';
+import { createPoolModuleMock } from '../helpers/mockFactories.js';
 
 // β-1 副作用隔离（范式同 health-routes.test）：动态 import 路由模块前阻断 redis/pg。
 // queueDefinitions 未被任何 routes 文件顶层 import（jobSubmission 经工厂注入），无需 mock。
 vi.mock('../../packages/backend/src/infrastructure/redisClient.js', () => redisModuleMock);
-vi.mock('../../packages/backend/src/db/pool.js', () => ({
-  getPool: vi.fn(() => ({ query: vi.fn().mockResolvedValue({ rows: [] }) })),
-  getReadPool: vi.fn(() => ({ query: vi.fn().mockResolvedValue({ rows: [] }) })),
-  pool: { query: vi.fn() },
-}));
+vi.mock('../../packages/backend/src/db/pool.js', () =>
+  createPoolModuleMock(undefined, { exports: { pool: { query: vi.fn() } } }),
+);
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

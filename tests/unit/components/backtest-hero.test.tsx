@@ -11,12 +11,6 @@ vi.mock('react-i18next', async () => {
   return { ...i18nMock, useTranslation: () => ({ ...i18nMock.useTranslation(), t: tOverride }) };
 });
 
-vi.mock('react-router', () => ({
-  Link: ({ children, to }: { children: React.ReactNode; to: string }) => (
-    <a href={to}>{children}</a>
-  ),
-}));
-
 const HERO_DESCRIPTION =
   'This platform is a portfolio backtesting tool supporting ETFs, stocks, funds, synthetic tickers, and custom sequences. Compare multiple portfolios over the same historical period, test rebalancing rules, and simulate cashflow contributions or withdrawals.';
 

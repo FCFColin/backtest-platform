@@ -1,4 +1,10 @@
-import express, { type Express, type Request, type Router } from 'express';
+import express, {
+  type Express,
+  type Request,
+  type Response,
+  type NextFunction,
+  type Router,
+} from 'express';
 import { vi, beforeEach, afterEach } from 'vitest';
 
 export interface TestServer {
@@ -16,6 +22,32 @@ export interface TestRequest extends Request {
     platform_admin?: boolean;
     iat?: number;
     exp?: number;
+  };
+}
+
+export interface InjectAuthOptions {
+  sub?: string;
+  role?: string;
+  tenantId?: string;
+  orgRole?: string;
+  platformAdmin?: boolean;
+}
+
+/** 返回挂载 req.user / req.tenantId 的测试鉴权中间件；静态对象在每次请求时求值 */
+export function injectAuth(
+  opts: InjectAuthOptions | ((req: TestRequest) => InjectAuthOptions),
+): (req: TestRequest, res: Response, next: NextFunction) => void {
+  return (req, _res, next) => {
+    const o = typeof opts === 'function' ? opts(req) : opts;
+    req.user = {
+      sub: o.sub ?? 'user-1',
+      role: o.role ?? 'admin',
+      ...(o.tenantId !== undefined ? { tenant_id: o.tenantId } : {}),
+      ...(o.orgRole !== undefined ? { org_role: o.orgRole } : {}),
+      ...(o.platformAdmin !== undefined ? { platform_admin: o.platformAdmin } : {}),
+    };
+    if (o.tenantId !== undefined) req.tenantId = o.tenantId;
+    next();
   };
 }
 

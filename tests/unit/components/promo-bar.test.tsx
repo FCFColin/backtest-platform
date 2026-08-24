@@ -4,12 +4,6 @@ import { PromoBar } from '../../../packages/frontend/src/components/layout/Navba
 
 vi.mock('react-i18next', async () => (await import('../../helpers/i18nMock.js')).i18nMock);
 
-vi.mock('react-router', () => ({
-  Link: ({ children, to }: { children: React.ReactNode; to: string }) => (
-    <a href={to}>{children}</a>
-  ),
-}));
-
 beforeEach(() => {
   localStorage.clear();
 });

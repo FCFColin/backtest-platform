@@ -1,11 +1,6 @@
 import '../../helpers/loggerMock.js';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import {
-  startExpressApp,
-  reqJson,
-  type TestServer,
-  type TestRequest,
-} from '../../helpers/expressApp.js';
+import { startExpressApp, reqJson, injectAuth, type TestServer } from '../../helpers/expressApp.js';
 
 const mocks = vi.hoisted(() => ({
   repos: {
@@ -42,11 +37,7 @@ const ID = '22222222-2222-2222-2222-222222222222';
 
 async function startApp(sub = 'user-1'): Promise<TestServer> {
   return startExpressApp((app) => {
-    app.use((req: TestRequest, _res, next) => {
-      req.tenantId = ORG;
-      req.user = { sub, role: 'analyst', tenant_id: ORG, org_role: 'analyst' };
-      next();
-    });
+    app.use(injectAuth({ sub, role: 'analyst', tenantId: ORG, orgRole: 'analyst' }));
     app.use('/api/v1', workspaceRoutes);
   });
 }

@@ -2,6 +2,7 @@ import '../../helpers/loggerMock.js';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { engineMocks } from '../../helpers/engineFixture.js';
 import { loggerMocks } from '../../helpers/loggerFixture.js';
+import { mockPortfolioResult } from '../../helpers/storeFixtures.js';
 import {
   dataFacadeMocks,
   mockEngine,
@@ -146,15 +147,8 @@ describe('strategy-application-services', () => {
       rebalanceFrequency: 'monthly' as const,
     };
 
-    const emptyPortfolio = (name: string) => ({
-      name,
-      growthCurve: [],
-      drawdownCurve: [],
-      rollingReturns: [],
-      annualReturns: [],
-      monthlyReturns: [],
-      statistics: {},
-    });
+    const emptyPortfolio = (name: string) =>
+      mockPortfolioResult({ name, growthCurve: [], drawdownCurve: [] });
 
     it('collectTickers 从策略中提取去重 ticker', () => {
       expect(collectTickers(strategy)).toEqual(['SPY']);

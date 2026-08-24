@@ -25,7 +25,7 @@ vi.mock('../../../packages/backend/src/app.js', () => ({
   backtestWs: { close: vi.fn() },
 }));
 
-import { mockEnvModule } from '../../helpers/mockFactories.js';
+import { mockEnvModule, createPoolModuleMock } from '../../helpers/mockFactories.js';
 vi.mock('../../../packages/backend/src/config/env.js', () =>
   mockEnvModule({ API_PORT: 5001, NODE_ENV: 'test', EMAIL_TRANSPORT: 'console' }),
 );
@@ -34,11 +34,9 @@ vi.mock('../../../packages/backend/src/infrastructure/dataFacade.js', () => ({
   initDb: vi.fn().mockResolvedValue(undefined),
 }));
 
-vi.mock('../../../packages/backend/src/db/pool.js', () => ({
-  getPool: vi.fn(),
-  getReadPool: vi.fn(),
-  closeDb: vi.fn().mockResolvedValue(undefined),
-}));
+vi.mock('../../../packages/backend/src/db/pool.js', () =>
+  createPoolModuleMock(undefined, { exports: { closeDb: vi.fn().mockResolvedValue(undefined) } }),
+);
 
 const mockOutboxConsumer = {
   start: vi.fn().mockResolvedValue(undefined),

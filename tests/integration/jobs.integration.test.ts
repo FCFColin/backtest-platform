@@ -6,7 +6,7 @@ import '../helpers/loggerMock.js'; /**
  * 鉴权中间件可按用例切换角色，覆盖 admin 放行、非 admin 越权拒绝、跨租户拒绝。
  */
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
-import type { Request, Response, NextFunction } from 'express';
+import { injectAuth, type InjectAuthOptions } from '../helpers/expressApp.js';
 
 const fakeJobs = new Map<string, FakeJob>();
 
@@ -44,21 +44,11 @@ const requesterUserId = 'requester-user-id';
 const orgA = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
 const orgB = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
 
-let currentRole: 'admin' | 'analyst' | 'readonly' = 'analyst';
-let currentTenant: string | undefined = orgA;
-
-function authMiddleware(req: Request, _res: Response, next: NextFunction): void {
-  (req as unknown as { tenantId: string | undefined }).tenantId = currentTenant;
-  (req as unknown as { user: unknown }).user = {
-    sub: requesterUserId,
-    role: currentRole,
-    tenant_id: currentTenant,
-    org_role: currentRole === 'admin' ? 'owner' : currentRole,
-    platform_admin: false,
-    iat: Math.floor(Date.now() / 1000),
-    exp: Math.floor(Date.now() / 1000) + 3600,
-  };
-  next();
+const authOpts: InjectAuthOptions = { sub: requesterUserId, role: 'analyst', tenantId: orgA };
+function setIdentity(role: 'admin' | 'analyst' | 'readonly', tenant: string | undefined) {
+  authOpts.role = role;
+  authOpts.orgRole = role === 'admin' ? 'owner' : role;
+  authOpts.tenantId = tenant;
 }
 
 let baseUrl = '';
@@ -66,7 +56,7 @@ let baseUrl = '';
 beforeAll(async () => {
   const app = express();
   app.use(express.json());
-  app.use(authMiddleware);
+  app.use(injectAuth(authOpts));
   app.use('/api/v1', jobRoutes);
 
   await new Promise<void>((resolve) => {
@@ -104,16 +94,14 @@ function createFakeJob(overrides: Partial<FakeJobData> & { id?: string } = {}): 
 
 describe('异步任务 IDOR 防护集成测试', () => {
   it('非 admin 且非 owner 被拒绝（404 不泄露存在性）', async () => {
-    currentRole = 'analyst';
-    currentTenant = orgA;
+    setIdentity('analyst', orgA);
     const job = createFakeJob({ userId: 'someone-else', tenantId: orgA });
     const res = await fetch(`${baseUrl}/api/v1/jobs/${job.id}`);
     expect(res.status).toBe(404);
   });
 
   it('跨租户访问被拒绝（404），即便同租户 owner', async () => {
-    currentRole = 'analyst';
-    currentTenant = orgA;
+    setIdentity('analyst', orgA);
     const job = createFakeJob({
       userId: requesterUserId,
       tenantId: orgB,
@@ -123,8 +111,7 @@ describe('异步任务 IDOR 防护集成测试', () => {
   });
 
   it('提交者本人可读（owner）', async () => {
-    currentRole = 'analyst';
-    currentTenant = orgA;
+    setIdentity('analyst', orgA);
     const job = createFakeJob({
       userId: requesterUserId,
       tenantId: orgA,
@@ -139,8 +126,7 @@ describe('异步任务 IDOR 防护集成测试', () => {
   });
 
   it('admin 可读同租户任意任务', async () => {
-    currentRole = 'admin';
-    currentTenant = orgA;
+    setIdentity('admin', orgA);
     const job = createFakeJob({ userId: 'another-user', tenantId: orgA });
     job.returnvalue = { ok: true };
     const res = await fetch(`${baseUrl}/api/v1/jobs/${job.id}`);

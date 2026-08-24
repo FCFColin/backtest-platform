@@ -3,10 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const dbMocks = vi.hoisted(() => ({
   query: vi.fn(),
-  client: {
-    query: vi.fn(),
-    release: vi.fn(),
-  },
+  client: { query: vi.fn(), release: vi.fn() },
 }));
 
 import { createWithTransactionMock } from '../../helpers/poolFixture.js';

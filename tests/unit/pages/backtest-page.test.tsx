@@ -2,11 +2,6 @@ import { describe, it, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 
 vi.mock('react-i18next', async () => (await import('../../helpers/i18nMock.js')).i18nMock);
-vi.mock('react-router', () => ({
-  Link: ({ children, to }: { children: React.ReactNode; to: string }) => (
-    <a href={to}>{children}</a>
-  ),
-}));
 
 const pageState = vi.hoisted(() => ({
   portfolios: [{ name: 'SPY', assets: [] }] as unknown[],
