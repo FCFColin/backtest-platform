@@ -155,12 +155,12 @@ export function BacktestHero() {
 }
 function useBacktestPageState() {
   const { t } = useTranslation();
-  const run = useBacktestStore((s) => s.runBacktest);
-  const params = useBacktestStore((s) => s.parameters);
-  const pfs = useBacktestStore((s) => s.portfolios);
-  const load = useBacktestStore((s) => s.loadFromShare);
-  const loaded = useBacktestStore((s) => s.hasLoadedFromShare);
-  const setLoaded = useBacktestStore((s) => s.setHasLoadedFromShare);
+  const run = useBacktestStore((s) => s.runBacktest),
+    params = useBacktestStore((s) => s.parameters),
+    pfs = useBacktestStore((s) => s.portfolios),
+    load = useBacktestStore((s) => s.loadFromShare),
+    loaded = useBacktestStore((s) => s.hasLoadedFromShare),
+    setLoaded = useBacktestStore((s) => s.setHasLoadedFromShare);
   useEffect(() => {
     if (loaded) return;
     setLoaded(true);
@@ -183,10 +183,10 @@ function useBacktestPageState() {
         .addToast('warning', t('Optimizer data format error, unable to load'));
     }
   }, [load, loaded, setLoaded, t]);
-  const [saveOpen, setSaveOpen] = useState(false);
-  const [name, setName] = useState('');
-  const [loadOpen, setLoadOpen] = useState(false);
-  const [saved, setSaved] = useState<SavedPortfolio[]>([]);
+  const [saveOpen, setSaveOpen] = useState(false),
+    [name, setName] = useState(''),
+    [loadOpen, setLoadOpen] = useState(false),
+    [saved, setSaved] = useState<SavedPortfolio[]>([]);
   return {
     t,
     runBacktest: run,
