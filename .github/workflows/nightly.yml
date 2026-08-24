@@ -302,3 +302,15 @@ jobs:
           total=$(scc --exclude-dir node_modules,dist,dist-ssr,.dev-logs,coverage,.git,data,report,.turbo,.cache,.vite,playwright-report,test-results,docs/audit,.github,.husky,.devcontainer,docker,config,k8s --no-cocomo --format json | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const r=JSON.parse(s);console.log(r.reduce((n,f)=>n+f.Lines,0))})")
           echo "LOC total: $total (budget: <= 100000)"
           if [ "$total" -gt 100000 ]; then echo "FAIL: over 100k LOC budget"; exit 1; fi
+      # ε-1 全局 LOC 账本（R-02 v2：硬门禁数据源，代理无自评权）
+      - name: Append LOC ledger entry
+        run: |
+          total=$(scc --exclude-dir node_modules,dist,dist-ssr,.dev-logs,coverage,.git,data,report,.turbo,.cache,.vite,playwright-report,test-results,docs/audit,.github,.husky,.devcontainer,docker,config,k8s --no-cocomo --format json | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const r=JSON.parse(s);console.log(r.reduce((n,f)=>n+f.Lines,0))})")
+          date=$(date -u +%Y-%m-%d)
+          printf '{"date":"%s","total":%s,"commit":"%s"}\n' "$date" "$total" "${{ github.sha }}" >> docs/audit/loc-ledger.jsonl
+          sort -u -o docs/audit/loc-ledger.jsonl docs/audit/loc-ledger.jsonl 2>/dev/null || true
+          git config user.email "ci-bot@noreply"
+          git config user.name "CI Bot"
+          git add docs/audit/loc-ledger.jsonl
+          git diff --cached --quiet || git commit -m "chore(ci): nightly LOC $date [skip ci]"
+          git push

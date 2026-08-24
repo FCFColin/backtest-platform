@@ -3,7 +3,7 @@
 
 $root = Split-Path -Parent $PSScriptRoot
 # 动态基线：优先取本地账本最后一条 total（滚动对比），无账本时回退初始基线
-$ledgerPath = Join-Path $root 'docs/audit/loc-ledger.jsonl'
+$ledgerPath = Join-Path $root 'docs/audit/loc-ledger.local.jsonl'
 $baseline = 89355
 if (Test-Path $ledgerPath) {
   $last = Get-Content $ledgerPath | Select-Object -Last 1 | ConvertFrom-Json
