@@ -18,7 +18,6 @@ import { MetricsGrid } from '@/components/ui/MetricsGrid';
 import { fmtPct } from '@/utils/format';
 import { createComputeToolPage } from '../../components/shells/index.js';
 import { TOOL_LINKS } from '../../components/shells/constants.js';
-import { useMemo, useState } from 'react';
 import i18n from '@/i18n/index.js';
 import { useNavigate } from 'react-router';
 import { useAsyncAction, useSetterState } from '../../hooks/miscHooks.js';
@@ -42,13 +41,11 @@ const C_OK = 'hsl(var(--success))',
   C_FG3 = 'hsl(var(--fg-tertiary))';
 const toOpts = <V extends string>(a: readonly (readonly [V, string])[], t: (k: string) => string) =>
   a.map(([v, l]) => ({ value: v, label: t(l) }));
-const sColor = (s: number, lo: number, hi: number) =>
-  hi === lo
-    ? 'hsl(var(--success))'
-    : ((v) =>
-        `rgb(${v < 0.5 ? 220 : Math.round(220 - (v - 0.5) * 440)},${v < 0.5 ? Math.round(v * 360) : 180},${v < 0.5 ? 50 : Math.round(50 + (v - 0.5) * 74)})`)(
-        Math.max(0, Math.min(1, (s - lo) / (hi - lo))),
-      );
+const sColor = (s: number, lo: number, hi: number) => {
+  if (hi === lo) return 'hsl(var(--success))';
+  const v = Math.max(0, Math.min(1, (s - lo) / (hi - lo)));
+  return `rgb(${v < 0.5 ? 220 : Math.round(220 - (v - 0.5) * 440)},${v < 0.5 ? Math.round(v * 360) : 180},${v < 0.5 ? 50 : Math.round(50 + (v - 0.5) * 74)})`;
+};
 const pc = (p: EfficientFrontierPoint) => ({
   expectedVolatility: +(p.expectedVolatility * 100).toFixed(2),
   expectedReturn: +(p.expectedReturn * 100).toFixed(2),
@@ -58,8 +55,8 @@ const pctWeights = (w: Record<string, number>) =>
   Object.fromEntries(Object.entries(w).map(([k, x]) => [k, +(x * 100).toFixed(1)]));
 function useEfficientFrontierState() {
   const nav = useNavigate();
-  const [tickers, setTickers] = useState(['VTI', 'VXUS', 'BND', 'TLT']);
   const s = useSetterState({
+    tickers: ['VTI', 'VXUS', 'BND', 'TLT'],
     startDate: DEFAULT_BACKTEST_START_DATE,
     endDate: DEFAULT_END_DATE,
     results: null as EfficientFrontierResult | null,
@@ -74,21 +71,18 @@ function useEfficientFrontierState() {
     returnObjective: 'maxCagr',
     solver: 'markowitz',
   });
-  const { startDate, endDate, results, setResults } = s;
-  const { isLoading, error, run, setError } = useAsyncAction();
-  const derived = useMemo(() => {
-    const f = results?.frontier ?? [],
-      sp = f.map((p) => p.sharpeRatio);
-    return {
-      maxSharpe: f[0] && f.reduce((b, p) => (p.sharpeRatio > b.sharpeRatio ? p : b)),
-      sharpeRange: sp.length ? { min: Math.min(...sp), max: Math.max(...sp) } : { min: 0, max: 1 },
-      scatterData: f.map(pc),
-      allocationData: f.map((p, i) => ({ point: i + 1, ...pctWeights(p.weights) })),
-      allAssetTickers: Object.keys(f[0]?.weights ?? {}),
-    };
-  }, [results]);
+  const { run, setError, ...ua } = useAsyncAction();
+  const f = s.results?.frontier ?? [],
+    sp = f.map((p) => p.sharpeRatio);
+  const derived = {
+    maxSharpe: f[0] && f.reduce((b, p) => (p.sharpeRatio > b.sharpeRatio ? p : b)),
+    sharpeRange: sp.length ? { min: Math.min(...sp), max: Math.max(...sp) } : { min: 0, max: 1 },
+    scatterData: f.map(pc),
+    allocationData: f.map((p, i) => ({ point: i + 1, ...pctWeights(p.weights) })),
+    allAssetTickers: Object.keys(f[0]?.weights ?? {}),
+  };
   const runFrontier = () => {
-    const v = tickers.filter(Boolean);
+    const v = s.tickers.filter(Boolean);
     if (v.length < 2) return setError(i18n.t('Please enter at least two ticker symbols'));
     s.setSelectedPoint(null);
     s.setCorrelations(null);
@@ -105,16 +99,16 @@ function useEfficientFrontierState() {
           allowCash: s.allowCash,
           returnObjective: s.returnObjective,
           solver: s.solver,
-          parameters: buildBacktestParameters(startDate, endDate),
+          parameters: buildBacktestParameters(s.startDate, s.endDate),
         },
         i18n.t('Calculation failed'),
       );
-      setResults(data);
+      s.setResults(data);
       const btBody = buildSinglePortfolioBody(
         'temp',
         v.map((x) => ({ ticker: x, weight: Math.round((100 / v.length) * 100) / 100 })),
         { rebalanceFrequency: 'yearly' },
-        buildBacktestParameters(startDate, endDate),
+        buildBacktestParameters(s.startDate, s.endDate),
       );
       const btRes = await apiFetch('/api/v1/backtest/portfolio', {
         method: 'POST',
@@ -134,24 +128,14 @@ function useEfficientFrontierState() {
       i18n.t('Portfolio'),
       Object.entries(q.weights).map(([k, w]) => ({ ticker: k, weight: Math.round(w * 1e4) / 100 })),
       { id: `portfolio-${Date.now()}-1`, rebalanceFrequency: s.rebalanceFrequency || 'quarterly' },
-      buildBacktestParameters(startDate, endDate),
+      buildBacktestParameters(s.startDate, s.endDate),
     );
     localStorage.setItem('bt_load_from_optimizer', JSON.stringify(body));
     nav('/');
   };
-  return {
-    tickers,
-    setTickers,
-    isLoading,
-    error,
-    run: runFrontier,
-    ...s,
-    ...derived,
-    handleLoadInBacktester,
-  };
+  return { ...ua, run: runFrontier, ...s, ...derived, handleLoadInBacktester };
 }
-type FrontierState = ReturnType<typeof useEfficientFrontierState>;
-function FrontierParams({ state: s }: { state: FrontierState }) {
+function FrontierParams({ state: s }: { state: ReturnType<typeof useEfficientFrontierState> }) {
   const { t } = useTranslation();
   const selects = [
     ['Solve Speed', s.solveSpeed, s.setSolveSpeed, SOLVE_OPTS],
@@ -222,13 +206,13 @@ function FrontierParams({ state: s }: { state: FrontierState }) {
     </div>
   );
 }
-function FrontierResults({ state: s }: { state: FrontierState }) {
+function FrontierResults({ state: s }: { state: ReturnType<typeof useEfficientFrontierState> }) {
   const { t } = useTranslation();
-  const frontier = s.results?.frontier ?? [],
-    rb = s.rebalanceFrequency,
+  const rb = s.rebalanceFrequency,
     rfLabel = t(`efficientFrontier.rebalanceFreq.${rb}`, { defaultValue: '' }) || rb,
     sel = s.selectedPoint,
-    ms = s.maxSharpe;
+    ms = s.maxSharpe,
+    ce = s.correlationError;
   const series: any[] = s.scatterData.map((e) => ({
     data: [e],
     color: sColor(e.sharpeRatio, s.sharpeRange.min, s.sharpeRange.max),
@@ -279,7 +263,7 @@ function FrontierResults({ state: s }: { state: FrontierState }) {
     ['Return Objective', s.returnObjective === 'maxCagr' ? t('Max CAGR') : t('Min Vol'), C_FG2],
     ['Solver', t(`efficientFrontier.solver.${s.solver}`, { defaultValue: s.solver }), C_FG2],
   ].map(([label, value, color]) => ({ label: t(label), value, color }));
-  return (
+  const content = (
     <div className="flex flex-col gap-6">
       <div>
         <div className="mb-3 flex items-center justify-between">
@@ -299,7 +283,7 @@ function FrontierResults({ state: s }: { state: FrontierState }) {
           tooltipFormatter={(v: number) => `${v.toFixed(2)}%`}
           series={series}
           onClick={({ seriesIndex: i }) => {
-            const q = i === undefined ? undefined : (frontier[i] ?? ms);
+            const q = i === undefined ? undefined : ((s.results?.frontier ?? [])[i] ?? ms);
             if (q) s.setSelectedPoint(q);
           }}
         />
@@ -370,10 +354,6 @@ function FrontierResults({ state: s }: { state: FrontierState }) {
       </div>
     </div>
   );
-}
-function FrontierResultsView({ state: s }: { state: FrontierState }) {
-  const { t } = useTranslation(),
-    ce = s.correlationError;
   return (
     <ResultsShell
       error={s.error}
@@ -386,7 +366,7 @@ function FrontierResultsView({ state: s }: { state: FrontierState }) {
     >
       <div className="flex flex-col gap-3">
         {ce && !s.error && <ErrorBanner message={ce} variant="warning" />}
-        {s.results && s.results.frontier.length > 0 && <FrontierResults state={s} />}
+        {content}
       </div>
     </ResultsShell>
   );
@@ -403,5 +383,5 @@ export default createComputeToolPage(useEfficientFrontierState, {
   ],
   relatedTools: [TOOL_LINKS.backtest, TOOL_LINKS.optimizer, TOOL_LINKS.analysis],
   params: FrontierParams,
-  results: FrontierResultsView,
+  results: FrontierResults,
 });
