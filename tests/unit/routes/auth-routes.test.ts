@@ -14,13 +14,15 @@ import {
   createMembershipServiceMocks,
 } from '../../helpers/authFixtures.js';
 
-type VFn = ReturnType<typeof vi.fn>;
 type ReqU = Request & { user?: Record<string, unknown> };
 
 const mocks = vi.hoisted(() => ({
   config: {} as Record<string, unknown>,
   jwtAuth: {} as Record<string, unknown>,
-  userService: {} as Record<string, unknown>,
+  userService: {
+    issueEmailVerificationToken: vi.fn(),
+    verifyEmailToken: vi.fn(),
+  } as Record<string, unknown>,
   loginLockout: {
     isLockedOut: vi.fn().mockResolvedValue(0),
     recordFailure: vi.fn().mockResolvedValue(undefined),
@@ -29,12 +31,7 @@ const mocks = vi.hoisted(() => ({
     recordIpFailure: vi.fn().mockResolvedValue(undefined),
   } as Record<string, unknown>,
   membershipService: {} as Record<string, unknown>,
-  registration: {
-    getUserByEmail: vi.fn(),
-    issueEmailVerificationToken: vi.fn(),
-    verifyEmailToken: vi.fn(),
-    sendVerificationEmail: vi.fn(),
-  } as Record<string, unknown>,
+  registration: { getUserByEmail: vi.fn(), sendVerificationEmail: vi.fn() },
 }));
 vi.mock('../../../packages/backend/src/config/index.js', () => {
   Object.assign(mocks.config, createAuthRoutesConfig());
@@ -43,16 +40,11 @@ vi.mock('../../../packages/backend/src/config/index.js', () => {
 vi.mock('../../../packages/backend/src/middleware/jwtAuth.js', () =>
   createAuthJwtAuthMocks(mocks.jwtAuth),
 );
-function userModuleMocks(overrides: Record<string, unknown>) {
+function userModuleMocks(overrides: Record<string, unknown> = {}) {
   if (!mocks.userService.verifyUser) createAuthUserServiceMocks(mocks.userService);
   return { ...mocks.userService, ...overrides };
 }
-vi.mock('../../../packages/backend/src/application/auth/userService.js', () =>
-  userModuleMocks({
-    issueEmailVerificationToken: mocks.registration.issueEmailVerificationToken,
-    verifyEmailToken: mocks.registration.verifyEmailToken,
-  }),
-);
+vi.mock('../../../packages/backend/src/application/auth/userService.js', () => userModuleMocks());
 vi.mock('../../../packages/backend/src/repositories/userRepo.js', () =>
   userModuleMocks({ getUserByEmail: mocks.registration.getUserByEmail }),
 );
@@ -79,7 +71,7 @@ vi.mock('../../../packages/backend/src/infrastructure/mailService.js', () => ({
 }));
 import authRoutes from '../../../packages/backend/src/routes/authRoutes.js';
 
-const fn = (m: Record<string, unknown>, k: string): VFn => m[k] as VFn;
+const fn = (m: Record<string, unknown>, k: string) => m[k] as ReturnType<typeof vi.fn>;
 const expSoon = () => Math.floor(Date.now() / 1000) + 900;
 const OID = '11111111-1111-4111-8111-111111111111';
 const DUP_ERR = Object.assign(new Error('duplicate key'), { code: '23505' });
@@ -89,21 +81,21 @@ const injectUser = (sub = 'user-switch', role = 'analyst', extra: Record<string,
     req.user = { sub, role, exp: expSoon(), ...extra };
     nx();
   });
-const parseCookies = (req: Request, _res: Response, next: NextFunction) => {
-  req.cookies = Object.fromEntries(
-    [...(req.headers.cookie ?? '').matchAll(/([^;=]+)=([^;]*)/g)].map((m) => [m[1].trim(), m[2]]),
-  );
-  next();
+const parseCookies = (req: Request, _res: Response, nx: NextFunction) => {
+  req.cookies = Object.fromEntries((req.headers.cookie ?? '').split(';').map((c) => c.split('=')));
+  nx();
 };
 const apiPost = (u: string, b?: unknown, h: Record<string, string> = {}) =>
   reqJson(u, 'POST', b, h);
 const apiDelete = (u: string, h: Record<string, string> = {}) => reqJson(u, 'DELETE', undefined, h);
 const apiGet = (u: string, h: Record<string, string> = {}) => reqJson(u, 'GET', undefined, h);
+const ok = async (p: Promise<Awaited<ReturnType<typeof reqJson>>>, status = 200) => {
+  const r = await p;
+  expect(r.res.status).toBe(status);
+  return r;
+};
 function userRecord(id: string, role: string) {
   return { id, username: 'testuser', role, createdAt: new Date(), isActive: true };
-}
-function mockVerifyUser(id = 'user-123', role = 'admin') {
-  fn(mocks.userService, 'verifyUser').mockResolvedValueOnce(userRecord(id, role));
 }
 function mockOrg(overrides: Record<string, unknown> = {}) {
   return {
@@ -121,7 +113,6 @@ describe('authRoutes - 登录与会话端点', () => {
   const getServer = withServer(() => {
     vi.clearAllMocks();
     fn(mocks.jwtAuth, 'jwtAuth').mockImplementation((_q, _r, nx) => nx());
-    mocks.config.NODE_ENV = 'production';
     fn(mocks.jwtAuth, 'generateToken').mockResolvedValue('access-token-mock');
     fn(mocks.jwtAuth, 'generateRefreshToken').mockResolvedValue('refresh-token-mock');
     return startExpressApp((app) => {
@@ -133,9 +124,8 @@ describe('authRoutes - 登录与会话端点', () => {
   const loginUrl = () => url('/login/password');
   const switchUrl = () => url('/switch-org');
   it('正确凭证应返回 access token 并通过 Set-Cookie 下发 refresh token', async () => {
-    mockVerifyUser('user-123', 'admin');
-    const { res, body } = await apiPost(loginUrl(), validPasswordLoginPayload);
-    expect(res.status).toBe(200);
+    fn(mocks.userService, 'verifyUser').mockResolvedValueOnce(userRecord('user-123', 'admin'));
+    const { res, body } = await ok(apiPost(loginUrl(), validPasswordLoginPayload));
     expect(body.data.accessToken).toBe('access-token-mock');
     expect(body.data.userId).toBe('user-123');
     expect(body.data.refreshToken).toBeUndefined();
@@ -167,11 +157,10 @@ describe('authRoutes - 登录与会话端点', () => {
     ['解析到默认组织时应以组织角色签发', mockOrg(), 'admin', 'user-777', 'readonly'],
     ['无组织成员关系时沿用全局角色', null, 'analyst', 'user-888', 'analyst'],
   ])('%s', async (_n, org, expectedRole, userId, userRole) => {
-    mockVerifyUser(userId, userRole);
+    fn(mocks.userService, 'verifyUser').mockResolvedValueOnce(userRecord(userId, userRole));
     fn(mocks.membershipService, 'isPlatformAdmin').mockResolvedValueOnce(false);
     fn(mocks.membershipService, 'resolveDefaultOrg').mockResolvedValueOnce(org);
-    const { res, body } = await apiPost(loginUrl(), { username: 'orguser', password: 'pass' });
-    expect(res.status).toBe(200);
+    const { body } = await ok(apiPost(loginUrl(), { username: 'orguser', password: 'pass' }));
     expect(body.data.role).toBe(expectedRole);
     if (org) {
       expect(body.data.org.orgId).toBe(OID);
@@ -189,8 +178,9 @@ describe('authRoutes - 登录与会话端点', () => {
       accessToken: 'new-access-token',
       refreshToken: 'new-refresh-token',
     });
-    const { res, body } = await apiPost(url('/refresh'), {}, { Cookie: 'rt=valid-refresh-token' });
-    expect(res.status).toBe(200);
+    const { res, body } = await ok(
+      apiPost(url('/refresh'), {}, { Cookie: 'rt=valid-refresh-token' }),
+    );
     expect(body.data.accessToken).toBe('new-access-token');
     expect(res.headers.get('set-cookie')).toContain('rt=');
   });
@@ -228,8 +218,7 @@ describe('authRoutes - 登录与会话端点', () => {
   it('GET /me jwtAuth 注入 user 时应返回用户信息', async () => {
     const exp = expSoon();
     injectUser('user-me', 'admin', { exp });
-    const { res, body } = await apiGet(url('/me'), { Authorization: 'Bearer valid-token' });
-    expect(res.status).toBe(200);
+    const { body } = await ok(apiGet(url('/me'), { Authorization: 'Bearer valid-token' }));
     expect(body.data.userId).toBe('user-me');
     expect(body.data.role).toBe('admin');
     expect(body.data.exp).toBe(exp);
@@ -237,8 +226,7 @@ describe('authRoutes - 登录与会话端点', () => {
   it('DELETE /me 已认证用户应撤销会话并匿名化账户', async () => {
     injectUser('user-delete-me', 'analyst');
     fn(mocks.userService, 'anonymizeUser').mockResolvedValueOnce(true);
-    const { res, body } = await apiDelete(url('/me'), { Authorization: 'Bearer valid-token' });
-    expect(res.status).toBe(200);
+    const { body } = await ok(apiDelete(url('/me'), { Authorization: 'Bearer valid-token' }));
     expect(body.data.anonymized).toBe(true);
     expect(mocks.jwtAuth.revokeAllUserSessions).toHaveBeenCalledWith('user-delete-me');
   });
@@ -247,8 +235,7 @@ describe('authRoutes - 登录与会话端点', () => {
     injectUser('user-switch', 'analyst');
     fn(mocks.membershipService, 'getMembership').mockResolvedValueOnce(mockOrg({ orgId }));
     fn(mocks.membershipService, 'isPlatformAdmin').mockResolvedValueOnce(false);
-    const { res, body } = await apiPost(switchUrl(), { orgId }, { Authorization: 'Bearer t' });
-    expect(res.status).toBe(200);
+    const { res, body } = await ok(apiPost(switchUrl(), { orgId }, { Authorization: 'Bearer t' }));
     expect(body.data.org.orgId).toBe(orgId);
     expect(res.headers.get('set-cookie')).toContain('rt=');
   });
@@ -267,8 +254,7 @@ describe('authRoutes - 登录与会话端点', () => {
     fn(mocks.membershipService, 'getUserMemberships').mockResolvedValueOnce([
       mockOrg({ orgId, orgName: 'Delta', orgSlug: 'delta', role: 'analyst' }),
     ]);
-    const { res, body } = await apiGet(url('/orgs'), { Authorization: 'Bearer t' });
-    expect(res.status).toBe(200);
+    const { body } = await ok(apiGet(url('/orgs'), { Authorization: 'Bearer t' }));
     expect(body.data.orgs).toHaveLength(1);
     expect(body.data.orgs[0].slug).toBe('delta');
   });
@@ -278,8 +264,8 @@ describe('authRegistrationRoutes', () => {
     vi.clearAllMocks();
     fn(mocks.registration, 'getUserByEmail').mockResolvedValue(null);
     fn(mocks.userService, 'registerUser').mockResolvedValue('user-uuid-123');
-    fn(mocks.registration, 'issueEmailVerificationToken').mockResolvedValue('token-abc');
-    fn(mocks.registration, 'verifyEmailToken').mockResolvedValue('user-uuid-123');
+    fn(mocks.userService, 'issueEmailVerificationToken').mockResolvedValue('token-abc');
+    fn(mocks.userService, 'verifyEmailToken').mockResolvedValue('user-uuid-123');
     fn(mocks.registration, 'sendVerificationEmail').mockResolvedValue(undefined);
     injectUser('user-123', 'admin', { iat: 1, exp: 9999999999 });
     return startExpressApp((app) => app.use('/api/v1/auth', authRoutes));
@@ -288,19 +274,15 @@ describe('authRegistrationRoutes', () => {
   const EMAIL = 'new@example.com';
   const regBody = { username: 'nu', email: EMAIL, password: 'secret123456', orgName: 'Acme' };
   it('注册成功应返回 201 + userId', async () => {
-    const { res, body } = await apiPost(regUrl('register'), regBody);
-    expect(res.status).toBe(201);
+    const { body } = await ok(apiPost(regUrl('register'), regBody), 201);
     expect(body.data.userId).toBe('user-uuid-123');
-    expect(mocks.registration.issueEmailVerificationToken).toHaveBeenCalledWith('user-uuid-123');
+    expect(mocks.userService.issueEmailVerificationToken).toHaveBeenCalledWith('user-uuid-123');
     expect(mocks.registration.sendVerificationEmail).toHaveBeenCalledWith(EMAIL, 'token-abc');
   });
   it('邮箱已被注册应返回 409', async () => {
-    fn(mocks.registration, 'getUserByEmail').mockResolvedValueOnce(
-      userRecord('existing-user', 'analyst'),
-    );
+    fn(mocks.registration, 'getUserByEmail').mockResolvedValueOnce(userRecord('dup'));
     const { res, body } = await apiPost(regUrl('register'), regBody);
-    expect(res.status).toBe(409);
-    expect(body.error.code).toBe('EMAIL_TAKEN');
+    expectError(res, body, 409, 'EMAIL_TAKEN');
     expect(fn(mocks.userService, 'registerUser')).not.toHaveBeenCalled();
   });
   it.each([
@@ -309,27 +291,23 @@ describe('authRegistrationRoutes', () => {
   ])('userService 抛出%s 应返回 %i %s', async (_n, err, status, code) => {
     fn(mocks.userService, 'registerUser').mockRejectedValueOnce(err);
     const { res, body } = await apiPost(regUrl('register'), regBody);
-    expect(res.status).toBe(status);
-    expect(body.error.code).toBe(code);
+    expectError(res, body, status, code);
     expect(mocks.registration.sendVerificationEmail).not.toHaveBeenCalled();
   });
   it('验证邮件发送失败不应阻塞注册', async () => {
     fn(mocks.registration, 'sendVerificationEmail').mockRejectedValueOnce(new Error('smtp down'));
-    const { res } = await apiPost(regUrl('register'), regBody);
-    expect(res.status).toBe(201);
+    await ok(apiPost(regUrl('register'), regBody), 201);
   });
   it('verify-email 缺 token 应返回 400', async () => {
-    const { res } = await apiPost(regUrl('verify-email'), {});
-    expect(res.status).toBe(400);
-    expect(mocks.registration.verifyEmailToken).not.toHaveBeenCalled();
+    await ok(apiPost(regUrl('verify-email'), {}), 400);
+    expect(mocks.userService.verifyEmailToken).not.toHaveBeenCalled();
   });
   it.each([
     ['无效 token', null, 400, 'INVALID_OR_EXPIRED_TOKEN'],
     ['有效 token', 'user-uuid-456', 200, null],
   ])('%s 应返回预期结果', async (_n, vr, status, code) => {
-    fn(mocks.registration, 'verifyEmailToken').mockResolvedValueOnce(vr);
-    const { res, body } = await apiPost(regUrl('verify-email'), { token: 'a-token' });
-    expect(res.status).toBe(status);
+    fn(mocks.userService, 'verifyEmailToken').mockResolvedValueOnce(vr);
+    const { body } = await ok(apiPost(regUrl('verify-email'), { token: 'a-token' }), status);
     if (code) expect(body.error.code).toBe(code);
     else expect(body.data).toEqual({ userId: 'user-uuid-456', verified: true });
   });
