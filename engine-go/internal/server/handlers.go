@@ -242,6 +242,13 @@ func handleCalculators(c *gin.Context) {
 }
 
 func handleSignalAnalyze(c *gin.Context) {
+	// 与 withComputeHandler 契约对齐：panic → RFC9457 500（全局 Recovery 仅裸 500）
+	defer func() {
+		if r := recover(); r != nil {
+			slog.Error("signal panic", "path", c.Request.URL.Path, "panic", r)
+			sharedhttp.NewProblem(c, http.StatusInternalServerError, "SIGNAL_INTERNAL", "Internal Error", "信号分析内部错误")
+		}
+	}()
 	var req struct {
 		Mode      string                        `json:"mode"`
 		Single    *signal.SignalAnalysisRequest `json:"single,omitempty"`

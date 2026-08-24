@@ -110,7 +110,7 @@ func RunGridSearch(ctx context.Context, req TacticalGridRequest) (*TacticalGridR
 		return nil, engineutil.NewInputError("网格组合数 %d 超过上限 %d", total, maxGridCombos)
 	}
 	allMetrics := make([]GridCombinationMetrics, 0, total)
-	allResults := make([]TopCombinationResult, 0, total)
+	allResults := make([]TopCombinationResult, 0, 256) // 只保留候选，防止 D 大时全量曲线驻留内存（OOM 防线）
 	for _, p1 := range p1Vals {
 		for _, p2 := range p2Vals {
 			signals := generateGridSignals(req.Indicator, req.Prices, req.Dates, p1, p2, req.RebalanceFrequency)

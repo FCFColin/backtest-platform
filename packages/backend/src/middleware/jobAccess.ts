@@ -11,6 +11,7 @@ export function jobAccessGranted(
   const jobTenant = job.data?.tenantId;
   const hasOwnership =
     (ownerId !== undefined && ownerId === requester.sub) || requester.role === 'admin';
-  const passesTenantCheck = jobTenant === reqTenantId || requester.platform_admin === true;
+  const passesTenantCheck =
+    (jobTenant !== undefined && jobTenant === reqTenantId) || requester.platform_admin === true;
   return hasOwnership && passesTenantCheck;
 }
