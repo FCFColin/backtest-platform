@@ -6,6 +6,7 @@ import (
 	"engine-go/internal/engineutil"
 	"engine-go/internal/mathutil"
 	"fmt"
+	"gonum.org/v1/gonum/stat"
 	"math"
 	"slices"
 	"sort"
@@ -149,7 +150,7 @@ func computeMCStatistics(paths [][]float64, threshold float64, startingValue flo
 	if n%2 == 0 && medianIdx > 0 {
 		medianVal = (finalValuesList[medianIdx-1] + finalValuesList[medianIdx]) / 2
 	}
-	return MCStatistics{MedianFinalValue: medianVal, MeanFinalValue: mathutil.Mean(finalValuesList), SuccessRate: successRate}
+	return MCStatistics{MedianFinalValue: medianVal, MeanFinalValue: stat.Mean(finalValuesList, nil), SuccessRate: successRate}
 }
 func computePercentiles(paths [][]float64, totalDays int) MCPercentiles {
 	numSims := len(paths)

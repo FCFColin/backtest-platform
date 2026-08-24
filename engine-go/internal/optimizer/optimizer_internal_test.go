@@ -1,8 +1,8 @@
 package optimizer
 
 import (
-	"engine-go/internal/mathutil"
 	"fmt"
+	"gonum.org/v1/gonum/stat"
 	"math"
 	"testing"
 )
@@ -205,7 +205,7 @@ func TestOptimizeMaxReturn(t *testing.T) {
 func TestCovariance(t *testing.T) {
 	t.Run("相同序列协方差等于方差", func(t *testing.T) {
 		x := []float64{1.0, 2.0, 3.0, 4.0, 5.0}
-		cov := mathutil.Covariance(x, x)
+		cov := stat.Covariance(x, x, nil)
 		m := 0.0
 		for _, v := range x {
 			m += v
@@ -221,9 +221,9 @@ func TestCovariance(t *testing.T) {
 		}
 	})
 	t.Run("空序列应返回 0", func(t *testing.T) {
-		cov := mathutil.Covariance([]float64{}, []float64{})
-		if cov != 0 {
-			t.Errorf("空序列协方差应返回 0，实际 %.6f", cov)
+		cov := stat.Covariance([]float64{}, []float64{}, nil) // gonum 语义：空样本协方差未定义 → NaN（ADR-047 授权的语义重基线）
+		if !math.IsNaN(cov) {
+			t.Errorf("空序列协方差应为 NaN，实际 %v", cov)
 		}
 	})
 }

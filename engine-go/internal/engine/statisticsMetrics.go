@@ -3,6 +3,7 @@ package engine
 import (
 	"engine-go/internal/engineutil"
 	"engine-go/internal/mathutil"
+	"gonum.org/v1/gonum/stat"
 	"math"
 	"slices"
 	"time"
@@ -37,7 +38,7 @@ func CalcMWRR(cashflows []Cashflow) float64 {
 	return bisect(-0.99, 100, 200, func(rate float64) bool { return npv(rate) > 0 })
 }
 func CalcAnnualizedStdev(dailyReturns []float64) float64 {
-	return mathutil.Std(dailyReturns) * math.Sqrt(tradingDaysPerYear)
+	return stat.StdDev(dailyReturns, nil) * math.Sqrt(tradingDaysPerYear)
 }
 func safeRatio(num, denom float64) float64 {
 	if denom == 0 {
@@ -54,11 +55,11 @@ func CalcSortino(cagr float64, dailyReturns []float64) float64 {
 }
 func CalcCorrelation(returns1, returns2 []float64) float64 {
 	r1, r2 := alignPair(returns1, returns2)
-	v1, v2 := mathutil.Covariance(r1, r1), mathutil.Covariance(r2, r2)
+	v1, v2 := stat.Covariance(r1, r1, nil), stat.Covariance(r2, r2, nil)
 	if v1 == 0 || v2 == 0 {
 		return 0
 	}
-	return mathutil.Covariance(r1, r2) / math.Sqrt(v1*v2)
+	return stat.Covariance(r1, r2, nil) / math.Sqrt(v1*v2)
 }
 func CalcTotalReturn(startValue, endValue float64) float64 {
 	if startValue <= 0 {
@@ -102,7 +103,7 @@ func RiskFreeDaily() float64   { return math.Pow(1+riskFreeRate, 1.0/tradingDays
 func RiskFreeMonthly() float64 { return math.Pow(1+riskFreeRate, 1.0/12.0) - 1 }
 func CalcBeta(portfolioReturns, benchmarkReturns []float64) float64 {
 	pr, br := alignPair(portfolioReturns, benchmarkReturns)
-	return safeRatio(mathutil.Covariance(pr, br), mathutil.Covariance(br, br))
+	return safeRatio(stat.Covariance(pr, br, nil), stat.Covariance(br, br, nil))
 }
 func CalcAlpha(cagr, beta, benchmarkCagr float64) float64 {
 	return cagr - (riskFreeRate + beta*(benchmarkCagr-riskFreeRate))
@@ -110,12 +111,12 @@ func CalcAlpha(cagr, beta, benchmarkCagr float64) float64 {
 
 // CalcDiversificationRatio 加权资产日波动 / 组合日波动；数据不足或组合零波动返回 0（不可计算）。
 func CalcDiversificationRatio(weights []float64, assetDailyReturns [][]float64, portfolioDailyReturns []float64) float64 {
-	portStd, weightedStd := mathutil.Std(portfolioDailyReturns), 0.0
+	portStd, weightedStd := stat.StdDev(portfolioDailyReturns, nil), 0.0
 	if len(weights) == 0 || len(weights) != len(assetDailyReturns) || len(portfolioDailyReturns) < 2 || portStd == 0 {
 		return 0
 	}
 	for i := range weights {
-		weightedStd += weights[i] * mathutil.Std(assetDailyReturns[i])
+		weightedStd += weights[i] * stat.StdDev(assetDailyReturns[i], nil)
 	}
 	return weightedStd / portStd
 }
@@ -126,7 +127,7 @@ func CalcTrackingError(portfolioReturns, benchmarkReturns []float64) float64 {
 	for i := range pr {
 		diffs[i] = pr[i] - br[i]
 	}
-	return mathutil.Std(diffs) * math.Sqrt(tradingDaysPerYear)
+	return stat.StdDev(diffs, nil) * math.Sqrt(tradingDaysPerYear)
 }
 func CalcInformationRatio(alpha, trackingError float64) float64 {
 	return safeRatio(alpha, trackingError)
@@ -158,14 +159,14 @@ func CalcVaR(dailyReturns []float64, confidence float64) float64 {
 	return tailMetric(dailyReturns, confidence, func(sorted []float64, cutoff int) float64 { return -sorted[min(max(0, cutoff), len(sorted)-1)] })
 }
 func CalcCVaR(dailyReturns []float64, confidence float64) float64 {
-	return tailMetric(dailyReturns, confidence, func(sorted []float64, cutoff int) float64 { return -mathutil.Mean(sorted[:max(cutoff, 1)]) })
+	return tailMetric(dailyReturns, confidence, func(sorted []float64, cutoff int) float64 { return -stat.Mean(sorted[:max(cutoff, 1)], nil) })
 }
 func standardizedMomentSum(returns []float64, power float64) (sum float64, n int, ok bool) {
-	n, stdev := len(returns), mathutil.Std(returns)
+	n, stdev := len(returns), stat.StdDev(returns, nil)
 	if n < int(power) || stdev == 0 {
 		return 0, 0, false
 	}
-	m := mathutil.Mean(returns)
+	m := stat.Mean(returns, nil)
 	for _, r := range returns {
 		sum += math.Pow((r-m)/stdev, power)
 	}
@@ -191,7 +192,7 @@ func calcAlphaDaily(dailyReturns, benchDailyReturns []float64, beta float64) flo
 	if len(dailyReturns) == 0 || len(benchDailyReturns) == 0 {
 		return 0
 	}
-	return mathutil.Mean(dailyReturns) - (RiskFreeDaily() + beta*(mathutil.Mean(benchDailyReturns)-RiskFreeDaily()))
+	return stat.Mean(dailyReturns, nil) - (RiskFreeDaily() + beta*(stat.Mean(benchDailyReturns, nil)-RiskFreeDaily()))
 }
 func calcFiltered(pr, br []float64, upside bool, calc func([]float64, []float64) float64) float64 {
 	n := min(len(pr), len(br))

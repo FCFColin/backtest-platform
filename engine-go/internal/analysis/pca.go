@@ -5,6 +5,7 @@ import (
 	"engine-go/internal/mathutil"
 	"errors"
 	"gonum.org/v1/gonum/mat"
+	"gonum.org/v1/gonum/stat"
 	"sort"
 )
 
@@ -42,11 +43,11 @@ func PerformPCA(req PCARequest) (*PCAResult, error) {
 	stdReturns := make([][]float64, nTickers)
 	stds := make([]float64, nTickers)
 	for j := 0; j < nTickers; j++ {
-		stds[j] = mathutil.Std(returns[j])
+		stds[j] = stat.StdDev(returns[j], nil)
 		if stds[j] == 0 {
 			stds[j] = 1
 		}
-		mean := mathutil.Mean(returns[j])
+		mean := stat.Mean(returns[j], nil)
 		stdReturns[j] = make([]float64, nReturns)
 		for i := range stdReturns[j] {
 			stdReturns[j][i] = (returns[j][i] - mean) / stds[j]
@@ -56,7 +57,7 @@ func PerformPCA(req PCARequest) (*PCAResult, error) {
 	for j := range cov {
 		cov[j] = make([]float64, nTickers)
 		for k := 0; k < nTickers; k++ {
-			cov[j][k] = mathutil.Covariance(stdReturns[j], stdReturns[k])
+			cov[j][k] = stat.Covariance(stdReturns[j], stdReturns[k], nil)
 		}
 	}
 	covFlat := make([]float64, nTickers*nTickers)

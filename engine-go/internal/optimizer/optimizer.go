@@ -4,6 +4,7 @@ import (
 	"context"
 	"engine-go/internal/engineutil"
 	"engine-go/internal/mathutil"
+	"gonum.org/v1/gonum/stat"
 	"math"
 	"math/rand"
 )
@@ -136,7 +137,7 @@ func computeReturnCovariance(tickers []string, priceData map[string]map[string]f
 	}
 	for i := 0; i < n; i++ {
 		for j := i; j < n; j++ {
-			covVal := mathutil.Covariance(dailyReturns[i], dailyReturns[j]) * float64(tradingDaysPerYear)
+			covVal := stat.Covariance(dailyReturns[i], dailyReturns[j], nil) * float64(tradingDaysPerYear)
 			cov[i][j] = covVal
 			cov[j][i] = covVal
 		}

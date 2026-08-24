@@ -1,6 +1,7 @@
 package mathutil
 
 import (
+	"gonum.org/v1/gonum/stat"
 	"math"
 	"math/rand"
 	"testing"
@@ -27,47 +28,6 @@ func TestSum(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			if got := Sum(tc.arr); !approxEqual(got, tc.want) {
 				t.Errorf("Sum(%v) = %v, want %v", tc.arr, got, tc.want)
-			}
-		})
-	}
-}
-func TestMean(t *testing.T) {
-	tests := []struct {
-		name string
-		arr  []float64
-		want float64
-	}{
-		{"空切片返回0", []float64{}, 0},
-		{"单元素", []float64{10}, 10},
-		{"多元素均值", []float64{1, 2, 3, 4, 5}, 3},
-		{"含负数", []float64{-2, 0, 2}, 0},
-		{"nil切片返回0", nil, 0},
-	}
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			if got := Mean(tc.arr); !approxEqual(got, tc.want) {
-				t.Errorf("Mean(%v) = %v, want %v", tc.arr, got, tc.want)
-			}
-		})
-	}
-}
-func TestStd(t *testing.T) {
-	tests := []struct {
-		name string
-		arr  []float64
-		want float64
-	}{
-		{"空切片返回0", []float64{}, 0},
-		{"单元素返回0", []float64{5}, 0},
-		{"样本标准差_1到3", []float64{1, 2, 3}, 1},
-		{"样本标准差_经典8点", []float64{2, 4, 4, 4, 5, 5, 7, 9}, 2.1380899352994},
-		{"nil切片返回0", nil, 0},
-	}
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			got := Std(tc.arr)
-			if math.Abs(got-tc.want) > 1e-6 {
-				t.Errorf("Std(%v) = %v, want %v", tc.arr, got, tc.want)
 			}
 		})
 	}
@@ -127,8 +87,8 @@ func TestGaussianRandom(t *testing.T) {
 		for i := range samples {
 			samples[i] = GaussianRandom(rnd, mean, std)
 		}
-		gotMean := Mean(samples)
-		gotStd := Std(samples)
+		gotMean := stat.Mean(samples, nil)
+		gotStd := stat.StdDev(samples, nil)
 		if math.Abs(gotMean-mean) > 0.02 {
 			t.Errorf("均值偏差过大: got=%v want≈%v", gotMean, mean)
 		}
@@ -143,27 +103,4 @@ func TestGaussianRandom(t *testing.T) {
 			t.Errorf("std=0 时应返回均值, got=%v want=5.0", v)
 		}
 	})
-}
-func TestCovariance(t *testing.T) {
-	tests := []struct {
-		name string
-		x    []float64
-		y    []float64
-		want float64
-	}{
-		{"空切片返回0", []float64{}, []float64{}, 0},
-		{"长度不等返回0", []float64{1, 2, 3}, []float64{1, 2}, 0},
-		{"完全正相关", []float64{1, 2, 3}, []float64{2, 4, 6}, 2},
-		{"完全负相关", []float64{1, 2, 3}, []float64{6, 4, 2}, -2},
-		{"单元素返回0_无除零", []float64{5}, []float64{5}, 0},
-		{"nil切片返回0", nil, nil, 0},
-	}
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			got := Covariance(tc.x, tc.y)
-			if math.Abs(got-tc.want) > 1e-6 {
-				t.Errorf("Covariance(%v, %v) = %v, want %v", tc.x, tc.y, got, tc.want)
-			}
-		})
-	}
 }

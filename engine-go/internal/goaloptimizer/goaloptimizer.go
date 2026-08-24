@@ -5,6 +5,7 @@ import (
 	"engine-go/internal/engine"
 	"engine-go/internal/engineutil"
 	"engine-go/internal/mathutil"
+	"gonum.org/v1/gonum/stat"
 	"math"
 	"math/rand"
 )
@@ -93,8 +94,8 @@ func OptimizeGoals(ctx context.Context, req GoalOptimizerRequest) (*GoalOptimize
 	if len(dailyReturns) == 0 {
 		return nil, engineutil.NewInputError("资产均无价格数据，无法计算")
 	}
-	dailyMean := mathutil.Mean(dailyReturns)
-	dailyStd := mathutil.Std(dailyReturns)
+	dailyMean := stat.Mean(dailyReturns, nil)
+	dailyStd := stat.StdDev(dailyReturns, nil)
 	annualMeanReturn := dailyMean * tradingDaysPerYear
 	numSims := 1000
 	if req.NumSimulations != nil && *req.NumSimulations > 0 {

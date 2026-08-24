@@ -3,6 +3,7 @@ package engine
 import (
 	"engine-go/internal/engineutil"
 	"engine-go/internal/mathutil"
+	"gonum.org/v1/gonum/stat"
 	"math"
 )
 
@@ -48,7 +49,10 @@ func CalculateStatisticsFromRequest(req StatisticsRequest) Statistics {
 	if finalValue > 0 {
 		cagr = CalcCAGR(req.StartingValue, finalValue, years)
 	}
-	stdevDailyRaw := mathutil.Std(req.DailyReturns)
+	stdevDailyRaw := 0.0
+	if len(req.DailyReturns) >= 2 {
+		stdevDailyRaw = stat.StdDev(req.DailyReturns, nil)
+	}
 	stdevDaily := stdevDailyRaw * math.Sqrt(tradingDaysPerYear)
 	rfDaily := RiskFreeDaily()
 	dd := CalcMaxDrawdown(req.Values)
@@ -67,9 +71,9 @@ func CalculateStatisticsFromRequest(req StatisticsRequest) Statistics {
 	pctPosDays := ratioPositive(req.DailyReturns)
 	pctPosMonths := ratioPositive(req.MonthlyReturnValues)
 	pctPosYears := ratioPositive(req.AnnualReturnValues)
-	avgAnnual := mathutil.Mean(req.AnnualReturnValues)
-	avgMonthly := mathutil.Mean(req.MonthlyReturnValues)
-	avgDaily := mathutil.Mean(req.DailyReturns)
+	avgAnnual := stat.Mean(req.AnnualReturnValues, nil)
+	avgMonthly := stat.Mean(req.MonthlyReturnValues, nil)
+	avgDaily := stat.Mean(req.DailyReturns, nil)
 	maxDailyRet := MaxValue(req.DailyReturns)
 	minDailyRet := MinValue(req.DailyReturns)
 	maxAnnualRet := MaxValue(req.AnnualReturnValues)
@@ -100,7 +104,7 @@ func CalculateStatisticsFromRequest(req StatisticsRequest) Statistics {
 		Skewness: skewByFrequency(freqs, CalcSkewness), ExcessKurtosis: skewByFrequency(freqs, CalcExcessKurtosis),
 		WinRate: SkewnessByFrequency{Daily: pctPosDays, Monthly: pctPosMonths, Annual: pctPosYears}, PctPositiveDays: pctPosDays,
 		AvgAnnualReturn: avgAnnual, AvgMonthlyReturn: avgMonthly, AvgDailyReturn: avgDaily,
-		StdevAnnual: mathutil.Std(req.AnnualReturnValues), StdevMonthly: mathutil.Std(req.MonthlyReturnValues) * math.Sqrt(12), StdevMonthlyRaw: mathutil.Std(req.MonthlyReturnValues),
+		StdevAnnual: stat.StdDev(req.AnnualReturnValues, nil), StdevMonthly: stat.StdDev(req.MonthlyReturnValues, nil) * math.Sqrt(12), StdevMonthlyRaw: stat.StdDev(req.MonthlyReturnValues, nil),
 		StdevDaily: stdevDaily, StdevDailyRaw: stdevDailyRaw,
 		DownsideDeviation: mathutil.DownsideDeviation(req.DailyReturns, rfDaily) * math.Sqrt(tradingDaysPerYear), DownsideDeviationDailyRaw: mathutil.DownsideDeviation(req.DailyReturns, rfDaily),
 		DownsideDeviationMonthly: mathutil.DownsideDeviation(req.MonthlyReturnValues, RiskFreeMonthly()) * math.Sqrt(12), DownsideDeviationMonthlyRaw: mathutil.DownsideDeviation(req.MonthlyReturnValues, RiskFreeMonthly()),

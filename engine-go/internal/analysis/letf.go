@@ -2,7 +2,7 @@ package analysis
 
 import (
 	"engine-go/internal/engineutil"
-	"engine-go/internal/mathutil"
+	"gonum.org/v1/gonum/stat"
 	"math"
 )
 
@@ -67,9 +67,9 @@ func calcRollingBeta(letfReturns, benchReturns []float64) (float64, bool) {
 	start := len(letfReturns) - n
 	letfTail := letfReturns[start : start+n]
 	benchTail := benchReturns[start : start+n]
-	varBench := mathutil.Covariance(benchTail, benchTail)
+	varBench := stat.Covariance(benchTail, benchTail, nil)
 	if varBench > 0 {
-		return mathutil.Covariance(letfTail, benchTail) / varBench, true
+		return stat.Covariance(letfTail, benchTail, nil) / varBench, true
 	}
 	return 0, false
 }
