@@ -235,9 +235,7 @@ describe('writeOutboxEvent 事务双写', () => {
   it('独立模式异常应被吞掉（不阻塞响应），升格 error+AUDIT_LOSS 供告警捕获', async () => {
     poolMocks.query.mockRejectedValueOnce(new Error('pool connection failed'));
     await expect(writeOutboxEvent(entry456)).resolves.toBeUndefined();
-    expect(loggerMocks.error).toHaveBeenCalled();
-    expect(
-      String(loggerMocks.error.mock.calls[0]?.[1]?.code ?? loggerMocks.error.mock.calls[0]?.[0]),
-    ).toContain('AUDIT_LOSS');
+    expect(loggerMocks.error).toHaveBeenCalledTimes(1);
+    expect(loggerMocks.error.mock.calls[0][0]).toMatchObject({ code: 'AUDIT_LOSS' });
   });
 });

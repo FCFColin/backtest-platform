@@ -316,8 +316,16 @@ describe('jobRoutes - GET /api/v1/jobs/:id', () => {
   const getServer = withServer(() => (vi.clearAllMocks(), boot()));
   it('任务存在且已完成时应返回结果', async () => {
     const rb = { best: { cagr: 0.12 } };
-    queueMocks.getJob.mockResolvedValue(createMockJob({ id: 'job-123', returnvalue: rb }));
-    const { res, json } = await get(`${getServer().url}/api/v1/jobs/job-123`);
+    queueMocks.getJob.mockResolvedValue(
+      createMockJob({
+        id: 'job-123',
+        returnvalue: rb,
+        data: { type: 'optimizer', userId: 'test-user' },
+      }),
+    );
+    const { res, json } = await get(`${getServer().url}/api/v1/jobs/job-123`, {
+      'x-test-platform': 'true',
+    });
     expect(res.status).toBe(200);
     expect(json.data).toMatchObject({ id: 'job-123', status: 'completed', result: rb });
   });
@@ -330,7 +338,9 @@ describe('jobRoutes - GET /api/v1/jobs/:id', () => {
         getState: vi.fn().mockResolvedValue('failed'),
       }),
     );
-    const { json } = await get(`${getServer().url}/api/v1/jobs/job-456`);
+    const { json } = await get(`${getServer().url}/api/v1/jobs/job-456`, {
+      'x-test-platform': 'true',
+    });
     expect(json.data.status).toBe('failed');
     expect(json.data.error).not.toContain('Engine timeout');
   });
@@ -372,9 +382,16 @@ describe('jobRoutes - GET /api/v1/jobs/:id', () => {
     expect(json.error).toMatchObject({ status: 500, title: 'JOB_STATUS_ERROR' });
   });
   it('active 状态归一化为 running', async () => {
-    const ja = createMockJob({ id: 'ja', finishedOn: void 0, getState: st('active') });
+    const ja = createMockJob({
+      id: 'ja',
+      finishedOn: void 0,
+      getState: st('active'),
+      data: { type: 'optimizer', userId: 'test-user' },
+    });
     queueMocks.getJob.mockResolvedValue(ja);
-    const { json } = await get(`${getServer().url}/api/v1/jobs/${ja.id}`);
+    const { json } = await get(`${getServer().url}/api/v1/jobs/${ja.id}`, {
+      'x-test-sub': 'test-user',
+    });
     expect(json.data).toMatchObject({ status: 'running' });
     expect(json.data).not.toHaveProperty('result');
   });
