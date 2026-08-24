@@ -19,29 +19,24 @@ import { ResultsShell } from '@/components/resultsShell.js';
 import { TableEmpty } from '@/components/stateDisplay.js';
 import { SortableTable, type TableColumn } from '../../components/tables.js';
 import { SimpleChart } from '@/components/charts/sharedChartContent.js';
-import { ComputeToolShell, type ComputeToolConfig } from '@/components/shells/index.js';
+import { createComputeToolPage } from '@/components/shells/index.js';
 import i18n from '@/i18n/index.js';
 import { fmtAmount, fmtNum, fmtPct } from '@/utils/format';
-import { apiFetch } from '@/utils/apiClient';
-import { extractApiErrorDetail } from '@/store/backtestHelpers.js';
+import { apiPostJSON } from '@/utils/apiClient';
 import { pollJobStatus } from '@/store/backtestStore.js';
 import { useAssetList } from '../../hooks/miscHooks.js';
 import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
 import { normalizeTicker } from '@/utils/ticker';
 type BacktestOptimizerState = any;
+const OPT = 'backtest.optimizer.';
 const h2Cls = 'mb-3 mt-6 text-body font-semibold text-fg';
 const capCls = 'mb-1.5 text-caption font-medium text-fg-secondary';
 const symCls = 'text-body text-fg-tertiary font-mono shrink-0';
-const numProps = { type: 'number', className: 'font-mono tabular-nums' } as const;
+const numProps = { type: 'number' } as const;
 const sufCls = 'text-caption text-fg-tertiary shrink-0';
 const PG = PL.ParamGroup;
-const inp = (base: any, s: any, k: string, x: any = {}) => (
-  <UI.Input
-    {...base}
-    value={s.form[k]}
-    onChange={(e) => s.patchForm({ [k]: e.target.value })}
-    {...x}
-  />
+const inp = (s: any, k: string, x: any = {}) => (
+  <UI.Input value={s.form[k]} onChange={(e) => s.patchForm({ [k]: e.target.value })} {...x} />
 );
 const freqLabel = (f: any, v?: number) =>
   f === 'threshold'
@@ -49,17 +44,12 @@ const freqLabel = (f: any, v?: number) =>
     : i18n.t(REBALANCE_LABELS[f as RebalanceFrequency]) || f;
 const normAsset = (x: any) => ({ ticker: normalizeTicker(x.ticker), weight: +x.weight || 0 });
 const rng = (a: string, b: string, c: string) => ({ min: +a, max: +b, step: +c });
-const col = (
-  k: keyof OptimizeResultItem,
-  l: string,
-  f: (v: number) => string,
-): TableColumn<OptimizeResultItem> => ({
-  key: k,
-  label: l,
-  sortValue: (r) => r[k] as number,
-  render: (r) => f(r[k] as number),
-});
-const COLS: TableColumn<OptimizeResultItem>[] = [
+type OC = TableColumn<OptimizeResultItem>;
+const col = (k: keyof OptimizeResultItem, l: string, f: (v: number) => string): OC => {
+  const g = (r: OptimizeResultItem) => r[k] as number;
+  return { key: k, label: l, sortValue: g, render: (r) => f(g(r)) };
+};
+const COLS: OC[] = [
   {
     key: 'rebalanceFrequency',
     label: i18n.t('Rebalancing Frequency'),
@@ -132,30 +122,23 @@ function useOptimizerState(): BacktestOptimizerState {
       const c: Record<string, number> = {};
       for (const [ek, vk, , , ck] of CONS_DEFS)
         if (form[ek] && form[vk] !== '') c[ck] = Number(form[vk]);
-      const r = await apiFetch('/api/v1/backtest-optimizer/optimize', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          portfolio: { assets: v.map(normAsset) },
-          parameterSpace: {
-            rebalanceFrequencies: frequencies,
-            rebalanceThreshold: rng(form.thrMin, form.thrMax, form.thrStep),
-            initialCapital: rng(form.capMin, form.capMax, form.capStep),
-          },
-          parameters: {
-            startDate: form.startDate,
-            endDate: form.endDate,
-            benchmarkTicker: normalizeTicker(form.benchmarkTicker),
-            baseCurrency: 'usd',
-            adjustForInflation: false,
-          },
-          objective: form.objective,
-          constraints: c,
-        }),
+      let d: any = await apiPostJSON('/api/v1/backtest-optimizer/optimize', {
+        portfolio: { assets: v.map(normAsset) },
+        parameterSpace: {
+          rebalanceFrequencies: frequencies,
+          rebalanceThreshold: rng(form.thrMin, form.thrMax, form.thrStep),
+          initialCapital: rng(form.capMin, form.capMax, form.capStep),
+        },
+        parameters: {
+          startDate: form.startDate,
+          endDate: form.endDate,
+          benchmarkTicker: normalizeTicker(form.benchmarkTicker),
+          baseCurrency: 'usd',
+          adjustForInflation: false,
+        },
+        objective: form.objective,
+        constraints: c,
       });
-      const j = await r.json();
-      if (!r.ok || j.success === false) throw new Error(extractApiErrorDetail(j));
-      let d: any = j.data;
       if (d?.statusUrl)
         d = (await pollJobStatus(d.statusUrl, new AbortController().signal, null)).data;
       patchRes({
@@ -183,22 +166,19 @@ const CONS_DEFS = [
   ['enableMaxDD', 'maxDD', 'maxDrawdownConstraint', 'maxDrawdownPlaceholder', 'maxDrawdown'],
   ['enableMinCagr', 'minCagr', 'cagrConstraint', 'cagrPlaceholder', 'minCagr'],
 ] as const;
-const rangeFlds = (p: string) =>
-  [
-    ['Min', `${p}Min`],
-    ['Max', `${p}Max`],
-    ['backtest.optimizer.step', `${p}Step`],
-  ] as const;
+const RANGE_LBLS = ['Min', 'Max', `${OPT}step`];
+const RANGE_SFX = ['Min', 'Max', 'Step'];
 const RANGE_DEFS = [
-  ['backtest.optimizer.thresholdRange', '', '%', '0.5', rangeFlds('thr')],
-  ['backtest.optimizer.capitalRange', '$', '', '1000', rangeFlds('cap')],
+  ['backtest.optimizer.thresholdRange', '', '%', '0.5', 'thr'],
+  ['backtest.optimizer.capitalRange', '$', '', '1000', 'cap'],
 ] as const;
+const CONS_NUM = { ...numProps, step: '0.1' };
 const DATE_FLS = [
   ['startDate', 'Start Date', 'date'],
   ['endDate', 'End Date', 'date'],
-  ['benchmarkTicker', 'backtest.optimizer.benchmarkTicker', 'text', 'benchmarkPlaceholder'],
+  ['benchmarkTicker', `${OPT}benchmarkTicker`, 'text', 'benchmarkPlaceholder'],
 ] as const;
-export function OptimizerParams({ s }: { s: BacktestOptimizerState }) {
+export function OptimizerParams({ state: s }: { state: BacktestOptimizerState }) {
   const { t } = useTranslation();
   const sym = useSettingsStore((x: any) => x.currency) === 'cny' ? '¥' : '$';
   return (
@@ -234,15 +214,15 @@ export function OptimizerParams({ s }: { s: BacktestOptimizerState }) {
               ))}
             </div>
           </div>
-          {RANGE_DEFS.map(([tk, pre, suf, stp, flds]) => (
+          {RANGE_DEFS.map(([tk, pre, suf, stp, pfx]) => (
             <div key={tk}>
               <div className={capCls}>{t(tk)}</div>
               <PL.ParamRow>
-                {flds.map(([lk, fk]) => (
+                {RANGE_LBLS.map((lk, i) => (
                   <PL.ParamCard key={lk} label={t(lk)}>
                     <div className="flex items-center gap-2">
                       {pre && <span className={symCls}>{sym}</span>}
-                      {inp(numProps, s, fk, { step: stp })}
+                      {inp(s, `${pfx}${RANGE_SFX[i]}`, { ...numProps, step: stp })}
                       {suf && <span className={sufCls}>{suf}</span>}
                     </div>
                   </PL.ParamCard>
@@ -277,16 +257,10 @@ export function OptimizerParams({ s }: { s: BacktestOptimizerState }) {
             <div key={ek} className="flex items-center gap-2.5">
               <label className="flex items-center gap-2 w-[130px] mb-0 cursor-pointer">
                 <UI.Switch checked={s.form[ek]} onCheckedChange={(v) => s.patchForm({ [ek]: v })} />
-                <span className="text-caption text-fg-secondary">
-                  {t(`backtest.optimizer.${lk}`)}
-                </span>
+                <span className="text-caption text-fg-secondary">{t(`${OPT}${lk}`)}</span>
               </label>
               <div className="flex flex-1 items-center gap-2">
-                {inp(numProps, s, vk, {
-                  step: '0.1',
-                  placeholder: t(`backtest.optimizer.${pk}`),
-                  disabled: !s.form[ek],
-                })}
+                {inp(s, vk, { ...CONS_NUM, placeholder: t(`${OPT}${pk}`), disabled: !s.form[ek] })}
                 <span className={sufCls}>%</span>
               </div>
             </div>
@@ -297,7 +271,7 @@ export function OptimizerParams({ s }: { s: BacktestOptimizerState }) {
         <PL.ParamRow>
           {DATE_FLS.map(([k, lk, ty, pk]) => (
             <PL.ParamCard key={k} label={t(lk)}>
-              {inp({}, s, k, { type: ty, placeholder: pk && t(`backtest.optimizer.${pk}`) })}
+              {inp(s, k, { type: ty, placeholder: pk && t(`${OPT}${pk}`) })}
             </PL.ParamCard>
           ))}
         </PL.ParamRow>
@@ -313,7 +287,7 @@ export function OptimizerParams({ s }: { s: BacktestOptimizerState }) {
     </PL.ParamsPanel>
   );
 }
-export function OptimizerResults({ s }: { s: BacktestOptimizerState }) {
+export function OptimizerResults({ state: s }: { state: BacktestOptimizerState }) {
   const { t } = useTranslation();
   const b = s.result.best;
   const m = new Map<string, any>();
@@ -321,8 +295,7 @@ export function OptimizerResults({ s }: { s: BacktestOptimizerState }) {
     for (const p of b.growthCurve) m.set(p.date, { date: p.date, portfolio: p.value });
     for (const p of s.result.benchmarkGrowth ?? []) {
       const e = m.get(p.date);
-      if (e) e.benchmark = p.value;
-      else m.set(p.date, { date: p.date, portfolio: 0, benchmark: p.value });
+      m.set(p.date, { ...e, date: p.date, portfolio: e?.portfolio ?? 0, benchmark: p.value });
     }
   }
   const chartData = [...m.values()].sort((a, b) => a.date.localeCompare(b.date));
@@ -382,10 +355,10 @@ export function OptimizerResults({ s }: { s: BacktestOptimizerState }) {
           </>
         )}
         <div className={h2Cls}>{t('Portfolio Comparison Table')}</div>
-        {(s.result.results ?? []).length > 0 ? (
+        {s.result.results?.length ? (
           <SortableTable
             columns={COLS}
-            data={s.result.results ?? []}
+            data={s.result.results}
             initialSortKey={SORT_KEY[s.form.objective as Objective]}
             initialSortDir="desc"
           />
@@ -396,17 +369,14 @@ export function OptimizerResults({ s }: { s: BacktestOptimizerState }) {
     </ResultsShell>
   );
 }
-const OPT = 'backtest.optimizer.';
-const config: ComputeToolConfig<BacktestOptimizerState> = {
+const BacktestOptimizerPage = createComputeToolPage(useOptimizerState, {
   titleKey: `${OPT}pageTitle`,
   seoDescKey: 'optimizer.seoDesc',
   seoFeatures: [
     { titleKey: `${OPT}featureParamSpaceTitle`, descKey: `${OPT}featureParamSpaceDesc` },
     { titleKey: `${OPT}featureMultiObjectiveTitle`, descKey: `${OPT}featureMultiObjectiveDesc` },
   ],
-  params: ({ state }: any) => <OptimizerParams s={state} />,
-  results: ({ state }: any) => <OptimizerResults s={state} />,
-};
-export default function BacktestOptimizerPage() {
-  return <ComputeToolShell config={config} state={useOptimizerState()} />;
-}
+  params: OptimizerParams,
+  results: OptimizerResults,
+});
+export default BacktestOptimizerPage;
