@@ -41,6 +41,14 @@ export async function render(url: string, nonce: string) {
         <AppShell />
       </ErrorBoundary>
     </StaticRouter>,
-    { nonce },
+    {
+      nonce,
+      // 服务端渲染错误必须可见：静默丢失会让流既无输出也无终止信号。
+      // 本模块仅在服务端执行，console 直达后端进程 stdout（no-console 仅此处豁免）
+      onError: (err) => {
+        // eslint-disable-next-line no-console
+        console.error('[ssr] render error:', err);
+      },
+    },
   );
 }

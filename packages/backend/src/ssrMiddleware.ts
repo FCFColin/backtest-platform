@@ -46,10 +46,10 @@ async function prefetchMeta(): Promise<void> {
 }
 prefetchMeta().catch(() => {});
 
+// react-dom 实际导出的 PipeableStream 仅含 pipe/abort（无 .on）；错误经 renderToPipeableStream 的 onError 回调上报
 interface PipeableStream {
   pipe: <T extends NodeJS.WritableStream>(destination: T) => T;
   abort: (reason?: unknown) => void;
-  on: (event: 'error', listener: (err: Error) => void) => void;
 }
 
 type RenderFn = (url: string, nonce: string) => PipeableStream | Promise<PipeableStream>;
@@ -224,17 +224,38 @@ export async function ssrMiddleware(req: Request, res: Response): Promise<void> 
       res.end();
     };
     passThrough.on('error', abortStream);
-    stream.on('error', abortStream);
     passThrough.on('data', (chunk: Buffer) => {
       body += chunk.toString();
     });
+    let finished = false;
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      clearTimeout(lifecycleTimer);
+    };
     passThrough.on('end', () => {
+      finish();
       body += tail;
       res.end(tail);
       if (!req.headers.authorization && !req.cookies?.[RT_COOKIE]) {
         setCache(url, body, nonce);
       }
     });
+    // 生命周期硬超时：覆盖流式阶段（shell 后的 Suspense 边界可能永不解析）。
+    // abort 会强制 React flush 已就绪内容并结束流，保证响应必然终止而非无限挂起
+    const lifecycleTimer = setTimeout(() => {
+      if (finished) return;
+      logger.warn({ url: req.url }, '[ssr] 渲染超时，abort 流并截断收尾');
+      try {
+        stream.abort(new Error('SSR stream timeout'));
+      } catch {
+        /* abort 失败也必须收尾 */
+      }
+      finish();
+      body += tail;
+      res.end(tail);
+    }, SSR_RENDER_TIMEOUT_MS);
+    res.on('close', finish);
 
     stream.pipe(passThrough);
   } catch (err) {
