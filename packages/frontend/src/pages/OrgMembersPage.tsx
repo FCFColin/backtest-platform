@@ -58,20 +58,13 @@ function useOrgMembersState(admin: boolean) {
     }
   };
   const changeRole = (userId: string, role: string) =>
-    act('Failed to update role', () =>
-      req(`/api/v1/orgs/members/${userId}`, 'PATCH', {
-        role,
-      }),
-    );
+    act('Failed to update role', () => req(`/api/v1/orgs/members/${userId}`, 'PATCH', { role }));
   const removeMember = (userId: string) =>
     act('Failed to remove member', () => req(`/api/v1/orgs/members/${userId}`, 'DELETE'));
   const sendInvite = (email: string, role: string) =>
     act(
       'Failed to send invitation',
-      () => {
-        setError(null);
-        return req('/api/v1/orgs/invitations', 'POST', { email: email.trim(), role });
-      },
+      () => req('/api/v1/orgs/invitations', 'POST', { email: email.trim(), role }),
       true,
     );
   const revokeInvite = (id: string) =>
@@ -94,16 +87,13 @@ export default function OrgMembersPage() {
   const { t } = useTranslation();
   const { org, isAdmin } = useOrgAuth();
   const s = useOrgMembersState(isAdmin);
-  const { load } = s;
-  useEffect(() => void load(), [load]);
+  useEffect(() => void s.load(), [s.load]);
   return (
     <StandardPageShell
       config={{ titleKey: 'Org Members', headerExtra: <Users className="w-5 h-5 text-brand" /> }}
     >
       <Card className="p-6 mt-7">
-        <p className="text-label text-fg-tertiary mb-4">
-          {org ? `${t('Organization:')}${org.name}` : t('Organization:')}
-        </p>
+        <p className="text-label text-fg-tertiary mb-4">{t('Organization:') + (org?.name ?? '')}</p>
         {s.error ? (
           <ErrorBanner message={s.error} style={{ marginBottom: 14 }} />
         ) : s.loading ? (
@@ -291,46 +281,31 @@ function InviteDialog({
         </Button>
       </form>
       {invitations.length > 0 && (
-        <InvitationTable invitations={invitations} busy={busy} onRevoke={onRevoke} />
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse">
+            <TableHead labels={['Email', 'Role', 'Status', 'Action']} />
+            <tbody>
+              {invitations.map((inv) => (
+                <tr key={inv.id}>
+                  <td className={TD}>{inv.email}</td>
+                  <td className={TD}>{inv.role}</td>
+                  <td className={TD}>{inv.acceptedAt ? t('Accepted') : t('Pending')}</td>
+                  <td className={TD}>
+                    {!inv.acceptedAt && (
+                      <ConfirmTrash
+                        question={t('Revoke invitation for {{email}}?', { email: inv.email })}
+                        title={t('Revoke Invitation')}
+                        disabled={busy}
+                        onConfirm={() => onRevoke(inv.id)}
+                      />
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
-    </div>
-  );
-}
-
-function InvitationTable({
-  invitations,
-  busy,
-  onRevoke,
-}: {
-  invitations: Invitation[];
-  busy: boolean;
-  onRevoke: (id: string) => void;
-}) {
-  const { t } = useTranslation();
-  return (
-    <div className="overflow-x-auto">
-      <table className="w-full border-collapse">
-        <TableHead labels={['Email', 'Role', 'Status', 'Action']} />
-        <tbody>
-          {invitations.map((inv) => (
-            <tr key={inv.id}>
-              <td className={TD}>{inv.email}</td>
-              <td className={TD}>{inv.role}</td>
-              <td className={TD}>{inv.acceptedAt ? t('Accepted') : t('Pending')}</td>
-              <td className={TD}>
-                {!inv.acceptedAt && (
-                  <ConfirmTrash
-                    question={t('Revoke invitation for {{email}}?', { email: inv.email })}
-                    title={t('Revoke Invitation')}
-                    disabled={busy}
-                    onConfirm={() => onRevoke(inv.id)}
-                  />
-                )}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
     </div>
   );
 }
