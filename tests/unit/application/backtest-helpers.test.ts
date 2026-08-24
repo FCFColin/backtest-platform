@@ -9,7 +9,6 @@ import {
 import {
   translateDomainError,
   portfolioToDomain,
-  portfolioToEngineBody,
   preparePortfolioBacktest,
   collectInvalidTickerWarnings,
   clampParametersToDataRange,
@@ -63,17 +62,6 @@ describe('translateDomainError', () => {
 
   it('成功路径透传结果', () => {
     expect(translateDomainError(() => 42)).toBe(42);
-  });
-});
-
-describe('portfolioToEngineBody', () => {
-  it('返回引擎 body（tickers/weights 展开）', () => {
-    const body = portfolioToEngineBody(portfolio);
-    expect(body.assets).toEqual([
-      { ticker: 'AAPL', weight: 60 },
-      { ticker: 'BND', weight: 40 },
-    ]);
-    expect(body.rebalanceFrequency).toBe('monthly');
   });
 });
 

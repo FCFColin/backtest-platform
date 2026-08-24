@@ -44,10 +44,6 @@ export function portfolioToDomain(raw: Portfolio): DomainPortfolio {
   return translateDomainError(() => DomainPortfolio.fromDTO(raw));
 }
 
-export function portfolioToEngineBody(raw: Portfolio): Record<string, unknown> {
-  return portfolioToDomain(raw).toEngineBody();
-}
-
 export function preparePortfolioBacktest(
   portfolios: Portfolio[],
   parameters: BacktestParameters,
