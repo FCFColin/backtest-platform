@@ -9,9 +9,10 @@ export function jobAccessGranted(
   if (!requester) return false;
   const ownerId = job.data?.userId;
   const jobTenant = job.data?.tenantId;
-  const hasOwnership =
-    (ownerId !== undefined && ownerId === requester.sub) || requester.role === 'admin';
+  const isOwner = ownerId !== undefined && ownerId === requester.sub;
+  const hasOwnership = isOwner || requester.role === 'admin';
+  // 属主本人豁免租户校验（历史无租户任务仍可自读）；admin 不豁免——封堵双 undefined 跨租户
   const passesTenantCheck =
     (jobTenant !== undefined && jobTenant === reqTenantId) || requester.platform_admin === true;
-  return hasOwnership && passesTenantCheck;
+  return hasOwnership && (passesTenantCheck || isOwner);
 }
