@@ -1,7 +1,7 @@
 import { Router, type RequestHandler, type Response } from 'express';
 import { logger } from '../utils/logger.js';
 import { sendProblem } from '../utils/errors.js';
-import { crudRouteHandler, sendData } from './routeUtils.js';
+import { crudRouteHandler, sendData, sendCreated } from './routeUtils.js';
 import { authConfig, config } from '../config/index.js';
 import {
   generateToken,
@@ -182,10 +182,7 @@ const register: Handler = async (req, res) => {
     logger.warn({ err: String(err), userId }, '[auth] 验证邮件发送失败');
   }
   logger.info({ userId }, '[auth] 注册成功');
-  res.status(201).json({
-    success: true,
-    data: { userId, message: '注册成功，请查收验证邮件以完成邮箱验证' },
-  });
+  sendCreated(res, { userId, message: '注册成功，请查收验证邮件以完成邮箱验证' });
 };
 
 const verifyEmail: Handler = async (req, res) => {

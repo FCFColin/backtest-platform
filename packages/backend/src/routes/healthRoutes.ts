@@ -37,16 +37,24 @@ function checkBearerToken(
   return true;
 }
 
-async function checkHttp(url: string, timeoutMs = 2000): Promise<boolean> {
+// 探活统一包装：任何异常（含超时）一律视为不健康
+async function toBool(p: Promise<boolean>): Promise<boolean> {
   try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), timeoutMs);
-    const response = await fetch(url, { method: 'GET', signal: controller.signal });
-    clearTimeout(timeout);
-    return response.ok;
+    return await p;
   } catch {
     return false;
   }
+}
+
+function checkHttp(url: string, timeoutMs = 2000): Promise<boolean> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  return toBool(
+    fetch(url, { method: 'GET', signal: controller.signal }).then((response) => {
+      clearTimeout(timeout);
+      return response.ok;
+    }),
+  );
 }
 
 const PROBE_TIMEOUT_MS = 3_000;
@@ -67,22 +75,11 @@ function withProbeTimeout<T>(promise: Promise<T>): Promise<T> {
   ]);
 }
 
-async function checkDatabase(): Promise<boolean> {
-  try {
-    await withProbeTimeout(getPool().query('SELECT 1'));
-    return true;
-  } catch {
-    return false;
-  }
-}
+const checkDatabase = (): Promise<boolean> =>
+  toBool(withProbeTimeout(getPool().query('SELECT 1')).then(() => true));
 
-async function checkRedis(): Promise<boolean> {
-  try {
-    return (await withProbeTimeout(appRedis.ping())) === 'PONG';
-  } catch {
-    return false;
-  }
-}
+const checkRedis = (): Promise<boolean> =>
+  toBool(withProbeTimeout(appRedis.ping()).then((r) => r === 'PONG'));
 
 router.get('/health', (_req: Request, res: Response) => {
   res.status(200).json({

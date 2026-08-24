@@ -38,13 +38,15 @@ const mapOrgMember = rowMapper<OrgMember>({
   createdAt: (r) => iso(r.created_at),
 });
 
+const MEMBERSHIP_SELECT = `SELECT m.org_id, m.role,
+    o.name AS org_name, o.slug AS org_slug, o.plan AS org_plan, o.status AS org_status
+   FROM memberships m
+   JOIN organizations o ON o.id = m.org_id`;
+
 export async function getUserMemberships(userId: string): Promise<Membership[]> {
   return queryMany(
     getPool(),
-    `SELECT m.org_id, m.role,
-            o.name AS org_name, o.slug AS org_slug, o.plan AS org_plan, o.status AS org_status
-       FROM memberships m
-       JOIN organizations o ON o.id = m.org_id
+    `${MEMBERSHIP_SELECT}
       WHERE m.user_id = $1
       ORDER BY m.created_at ASC`,
     [userId],
@@ -56,10 +58,7 @@ export async function getUserMemberships(userId: string): Promise<Membership[]> 
 export async function getMembership(userId: string, orgId: string): Promise<Membership | null> {
   return queryRow(
     getPool(),
-    `SELECT m.org_id, m.role,
-            o.name AS org_name, o.slug AS org_slug, o.plan AS org_plan, o.status AS org_status
-       FROM memberships m
-       JOIN organizations o ON o.id = m.org_id
+    `${MEMBERSHIP_SELECT}
       WHERE m.user_id = $1 AND m.org_id = $2`,
     [userId, orgId],
     mapRow,

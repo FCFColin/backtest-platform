@@ -122,6 +122,9 @@ function baseHandler(fn: RouteHandlerFn, errorConfig: RouteErrorConfig): Request
 export function sendData(res: Response, data: unknown): void {
   res.json({ success: true, data });
 }
+export function sendCreated(res: Response, data: unknown): void {
+  res.status(201).json({ success: true, data });
+}
 export function sendDegraded(res: Response, data: unknown, warning?: string): void {
   res.json({ success: true, data, degraded: true, ...(warning && { degradedWarning: warning }) });
 }
@@ -272,10 +275,8 @@ export function tenantCrudRoutes<T>(service: TenantCrudRepo<T>, cfg: TenantCrudC
     const tenantId = tenantOf(req, res);
     if (!tenantId) return;
     if (cfg.beforeCreate && !(await cfg.beforeCreate(req as AuthenticatedRequest, res))) return;
-    res.status(201).json({
-      success: true,
-      data: await service.create(tenantId, ownerOf(req as AuthenticatedRequest), req.body),
-    });
+    const created = await service.create(tenantId, ownerOf(req as AuthenticatedRequest), req.body);
+    sendCreated(res, created);
   });
   const update = h('update', async (req, res) => {
     const tenantId = tenantOf(req, res);

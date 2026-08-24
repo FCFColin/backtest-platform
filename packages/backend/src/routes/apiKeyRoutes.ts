@@ -24,6 +24,7 @@ import {
   crudRouteHandler,
   jsonRoute,
   sendData,
+  sendCreated,
 } from './routeUtils.js';
 
 const router = Router();
@@ -43,15 +44,12 @@ router.post(
     async (req, res, orgId) => {
       const createdBy = req.user?.sub?.startsWith('apikey:') ? null : (req.user?.sub ?? null);
       const key = await createApiKey(orgId, (req.body as { name: string }).name, createdBy);
-      res.status(201).json({
-        success: true,
-        data: {
-          id: key.id,
-          name: key.name,
-          keyPrefix: key.keyPrefix,
-          createdAt: key.createdAt,
-          apiKey: key.plaintext,
-        },
+      sendCreated(res, {
+        id: key.id,
+        name: key.name,
+        keyPrefix: key.keyPrefix,
+        createdAt: key.createdAt,
+        apiKey: key.plaintext,
       });
     },
   ),
@@ -116,17 +114,14 @@ router.post(
       try {
         const newKey = await rotatePlatformAdminKey(oldKeyId, name, expiresInDays, null);
         await markApiKeyRevoked(oldKeyId);
-        res.status(201).json({
-          success: true,
-          data: {
-            id: newKey.id,
-            name: newKey.name,
-            keyPrefix: newKey.keyPrefix,
-            createdAt: newKey.createdAt,
-            expiresAt: newKey.expiresAt,
-            apiKey: newKey.plaintext,
-            rotatedFromKeyId: oldKeyId,
-          },
+        sendCreated(res, {
+          id: newKey.id,
+          name: newKey.name,
+          keyPrefix: newKey.keyPrefix,
+          createdAt: newKey.createdAt,
+          expiresAt: newKey.expiresAt,
+          apiKey: newKey.plaintext,
+          rotatedFromKeyId: oldKeyId,
         });
       } catch (err) {
         if ((err as Error).message === 'PLATFORM_ADMIN_KEY_NOT_FOUND') {
