@@ -7,29 +7,17 @@ import {
   setupDefault,
 } from './dataService.shared.js';
 
-const pgMocks = vi.hoisted(() => ({
-  query: vi.fn(),
-}));
-
-const marketStatsMocks = vi.hoisted(() => ({
+const pgMocks = vi.hoisted(() => ({ query: vi.fn() }));
+const statsMocks = vi.hoisted(() => ({
   scanMarketStatsFromDb: vi.fn(),
   getDbEngineStatus: vi.fn(),
 }));
-
-const macroDbMocks = vi.hoisted(() => ({
-  loadCpiSeriesFromDb: vi.fn(),
-}));
+const macroDbMocks = vi.hoisted(() => ({ loadCpiSeriesFromDb: vi.fn() }));
 
 dbMocks.getReadPool.mockReturnValue({ query: pgMocks.query } as never);
 
-vi.mock('../../../packages/backend/src/db/marketStats.js', () => ({
-  scanMarketStatsFromDb: marketStatsMocks.scanMarketStatsFromDb,
-  getDbEngineStatus: marketStatsMocks.getDbEngineStatus,
-}));
-
-vi.mock('../../../packages/backend/src/db/macroData.js', () => ({
-  loadCpiSeriesFromDb: macroDbMocks.loadCpiSeriesFromDb,
-}));
+vi.mock('../../../packages/backend/src/db/marketStats.js', () => statsMocks);
+vi.mock('../../../packages/backend/src/db/macroData.js', () => macroDbMocks);
 
 import {
   getEngineStatus,
@@ -44,10 +32,8 @@ import {
   fetchCpiForRoute,
 } from '../../../packages/backend/src/infrastructure/dataServices.js';
 
-beforeEach(() => {
-  vi.clearAllMocks();
-  setupDefault();
-});
+// setupDefault 内部已先 vi.clearAllMocks()
+beforeEach(setupDefault);
 
 const DB_STATS = {
   generated_at: '2024-01-01T00:00:00Z',
@@ -57,49 +43,25 @@ const DB_STATS = {
     CN: { count: 40, stocks: 35, etfs: 5, indices: 0 },
   },
   by_type: { STOCK: 85, ETF: 15 },
-  by_exchange: {},
-  date_ranges: { earliest: '1970-01-02', latest: '2024-01-01' },
-  by_decade: {},
-  by_year_count: {},
-  coverage: {
-    tickers_with_5y_plus: 0,
-    tickers_with_10y_plus: 0,
-    tickers_with_20y_plus: 0,
-    avg_data_points: 0,
-    median_data_points: 0,
-  },
-  data_quality: {
-    with_adj_close: 0,
-    with_dividends: 0,
-    with_splits: 0,
-    total_data_points: 0,
-    total_size_mb: 0,
-  },
-  recent_updates: [],
-  sample_tickers: {},
 };
+
+const S42 = { totalTickers: 42, cachedTickers: 42, lastUpdate: '2024-06-01T00:00:00Z' };
 
 describe('getEngineStatus', () => {
   it.each([
     [
       'stats 缓存不存在时应返回零值状态',
-      () => marketStatsMocks.getDbEngineStatus.mockRejectedValue(new Error('db down')),
+      () => statsMocks.getDbEngineStatus.mockRejectedValue(new Error('db down')),
       { totalTickers: 0, cachedTickers: 0, lastUpdate: null },
     ],
     [
       '应从 PostgreSQL 获取引擎状态',
-      () =>
-        marketStatsMocks.getDbEngineStatus.mockResolvedValue({
-          totalTickers: 42,
-          cachedTickers: 42,
-          lastUpdate: '2024-06-01T00:00:00Z',
-        }),
-      { totalTickers: 42, cachedTickers: 42, lastUpdate: '2024-06-01T00:00:00Z' },
+      () => statsMocks.getDbEngineStatus.mockResolvedValue(S42),
+      S42,
     ],
   ])('%s', async (_n, setup, expected) => {
     setup();
-    const status = await getEngineStatus();
-    expect(status).toMatchObject(expected);
+    expect(await getEngineStatus()).toMatchObject(expected);
   });
 });
 
@@ -140,18 +102,10 @@ describe('loadTickerData', () => {
 });
 
 describe('getTickerList', () => {
+  const AAPL = { ticker: 'AAPL', category: 'Apple', market: 'US' };
+  const BND = { ticker: 'BND', category: 'ETF', market: 'US' };
   it.each([
-    [
-      '应从 PostgreSQL 读取标的列表',
-      {
-        rows: [
-          { ticker: 'AAPL', category: 'Apple', market: 'US' },
-          { ticker: 'BND', category: 'ETF', market: 'US' },
-        ],
-      },
-      2,
-      'AAPL',
-    ],
+    ['应从 PostgreSQL 读取标的列表', { rows: [AAPL, BND] }, 2, 'AAPL'],
     ['PostgreSQL 查询失败时应返回空数组', undefined, 0, undefined],
   ])('%s', async (_n, rows, len, first) => {
     if (rows) pgMocks.query.mockResolvedValue(rows);
@@ -164,7 +118,7 @@ describe('getTickerList', () => {
 
 describe('getUniverseStats', () => {
   it('应从 PostgreSQL 推导宇宙统计', async () => {
-    marketStatsMocks.scanMarketStatsFromDb.mockResolvedValue(DB_STATS);
+    statsMocks.scanMarketStatsFromDb.mockResolvedValue(DB_STATS);
     const result = await getUniverseStats();
     expect(result.total).toBe(100);
     expect(result.updated_at).toBe('2024-01-01T00:00:00Z');
@@ -173,7 +127,7 @@ describe('getUniverseStats', () => {
   });
 
   it('stats 不存在时应返回零值', async () => {
-    marketStatsMocks.scanMarketStatsFromDb.mockResolvedValue(null);
+    statsMocks.scanMarketStatsFromDb.mockResolvedValue(null);
     const result = await getUniverseStats();
     expect(result.total).toBe(0);
     expect(result.updated_at).toBe('');
@@ -192,7 +146,7 @@ describe('scanTickersStats', () => {
     ['应返回 PostgreSQL 统计数据', DB_STATS],
     ['PostgreSQL 不可用时返回 null', null],
   ])('%s', async (_n, dbResult) => {
-    marketStatsMocks.scanMarketStatsFromDb.mockResolvedValue(dbResult as never);
+    statsMocks.scanMarketStatsFromDb.mockResolvedValue(dbResult as never);
     const result = await scanTickersStats();
     if (dbResult) expect(result).toEqual(dbResult);
     else expect(result).toBeNull();
@@ -200,33 +154,30 @@ describe('scanTickersStats', () => {
 });
 
 describe('cpiService', () => {
+  const GO_FAIL = JSON.stringify({ success: false, data: null });
+  const goJson = (data: unknown) => JSON.stringify({ success: true, data });
+  const goOk = (data: unknown) =>
+    goDataServiceClientMocks.callGoDataService.mockResolvedValueOnce(goJson(data));
+  const pgOnce = (d: unknown) => macroDbMocks.loadCpiSeriesFromDb.mockResolvedValueOnce(d);
+
   beforeEach(() => {
-    vi.clearAllMocks();
     macroDbMocks.loadCpiSeriesFromDb.mockResolvedValue([]);
-    goDataServiceClientMocks.callGoDataService.mockResolvedValue(
-      JSON.stringify({ success: false, data: null }),
-    );
+    goDataServiceClientMocks.callGoDataService.mockResolvedValue(GO_FAIL);
   });
 
   describe('fetchCpiForRoute - 三级降级', () => {
     it('Go 服务可用时返回 Go 原始数据，不标记降级', async () => {
       const goData = [{ date: '2020-01-01', value: 258.8 }];
-      goDataServiceClientMocks.callGoDataService.mockResolvedValueOnce(
-        JSON.stringify({ success: true, data: goData }),
-      );
-
+      goOk(goData);
       const result = await fetchCpiForRoute('us');
-
       expect(result).toEqual({ data: goData, degraded: false, notFound: false });
       expect(macroDbMocks.loadCpiSeriesFromDb).not.toHaveBeenCalled();
     });
 
     it('Go 不可用 + PG 有数据 → degraded=true 并附带降级提示', async () => {
       const pgData = [{ date: '2020-01-01', value: 258.8 }];
-      macroDbMocks.loadCpiSeriesFromDb.mockResolvedValueOnce(pgData);
-
+      pgOnce(pgData);
       const result = await fetchCpiForRoute('cn');
-
       expect(result.degraded).toBe(true);
       expect(result.notFound).toBe(false);
       expect(result.data).toEqual(pgData);
@@ -235,18 +186,15 @@ describe('cpiService', () => {
 
     it('Go 不可用 + PG 空 → notFound=true', async () => {
       const result = await fetchCpiForRoute('uk');
-
       expect(result).toEqual({ data: null, degraded: false, notFound: true });
     });
 
     it('Go 不可用 + 缓存命中（同一 country 第二次调用）→ degraded=true 返回缓存', async () => {
       const pgData = [{ date: '2020-01-01', value: 258.8 }];
-      macroDbMocks.loadCpiSeriesFromDb.mockResolvedValueOnce(pgData);
+      pgOnce(pgData);
       const first = await fetchCpiForRoute('de');
       expect(first.degraded).toBe(true);
-
       const second = await fetchCpiForRoute('de');
-
       expect(second.degraded).toBe(true);
       expect(second.notFound).toBe(false);
       expect(second.data).toEqual(pgData);
@@ -254,19 +202,14 @@ describe('cpiService', () => {
     });
 
     it('Go 返回 success=false 时视为不可用，降级到 PG', async () => {
-      macroDbMocks.loadCpiSeriesFromDb.mockResolvedValueOnce([{ date: '2020-01', value: 1 }]);
-
-      const result = await fetchCpiForRoute('fr');
-
-      expect(result.degraded).toBe(true);
+      pgOnce([{ date: '2020-01', value: 1 }]);
+      expect((await fetchCpiForRoute('fr')).degraded).toBe(true);
     });
 
     it('Go 服务抛异常时捕获并降级到 PG', async () => {
       goDataServiceClientMocks.callGoDataService.mockRejectedValueOnce(new Error('go boom'));
-      macroDbMocks.loadCpiSeriesFromDb.mockResolvedValueOnce([{ date: '2020-01', value: 1 }]);
-
+      pgOnce([{ date: '2020-01', value: 1 }]);
       const result = await fetchCpiForRoute('ca');
-
       expect(result.degraded).toBe(true);
       expect(loggerMocks.warn).toHaveBeenCalled();
     });
@@ -274,64 +217,38 @@ describe('cpiService', () => {
 
   describe('loadCpiMap - PG 主路径 + Go fallback + 缓存', () => {
     it('PG 主路径有数据 → 返回 { date: value } 映射', async () => {
-      macroDbMocks.loadCpiSeriesFromDb.mockResolvedValueOnce([
+      pgOnce([
         { date: '2020-01-01', value: 258.8 },
         { date: '2020-02-01', value: 259.1 },
       ]);
-
       const map = await loadCpiMap('JP');
-
-      expect(map).toEqual({
-        '2020-01-01': 258.8,
-        '2020-02-01': 259.1,
-      });
+      expect(map).toEqual({ '2020-01-01': 258.8, '2020-02-01': 259.1 });
       expect(macroDbMocks.loadCpiSeriesFromDb).toHaveBeenCalledWith('jp');
       expect(goDataServiceClientMocks.callGoDataService).not.toHaveBeenCalled();
     });
 
     it('缓存命中：同一 country 第二次调用不再访问 PG', async () => {
-      macroDbMocks.loadCpiSeriesFromDb.mockResolvedValueOnce([{ date: '2020-01-01', value: 1 }]);
-
+      pgOnce([{ date: '2020-01-01', value: 1 }]);
       await loadCpiMap('BR');
-      const second = await loadCpiMap('BR');
-
-      expect(second).toEqual({ '2020-01-01': 1 });
+      expect(await loadCpiMap('BR')).toEqual({ '2020-01-01': 1 });
       expect(macroDbMocks.loadCpiSeriesFromDb).toHaveBeenCalledTimes(1);
     });
 
     it('PG 空 + Go fallback 有数据 → 扁平化为 { date: value }，date 取 slice(0,10)', async () => {
-      macroDbMocks.loadCpiSeriesFromDb.mockResolvedValueOnce([]);
-      goDataServiceClientMocks.callGoDataService.mockResolvedValueOnce(
-        JSON.stringify({
-          success: true,
-          data: [
-            { date: '2020-01-01T00:00:00Z', value: 258.8 },
-            { date: '2020-02-01T12:34:56Z', value: 259.1 },
-          ],
-        }),
-      );
-
-      const map = await loadCpiMap('AU');
-
-      expect(map).toEqual({
-        '2020-01-01': 258.8,
-        '2020-02-01': 259.1,
-      });
+      pgOnce([]);
+      goOk([
+        { date: '2020-01-01T00:00:00Z', value: 258.8 },
+        { date: '2020-02-01T12:34:56Z', value: 259.1 },
+      ]);
+      expect(await loadCpiMap('AU')).toEqual({ '2020-01-01': 258.8, '2020-02-01': 259.1 });
     });
 
     it('PG 空 + Go fallback 也空 → 返回空对象且不写缓存', async () => {
-      macroDbMocks.loadCpiSeriesFromDb.mockResolvedValueOnce([]);
-      goDataServiceClientMocks.callGoDataService.mockResolvedValueOnce(
-        JSON.stringify({ success: true, data: [] }),
-      );
-
-      const map = await loadCpiMap('KR');
-
-      expect(map).toEqual({});
-      macroDbMocks.loadCpiSeriesFromDb.mockResolvedValueOnce([]);
-      goDataServiceClientMocks.callGoDataService.mockResolvedValueOnce(
-        JSON.stringify({ success: true, data: [] }),
-      );
+      pgOnce([]);
+      goOk([]);
+      expect(await loadCpiMap('KR')).toEqual({});
+      pgOnce([]);
+      goOk([]);
       await loadCpiMap('KR');
       expect(macroDbMocks.loadCpiSeriesFromDb).toHaveBeenCalledTimes(2);
     });

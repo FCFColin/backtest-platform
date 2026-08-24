@@ -39,20 +39,16 @@ vi.mock('../../../packages/backend/src/config/index.js', () => ({
 
 vi.mock('../../../packages/backend/src/db/pool.js', () => ({
   getPool: () => ({ query: dbMocks.query }),
-  withTenant: (tenantId: string, fn: (c: unknown) => Promise<unknown>) =>
-    dbMocks.withTenant(tenantId, fn),
-  withTenantReadOnly: (tenantId: string, fn: (c: unknown) => Promise<unknown>) =>
-    dbMocks.withTenant(tenantId, fn),
+  withTenant: dbMocks.withTenant,
+  withTenantReadOnly: dbMocks.withTenant,
   withPlatformContext: (fn: (c: unknown) => Promise<unknown>) => fn({ query: dbMocks.query }),
 }));
 
 vi.mock('stripe', () => ({
   default: class {
-    subscriptions = stripeMocks.subscriptions;
-    customers = stripeMocks.customers;
-    checkout = stripeMocks.checkout;
-    billingPortal = stripeMocks.billingPortal;
-    webhooks = stripeMocks.webhooks;
+    constructor() {
+      Object.assign(this, stripeMocks);
+    }
   },
 }));
 
@@ -82,9 +78,7 @@ const ORG = '11111111-1111-1111-1111-111111111111';
 
 beforeEach(() => {
   vi.clearAllMocks();
-  dbMocks.withTenant.mockImplementation(async (_t: string, fn: (c: unknown) => Promise<unknown>) =>
-    fn(dbMocks.client),
-  );
+  dbMocks.withTenant.mockImplementation(async (_t, fn) => fn(dbMocks.client));
   dbMocks.client.query.mockResolvedValue({ rows: [] });
 });
 
@@ -102,26 +96,12 @@ function makeSub(overrides: Record<string, unknown> = {}) {
 const findOrgUpdate = () =>
   dbMocks.client.query.mock.calls.find((c) => String(c[0]).includes('UPDATE organizations'));
 describe('plan/price 映射', () => {
-  it.each<[string, (x: string | null) => string, string | null, string]>([
-    [
-      'priceIdForPlan 返回配置的 Price',
-      priceIdForPlan as (x: string | null) => string,
-      'pro',
-      'price_pro',
-    ],
-    [
-      'planForPriceId 反查计划',
-      planForPriceId as (x: string | null) => string,
-      'price_ent',
-      'enterprise',
-    ],
-    [
-      'planForPriceId 未匹配回 free',
-      planForPriceId as (x: string | null) => string,
-      'price_unknown',
-      'free',
-    ],
-    ['planForPriceId 空值回 free', planForPriceId as (x: string | null) => string, null, 'free'],
+  type PF = (x: string | null) => string;
+  it.each<[string, PF, string | null, string]>([
+    ['priceIdForPlan 返回配置的 Price', priceIdForPlan as PF, 'pro', 'price_pro'],
+    ['planForPriceId 反查计划', planForPriceId as PF, 'price_ent', 'enterprise'],
+    ['planForPriceId 未匹配回 free', planForPriceId as PF, 'price_unknown', 'free'],
+    ['planForPriceId 空值回 free', planForPriceId as PF, null, 'free'],
   ])('%s', (_n, fn, input, expected) => {
     expect(fn(input)).toBe(expected);
   });
@@ -141,7 +121,6 @@ describe('getPlanLimits', () => {
     expect(limits.asyncConcurrency).toBe(concurrency);
     expect(limits.maxTacticalConfigs).toBe(configs);
   });
-
   it('未知计划应回到 free', () => {
     expect(getPlanLimits(null)).toBe(getPlanLimits('free'));
     expect(getPlanLimits(undefined)).toBe(getPlanLimits('free'));
@@ -157,60 +136,40 @@ describe('currentPeriod', () => {
   });
 });
 describe('getSubscriptionSummary', () => {
-  it.each([
-    ['无记录返回 null', { rows: [] }, null],
-    [
-      '映射数据库行',
-      {
-        rows: [
-          {
-            plan: 'pro',
-            status: 'active',
-            current_period_end: new Date('2026-02-01T00:00:00Z'),
-            cancel_at_period_end: false,
-          },
-        ],
-      },
-      {
-        plan: 'pro',
-        status: 'active',
-        cancelAtPeriodEnd: false,
-        currentPeriodEnd: '2026-02-01T00:00:00.000Z',
-      },
-    ],
-  ])('%s', async (_n, rows, expected) => {
-    dbMocks.client.query.mockResolvedValueOnce(rows);
-    const summary = await getSubscriptionSummary(ORG);
-    if (expected === null) expect(summary).toBeNull();
-    else expect(summary).toMatchObject(expected as Record<string, unknown>);
+  it('无记录返回 null', async () => {
+    dbMocks.client.query.mockResolvedValueOnce({ rows: [] });
+    expect(await getSubscriptionSummary(ORG)).toBeNull();
+  });
+  it('映射数据库行', async () => {
+    dbMocks.client.query.mockResolvedValueOnce({
+      rows: [
+        {
+          plan: 'pro',
+          status: 'active',
+          current_period_end: new Date('2026-02-01T00:00:00Z'),
+          cancel_at_period_end: false,
+        },
+      ],
+    });
+    expect(await getSubscriptionSummary(ORG)).toMatchObject({
+      plan: 'pro',
+      status: 'active',
+      cancelAtPeriodEnd: false,
+      currentPeriodEnd: '2026-02-01T00:00:00.000Z',
+    });
   });
 });
 describe('handleWebhookEvent', () => {
+  const session = { metadata: { org_id: ORG }, subscription: 'sub_1' };
   it.each([
-    [
-      'subscription.updated',
-      { type: 'customer.subscription.updated', data: { object: makeSub() } },
-      [ORG, 'pro', 'active'],
-    ],
-    [
-      'subscription.deleted',
-      { type: 'customer.subscription.deleted', data: { object: makeSub({ status: 'canceled' }) } },
-      [ORG, 'free', 'canceled'],
-    ],
-    [
-      'checkout.session.completed',
-      {
-        type: 'checkout.session.completed',
-        data: { object: { metadata: { org_id: ORG }, subscription: 'sub_1' } },
-      },
-      [ORG, 'pro', 'active'],
-    ],
-  ])('%s', async (_n, event, expectedOrgUpdate) => {
-    if (event.type === 'checkout.session.completed') {
+    ['customer.subscription.updated', makeSub(), [ORG, 'pro', 'active']],
+    ['customer.subscription.deleted', makeSub({ status: 'canceled' }), [ORG, 'free', 'canceled']],
+    ['checkout.session.completed', session, [ORG, 'pro', 'active']],
+  ])('%s', async (type, object, expectedOrgUpdate) => {
+    if (type === 'checkout.session.completed')
       stripeMocks.subscriptions.retrieve.mockResolvedValueOnce(makeSub());
-    }
     dbMocks.client.query.mockResolvedValue({ rows: [], rowCount: 1 });
-    await handleWebhookEvent(event as never);
+    await handleWebhookEvent({ type, data: { object } } as never);
     const calls = dbMocks.client.query.mock.calls.map((c) => String(c[0]));
     expect(calls.some((s) => s.includes('INSERT INTO subscriptions'))).toBe(true);
     expect(findOrgUpdate()?.[1]).toEqual(expectedOrgUpdate);
@@ -242,13 +201,9 @@ describe('ensureCustomer', () => {
   });
 });
 describe('createCheckoutSession', () => {
+  const url = 'https://checkout.stripe.com/session_1';
   it.each([
-    [
-      '应创建 Checkout 会话并返回 URL',
-      { url: 'https://checkout.stripe.com/session_1' },
-      'https://checkout.stripe.com/session_1',
-      false,
-    ],
+    ['应创建 Checkout 会话并返回 URL', { url }, url, false],
     ['Stripe 返回无 url 时应抛出', { url: null }, undefined, true],
   ])('%s', async (_n, createResult, expectedUrl, throws) => {
     dbMocks.client.query.mockResolvedValueOnce({ rows: [{ stripe_customer_id: 'cus_1' }] });
@@ -265,24 +220,18 @@ describe('createCheckoutSession', () => {
   });
 });
 describe('createPortalSession', () => {
+  const portal = 'https://billing.stripe.com/portal_1';
   it.each([
-    [
-      '应创建 Portal 会话并返回 URL',
-      { rows: [{ stripe_customer_id: 'cus_1' }] },
-      'https://billing.stripe.com/portal_1',
-      false,
-    ],
+    ['应创建 Portal 会话并返回 URL', { rows: [{ stripe_customer_id: 'cus_1' }] }, portal, false],
     ['无 customer 记录时应抛出', { rows: [] }, undefined, true],
   ])('%s', async (_n, customerRows, expectedUrl, throws) => {
+    stripeMocks.billingPortal.sessions.create.mockResolvedValueOnce({ url: expectedUrl });
     dbMocks.client.query.mockResolvedValueOnce(customerRows);
     if (throws)
       await expect(createPortalSession(ORG, 'http://return')).rejects.toBeInstanceOf(
         NoStripeCustomerError,
       );
-    else {
-      stripeMocks.billingPortal.sessions.create.mockResolvedValueOnce({ url: expectedUrl });
-      expect(await createPortalSession(ORG, 'http://return')).toBe(expectedUrl);
-    }
+    else expect(await createPortalSession(ORG, 'http://return')).toBe(expectedUrl);
   });
 });
 describe('constructWebhookEvent', () => {
@@ -334,7 +283,6 @@ describe('getMonthlyUsage', () => {
     else if (setVal !== null) redisMocks.set.mockResolvedValueOnce(setVal);
     expect(await getMonthlyUsage(ORG, 'backtest')).toBe(expected);
   });
-
   it('DB 查询失败应向上抛错', async () => {
     dbMocks.client.query.mockRejectedValueOnce(new Error('db error'));
     await expect(getMonthlyUsage(ORG, 'backtest')).rejects.toThrow('db error');
