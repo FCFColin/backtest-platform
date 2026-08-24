@@ -16,32 +16,15 @@ const FEATURE_ICONS: Record<string, ComponentType<{ className?: string }>> = {
   Database: L.Database,
 };
 
-function InfoCard({
-  icon,
-  title,
-  value,
-  desc,
-  highlight,
-}: {
-  icon?: ReactNode;
-  title?: string;
-  value?: string;
-  desc?: string;
-  highlight?: boolean;
-}) {
+type CardProps = { icon?: ReactNode; title?: string; value?: string; desc?: string };
+
+function InfoCard({ icon, title, value, desc }: CardProps) {
+  const titleCls = `mb-1 text-body font-semibold text-fg${value ? ' text-caption text-fg-tertiary' : ''}`;
   return (
-    <div
-      className={`rounded-lg p-4 ${highlight ? 'border-2 border-brand bg-brand/10' : 'bg-input-bg'}`}
-    >
+    <div className="rounded-lg bg-input-bg p-4">
       {icon && <div className="mb-2 text-brand">{icon}</div>}
       {value && <div className="mb-0.5 text-h2 font-bold text-fg">{value}</div>}
-      {title && (
-        <div
-          className={`mb-1 text-body font-semibold text-fg ${value ? 'text-caption text-fg-tertiary' : ''}`}
-        >
-          {title}
-        </div>
-      )}
+      {title && <div className={titleCls}>{title}</div>}
       {desc && <div className="text-caption text-fg-tertiary">{desc}</div>}
     </div>
   );
@@ -112,6 +95,12 @@ function LimitsContent() {
   );
 }
 
+const PLAN_CARD_CLS = (current: boolean) =>
+  `rounded-lg p-5 ${current ? 'border-2 border-brand bg-brand/10' : 'border border-border-subtle bg-input-bg'}`;
+
+const CURRENT_PLAN_CLS =
+  'mt-4 rounded-lg bg-brand py-2 text-center text-label font-semibold text-brand-fg';
+
 function UpgradeContent() {
   const { t } = useTranslation();
   return (
@@ -125,10 +114,7 @@ function UpgradeContent() {
         {PLANS.map((p) => {
           const current = p.id === 'free';
           return (
-            <div
-              key={p.id}
-              className={`rounded-lg p-5 ${current ? 'border-2 border-brand bg-brand/10' : 'border border-border-subtle bg-input-bg'}`}
-            >
+            <div key={p.id} className={PLAN_CARD_CLS(current)}>
               <div className="mb-1 text-h3 font-bold text-fg">{p.name}</div>
               <div className="mb-4 text-h1 font-bold text-brand">{`${planPrice(p, t)}${planPeriod(p, t)}`}</div>
               {p.features
@@ -139,11 +125,7 @@ function UpgradeContent() {
                     {t(f.key)}
                   </div>
                 ))}
-              {current && (
-                <div className="mt-4 rounded-lg bg-brand py-2 text-center text-label font-semibold text-brand-fg">
-                  {t('Current Plan')}
-                </div>
-              )}
+              {current && <div className={CURRENT_PLAN_CLS}>{t('Current Plan')}</div>}
             </div>
           );
         })}
@@ -160,10 +142,9 @@ const ABOUT_TABS = (
   ] as const
 ).map(([key, labelKey, titleKey, C]) => ({ key, labelKey, titleKey, to: `/${key}`, C }));
 
-export function AboutPage({ section }: { section?: string }) {
+export function AboutPage({ section = 'about' }: { section?: string }) {
   const { t } = useTranslation();
-  const s = section || 'about';
-  const tab = ABOUT_TABS.find((x) => x.key === s) ?? ABOUT_TABS[0];
+  const tab = ABOUT_TABS.find((x) => x.key === section) ?? ABOUT_TABS[0];
   return (
     <StaticPageShell title={t(tab.titleKey)}>
       <div className="mb-6 flex gap-2 border-b-2 border-border-subtle pb-3">
@@ -171,7 +152,7 @@ export function AboutPage({ section }: { section?: string }) {
           <Link
             key={tab.key}
             to={tab.to}
-            className={`rounded-lg px-4 py-2 text-label font-semibold no-underline ${s === tab.key ? 'bg-brand/10 text-brand' : 'text-fg-tertiary hover:text-fg-secondary'}`}
+            className={`rounded-lg px-4 py-2 text-label font-semibold no-underline ${section === tab.key ? 'bg-brand/10 text-brand' : 'text-fg-tertiary hover:text-fg-secondary'}`}
           >
             {t(tab.labelKey)}
           </Link>
@@ -188,6 +169,10 @@ const CHANGE_META = {
   improved: { labelKey: 'Improved', variant: 'asset', Icon: L.Wrench },
   fixed: { labelKey: 'Fixed', variant: 'secondary', Icon: L.Bug },
 } as const;
+
+const HL_CLS = 'rounded-full bg-brand/10 px-2 py-0.5 text-label-tiny font-semibold text-brand';
+
+const BADGE_CLS = 'mt-0.5 shrink-0 min-w-[44px] justify-center';
 
 export function ChangelogPage() {
   const { t } = useTranslation();
@@ -221,22 +206,14 @@ export function ChangelogPage() {
                   <L.Calendar className="size-3" />
                   {v.date}
                 </span>
-                {v.highlight && (
-                  <span className="rounded-full bg-brand/10 px-2 py-0.5 text-label-tiny font-semibold text-brand">
-                    {v.highlight}
-                  </span>
-                )}
+                {v.highlight && <span className={HL_CLS}>{v.highlight}</span>}
               </div>
               <div className="mt-3 flex flex-col gap-1.5">
                 {v.changes.map((c, i) => {
                   const cfg = CHANGE_META[c.type];
                   return (
                     <div key={i} className="flex items-start gap-2">
-                      <Badge
-                        variant={cfg.variant}
-                        size="sm"
-                        className="mt-0.5 shrink-0 min-w-[44px] justify-center"
-                      >
+                      <Badge variant={cfg.variant} size="sm" className={BADGE_CLS}>
                         <cfg.Icon className="size-3" />
                         {t(cfg.labelKey)}
                       </Badge>
