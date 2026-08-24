@@ -59,14 +59,8 @@ func ParseStringFloat(s string) float64 {
 	}
 	return f
 }
+
+// ParseStringInt 复用浮点解析路径：整数字面量经 ParseFloat 后截断，与原实现逐位等价（注意区别于 ToInt64Safe 的 ParseInt 路径）。
 func ParseStringInt(s string) int64 {
-	s = strings.TrimSpace(s)
-	if s == "" {
-		return 0
-	}
-	f, err := strconv.ParseFloat(s, 64)
-	if err != nil {
-		return 0
-	}
-	return int64(f)
+	return int64(ParseStringFloat(s))
 }
