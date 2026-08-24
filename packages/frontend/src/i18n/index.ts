@@ -29,12 +29,12 @@ i18n.use(initReactI18next).init({
 // window.__i18nUsedKeys 导出 used-keys 快照，与静态采样做三重过滤差集
 if (import.meta.env.DEV) {
   const usedKeySet = new Set<string>();
-  const origT = i18n.t.bind(i18n);
+  const origT = i18n.t.bind(i18n) as unknown as (...a: unknown[]) => unknown;
   i18n.t = ((key: string | string[], ...args: unknown[]) => {
     const k = Array.isArray(key) ? key[0] : key;
     if (typeof k === 'string') usedKeySet.add(k);
-    return (origT as typeof i18n.t)(key as string, ...args);
-  }) as typeof i18n.t;
+    return origT(key, ...args);
+  }) as unknown as typeof i18n.t;
   (window as unknown as Record<string, unknown>).__i18nUsedKeys = usedKeySet;
 }
 
