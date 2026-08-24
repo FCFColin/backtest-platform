@@ -1,4 +1,4 @@
-import { Router, type Response } from 'express';
+import { Router, type RequestHandler, type Response } from 'express';
 import { logger } from '../utils/logger.js';
 import { sendProblem } from '../utils/errors.js';
 import { crudRouteHandler, sendData } from './routeUtils.js';
@@ -76,177 +76,212 @@ const orgSummary = (m: Membership) => ({
   role: m.role,
 });
 
+/** guard 分支统一「发响应即终止」语义，消除 sendProblem+return 样板 */
+const problem = (res: Response, status: number, code: string): undefined => {
+  sendProblem(res, status, code);
+  return undefined;
+};
+
+const tenantOf = (m: Membership, platformAdmin: boolean): TenantContext => ({
+  tenantId: m.orgId,
+  orgRole: m.role,
+  platformAdmin,
+});
+
 /** 平台管理员 → 默认 org 成员 → role 覆盖（ADR-009），login 与 switch-org 共用 */
 async function resolveOrgContext(userId: string) {
   const platformAdmin = await isPlatformAdmin(userId);
   const membership = await resolveDefaultOrg(userId);
-  if (!membership)
-    return {
-      platformAdmin,
-      effectiveRole: undefined as Role | undefined,
-      tenant: platformAdmin ? ({ platformAdmin } as TenantContext) : undefined,
-      membership: null,
-    };
-  const effectiveRole = orgRoleToGlobalRole(membership.role);
-  const tenant: TenantContext = {
-    tenantId: membership.orgId,
-    orgRole: membership.role,
+  const effectiveRole = membership ? orgRoleToGlobalRole(membership.role) : undefined;
+  return {
     platformAdmin,
+    effectiveRole,
+    tenant: membership
+      ? tenantOf(membership, platformAdmin)
+      : platformAdmin
+        ? ({ platformAdmin } as TenantContext)
+        : undefined,
+    membership: membership ?? null,
   };
-  return { platformAdmin, effectiveRole, tenant, membership };
 }
+
+type ErrorCfg = { logMsg: string; code: string; endpoint?: string };
+type Handler = (req: AuthenticatedRequest, res: Response) => Promise<void>;
+
+const cfg = (logMsg: string, code: string, endpoint?: string): ErrorCfg => ({
+  logMsg,
+  code,
+  ...(endpoint && { endpoint }),
+});
 
 const router = Router();
 
-router.post(
-  '/login/password',
-  validate(loginPasswordSchema),
-  crudRouteHandler(
-    async (req, res) => {
-      const { username, password } = req.body;
-      const clientIp = req.ip ?? '';
-      const [ipBlockTtl, lockRemaining] = await Promise.all([
-        isIpBlocked(clientIp),
-        isLockedOut(username),
-      ]);
-      if (ipBlockTtl > 0) {
-        logger.warn({ clientIp: 'hidden', ipBlockTtl }, '[auth] IP 被封锁，拒绝登录');
-        res.set('Retry-After', String(ipBlockTtl));
-        sendProblem(res, 429, 'IP_BLOCKED');
-        return;
-      }
-      if (lockRemaining > 0) {
-        logger.warn({ username }, '[auth] 账户锁定中，拒绝登录尝试');
-        sendProblem(res, 429, 'ACCOUNT_LOCKED');
-        return;
-      }
-      const user = await verifyUser(username, password); // 内部 argon2id 常量时间比较，不存在时仍哈希防时序攻击
-      if (!user) {
-        await Promise.all([recordFailure(username), recordIpFailure(clientIp)]);
-        sendProblem(res, 401, 'INVALID_CREDENTIALS');
-        return;
-      }
-      await clearFailures(username);
-      // 多租户上下文（ADR-009）：org 成员角色覆盖全局角色（owner→admin）
-      const { platformAdmin, effectiveRole, tenant, membership } = await resolveOrgContext(user.id);
-      const accessToken = await issueSession(res, user.id, effectiveRole ?? user.role, tenant);
-      logger.info(
-        {
-          userId: user.id,
-          username: user.username,
-          role: effectiveRole ?? user.role,
-          tenantId: membership?.orgId,
-          platformAdmin,
-        },
-        '[auth] 密码登录成功',
-      );
-      sendData(res, {
-        accessToken,
-        role: effectiveRole ?? user.role,
-        userId: user.id,
-        org: membership ? orgSummary(membership) : null,
-        idleTimeoutMs:
-          ((effectiveRole ?? user.role) === 'analyst'
-            ? authConfig.SESSION_IDLE_TIMEOUT_ANALYST_SEC
-            : authConfig.SESSION_IDLE_TIMEOUT_READONLY_SEC) * 1000,
-      });
+const login: Handler = async (req, res) => {
+  const { username, password } = req.body;
+  const clientIp = req.ip ?? '';
+  const [ipBlockTtl, lockRemaining] = await Promise.all([
+    isIpBlocked(clientIp),
+    isLockedOut(username),
+  ]);
+  if (ipBlockTtl > 0) {
+    logger.warn({ clientIp: 'hidden', ipBlockTtl }, '[auth] IP 被封锁，拒绝登录');
+    res.set('Retry-After', String(ipBlockTtl));
+    return problem(res, 429, 'IP_BLOCKED');
+  }
+  if (lockRemaining > 0) {
+    logger.warn({ username }, '[auth] 账户锁定中，拒绝登录尝试');
+    return problem(res, 429, 'ACCOUNT_LOCKED');
+  }
+  const user = await verifyUser(username, password); // 内部 argon2id 常量时间比较，不存在时仍哈希防时序攻击
+  if (!user) {
+    await Promise.all([recordFailure(username), recordIpFailure(clientIp)]);
+    return problem(res, 401, 'INVALID_CREDENTIALS');
+  }
+  await clearFailures(username);
+  // 多租户上下文（ADR-009）：org 成员角色覆盖全局角色（owner→admin）
+  const { platformAdmin, effectiveRole, tenant, membership } = await resolveOrgContext(user.id);
+  const role = effectiveRole ?? user.role;
+  const accessToken = await issueSession(res, user.id, role, tenant);
+  logger.info(
+    {
+      userId: user.id,
+      username: user.username,
+      role,
+      tenantId: membership?.orgId,
+      platformAdmin,
     },
-    { logMsg: 'Login error', code: 'LOGIN_ERROR', endpoint: 'auth-login' },
-  ),
-);
+    '[auth] 密码登录成功',
+  );
+  sendData(res, {
+    accessToken,
+    role,
+    userId: user.id,
+    org: membership ? orgSummary(membership) : null,
+    idleTimeoutMs:
+      (role === 'analyst'
+        ? authConfig.SESSION_IDLE_TIMEOUT_ANALYST_SEC
+        : authConfig.SESSION_IDLE_TIMEOUT_READONLY_SEC) * 1000,
+  });
+};
 
-router.post(
-  '/register',
-  validate(registerSchema),
-  crudRouteHandler(
-    async (req, res) => {
-      const { username, password, email, orgName } = req.body;
-      if (await getUserByEmail(email)) {
-        sendProblem(res, 409, 'EMAIL_TAKEN');
-        return;
-      }
-      let userId = '';
-      try {
-        userId = await registerUser(username, password, email, orgName);
-      } catch (err) {
-        if ((err as { code?: string }).code === '23505') {
-          sendProblem(res, 409, 'ACCOUNT_CONFLICT');
-          return;
-        } // 23505 = PG unique_violation
-        logger.error({ err: String(err) }, '[auth] 注册失败');
-        sendProblem(res, 500, 'REGISTER_FAILED');
-        return;
-      }
-      try {
-        await sendVerificationEmail(email, await issueEmailVerificationToken(userId));
-      } catch (err) {
-        logger.warn({ err: String(err), userId }, '[auth] 验证邮件发送失败');
-      }
-      logger.info({ userId }, '[auth] 注册成功');
-      res.status(201).json({
-        success: true,
-        data: { userId, message: '注册成功，请查收验证邮件以完成邮箱验证' },
-      });
-    },
-    { logMsg: '[auth] 注册失败', code: 'REGISTER_FAILED' },
-  ),
-);
+const register: Handler = async (req, res) => {
+  const { username, password, email, orgName } = req.body;
+  if (await getUserByEmail(email)) return problem(res, 409, 'EMAIL_TAKEN');
+  let userId = '';
+  try {
+    userId = await registerUser(username, password, email, orgName);
+  } catch (err) {
+    // 23505 = PG unique_violation，并发注册兜底（主查重为上方 getUserByEmail）
+    if ((err as { code?: string }).code === '23505') return problem(res, 409, 'ACCOUNT_CONFLICT');
+    logger.error({ err: String(err) }, '[auth] 注册失败');
+    return problem(res, 500, 'REGISTER_FAILED');
+  }
+  try {
+    await sendVerificationEmail(email, await issueEmailVerificationToken(userId));
+  } catch (err) {
+    logger.warn({ err: String(err), userId }, '[auth] 验证邮件发送失败');
+  }
+  logger.info({ userId }, '[auth] 注册成功');
+  res.status(201).json({
+    success: true,
+    data: { userId, message: '注册成功，请查收验证邮件以完成邮箱验证' },
+  });
+};
 
-router.post(
-  '/verify-email',
-  validate(verifyEmailSchema),
-  crudRouteHandler(
-    async (req, res) => {
-      const { token } = req.body;
-      const userId = await verifyEmailToken(token);
-      if (!userId) {
-        sendProblem(res, 400, 'INVALID_OR_EXPIRED_TOKEN');
-        return;
-      }
-      sendData(res, { userId, verified: true });
-    },
-    { logMsg: '[auth] 邮箱验证失败', code: 'VERIFY_EMAIL_FAILED' },
-  ),
-);
+const verifyEmail: Handler = async (req, res) => {
+  const userId = await verifyEmailToken(req.body.token);
+  if (!userId) return problem(res, 400, 'INVALID_OR_EXPIRED_TOKEN');
+  sendData(res, { userId, verified: true });
+};
 
-router.post(
-  '/refresh',
-  crudRouteHandler(
-    async (req, res) => {
-      const refreshToken = req.cookies?.[RT_COOKIE];
-      if (!refreshToken) {
-        sendProblem(res, 401, 'REFRESH_TOKEN_MISSING');
-        return;
-      }
-      const result = await refreshAccessToken(refreshToken);
-      if (!result) {
-        res.clearCookie(RT_COOKIE, RT_BASE);
-        sendProblem(res, 401, 'INVALID_REFRESH_TOKEN');
-        return;
-      }
-      res.cookie(RT_COOKIE, result.refreshToken, RT_SET);
-      sendData(res, { accessToken: result.accessToken });
-    },
-    { logMsg: 'Token refresh error', code: 'REFRESH_ERROR', endpoint: 'auth-refresh' },
-  ),
-);
+const refresh: Handler = async (req, res) => {
+  const refreshToken = req.cookies?.[RT_COOKIE];
+  if (!refreshToken) return problem(res, 401, 'REFRESH_TOKEN_MISSING');
+  const result = await refreshAccessToken(refreshToken);
+  if (!result) {
+    res.clearCookie(RT_COOKIE, RT_BASE);
+    return problem(res, 401, 'INVALID_REFRESH_TOKEN');
+  }
+  res.cookie(RT_COOKIE, result.refreshToken, RT_SET);
+  sendData(res, { accessToken: result.accessToken });
+};
 
-router.delete(
-  '/logout',
-  crudRouteHandler(
-    async (req, res) => {
-      const refreshToken = req.cookies?.[RT_COOKIE] as string | undefined;
-      if (refreshToken) {
-        await revokeRefreshToken(refreshToken);
-        logger.info('[auth] Refresh Token 已撤销');
-      }
-      res.clearCookie(RT_COOKIE, RT_BASE);
-      sendData(res, null);
-    },
-    { logMsg: 'Logout error', code: 'LOGOUT_ERROR', endpoint: 'auth-logout' },
-  ),
-);
+const logout: Handler = async (req, res) => {
+  const refreshToken = req.cookies?.[RT_COOKIE] as string | undefined;
+  if (refreshToken) {
+    await revokeRefreshToken(refreshToken);
+    logger.info('[auth] Refresh Token 已撤销');
+  }
+  res.clearCookie(RT_COOKIE, RT_BASE);
+  sendData(res, null);
+};
 
+const listOrgs: Handler = async (req, res) => {
+  if (!requireUser(req, res)) return;
+  sendData(res, {
+    activeOrgId: req.user.tenant_id ?? null,
+    orgs: (await getUserMemberships(req.user.sub)).map(orgSummary),
+  });
+};
+
+// POST /api/v1/auth/switch-org — 服务端校验成员身份，杜绝伪造 orgId 越权（最终防线是 Postgres RLS）。
+const switchOrg: Handler = async (req, res) => {
+  if (!requireUser(req, res)) return;
+  const membership = await getMembership(req.user.sub, req.body.orgId);
+  if (!membership) {
+    logger.warn(
+      { userId: hashUserId(req.user.sub), orgId: req.body.orgId },
+      '[auth] switch-org 拒绝：非该组织成员',
+    );
+    return problem(res, 403, 'NOT_A_MEMBER'); // 不区分"组织不存在"与"无权进入"，避免泄露他租户组织
+  }
+  if (membership.orgStatus !== 'active') return problem(res, 403, 'ORG_INACTIVE');
+  const platformAdmin = await isPlatformAdmin(req.user.sub);
+  const role = orgRoleToGlobalRole(membership.role);
+  const tenant = tenantOf(membership, platformAdmin);
+  const accessToken = await issueSession(res, req.user.sub, role, tenant);
+  logger.info(
+    { userId: hashUserId(req.user.sub), orgId: req.body.orgId, role },
+    '[auth] 切换活跃组织成功',
+  );
+  sendData(res, { accessToken, role, org: orgSummary(membership) });
+};
+
+// DELETE /api/v1/auth/me — GDPR Art.17 被遗忘权：匿名化 + 撤销会话。
+const deleteMe: Handler = async (req, res) => {
+  if (!requireUser(req, res)) return;
+  const { anonymizeUser } = await import('../repositories/userRepo.js');
+  await revokeAllUserSessions(req.user.sub);
+  const ok = await anonymizeUser(req.user.sub);
+  logger.info({ userId: hashUserId(req.user.sub), ok }, '[auth] 用户自助删除（匿名化）');
+  sendData(res, { anonymized: ok });
+};
+
+const LOGIN = cfg('Login error', 'LOGIN_ERROR', 'auth-login');
+const REG = cfg('[auth] 注册失败', 'REGISTER_FAILED');
+const VERIFY = cfg('[auth] 邮箱验证失败', 'VERIFY_EMAIL_FAILED');
+const REFRESH = cfg('Token refresh error', 'REFRESH_ERROR', 'auth-refresh');
+const LOGOUT = cfg('Logout error', 'LOGOUT_ERROR', 'auth-logout');
+const ORGS = cfg('List user orgs error', 'ORG_LIST_ERROR', 'auth-orgs');
+const SWITCH_ORG = cfg('Switch org error', 'SWITCH_ORG_ERROR', 'auth-switch-org');
+const DELETE_ME = cfg('Account deletion error', 'ACCOUNT_DELETE_ERROR', 'auth-me-delete');
+
+// 表项顺序 = 原声明顺序；Express 精确路径匹配下注册顺序不影响路由语义
+const ROUTES: ['get' | 'post' | 'delete', string, RequestHandler[], Handler, ErrorCfg][] = [
+  ['post', '/login/password', [validate(loginPasswordSchema)], login, LOGIN],
+  ['post', '/register', [validate(registerSchema)], register, REG],
+  ['post', '/verify-email', [validate(verifyEmailSchema)], verifyEmail, VERIFY],
+  ['post', '/refresh', [], refresh, REFRESH],
+  ['delete', '/logout', [], logout, LOGOUT],
+  ['get', '/orgs', [jwtAuth], listOrgs, ORGS],
+  ['post', '/switch-org', [jwtAuth, validate(switchOrgSchema)], switchOrg, SWITCH_ORG],
+  ['delete', '/me', [jwtAuth], deleteMe, DELETE_ME],
+];
+
+for (const [method, path, middlewares, handler, error] of ROUTES)
+  router[method](path, ...middlewares, crudRouteHandler(handler, error));
+
+// GET /me 保持裸 handler：无 crudRouteHandler 错误包装，异常行为与原实现一致
 router.get('/me', jwtAuth, (req: AuthenticatedRequest, res: Response) => {
   if (!requireUser(req, res)) return;
   const u = req.user;
@@ -259,76 +294,5 @@ router.get('/me', jwtAuth, (req: AuthenticatedRequest, res: Response) => {
     exp: u.exp,
   });
 });
-
-router.get(
-  '/orgs',
-  jwtAuth,
-  crudRouteHandler(
-    async (req, res): Promise<void> => {
-      if (!requireUser(req, res)) return;
-      sendData(res, {
-        activeOrgId: req.user.tenant_id ?? null,
-        orgs: (await getUserMemberships(req.user.sub)).map(orgSummary),
-      });
-    },
-    { logMsg: 'List user orgs error', code: 'ORG_LIST_ERROR', endpoint: 'auth-orgs' },
-  ),
-);
-
-/** POST /api/v1/auth/switch-org — 服务端校验成员身份，杜绝伪造 orgId 越权（最终防线是 Postgres RLS）。 */
-router.post(
-  '/switch-org',
-  jwtAuth,
-  validate(switchOrgSchema),
-  crudRouteHandler(
-    async (req, res): Promise<void> => {
-      if (!requireUser(req, res)) return;
-      const membership = await getMembership(req.user.sub, req.body.orgId);
-      if (!membership) {
-        logger.warn(
-          { userId: hashUserId(req.user.sub), orgId: req.body.orgId },
-          '[auth] switch-org 拒绝：非该组织成员',
-        );
-        sendProblem(res, 403, 'NOT_A_MEMBER');
-        return;
-      } // 不区分"组织不存在"与"无权进入"，避免泄露他租户组织
-      if (membership.orgStatus !== 'active') {
-        sendProblem(res, 403, 'ORG_INACTIVE');
-        return;
-      }
-      const platformAdmin = await isPlatformAdmin(req.user.sub);
-      const role = orgRoleToGlobalRole(membership.role);
-      const tenant: TenantContext = {
-        tenantId: membership.orgId,
-        orgRole: membership.role,
-        platformAdmin,
-      };
-      const accessToken = await issueSession(res, req.user.sub, role, tenant);
-      logger.info(
-        { userId: hashUserId(req.user.sub), orgId: req.body.orgId, role },
-        '[auth] 切换活跃组织成功',
-      );
-      sendData(res, { accessToken, role, org: orgSummary(membership) });
-    },
-    { logMsg: 'Switch org error', code: 'SWITCH_ORG_ERROR', endpoint: 'auth-switch-org' },
-  ),
-);
-
-/** DELETE /api/v1/auth/me — GDPR Art.17 被遗忘权：匿名化 + 撤销会话。 */
-router.delete(
-  '/me',
-  jwtAuth,
-  crudRouteHandler(
-    async (req, res): Promise<void> => {
-      if (!requireUser(req, res)) return;
-      const { anonymizeUser } = await import('../repositories/userRepo.js');
-      await revokeAllUserSessions(req.user.sub);
-      const ok = await anonymizeUser(req.user.sub);
-      logger.info({ userId: hashUserId(req.user.sub), ok }, '[auth] 用户自助删除（匿名化）');
-      sendData(res, { anonymized: ok });
-    },
-    { logMsg: 'Account deletion error', code: 'ACCOUNT_DELETE_ERROR', endpoint: 'auth-me-delete' },
-  ),
-);
 
 export default router;
