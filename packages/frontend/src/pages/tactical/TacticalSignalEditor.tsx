@@ -197,18 +197,16 @@ function SignalEditor({
     onChange({ ...signal, conditions: updateAt(signal.conditions, ci, patch) });
   const addCondition = () =>
     onChange({ ...signal, conditions: [...signal.conditions, createDefaultCondition()] });
-  const removeCondition = (ci: number) => {
-    if (signal.conditions.length > 1)
-      onChange({ ...signal, conditions: signal.conditions.filter((_, i) => i !== ci) });
-  };
+  const removeCondition = (ci: number) =>
+    signal.conditions.length > 1 &&
+    onChange({ ...signal, conditions: signal.conditions.filter((_, i) => i !== ci) });
   const updateWeight = (wi: number, patch: Partial<Weight>) =>
     onChange({ ...signal, targetWeights: updateAt(signal.targetWeights, wi, patch) });
   const addWeight = () =>
     onChange({ ...signal, targetWeights: [...signal.targetWeights, { ticker: '', weight: 0 }] });
-  const removeWeight = (wi: number) => {
-    if (signal.targetWeights.length > 1)
-      onChange({ ...signal, targetWeights: signal.targetWeights.filter((_, i) => i !== wi) });
-  };
+  const removeWeight = (wi: number) =>
+    signal.targetWeights.length > 1 &&
+    onChange({ ...signal, targetWeights: signal.targetWeights.filter((_, i) => i !== wi) });
   return (
     <div className="rounded-lg border border-border bg-input-bg/30 p-3">
       <div className="mb-3 flex items-center gap-2">
