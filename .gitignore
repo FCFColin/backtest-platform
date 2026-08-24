@@ -114,3 +114,4 @@ pg-backup.sql
 # Generated audit artifacts
 docs/audit/verify/
 docs/audit/reports/
+docs/audit/loc-ledger.jsonl
