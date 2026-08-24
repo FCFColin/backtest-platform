@@ -34,9 +34,11 @@ export async function writeOutboxEvent(
       );
       throw err;
     }
-    logger.warn(
-      { err, middleware: 'auditLog' },
-      '[auditLog] outbox 事件写入失败，审计日志仍已记录到 pino 日志流',
+    // 路径 B（最小止血）：从"静默丢失"升格为"可见失败"。告警规则匹配 code=AUDIT_LOSS。
+    // 完整修复方向：writeOutboxEvent 提升至业务事务内（finish 时业务事务已提交，无法回溯加入）。
+    logger.error(
+      { err, middleware: 'auditLog', code: 'AUDIT_LOSS' },
+      '[auditLog] outbox 事件写入失败——该审计事件仅存于 pino 日志流，须人工补录',
     );
     auditOutboxWriteFailures.inc();
   }
