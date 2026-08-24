@@ -48,10 +48,13 @@ const REBALANCE_OPTIONS = S.REBALANCE_FREQUENCIES.map((v) => ({
 const FREQ_ORDER = Object.fromEntries(S.REBALANCE_FREQUENCIES.map((f, i) => [f, i]));
 const FREQ_KEY = (f: string) => `rebalancingSensitivity.freq.${f}`;
 const OFFSETS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20];
+const toPct = (v: number) => Number((v * 100).toFixed(2));
+const PCT_AFFIX = { type: 'number', min: 0, suffix: '%' } as const;
+const sf = (titleKey: string, descKey: string) => ({ titleKey, descKey });
+const asFreq = (f: string) => f as RebalanceFrequency;
 const TH_CLS =
-  'border-b-2 border-border-subtle px-3 py-2.5 text-caption font-semibold text-fg-tertiary';
-const TD_CLS =
-  'border-b border-border-subtle px-3 py-2 text-right font-mono text-label font-medium';
+    'border-b-2 border-border-subtle px-3 py-2.5 text-caption font-semibold text-fg-tertiary',
+  TD_CLS = 'border-b border-border-subtle px-3 py-2 text-right font-mono text-label font-medium';
 
 function buildBody(l: string, a: A, f: S.RebalanceFrequency, o: number, p: Bp) {
   return buildSinglePortfolioBody(
@@ -73,16 +76,13 @@ function firstPortfolio(j: Record<string, unknown>) {
   return ((j.data ?? j) as { portfolios?: PortRes[] }).portfolios?.[0];
 }
 async function fetchFreqResult(f: S.RebalanceFrequency, a: A, p: Bp, s: Bands) {
-  const o = REBALANCE_OPTIONS.find((v) => v.value === f)!,
-    lbl = o.label,
+  const { label: lbl, color } = REBALANCE_OPTIONS.find((v) => v.value === f)!,
     b = buildBody(lbl, a, f, 0, p),
     q = b.portfolios[0] as Record<string, unknown>;
-  if (s.absoluteBand !== '' || s.relativeBand !== '')
-    q.rebalanceBands = {
-      enabled: true,
-      absoluteBand: s.absoluteBand !== '' ? Number(s.absoluteBand) : undefined,
-      relativeBand: s.relativeBand !== '' ? Number(s.relativeBand) : undefined,
-    };
+  const ab = s.absoluteBand === '' ? undefined : Number(s.absoluteBand),
+    rb = s.relativeBand === '' ? undefined : Number(s.relativeBand);
+  if (ab !== undefined || rb !== undefined)
+    q.rebalanceBands = { enabled: true, absoluteBand: ab, relativeBand: rb };
   const [sc, j] = await postPortfolio(b);
   if (!j) throw new Error(`HTTP ${sc} (${lbl})`);
   if (j.success === false)
@@ -92,8 +92,8 @@ async function fetchFreqResult(f: S.RebalanceFrequency, a: A, p: Bp, s: Bands) {
   const st = w.statistics ?? {};
   return {
     frequency: f,
-    label: o.label,
-    color: o.color,
+    label: lbl,
+    color,
     ...(Object.fromEntries(NUM_KEYS.map((k) => [k, st[k] ?? 0])) as Record<NumKey, number>),
     growthCurve: w.growthCurve,
   } satisfies FreqResult;
@@ -103,7 +103,6 @@ async function fetchOffsetResult(o: number, f: S.RebalanceFrequency, a: A, p: Bp
   return { offset: o, cagr: (j && firstPortfolio(j)?.statistics?.cagr) ?? 0 };
 }
 const TAB_KEYS = ['scatter', 'distributions', 'offset', 'table'];
-const TABS = TAB_KEYS.map((key) => ({ key, labelKey: `rebalancingSensitivity.tab.${key}` }));
 function useRebalSetters() {
   return useSetterState({
     startDate: DEFAULT_BACKTEST_START_DATE,
@@ -125,14 +124,6 @@ function useRebalSetters() {
 }
 function createRebalancingRunners(s: ReturnType<typeof useRebalSetters>, p: Bp, assets: A) {
   const validAssets = () => assets.filter((a) => a.ticker.trim() !== '');
-  const validate = (): A | string => {
-    const v = validAssets();
-    if (!v.length) return i18n.t('Please add at least one ticker');
-    return (
-      validateAssetWeights(assets) ||
-      (s.selectedFreqs.length ? v : i18n.t('Please select at least one rebalancing frequency'))
-    );
-  };
   const runOffsetScan = async (f: RebalanceFrequency, v: A = validAssets()) => {
     if (!v.length) return;
     s.setIsLoadingOffset(true);
@@ -146,17 +137,19 @@ function createRebalancingRunners(s: ReturnType<typeof useRebalSetters>, p: Bp, 
     }
   };
   const runSensitivity = async () => {
-    const v = validate();
-    if (typeof v === 'string') return void s.setError(v);
-    s.setIsLoading(true);
-    s.setError(null);
-    s.setResults([]);
-    s.setOffsetResults([]);
     try {
+      const v = validAssets();
+      if (!v.length) throw new Error(i18n.t('Please add at least one ticker'));
+      const bad =
+        validateAssetWeights(assets) ||
+        (s.selectedFreqs.length ? '' : i18n.t('Please select at least one rebalancing frequency'));
+      if (bad) throw new Error(bad);
+      s.setIsLoading(true);
+      s.setError(null);
+      s.setResults([]);
       const all = await Promise.all(s.selectedFreqs.map((f) => fetchFreqResult(f, v, p, s)));
-      all.sort((a, b) => FREQ_ORDER[a.frequency] - FREQ_ORDER[b.frequency]);
-      s.setResults(all);
-      if (s.selectedFreqs.length) void runOffsetScan(s.selectedFreqs[0], v);
+      s.setResults(all.sort((a, b) => FREQ_ORDER[a.frequency] - FREQ_ORDER[b.frequency]));
+      void runOffsetScan(s.selectedFreqs[0], v);
     } catch (e) {
       s.setError(e instanceof Error ? e.message : i18n.t('Analysis failed'));
     } finally {
@@ -167,14 +160,10 @@ function createRebalancingRunners(s: ReturnType<typeof useRebalSetters>, p: Bp, 
 }
 function useRebalancingState() {
   const s = useRebalSetters(),
-    freqs = s.selectedFreqs;
-  const toggleFreq = (f: RebalanceFrequency) =>
-    s.setSelectedFreqs(freqs.includes(f) ? freqs.filter((x) => x !== f) : [...freqs, f]);
-  const list = useAssetList<A[number]>(
-      [...DEFAULT_60_40_ASSETS],
-      () => ({ ticker: '', weight: 0 }),
-      0,
-    ),
+    freqs = s.selectedFreqs,
+    toggleFreq = (f: RebalanceFrequency) =>
+      s.setSelectedFreqs(freqs.includes(f) ? freqs.filter((x) => x !== f) : [...freqs, f]),
+    list = useAssetList<A[number]>([...DEFAULT_60_40_ASSETS], () => ({ ticker: '', weight: 0 }), 0),
     runners = createRebalancingRunners(s, s, list.assets);
   return { ...s, ...list, toggleFreq, ...runners };
 }
@@ -210,9 +199,9 @@ function ResultsPanel({ s }: { s: RebalancingState }) {
       <UI.Card className="p-5">
         <UI.Tabs value={s.activeTab} onValueChange={s.setActiveTab}>
           <UI.TabsList className="mb-4 flex-wrap">
-            {TABS.map((tab) => (
-              <UI.TabsTrigger key={tab.key} value={tab.key}>
-                {t(tab.labelKey)}
+            {TAB_KEYS.map((key) => (
+              <UI.TabsTrigger key={key} value={key}>
+                {t(`rebalancingSensitivity.tab.${key}`)}
               </UI.TabsTrigger>
             ))}
           </UI.TabsList>
@@ -237,7 +226,7 @@ function ResultsPanel({ s }: { s: RebalancingState }) {
             <Charts.BarChartContent
               data={s.results.map((r) => ({
                 name: t(FREQ_KEY(r.frequency)),
-                CAGR: Number((r.cagr * 100).toFixed(2)),
+                CAGR: toPct(r.cagr),
                 fill: r.color,
               }))}
               seriesNames={['CAGR']}
@@ -252,10 +241,7 @@ function ResultsPanel({ s }: { s: RebalancingState }) {
               <span className="text-body text-fg-tertiary">{t('Frequency')}:</span>
               <UI.Select
                 value={s.offsetFreq}
-                onValueChange={(f) => {
-                  s.setOffsetFreq(f as RebalanceFrequency);
-                  void s.runOffsetScan(f as RebalanceFrequency);
-                }}
+                onValueChange={(f) => (s.setOffsetFreq(asFreq(f)), void s.runOffsetScan(asFreq(f)))}
               >
                 <UI.SelectTrigger className="h-9 w-32" aria-label={t('Frequency')}>
                   <UI.SelectValue />
@@ -271,10 +257,7 @@ function ResultsPanel({ s }: { s: RebalancingState }) {
               {s.isLoadingOffset && <Loader2 className="size-4 animate-spin text-fg-tertiary" />}
             </div>
             <Charts.BarChartContent
-              data={s.offsetResults.map((r) => ({
-                offset: `+${r.offset}d`,
-                CAGR: Number((r.cagr * 100).toFixed(2)),
-              }))}
+              data={s.offsetResults.map((r) => ({ offset: `+${r.offset}d`, CAGR: toPct(r.cagr) }))}
               seriesNames={['CAGR']}
               xDataKey="offset"
               height={250}
@@ -337,13 +320,11 @@ function RebalancingSensitivityParamsForm({ s }: { s: RebalancingState }) {
     <Field>
       <FieldLabel>{label}</FieldLabel>
       <UI.AffixInput
-        type="number"
+        {...PCT_AFFIX}
         value={value}
         onChange={(e) => on(e.target.value === '' ? '' : Number(e.target.value))}
         placeholder={t('Leave empty to disable')}
-        min={0}
         max={max}
-        suffix="%"
       />
     </Field>
   );
@@ -412,11 +393,8 @@ export default createComputeToolPage(useRebalancingState, {
   titleKey: 'nav.rebalancingSensitivity',
   seoDescKey: 'rebalancingSensitivity.seo.desc',
   seoFeatures: [
-    { titleKey: 'analysis.seoAnalyzable', descKey: 'rebalancingSensitivity.seo.analyzableDesc' },
-    {
-      titleKey: 'rebalancingSensitivity.seo.offsetScanTitle',
-      descKey: 'rebalancingSensitivity.seo.offsetScanDesc',
-    },
+    sf('analysis.seoAnalyzable', 'rebalancingSensitivity.seo.analyzableDesc'),
+    sf('rebalancingSensitivity.seo.offsetScanTitle', 'rebalancingSensitivity.seo.offsetScanDesc'),
   ],
   relatedTools: [
     { titleKey: 'nav.portfolioBacktest', href: '/' },
