@@ -11,8 +11,8 @@ export function jobAccessGranted(
   const jobTenant = job.data?.tenantId;
   const isOwner = ownerId !== undefined && ownerId === requester.sub;
   const hasOwnership = isOwner || requester.role === 'admin';
-  // 属主本人豁免租户校验（历史无租户任务仍可自读）；admin 不豁免——封堵双 undefined 跨租户
+  // 属主豁免仅限历史无租户任务（undefined）自读；已知租户必须匹配，admin 不豁免——封堵双 undefined 跨租户
   const passesTenantCheck =
     (jobTenant !== undefined && jobTenant === reqTenantId) || requester.platform_admin === true;
-  return hasOwnership && (passesTenantCheck || isOwner);
+  return hasOwnership && (passesTenantCheck || (isOwner && jobTenant === undefined));
 }
