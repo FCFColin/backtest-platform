@@ -35,7 +35,8 @@ if (import.meta.env.DEV) {
     if (typeof k === 'string') usedKeySet.add(k);
     return origT(key, ...args);
   }) as unknown as typeof i18n.t;
-  (window as unknown as Record<string, unknown>).__i18nUsedKeys = usedKeySet;
+  // globalThis 而非 window：i18n 亦被 node 项目单测引入，彼处无 window
+  (globalThis as unknown as Record<string, unknown>).__i18nUsedKeys = usedKeySet;
 }
 
 export default i18n;
