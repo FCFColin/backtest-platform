@@ -1,5 +1,5 @@
 import type { ReactElement, ReactNode, ComponentType } from 'react';
-import { useState, useEffect } from 'react';
+import { useState, useLayoutEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ToolSeoCard, ToolPageLayout } from '../layout/ToolPageLayout.js';
 import { Loader2 } from 'lucide-react';
@@ -126,8 +126,10 @@ export function ComputeToolShell<S>({
   const { t } = useTranslation();
   const [seoExpanded, setSeoExpanded] = useState(false);
   const [ready, setReady] = useState(false);
-  useEffect(() => {
-    setTimeout(() => setReady(true), 0);
+  // rAF 而非 setTimeout(0)：同帧完成首绘占位→内容切换，消除 16 个工具页导航时的 CLS 闪跳
+  useLayoutEffect(() => {
+    const raf = requestAnimationFrame(() => setReady(true));
+    return () => cancelAnimationFrame(raf);
   }, []);
   const Params = config.params;
   const Results = config.results;
