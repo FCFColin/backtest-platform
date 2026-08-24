@@ -39,15 +39,12 @@ export function useAsyncAction() {
 }
 type SetterState<T> = T & { [K in keyof T as `set${Capitalize<string & K>}`]: (v: T[K]) => void };
 export function useSetterState<T extends Dict>(initial: T): SetterState<T> {
-  const [state, setState] = useState(initial);
-  const set =
-    <K extends keyof T>(k: K) =>
-    (v: T[K]) =>
-      setState((p) => ({ ...p, [k]: v }));
+  const [state, setState] = useState(initial),
+    mk = (k: string) => (v: unknown) => setState((p) => ({ ...p, [k]: v }));
   return {
     ...state,
     ...Object.fromEntries(
-      Object.keys(initial).map((k) => [`set${k[0].toUpperCase()}${k.slice(1)}`, set(k as keyof T)]),
+      Object.keys(initial).map((k) => [`set${k[0].toUpperCase()}${k.slice(1)}`, mk(k)]),
     ),
   } as SetterState<T>;
 }
@@ -81,9 +78,7 @@ export function useTheme() {
   const pref = useSettingsStore((s) => s.theme),
     dark = useMediaQuery('(prefers-color-scheme: dark)'),
     t = pref === 'system' ? (dark ? 'dark' : 'light') : pref;
-  useEffect(() => {
-    document.documentElement.dataset.theme = t;
-  }, [t]);
+  useEffect(() => void (document.documentElement.dataset.theme = t), [t]);
   return {
     theme: pref,
     resolvedTheme: t,
@@ -137,16 +132,11 @@ export function useComputeTool<R>(c: () => Promise<R>, v?: () => string | null) 
 }
 export function useAnalysisState<S extends Dict, R>(e: string, i: S, b: B<S>, v: V<S>) {
   const s = useSetterState(i),
-    {
-      isLoading,
-      error,
-      results,
-      runCompute: runAnalysis,
-    } = useComputeTool<R>(
+    { isLoading, error, results, runCompute } = useComputeTool<R>(
       async () => apiPostJSON<R>(e, b(s), i18n.t('Analysis failed')),
       () => v(s),
     );
-  return { ...s, isLoading, error, results, runAnalysis };
+  return { ...s, isLoading, error, results, runAnalysis: runCompute };
 }
 interface TickerMeta {
   ticker: string;
@@ -170,8 +160,7 @@ export function useTickerMeta(ticker: string): TickerMeta | null {
         });
         if (!r.ok) return;
         const j = (await r.json()) as { data: TickerMeta };
-        tickerMetaCache.set(up, j.data);
-        setMeta(j.data);
+        setMeta(tickerMetaCache.set(up, j.data).get(up)!);
       } catch {
         setMeta(null);
       }
@@ -187,11 +176,7 @@ interface ResourceCache<T> {
   ttl: number;
   fetcher: () => Promise<T>;
 }
-function createResourceCache<T>(
-  fetcher: () => Promise<T>,
-  initial: T | null = null,
-  ttl = 0,
-): ResourceCache<T> {
+function createResourceCache<T>(fetcher: () => Promise<T>, initial: T | null = null, ttl = 0) {
   return { data: initial, time: initial ? Date.now() : 0, pending: null, ttl, fetcher };
 }
 function useCachedResource<T>(cache: ResourceCache<T>): T | null {
@@ -288,13 +273,9 @@ const metaInitial = (): DataMeta | null => {
   try {
     const g = (window as { __INITIAL_DATA__?: Dict }).__INITIAL_DATA__,
       d = g && ((g.data ?? g) as Partial<DataMeta>);
-    return d?.tickerCount !== undefined && d?.lastUpdated
-      ? ({
-          ...d,
-          earliestDate: d.earliestDate || '',
-          dataPointCount: d.dataPointCount || 0,
-        } as DataMeta)
-      : null;
+    if (!d || d.tickerCount === undefined || !d.lastUpdated) return null;
+    const m = { ...d, earliestDate: d.earliestDate || '', dataPointCount: d.dataPointCount || 0 };
+    return m as DataMeta;
   } catch {}
   return null;
 };
@@ -335,8 +316,7 @@ export function useChartCalcWorker<T>(task: WorkerTask | null) {
     if (!task || !workerRef.current) return;
     const k = task.type + ':' + JSON.stringify(task.payload);
     if (k === lastKey.current) return;
-    lastKey.current = k;
-    const id = (lastId.current = idRef.current++);
+    const id = ((lastKey.current = k), (lastId.current = idRef.current++));
     setIsPending(true);
     workerRef.current.postMessage({ id, ...task });
   }, [task]);
