@@ -7,5 +7,8 @@ export async function expectA11y(page: Page, options: { scope?: string; disable?
   builder.disableRules(options.disable ?? ['region', 'color-contrast']);
   if (options.scope) builder.include(options.scope);
   const { violations } = await builder.analyze();
-  expect(violations.length).toBe(0);
+  const detail = violations
+    .map((v) => `${v.id}[${v.impact}]@${v.nodes.map((nd) => nd.target.join(' ')).join('|')}`)
+    .join('; ');
+  expect(detail === '' ? 0 : violations, `A11Y 违规: ${detail}`).toBe(0);
 }

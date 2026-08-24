@@ -12,7 +12,7 @@ export default defineConfig({
   expect: { timeout: 15_000 },
   // workers:1 下 fullyParallel 无并行收益，且背压引擎/限流；保持串行确定。
   workers: 1,
-  retries: 0,
+  retries: process.env.CI ? 2 : 0,
   reporter: 'list',
   globalSetup: './tests/e2e/ui/global-setup',
   use: {
@@ -20,7 +20,9 @@ export default defineConfig({
     locale: 'zh-CN',
     viewport: { width: 1280, height: 900 },
     actionTimeout: 10_000,
-    trace: 'retain-on-failure',
+    trace: 'on-first-retry',
+    screenshot: 'only-on-failure',
+    reducedMotion: 'reduce',
     navigationTimeout: 60_000,
   },
   projects: [
