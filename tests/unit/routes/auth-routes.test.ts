@@ -280,7 +280,7 @@ describe('authRegistrationRoutes', () => {
     expect(mocks.registration.sendVerificationEmail).toHaveBeenCalledWith(EMAIL, 'token-abc');
   });
   it('邮箱已被注册应返回 409', async () => {
-    fn(mocks.registration, 'getUserByEmail').mockResolvedValueOnce(userRecord('dup'));
+    fn(mocks.registration, 'getUserByEmail').mockResolvedValueOnce(userRecord('dup', 'member'));
     const { res, body } = await apiPost(regUrl('register'), regBody);
     expectError(res, body, 409, 'EMAIL_TAKEN');
     expect(fn(mocks.userService, 'registerUser')).not.toHaveBeenCalled();
