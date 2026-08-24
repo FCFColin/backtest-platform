@@ -7,8 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- feat(engine-go 授权待执行)：用户裁决金样本重基线授权 gonum 化（statisticsMetrics 现为手搓统计，gonum 引用=0）
-- fix(backend 治理待裁)：jobSubmission 队列降级兜底向 compute 响应透传 degraded 字段——与 ADR-008 字面冲突，语义裁决挂起（C-023 FAIL 保持可见，不掩盖）
+- feat(engine-go 授权待执行)：金样本重基线授权已下，gonum 化改造待立项
+- fix(backend 治理待裁)：jobSubmission 队列兜底向 compute 响应透传 degraded——ADR-008 字面冲突，语义裁决挂起（C-023 保持可见）
+
+## [0.4.2] - 2026-08-24
+
 - refactor(frontend): 重删死导出 ResultsPanelProps；signalState 收敛
 - fix(contract)+docs(adr): 契约扫描器适配表驱动路由注册（8 路由缺口修复）；ADR-013 补录实现适配策略与运行时枚举终局方案
 - fix(scripts): verify-i18n 输出完整 unused 列表 + ns 分组 + 动态键保护桶；returnObjects 中间节点叶键并入 used（防 D-5 误删，used 845→850 / unused 513→508）+ 统计口径注释块
