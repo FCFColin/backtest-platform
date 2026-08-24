@@ -28,12 +28,6 @@ export function expectError(
   if (code) expect(json.error?.code).toBe(code);
 }
 
-/** T1 家族收割：fetch→json 前奏，返回原始 res 与解析 body。 */
-export async function fetchJson(url: string, init?: RequestInit) {
-  const res = await fetch(url, init);
-  return { res, body: await res.json() };
-}
-
 /** T1 家族收割：fetch→json + 成功信封断言（status 默认 200）。 */
 export async function expectFetchOk(url: string, init?: RequestInit, status = 200) {
   const res = await fetch(url, init);
