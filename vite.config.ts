@@ -79,8 +79,14 @@ function ssrLocalesCopy(): Plugin {
   };
 }
 
-export default defineConfig(async () => {
+export default defineConfig(async ({ mode }) => {
+  // 将 DEV/PROD 钉死到 CLI --mode：阻断外部 NODE_ENV（如本地 .env 的 development）
+  // 泄漏进生产包，导致 import.meta.env.DEV 分支以开发语义编译（实测踩坑 @第3会话）
   return {
+    define: {
+      'import.meta.env.DEV': JSON.stringify(mode !== 'production'),
+      'import.meta.env.PROD': JSON.stringify(mode === 'production'),
+    },
     root: projectRoot,
     resolve: {
       preserveSymlinks: false,
