@@ -12,6 +12,7 @@ import { logger } from '../utils/logger.js';
 import { TimeoutError, withTimeout } from '../utils/misc.js';
 import { config } from '../config/index.js';
 import { recordBacktestRequest } from '../utils/metrics.js';
+import { createRun } from '../repositories/backtestRunRepo.js';
 
 interface SubmitQueueJobConfig {
   type: BacktestJobData['type'];
@@ -79,6 +80,22 @@ export function submitQueueJob(cfg: SubmitQueueJobConfig): RequestHandler {
           { jobId: randomUUID() },
         );
         const jobId = job.id!;
+        // A5：提交即落 queued（DB 状态 pending）行——Redis 数据丢失时任务不再凭空蒸发；
+        // worker persistRunIfTenant 的 UPSERT 会将其推进到 completed/failed
+        if (authReq.tenantId) {
+          try {
+            await createRun(authReq.tenantId, ownerOf(authReq), {
+              name: type,
+              request: req.body,
+              status: 'pending',
+            });
+          } catch (persistErr) {
+            logger.warn(
+              { err: (persistErr as Error).message, jobId },
+              '[jobSubmission] queued 行落库失败（任务仍已入队，状态可经 statusUrl 获取）',
+            );
+          }
+        }
         res.status(202).json({
           success: true,
           data: {

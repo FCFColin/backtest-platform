@@ -1,5 +1,5 @@
 // ADR-009: DB 状态 'pending' 对应领域语义的 queued（worker 直接写入 DB 状态）
-import { withTenant } from '../db/pool.js';
+import { withTenant, withPlatformContext } from '../db/pool.js';
 import { rowMapper, iso } from './rowMapper.js';
 import { createTenantCrudRepo } from './tenantCrudRepo.js';
 
@@ -71,6 +71,20 @@ export const listRuns = repo.list;
 export const getRun = repo.get;
 export const createRun = repo.create;
 export const deleteRun = repo.delete;
+
+// A5 对账：Redis 数据丢失时 queued(pending) 行永悬——超时的置 failed，
+// 用户视角从"任务消失"变为"明确失败"。nContext 平台逃逸跨租户清扫；
+// worker 启动与周期调用。
+export async function markStalePendingRunsFailed(olderThanMinutes = 30): Promise<number> {
+  return withPlatformContext(async (client) => {
+    const { rowCount } = await client.query(
+      `UPDATE backtest_runs SET status = 'failed', result = $2::jsonb
+       WHERE status = 'pending' AND created_at < NOW() - ($1 || ' minutes')::interval`,
+      [String(olderThanMinutes), JSON.stringify({ error: 'stale: job never started' })],
+    );
+    return rowCount ?? 0;
+  });
+}
 
 export async function save(
   tenantId: string,
