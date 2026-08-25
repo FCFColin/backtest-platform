@@ -1,4 +1,4 @@
-﻿/* eslint-disable @typescript-eslint/no-explicit-any -- ECharts/表格动态构造需 any */
+/* eslint-disable @typescript-eslint/no-explicit-any -- ECharts/表格动态构造需 any */
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LineChart, Save, FolderOpen, Trash2, Loader2, Search } from 'lucide-react';
@@ -11,7 +11,14 @@ import { fmtPct } from '@/utils/format';
 import { useAsyncAction } from '@/hooks/miscHooks';
 import { apiPostJSON } from '@/utils/apiClient';
 import { normalizeTicker } from '@/utils/ticker';
-import * as RU from './tacticalResultUtils';
+import {
+  buildGrowthData as growth,
+  buildStatRows as statRows,
+  fmtPrice,
+  whatIfSignalColor,
+  whatIfSignalLabel,
+} from './tacticalResultUtils';
+import type { StatRow } from './tacticalResultUtils';
 import * as TU from './TacticalUtils';
 import type * as TT from '@backtest/shared/types/tactical';
 import { useTacticalConfigs, type TacticalConfigPayload } from './useTacticalConfigs';
@@ -20,7 +27,6 @@ import { BacktestParamsFields } from './sharedBacktestParams';
 import { ComputeToolShell, type ComputeToolConfig } from '../../components/shells/index.js';
 import { TOOL_LINKS } from '../../components/shells/constants.js';
 
-const { buildGrowthData: growth, buildStatRows: statRows } = RU;
 const MONO = 'font-mono tabular-nums';
 const ROW_CLS = 'flex items-center gap-2 rounded-md border border-border-subtle px-2 py-1.5';
 type S = ReturnType<typeof TU.useTacticalPageState>;
@@ -185,10 +191,10 @@ function WhatIfTab({ strategy: st }: { strategy: TT.TacticalStrategy }) {
   const [inp, setInp] = useState('SPY, TLT, GLD');
   const [rows, setRows] = useState<TT.WhatIfResult[]>([]);
   const { isLoading: loading, error, run, setError } = useAsyncAction();
-  const pc = (r: any) => <span className={MONO}>{RU.fmtPrice(r.currentPrice)}</span>;
+  const pc = (r: any) => <span className={MONO}>{fmtPrice(r.currentPrice)}</span>;
   const sc = (r: any) => (
-    <span className="font-semibold" style={{ color: RU.whatIfSignalColor(r.signalType) }}>
-      {RU.whatIfSignalLabel(r.signalType, t)}
+    <span className="font-semibold" style={{ color: whatIfSignalColor(r.signalType) }}>
+      {whatIfSignalLabel(r.signalType, t)}
     </span>
   );
   const cols: TableColumn<TT.WhatIfResult>[] = [
@@ -249,7 +255,7 @@ function BacktestResultTab({ results: r }: { results: TT.TacticalBacktestResult 
   const sr = useMemo(() => statRows(r.portfolio, r.benchmark, t), [r.portfolio, r.benchmark, t]);
   const tc = (x: any) => <span className={MONO}>{x.tactical}</span>;
   const bc = (x: any) => <span className={MONO}>{x.benchmark}</span>;
-  const cols: TableColumn<RU.StatRow>[] = [
+  const cols: TableColumn<StatRow>[] = [
     { key: 'metric', label: t('Metric') },
     { key: 'tactical', label: t('Tactical'), sortValue: (x) => x._sortTactical, render: tc },
     { key: 'benchmark', label: t('Equal Weight'), render: bc },

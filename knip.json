@@ -12,6 +12,7 @@
     "tests/mocks/react-router.tsx",
     "tests/e2e/ui/auth.setup.ts",
     "tests/e2e/ui/global-setup.ts",
+    "scripts/d5-prune-i18n.mjs",
     "public/assets/theme-init.2026.js"
   ],
   "workspaces": {
