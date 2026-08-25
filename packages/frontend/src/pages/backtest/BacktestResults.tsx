@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, Suspense, type ReactNode } from 'react';
 import { useTranslation, Trans } from 'react-i18next';
+import i18n from '@/i18n/index.js';
 import { Link, useSearchParams } from 'react-router';
 import { MoreHorizontal, Download } from 'lucide-react';
 import { useBacktestStore } from '@/store/backtestStore';
@@ -265,7 +266,66 @@ const TAB_RENDERERS: Record<string, (c: Ctx) => ReactNode> = {
   seasonality: ({ pf }) => <L.SeasonalityChart portfolios={pf} />,
   riskReturn: ({ pf }) => <L.RiskReturnScatter portfolios={pf} />,
   cashflows: () => <L.CashflowsLog parameters={useBacktestStore.getState().parameters} />,
-  rebalancing: ({ pfs }) => <RebalancingStats portfolios={pfs} />,
+  rebalancing: ({ pfs, r }) => (
+    <>
+      <RebalancingStats portfolios={pfs} />
+      {(r?.portfolios ?? []).some((p) => p.rebalanceLog?.length) && (
+        <U.Card className="p-5">
+          <h3 className="text-h3 font-semibold text-fg mb-3">{i18n.t('Rebalance Trade Log')}</h3>
+          <div className="space-y-4">
+            {(r?.portfolios ?? [])
+              .filter((p) => p.rebalanceLog?.length)
+              .map((p) => (
+                <div key={p.name}>
+                  <div className="text-caption font-semibold text-fg-secondary mb-1.5">
+                    {p.name}
+                  </div>
+                  {p
+                    .rebalanceLog!.slice(-12)
+                    .reverse()
+                    .map((ev) => (
+                      <details key={ev.date} className="mb-2 rounded border border-border-subtle">
+                        <summary className="cursor-pointer px-3 py-1.5 text-caption text-fg-secondary">
+                          {ev.date} — {ev.trades.length} {i18n.t('assets')}
+                        </summary>
+                        <table className="w-full text-caption border-collapse">
+                          <thead>
+                            <tr className="text-left text-fg-tertiary">
+                              <th className="px-3 py-1">Ticker</th>
+                              <th className="px-3 py-1 text-right">Before</th>
+                              <th className="px-3 py-1 text-right">After</th>
+                              <th className="px-3 py-1 text-right">Δ</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {ev.trades.map((it) => (
+                              <tr key={it.ticker}>
+                                <td className="px-3 py-1 font-mono">{it.ticker}</td>
+                                <td className="px-3 py-1 text-right tabular-nums">
+                                  {it.beforeValue.toFixed(2)}
+                                </td>
+                                <td className="px-3 py-1 text-right tabular-nums">
+                                  {it.afterValue.toFixed(2)}
+                                </td>
+                                <td
+                                  className={`px-3 py-1 text-right tabular-nums ${it.deltaValue >= 0 ? 'text-success' : 'text-danger'}`}
+                                >
+                                  {it.deltaValue >= 0 ? '+' : ''}
+                                  {it.deltaValue.toFixed(2)}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </details>
+                    ))}
+                </div>
+              ))}
+          </div>
+        </U.Card>
+      )}
+    </>
+  ),
   turnover: ({ pf }) => <L.TurnoverTaxReport portfolios={pf} />,
   allocation: ({ pf, pfs }) => <L.PortfolioAllocationChart portfolios={toAlloc(pf, pfs)} />,
   pies: ({ pfs }) => <L.PortfolioPiesChart portfolios={pfs} />,
