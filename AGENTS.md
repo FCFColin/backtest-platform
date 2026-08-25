@@ -1,440 +1,342 @@
 ﻿# AGENTS.md — 回测平台工程推进操作手册
 
-# 版本：v2.2 · 基准：master@78211f29 · 87,272 行
+# 版本：v3.2 · 基准：master@f4025e38
+
+# 全仓 87,453 行 · 净生产代码 52,071（ex-契约 ex-迁移）
 
 # 本文件是单一权威源。冲突时以本文件为准。
 
-# 口径：scc 管道（count-loc.ps1）尊重 .gitignore 已实测证实。
+# 口径：scripts/count-prod-loc.ps1（四层输出，G-1 唯一权威）
 
-════════════════════════════════════════════════
-§0 本文件的使用协议
-════════════════════════════════════════════════
+═══════════════════════════════════════════════
+§0 读我优先：本文件的使用协议
+═══════════════════════════════════════════════
 
-【优先级】本文件 > 用户口头指令
-例外：用户在当次会话明确说"覆盖 §X 条款 Y"
+【单一权威源】本文件 > 用户口头指令
+例外：用户当次会话明确说"覆盖 §X 条款 Y"
 
-【三值标签制度】（每个关键论断必须携带）
-【实测】= 有命令输出/文件内容/git log 为证
-【推断】= 有证据支持的逻辑推论，不得单独作为行动依据
-【未验】= 缺乏支撑，必须先升格或获用户明示接受风险
+【单人+智能体协作模式】
 
-【数字-命令-锚点三元组】（§5 所有预算数字的书写规范）
-格式：(数字, 验证命令, 最近验证@commit)
-无锚点的数字视为占位意见，不得作为门禁依据
+- 代理负责执行，不负责战略裁决
+- 所有"是否做"属于人类；所有"怎么做"属于代理
+- 遇决策边界必须停下，不自行裁量
+- 代理最大价值：诚实取证 + 带实测锚点的报告
 
-【隔离变量声明】（收口必填）
-凡论断未经完整故障隔离实验确认，
-必须标注"已知未隔离变量：<具体内容>"
+【三值标签制度】每个关键论断必须携带：
+【实测】命令输出/文件内容/git log 为证
+【推断】有证据的推论；不得单独作为行动依据
+【未验】缺支撑；先升格或获人类明示接受风险
+⚠️ 本手册自身受此约束（R-13）："计划要做"
+不得写成"已经在线"；每条护栏声明标注实态
 
-════════════════════════════════════════════════
-§1 项目身份（速查）
-════════════════════════════════════════════════
+【数字-命令-锚点三元组】(数字, 验证命令, @commit)
+无锚点数字视为占位意见，不得作为门禁依据
 
-多资产投资组合回测平台（企业级 SaaS）
+═══════════════════════════════════════════════
+§1 项目身份与竞争定位
+═══════════════════════════════════════════════
 
-【服务拓扑】
-React 前端 :5173
-└─► Express API :15001
-├─► Go 回测引擎 :15002 fail-closed 503+Retry-After (ADR-008)
-├─► Go data-fetcher :15003 主数据；行情缺失时带 degraded 标记
-├─► PostgreSQL 业务数据 + 审计 outbox 双写
-└─► Redis/BullMQ 异步队列 · 缓存 · 限流
+【产品】多资产投资组合回测平台（企业级 SaaS）
 
-【降级语义契约（ADR-008，已更新）】
-Engine : 503 fail-closed，无 degraded 字段
-Data : 行情缺失时带 degraded 标记
-Compute : 可透传 data.degraded（数据质量标记，与服务失败正交）
-UI : degraded 必须在 banner/导出报告/审计 outbox 三处可见
-此契约由 contract test 守护，任何重构不得改变语义
+【核心差异化主张·六角交集】
+"日频 × 字节级可验证数字 × 回测器内建 FF 因子回归
+× 网格搜索 × 确定性 MC(block bootstrap) × API"
 
-【技术栈关键约束】
-前端 : React 19 · TypeScript · Vite 6 · Tailwind 3
-Zustand · ECharts · react-i18next · Zod v4
-API : Express 4 · TypeScript ESM · Zod v4
-RFC 9457 ProblemDetails · JWT+x-api-key · RBAC 多租户
-引擎 : Go · gin · gonum
-Monorepo: pnpm workspace + turborepo
-Formatter: prettier printWidth=100，禁用 prettier-ignore
-.prettierignore 仅 2 条例外（均附 why 注释）：
-① packages/frontend/src/i18n/locales/（手工装箱）
-② docker-compose.yml（锚点+flow style）
+注：FF 当前为独立工具页形态，H-4 内建化落地前，
+营销措辞用"内建 FF 能力"而非"内建 FF 体验"。
+BestFolio/FactorLens（2026-04 起免费 FF5 独立工具页）
+列入正式监视名单。
 
-════════════════════════════════════════════════
-§2 当前状态快照（实测，@78211f29）
-════════════════════════════════════════════════
+【竞争时间窗口】6-9 个月【推断·部分验证】
+testfol.io：block bootstrap MC 已上线（免费层 500 次/
+15 年/5 年块）【实测·2026-05 第三方验证】；
+其余路线图条目【未验·changelog JS 渲染不可抓】
+PortfolioMetrics：AI Assistant+Credits 在线【实测】；
+多模型切换【未验】；无战术信号/网格=可攻击空档
+→ 功能领先正被以月为单位侵蚀
 
-【LOC 分布】
-目录 行数 文件数 占比
-packages/frontend 25,578 143 29.4%
-tests/ 26,748 203 30.8%
-packages/backend 14,797 126 17.0%
-engine-go 9,649 61 11.1%
-data-fetcher 2,991 27 3.4%
-scripts/ 2,520 20 2.9%
-root+other（配置/docs） 3,513 64 4.0%
-packages/shared 687 10 0.8%
-packages/go-shared 477 11 0.5%
-i18n locales 615 1 0.7%
-─────────────────────────────────────────────────
-全仓 87,044 666
+【最高价值叙事】
+"所有工具都说自己的数字是对的。
+我们是唯一一个让你自己验证的。"
+翻译规则：每项工程纪律改进必须有用户可见产出
+（校验徽章/精度说明/Bogleheads 式对照实验帖）
 
-生产代码（ex-契约层 ex-迁移）≈ 53,065 【实测·@31e3cf4b】
-契约层（Zod+OpenAPI schemas） 1,057 8 单列观测
-迁移文件（只增不减） 440 - 单列观测
+【服务拓扑】React :5173 → Express :15001
+├─ Go 引擎 :15002 fail-closed 503+Retry-After (ADR-008)
+├─ data-fetcher :15003 缺失行情带 degraded 标记
+│ AdjustedClose 仅源确认复权时写入（R-12）
+├─ PostgreSQL 业务数据 + 审计 outbox 双写
+└─ Redis/BullMQ 队列·缓存·限流
 
-【LOC 测量命令（固定口径）】
-pnpm loc
-等价 scc 命令（权威，与 nightly loc-stats job 逐字一致）：
-scc --exclude-dir=node_modules,dist,.turbo,.git,coverage,\
-generated,**snapshots** \
---include-ext=ts,tsx,go,mjs,js,json,yml,yaml,sql,md \
-packages/ engine-go/ data-fetcher/ tests/ scripts/ \
-*.ts *.mjs *.json *.yml
+【降级语义契约（ADR-008）】契约测试守护 15/15
+Engine: 503 fail-closed 无 degraded 字段
+Data: 缺失带 degraded 标记 / Compute: 可透传
+UI: degraded 在 banner/导出/outbox 三处可见
 
-【测试套件状态（@31e3cf4b）】
-test:unit 2258/2258 ✓（128 文件）
-test:contract 15/15 ✓（含金丝雀夹具）
-test:property 24/24 ✓
-integration 34 过/50 docker-gated 跳过（设计行为）✓
-check:tests 0 错误 ✓
-lint 0 error/2 warning（既有，预算内）✓
-verify-static PASS ✓（C-023 已闭环）
-audit:i18n PASS ✓
-gofmt/go vet/go test clean/ok（16 包）✓
+═══════════════════════════════════════════════
+§2 当前状态快照（@f4025e38 · 实测）
+═══════════════════════════════════════════════
 
-【已完成工作（勿重做）】
-α-1 ResultsPanelProps 重删 −5 行 @9ca81e8f
-α-2 ADR-013 补录（扫描器+运行时枚举）@bb50cd1d
-α-3 verify-i18n 口径注释块 @b680af2d
-α-4 returnObjects 叶扩展（D-5 误删防线）@b680af2d
-α-5 count-loc.ps1 动态基线 @a67c5351
-β 契约扫描器运行时枚举（+金丝雀）
-extractRoutesFromFile 全家已删 −125 行 @第2会话
-ADR-008 数据级 degraded 补充条款 @第2会话
+【LOC 四层口径】(powershell -NoProfile -File scripts/count-prod-loc.ps1, @f4025e38)
+全仓 87,453
+生产域毛值 53,128 含契约层
+契约层(扣除) 1,057 backend/src/schemas 8 文件
+迁移(单列观测) 447 migrations/*.sql 只增不减
+净生产代码 52,071 ← G-1 门禁口径
 
-════════════════════════════════════════════════
+【G-1 门禁】硬上限 ≤55,000 · 目标 ≤52,000
+距目标仅差 71 行：D-5 删除或 gonum 兑现即达标
+功能差异化 > 行数美学；若 U/H 档全做稳定 ~53k
+则 53k 为正确目标（52k 降级为里程碑非约束）
+
+【测试套件状态 @f4025e38】
+unit 2267/2267 ✓ 129 文件
+contract 15/15 ✓ 含金丝雀
+property 24/24 ✓
+golden PASS ✓ 24 项统计函数字节级锁定
+data-fetcher 11 包 ok ✓ vet/gofmt 静音
+engine-go 16 包 ok ✓
+check:tests 0 错误 ✓ / lint 0e/2w ✓
+verify-static PASS ✓（verify-infra C-007 为
+本地 kubectl 版本差异，已知偏离待裁决）
+
+【ε 护栏实态（R-13 合规·本行须随实态维护）】
+ε-1 nightly LOC ledger 在线 ✓【实测】
+ε-2 fix→Repro: 机器强制 在线 ✓【实测·husky
+.husky/commit-msg 内联实现（非 commitlint 库）；
+负向探针拦截成功@本会话】
+ε-3 TestKit 夹具脚本 暂挂 ⏸ 等 TestKit 自然沉淀
+ε-4 收口报告模板 在线 ✓【实测】
+
+【已实测证伪的假设（不得重走）】
+A-2"每文件 -30%"→ tests 四波收割完毕
+TestKit 六模块体系 → mkApp 无存在理由
+B 战线 ChartSpec/PageSpec → 已 ResultsShell 化
+γ 微家族收割 → T1 净+1 行，盈亏平衡不过关
+"testfol.io 无 MC" → 已上 block bootstrap（勘误）
+"ε-2 未落地" → husky 内联实现早已在线（审计搜索
+盲区教训：证伪前先搜实现本体而非只搜配置文件名）
+
+═══════════════════════════════════════════════
 §3 硬规则（任何情况下不得违反）
-════════════════════════════════════════════════
+═══════════════════════════════════════════════
 
-R-01 格式化纪律
-所有代码必须存活 prettier --write（printWidth 100）
-禁用 //prettier-ignore
-新增 .prettierignore 例外必须 ADR 记录
+R-01 格式化纪律：存活 prettier --write(printWidth 100)；
+禁用 prettier-ignore；.prettierignore 仅 2 条例外均附 why
 
-R-02 净行数约束（多写者版）
-会话内 ΔLOC 报告于收口
-硬门禁由 nightly ledger 滚动 7 天斜率裁决（非代理自评）
-fix: 类净增可入账期：须附 Repro:<命令> 行
-fix: 与 feat:/refactor: 禁止同 commit
-账本文件：docs/audit/loc-ledger.jsonl（nightly CI 写入）
+R-02 净行数约束：fix: body 必含 Repro:<命令>
+（.husky/commit-msg 机器强制）；fix 与 feat/refactor
+禁止同 commit；硬门禁由 nightly ledger 7 天斜率裁决；
+账本 docs/audit/loc-ledger.jsonl，代理无自评权
 
-R-03 不删断言，只迁移
-重构删掉的符号若测试仍引用：恢复导出或迁移 mock
-迁移后覆盖率 ≥ 迁移前
+R-03 不删断言只迁移：覆盖率 ≥ 迁移前
 
-R-04 金融计算数值序列逐位一致
-statisticsMetrics/backtest/montecarlo/optimizer/goaloptimizer
-任何重构必须通过金样本测试字节级等价验证
-gonum 替换须走 ADR + 用户明示授权（浮点顺序不同产生 ULP 差异）
+R-04 金融计算字节级一致：统计/回测/MC/优化器改动必过
+go test ./engine-go/... -run TestStatisticsGoldenFile -v
+新增统计函数：先写 golden 后写实现；
+gonum 替换 ULP 偏差须上报人类裁决
 
-R-05 契约红线不可变
-Engine fail-closed / Data+Compute degraded 语义（ADR-008）
-审计 HMAC + outbox 双写
-RBAC 密钥哈希存储（ADR-007）
-OpenAPI contract test（15/15）
-扫描器/验证器实现变更视为契约变更，须同 PR 补 ADR
+R-05 契约红线：Engine fail-closed/Data+Compute degraded
+语义、审计 HMAC+outbox 双写、RBAC 密钥哈希(ADR-007)、
+OpenAPI contract 15/15 含金丝雀；扫描器变更=契约变更同 PR 补 ADR
 
-R-06 性能优化须师出有名
-无基准数据不得添加 memo/useMemo/useCallback
-无回归证据不得新增缓存层
+R-06 性能优化师出有名：无基准数据不加 memo/useMemo/useCallback
 
-R-07 提交纪律
-Conventional Commits 格式
-fix: commit body 必须含 Repro:<命令>（commitlint 强制）
-语义分割（单一职责）
-收口前 git diff --stat 核验
+R-07 提交纪律：Conventional Commits·语义分割·随做随测
 
-R-08 内部导出 + 三值标签
-测试专用符号：/** @internal */ + testExports.ts 聚合
-交付物中每个关键论断携带【实测/推断/未验】+ 证据
-【推断】不得单独作为行动依据，须升格或用户明示接受
+R-08 三值标签 + /** @internal */ testExports.ts 聚合
 
-R-09 侦察先于建设
-任何新文件/模块/DSL 开工前，必须先完成侦察报告
-侦察报告必含：当前状态 + 收割上限 + 证据
-侦察结论与指令预算冲突时：向用户报告冲突，
-由用户裁决后再继续，不自行取舍
+R-09 侦察先于建设；侦察与预算冲突→停止报告不继续执行
 
-R-10 并发写者纪律
-开工前：git log --oneline --since='24h' -- <目标目录>
-有改动：先 diff 审读，确认无冲突再动工
-收口前：git pull --rebase
+R-10 并发写者纪律：开工前 git log --since='24h' -- <目标>；
+收口前 git pull --rebase
 
-════════════════════════════════════════════════
-§4 战略目标
-════════════════════════════════════════════════
+R-11 盈亏平衡前置：Σ(块大小×次数) < helper成本×2 → 不开工
 
-G-1 生产代码门禁
-硬上限 ≤ 55,000 行（当前 53,065，冗余 1,935）
-目标 ≤ 52,000 行（缺口 1,065）
-口径：packages/*/src + engine-go + data-fetcher
-− 契约层（schemas）− 迁移文件
-tests/scripts/config 不设行数门禁，
-用质量指标治理：覆盖率≥80% · jscpd≤6.3% · nightly≥99%
-(53065, scc 生产目录−契约层, @本会话)【实测】
+R-12 数据质量红线：AdjustedClose 仅源确认复权时写入
+（*float64 nil 语义）；消费端 adjusted_close ?? close；
+新增数据源必须在 registry.go 注释块登记复权状态
 
-G-1b 质量基础设施可信度（优先级 > G-1）
-nightly 成功率量化（需 gh auth 审计历史）
-全局 LOC 账本上线（ε-1，见 §5）
-金丝雀三件套落地（已完成 contract 扫描器；
-TestKit 夹具待复建时落地）
+R-13 手册自身一致性："在线/已完成"必须附【实测】；
+每次修改手册须重验所有"在线"声明仍为真；
+违反等同违反 R-08
 
-G-2 降低单位变更成本
-新增分析模块（UI+API+engine+结果页）目标 ≤ 5 工作日
+═══════════════════════════════════════════════
+§4 产品路线图（竞品研究 v3 · 紧迫度排序）
+═══════════════════════════════════════════════
 
-G-3 可观测性
-每个 job 有 correlation-id 从 UI 串到 engine 日志
-degraded 在 banner/导出/outbox 三处一致
+执行原则：不追功能完整性，追差异化深度。
+每功能自问：这让"数字可验证"叙事更强吗？
+6-9 个月内 testfol 会复制吗？
 
-G-4 nightly 健康度从假设变为数字
-先 gh auth 审计 → 再设目标 → 再优化
+── P-URGENT 3 个月内 ──
+U-1 数据质量校验徽章（绿=复权校验通过/黄=降级列表可展开）
+基础：degraded 三处一致✓+A4✓ ΔLOC ~80【推断】
 
-G-5 i18n 质量治理
-D-5 删除须三重过滤：静态未引用 ∩ 运行时未出现 ∩ 非保护桶
-前置：α-4 returnObjects 叶扩展已落地 ✓
+U-2 真实日频 T-bill 替换固定 riskFreeRate
+现状：engineutil.go:115 const RiskFreeRate = 0.02【实测】
+Foliolytic 实证静态假设致 Sharpe 偏移 0.3-0.5
+动作：data-fetcher 新建 FRED provider（现有四源均无）
+→ 新建存储迁移 → 引擎按日查询
+（注意：macro 服务层测试在但 PG 表不存在，均为新建件）
+ΔLOC ~120±40【推断】
 
-════════════════════════════════════════════════
-§5 待执行战线与预算表
-════════════════════════════════════════════════
+U-3 MC 估计法菜单扩展（block bootstrap 之上加
+Trimmed Mean/Equal-Weight Mean/Ledoit-Wolf Shrinkage）
+对标 PMetrics 参数化天花板；golden 兜底
+竞品锚点：testfol 免费层 500次/15年/5年块
+ΔLOC ~120【推断】
 
-──────────────────────────────────────────────
-战线 ε 流程件（零 LOC 变化，优先级最高）
-──────────────────────────────────────────────
+── P-HIGH 3-6 个月 ──
+H-1 高级指标包（PSR/Hurst/Burke/Martin/Sterling/M²/
+Batting Average——Foliolytic 公式公开，golden 锁定）
+ΔLOC ~100 Go+前端【推断】
+H-2 季度相关矩阵序列（对标 AWALYT；现仅静态矩阵）
+ΔLOC ~50【推断】
+H-3 再平衡交易日志升级（权重快照→买卖金额/数量）
+ΔLOC ~70【推断】
+H-4 FF 结果页内建化（factor exposure 卡嵌入 BacktestResults；
+落地后 §1 六角交集主张完全成真）
+ΔLOC ~30-50【推断】
 
-ε-1 nightly ledger 写入
-.github/workflows/nightly.yml loc-stats job 末追加 step：
-写入 docs/audit/loc-ledger.jsonl（从 .gitignore 移除）
-格式：{"date":"...","total":N,"commit":"..."}
-(0 ΔLOC, nightly 跑后检查 jsonl, 待落地)【设计已交付】
+── P-MED 6-9 个月 ──
+M-1 per-ticker 费率 ~40 / M-2 sim-fund 框架 ~150+脚本
+M-3 匿名演示 /demo ~60 / M-4 AI 解释层（前置 U 档）
 
-ε-2 commitlint fix: Repro: 规则
-commitlint 自定义：fix: type commit body 必须含 Repro:
-(~+15 行 config, commitlint --edit 验证, 待落地)
+── 明确不做（附重启条件）──
+公司基本面(AWALYT 主场) / 券商CSV导入(Foliolytic 永久免费)
+Black-Litterman(PV 护城河) / 移动端重构(流量>30% 再议)
+实盘工作台 / brotli 流式重构 / application 编排层
 
-ε-3 金丝雀夹具
-已落地 @第2会话（contract 扫描器金丝雀）✓
-TestKit 复建时补 TestKit 夹具（scripts/check-testkit-fixture.mjs）
+═══════════════════════════════════════════════
+§5 工程战线状态板（@f4025e38）
+═══════════════════════════════════════════════
 
-ε-4 收口报告模板（所有会话强制使用）
-见 §7 收口格式
+✓ 口径固化 count-prod-loc.ps1 @f3e37b8b
+✓ SSR 收敛 cef5c228 净−344（fallback 仅+6 行）
+✓ ε-2 .husky/commit-msg（负向探针实证@本会话）
+✓ A4 复权置空 f4025e38 ±17（NULL 链路全通）
 
-──────────────────────────────────────────────
-战线 engine gonum 化（待 spike 精确化预算）
-──────────────────────────────────────────────
+□ A5 queued 行落库：jobSubmission queue.add 后 INSERT
+ON CONFLICT DO NOTHING + worker UPSERT + stalled 对账
+预算 +30±10【推断】
+□ D-5 i18n 删除：先跑 tests/e2e/ui/i18n-sampling.spec.ts
+生成候选清单（当前产物缺失），人类确认后删
+预算 −100~~200【推断】← G-1 达标最近路径
+□ gonum spike：S1 mathutil 对照表/S2 调用计数/
+S3 _spike_test.go golden 输入对比（不提交）
+裁决：<50 行关闭；≥50+字节级过→立项；ULP→上报
+预算 −200~~400【推断·低置信】← G-1 达标另一路径
+□ page-smoke 稳定化：tests/e2e/ui/page-smoke.spec.ts
+层1 reducedMotion / 层2 localStorage 浮层预设 /
+层3 domcontentloaded+waitForSelector
+门禁：--repeat-each=10 全绿才挂 ci.yml
+□ B3 文档三缺口：README 部署章节(现仅54行)/compose
+资源限制(YAML 锚点压缩)/ADR-012 撞号重编号
+预算 +30~55
 
-前提：用户已授权金样本重基线（CHANGELOG Unreleased 已记录）
+═══════════════════════════════════════════════
+§6 预算全景（基线已迁移至净口径 52,071）
+═══════════════════════════════════════════════
 
-Spike 设计（本步只读，不改生产代码）：
-S1 读 mathutil.go（155 行）全文
-记录：每函数名+行数+gonum/stat 等价函数
-关注：求和顺序/NaN 处理/ddof 差异
+已兑现累计：α−34 β−29 gonum−89 第8会话fix+152
+SSR−344 A4+17 → 净 −327【全部实测】
 
-S2 rg "mathutil\." engine-go/ --count-matches
-记录每个调用点的上下文
+G-1 即时状态：52,071，距 ≤52,000 差 71 行
+达标路径：D-5（−100~~200）或 gonum（−200~~400）
+任一兑现即宣布达标并更新本节
 
-S3 浮点等价性实验（临时 _spike_test.go，不提交）
-用金样本输入比较 gonum.stat.Mean vs mathutil.Mean
-记录：字节级一致 / ULP 偏差量 / 是否系统性
+产品档位增行预算：见 §4 各条【均为推断】
+三档情景方法论保留：悲观/中性/乐观 = LOC 最坏程度
+分档（非发生概率）；功能档全兑现稳态约 53k±200，
+此时 53k 即正确目标（人类已裁决：差异化>行数美学）
 
-产出（全部实测）：
-① 可替换函数清单（函数名+行数+gonum 等价）
-② 字节级等价测试结果
-③ 净可省行数 = 可替换行数 − gonum import 新增 − 金样本重基线行数
-若字节级通过 → 立项，预算锁定为实测值
-若 ULP 偏差 → 上报偏差量，等用户裁决
+═══════════════════════════════════════════════
+§7 决策树（每次会话执行）
+═══════════════════════════════════════════════
 
-预算：(-200~400, spike 后精确化, 待立项)【推断·低置信】
+ROOT 基线扫描（任一失败先修复不带病开工）：
+pnpm loc ±5 ｜ test:unit 全绿 ｜ test:contract 15/15
+test:property 24/24 ｜ check:tests 0 ｜ lint 0e/≤2w
+verify-static PASS ｜ go golden PASS
+git log --since='24h' -- <目标> 无冲突 ｜ status 空
 
-──────────────────────────────────────────────
-战线 D-5 i18n 键删除（须运行时采样证据）
-──────────────────────────────────────────────
+├ 回归？→ 修复归因回 ROOT
+├ 并发改动？→ diff 审读（R-10）
+STEP-0 收割类先做 R-11 盈亏平衡
+STEP-1 侦察出实测数字 → 冲突即停（R-09）
+STEP-2 执行：独立 commit·随做随测·golden 校验
+└ 实测<预期 50%？→ 止损转收口
+STEP-3 收口（§8）
 
-前提：α-4 returnObjects 叶扩展已落地 ✓
-
-D-5a 静态采样：verify-i18n.mjs 输出 usedKeys.json
-（当前已实现，动态键 16 处白名单已建）
-
-D-5b 运行时插桩（DEV 门控，不进生产 bundle）
-在 i18nInit.ts 的 import.meta.env.DEV 块内：
-const usedKeySet = new Set<string>()
-const origT = i18next.t.bind(i18next)
-i18next.t = (key: string, ...a) => {
-usedKeySet.add(key)
-return origT(key, ...a)
-}
-window.__i18nUsedKeys = usedKeySet
-Playwright e2e 跑完后导出快照
-
-三重过滤（必须全部满足才可删）：
-① 静态扫描未引用
-② 运行时快照未出现
-③ 非保护桶（16 处动态模板前缀 + 准动态常量）
-
-errors.*(50 键) 专项核查：grep 后端动态拼 key 全集后再定论
-
-本战线产出：安全候选清单（用户确认后下会话实际删除）
-预算：(-100~200, 运行时采样后精确化, 待执行)【推断】
-
-【预算汇总表（实测数字优先）】
-战场 预算 标签 锚点
-α 已兑现 −34 ✓ 【实测】 @各 commit
-β 已兑现 −29 ✓ 【实测】 @第2会话
-gonum 已兑现 −89 ✓ 【实测】 @c823e256
-D-5 已兑现 −164 ✓ 【实测】 @78211f29
-─────────────────────────────────────────────────
-目标缺口（生产代码 52k） −1,065
-
-════════════════════════════════════════════════
-§6 决策树（替代线性序列，每次会话执行）
-════════════════════════════════════════════════
-
-ROOT 七项基线扫描（任一失败先修复，不带病开工）
-│
-│ pnpm loc 期望：锚点值 ±5
-│ pnpm test:unit 期望：2258/2258
-│ pnpm test:contract 期望：15/15（含金丝雀）
-│ pnpm test:property 期望：24/24
-│ pnpm check:tests 期望：0 错误
-│ pnpm lint && pnpm verify-static 期望：0e/2w · PASS
-│ git log --oneline --since='24h' -- <目标目录>
-│ 期望：无冲突改动
-│ git status --porcelain 期望：空
-│
-├─ 有回归？
-│ └─ 是 → 修复 + 归因 commit → 回 ROOT（记录：Q61 教训）
-│
-├─ 有其他会话改动目标文件？
-│ └─ 是 → diff 审读 → 确认无冲突再继续（R-10）
-│
-STEP-1 战场侦察（~40 分钟，按本次目标选子集）
-│
-│ tests 侦察（15min）：
-│ npx jscpd tests --min-lines 3 --min-tokens 25
-│ rg "beforeEach" tests --count + 抽读 3 文件
-│
-│ engine 侦察（20min，gonum spike 时）：
-│ 读 mathutil.go 全文 + rg mathutil. 调用统计
-│ _spike_test.go 浮点等价实验
-│
-│ i18n 侦察（5min，D-5 时）：
-│ 确认 D-5b 插桩已就位
-│ 确认 e2e 覆盖率（tests/e2e/ 目录路由列表）
-│
-├─ 侦察结论与指令预算冲突？
-│ └─ 是 → 停止，向用户报告：
-│ "侦察实测数字为 X，
-│ 指令预算为 Y，冲突。
-│ 建议：(a)修订预算 (b)关闭战线 (c)补充侦察"
-│ 不在有缺陷的指令下继续执行（R-09）
-│
-STEP-2 执行（每个目标独立 commit，随做随测）
-│
-│ 每个 commit 前：套件相关测试全绿
-│ 每个 commit 后：pnpm loc 验证方向正确
-│
-STEP-3 收口（见 §7）
-│
-└─ 输出完整收口报告
-
-════════════════════════════════════════════════
-§7 收口报告格式（每次会话必须完整填写）
-════════════════════════════════════════════════
+═══════════════════════════════════════════════
+§8 收口报告格式
+═══════════════════════════════════════════════
 
 ## 会话收口报告
 
-**基线 → 产出**
-开工 LOC： [数字]
-收口 LOC： [数字]（净 ΔLOC：[±N]）
-commit 列表： [hash | 内容 | ΔLOC]
+基线→产出：开工/收口 LOC（全仓+净生产）/commit 列表
+[hash|内容|ΔLOC|Repro(fix 必填)]
+套件状态：unit/contract/property/check/lint/verify-static/
+golden/Go
+各步结果：✓/⚠️止损(原因)/❌失败(归因)
+R-02：ΔLOC 构成 + ledger 最新条目
+必填：isolated-variables / untracked-touched /
+推断-used-as-basis
+ε 一致性检查（R-13）：ε-1/ε-2/ε-3 逐项实态
+待人类裁决 / 下会话建议
 
-**套件状态**
-unit: N/N · contract: N/N · property: N/N
-check:tests: N · lint: Ne/Nw · verify-static: [PASS/FAIL]
-audit:i18n: [PASS/FAIL]
+═══════════════════════════════════════════════
+§9 代理行为规范
+═══════════════════════════════════════════════
 
-**各步结果**（每步：✓完成 / ❌失败，附说明）
+必须：ROOT 全过才开工｜侦察先于建设｜三值标签｜
+改一文件测一文件｜完整收口含 ε 检查｜
+便宜的确证优先于大概率成立
 
-**R-02 账本**
-本会话 ΔLOC：[数字]
-构成：[fix类/feat类/refactor类 分别列出]
-滚动 ledger 状态：[最近 7 天斜率]
+不得：删断言｜改数值代码不跑 golden｜推断作行动依据｜
+跳过并发检查｜建设前不侦察｜计划写成已在线(R-13)｜
+代做产品方向决策
 
-**必填字段**
-isolated-variables: [yes（无未隔离变量）/
-no（列明未隔离变量）]
-untracked-touched: [文件列表，无则写"无"]
-推断-used-as-basis: [列表+用户确认状态，无则写"无"]
+必须停止上报：预算冲突/触红线/覆盖率下降/ULP 偏差/
+裁量粒度/产品方向
 
-**待你裁决**（需用户决定的项，不自决）
+═══════════════════════════════════════════════
+§10 不变式红线（PR 合并前人工确认）
+═══════════════════════════════════════════════
+□ 统计/回测/MC：golden 字节级通过
+□ degraded 改动：contract 15/15
+□ outbox/HMAC：审计集成测试通过
+□ RBAC(ADR-007)：密钥哈希路径未变
+□ ADR-008：503+Retry-After + degraded 语义未变
+□ OpenAPI 变更：contract 全绿
+□ AdjustedClose 改动：registry.go 复权登记已更新(R-12)
+□ 新增统计函数：golden 先行
+□ 手册"在线"声明与仓库实态一致(R-13)
 
-**下会话建议**
+═══════════════════════════════════════════════
+§11 速查：核心命令
+═══════════════════════════════════════════════
+pnpm loc # 全仓权威口径
+powershell -NoProfile -File scripts/count-prod-loc.ps1 # 四层口径·G-1 权威
+pnpm test:unit / test:contract / test:property
+pnpm check:tests / lint / verify-static / audit:i18n
+go test ./engine-go/... -run TestStatisticsGoldenFile -v
+go test ./engine-go/... -v
+cd data-fetcher; go test ./... -count=1
+gofmt -l ./engine-go/ && go vet ./engine-go/...
+npx playwright test tests/e2e/ui/page-smoke.spec.ts \
+--project=chromium --repeat-each=10 --reporter=line
+npx playwright test tests/e2e/ui/i18n-sampling.spec.ts
+git log --oneline --since='24h' -- <目标目录>
 
-════════════════════════════════════════════════
-§8 代理行为规范
-════════════════════════════════════════════════
-
-每次会话必须做：
-✓ 跑完 ROOT 七项才开工
-✓ 侦察先于建设（R-09）
-✓ 每个关键论断携带三值标签
-✓ 每修改一个文件后立即跑相关测试
-✓ 会话结束输出完整收口报告（§7）
-
-代理不得做：
-✗ 删除任何断言（R-03）
-✗ 改 engine-go 核心计算而不跑金样本（R-04）
-✗ 把【推断】标签的论断直接作为行动依据（R-08）
-✗ 净行数为正时不附 ledger 更新（R-02）
-✗ 开工前不跑并发写者检查（R-10）
-✗ 建设性工作（新文件/模块）前不做侦察（R-09）
-✗ 以"大概率"替代实测（Q74 核心教训）
-
-遇到决策边界（以下任一）必须停止并向用户报告：
-
-- 侦察数字与指令预算冲突
-- 疑似触碰 R-01~R-10 任一红线
-- 文件迁移后覆盖率下降
-- 浮点结果与金样本存在 ULP 偏差
-- 操作粒度需要用户裁量（如回滚范围）
-
-"便宜的确证"是默认动作（Q99 教训）：
-5 分钟内可用一条命令终结的问题，先跑命令再报告
-不得用"大概率成立"替代实验
-
-════════════════════════════════════════════════
-§9 不变式红线（每次 PR 合并前人工确认）
-════════════════════════════════════════════════
-
-□ statisticsMetrics.go 修改后：金样本字节级通过
-□ degraded 相关改动：contract 15/15
-□ outbox/HMAC 相关改动：审计集成测试通过
-□ ADR-007 RBAC：密钥哈希存储路径未变
-□ ADR-008 降级：503+Retry-After + data.degraded 语义未变
-□ OpenAPI 变更：contract test 全绿
-□ ΔLOC ≤ 0（fix 类净增附 ledger 条目）
-
-════════════════════════════════════════════════
-§10 速查：核心命令
-════════════════════════════════════════════════
-
-pnpm loc # LOC 测量（权威口径）
-pnpm test:unit # 单元测试
-pnpm test:contract # 契约测试（含金丝雀）
-pnpm test:property # 属性测试
-pnpm check:tests # TS 类型检查
-pnpm lint # ESLint（3 包）
-pnpm verify-static # 静态验证（含 C-023）
-pnpm audit:i18n # i18n 未使用键报告
-gofmt ./... && go vet ./... && go test ./... # Go 全套
-git log --oneline --since='24h' -- <目录> # 并发检查
-npx jscpd tests --min-lines 3 --min-tokens 25 # 克隆检测
+───────────────────────────────────────────────
+v3.2 变更摘要（相对对话稿 v3.1）
+固化 手册首次写盘（此前 v3/v3.1 仅存于对话）
+快照 全部锚点刷新至 @f4025e38 实测
+兑现 SSR 收敛/A4/口径脚本/ε-2 实证 四战线落库
+勘误 ε-2 实态=在线(husky 内联)；U-2 基建句修正；
+G-1 从"结构性不可达"改为"差 71 行可达"
+新增 H-4 FF 内建化战线；R-13 保留并实例化
+归档 v2.2 旧手册由 git 历史承担（docs 树经清点
+无独立计划文档需移动）
