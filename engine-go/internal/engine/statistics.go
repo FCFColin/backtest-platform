@@ -39,6 +39,14 @@ func vaRByFrequency(returns [3][]float64, calc func([]float64, float64) float64)
 func skewByFrequency(returns [3][]float64, calc func([]float64) float64) SkewnessByFrequency {
 	return SkewnessByFrequency{Daily: calc(returns[0]), Monthly: calc(returns[1]), Annual: calc(returns[2])}
 }
+func episodeDepths(episodes []DrawdownEpisode) []float64 {
+	out := make([]float64, len(episodes))
+	for i, e := range episodes {
+		out[i] = math.Abs(e.Depth)
+	}
+	return out
+}
+
 func CalculateStatisticsFromRequest(req StatisticsRequest) Statistics {
 	if len(req.Values) < 2 {
 		return Statistics{}
@@ -62,6 +70,16 @@ func CalculateStatisticsFromRequest(req StatisticsRequest) Statistics {
 		rfAnnual = *req.RiskFreeRate
 	}
 	rfDaily := RiskFreeDailyFrom(rfAnnual)
+	// H-1：Burke/Sterling 需回撤事件深度——由 Values/Dates 现场检测（与 RunBacktest 主路径同源算法）
+	epCurve := make([]DataPoint, len(req.Values))
+	for i, v := range req.Values {
+		d := ""
+		if i < len(req.Dates) {
+			d = req.Dates[i]
+		}
+		epCurve[i] = DataPoint{Date: d, Value: v}
+	}
+	episodes := detectDrawdownEpisodes(epCurve)
 	dd := CalcMaxDrawdown(req.Values)
 	ulcerIdx := CalcUlcerIndex(req.Values)
 	sortino := CalcSortinoWithRF(rfAnnual, cagr, req.DailyReturns)
@@ -124,5 +142,11 @@ func CalculateStatisticsFromRequest(req StatisticsRequest) Statistics {
 		AvgMonthlyGain: avgMonthlyGain, AvgMonthlyLoss: avgMonthlyLoss, GainLossRatioMonthly: gainLossRatioMonthly,
 		AvgAnnualGain: avgAnnualGain, AvgAnnualLoss: avgAnnualLoss, GainLossRatioAnnual: gainLossRatioAnnual,
 		SWR: swr, SWR10Y: pwrAll.SWR10Y, PWR10Y: pwrAll.PWR10Y, SWR20Y: pwrAll.SWR20Y, PWR20Y: pwrAll.PWR20Y, SWR30Y: pwrAll.SWR30Y, PWR30Y: pwrAll.PWR30Y, SWR40Y: pwrAll.SWR40Y, PWR40Y: pwrAll.PWR40Y,
+		PSR:            CalcPSR(req.DailyReturns, rfAnnual, riskFreeRate),
+		HurstExponent:  CalcHurstExponent(req.Values),
+		BurkeRatio:     CalcBurkeRatio(cagr, rfAnnual, episodeDepths(episodes)),
+		MartinRatio:    safeRatio(cagr-rfAnnual, ulcerIdx),
+		SterlingRatio:  CalcSterlingRatio(cagr, rfAnnual, episodeDepths(episodes)),
+		BattingAverage: CalcBattingAverage(req.DailyReturns, req.BenchmarkDailyReturns),
 	}
 }

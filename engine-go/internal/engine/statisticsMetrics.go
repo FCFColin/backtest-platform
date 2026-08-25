@@ -6,6 +6,7 @@ import (
 	"gonum.org/v1/gonum/stat"
 	"math"
 	"slices"
+	"sort"
 	"time"
 )
 
@@ -449,4 +450,142 @@ func computeBenchmarkMetricsWithRF(rf float64, portfolioReturns, benchmarkReturn
 		AlphaDaily:           calcAlphaDaily(pr, br, beta),
 		ActiveReturn:         cagr - benchmarkCagr,
 	}
+}
+
+// ── H-1 高级指标包（Foliolytic 公式公开口径）────────────────────────
+
+// CalcPSR 概率化夏普比率（Bailey & López de Prado）：
+// PSR(SR*) = Φ( (SR−SR*)·√(n−1) / √(1−γ₃·SR + (γ₄−1)/4·SR²) )
+// 输入为日频收益与年化 rf；SR* 为基准 Sharpe（同日频口径）。样本不足或分母非法返回 0.5。
+func CalcPSR(dailyReturns []float64, rfAnnual, srRef float64) float64 {
+	n := len(dailyReturns)
+	if n < 3 {
+		return 0.5
+	}
+	rfDaily := RiskFreeDailyFrom(rfAnnual)
+	mean := 0.0
+	for _, r := range dailyReturns {
+		mean += r - rfDaily
+	}
+	mean /= float64(n)
+	vari := 0.0
+	for _, r := range dailyReturns {
+		d := r - rfDaily - mean
+		vari += d * d
+	}
+	sd := math.Sqrt(vari / float64(n))
+	if sd < 1e-12 {
+		return 0.5
+	}
+	sr := mean / sd
+	g3 := CalcSkewness(dailyReturns)
+	g4 := CalcExcessKurtosis(dailyReturns) + 3 // Pearson 峰度
+	denom := 1 - g3*sr + (g4-1)/4*sr*sr
+	if denom <= 0 {
+		return 0.5
+	}
+	z := (sr - srRef) * math.Sqrt(float64(n-1)) / math.Sqrt(denom)
+	return 0.5 * (1 + math.Erf(z/math.Sqrt2))
+}
+
+// CalcHurstExponent R/S 分析多尺度回归：H = log-log 斜率。n<16 返回 0.5（不可判定缺省）。
+func CalcHurstExponent(values []float64) float64 {
+	n := len(values)
+	if n < 16 {
+		return 0.5
+	}
+	size, xs, ys := 8, []float64{}, []float64{}
+	for size <= n/2 {
+		chunks := n / size
+		rsSum, rsCount := 0.0, 0.0
+		for ch := 0; ch < chunks; ch++ {
+			sub := values[ch*size : (ch+1)*size]
+			mean := stat.Mean(sub, nil)
+			cum, devSum, mn, mx := 0.0, 0.0, math.Inf(1), math.Inf(-1)
+			for _, v := range sub {
+				cum += v - mean
+				devSum += cum * cum
+				if cum < mn {
+					mn = cum
+				}
+				if cum > mx {
+					mx = cum
+				}
+			}
+			s := math.Sqrt(devSum / float64(size))
+			if s <= 0 {
+				continue
+			}
+			rsSum += (mx - mn) / s
+			rsCount++
+		}
+		if rsCount > 0 {
+			xs = append(xs, math.Log(float64(size)))
+			ys = append(ys, math.Log(rsSum/rsCount))
+		}
+		if size == n/2 {
+			break
+		}
+		size *= 2
+	}
+	if len(xs) < 2 {
+		return 0.5
+	}
+	// 最小二乘斜率
+	mx, my := stat.Mean(xs, nil), stat.Mean(ys, nil)
+	num, den := 0.0, 0.0
+	for i := range xs {
+		num += (xs[i] - mx) * (ys[i] - my)
+		den += (xs[i] - mx) * (xs[i] - mx)
+	}
+	if den == 0 {
+		return 0.5
+	}
+	return num / den
+}
+
+const h1TopDrawdowns = 5
+
+// CalcBurkeRatio 超额 CAGR / Σ(前 K 大回撤深度²)，无回撤样本返回 0。
+func CalcBurkeRatio(cagr, rfAnnual float64, drawdownDepths []float64) float64 {
+	ds := append([]float64(nil), drawdownDepths...)
+	sort.Float64s(ds)
+	sumSq := 0.0
+	for i := 0; i < h1TopDrawdowns && i < len(ds); i++ {
+		sumSq += ds[len(ds)-1-i] * ds[len(ds)-1-i]
+	}
+	return safeRatio(cagr-rfAnnual, sumSq)
+}
+
+// CalcSterlingRatio 超额 CAGR / 前 K 大回撤深度均值。
+func CalcSterlingRatio(cagr, rfAnnual float64, drawdownDepths []float64) float64 {
+	ds := append([]float64(nil), drawdownDepths...)
+	sort.Float64s(ds)
+	k := h1TopDrawdowns
+	if len(ds) < k {
+		k = len(ds)
+	}
+	if k == 0 {
+		return 0
+	}
+	sum := 0.0
+	for i := len(ds) - k; i < len(ds); i++ {
+		sum += ds[i]
+	}
+	return safeRatio(cagr-rfAnnual, sum/float64(k))
+}
+
+// CalcBattingAverage 相对基准的胜率：min(pr,br)>0 且 pr>br 的配对占比。
+func CalcBattingAverage(portfolioReturns, benchmarkReturns []float64) float64 {
+	pr, br := alignPair(portfolioReturns, benchmarkReturns)
+	if len(pr) == 0 {
+		return 0
+	}
+	wins := 0
+	for i := range pr {
+		if pr[i] > br[i] {
+			wins++
+		}
+	}
+	return float64(wins) / float64(len(pr))
 }

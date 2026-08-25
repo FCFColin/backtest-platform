@@ -31,7 +31,13 @@ export type Statistics = {
   avgDrawdown: number;
   ulcerIndex: number;
   drawdownRecoveryFactor: number;
-
+  /** H-1 高级指标包 */
+  psr: number;
+  hurstExponent: number;
+  burkeRatio: number;
+  martinRatio: number;
+  sterlingRatio: number;
+  battingAverage: number;
   sharpe: number;
   sortino: number;
   calmar: number;
@@ -191,6 +197,12 @@ const ZERO_FIELDS: Record<NonObjectKeys, 0> = {
   pwr30y: 0,
   swr40y: 0,
   pwr40y: 0,
+  psr: 0,
+  hurstExponent: 0,
+  burkeRatio: 0,
+  martinRatio: 0,
+  sterlingRatio: 0,
+  battingAverage: 0,
 };
 
 export function createEmptyStatistics(): Statistics {

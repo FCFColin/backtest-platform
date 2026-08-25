@@ -36,6 +36,7 @@ var expectedStatisticsFields = []string{
 	"avgMonthlyGain", "avgMonthlyLoss", "gainLossRatioMonthly",
 	"avgAnnualGain", "avgAnnualLoss", "gainLossRatioAnnual",
 	"swr", "pwr", "swr10y", "pwr10y", "swr20y", "pwr20y", "swr30y", "pwr30y", "swr40y", "pwr40y",
+	"psr", "hurstExponent", "burkeRatio", "martinRatio", "sterlingRatio", "battingAverage",
 }
 var expectedBacktestParamsFields = []string{
 	"startDate", "endDate", "startingValue",

@@ -33,6 +33,13 @@ export const DEFAULT_COLUMNS: StatColumn[] = [
   { key: 'ulcerPerformanceIndex', label: 'UPI', format: 'number' },
   { key: 'diversificationRatio', label: 'statsTable.diversificationRatio', format: 'number' },
   { key: 'beta', label: 'Beta', format: 'number' },
+  // H-1 高级指标包
+  { key: 'psr', label: 'statsTable.psr', format: 'percent', colorize: true },
+  { key: 'hurstExponent', label: 'statsTable.hurst', format: 'number' },
+  { key: 'burkeRatio', label: 'statsTable.burkeRatio', format: 'number' },
+  { key: 'martinRatio', label: 'statsTable.martinRatio', format: 'number' },
+  { key: 'sterlingRatio', label: 'statsTable.sterlingRatio', format: 'number' },
+  { key: 'battingAverage', label: 'statsTable.battingAverage', format: 'percent' },
 ];
 
 export const EXTENDED_COLUMNS: StatColumn[] = [

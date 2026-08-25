@@ -120,6 +120,13 @@ type Statistics struct {
 	PWR30Y                      float64             `json:"pwr30y"`
 	SWR40Y                      float64             `json:"swr40y"`
 	PWR40Y                      float64             `json:"pwr40y"`
+	// H-1 高级指标包
+	PSR            float64 `json:"psr"`
+	HurstExponent  float64 `json:"hurstExponent"`
+	BurkeRatio     float64 `json:"burkeRatio"`
+	MartinRatio    float64 `json:"martinRatio"`
+	SterlingRatio  float64 `json:"sterlingRatio"`
+	BattingAverage float64 `json:"battingAverage"`
 }
 type PriceDataMap map[string]map[string]float64
 type BacktestRequest struct {
