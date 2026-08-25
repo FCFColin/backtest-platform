@@ -25,6 +25,23 @@ export async function loadCpiSeriesFromDb(
   }
 }
 
+// U-2 Phase 2：无风险利率序列（treasury_rates，全局共享宏观数据，无 RLS）
+export async function loadTreasurySeriesFromDb(
+  series: string,
+): Promise<Array<{ date: string; rate: number }>> {
+  try {
+    const pool = getReadPool();
+    const { rows } = await pool.query<{ date: Date; rate: number }>(
+      'SELECT date, rate FROM treasury_rates WHERE series = $1 ORDER BY date',
+      [series.toUpperCase()],
+    );
+    return rows.map((r) => ({ date: toDateStr(r.date), rate: r.rate }));
+  } catch (err) {
+    logger.warn({ err: err as Error, series }, '[macroData] 利率序列查询失败');
+    return [];
+  }
+}
+
 export async function loadExchangeRatesFromDb(
   base = 'USD',
   target = 'CNY',

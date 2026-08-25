@@ -16,6 +16,8 @@ export interface BacktestParameters {
   benchmarkTicker: string;
   cashflowLegs?: CashflowLeg[];
   oneTimeCashflows?: OneTimeCashflow[];
+  /** U-2：窗口匹配年化无风险利率（小数）。由 backend 从 FRED DGS3MO 注入，非用户输入；缺省走引擎 legacy 常量 */
+  risk_free_rate?: number;
 }
 
 export type TimeSeriesPoint = { date: string; value: number };

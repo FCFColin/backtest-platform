@@ -1,5 +1,5 @@
 import { logger } from '../utils/logger.js';
-import { loadCpiSeriesFromDb } from '../db/macroData.js';
+import { loadCpiSeriesFromDb, loadTreasurySeriesFromDb } from '../db/macroData.js';
 import { fetchGoJson } from './goDataServiceClient.js';
 import {
   dataUpdateQueue,
@@ -58,6 +58,53 @@ export async function loadCpiMap(country: string): Promise<Record<string, number
 }
 
 const CPI_DEGRADED_WARNING = 'Go 数据服务不可用，已降级到 PostgreSQL CPI 数据';
+
+// ── U-2 Phase 2：窗口匹配年化无风险利率 ──────────────────────────────
+// DB(treasury_rates) → 空 则 FRED 端点拉取。
+// 关键口径：DGS3MO 等为「年化报价」非每日复利因子 → 年化 = 窗口内观测算术平均
+//（与引擎 (CAGR−rf)/σ 的单一年化 rf 用法一致）。序列 <60 个交易日视为不可信
+// → 返回 null，引擎走 legacy 常量（golden 零漂移保障）。
+const TREASURY_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+let treasuryRfCache: { value: number | null; ts: number } | null = null;
+
+export function annualizeTbillRates(
+  rates: Array<{ date: string; rate: number }>,
+  start: string,
+  end: string,
+): number | null {
+  const inWindow = rates
+    .filter((r) => r.date >= start.slice(0, 10) && r.date <= end.slice(0, 10))
+    .sort((a, b) => a.date.localeCompare(b.date));
+  if (inWindow.length < 60) return null;
+  return inWindow.reduce((s, r) => s + r.rate, 0) / inWindow.length;
+}
+
+async function fetchTreasuryFromGo(
+  series: string,
+  start: string,
+  end: string,
+): Promise<Array<{ date: string; rate: number }>> {
+  try {
+    const { success, data } = await fetchGoJson(
+      `/api/data/treasury/${series}?start=${start}&end=${end}`,
+    );
+    if (!success || !Array.isArray(data)) return [];
+    return data as Array<{ date: string; rate: number }>;
+  } catch (err) {
+    logger.warn({ err: err as Error, series }, '[treasuryService] Go data-fetcher 调用失败');
+    return [];
+  }
+}
+
+export async function loadAnnualRiskFreeRate(start: string, end: string): Promise<number | null> {
+  if (treasuryRfCache && Date.now() - treasuryRfCache.ts < TREASURY_CACHE_TTL_MS)
+    return treasuryRfCache.value;
+  let rates = await loadTreasurySeriesFromDb('DGS3MO');
+  if (rates.length === 0) rates = await fetchTreasuryFromGo('DGS3MO', start, end);
+  const value = annualizeTbillRates(rates, start, end);
+  treasuryRfCache = { value, ts: Date.now() };
+  return value;
+}
 
 interface CpiRouteResult {
   data: unknown;

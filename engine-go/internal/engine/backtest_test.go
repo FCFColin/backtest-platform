@@ -76,7 +76,7 @@ func TestComputeBenchmarkGrowth(t *testing.T) {
 func TestComputeStatisticsBenchmarkLeadingGap(t *testing.T) {
 	curve := []DataPoint{{Date: "2024-01-02", Value: 10000}, {Date: "2024-01-03", Value: 10000}, {Date: "2024-01-04", Value: 10000}, {Date: "2024-01-05", Value: 10000}}
 	bench := []DataPoint{{Date: "2024-01-02", Value: 0}, {Date: "2024-01-03", Value: 100}, {Date: "2024-01-04", Value: 110}, {Date: "2024-01-05", Value: 121}}
-	stats := computeStatistics(curve, nil, bench, nil)
+	stats := computeStatistics(curve, nil, bench, nil, nil)
 	if stats.ActiveReturn > -1000 {
 		t.Errorf("前置缺口时 benchmarkCagr 不应静默为 0：ActiveReturn = %v（应远小于 0）", stats.ActiveReturn)
 	}
@@ -85,7 +85,7 @@ func TestComputeStatisticsBenchmarkDateAligned(t *testing.T) {
 	// 组合首日上涨、基准次日起涨：日收益必须按日期对齐，前置缺口日记 0 而非跳过。
 	curve := []DataPoint{{Date: "2024-01-02", Value: 100}, {Date: "2024-01-03", Value: 110}, {Date: "2024-01-04", Value: 110}, {Date: "2024-01-05", Value: 110}}
 	bench := []DataPoint{{Date: "2024-01-02", Value: 0}, {Date: "2024-01-03", Value: 100}, {Date: "2024-01-04", Value: 110}, {Date: "2024-01-05", Value: 121}}
-	stats := computeStatistics(curve, nil, bench, nil)
+	stats := computeStatistics(curve, nil, bench, nil, nil)
 	// 对齐后的收益序列：[0.1,0,0] vs [0,0.1,0.1]，完全负相关（协方差为负、方差同量）
 	assertFloatApprox(t, stats.Beta, -1.0, "Beta (date-aligned)")
 	assertFloatApprox(t, stats.BenchmarkCorrelation, -1.0, "BenchmarkCorrelation (date-aligned)")
@@ -173,7 +173,7 @@ func BenchmarkComputeStatistics(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		computeStatistics(curve, episodes, nil, nil)
+		computeStatistics(curve, episodes, nil, nil, nil)
 	}
 }
 func TestMWRRCashflowSchedule(t *testing.T) {

@@ -40,7 +40,7 @@ var expectedStatisticsFields = []string{
 var expectedBacktestParamsFields = []string{
 	"startDate", "endDate", "startingValue",
 	"adjustForInflation", "rollingWindowMonths", "benchmarkTicker",
-	"cashflowLegs", "oneTimeCashflows",
+	"cashflowLegs", "oneTimeCashflows", "risk_free_rate",
 }
 var expectedPortfolioInputFields = []string{
 	"name", "assets", "rebalanceFrequency", "rebalanceThreshold",

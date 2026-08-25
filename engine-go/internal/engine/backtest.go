@@ -33,7 +33,7 @@ func RunBacktest(ctx context.Context, req BacktestRequest) (*BacktestResult, err
 		}
 		ddCurve := CalcDrawdownCurve(extractValues(curve), extractDates(curve))
 		episodes := detectDrawdownEpisodes(curve)
-		stats := computeStatistics(curve, episodes, benchmarkGrowth, mwrrCashflows)
+		stats := computeStatistics(curve, episodes, benchmarkGrowth, mwrrCashflows, req.Params.RiskFreeRate)
 		if len(pf.Assets) > 0 {
 			weights := normalizeWeights(pf.Assets)
 			assetRets := make([][]float64, len(pf.Assets))
@@ -237,7 +237,7 @@ func appendZeroDay(curve []DataPoint, vals []float64, date string) ([]DataPoint,
 }
 func zeroHoldings(holdings []float64) { clear(holdings) }
 
-func computeStatistics(curve []DataPoint, episodes []DrawdownEpisode, benchCurve []DataPoint, mwrrCashflows []Cashflow) Statistics {
+func computeStatistics(curve []DataPoint, episodes []DrawdownEpisode, benchCurve []DataPoint, mwrrCashflows []Cashflow, riskFreeRate *float64) Statistics {
 	if len(curve) < 2 {
 		return Statistics{}
 	}
@@ -270,7 +270,7 @@ func computeStatistics(curve []DataPoint, episodes []DrawdownEpisode, benchCurve
 			benchmarkCagr = &c
 		}
 	}
-	result := CalculateStatisticsFromRequest(StatisticsRequest{Values: values, Dates: dates, StartingValue: startValue, DailyReturns: mathutil.DailyReturns(values), AnnualReturnValues: annualReturnValues, MonthlyReturnValues: monthlyReturnValues, MwrrCashflows: mwrrCashflows, BenchmarkDailyReturns: benchDailyReturns, BenchmarkCagr: benchmarkCagr})
+	result := CalculateStatisticsFromRequest(StatisticsRequest{Values: values, Dates: dates, StartingValue: startValue, DailyReturns: mathutil.DailyReturns(values), AnnualReturnValues: annualReturnValues, MonthlyReturnValues: monthlyReturnValues, MwrrCashflows: mwrrCashflows, BenchmarkDailyReturns: benchDailyReturns, BenchmarkCagr: benchmarkCagr, RiskFreeRate: riskFreeRate})
 	return result
 }
 func CalcCorrelationMatrix(dailyReturnsList [][]float64) [][]float64 {

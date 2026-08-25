@@ -46,12 +46,18 @@ func safeRatio(num, denom float64) float64 {
 	}
 	return num / denom
 }
-func CalcSharpe(cagr, stdev float64) float64 { return safeRatio(cagr-riskFreeRate, stdev) }
+func CalcSharpe(cagr, stdev float64) float64 { return CalcSharpeWithRF(riskFreeRate, cagr, stdev) }
+
+// U-2：rf 显式版本（backtest 路径窗口匹配利率；legacy 委托保持他处零漂移）
+func CalcSharpeWithRF(rf, cagr, stdev float64) float64 { return safeRatio(cagr-rf, stdev) }
 func CalcSortino(cagr float64, dailyReturns []float64) float64 {
+	return CalcSortinoWithRF(riskFreeRate, cagr, dailyReturns)
+}
+func CalcSortinoWithRF(rf float64, cagr float64, dailyReturns []float64) float64 {
 	if len(dailyReturns) < 2 {
 		return 0
 	}
-	return safeRatio(cagr-riskFreeRate, mathutil.DownsideDeviation(dailyReturns, RiskFreeDaily())*math.Sqrt(tradingDaysPerYear))
+	return safeRatio(cagr-rf, mathutil.DownsideDeviation(dailyReturns, RiskFreeDailyFrom(rf))*math.Sqrt(tradingDaysPerYear))
 }
 func CalcCorrelation(returns1, returns2 []float64) float64 {
 	r1, r2 := alignPair(returns1, returns2)
@@ -99,14 +105,23 @@ func CalcAvgGainLoss(returns []float64) (avgGain, avgLoss, gainLossRatio float64
 	gainLossRatio = safeRatio(avgGain, avgLoss)
 	return
 }
-func RiskFreeDaily() float64   { return math.Pow(1+riskFreeRate, 1.0/tradingDaysPerYear) - 1 }
-func RiskFreeMonthly() float64 { return math.Pow(1+riskFreeRate, 1.0/12.0) - 1 }
+func RiskFreeDaily() float64   { return RiskFreeDailyFrom(riskFreeRate) }
+func RiskFreeMonthly() float64 { return RiskFreeMonthlyFrom(riskFreeRate) }
+
+// U-2：rf 显式年化利率 → 日/月派生
+func RiskFreeDailyFrom(annual float64) float64   { return math.Pow(1+annual, 1.0/tradingDaysPerYear) - 1 }
+func RiskFreeMonthlyFrom(annual float64) float64 { return math.Pow(1+annual, 1.0/12.0) - 1 }
 func CalcBeta(portfolioReturns, benchmarkReturns []float64) float64 {
 	pr, br := alignPair(portfolioReturns, benchmarkReturns)
 	return safeRatio(stat.Covariance(pr, br, nil), stat.Covariance(br, br, nil))
 }
 func CalcAlpha(cagr, beta, benchmarkCagr float64) float64 {
-	return cagr - (riskFreeRate + beta*(benchmarkCagr-riskFreeRate))
+	return CalcAlphaWithRF(riskFreeRate, cagr, beta, benchmarkCagr)
+}
+
+// U-2：Jensen alpha rf 显式版本
+func CalcAlphaWithRF(rf, cagr, beta, benchmarkCagr float64) float64 {
+	return cagr - (rf + beta*(benchmarkCagr-rf))
 }
 
 // CalcDiversificationRatio 加权资产日波动 / 组合日波动；数据不足或组合零波动返回 0（不可计算）。
@@ -186,8 +201,12 @@ func CalcExcessKurtosis(returns []float64) float64 {
 	}
 	return (float64(n*(n+1))/float64((n-1)*(n-2)*(n-3)))*sum - (3.0*float64((n-1)*(n-1)))/float64((n-2)*(n-3))
 }
-func CalcTreynor(cagr, beta float64) float64        { return safeRatio(cagr-riskFreeRate, beta) }
-func CalcM2(sharpe, benchmarkStdev float64) float64 { return sharpe*benchmarkStdev + riskFreeRate }
+func CalcTreynor(cagr, beta float64) float64           { return CalcTreynorWithRF(riskFreeRate, cagr, beta) }
+func CalcTreynorWithRF(rf, cagr, beta float64) float64 { return safeRatio(cagr-rf, beta) }
+func CalcM2(sharpe, benchmarkStdev float64) float64 {
+	return CalcM2WithRF(riskFreeRate, sharpe, benchmarkStdev)
+}
+func CalcM2WithRF(rf, sharpe, benchmarkStdev float64) float64 { return sharpe*benchmarkStdev + rf }
 func calcAlphaDaily(dailyReturns, benchDailyReturns []float64, beta float64) float64 {
 	if len(dailyReturns) == 0 || len(benchDailyReturns) == 0 {
 		return 0
@@ -407,9 +426,14 @@ type benchmarkMetrics struct {
 }
 
 func computeBenchmarkMetrics(portfolioReturns, benchmarkReturns []float64, cagr, benchmarkCagr float64) benchmarkMetrics {
+	return computeBenchmarkMetricsWithRF(riskFreeRate, portfolioReturns, benchmarkReturns, cagr, benchmarkCagr)
+}
+
+// U-2 Phase 2：rf 显式版本（backtest 路径窗口匹配利率；legacy 路径走常量委托）
+func computeBenchmarkMetricsWithRF(rf float64, portfolioReturns, benchmarkReturns []float64, cagr, benchmarkCagr float64) benchmarkMetrics {
 	pr, br := portfolioReturns, benchmarkReturns
 	beta, trackErr := CalcBeta(pr, br), CalcTrackingError(pr, br)
-	alpha, upside, downside := CalcAlpha(cagr, beta, benchmarkCagr), CalcCaptureRatio(pr, br, true), CalcCaptureRatio(pr, br, false)
+	alpha, upside, downside := CalcAlphaWithRF(rf, cagr, beta, benchmarkCagr), CalcCaptureRatio(pr, br, true), CalcCaptureRatio(pr, br, false)
 	benchStd := CalcAnnualizedStdev(br)
 	return benchmarkMetrics{
 		Beta: beta, Alpha: alpha, TrackingError: trackErr, InformationRatio: CalcInformationRatio(alpha, trackErr),
@@ -420,8 +444,8 @@ func computeBenchmarkMetrics(portfolioReturns, benchmarkReturns []float64, cagr,
 		DownsideCorrelation:  calcFiltered(pr, br, false, CalcCorrelation),
 		UpsideBeta:           calcFiltered(pr, br, true, CalcBeta),
 		DownsideBeta:         calcFiltered(pr, br, false, CalcBeta),
-		Treynor:              CalcTreynor(cagr, beta),
-		M2:                   CalcM2(CalcSharpe(cagr, benchStd), benchStd),
+		Treynor:              CalcTreynorWithRF(rf, cagr, beta),
+		M2:                   CalcM2WithRF(rf, CalcSharpeWithRF(rf, cagr, benchStd), benchStd),
 		AlphaDaily:           calcAlphaDaily(pr, br, beta),
 		ActiveReturn:         cagr - benchmarkCagr,
 	}

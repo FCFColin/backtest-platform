@@ -138,6 +138,9 @@ type BacktestParams struct {
 	BenchmarkTicker     string            `json:"benchmarkTicker"`
 	CashflowLegs        []CashflowLeg     `json:"cashflowLegs"`
 	OneTimeCashflows    []OneTimeCashflow `json:"oneTimeCashflows"`
+	// U-2 Phase 2：窗口匹配的年化无风险利率（小数）。nil/缺省 → 回退 legacy 常量 0.02，
+	// 保证旧载荷与 golden 字节级零漂移；由 backend 从 FRED DGS3MO 年化后注入。
+	RiskFreeRate *float64 `json:"risk_free_rate,omitempty"`
 }
 type PortfolioInput struct {
 	Name               string          `json:"name"`

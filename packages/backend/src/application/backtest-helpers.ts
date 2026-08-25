@@ -1,5 +1,5 @@
 import { fetchHistoryData } from '../infrastructure/dataFacade.js';
-import { loadCpiMap } from '../infrastructure/dataServices.js';
+import { loadCpiMap, loadAnnualRiskFreeRate } from '../infrastructure/dataServices.js';
 import { withTimeout, isValidDate } from '../utils/misc.js';
 import { loadExchangeRatesFromDb } from '../db/macroData.js';
 import { ValidationError } from '../utils/errors.js';
@@ -235,17 +235,22 @@ export async function prepareBacktestContext(
     preparePriceDataAndWarnings(Array.from(allTickers), parameters.startDate, parameters.endDate),
     loadMacroData(parameters),
   ]);
+  const effective = clampParametersToDataRange(
+    parameters,
+    price.effectiveStartDate,
+    price.effectiveEndDate,
+  );
+  // U-2 Phase 2：窗口匹配年化无风险利率注入（序列 <60 交易日 → null → 引擎 legacy 常量）
+  const rf = await loadAnnualRiskFreeRate(effective.startDate, effective.endDate);
+  const effectiveParameters: BacktestParameters =
+    rf != null ? { ...effective, risk_free_rate: rf } : effective;
   return {
     domainPortfolios,
     allTickers,
     priceData: price.priceData,
     cpiData: macro.cpiData,
     exchangeRates: macro.exchangeRates,
-    effectiveParameters: clampParametersToDataRange(
-      parameters,
-      price.effectiveStartDate,
-      price.effectiveEndDate,
-    ),
+    effectiveParameters,
     warnings: price.warnings,
     dateRange: price.dateRange,
   };
