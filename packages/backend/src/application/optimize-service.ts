@@ -8,6 +8,7 @@ import {
   backtestResultSchema,
 } from '../schemas/engineSchemas.js';
 import { buildEngineParams } from './backtest/backtestEngineUtils.js';
+import { loadAnnualRiskFreeRate } from '../infrastructure/dataServices.js';
 import {
   preparePriceDataAndWarnings,
   filterPriceData,
@@ -60,8 +61,11 @@ export async function runOptimization(
   objective: 'maxSharpe' | 'minVolatility' | 'maxReturn',
   constraints: { minWeight?: number; maxWeight?: number },
   parameters: BacktestParameters,
-  numIterations?: number,
+  opts: { numIterations?: number; riskFreeRate?: number } = {},
 ): Promise<{ data: Record<string, unknown>; warnings: Warning[]; dateRange: DateRangeInfo }> {
+  // U-2：FRED 窗口匹配 rf 优先，用户显式其次；均无→引擎 legacy 常量
+  const fredRf = await loadAnnualRiskFreeRate(parameters.startDate, parameters.endDate);
+  const rf = fredRf ?? opts.riskFreeRate;
   return runCompute(
     '/api/engine/optimize',
     tickers,
@@ -69,7 +73,8 @@ export async function runOptimization(
     {
       objective,
       constraints: constraints || {},
-      numIterations: numIterations ? Math.min(numIterations, 100000) : 10000,
+      numIterations: opts.numIterations ? Math.min(opts.numIterations, 100000) : 10000,
+      ...(rf != null ? { risk_free_rate: rf } : {}),
     },
     optimizeResultSchema,
   );

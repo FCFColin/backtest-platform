@@ -96,7 +96,7 @@ func TestPortfolioMetrics(t *testing.T) {
 		w := []float64{0.5, 0.5}
 		mu := []float64{0.10, 0.05}
 		sigma := [][]float64{{0.04, 0.01}, {0.01, 0.02}}
-		ret, vol, sharpe := portfolioMetrics(w, mu, sigma)
+		ret, vol, sharpe := portfolioMetrics(riskFreeRate, w, mu, sigma)
 		if math.Abs(ret-0.075) > 1e-10 {
 			t.Errorf("期望收益应为 0.075，实际 %.6f", ret)
 		}

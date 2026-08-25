@@ -60,18 +60,23 @@ func Optimize(ctx context.Context, req OptimizeRequest) (*OptimizeResponse, erro
 		return nil, ctx.Err()
 	default:
 	}
+	// U-2 跟进：显式 rf 优先，nil→legacy 常量
+	rf := riskFreeRate
+	if req.RiskFreeRate != nil {
+		rf = *req.RiskFreeRate
+	}
 	var weights []float64
 	switch req.Objective {
 	case "minVolatility":
 		weights = optimizeMinVolatility(mu, sigma, req.Constraints, req.NumIterations)
 	case "maxSharpe":
-		weights = optimizeMaxSharpe(mu, sigma, req.Constraints, req.NumIterations)
+		weights = optimizeMaxSharpe(rf, mu, sigma, req.Constraints, req.NumIterations)
 	case "maxReturn":
 		weights = optimizeMaxReturn(mu, req.Constraints)
 	default:
 		return nil, engineutil.NewInputError("不支持的优化目标: %s", req.Objective)
 	}
-	ret, vol, sharpe := portfolioMetrics(weights, mu, sigma)
+	ret, vol, sharpe := portfolioMetrics(rf, weights, mu, sigma)
 	return &OptimizeResponse{OptimalWeights: makeWeightMap(req.Tickers, weights), ExpectedReturn: ret, ExpectedVolatility: vol, SharpeRatio: sharpe}, nil
 }
 func ComputeEfficientFrontier(ctx context.Context, req FrontierRequest) (*FrontierResponse, error) {
@@ -81,8 +86,8 @@ func ComputeEfficientFrontier(ctx context.Context, req FrontierRequest) (*Fronti
 		return nil, err
 	}
 	c := Constraints{MinWeight: 0, MaxWeight: 1}
-	retMin, _, _ := portfolioMetrics(optimizeMinVolatility(mu, sigma, c, defaultIterations), mu, sigma)
-	retMax, _, _ := portfolioMetrics(optimizeMaxReturn(mu, c), mu, sigma)
+	retMin, _, _ := portfolioMetrics(riskFreeRate, optimizeMinVolatility(mu, sigma, c, defaultIterations), mu, sigma)
+	retMax, _, _ := portfolioMetrics(riskFreeRate, optimizeMaxReturn(mu, c), mu, sigma)
 	if retMax <= retMin {
 		retMax = retMin + 0.01
 	}
@@ -95,7 +100,7 @@ func ComputeEfficientFrontier(ctx context.Context, req FrontierRequest) (*Fronti
 		}
 		targetRet := retMin + (retMax-retMin)*float64(i)/float64(req.NumPoints-1)
 		w := solveFrontierPoint(mu, sigma, targetRet, c)
-		ret, vol, sharpe := portfolioMetrics(w, mu, sigma)
+		ret, vol, sharpe := portfolioMetrics(riskFreeRate, w, mu, sigma)
 		frontier = append(frontier, FrontierPoint{Weights: makeWeightMap(req.Tickers, w), ExpectedReturn: ret, ExpectedVolatility: vol, SharpeRatio: sharpe})
 	}
 	return &FrontierResponse{Frontier: frontier}, nil
@@ -148,7 +153,7 @@ func solveFrontierPoint(mu []float64, sigma [][]float64, targetRet float64, c Co
 	n := len(mu)
 	sigmaInv, err := invertDense(sigma)
 	if err != nil {
-		return randomSearch(mu, sigma, c, "minVolatility", defaultIterations)
+		return randomSearch(riskFreeRate, mu, sigma, c, "minVolatility", defaultIterations)
 	}
 	ones := make([]float64, n)
 	for i := range ones {
@@ -164,7 +169,7 @@ func solveFrontierPoint(mu []float64, sigma [][]float64, targetRet float64, c Co
 	}
 	det := a*cc - b*b
 	if math.Abs(det) < 1e-15 {
-		return randomSearch(mu, sigma, c, "minVolatility", defaultIterations)
+		return randomSearch(riskFreeRate, mu, sigma, c, "minVolatility", defaultIterations)
 	}
 	lambda1 := (cc - b*targetRet) / det
 	lambda2 := (a*targetRet - b) / det
@@ -191,8 +196,8 @@ func solveFrontierPoint(mu []float64, sigma [][]float64, targetRet float64, c Co
 func linearInterpolationFallback(mu []float64, sigma [][]float64, targetRet float64, c Constraints) []float64 {
 	wMinVol := optimizeMinVolatility(mu, sigma, c, defaultIterations)
 	wMaxRet := optimizeMaxReturn(mu, c)
-	retMin, _, _ := portfolioMetrics(wMinVol, mu, sigma)
-	retMax, _, _ := portfolioMetrics(wMaxRet, mu, sigma)
+	retMin, _, _ := portfolioMetrics(riskFreeRate, wMinVol, mu, sigma)
+	retMax, _, _ := portfolioMetrics(riskFreeRate, wMaxRet, mu, sigma)
 	if math.Abs(retMax-retMin) < 1e-15 {
 		return wMinVol
 	}
@@ -203,7 +208,7 @@ func linearInterpolationFallback(mu []float64, sigma [][]float64, targetRet floa
 	}
 	return weights
 }
-func portfolioMetrics(w, mu []float64, sigma [][]float64) (ret, vol, sharpe float64) {
+func portfolioMetrics(rf float64, w, mu []float64, sigma [][]float64) (ret, vol, sharpe float64) {
 	for i := range mu {
 		ret += w[i] * mu[i]
 	}
@@ -214,7 +219,7 @@ func portfolioMetrics(w, mu []float64, sigma [][]float64) (ret, vol, sharpe floa
 	}
 	vol = math.Sqrt(math.Max(0, variance))
 	if vol > 1e-10 {
-		sharpe = (ret - riskFreeRate) / vol
+		sharpe = (ret - rf) / vol
 	}
 	return
 }
@@ -279,7 +284,7 @@ func makeWeightMap(tickers []string, weights []float64) map[string]float64 {
 	}
 	return m
 }
-func randomSearch(mu []float64, sigma [][]float64, c Constraints, objective string, numIter int) []float64 {
+func randomSearch(rf float64, mu []float64, sigma [][]float64, c Constraints, objective string, numIter int) []float64 {
 	n := len(mu)
 	bestWeights := make([]float64, n)
 	for i := range bestWeights {
@@ -289,7 +294,7 @@ func randomSearch(mu []float64, sigma [][]float64, c Constraints, objective stri
 	rng := rand.New(rand.NewSource(42))
 	for iter := 0; iter < numIter; iter++ {
 		w := randomWeights(n, c, rng)
-		_, vol, sharpe := portfolioMetrics(w, mu, sigma)
+		_, vol, sharpe := portfolioMetrics(rf, w, mu, sigma)
 		var score float64
 		switch objective {
 		case "maxSharpe":

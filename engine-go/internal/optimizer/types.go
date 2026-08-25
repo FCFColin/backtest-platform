@@ -6,6 +6,8 @@ type OptimizeRequest struct {
 	Objective     string                        `json:"objective"`
 	Constraints   Constraints                   `json:"constraints"`
 	NumIterations int                           `json:"numIterations"`
+	// U-2 跟进：年化无风险利率（nil→legacy 常量 0.02），用于 maxSharpe 目标与 SharpeRatio 输出
+	RiskFreeRate *float64 `json:"riskFreeRate,omitempty"`
 }
 type Constraints struct {
 	MinWeight float64 `json:"minWeight"`

@@ -143,14 +143,19 @@ router.post(
   '/optimize',
   validate(optimizeSchema),
   computeRoute('optimize', 'Optimization error', 'OPTIMIZATION_ERROR', async (req) => {
-    const { tickers, objective, constraints, parameters, numIterations } = req.body as {
-      tickers: string[];
-      objective: 'maxSharpe' | 'minVolatility' | 'maxReturn';
-      constraints?: { minWeight?: number; maxWeight?: number };
-      parameters: BacktestParameters;
-      numIterations?: number;
-    };
-    return runOptimization(tickers, objective, constraints || {}, parameters, numIterations);
+    const { tickers, objective, constraints, parameters, numIterations, riskFreeRate } =
+      req.body as {
+        tickers: string[];
+        objective: 'maxSharpe' | 'minVolatility' | 'maxReturn';
+        constraints?: { minWeight?: number; maxWeight?: number };
+        parameters: BacktestParameters;
+        numIterations?: number;
+        riskFreeRate?: number;
+      };
+    return runOptimization(tickers, objective, constraints || {}, parameters, {
+      numIterations,
+      riskFreeRate,
+    });
   }),
 );
 

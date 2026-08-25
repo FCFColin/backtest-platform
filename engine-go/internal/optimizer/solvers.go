@@ -19,10 +19,12 @@ func normalizedSol(name string, v []float64) ([]float64, error) {
 	}
 	return v, nil
 }
-func tangentPortfolio(mu []float64, sigmaInv [][]float64) ([]float64, error) {
+
+// U-2 跟进：rf 显式参数（legacy 常量由调用方缺省传入）
+func tangentPortfolio(rf float64, mu []float64, sigmaInv [][]float64) ([]float64, error) {
 	excess := make([]float64, len(mu))
 	for i := range excess {
-		excess[i] = mu[i] - riskFreeRate
+		excess[i] = mu[i] - rf
 	}
 	return normalizedSol("tangent portfolio", denseMulVec(sigmaInv, excess))
 }
@@ -37,11 +39,11 @@ func optimizeMinVolatility(mu []float64, sigma [][]float64, c Constraints, numIt
 	n := len(mu)
 	sigmaInv, err := invertDense(sigma)
 	if err != nil {
-		return randomSearch(mu, sigma, c, "minVolatility", numIter)
+		return randomSearch(riskFreeRate, mu, sigma, c, "minVolatility", numIter)
 	}
 	weights, err := closedFormMinVolatility(sigmaInv)
 	if err != nil {
-		return randomSearch(mu, sigma, c, "minVolatility", numIter)
+		return randomSearch(riskFreeRate, mu, sigma, c, "minVolatility", numIter)
 	}
 	if satisfiesConstraints(weights, c) {
 		return weights
@@ -64,16 +66,16 @@ func optimizeMinVolatility(mu []float64, sigma [][]float64, c Constraints, numIt
 	if isValidPortfolio(w) {
 		return w
 	}
-	return randomSearch(mu, sigma, c, "minVolatility", numIter)
+	return randomSearch(riskFreeRate, mu, sigma, c, "minVolatility", numIter)
 }
-func optimizeMaxSharpe(mu []float64, sigma [][]float64, c Constraints, numIter int) []float64 {
+func optimizeMaxSharpe(rf float64, mu []float64, sigma [][]float64, c Constraints, numIter int) []float64 {
 	n := len(mu)
 	if n <= subsetLimit {
-		return optimizeMaxSharpeSubset(mu, sigma, c, numIter)
+		return optimizeMaxSharpeSubset(rf, mu, sigma, c, numIter)
 	}
-	return optimizeMaxSharpeClosed(mu, sigma, c, numIter)
+	return optimizeMaxSharpeClosed(rf, mu, sigma, c, numIter)
 }
-func optimizeMaxSharpeSubset(mu []float64, sigma [][]float64, c Constraints, numIter int) []float64 {
+func optimizeMaxSharpeSubset(rf float64, mu []float64, sigma [][]float64, c Constraints, numIter int) []float64 {
 	n := len(mu)
 	totalSubsets := 1 << n
 	bestSharpe := math.Inf(-1)
@@ -102,7 +104,7 @@ func optimizeMaxSharpeSubset(mu []float64, sigma [][]float64, c Constraints, num
 		if err != nil {
 			continue
 		}
-		rawW, err := tangentPortfolio(subMu, subSigmaInv)
+		rawW, err := tangentPortfolio(rf, subMu, subSigmaInv)
 		if err != nil {
 			continue
 		}
@@ -116,7 +118,7 @@ func optimizeMaxSharpeSubset(mu []float64, sigma [][]float64, c Constraints, num
 		if !isValidPortfolio(fullW) {
 			continue
 		}
-		_, _, sharpe := portfolioMetrics(fullW, mu, sigma)
+		_, _, sharpe := portfolioMetrics(rf, fullW, mu, sigma)
 		if sharpe > bestSharpe {
 			bestSharpe = sharpe
 			bestWeights = fullW
@@ -125,16 +127,16 @@ func optimizeMaxSharpeSubset(mu []float64, sigma [][]float64, c Constraints, num
 	if bestSharpe > math.Inf(-1) {
 		return bestWeights
 	}
-	return randomSearch(mu, sigma, c, "maxSharpe", numIter)
+	return randomSearch(rf, mu, sigma, c, "maxSharpe", numIter)
 }
-func optimizeMaxSharpeClosed(mu []float64, sigma [][]float64, c Constraints, numIter int) []float64 {
+func optimizeMaxSharpeClosed(rf float64, mu []float64, sigma [][]float64, c Constraints, numIter int) []float64 {
 	sigmaInv, err := invertDense(sigma)
 	if err != nil {
-		return randomSearch(mu, sigma, c, "maxSharpe", numIter)
+		return randomSearch(rf, mu, sigma, c, "maxSharpe", numIter)
 	}
-	rawW, err := tangentPortfolio(mu, sigmaInv)
+	rawW, err := tangentPortfolio(rf, mu, sigmaInv)
 	if err != nil {
-		return randomSearch(mu, sigma, c, "maxSharpe", numIter)
+		return randomSearch(rf, mu, sigma, c, "maxSharpe", numIter)
 	}
 	if satisfiesConstraints(rawW, c) {
 		return rawW
@@ -144,7 +146,7 @@ func optimizeMaxSharpeClosed(mu []float64, sigma [][]float64, c Constraints, num
 	if isValidPortfolio(clipped) {
 		return clipped
 	}
-	return randomSearch(mu, sigma, c, "maxSharpe", numIter)
+	return randomSearch(rf, mu, sigma, c, "maxSharpe", numIter)
 }
 func optimizeMaxReturn(mu []float64, c Constraints) []float64 {
 	n := len(mu)
