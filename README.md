@@ -42,6 +42,35 @@ pnpm dev:all          # 全栈开发：PG/Redis + Go 引擎/数据服务 + API 1
 
 配置以 `.env.example` 为权威源（复制为 `.env` 后按需修改），关键变量含 `DATABASE_URL`/`REDIS_URL`/`JWT_SECRET`/`GO_ENGINE_URL`/`GO_DATA_SERVICE_URL`/`ADMIN_API_KEY`，生产必填项见 `.env.example` 的 `[生产必填]` 标记。
 
+## 生产部署
+
+> 详细拓扑见 `docs/ARCHITECTURE.md §4`；本节是最短可用路径（B3）。
+
+**1. 前置**：Docker + docker compose v2；外部可达域名与 TLS 终结（建议 Nginx/Caddy 反代 80/443 → 前端 :80 与 API :15001）。
+
+**2. 配置**：复制 `.env.example` → `.env`，覆盖全部 `[生产必填]`：强随机 `JWT_SECRET`(≥32 字符)、`ENGINE_AUTH_TOKEN`/`DATA_SERVICE_AUTH_TOKEN`(≥32 字符且两服务一致)、生产数据库 `DATABASE_URL`(`sslmode=require`)、Sentinel 模式 `REDIS_SENTINELS`、`ADMIN_API_KEY`、`NODE_ENV=production`。
+
+**3. 数据库迁移**（只增不减，up-only）：`pnpm --filter @backtest/backend migrate`（首次部署前执行，幂等可重跑）。
+
+**4. 全栈拉起**：
+
+```bash
+docker compose up -d --build   # 核心 + 观测栈（prometheus/grafana/alertmanager 默认随栈拉起）
+# 可选 profile：--profile redis-ha（Sentinel 高可用）/ edge / cdc
+```
+
+核心服务均带 healthcheck 与资源限制（`lim-m/lim-s` 锚点）；等待健康：`docker compose ps` 全部 `healthy`。
+
+**5. 验证**：
+
+- API 健康：`curl -f http://127.0.0.1:15001/api/health` → 200（引擎不可用时计算端点按 ADR-008 返回 503+Retry-After）
+- 前端：访问反代域名 → SPA 登录页
+- 监控：Grafana :3000（默认 admin/`GRAFANA_ADMIN_PASSWORD`）
+
+**6. K8s 路径**（替代 compose）：`k8s/overlays/{dev,staging,production}` 三套 kustomize overlay，密钥经 `k8s/*-secret.yaml`（gitignored，模板 `*.example`）；构建校验 `kubectl kustomize k8s/overlays/production`。
+
+**7. 升级**：拉取新代码 → 重跑迁移 → `docker compose up -d --build`（滚动重建健康检查门控）。回滚策略=镜像/代码回退+迁移 up-only 前滚兼容（ADR-002）。
+
 ## 文档
 
 | 类别      | 文档                                                                                                                                                                     |
