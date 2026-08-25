@@ -12,7 +12,6 @@
     "tests/mocks/react-router.tsx",
     "tests/e2e/ui/auth.setup.ts",
     "tests/e2e/ui/global-setup.ts",
-    "packages/frontend/src/entry-server.tsx",
     "public/assets/theme-init.2026.js"
   ],
   "workspaces": {

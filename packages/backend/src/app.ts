@@ -3,6 +3,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import { createServer } from 'node:http';
+import path from 'node:path';
 import { randomBytes } from 'node:crypto';
 import { config } from './config/index.js';
 import { jwtAuth } from './middleware/jwtAuth.js';
@@ -169,7 +170,9 @@ app.use('/api/v1', platformRoutes);
 
 setupOpenApiUi(app);
 
-// 静态文件 + SSR：只在 production 或 SERVE_STATIC 时挂载
+// 静态文件 + SPA fallback：只在 production 或 SERVE_STATIC 时挂载
+// （v3.2 纯 SPA 收敛：SSR 链路已删，非 API/assets 路径一律回 index.html；
+//   CSP 由全局中间件统一设置，SPA 响应无需 per-request nonce）
 if (config.NODE_ENV === 'production' || config.SERVE_STATIC) {
   app.use((req, res, next) => {
     if (req.path.startsWith('/assets/') || req.path === '/favicon.svg') {
@@ -180,9 +183,10 @@ if (config.NODE_ENV === 'production' || config.SERVE_STATIC) {
       next();
     }
   });
-  const { ssrMiddleware } = await import('./ssrMiddleware.js');
-  // ssrMiddleware 总在内部兜底 sendFile(SPA)，故无需第二条路由
-  app.get(/^\/(?!api\/)(?!assets\/)(?!favicon)/, ssrMiddleware);
+  const spaIndex = path.resolve(config.FRONTEND_DIST_DIR, 'index.html');
+  app.get(/^\/(?!api\/)(?!assets\/)(?!favicon)/, (_req, res) => {
+    res.sendFile(spaIndex);
+  });
 }
 
 app.use(errorHandler);

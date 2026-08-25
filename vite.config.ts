@@ -1,7 +1,6 @@
 import { defineConfig, type Plugin } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import path from 'node:path';
-import fs from 'node:fs';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 
@@ -57,24 +56,6 @@ function zustandEsmResolver(): Plugin {
     enforce: 'pre',
     resolveId(source) {
       return map[source] && path.join(esm, map[source]);
-    },
-  };
-}
-
-function ssrLocalesCopy(): Plugin {
-  let outDir = '';
-  return {
-    name: 'ssr-locales-copy',
-    configResolved(config) {
-      outDir = config.build.outDir;
-    },
-    closeBundle() {
-      if (!outDir.endsWith('dist-ssr')) return;
-      fs.cpSync(
-        path.resolve(projectRoot, 'packages/frontend/src/i18n/locales'),
-        path.resolve(projectRoot, outDir, 'locales'),
-        { recursive: true },
-      );
     },
   };
 }
@@ -191,12 +172,11 @@ export default defineConfig(async ({ mode }) => {
           'packages/frontend/src/utils/**/*.{ts,tsx}',
         ],
         exclude: [
-          'dist-ssr/**',
           '*.config.{js,ts,cjs,mjs}',
           'packages/frontend/src/**/*.d.ts',
           'packages/frontend/src/**/*.test.{ts,tsx}',
           'packages/frontend/src/store/{index,types}.ts',
-          'packages/backend/src/{utils/{logger,metrics},db/{marketStatsTypes,migrate-cli},app,ssrMiddleware,infrastructure/mailService,queues/{dataUpdateWorker,workerEntrypoint}}.ts',
+          'packages/backend/src/{utils/{logger,metrics},db/{marketStatsTypes,migrate-cli},app,infrastructure/mailService,queues/{dataUpdateWorker,workerEntrypoint}}.ts',
         ],
         thresholds: {
           'packages/backend/src/domain/**': { lines: 95 },
@@ -206,12 +186,7 @@ export default defineConfig(async ({ mode }) => {
         },
       },
     },
-    plugins: [
-      zustandEsmResolver(),
-      ssrLocalesCopy(),
-      react(),
-      (await import('vite-tsconfig-paths')).default(),
-    ],
+    plugins: [zustandEsmResolver(), react(), (await import('vite-tsconfig-paths')).default()],
     css: {
       postcss: {
         plugins: [tailwindcss({ config: tailwindConfigPath }), autoprefixer()],
@@ -227,7 +202,6 @@ export default defineConfig(async ({ mode }) => {
       target: 'esnext',
       modulePreload: true,
       cssCodeSplit: false,
-      ssrEmitAssets: true,
       rollupOptions: {
         output: {
           manualChunks(id: string) {

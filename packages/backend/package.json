@@ -10,7 +10,6 @@
     "worker:dev": "node --watch --import tsx src/queues/workerEntrypoint.ts",
     "build": "node esbuild.config.mjs src/server.ts",
     "build:worker": "node esbuild.config.mjs src/queues/workerEntrypoint.ts",
-    "build:ssr": "vite build --config ../../vite.config.ts --ssr packages/frontend/src/entry-server.tsx --outDir dist-ssr",
     "start": "node dist/server.js",
     "start:worker": "node dist/workerEntrypoint.js",
     "check": "tsc --noEmit -p ../../tsconfig.backend.json",
