@@ -81,6 +81,7 @@ const C_DEFS = {
   auth_ip_lockout_total: ['IP lockouts', []],
   quota_enforcement_failures_total: ['Quota enforcement failures', ['quota_key', 'reason']],
   audit_outbox_write_failures_total: ['Audit outbox write failures', []],
+  outbox_dead_letters_total: ['Outbox dead letters (poison-pill parked)', []],
   usage_write_failures_total: ['Usage write failures', ['metric']],
   dlq_transfers_total: ['Dead letter transfers', ['queue']],
 } as const;
@@ -93,6 +94,7 @@ export const engineUnavailableTotal = C.engine_unavailable_total;
 export const authIpLockoutCounter = C.auth_ip_lockout_total;
 export const quotaEnforcementFailures = C.quota_enforcement_failures_total;
 export const auditOutboxWriteFailures = C.audit_outbox_write_failures_total;
+export const outboxDeadLettersTotal = C.outbox_dead_letters_total;
 export const usageWriteFailures = C.usage_write_failures_total;
 export const recordDlqTransfer = (q: string): void =>
   C.dlq_transfers_total.inc({ queue: sLabel(q) });

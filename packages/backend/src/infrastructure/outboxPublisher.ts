@@ -1,7 +1,7 @@
 import pg from 'pg';
 import client from 'prom-client';
 import { logger } from '../utils/logger.js';
-import { getPrometheusRegister } from '../utils/metrics.js';
+import { getPrometheusRegister, outboxDeadLettersTotal } from '../utils/metrics.js';
 import { config } from '../config/index.js';
 import pLimit from 'p-limit';
 import { AUDIT_EVENT_TYPE, handleAuditEvent } from '../application/auditEventHandler.js';
@@ -22,6 +22,9 @@ const outboxTotalRows = mkGauge('outbox_total_rows', 'Total outbox rows');
 
 /** 事件发布并发上限（D3-003：批量并发处理，避免串行阻塞） */
 const OUTBOX_PUBLISH_CONCURRENCY = 10;
+
+/** 毒丸停泊阈值（A1）：连续失败达此次数的事件退出消费队列，须人工重置 attempts */
+const OUTBOX_MAX_ATTEMPTS = 5;
 
 type LogLevel = 'info' | 'warn' | 'error' | 'debug';
 function moduleLog(level: LogLevel, fields: Record<string, unknown>, msg: string): void {
@@ -91,8 +94,10 @@ export class OutboxPublisher {
     try {
       await client.query('BEGIN');
       // FOR UPDATE SKIP LOCKED：多实例同时消费时仅一个实例领取每行，避免重复分发与 lost-update
+      // attempts < MAX：毒丸停泊（A1）——达上限事件不再领取，待人工重置
       const result = await client.query(
-        'SELECT id, aggregate_type, aggregate_id, event_type, payload, created_at, tenant_id FROM outbox WHERE processed_at IS NULL ORDER BY created_at ASC FOR UPDATE SKIP LOCKED LIMIT 100',
+        'SELECT id, aggregate_type, aggregate_id, event_type, payload, created_at, tenant_id FROM outbox WHERE processed_at IS NULL AND attempts < $1 ORDER BY created_at ASC FOR UPDATE SKIP LOCKED LIMIT 100',
+        [OUTBOX_MAX_ATTEMPTS],
       );
       const events = result.rows as OutboxEventRow[];
       const limit = pLimit(OUTBOX_PUBLISH_CONCURRENCY);
@@ -105,15 +110,22 @@ export class OutboxPublisher {
         ),
       );
       const processedIds: string[] = [];
+      const failed: { id: string; err: string }[] = [];
       settled.forEach((s, i) => {
         if (s.status === 'fulfilled') processedIds.push(s.value);
-        else logError(s.reason, 'Failed to process outbox event', { eventId: events[i].id });
+        else
+          failed.push({
+            id: events[i].id,
+            err: String((s.reason as Error)?.message ?? s.reason).slice(0, 500),
+          });
       });
       if (processedIds.length > 0)
         await client.query('UPDATE outbox SET processed_at = NOW() WHERE id = ANY($1)', [
           processedIds,
         ]);
       await client.query('COMMIT');
+      // 失败计数在事务外补记（best-effort）：崩溃窗口内丢失一次计数仅意味着多重试一轮
+      await Promise.allSettled(failed.map((f) => this.recordFailure(f.id, f.err)));
     } catch (err) {
       await client.query('ROLLBACK').catch(() => {});
       logError(err, 'Error in handleNotification');
@@ -139,6 +151,29 @@ export class OutboxPublisher {
     await handleAuditEvent({ ...payload, __outboxEventId: event.id });
   }
 
+  /** 失败计数 + 死信判定（A1）：attempts 达上限时停泊并暴露 AUDIT_DEAD_LETTER 信号 */
+  private async recordFailure(id: string, errMsg: string): Promise<void> {
+    try {
+      const result = await this.pool.query(
+        'UPDATE outbox SET attempts = attempts + 1, last_error = $2 WHERE id = $1 RETURNING attempts',
+        [id, errMsg],
+      );
+      const attempts = Number(result.rows[0]?.attempts ?? 0);
+      if (attempts >= OUTBOX_MAX_ATTEMPTS) {
+        moduleLog(
+          'error',
+          { eventId: id, attempts, lastError: errMsg },
+          'AUDIT_DEAD_LETTER: outbox 事件连续失败已达上限，已停泊（人工修复后置 attempts=0 重入队）',
+        );
+        outboxDeadLettersTotal.inc();
+      } else {
+        logError({ message: errMsg }, 'Failed to process outbox event', { eventId: id, attempts });
+      }
+    } catch (err) {
+      logError(err, 'Failed to record outbox attempt', { eventId: id });
+    }
+  }
+
   async stop(): Promise<void> {
     this.stopCompensationScanner();
     if (this.listener) {
@@ -157,7 +192,8 @@ export class OutboxPublisher {
       try {
         await this.updateOutboxMetrics();
         const result = await this.pool.query(
-          "SELECT id FROM outbox WHERE processed_at IS NULL AND created_at < NOW() - INTERVAL '5 minutes' ORDER BY created_at ASC LIMIT 50",
+          "SELECT id FROM outbox WHERE processed_at IS NULL AND attempts < $1 AND created_at < NOW() - INTERVAL '5 minutes' ORDER BY created_at ASC LIMIT 50",
+          [OUTBOX_MAX_ATTEMPTS],
         );
         if (result.rows.length > 0) {
           moduleLog(

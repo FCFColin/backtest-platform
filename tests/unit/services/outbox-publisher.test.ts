@@ -7,6 +7,7 @@ import '../../helpers/loggerMock.js';
 type AnyMock = ReturnType<typeof vi.fn>;
 
 const eventMocks = vi.hoisted(() => ({ handleAuditEvent: vi.fn(async () => {}) }));
+const metricMocks = vi.hoisted(() => ({ deadLetterInc: vi.fn() }));
 const clientMock = vi.hoisted(() => ({
   connect: vi.fn().mockResolvedValue(undefined),
   query: vi.fn().mockResolvedValue({ rows: [] }),
@@ -22,9 +23,15 @@ vi.mock('pg', () => ({
   default: { Client: vi.fn(() => clientMock), Pool: vi.fn() },
   __esModule: true,
 }));
-vi.mock('prom-client', () => ({ default: { Gauge: vi.fn(() => ({ set: vi.fn() })) } }));
+vi.mock('prom-client', () => ({
+  default: {
+    Gauge: vi.fn(() => ({ set: vi.fn() })),
+    Counter: vi.fn(() => ({ inc: vi.fn(), set: vi.fn() })),
+  },
+}));
 vi.mock('../../../packages/backend/src/utils/metrics.js', () => ({
   getPrometheusRegister: () => ({ registerMetric: vi.fn() }),
+  outboxDeadLettersTotal: { inc: metricMocks.deadLetterInc },
 }));
 vi.mock('../../../packages/backend/src/config/index.js', () => ({
   config: { CDC_KAFKA_ENABLED: false, OUTBOX_RETENTION_DAYS: 7 },
@@ -99,6 +106,7 @@ describe('OutboxPublisher', () => {
       await publisher.handleNotification();
       const sql = sqlOf(clientQuery, 'processed_at IS NULL');
       expect(sql).toContain('processed_at IS NULL');
+      expect(sql).toContain('attempts < $1');
       expect(sql).toContain('ORDER BY created_at ASC');
       expect(sql).toContain('LIMIT 100');
       expect(sql).toContain('FOR UPDATE SKIP LOCKED');
@@ -143,6 +151,50 @@ describe('OutboxPublisher', () => {
       expect(clientQuery.mock.calls.some((c) => String(c[0]).includes(updSql))).toBe(false);
       expect(loggerMocks.error).toHaveBeenCalled();
     });
+    it('handler 失败应在事务外补记 attempts+1/last_error（毒丸计数，A1）', async () => {
+      queueClientTxn(clientQuery, {
+        rows: [
+          createOutboxRow({
+            id: 7,
+            event_type: 'AuditEvent',
+            aggregate_type: 'audit',
+            aggregate_id: 'u1',
+            payload: {},
+          }),
+        ],
+      });
+      eventMocks.handleAuditEvent.mockRejectedValueOnce(new Error('boom'));
+      await publisher.handleNotification();
+      const upd = pool.query.mock.calls.find((c) =>
+        String(c[0]).includes('SET attempts = attempts + 1'),
+      );
+      expect(upd).toBeDefined();
+      expect((upd as unknown[])[1]).toEqual([7, 'boom']);
+      expect(
+        clientQuery.mock.calls.some((c) => String(c[0]).includes('UPDATE outbox SET processed_at')),
+      ).toBe(false);
+    });
+    it('attempts 达上限应停泊并触发 AUDIT_DEAD_LETTER 日志与死信指标（A1）', async () => {
+      queueClientTxn(clientQuery, {
+        rows: [
+          createOutboxRow({
+            id: 8,
+            event_type: 'AuditEvent',
+            aggregate_type: 'audit',
+            aggregate_id: 'u2',
+            payload: {},
+          }),
+        ],
+      });
+      eventMocks.handleAuditEvent.mockRejectedValueOnce(new Error('fatal payload'));
+      pool.query.mockResolvedValueOnce({ rows: [{ attempts: 5 }], rowCount: 1 });
+      await publisher.handleNotification();
+      expect(metricMocks.deadLetterInc).toHaveBeenCalledTimes(1);
+      expect(loggerMocks.error).toHaveBeenCalledWith(
+        expect.objectContaining({ eventId: 8, attempts: 5 }),
+        expect.stringContaining('AUDIT_DEAD_LETTER'),
+      );
+    });
 
     it.each([
       [
@@ -176,6 +228,7 @@ describe('OutboxPublisher', () => {
       const sql = sqlOf(pool.query, "INTERVAL '5 minutes'");
       expect(sql).toBeDefined();
       expect(sql).toContain('processed_at IS NULL');
+      expect(sql).toContain('attempts < $1');
       expect(sql).toContain("created_at < NOW() - INTERVAL '5 minutes'");
       expect(sql).toContain('LIMIT 50');
       await publisher.stop();
@@ -225,7 +278,9 @@ describe('OutboxPublisher', () => {
       clientQuery.mockResolvedValueOnce({ rows: [] }); // SELECT
       await handlers.notification!({ channel: 'outbox_channel' });
       await vi.waitFor(() =>
-        expect(clientQuery).toHaveBeenCalledWith(expect.stringContaining('processed_at IS NULL')),
+        expect(
+          clientQuery.mock.calls.some((c) => String(c[0]).includes('processed_at IS NULL')),
+        ).toBe(true),
       );
       handlers.error!(new Error('connection reset'));
       handlers.end!();
