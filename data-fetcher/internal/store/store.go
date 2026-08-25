@@ -273,3 +273,56 @@ func (ds *DataStore) GetCPI(ctx context.Context, country string) ([]CPIEntry, er
 	}
 	return entries, rows.Err()
 }
+
+// ── U-2 Phase 1：无风险利率序列（treasury_rates）─────────────────────
+
+// TreasuryRate 单日利率观测（小数形式）。
+type TreasuryRate struct {
+	Date string  `json:"date"`
+	Rate float64 `json:"rate"`
+}
+
+// UpsertTreasuryRates 批量写入/更新利率观测（FRED 拉取后落库）。
+func (ds *DataStore) UpsertTreasuryRates(ctx context.Context, series string, points []TreasuryRate) (int64, error) {
+	batch := &pgx.Batch{}
+	for _, p := range points {
+		batch.Queue(
+			`INSERT INTO treasury_rates (series, date, rate) VALUES ($1, $2, $3)
+			 ON CONFLICT (series, date) DO UPDATE SET rate = EXCLUDED.rate`,
+			series, p.Date, p.Rate,
+		)
+	}
+	br := ds.pool.SendBatch(ctx, batch)
+	defer br.Close()
+	var n int64
+	for range points {
+		ct, err := br.Exec()
+		if err != nil {
+			return n, fmt.Errorf("%w: 利率写入失败: %v", ErrDBQuery, err)
+		}
+		n += ct.RowsAffected()
+	}
+	return n, nil
+}
+
+// GetTreasuryRates 读取区间内利率序列（升序）。
+func (ds *DataStore) GetTreasuryRates(ctx context.Context, series, start, end string) ([]TreasuryRate, error) {
+	rows, err := ds.pool.Query(ctx,
+		`SELECT date, rate FROM treasury_rates WHERE series = $1 AND date >= $2 AND date <= $3 ORDER BY date`,
+		series, start, end)
+	if err != nil {
+		return nil, fmt.Errorf("%w: 查询利率失败: %v", ErrDBQuery, err)
+	}
+	defer rows.Close()
+	out := make([]TreasuryRate, 0)
+	for rows.Next() {
+		var r TreasuryRate
+		var d time.Time
+		if err := rows.Scan(&d, &r.Rate); err != nil {
+			return nil, fmt.Errorf("%w: 扫描利率行失败: %v", ErrDBQuery, err)
+		}
+		r.Date = d.Format("2006-01-02")
+		out = append(out, r)
+	}
+	return out, rows.Err()
+}

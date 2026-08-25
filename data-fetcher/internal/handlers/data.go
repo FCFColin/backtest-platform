@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"data-fetcher/internal/fred"
 	"data-fetcher/internal/store"
 	"data-fetcher/internal/version"
 	"errors"
@@ -13,6 +14,7 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"time"
 )
 
 var tickerPattern = regexp.MustCompile(`^[A-Z0-9._-]{1,20}$`)
@@ -157,6 +159,75 @@ func HandleCPI(ds *store.DataStore) gin.HandlerFunc {
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": data})
 	}
 }
+
+// ── U-2 Phase 1：无风险利率（FRED treasury rates）─────────────────────
+
+var treasurySeriesAllowed = map[string]bool{"DGS3MO": true}
+
+// HandleTreasuryRates GET /api/data/treasury/:series?start&end
+func HandleTreasuryRates(ds *store.DataStore) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		series := strings.ToUpper(c.Param("series"))
+		if !treasurySeriesAllowed[series] {
+			sharedhttp.NewProblem(c, http.StatusBadRequest, "VALIDATION_ERROR", "Validation Error", "不支持的利率序列: "+series)
+			return
+		}
+		start, end := c.Query("start"), c.Query("end")
+		if start == "" || end == "" {
+			start, end = "1990-01-01", time.Now().Format("2006-01-02")
+		}
+		data, err := ds.GetTreasuryRates(c.Request.Context(), series, start, end)
+		if err != nil {
+			sharedhttp.NewProblem(c, http.StatusInternalServerError, "TREASURY_QUERY_FAILED", "Treasury Query Failed", "查询利率数据失败")
+			return
+		}
+		if len(data) == 0 {
+			sharedhttp.NewProblem(c, http.StatusNotFound, "DATA_NOT_FOUND", "Data Not Found", "利率数据不存在: "+series)
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"success": true, "data": data})
+	}
+}
+
+// HandleTreasuryRefresh POST /api/data/treasury/:series/refresh?start&end
+// 拉取 FRED 观测并 upsert；FRED_API_KEY 缺失时 503（fail-closed，ADR-008 数据面语义）。
+func HandleTreasuryRefresh(fc *fred.Client, ds *store.DataStore) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if fc == nil {
+			sharedhttp.NewProblem(c, http.StatusServiceUnavailable, "FRED_NOT_CONFIGURED", "Fred Not Configured", "FRED_API_KEY 未配置，无法拉取利率数据")
+			return
+		}
+		series := strings.ToUpper(c.Param("series"))
+		if !treasurySeriesAllowed[series] {
+			sharedhttp.NewProblem(c, http.StatusBadRequest, "VALIDATION_ERROR", "Validation Error", "不支持的利率序列: "+series)
+			return
+		}
+		end := time.Now().Format("2006-01-02")
+		start := c.Query("start")
+		if start == "" {
+			start = time.Now().AddDate(0, -3, 0).Format("2006-01-02") // 默认回补 90 天
+		}
+		if e := c.Query("end"); e != "" {
+			end = e
+		}
+		points, err := fc.FetchDailyRates(c.Request.Context(), series, start, end)
+		if err != nil {
+			sharedhttp.NewProblem(c, http.StatusBadGateway, "FRED_FETCH_FAILED", "Fred Fetch Failed", "拉取 FRED 数据失败")
+			return
+		}
+		rates := make([]store.TreasuryRate, len(points))
+		for i, p := range points {
+			rates[i] = store.TreasuryRate{Date: p.Date, Rate: p.Rate}
+		}
+		n, err := ds.UpsertTreasuryRates(c.Request.Context(), series, rates)
+		if err != nil {
+			sharedhttp.NewProblem(c, http.StatusInternalServerError, "TREASURY_WRITE_FAILED", "Treasury Write Failed", "利率落库失败")
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"series": series, "upserted": n, "fetched": len(points)}})
+	}
+}
+
 func HandleHealth(ds *store.DataStore) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var tickerCount, priceCount int

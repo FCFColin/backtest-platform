@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"data-fetcher/internal/fred"
 	"data-fetcher/internal/handlers"
+	"data-fetcher/internal/httpclient"
 	"data-fetcher/internal/middleware"
 	"data-fetcher/internal/provider"
 	"data-fetcher/internal/registry"
@@ -87,11 +89,19 @@ func main() {
 	))
 	// 限流仅作用于数据端点，health/ready/metrics 不受限（探活与抓取不能被节流）
 	authed.Use(newLimiterMiddleware())
+	// U-2 Phase 1：FRED 利率拉取客户端（FRED_API_KEY 缺失时 refresh 端点 503 fail-closed）
+	fredClient := fred.New(os.Getenv("FRED_API_KEY"), httpclient.New("fred", httpclient.Options{
+		MaxRetries:     3,
+		ConnectTimeout: 10 * time.Second,
+		ReadTimeout:    30 * time.Second,
+	}))
 	{
 		authed.GET("/api/data/search", handlers.HandleSearch(ds))
 		authed.GET("/api/data/price/:ticker", handlers.HandlePriceData(ds))
 		authed.POST("/api/data/price/batch", handlers.HandleBatchPriceData(ds))
 		authed.GET("/api/data/cpi/:country", handlers.HandleCPI(ds))
+		authed.GET("/api/data/treasury/:series", handlers.HandleTreasuryRates(ds))
+		authed.POST("/api/data/treasury/:series/refresh", handlers.HandleTreasuryRefresh(fredClient, ds))
 	}
 	gosharedhttp.StartPprofServerIfEnabled("127.0.0.1:6060")
 	srv := &http.Server{
