@@ -130,6 +130,46 @@ jobs:
       # chaos/e2e 仅 nightly（nightly.yml）；阈值以 scripts/check-coverage.mjs 为权威源（80/80/80/80）。
       - run: pnpm test:coverage:check
 
+  # page-smoke a11y 门禁（AGENTS §5）：本地 --repeat-each=10 全绿后才挂入；
+  # CI 用 repeat-each=3 控时长。稳定性门槛证据见会话收口 @2a5d011f 系列。
+  page-smoke:
+    name: Page Smoke (a11y gate)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: timescale/timescaledb:2.17.2-pg16
+        env:
+          POSTGRES_USER: backtest_app
+          POSTGRES_PASSWORD: backtest_app_dev
+          POSTGRES_DB: backtest_test
+        ports:
+          - '15442:5432'
+        options: >-
+          --health-cmd "pg_isready -U backtest_app"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+      redis:
+        image: redis:7
+        ports:
+          - '16381:6379'
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: ./.github/actions/pnpm-setup
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          pnpm-version: ${{ env.PNPM_VERSION }}
+      - run: pnpm build:frontend
+      - run: pnpm --filter @backtest/backend migrate
+      - run: npx playwright install --with-deps chromium
+      - run: pnpm exec playwright test tests/e2e/ui/page-smoke.spec.ts --project=chromium --repeat-each=3 --reporter=line
+
   critical-verify:
     name: CRITICAL Fix Verification
     runs-on: ubuntu-latest
