@@ -72,7 +72,8 @@ async function validateJwtPayload(
 export async function verifyToken(token: string): Promise<JwtPayload | null> {
   return tracer.startActiveSpan('jwt.verifyJwt', async (span) => {
     try {
-      const alg: 'RS256' | 'HS256' = config.JWT_ALGORITHM === 'HS256' ? 'HS256' : 'RS256';
+      // A3：JWT_ALGORITHM 已在 env 层枚举校验（非法值启动即抛），此处直接使用，不再静默兜底
+      const alg: 'RS256' | 'HS256' = config.JWT_ALGORITHM;
       const key = alg === 'RS256' ? await getOrCachePublicKey() : await getOrCacheHS256Key();
       let payload: JwtPayload;
       try {

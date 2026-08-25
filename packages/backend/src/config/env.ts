@@ -29,10 +29,18 @@ const nodeEnv = (v: string | undefined, d: NodeEnv): NodeEnv => {
   }
   return value as NodeEnv;
 };
+const JWT_ALGORITHM_VALUES = ['HS256', 'RS256'] as const;
+type JwtAlgorithm = (typeof JWT_ALGORITHM_VALUES)[number];
 
-export function resolveJwtAlgorithm(): 'RS256' | 'HS256' {
-  return (process.env.JWT_ALGORITHM ||
-    (process.env.NODE_ENV === 'production' ? 'RS256' : 'HS256')) as 'RS256' | 'HS256';
+// A3：枚举 fail-fast——此前任意非法值（如拼写错误 HS257）会被静默兜底成 RS256，
+// 导致生产以错误算法签名/验签。现与 NODE_ENV 同款校验器风格，启动即抛。
+export function resolveJwtAlgorithm(): JwtAlgorithm {
+  const value =
+    process.env.JWT_ALGORITHM || (process.env.NODE_ENV === 'production' ? 'RS256' : 'HS256');
+  if (!(JWT_ALGORITHM_VALUES as readonly string[]).includes(value)) {
+    throw new Error(`JWT_ALGORITHM must be one of ${JWT_ALGORITHM_VALUES.join(', ')}`);
+  }
+  return value as JwtAlgorithm;
 }
 
 export function parseCorsOrigins(raw: string | undefined): CorsOrigins {

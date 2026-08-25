@@ -360,6 +360,10 @@ describe('resolveJwtAlgorithm', () => {
       expect(resolveJwtAlgorithm()).toBe(expected);
     }
   });
+  it('A3：非法算法值应启动即抛（不再静默兜底 RS256）', () => {
+    process.env.JWT_ALGORITHM = 'HS257';
+    expect(() => resolveJwtAlgorithm()).toThrow(/JWT_ALGORITHM must be one of/);
+  });
 });
 
 describe('parseCorsOrigins', () => {
