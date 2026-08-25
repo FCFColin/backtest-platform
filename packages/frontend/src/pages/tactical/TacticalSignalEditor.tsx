@@ -41,7 +41,13 @@ function CompactSelect({
   return (
     <Select value={value} onValueChange={onChange}>
       <SelectTrigger
-        aria-label={label || t(options.find((o) => o.value === value)?.label || '')}
+        // a11y：value 未命中 options 时旧实现 t('') 产生空 aria-label（axe button-name 违规根因）
+        aria-label={
+          label ??
+          (options.find((o) => o.value === value)?.label
+            ? t(options.find((o) => o.value === value)!.label)
+            : t('Select'))
+        }
         className={cn('h-8 text-caption', className)}
       >
         <SelectValue />

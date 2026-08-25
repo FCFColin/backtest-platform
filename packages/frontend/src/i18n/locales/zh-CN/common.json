@@ -291,7 +291,7 @@
     "Volatility": "波动率", "Volatility (%)": "波动率 (%)", "Volatility <": "波动率 <", "Volatility Decay Calculator": "波动率衰减计算器",
     "Volatility: {{value}}": "波动率：{{value}}",
     "We welcome your feedback, suggestions, and bug reports. Please reach out via the following channels.": "我们欢迎您的反馈、建议和问题报告。请通过以下方式与我们联系。",
-    "Weekly": "每周", "Weight": "权重", "Weight Allocation": "权重分配",
+    "Weekly": "每周", "Weight": "权重", "Weight %": "权重百分比", "Ticker search": "代码搜索", "Select": "选择", "Select": "选择", "Weight Allocation": "权重分配",
     "Weights must sum to 100%, got {{total}}%": "权重合计必须为 100%，当前为 {{total}}%", "What You Can Model": "可建模内容", "Win Rate": "胜率",
     "Window (days)": "窗口（天）", "Winning Strategy": "胜出策略", "Withdrawal": "提取", "Withdrawal Rates": "提款率", "Year": "年份",
     "Year {{year}}": "第 {{year}} 年", "Yearly Returns": "逐年收益", "Years": "年数", "Yes": "是",

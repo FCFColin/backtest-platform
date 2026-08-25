@@ -175,6 +175,7 @@ export function AssetWeightRow(p: {
           max={100}
           step={0.1}
           className="w-[100px] font-mono tabular-nums text-right h-9"
+          aria-label={`${p.asset.ticker} ${t('Weight %')}`}
           onChange={(e) => p.onUpdate({ ...p.asset, weight: Number(e.target.value) })}
         />
         <span className="text-caption text-fg-tertiary w-4">%</span>

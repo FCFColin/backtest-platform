@@ -186,6 +186,8 @@ function GoalOptimizerParamsPanel({ state: s }: { state: GoalState }) {
   ];
   return (
     <div className="flex flex-col gap-5">
+      {/* a11y：SectionHeader 渲染 h3，需页根 h1 锚定标题层级（axe heading-order） */}
+      <h1 className="sr-only">{t('nav.goalOptimizer')}</h1>
       <section className="flex flex-col gap-3">
         <sf.SectionHeader
           title={t('Goal Settings')}
@@ -223,6 +225,7 @@ function GoalOptimizerParamsPanel({ state: s }: { state: GoalState }) {
         <sf.SectionHeader
           title={t('Asset Allocation')}
           info={t('Add tickers and weights; total weight must equal 100%')}
+          variant="h2"
         />
         <SinglePortfolioEditor
           singleMode
@@ -262,6 +265,7 @@ function GoalOptimizerParamsPanel({ state: s }: { state: GoalState }) {
           info={t(
             'Number of Monte Carlo simulations; more is more accurate but slower (default 1000, max 10000)',
           )}
+          variant="h2"
         />
         <div className={GRID}>
           <Field>

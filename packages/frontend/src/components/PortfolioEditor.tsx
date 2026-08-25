@@ -88,6 +88,7 @@ function SinglePortfolioEditor({
               min={0}
               max={100}
               suffix="%"
+              aria-label={`${a.ticker} ${t('Weight %')}`}
               className="h-8 w-[96px] shrink-0 font-mono tabular-nums"
             />
             <Button

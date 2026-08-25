@@ -183,6 +183,7 @@ export default function TickerInput({ value, onChange, placeholder, className }:
         type="text"
         value={value}
         role="combobox"
+        aria-label={t('Ticker search')}
         aria-expanded={listOpen}
         aria-controls={listboxId}
         aria-autocomplete="list"

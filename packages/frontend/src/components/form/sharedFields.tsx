@@ -1,4 +1,5 @@
 import type { ReactNode, ComponentProps } from 'react';
+import { useId } from 'react';
 import { Play } from 'lucide-react';
 import {
   LoadingButton,
@@ -21,12 +22,15 @@ export function SectionHeader({
 }: {
   title: string;
   info?: string;
-  variant?: 'h3' | 'label';
+  variant?: 'h2' | 'h3' | 'label';
 }) {
   return (
     <div>
       {variant === 'h3' ? (
         <h3 className="text-h3 font-semibold text-fg">{title}</h3>
+      ) : variant === 'h2' ? (
+        // a11y：页面无 h1/h2 时供 SectionHeader 提供合法标题层级（样式沿用 text-h3，视觉不变）
+        <h2 className="text-h3 font-semibold text-fg">{title}</h2>
       ) : (
         <div className="text-label font-semibold text-fg">{title}</div>
       )}
@@ -90,10 +94,14 @@ export function SelectField<T extends string>({
   onChange: (v: T) => void;
   options: { value: T; label: string }[];
 }) {
+  // a11y：未显式传 id 时自动生成，保证 FieldLabel↔Trigger 关联不断裂
+  //（否则 radix SelectTrigger 无 accessible name，axe button-name critical）
+  const autoId = useId();
+  const triggerId = id ?? autoId;
   return (
-    <LabeledField htmlFor={id} label={label}>
+    <LabeledField htmlFor={triggerId} label={label}>
       <Select value={value} onValueChange={(v) => onChange(v as T)}>
-        <SelectTrigger id={id}>
+        <SelectTrigger id={triggerId}>
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
