@@ -44,6 +44,8 @@ const SMOKE_PAGES: PageSmokeCase[] = [
 ];
 
 test.describe('页面冒烟测试', () => {
+  // 层1 稳定化（AGENTS §5）：动画归零，消除 rAF/transition 时序抖动
+  test.use({ reducedMotion: 'reduce' });
   for (const smoke of SMOKE_PAGES) {
     test(`页面加载 — 路由保持且面板可见: ${smoke.name}`, async ({ page }) => {
       await settle(page, smoke.url);
