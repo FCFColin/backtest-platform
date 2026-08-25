@@ -1,8 +1,8 @@
 # AGENTS.md — 回测平台工程推进操作手册
 
-# 版本：v3.2 · 基准：master@ceffc913
+# 版本：v3.2 · 基准：master@018dcdca
 
-# 全仓 87,440 行 · 净生产代码 52,117（ex-契约 ex-迁移）
+# 全仓 87,505 行 · 净生产代码 52,133（ex-契约 ex-迁移）
 
 # 本文件是单一权威源。冲突时以本文件为准。
 
@@ -74,19 +74,19 @@ Data: 缺失带 degraded 标记 / Compute: 可透传
 UI: degraded 在 banner/导出/outbox 三处可见
 
 ═══════════════════════════════════════════════
-§2 当前状态快照（@ceffc913 · 实测）
+§2 当前状态快照（@018dcdca · 实测）
 ═══════════════════════════════════════════════
 
-【LOC 四层口径】(powershell -NoProfile -File scripts/count-prod-loc.ps1, @ceffc913)
-全仓 87,440
-生产域毛值 53,174 含契约层
+【LOC 四层口径】(powershell -NoProfile -File scripts/count-prod-loc.ps1, @018dcdca)
+全仓 87,505
+生产域毛值 53,190 含契约层
 契约层(扣除) 1,057 backend/src/schemas 8 文件
 迁移(单列观测) 447 migrations/*.sql 只增不减
-净生产代码 52,117 ← G-1 门禁口径
+净生产代码 52,133 ← G-1 门禁口径
 
 【G-1 门禁】硬上限 ≤55,000 · 目标 ≤52,000
-距目标差 117 行；gonum 战线已裁决关闭（见 §5），
-达标唯一路径 = D-5（−100~200）
+距目标差 133 行；gonum 与 D-5 均已实证关闭（见 §5），
+达标路径 = 待新收割侦察（knip 已清零）或 U/H 实现时顺手重构抵扣
 功能差异化 > 行数美学；若 U/H 档全做稳定 ~53k+
 则该值为正确目标（52k 为里程碑非硬约束）
 
@@ -98,8 +98,8 @@ golden PASS ✓ 24 项统计函数字节级锁定
 data-fetcher 11 包 ok ✓ vet/gofmt 静音
 engine-go 16 包 ok ✓
 check:tests 0 错误 ✓ / lint 0e/2w ✓
-verify-static PASS ✓（verify-infra C-007 为
-本地 kubectl 版本差异，已知偏离待裁决）
+verify-static PASS ✓
+verify-infra PASS ✓ 7/7（C-007 已根治@dc4e9448，ROOT 无偏离全通）
 
 【ε 护栏实态（R-13 合规·本行须随实态维护）】
 ε-1 nightly LOC ledger 在线 ✓【实测】
@@ -210,40 +210,49 @@ Black-Litterman(PV 护城河) / 移动端重构(流量>30% 再议)
 实盘工作台 / brotli 流式重构 / application 编排层
 
 ═══════════════════════════════════════════════
-§5 工程战线状态板（@ceffc913）
+§5 工程战线状态板（@018dcdca）
 ═══════════════════════════════════════════════
 
 ✓ 口径固化 count-prod-loc.ps1 @f3e37b8b
 ✓ SSR 收敛 cef5c228 净−344（fallback 仅+6 行）
 ✓ ε-2 .husky/commit-msg（负向探针实证@本会话）
 ✓ A4 复权置空 f4025e38 ±17（NULL 链路全通）
+✓ A5 queued 行落库 0c28ea9c +46（createRun@提交+
+withPlatformContext 清扫 pending>30min→failed；
+save() 本为 UPSERT 故 worker 推进侧零改动）
+✓ B3 文档三缺口 ceffc913 +39（README 生产部署7步/
+compose lim-m·lim-s 锚点10服务/ADR-012撞号→014）
+✓ a11y 三缺陷修复 e3aee0ee +21（SelectField useId 关联
+兜底/权重输入 aria-label/SectionHeader h2 档+sr-only h1/
+TickerInput combobox/TacticalSignalEditor 空 label）
+✓ C-007 HPA 锚点根治 dc4e9448 → verify-infra PASS 7/7
+（三 overlay kustomize 通过·ROOT 无偏离全通）
+✓ knip 清零 018dcdca（RU 命名空间导入消误报+d5 白名单）
+✓ page-smoke 门禁达成：a11y 清零后单次 6/6→
+--repeat-each=10 十连 51 passed→ci.yml PR gate
+挂载 17538092（CI repeat-each=3 控时长）
 
-□ A5 queued 行落库：jobSubmission queue.add 后 INSERT
-ON CONFLICT DO NOTHING + worker UPSERT + stalled 对账
-预算 +30±10【推断】
-□ D-5 i18n 删除：先跑 tests/e2e/ui/i18n-sampling.spec.ts
-生成候选清单（当前产物缺失），人类确认后删
-预算 −100~~200【推断】← G-1 达标最近路径
-□ gonum spike：S1 mathutil 对照表/S2 调用计数/
-S3 _spike_test.go golden 输入对比（不提交）
-裁决：<50 行关闭；≥50+字节级过→立项；ULP→上报
-预算 −200~~400【推断·低置信】← G-1 达标另一路径
-□ page-smoke 稳定化：tests/e2e/ui/page-smoke.spec.ts
-层1 reducedMotion / 层2 localStorage 浮层预设 /
-层3 domcontentloaded+waitForSelector
-门禁：--repeat-each=10 全绿才挂 ci.yml
-□ B3 文档三缺口：README 部署章节(现仅54行)/compose
-资源限制(YAML 锚点压缩)/ADR-012 撞号重编号
-预算 +30~55
+■ gonum 战线已关闭（spike 裁决@本会话）：
+可替换候选仅 Sum×3/Percentile×4（其余为业务语义）；
+floats.Sum bitwiseEqual=false 触发 R-04；
+Quantile(Empirical) 位级一致但包装后净省≈0
+→ −200~~400 低置信预算证伪，净省<50 关闭
+■ D-5 战线已关闭（本会话实测裁决）：
+采样器根因修复（DEV 门控致生产 dist 恒空集→
+VITE_I18N_SAMPLING 开关@4295e332）→30 路由采得
+619 键→三重过滤候选=0：静态 unusedZh 233 键被运行时
+100% 反证存活（动态键构造超保护前缀覆盖）。
+删除不可执行，−100~~200 预算证伪；
+工具化留档 scripts/d5-prune-i18n.mjs（knip 白名单）
 
 ═══════════════════════════════════════════════
-§6 预算全景（基线已迁移至净口径 52,117）
+§6 预算全景（基线已迁移至净口径 52,133）
 ═══════════════════════════════════════════════
 
 已兑现累计：α−34 β−29 gonum替换−89 第8会话fix+152
-SSR−344 A4+17 A5+46 B3+39 → 净 −282【全部实测】
+SSR−344 A4+17 A5+46 B3+39 a11y+21 → 净 −282【全部实测】
 
-G-1 即时状态：52,117，距 ≤52,000 差 117 行
+G-1 即时状态：52,133，距 ≤52,000 差 133 行
 达标路径：D-5 已裁决关闭（零候选@运行时采样证伪）；
 gonum 已关闭 → 现无既有路径，差 106 行待新收割侦察
 或 U/H 实现时顺手重构抵扣（52k 为里程碑非硬约束）
