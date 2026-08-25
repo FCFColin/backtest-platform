@@ -123,6 +123,7 @@ const MC_INITIAL = {
   startingValue: 100000,
   minBlock: 1,
   maxBlock: 5,
+  estimationMethod: '' as '' | 'bootstrap' | 'trimmed' | 'ewWeighted',
   startDate: DEFAULT_BACKTEST_START_DATE,
   endDate: DEFAULT_END_DATE,
   randomSeed: '',
@@ -162,6 +163,7 @@ async function executeSimulation(s: McSetters, ops: PortfolioOps): Promise<void>
       minBlockYears: s.minBlock,
       maxBlockYears: s.maxBlock,
       seed: s.randomSeed ? Number(s.randomSeed) : undefined,
+      estimationMethod: s.estimationMethod || undefined, // U-3：空串=legacy 均匀 bootstrap
     },
     objectives: {
       mode: s.simMode,

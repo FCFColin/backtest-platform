@@ -264,6 +264,7 @@ const MC_PARAMS_ALLOWED_KEYS = new Set([
   'maxBlockYears',
   'successThreshold',
   'seed',
+  'estimationMethod', // U-3：bootstrap|trimmed|ewWeighted（未知值由引擎归一 legacy）
 ]);
 
 export function sanitizeMcParams(

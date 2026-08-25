@@ -201,6 +201,11 @@ function SimParamsSection({ s }: { s: McState }) {
       placeholder: t('Leave empty to use a random seed'),
     },
   ];
+  const estimationOptions = [
+    { value: '', labelKey: 'monteCarlo.params.estimation.bootstrap' },
+    { value: 'trimmed', labelKey: 'monteCarlo.params.estimation.trimmed' },
+    { value: 'ewWeighted', labelKey: 'monteCarlo.params.estimation.ewWeighted' },
+  ];
   return (
     <section className="flex flex-col gap-3">
       <SectionHeader
@@ -212,6 +217,25 @@ function SimParamsSection({ s }: { s: McState }) {
           <BasicField key={cfg.labelKey} t={t} cfg={cfg} />
         ))}
       </div>
+      {/* U-3 估计法菜单：空值=legacy 均匀 block bootstrap */}
+      <Field>
+        <FieldLabel htmlFor="mc-estimation">{t('monteCarlo.params.estimation')}</FieldLabel>
+        <Select
+          value={s.estimationMethod}
+          onValueChange={(v) => (s.setEstimationMethod as unknown as (v: string) => void)(v)}
+        >
+          <SelectTrigger id="mc-estimation" className="w-[220px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {estimationOptions.map((o) => (
+              <SelectItem key={o.value} value={o.value}>
+                {t(o.labelKey)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </Field>
     </section>
   );
 }

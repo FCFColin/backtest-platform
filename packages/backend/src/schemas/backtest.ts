@@ -127,6 +127,7 @@ export const monteCarloSchema = z
         maxBlockYears: z.number().optional(),
         successThreshold: z.number().optional(),
         seed: z.number().optional(),
+        estimationMethod: z.enum(['bootstrap', 'trimmed', 'ewWeighted']).optional(),
       })
       .optional(),
   })

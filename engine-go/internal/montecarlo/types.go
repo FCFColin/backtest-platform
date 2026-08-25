@@ -30,6 +30,9 @@ type MCSimParams struct {
 	MaxBlockYears    int     `json:"maxBlockYears"`
 	SuccessThreshold float64 `json:"successThreshold"`
 	Seed             *int64  `json:"seed"` // 固定种子使模拟可复现；nil 时随机
+	// U-3 估计法菜单：""=均匀 block bootstrap（默认/legacy）；"trimmed"=两端各裁 5% 去极值池；
+	// "ewWeighted"=指数加权起点选择（半衰期 126 交易日）。未知值归一为 legacy。
+	EstimationMethod string `json:"estimationMethod,omitempty"`
 }
 type MonteCarloResult struct {
 	Percentiles          MCPercentiles          `json:"percentiles"`
