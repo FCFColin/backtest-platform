@@ -275,6 +275,7 @@ const TAB_RENDERERS: Record<string, (c: Ctx) => ReactNode> = {
       assetTickers={r?.assetTickers}
       assetCorrelations={r?.assetCorrelations}
       portfolioCorrelations={r?.correlations}
+      quarterlyCorrelations={r?.quarterlyCorrelations}
     />
   ),
   telltale: ({ pf }) => <L.TelltaleChart portfolios={pf} />,

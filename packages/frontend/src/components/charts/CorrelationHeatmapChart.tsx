@@ -1,4 +1,4 @@
-﻿import { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Spinner, MiniSelect, PortfolioDot } from '@/components/ui/uiComponents';
 import { TableEmpty } from '@/components/stateDisplay.js';
@@ -15,6 +15,7 @@ interface CorrelationWithBetaProps {
   assetTickers?: string[];
   assetCorrelations?: number[][];
   portfolioCorrelations?: number[][];
+  quarterlyCorrelations?: Array<{ quarter: string; matrix: number[][]; tickers: string[] }>;
 }
 const ROLLING_WINDOWS = [20, 60, 120, 252];
 function BetaTable({ betaData, baseName }: { betaData: BetaRow[]; baseName: string }) {
@@ -179,6 +180,7 @@ export default function CorrelationWithBeta({
   assetTickers,
   assetCorrelations,
   portfolioCorrelations,
+  quarterlyCorrelations,
 }: CorrelationWithBetaProps) {
   const { t } = useTranslation();
   const [selectedPair, setSelectedPair] = useState<[number, number] | null>(null);
@@ -232,6 +234,56 @@ export default function CorrelationWithBeta({
           onSelectPair={setSelectedPair}
           onSetWindow={setRollingWindow}
         />
+      )}
+      {quarterlyCorrelations && quarterlyCorrelations.length > 0 && (
+        <details className="rounded-lg border border-border-subtle bg-surface p-3">
+          <summary className="cursor-pointer text-caption font-semibold text-fg-secondary">
+            {t('monteCarlo.params.estimation') === '' ? '' : ''}
+            {t('Quarterly Correlation Matrices')}（{quarterlyCorrelations.length}）
+          </summary>
+          <div className="mt-3 space-y-3">
+            {quarterlyCorrelations.map((q) => (
+              <div key={q.quarter}>
+                <div className="text-caption font-semibold text-fg mb-1">{q.quarter}</div>
+                <table className="text-caption w-full border-collapse">
+                  <thead>
+                    <tr>
+                      <th />
+                      {q.tickers.map((tk) => (
+                        <th key={tk} className="px-2 py-1 text-left font-medium text-fg-tertiary">
+                          {tk}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {q.matrix.map((row, ri) => (
+                      <tr key={ri}>
+                        <td className="px-2 py-1 text-fg-tertiary">{q.tickers[ri]}</td>
+                        {row.map((v, ci) => (
+                          <td
+                            key={ci}
+                            className="px-2 py-1 tabular-nums"
+                            style={{
+                              color:
+                                ri === ci
+                                  ? undefined
+                                  : v > 0
+                                    ? 'var(--color-success)'
+                                    : 'var(--color-danger)',
+                            }}
+                          >
+                            {v.toFixed(2)}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ))}
+          </div>
+        </details>
       )}
     </div>
   );
