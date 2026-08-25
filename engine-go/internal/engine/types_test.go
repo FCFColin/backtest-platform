@@ -64,6 +64,7 @@ var expectedPortfolioResultFields = []string{
 	"name", "growthCurve", "drawdownCurve", "rollingReturns",
 	"annualReturns", "monthlyReturns", "statistics",
 	"withdrawalStats", "drawdownEpisodes", "allocationHistory", "drag",
+	"rebalanceLog",
 }
 var expectedBacktestResultFields = []string{
 	"portfolios", "correlations", "benchmarkGrowth", "assetTickers", "assetCorrelations",

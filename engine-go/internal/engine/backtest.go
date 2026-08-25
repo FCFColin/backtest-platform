@@ -28,7 +28,7 @@ func RunBacktest(ctx context.Context, req BacktestRequest) (*BacktestResult, err
 			return nil, ctx.Err()
 		default:
 		}
-		curve, allocHist, mwrrCashflows, err := computeGrowthCurve(pf, req.PriceData, req.CPIData, req.ExchangeRates, tradingDates, req.Params)
+		curve, allocHist, mwrrCashflows, rebalanceLog, err := computeGrowthCurve(pf, req.PriceData, req.CPIData, req.ExchangeRates, tradingDates, req.Params)
 		if err != nil {
 			return nil, fmt.Errorf("组合 %s 计算失败: %w", pf.Name, err)
 		}
@@ -44,7 +44,7 @@ func RunBacktest(ctx context.Context, req BacktestRequest) (*BacktestResult, err
 			stats.DiversificationRatio = CalcDiversificationRatio(weights, assetRets, mathutil.DailyReturns(extractValues(curve)))
 		}
 		rollingReturns := CalcRollingReturns(extractValues(curve), extractDates(curve), req.Params.RollingWindowMonths)
-		portfolioResults = append(portfolioResults, PortfolioResult{Name: pf.Name, GrowthCurve: curve, DrawdownCurve: ddCurve, RollingReturns: rollingReturns, AnnualReturns: annualReturnsFromCurve(curve), MonthlyReturns: monthlyReturnsFromCurve(curve), Statistics: stats, DrawdownEpisodes: episodes, AllocationHistory: allocHist})
+		portfolioResults = append(portfolioResults, PortfolioResult{Name: pf.Name, GrowthCurve: curve, DrawdownCurve: ddCurve, RollingReturns: rollingReturns, AnnualReturns: annualReturnsFromCurve(curve), MonthlyReturns: monthlyReturnsFromCurve(curve), Statistics: stats, DrawdownEpisodes: episodes, AllocationHistory: allocHist, RebalanceLog: rebalanceLog})
 		portfolioDailyReturns = append(portfolioDailyReturns, mathutil.DailyReturns(extractValues(curve)))
 	}
 	correlations := CalcCorrelationMatrix(portfolioDailyReturns)
@@ -86,11 +86,11 @@ func computeBenchmarkGrowth(benchmarkTicker string, priceData PriceDataMap, trad
 	return curve
 }
 
-func computeGrowthCurve(pf PortfolioInput, priceData PriceDataMap, cpiData map[string]float64, exchangeRates map[string]float64, tradingDates []time.Time, params BacktestParams) ([]DataPoint, []AllocationPoint, []Cashflow, error) {
+func computeGrowthCurve(pf PortfolioInput, priceData PriceDataMap, cpiData map[string]float64, exchangeRates map[string]float64, tradingDates []time.Time, params BacktestParams) ([]DataPoint, []AllocationPoint, []Cashflow, []RebalanceTrade, error) {
 	startValue := engineutil.DefaultStartingValue(params.StartingValue)
 	n := len(pf.Assets)
 	if n == 0 {
-		return nil, nil, nil, engineutil.NewInputError("组合 %s 无资产", pf.Name)
+		return nil, nil, nil, nil, engineutil.NewInputError("组合 %s 无资产", pf.Name)
 	}
 	weights := normalizeWeights(pf.Assets)
 	dates := make([]string, len(tradingDates))
@@ -135,10 +135,11 @@ func computeGrowthCurve(pf PortfolioInput, priceData PriceDataMap, cpiData map[s
 	}
 	cfMap, err := buildPeriodicCashflowMap(params.CashflowLegs, dates)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 	curve := make([]DataPoint, 0, len(dates))
 	allocHistory := make([]AllocationPoint, 0)
+	rebalanceLog := make([]RebalanceTrade, 0)
 	vals := make([]float64, 0, len(dates))
 	mwrrCashflows := []Cashflow{{Value: -startValue, Time: 0}}
 	liquidated := false
@@ -172,7 +173,7 @@ func computeGrowthCurve(pf PortfolioInput, priceData PriceDataMap, cpiData map[s
 			mwrrCashflows = append(mwrrCashflows, Cashflow{Value: -cfAmount, Time: float64(di) / tradingDaysPerYear})
 			pv += cfAmount
 			if pv > 0 {
-				recalculateShares(holdings, &shares, lastPrices, currentWeights, pv, pf, gp, date)
+				recalculateShares(holdings, &shares, lastPrices, currentWeights, pv, pf, gp, date, nil)
 			}
 		}
 		if pv <= 0 {
@@ -185,7 +186,7 @@ func computeGrowthCurve(pf PortfolioInput, priceData PriceDataMap, cpiData map[s
 		if di > 0 && rebalanceIn > 0 {
 			rebalanceIn--
 			if rebalanceIn == 0 {
-				recalculateShares(holdings, &shares, lastPrices, currentWeights, pv, pf, gp, date)
+				recalculateShares(holdings, &shares, lastPrices, currentWeights, pv, pf, gp, date, &rebalanceLog)
 				lastRebalanceDi = di
 				rebalanceIn = -1 // 复位，恢复周期再平衡（否则 offset 首次触发后永久停摆）
 			}
@@ -193,7 +194,7 @@ func computeGrowthCurve(pf PortfolioInput, priceData PriceDataMap, cpiData map[s
 			if pf.RebalanceOffset > 0 {
 				rebalanceIn = pf.RebalanceOffset
 			} else {
-				recalculateShares(holdings, &shares, lastPrices, currentWeights, pv, pf, gp, date)
+				recalculateShares(holdings, &shares, lastPrices, currentWeights, pv, pf, gp, date, &rebalanceLog)
 				lastRebalanceDi = di
 			}
 		}
@@ -211,7 +212,7 @@ func computeGrowthCurve(pf PortfolioInput, priceData PriceDataMap, cpiData map[s
 		prev = date
 	}
 	adjustForInflation(curve, vals, dates, cpiData, params.AdjustForInflation)
-	return curve, allocHistory, mwrrCashflows, nil
+	return curve, allocHistory, mwrrCashflows, rebalanceLog, nil
 }
 
 func updatePrices(pf PortfolioInput, gp func(string, string) float64, date string, lastPrices []float64) {
@@ -221,7 +222,22 @@ func updatePrices(pf PortfolioInput, gp func(string, string) float64, date strin
 		}
 	}
 }
-func recalculateShares(holdings []float64, shares *[]float64, lastPrices []float64, currentWeights []float64, pv float64, pf PortfolioInput, gp func(string, string) float64, date string) {
+func recalculateShares(holdings []float64, shares *[]float64, lastPrices []float64, currentWeights []float64, pv float64, pf PortfolioInput, gp func(string, string) float64, date string, tradeLog *[]RebalanceTrade) {
+	// H-3：入口快照 before 值（今日价格口径），与目标配置值差即成交金额
+	var trades *[]RebalanceTradeItem
+	if tradeLog != nil && len(pf.Assets) == len(holdings) {
+		items := make([]RebalanceTradeItem, len(holdings))
+		for i := range holdings {
+			ticker := ""
+			if i < len(pf.Assets) {
+				ticker = pf.Assets[i].Ticker
+			}
+			after := pv * currentWeights[i]
+			items[i] = RebalanceTradeItem{Ticker: ticker, BeforeValue: holdings[i], AfterValue: after, DeltaValue: after - holdings[i]}
+		}
+		*tradeLog = append(*tradeLog, RebalanceTrade{Date: date, Trades: items})
+		trades = &(*tradeLog)[len(*tradeLog)-1].Trades
+	}
 	for i := range holdings {
 		holdings[i] = pv * currentWeights[i]
 	}
@@ -231,6 +247,14 @@ func recalculateShares(holdings []float64, shares *[]float64, lastPrices []float
 			(*shares)[i] = holdings[i] / lastPrices[i]
 		} else {
 			(*shares)[i] = 0
+		}
+	}
+	if trades != nil {
+		// 回填 AfterValue 为调价后真实持仓值（updatePrices 可能刷新价格）
+		log := *tradeLog
+		for i := range *trades {
+			(*trades)[i].AfterValue = holdings[i]
+			(*trades)[i].DeltaValue = holdings[i] - log[len(log)-1].Trades[i].BeforeValue
 		}
 	}
 }

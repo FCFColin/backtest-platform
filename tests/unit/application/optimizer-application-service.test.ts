@@ -221,7 +221,9 @@ describe('runOptimization', () => {
     mocks.fetchHistoryData.mockResolvedValue(fetchRes);
     mocks.callEngineStrict.mockResolvedValue({});
     const iterations = _n.includes('100000') ? 500000 : undefined;
-    const result = await runOptimization(tickers, objective, constraints, params, iterations);
+    const result = await runOptimization(tickers, objective, constraints, params, {
+      numIterations: iterations,
+    });
     check(result as never);
   });
   it('引擎返回无 data 字段时应使用原始结果', async () => {

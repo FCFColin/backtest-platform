@@ -54,6 +54,11 @@ export interface PortfolioResult {
   statistics: Statistics;
   drawdownEpisodes?: DrawdownEpisode[];
   allocationHistory?: AllocationPoint[];
+  /** H-3：每次再平衡的逐资产买卖金额明细 */
+  rebalanceLog?: Array<{
+    date: string;
+    trades: Array<{ ticker: string; beforeValue: number; afterValue: number; deltaValue: number }>;
+  }>;
 }
 
 export interface BacktestResult {

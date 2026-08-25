@@ -185,6 +185,20 @@ type BacktestResult struct {
 	// H-2：按自然季度的资产相关矩阵序列（观测 <2 的季度跳过）
 	QuarterlyCorrelations []QuarterlyCorrelationMatrix `json:"quarterlyCorrelations,omitempty"`
 }
+
+// RebalanceTradeItem H-3 再平衡单资产成交明细（金额口径，+买入/−卖出）。
+type RebalanceTradeItem struct {
+	Ticker      string  `json:"ticker"`
+	BeforeValue float64 `json:"beforeValue"`
+	AfterValue  float64 `json:"afterValue"`
+	DeltaValue  float64 `json:"deltaValue"`
+}
+
+// RebalanceTrade 单次再平衡事件快照。
+type RebalanceTrade struct {
+	Date   string               `json:"date"`
+	Trades []RebalanceTradeItem `json:"trades"`
+}
 type QuarterlyCorrelationMatrix struct {
 	Quarter string      `json:"quarter"`
 	Matrix  [][]float64 `json:"matrix"`
@@ -200,6 +214,8 @@ type PortfolioResult struct {
 	Statistics        Statistics        `json:"statistics"`
 	DrawdownEpisodes  []DrawdownEpisode `json:"drawdownEpisodes"`
 	AllocationHistory []AllocationPoint `json:"allocationHistory"`
+	// H-3：每次再平衡的逐资产买卖金额明细（观察型，不影响任何计算路径）
+	RebalanceLog []RebalanceTrade `json:"rebalanceLog,omitempty"`
 }
 type AllocationPoint struct {
 	Date    string    `json:"date"`

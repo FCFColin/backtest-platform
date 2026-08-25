@@ -152,7 +152,7 @@ func BenchmarkComputeGrowthCurve(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		_, _, _, err := computeGrowthCurve(
+		_, _, _, _, err := computeGrowthCurve(
 			req.Portfolios[0],
 			req.PriceData,
 			req.CPIData,
@@ -193,7 +193,7 @@ func TestMWRRCashflowSchedule(t *testing.T) {
 		OneTimeCashflows: []OneTimeCashflow{{Date: dates[5], Amount: 500, Type: "deposit"}},
 		CashflowLegs:     []CashflowLeg{{Amount: 100, Frequency: "monthly", Type: "deposit"}},
 	}
-	_, _, cfs, err := computeGrowthCurve(pf, priceData, nil, nil, tradingDates, params)
+	_, _, cfs, _, err := computeGrowthCurve(pf, priceData, nil, nil, tradingDates, params)
 	if err != nil {
 		t.Fatalf("computeGrowthCurve 返回错误: %v", err)
 	}
@@ -227,7 +227,7 @@ func TestMissingAssetBuysAtFirstPrice(t *testing.T) {
 	}
 	pf := PortfolioInput{Name: "t", Assets: []AssetInput{{Ticker: "A", Weight: 50}, {Ticker: "B", Weight: 50}}}
 	params := BacktestParams{StartingValue: 1000}
-	curve, _, _, err := computeGrowthCurve(pf, priceData, nil, nil, tradingDates, params)
+	curve, _, _, _, err := computeGrowthCurve(pf, priceData, nil, nil, tradingDates, params)
 	if err != nil {
 		t.Fatalf("computeGrowthCurve 返回错误: %v", err)
 	}
@@ -270,7 +270,7 @@ func TestRebalanceOffset(t *testing.T) {
 				RebalanceFrequency: "weekly",
 				RebalanceOffset:    tt.offset,
 			}
-			_, allocHist, _, err := computeGrowthCurve(pf, priceData, nil, nil, tradingDates, BacktestParams{StartingValue: 1000})
+			_, allocHist, _, rebLog, err := computeGrowthCurve(pf, priceData, nil, nil, tradingDates, BacktestParams{StartingValue: 1000})
 			if err != nil {
 				t.Fatalf("computeGrowthCurve 返回错误: %v", err)
 			}
@@ -280,6 +280,25 @@ func TestRebalanceOffset(t *testing.T) {
 			}
 			assertFloatApprox(t, reb.Weights[0], 0.5, "权重 A")
 			assertFloatApprox(t, reb.Weights[1], 0.5, "权重 B")
+			// H-3：再平衡日志应与分配历史同步产出且逐资产含买卖金额
+			if len(rebLog) == 0 {
+				t.Fatalf("rebalanceLog 为空，期望与 allocHist 同步记录")
+			}
+			last := rebLog[len(rebLog)-1]
+			if last.Date != tt.wantDate {
+				t.Errorf("rebalanceLog 末条日期 = %s, want %s", last.Date, tt.wantDate)
+			}
+			if len(last.Trades) != 2 {
+				t.Fatalf("trades 数 = %d, want 2", len(last.Trades))
+			}
+			var sumDelta float64
+			for _, it := range last.Trades {
+				sumDelta += it.DeltaValue
+				if it.BeforeValue < 0 || it.AfterValue < 0 {
+					t.Errorf("负值持仓异常: %+v", it)
+				}
+			}
+			assertFloatApprox(t, sumDelta, 0, "Δ金额之和应为 0（零和换仓）")
 		})
 	}
 }
