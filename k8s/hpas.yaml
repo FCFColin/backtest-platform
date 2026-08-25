@@ -1,36 +1,30 @@
-# YAML anchors 提取公共 metrics / behavior，单文档内跨 --- 不可用，故全文件合为 1 文档
-# engine-go 的 scaleUp 更激进（stabilizationWindow 30s / percent 100% per 30s），单独覆盖
-.api-hpa: &default-hpa
-  apiVersion: autoscaling/v2
-  kind: HorizontalPodAutoscaler
-  spec:
-    metrics:
-      [
-        {
-          type: Resource,
-          resource: { name: cpu, target: { type: Utilization, averageUtilization: 70 } },
-        },
-      ]
-    behavior:
-      scaleDown:
-        {
-          stabilizationWindowSeconds: 300,
-          policies: [{ type: Percent, value: 10, periodSeconds: 60 }],
-        }
-      scaleUp:
-        {
-          stabilizationWindowSeconds: 60,
-          policies: [{ type: Percent, value: 100, periodSeconds: 60 }],
-        }
-
+# HPA 清单（C-007 兼容性重构@本会话：原 .key:&anchor 隐藏模板文档在新版
+# kustomize(kubectl>=1.31 内置) 下报 unknown anchor，改为逐资源自足展开）
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata: { name: api-hpa }
 spec:
-  <<: *default-hpa
   scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: api }
   minReplicas: 2
   maxReplicas: 10
+  metrics:
+    [
+      {
+        type: Resource,
+        resource: { name: cpu, target: { type: Utilization, averageUtilization: 70 } },
+      },
+    ]
+  behavior:
+    scaleDown:
+      {
+        stabilizationWindowSeconds: 300,
+        policies: [{ type: Percent, value: 10, periodSeconds: 60 }],
+      }
+    scaleUp:
+      {
+        stabilizationWindowSeconds: 60,
+        policies: [{ type: Percent, value: 100, periodSeconds: 60 }],
+      }
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
@@ -62,16 +56,50 @@ apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata: { name: data-fetcher-hpa }
 spec:
-  <<: *default-hpa
   scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: data-fetcher }
   minReplicas: 2
   maxReplicas: 6
+  metrics:
+    [
+      {
+        type: Resource,
+        resource: { name: cpu, target: { type: Utilization, averageUtilization: 70 } },
+      },
+    ]
+  behavior:
+    scaleDown:
+      {
+        stabilizationWindowSeconds: 300,
+        policies: [{ type: Percent, value: 10, periodSeconds: 60 }],
+      }
+    scaleUp:
+      {
+        stabilizationWindowSeconds: 60,
+        policies: [{ type: Percent, value: 100, periodSeconds: 60 }],
+      }
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata: { name: worker-hpa }
 spec:
-  <<: *default-hpa
   scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: backtest-worker }
   minReplicas: 1
   maxReplicas: 5
+  metrics:
+    [
+      {
+        type: Resource,
+        resource: { name: cpu, target: { type: Utilization, averageUtilization: 70 } },
+      },
+    ]
+  behavior:
+    scaleDown:
+      {
+        stabilizationWindowSeconds: 300,
+        policies: [{ type: Percent, value: 10, periodSeconds: 60 }],
+      }
+    scaleUp:
+      {
+        stabilizationWindowSeconds: 60,
+        policies: [{ type: Percent, value: 100, periodSeconds: 60 }],
+      }
