@@ -10,6 +10,12 @@ import (
 	"time"
 )
 
+// DailyPrice.AdjustedClose 语义（R-12 数据质量红线）：
+//
+//	nil  = 源未确认提供复权数据（finnhub/akshare）→ 落库为 NULL，消费端走 adjusted_close ?? close
+//	非nil = 源明确提供复权口径（yfinance adjclose 列；twelvedata adjust=split 仅拆股调整，已在源注释声明）
+//
+// 新增数据源必须在下方登记复权状态，禁止用 Close 值冒充 AdjustedClose。
 type DailyPrice struct {
 	Date          string
 	Open          float64
@@ -17,7 +23,7 @@ type DailyPrice struct {
 	Low           float64
 	Close         float64
 	Volume        int64
-	AdjustedClose float64
+	AdjustedClose *float64
 }
 type Provider interface {
 	Name() string

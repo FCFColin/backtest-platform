@@ -89,11 +89,11 @@ func parseDailyPrices(body []byte) ([]provider.DailyPrice, error) {
 		}
 		prices = append(prices, provider.DailyPrice{
 			Date: parts[0], Open: providerutil.ParseStringFloat(parts[1]),
-			Close:         close,
-			High:          providerutil.ParseStringFloat(parts[3]),
-			Low:           providerutil.ParseStringFloat(parts[4]),
-			Volume:        providerutil.ParseStringInt(parts[5]),
-			AdjustedClose: close})
+			Close:  close,
+			High:   providerutil.ParseStringFloat(parts[3]),
+			Low:    providerutil.ParseStringFloat(parts[4]),
+			Volume: providerutil.ParseStringInt(parts[5]),
+		}) // R-12/A4：akshare 日线为未复权价，AdjustedClose 置 nil
 	}
 	return prices, nil
 }

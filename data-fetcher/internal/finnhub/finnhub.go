@@ -79,7 +79,7 @@ func parseCandleResponse(body []byte) ([]provider.DailyPrice, error) {
 		prices = append(prices, provider.DailyPrice{
 			Date: time.Unix(resp.T[i], 0).UTC().Format("2006-01-02"), Open: resp.O[i],
 			High: resp.H[i], Low: resp.L[i], Close: resp.C[i],
-			Volume: int64(resp.V[i]), AdjustedClose: resp.C[i]})
+			Volume: int64(resp.V[i])}) // R-12/A4：finnhub candle 为未复权价，AdjustedClose 置 nil（不冒充复权）
 	}
 	return prices, nil
 }

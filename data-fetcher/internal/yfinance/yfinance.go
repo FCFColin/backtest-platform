@@ -105,12 +105,14 @@ func parseChartResponse(body []byte) ([]provider.DailyPrice, error) {
 			Open: providerutil.ToFloat64Safe(quote.Open, i),
 			High: providerutil.ToFloat64Safe(quote.High, i),
 			Low:  providerutil.ToFloat64Safe(quote.Low, i), Close: closeVal,
-			Volume:        providerutil.ToInt64Safe(quote.Volume, i),
-			AdjustedClose: providerutil.ToFloat64Safe(adjClose, i),
+			Volume: providerutil.ToInt64Safe(quote.Volume, i),
 		}
-		if p.AdjustedClose == 0 {
-			p.AdjustedClose = p.Close
+		// R-12：yfinance adjclose 列为源明确提供的复权价；缺失/为零时回退 Close（源内 fallback，非冒充）
+		adj := providerutil.ToFloat64Safe(adjClose, i)
+		if adj == 0 {
+			adj = p.Close
 		}
+		p.AdjustedClose = &adj
 		prices = append(prices, p)
 	}
 	return prices, nil

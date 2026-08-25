@@ -27,8 +27,8 @@ func TestParseChartResponse(t *testing.T) {
 				}
 			}],"error":null}
 		}`, Want: []provider.DailyPrice{
-			{Date: "2024-01-01", Open: 100, High: 105, Low: 99, Close: 103, Volume: 1000000, AdjustedClose: 103},
-			{Date: "2024-01-02", Open: 101, High: 106, Low: 100, Close: 104, Volume: 1200000, AdjustedClose: 104},
+			{Date: "2024-01-01", Open: 100, High: 105, Low: 99, Close: 103, Volume: 1000000, AdjustedClose: testutil.F64(103)},
+			{Date: "2024-01-02", Open: 101, High: 106, Low: 100, Close: 104, Volume: 1200000, AdjustedClose: testutil.F64(104)},
 		}},
 		{Name: "empty result", In: `{"chart":{"result":[],"error":null}}`, Want: nil},
 		{Name: "empty timestamp", In: `{"chart":{"result":[{"timestamp":[],"indicators":{"quote":[]}}],"error":null}}`, Want: nil},
@@ -40,7 +40,7 @@ func TestParseChartResponse(t *testing.T) {
 				"indicators":{"quote":[{"open":[100.0,101.0],"high":[105.0,106.0],"low":[99.0,100.0],"close":[0,104.0],"volume":[1000000.0,1200000.0]}]}
 			}],"error":null}
 		}`, Want: []provider.DailyPrice{
-			{Date: "2024-01-02", Open: 101, High: 106, Low: 100, Close: 104, Volume: 1200000, AdjustedClose: 104},
+			{Date: "2024-01-02", Open: 101, High: 106, Low: 100, Close: 104, Volume: 1200000, AdjustedClose: testutil.F64(104)},
 		}},
 		{Name: "no adjclose falls back to close", In: `{
 			"chart":{"result":[{
@@ -48,7 +48,7 @@ func TestParseChartResponse(t *testing.T) {
 				"indicators":{"quote":[{"open":[100.0],"high":[105.0],"low":[99.0],"close":[103.0],"volume":[1000000.0]}]}
 			}],"error":null}
 		}`, Want: []provider.DailyPrice{
-			{Date: "2024-01-01", Open: 100, High: 105, Low: 99, Close: 103, Volume: 1000000, AdjustedClose: 103},
+			{Date: "2024-01-01", Open: 100, High: 105, Low: 99, Close: 103, Volume: 1000000, AdjustedClose: testutil.F64(103)},
 		}},
 	}
 	testutil.RunParse(t, cases, func(body string) ([]provider.DailyPrice, error) {

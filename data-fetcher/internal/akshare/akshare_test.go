@@ -42,8 +42,8 @@ type parseDailyInput struct {
 
 func TestParseDailyPrices(t *testing.T) {
 	wantSuccess := []provider.DailyPrice{
-		{Date: "2024-01-02", Open: 10.5, High: 11, Low: 10.3, Close: 10.8, Volume: 1000000, AdjustedClose: 10.8},
-		{Date: "2024-01-03", Open: 10.8, High: 11.5, Low: 10.7, Close: 11.2, Volume: 1200000, AdjustedClose: 11.2},
+		{Date: "2024-01-02", Open: 10.5, High: 11, Low: 10.3, Close: 10.8, Volume: 1000000},
+		{Date: "2024-01-03", Open: 10.8, High: 11.5, Low: 10.7, Close: 11.2, Volume: 1200000},
 	}
 	cases := []testutil.ParseCase[parseDailyInput, []provider.DailyPrice]{
 		{Name: "success", In: parseDailyInput{klines: []string{

@@ -18,8 +18,8 @@ func TestParseCandleResponse(t *testing.T) {
 			"c":[103.0,104.0],
 			"v":[1000000.0,1200000.0]
 		}`, Want: []provider.DailyPrice{
-			{Date: "2024-01-01", Open: 100, High: 105, Low: 99, Close: 103, Volume: 1000000, AdjustedClose: 103},
-			{Date: "2024-01-02", Open: 101, High: 106, Low: 100, Close: 104, Volume: 1200000, AdjustedClose: 104},
+			{Date: "2024-01-01", Open: 100, High: 105, Low: 99, Close: 103, Volume: 1000000},
+			{Date: "2024-01-02", Open: 101, High: 106, Low: 100, Close: 104, Volume: 1200000},
 		}},
 		{Name: "no data", In: `{"s":"no_data"}`, Want: nil},
 		{Name: "error status", In: `{"s":"error"}`, Want: nil, WantErr: true},
@@ -34,7 +34,7 @@ func TestParseCandleResponse(t *testing.T) {
 			"c":[0,104.0],
 			"v":[1000000.0,1200000.0]
 		}`, Want: []provider.DailyPrice{
-			{Date: "2024-01-02", Open: 101, High: 106, Low: 100, Close: 104, Volume: 1200000, AdjustedClose: 104},
+			{Date: "2024-01-02", Open: 101, High: 106, Low: 100, Close: 104, Volume: 1200000},
 		}},
 		{Name: "short C breaks", In: `{
 			"s":"ok",
@@ -45,7 +45,7 @@ func TestParseCandleResponse(t *testing.T) {
 			"c":[103.0],
 			"v":[1000000.0,1200000.0]
 		}`, Want: []provider.DailyPrice{
-			{Date: "2024-01-01", Open: 100, High: 105, Low: 99, Close: 103, Volume: 1000000, AdjustedClose: 103},
+			{Date: "2024-01-01", Open: 100, High: 105, Low: 99, Close: 103, Volume: 1000000},
 		}},
 	}
 	testutil.RunParse(t, cases, func(body string) ([]provider.DailyPrice, error) {

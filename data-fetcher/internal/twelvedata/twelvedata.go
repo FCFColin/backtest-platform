@@ -92,11 +92,12 @@ func parseTimeSeries(body []byte, startDate, endDate string) ([]provider.DailyPr
 		if close == 0 {
 			continue
 		}
+		adj := close // R-12：twelvedata adjust=split 已确认拆股调整口径，允许写入 AdjustedClose
 		prices = append(prices, provider.DailyPrice{
 			Date: t.Format("2006-01-02"), Open: providerutil.ParseStringFloat(v.Open),
 			High: providerutil.ParseStringFloat(v.High),
 			Low:  providerutil.ParseStringFloat(v.Low), Close: close,
-			Volume: providerutil.ParseStringInt(v.Volume), AdjustedClose: close})
+			Volume: providerutil.ParseStringInt(v.Volume), AdjustedClose: &adj})
 	}
 	// twelvedata 返回降序（最新在前），与 finnhub/akshare 的升序契约对齐，避免实时抓取响应顺序漂移
 	slices.SortFunc(prices, func(a, b provider.DailyPrice) int { return cmp.Compare(a.Date, b.Date) })

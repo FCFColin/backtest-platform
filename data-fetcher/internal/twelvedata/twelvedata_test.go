@@ -35,8 +35,8 @@ func TestParseTimeSeries(t *testing.T) {
 				{"datetime":"2024-01-03","open":"103.0","high":"106.0","low":"102.0","close":"104.5","volume":"1200000"}
 			]
 		}`, Want: []provider.DailyPrice{
-			{Date: "2024-01-02", Open: 100.5, High: 105, Low: 99, Close: 103, Volume: 1000000, AdjustedClose: 103},
-			{Date: "2024-01-03", Open: 103, High: 106, Low: 102, Close: 104.5, Volume: 1200000, AdjustedClose: 104.5},
+			{Date: "2024-01-02", Open: 100.5, High: 105, Low: 99, Close: 103, Volume: 1000000, AdjustedClose: testutil.F64(103)},
+			{Date: "2024-01-03", Open: 103, High: 106, Low: 102, Close: 104.5, Volume: 1200000, AdjustedClose: testutil.F64(104.5)},
 		}},
 		{Name: "error status", In: `{"status":"error","message":"API key invalid"}`, Want: nil, WantErr: true},
 		{Name: "error without message", In: `{"status":"error"}`, Want: nil, WantErr: true},
@@ -50,7 +50,7 @@ func TestParseTimeSeries(t *testing.T) {
 				{"datetime":"2024-02-01","open":"100","high":"105","low":"99","close":"103","volume":"1000"}
 			]
 		}`, Want: []provider.DailyPrice{
-			{Date: "2024-01-02", Open: 100, High: 105, Low: 99, Close: 103, Volume: 1000, AdjustedClose: 103},
+			{Date: "2024-01-02", Open: 100, High: 105, Low: 99, Close: 103, Volume: 1000, AdjustedClose: testutil.F64(103)},
 		}},
 		{Name: "zero close skipped", In: `{
 			"status":"ok",
@@ -59,7 +59,7 @@ func TestParseTimeSeries(t *testing.T) {
 				{"datetime":"2024-01-03","open":"100","high":"105","low":"99","close":"103","volume":"1000"}
 			]
 		}`, Want: []provider.DailyPrice{
-			{Date: "2024-01-03", Open: 100, High: 105, Low: 99, Close: 103, Volume: 1000, AdjustedClose: 103},
+			{Date: "2024-01-03", Open: 100, High: 105, Low: 99, Close: 103, Volume: 1000, AdjustedClose: testutil.F64(103)},
 		}},
 		{Name: "invalid date skipped", In: `{
 			"status":"ok",
@@ -68,7 +68,7 @@ func TestParseTimeSeries(t *testing.T) {
 				{"datetime":"2024-01-03","open":"100","high":"105","low":"99","close":"104","volume":"1000"}
 			]
 		}`, Want: []provider.DailyPrice{
-			{Date: "2024-01-03", Open: 100, High: 105, Low: 99, Close: 104, Volume: 1000, AdjustedClose: 104},
+			{Date: "2024-01-03", Open: 100, High: 105, Low: 99, Close: 104, Volume: 1000, AdjustedClose: testutil.F64(104)},
 		}},
 		{Name: "empty values", In: `{"status":"ok","values":[]}`, Want: nil},
 	}

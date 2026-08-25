@@ -15,15 +15,15 @@ import (
 )
 
 type PricePoint struct {
-	Date        string  `json:"date"`
-	Open        float64 `json:"open"`
-	High        float64 `json:"high"`
-	Low         float64 `json:"low"`
-	Close       float64 `json:"close"`
-	AdjClose    float64 `json:"adjusted_close"`
-	Volume      int64   `json:"volume"`
-	Dividend    float64 `json:"dividend"`
-	SplitFactor float64 `json:"split_factor"`
+	Date        string   `json:"date"`
+	Open        float64  `json:"open"`
+	High        float64  `json:"high"`
+	Low         float64  `json:"low"`
+	Close       float64  `json:"close"`
+	AdjClose    *float64 `json:"adjusted_close"` // R-12/A4：nil=未确认复权，JSON null 由消费端 ?? close 兜底
+	Volume      int64    `json:"volume"`
+	Dividend    float64  `json:"dividend"`
+	SplitFactor float64  `json:"split_factor"`
 }
 type SearchResult struct {
 	Ticker string `json:"ticker"`
@@ -104,9 +104,7 @@ func (ds *DataStore) GetPriceData(ctx context.Context, ticker, startDate, endDat
 			return nil, false, fmt.Errorf("%w: 扫描价格行失败: %v", ErrDBQuery, err)
 		}
 		p.Date = date.Format("2006-01-02")
-		if adjClose != nil {
-			p.AdjClose = *adjClose
-		}
+		p.AdjClose = adjClose // R-12/A4：DB NULL 直通 *float64 nil，JSON 序列化为 null
 		prices = append(prices, p)
 	}
 	if err := rows.Err(); err != nil {
@@ -185,13 +183,17 @@ func (ds *DataStore) fetchAndStoreFromProvider(ctx context.Context, ticker, star
 	}
 	pricePoints := make([]PricePoint, len(dailyPrices))
 	for i, dp := range dailyPrices {
+		var adj *float64 // R-12/A4：nil 直通 pgx → adjusted_close 落 NULL，消费端走 ?? close 兜底
+		if dp.AdjustedClose != nil {
+			adj = dp.AdjustedClose
+		}
 		pricePoints[i] = PricePoint{
 			Date:     dp.Date,
 			Open:     dp.Open,
 			High:     dp.High,
 			Low:      dp.Low,
 			Close:    dp.Close,
-			AdjClose: dp.AdjustedClose,
+			AdjClose: adj,
 			Volume:   dp.Volume,
 		}
 	}

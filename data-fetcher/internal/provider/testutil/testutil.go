@@ -61,11 +61,17 @@ func AssertPricesEqual(t *testing.T, got, want []provider.DailyPrice) {
 		if g.Volume != w.Volume {
 			t.Errorf("prices[%d].Volume = %d, want %d", i, g.Volume, w.Volume)
 		}
-		if math.Abs(g.AdjustedClose-w.AdjustedClose) > 1e-6 {
-			t.Errorf("prices[%d].AdjustedClose = %v, want %v", i, g.AdjustedClose, w.AdjustedClose)
+		// R-12/A4：AdjustedClose 语义比较——nil 性必须一致，非 nil 才比数值
+		if (g.AdjustedClose == nil) != (w.AdjustedClose == nil) {
+			t.Errorf("prices[%d].AdjustedClose nil 性不一致: got %v, want %v", i, g.AdjustedClose, w.AdjustedClose)
+		} else if g.AdjustedClose != nil && math.Abs(*g.AdjustedClose-*w.AdjustedClose) > 1e-6 {
+			t.Errorf("prices[%d].AdjustedClose = %v, want %v", i, *g.AdjustedClose, *w.AdjustedClose)
 		}
 	}
 }
+
+// F64 返回 float64 指针（测试期望值构造 AdjustedClose 用）。
+func F64(v float64) *float64 { return &v }
 
 // FastFailClient 返回请求即时失败的 HTTP 客户端，用于触发 provider 的 HTTP 错误路径。
 func FastFailClient() *httpclient.Client {
