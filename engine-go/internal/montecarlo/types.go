@@ -22,6 +22,8 @@ type MCBacktestParams struct {
 	StartDate     string  `json:"startDate"`
 	EndDate       string  `json:"endDate"`
 	StartingValue float64 `json:"startingValue"`
+	// U-2 跟进：年化无风险利率（nil→legacy 0.02），用于路径级 Sharpe/Sortino
+	RiskFreeRate *float64 `json:"riskFreeRate,omitempty"`
 }
 type MCSimParams struct {
 	NumSimulations   int     `json:"numSimulations"`

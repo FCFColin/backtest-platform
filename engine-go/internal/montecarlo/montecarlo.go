@@ -44,7 +44,7 @@ func RunMonteCarlo(ctx context.Context, req MonteCarloRequest) (*MonteCarloResul
 	successProb := computeSuccessProbability(paths, req.MCParams.SuccessThreshold, req.Params.StartingValue)
 	successProbs := computeSuccessProbabilities(paths, req.Params.StartingValue, req.MCParams.NumYears)
 	finalDist := computeFinalDistribution(paths)
-	perPathMetrics := computePerPathMetrics(paths, req.Params.StartingValue, req.MCParams.NumYears)
+	perPathMetrics := computePerPathMetrics(paths, req.Params.StartingValue, req.MCParams.NumYears, req.Params.RiskFreeRate)
 	stats := computeMCStatistics(paths, req.MCParams.SuccessThreshold, req.Params.StartingValue)
 	repPaths := computeRepresentativePaths(paths, totalDays)
 	return &MonteCarloResult{Percentiles: percentiles, SuccessProbability: successProb, FinalDistribution: finalDist, Statistics: stats, PerPathMetrics: perPathMetrics, RepresentativePaths: repPaths, SuccessProbabilities: successProbs}, nil
@@ -102,22 +102,31 @@ func computePortfolioDailyReturns(portfolio MCPortfolioInput, priceData PriceDat
 	return returns, nil
 }
 
-func computePerPathMetrics(paths [][]float64, startingValue float64, numYears int) []PathMetrics {
+func computePerPathMetrics(paths [][]float64, startingValue float64, numYears int, riskFreeRate *float64) []PathMetrics {
 	if len(paths) == 0 {
 		return nil
 	}
 	metrics := make([]PathMetrics, len(paths))
 	years := float64(numYears)
 	for i, path := range paths {
-		metrics[i] = calcPathMetrics(path, startingValue, years)
+		metrics[i] = calcPathMetrics(path, startingValue, years, riskFreeRate)
 	}
 	return metrics
 }
-func calcPathMetrics(path []float64, startingValue float64, years float64) PathMetrics {
+func calcPathMetrics(path []float64, startingValue float64, years float64, riskFreeRate *float64) PathMetrics {
 	finalValue := path[len(path)-1]
 	cagr := engine.CalcCAGR(startingValue, finalValue, years)
 	dailyRets := mathutil.DailyReturnsWithZeros(path)
-	return PathMetrics{FinalValue: finalValue, CAGR: cagr, MaxDrawdown: engine.CalcMaxDrawdown(path).MaxDrawdown, Volatility: engine.CalcAnnualizedStdev(dailyRets), Sharpe: engine.CalcSharpe(cagr, engine.CalcAnnualizedStdev(dailyRets)), Sortino: engine.CalcSortino(cagr, dailyRets)}
+	vol := engine.CalcAnnualizedStdev(dailyRets)
+	var sharpe, sortino float64
+	if riskFreeRate != nil { // U-2 跟进：显式 rf；nil→legacy 常量
+		sharpe = engine.CalcSharpeWithRF(*riskFreeRate, cagr, vol)
+		sortino = engine.CalcSortinoWithRF(*riskFreeRate, cagr, dailyRets)
+	} else {
+		sharpe = engine.CalcSharpe(cagr, vol)
+		sortino = engine.CalcSortino(cagr, dailyRets)
+	}
+	return PathMetrics{FinalValue: finalValue, CAGR: cagr, MaxDrawdown: engine.CalcMaxDrawdown(path).MaxDrawdown, Volatility: vol, Sharpe: sharpe, Sortino: sortino}
 }
 
 func finalValues(paths [][]float64) []float64 {

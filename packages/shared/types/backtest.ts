@@ -62,6 +62,8 @@ export interface BacktestResult {
   benchmarkGrowth?: TimeSeriesPoint[];
   assetTickers?: string[];
   assetCorrelations?: number[][];
+  /** H-2：按自然季度的资产相关矩阵序列（引擎已产出；前端展示随收尾批次） */
+  quarterlyCorrelations?: Array<{ quarter: string; matrix: number[][]; tickers: string[] }>;
 }
 
 export interface AssetAnalysisResult {

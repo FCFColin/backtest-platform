@@ -66,6 +66,7 @@ var expectedPortfolioResultFields = []string{
 }
 var expectedBacktestResultFields = []string{
 	"portfolios", "correlations", "benchmarkGrowth", "assetTickers", "assetCorrelations",
+	"quarterlyCorrelations",
 }
 var allowedBacktestResultExtraFields = []string{}
 var expectedDrawdownEpisodeFields = []string{

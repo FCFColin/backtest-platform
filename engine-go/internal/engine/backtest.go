@@ -8,6 +8,7 @@ import (
 	"maps"
 	"math"
 	"slices"
+	"sort"
 	"time"
 )
 
@@ -52,7 +53,8 @@ func RunBacktest(ctx context.Context, req BacktestRequest) (*BacktestResult, err
 		assetDailyReturns = append(assetDailyReturns, mathutil.DailyReturns(engineutil.ExtractPrices(req.PriceData, ticker, tradingDates)))
 	}
 	assetCorrelations := CalcCorrelationMatrix(assetDailyReturns)
-	result := &BacktestResult{Portfolios: portfolioResults, Correlations: correlations, BenchmarkGrowth: benchmarkGrowth, AssetTickers: assetTickers, AssetCorrelations: assetCorrelations}
+	quarterlyCorrelations := ComputeQuarterlyCorrelationMatrices(assetTickers, assetDailyReturns, tradingDates[1:]) // rets[i] 属于 dates[i+1]，对齐后传
+	result := &BacktestResult{Portfolios: portfolioResults, Correlations: correlations, BenchmarkGrowth: benchmarkGrowth, AssetTickers: assetTickers, AssetCorrelations: assetCorrelations, QuarterlyCorrelations: quarterlyCorrelations}
 	return result, nil
 }
 
@@ -296,6 +298,68 @@ func annualReturnsFromCurve(curve []DataPoint) []AnnualReturn {
 		return nil
 	}
 	return CalcAnnualReturns(extractValues(curve), extractDates(curve))
+}
+
+// ComputeQuarterlyCorrelationMatrices 按自然季度切片计算资产相关矩阵序列（AWALYT 对标）。
+// 观测数 <2 的季度跳过；矩阵维度与 tickers 全集一致。
+// 观测数 <2 的季度跳过；矩阵维度与 tickers 全集一致（缺失观测日以该季可用行对齐——
+// 简化口径：仅统计该季度内所有资产均有收益的索引子集）。
+func ComputeQuarterlyCorrelationMatrices(tickers []string, assetDailyReturns [][]float64, tradingDates []time.Time) []QuarterlyCorrelationMatrix {
+	if len(assetDailyReturns) == 0 || len(tradingDates) == 0 {
+		return nil
+	}
+	type bucket struct {
+		key  string
+		rows []int
+	}
+	buckets := make(map[string]*bucket)
+	for di := range tradingDates {
+		q := (int(tradingDates[di].Month())-1)/3 + 1
+		key := fmt.Sprintf("%dQ%d", tradingDates[di].Year(), q)
+		b, ok := buckets[key]
+		if !ok {
+			b = &bucket{key: key}
+			buckets[key] = b
+		}
+		b.rows = append(b.rows, di)
+	}
+	keys := make([]string, 0, len(buckets))
+	for k := range buckets {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	out := make([]QuarterlyCorrelationMatrix, 0, len(keys))
+	for _, k := range keys {
+		rows := buckets[k].rows
+		if len(rows) < 2 {
+			continue
+		}
+		sliced := make([][]float64, len(assetDailyReturns))
+		valid := true
+		for ai, rets := range assetDailyReturns {
+			sub := make([]float64, len(rows))
+			for ri, di := range rows {
+				if di >= len(rets) {
+					valid = false
+					break
+				}
+				sub[ri] = rets[di]
+			}
+			if !valid {
+				break
+			}
+			sliced[ai] = sub
+		}
+		if !valid {
+			continue
+		}
+		out = append(out, QuarterlyCorrelationMatrix{
+			Quarter: k,
+			Matrix:  CalcCorrelationMatrix(sliced),
+			Tickers: append([]string(nil), tickers...),
+		})
+	}
+	return out
 }
 func monthlyReturnsFromCurve(curve []DataPoint) []MonthlyReturn {
 	if len(curve) < 2 {

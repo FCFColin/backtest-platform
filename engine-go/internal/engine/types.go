@@ -175,6 +175,13 @@ type BacktestResult struct {
 	BenchmarkGrowth   []DataPoint       `json:"benchmarkGrowth"`
 	AssetTickers      []string          `json:"assetTickers"`
 	AssetCorrelations [][]float64       `json:"assetCorrelations"`
+	// H-2：按自然季度的资产相关矩阵序列（观测 <2 的季度跳过）
+	QuarterlyCorrelations []QuarterlyCorrelationMatrix `json:"quarterlyCorrelations,omitempty"`
+}
+type QuarterlyCorrelationMatrix struct {
+	Quarter string      `json:"quarter"`
+	Matrix  [][]float64 `json:"matrix"`
+	Tickers []string    `json:"tickers"`
 }
 type PortfolioResult struct {
 	Name              string            `json:"name"`
