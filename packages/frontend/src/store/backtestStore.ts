@@ -3,7 +3,7 @@ import { create } from 'zustand';
 import { startTransition } from 'react';
 import i18n from '@/i18n/index.js';
 import { apiFetch } from '@/utils/apiClient.js';
-import { reportError, processResponseWarnings } from '@/utils/errorReporter.js';
+import { reportError, processResponseWarnings, type WarningInfo } from '@/utils/errorReporter.js';
 import type {
   Portfolio,
   PortfolioResult,
@@ -53,6 +53,8 @@ export interface BacktestState {
   hasLoadedFromShare: boolean;
   _abortController: AbortController | null;
   parameters: BacktestParameters;
+  /** U-1 数据质量徽章：最近一次回测的结构化 warnings（空数组=全绿） */
+  dataQualityWarnings: WarningInfo[];
   addPortfolio: (presetId?: string) => void;
   removePortfolio: (id: string) => void;
   duplicatePortfolio: (id: string) => void;
@@ -136,9 +138,12 @@ async function runBacktestAction(set: SetFn, get: GetFn): Promise<void> {
         ? await pollJobStatus(json.data.statusUrl as string, ctrl.signal, rid)
         : json;
     const results = normalizeBacktestResult(rj.data ?? rj);
-    processResponseWarnings(rj);
+    // U-1：warnings 同时入 state 供结果页常驻徽章（toast 瞬时提示保留）
+    const dq = processResponseWarnings(rj);
     if (rid === currentRequestId)
-      startTransition(() => set({ results, error: null, resultsStale: false }));
+      startTransition(() =>
+        set({ results, error: null, resultsStale: false, dataQualityWarnings: dq }),
+      );
   } catch (e) {
     if (rid !== currentRequestId) return;
     set({ error: handleBacktestError(e) });
@@ -235,6 +240,7 @@ export const useBacktestStore = create<BacktestState>()((set, get) => {
     portfolios: [] as Portfolio[],
     portfolioCounter: 0,
     results: null as BacktestResult | null,
+    dataQualityWarnings: [] as WarningInfo[],
     resultsStale: false,
     error: null as string | null,
     isLoading: false,

@@ -144,7 +144,7 @@ for (const [key, codes] of Object.entries(ERROR_I18N_GROUPS)) {
   for (const code of codes) ERROR_I18N_MAP[code] = key;
 }
 
-interface WarningInfo {
+export interface WarningInfo {
   code?: string;
   message?: string;
   tickers?: string[];

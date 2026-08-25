@@ -3,6 +3,7 @@ import { useTranslation, Trans } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router';
 import { MoreHorizontal, Download } from 'lucide-react';
 import { useBacktestStore } from '@/store/backtestStore';
+import { DataQualityBadge } from '@/components/DataQualityBadge';
 import * as U from '@/components/ui/uiComponents';
 import * as ST from '@/components/statistics-table/StatisticsTable.js';
 import { getPortfolioColor } from '@/lib/chart-theme.js';
@@ -294,6 +295,7 @@ export function ResultsContent() {
   const activeTab = useBacktestStore((s) => s.activeTab);
   const pfs = useBacktestStore((s) => s.portfolios);
   const cur = useBacktestStore((s) => s.parameters.baseCurrency);
+  const dqWarnings = useBacktestStore((s) => s.dataQualityWarnings);
   const { runBacktest: run, enrichSeries: enrich } = useBacktestStore.getState();
   const has = !!results && results.portfolios.length > 0;
   const prev = useRef(has);
@@ -340,6 +342,8 @@ export function ResultsContent() {
     <div className="space-y-4">
       {err && <ErrorBanner message={err} className="mb-2" />}
       {stale && <ErrorBanner variant="warning" message={staleMsg} />}
+      {/* U-1 数据质量校验徽章：绿=无结构化 warning；黄=可展开明细 */}
+      <DataQualityBadge warnings={dqWarnings} />
       <ResultsActionBar
         timeRange={range}
         onExport={(f) => {
