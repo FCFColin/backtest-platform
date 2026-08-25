@@ -37,6 +37,8 @@ type SignalAnalysisRequest struct {
 	Period     int     `json:"period"`
 	Threshold  float64 `json:"threshold"`
 	SignalType string  `json:"signalType"`
+	// U-2 跟进：年化无风险利率（nil→legacy 0.02），用于策略 Sharpe
+	RiskFreeRate *float64 `json:"riskFreeRate,omitempty"`
 }
 type DualSignalConfig struct {
 	Signal1           SignalAnalysisRequest `json:"signal1"`

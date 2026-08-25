@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	riskFreeRate       = engineutil.RiskFreeRate
+	riskFreeRate       = engineutil.RiskFreeRate // U-2 backlog：贯通需 tangentPortfolio/portfolioMetrics 签名链改造（~120 行），模式参照 engine.CalcSharpeWithRF
 	tradingDaysPerYear = engineutil.TradingDaysPerYear
 	defaultIterations  = 10000
 	maxIterations      = 200000

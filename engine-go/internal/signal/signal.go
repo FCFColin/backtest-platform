@@ -14,10 +14,10 @@ const (
 	tradingDaysPerYear = engineutil.TradingDaysPerYear
 )
 
-func finalizeResult(signals []SignalPoint, data []PricePoint) SignalAnalysisResult {
+func finalizeResult(signals []SignalPoint, data []PricePoint, riskFreeRate *float64) SignalAnalysisResult {
 	stats := calcStatistics(signals)
 	var equityCurve []EquityPoint
-	equityCurve, stats.MaxDrawdown, stats.Sharpe = calcEquityCurve(signals, data)
+	equityCurve, stats.MaxDrawdown, stats.Sharpe = calcEquityCurve(signals, data, riskFreeRate)
 	return SignalAnalysisResult{Signals: signals, Statistics: stats, EquityCurve: equityCurve}
 }
 func priceMapFrom(data []PricePoint) map[string]float64 {
@@ -53,7 +53,7 @@ func pointInTimeWinRates(signals []SignalPoint) map[string]float64 {
 }
 func AnalyzeSignal(req SignalAnalysisRequest, data []PricePoint) SignalAnalysisResult {
 	signals := filterByType(generateRawSignals(req.Indicator, req.Period, req.Threshold, data), req.SignalType)
-	return finalizeResult(signals, data)
+	return finalizeResult(signals, data, req.RiskFreeRate)
 }
 func buildSignalDirMap(signals []SignalPoint) map[string]SignalDir {
 	m := make(map[string]SignalDir)
@@ -123,7 +123,7 @@ func AnalyzeDualSignal(cfg1, cfg2 SignalAnalysisRequest, data1, data2 []PricePoi
 			}
 		}
 	}
-	return DualSignalResult{Signal1: result1, Signal2: result2, Combined: finalizeResult(combinedSignals, data1), Comparison: comparison}
+	return DualSignalResult{Signal1: result1, Signal2: result2, Combined: finalizeResult(combinedSignals, data1, cfg1.RiskFreeRate), Comparison: comparison}
 }
 func AnalyzeMultiSignal(ctx context.Context, configs []SignalAnalysisRequest, data []PricePoint, aggregationMethod string, weights []float64) MultiSignalResult {
 	perSignal := make([]SignalAnalysisResult, len(configs))
@@ -205,7 +205,11 @@ func AnalyzeMultiSignal(ctx context.Context, configs []SignalAnalysisRequest, da
 			}
 		}
 	}
-	return MultiSignalResult{Aggregated: finalizeResult(aggregatedSignals, data), Contributions: contributions}
+	var rf *float64
+	if len(configs) > 0 {
+		rf = configs[0].RiskFreeRate
+	}
+	return MultiSignalResult{Aggregated: finalizeResult(aggregatedSignals, data, rf), Contributions: contributions}
 }
 
 func calcStatistics(signals []SignalPoint) SignalStats {
@@ -233,7 +237,7 @@ func calcStatistics(signals []SignalPoint) SignalStats {
 	}
 	return SignalStats{TotalSignals: totalSignals, WinRate: winRate, AvgReturn: avgReturn}
 }
-func calcEquityCurve(signals []SignalPoint, data []PricePoint) (equityCurve []EquityPoint, maxDrawdown, sharpe float64) {
+func calcEquityCurve(signals []SignalPoint, data []PricePoint, riskFreeRate *float64) (equityCurve []EquityPoint, maxDrawdown, sharpe float64) {
 	signalMap := buildSignalDirMap(signals)
 	capital := initialCapital
 	shares := 0.0
@@ -270,7 +274,12 @@ func calcEquityCurve(signals []SignalPoint, data []PricePoint) (equityCurve []Eq
 	if len(equityCurve) >= 2 {
 		years := float64(len(equityCurve)-1) / tradingDaysPerYear
 		cagr := engine.CalcCAGR(equityCurve[0].Value, equityCurve[len(equityCurve)-1].Value, years)
-		sharpe = engine.CalcSharpe(cagr, stdev)
+		// U-2 跟进：显式 rf 优先，nil→legacy 常量（golden/存量调用零漂移）
+		rf := engineutil.RiskFreeRate
+		if riskFreeRate != nil {
+			rf = *riskFreeRate
+		}
+		sharpe = engine.CalcSharpeWithRF(rf, cagr, stdev)
 	}
 	return
 }

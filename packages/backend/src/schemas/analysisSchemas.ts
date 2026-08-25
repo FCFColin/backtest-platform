@@ -74,6 +74,7 @@ const signalAnalysisRequestSchema = z.object({
   startDate: z.string().min(1),
   endDate: z.string().min(1),
   signalType: z.enum(SIGNAL_TYPES),
+  riskFreeRate: z.number().optional(), // U-2 跟进：年化无风险利率（缺省 legacy 0.02）
 });
 
 export const signalAnalyzeSchema = signalAnalysisRequestSchema;
