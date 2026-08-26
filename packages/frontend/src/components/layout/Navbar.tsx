@@ -22,48 +22,10 @@ import {
   ThemeCurrencyButtons,
 } from './navbarParts.js';
 import { planTier } from '@/utils/orgPlan';
+import { DIRECT_LINKS, NAV_GROUPS } from '@/config/navConfig';
 const navLinkClass =
   'px-3 py-2 text-body font-medium text-fg-secondary hover:text-fg rounded-md hover:bg-hover hover:underline transition-colors duration-150';
-const DIRECT_LINKS = [
-  { to: '/data-engine', key: 'dataEngine' },
-  { to: '/calculators', key: 'calculators' },
-  { to: '/about', key: 'about' },
-  { to: '/pricing', key: 'pricing' },
-] as const;
-const NAV_GROUP_KEYS = [
-  {
-    key: 'backtest',
-    items: [
-      { to: '/', key: 'portfolioBacktest' },
-      { to: '/backtest-optimizer', key: 'backtestOptimizer' },
-      { to: '/rebalancing-sensitivity', key: 'rebalancingSensitivity' },
-      { to: '/lumpsum-vs-dca', key: 'lumpsumVsDca' },
-    ],
-  },
-  {
-    key: 'analysisOptimization',
-    items: [
-      { to: '/analysis', key: 'assetAnalysis' },
-      { to: '/factor-regression', key: 'factorRegression' },
-      { to: '/pca', key: 'pca' },
-      { to: '/optimizer', key: 'portfolioOptimize' },
-      { to: '/efficient-frontier', key: 'efficientFrontier' },
-      { to: '/monte-carlo', key: 'monteCarlo' },
-      { to: '/goal-optimizer', key: 'goalOptimizer' },
-      { to: '/letf-slippage', key: 'letfAnalysis' },
-    ],
-  },
-  {
-    key: 'tacticalSignal',
-    items: [
-      { to: '/tactical', key: 'tacticalAllocation' },
-      { to: '/tactical-grid', key: 'tacticalGrid' },
-      { to: '/signal-analyzer', key: 'signalAnalyzer' },
-      { to: '/dual-signal', key: 'dualSignal' },
-      { to: '/multi-signal', key: 'multiSignal' },
-    ],
-  },
-] as const;
+const NAV_GROUP_KEYS = NAV_GROUPS;
 function preloadGroup(group: (typeof NAV_GROUP_KEYS)[number]): void {
   for (const item of group.items) preloadPage(item.to === '/' ? 'backtest' : item.to.slice(1));
 }

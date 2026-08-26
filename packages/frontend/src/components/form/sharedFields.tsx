@@ -61,6 +61,7 @@ export function DateField({
   onChange,
   fallback,
   disabled,
+  error,
 }: {
   id?: string;
   label: string;
@@ -68,7 +69,9 @@ export function DateField({
   onChange: (v: string) => void;
   fallback?: string;
   disabled?: boolean;
+  error?: string | null;
 }) {
+  const errId = error ? `${id}-error` : undefined;
   return (
     <LabeledField htmlFor={id} label={label}>
       <Input
@@ -77,7 +80,14 @@ export function DateField({
         value={value || fallback}
         onChange={(e) => onChange(e.target.value)}
         disabled={disabled}
+        aria-invalid={error ? 'true' : undefined}
+        aria-describedby={errId}
       />
+      {error && (
+        <p id={errId} role="alert" className="mt-1 text-caption text-danger">
+          {error}
+        </p>
+      )}
     </LabeledField>
   );
 }

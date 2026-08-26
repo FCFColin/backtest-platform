@@ -39,7 +39,7 @@ export const ACCESS_TOKEN_EXPIRES_IN_SEC = config.JWT_ACCESS_TTL;
 export const ROLE_TTL: Record<Role, number> = {
   readonly: config.SESSION_IDLE_TIMEOUT_READONLY_SEC,
   analyst: config.SESSION_IDLE_TIMEOUT_ANALYST_SEC,
-  admin: 0,
+  admin: config.JWT_ACCESS_TTL,
 };
 
 export const hashUserId = (sub: string | undefined): string | undefined =>

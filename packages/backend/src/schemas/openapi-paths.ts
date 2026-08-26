@@ -153,11 +153,14 @@ const TAC_ERR = [400, 401, 422, 503];
 const STATUS_ERR = [401, 503];
 const GOAL_PATH = '/goal-optimizer/optimize';
 const CFG_ID = '/tactical/configs/{id}';
-const ID_P = { p: z.object({ id: z.string() }) };
-const USER_P = { p: z.object({ userId: z.string() }) };
+const ID_P = { p: z.object({ id: z.string().uuid() }) };
+const USER_P = { p: z.object({ userId: z.string().uuid() }) };
 const CPI_P = { p: z.object({ country: z.enum(['us', 'cn']) }) };
 const TYPE_P = { p: z.object({ type: z.string() }) };
-const PAGE_Q = z.object({ limit: z.number().optional(), offset: z.number().optional() });
+const PAGE_Q = z.object({
+  limit: z.coerce.number().int().min(1).max(200).optional(),
+  offset: z.coerce.number().int().min(0).optional(),
+});
 const KEY_BODY = z.object({ name: z.string().max(120) });
 const SEARCH_Q = z.object({
   query: z.string().min(1).max(100),

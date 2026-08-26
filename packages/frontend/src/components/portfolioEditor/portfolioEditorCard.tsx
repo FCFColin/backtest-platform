@@ -175,6 +175,7 @@ export function PortfolioCard({
               'font-mono tabular-nums font-semibold',
               isComplete ? 'text-success' : 'text-warning',
             )}
+            aria-live="polite"
           >
             {tw.toFixed(1)}%
           </span>
@@ -183,6 +184,11 @@ export function PortfolioCard({
           />
         </div>
       </div>
+      {!isComplete && (
+        <p role="alert" className="mt-2 text-caption text-warning">
+          {t('Weights must sum to 100%, got {{total}}%', { total: tw.toFixed(2) })}
+        </p>
+      )}
     </Card>
   );
 }

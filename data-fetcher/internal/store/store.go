@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"log/slog"
 	"os"
+	"sort"
 	"time"
 )
 
@@ -203,12 +204,27 @@ func (ds *DataStore) writeGoPricesToDB(ctx context.Context, ticker string, price
 	if ds.pool == nil {
 		return fmt.Errorf("数据库未连接")
 	}
+	// 去重：同一批次内按 date 去重，保留最后一次出现（避免 ON CONFLICT 重复队列浪费）
+	dedup := make(map[string]provider.DailyPrice, len(prices))
+	for _, p := range prices {
+		dedup[p.Date] = p
+	}
+	uniq := make([]provider.DailyPrice, 0, len(dedup))
+	for _, p := range dedup {
+		uniq = append(uniq, p)
+	}
+	sort.Slice(uniq, func(i, j int) bool { return uniq[i].Date < uniq[j].Date })
+	tx, err := ds.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("开启事务失败: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
 	batch := &pgx.Batch{}
 	batch.Queue(`
 		INSERT INTO tickers (ticker) VALUES ($1)
 		ON CONFLICT (ticker) DO NOTHING
 	`, ticker)
-	for _, p := range prices {
+	for _, p := range uniq {
 		adjClose := p.AdjustedClose
 		batch.Queue(`
 			INSERT INTO prices (ticker, date, open, high, low, close, volume, adjusted_close)
@@ -218,15 +234,22 @@ func (ds *DataStore) writeGoPricesToDB(ctx context.Context, ticker string, price
 				close = EXCLUDED.close, volume = EXCLUDED.volume, adjusted_close = EXCLUDED.adjusted_close
 		`, ticker, p.Date, p.Open, p.High, p.Low, p.Close, p.Volume, adjClose)
 	}
-	br := ds.pool.SendBatch(ctx, batch)
-	defer br.Close()
+	br := tx.SendBatch(ctx, batch)
 	if _, err := br.Exec(); err != nil {
+		br.Close()
 		return fmt.Errorf("插入 ticker 失败: %w", err)
 	}
-	for range prices {
+	for range uniq {
 		if _, err := br.Exec(); err != nil {
+			br.Close()
 			return fmt.Errorf("写入价格数据失败: %w", err)
 		}
+	}
+	if err := br.Close(); err != nil {
+		return fmt.Errorf("批量关闭失败: %w", err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("提交事务失败: %w", err)
 	}
 	return nil
 }
@@ -284,8 +307,20 @@ type TreasuryRate struct {
 
 // UpsertTreasuryRates 批量写入/更新利率观测（FRED 拉取后落库）。
 func (ds *DataStore) UpsertTreasuryRates(ctx context.Context, series string, points []TreasuryRate) (int64, error) {
-	batch := &pgx.Batch{}
+	// 过滤负利率脏值（FRED 极端回报可能为 "-" 解析为 0，已在 provider 层丢弃；此处再防）
+	filtered := make([]TreasuryRate, 0, len(points))
 	for _, p := range points {
+		if p.Rate < 0 {
+			slog.Warn("跳过负利率脏值", "series", series, "date", p.Date, "rate", p.Rate)
+			continue
+		}
+		filtered = append(filtered, p)
+	}
+	if len(filtered) == 0 {
+		return 0, nil
+	}
+	batch := &pgx.Batch{}
+	for _, p := range filtered {
 		batch.Queue(
 			`INSERT INTO treasury_rates (series, date, rate) VALUES ($1, $2, $3)
 			 ON CONFLICT (series, date) DO UPDATE SET rate = EXCLUDED.rate`,
@@ -295,7 +330,7 @@ func (ds *DataStore) UpsertTreasuryRates(ctx context.Context, series string, poi
 	br := ds.pool.SendBatch(ctx, batch)
 	defer br.Close()
 	var n int64
-	for range points {
+	for range filtered {
 		ct, err := br.Exec()
 		if err != nil {
 			return n, fmt.Errorf("%w: 利率写入失败: %v", ErrDBQuery, err)

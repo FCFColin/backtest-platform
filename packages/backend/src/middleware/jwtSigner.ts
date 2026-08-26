@@ -59,7 +59,7 @@ export async function generateToken(
     sub: userId,
     role,
     iat: now,
-    exp: now + (ROLE_TTL[role] || config.JWT_ACCESS_TTL),
+    exp: now + (ROLE_TTL[role] ?? config.JWT_ACCESS_TTL),
     ...(tenant?.tenantId && { tenant_id: tenant.tenantId }),
     ...(tenant?.orgRole && { org_role: tenant.orgRole }),
     ...(tenant?.platformAdmin && { platform_admin: true }),

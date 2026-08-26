@@ -169,6 +169,8 @@ jobs:
       - run: pnpm --filter @backtest/backend migrate
       - run: npx playwright install --with-deps chromium
       - run: pnpm exec playwright test tests/e2e/ui/page-smoke.spec.ts --project=chromium --repeat-each=3 --reporter=line
+      - run: pnpm exec playwright test tests/e2e/ui/backtest.spec.ts --project=chromium --reporter=line
+      - run: pnpm exec playwright test tests/e2e/ui/fuzz-random.spec.ts --project=chromium --reporter=line
 
   critical-verify:
     name: CRITICAL Fix Verification

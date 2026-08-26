@@ -16,26 +16,39 @@ export async function writeOutboxEvent(
   auditEntry: Record<string, unknown>,
   client?: PoolClient,
 ): Promise<void> {
-  const conn = client ?? getPool();
   const eventId = crypto.randomUUID();
-  try {
-    await writeEventInTransaction(conn, {
-      aggregateType: 'audit',
-      aggregateId: String(auditEntry.userId || 'unknown'),
-      eventType: 'AuditEvent',
-      payload: auditEntry,
-      eventId,
-    });
-  } catch (err) {
-    if (client) {
+  const payload = {
+    aggregateType: 'audit',
+    aggregateId: String(auditEntry.userId || 'unknown'),
+    eventType: 'AuditEvent',
+    payload: auditEntry,
+    eventId,
+  };
+  if (client) {
+    try {
+      await writeEventInTransaction(client, payload);
+    } catch (err) {
       logger.error({ err, middleware: 'auditLog' }, '[auditLog] outbox事务失败，触发回滚');
       throw err;
     }
-    logger.error(
-      { err, middleware: 'auditLog', code: 'AUDIT_LOSS' },
-      '[auditLog] outbox 写入失败—仅 pino 可溯',
-    );
-    auditOutboxWriteFailures.inc();
+    return;
+  }
+  // 独立模式：带 3 次指数退避重试（100/200ms），仍失败才记 AUDIT_LOSS（补偿由下次请求或人工介入）
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      await writeEventInTransaction(getPool(), payload);
+      return;
+    } catch (err) {
+      if (attempt === 2) {
+        logger.error(
+          { err, middleware: 'auditLog', code: 'AUDIT_LOSS', attempts: 3 },
+          '[auditLog] outbox 写入失败—仅 pino 可溯（3次重试后）',
+        );
+        auditOutboxWriteFailures.inc();
+        return;
+      }
+      await new Promise((r) => setTimeout(r, 100 * (1 << attempt)));
+    }
   }
 }
 export function auditLog(req: Request, res: Response, next: NextFunction): void {

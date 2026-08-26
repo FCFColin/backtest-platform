@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Eye, EyeOff, FunctionSquare } from 'lucide-react';
 import { Button, Card } from '@/components/ui/uiComponents.js';
@@ -121,6 +121,17 @@ function ChartLegend({
     </div>
   );
 }
+function useIsMobile(bp = 640) {
+  const [m, setM] = useState(false);
+  useEffect(() => {
+    const q = window.matchMedia(`(max-width: ${bp}px)`);
+    setM(q.matches);
+    const h = () => setM(q.matches);
+    q.addEventListener('change', h);
+    return () => q.removeEventListener('change', h);
+  }, [bp]);
+  return m;
+}
 function GrowthLines({
   filteredData,
   portfolios,
@@ -141,12 +152,17 @@ function GrowthLines({
   t: ReturnType<typeof useTranslation>['t'];
 }) {
   const tm = useMemo(() => totalMonths(filteredData), [filteredData]);
+  const isMobile = useIsMobile();
   return (
     <SimpleChart
       type="line"
       data={filteredData}
-      height={440}
-      margin={{ top: 20, right: 32, bottom: 20, left: 80 }}
+      height={isMobile ? 280 : 440}
+      margin={
+        isMobile
+          ? { top: 20, right: 16, bottom: 20, left: 64 }
+          : { top: 20, right: 32, bottom: 20, left: 80 }
+      }
       xDataKey="date"
       xTickFormatter={dateAxisTickFormatter(tm)}
       xTickInterval={SMART_DATE_INTERVAL(tm)}

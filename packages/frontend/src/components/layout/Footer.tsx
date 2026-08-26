@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useEffect, useState } from 'react';
 import { useDataMeta } from '@/hooks/miscHooks.js';
 import { cn } from '@/lib/utils';
+import { FOOTER_PRODUCT_LINKS } from '@/config/navConfig';
 const LINK_CLASS =
   'text-caption text-fg-secondary transition-colors duration-150 ease-out-quart hover:text-fg hover:underline';
 const BUILD_HASH = import.meta.env.VITE_BUILD_HASH ?? 'dev';
@@ -143,13 +144,10 @@ export function Footer() {
           <FooterBrand />
           <FooterSection
             title={t('Product')}
-            links={[
-              { to: '/', label: t('nav.portfolioBacktest') },
-              { to: '/monte-carlo', label: t('Monte Carlo') },
-              { to: '/optimizer', label: t('Optimizer') },
-              { to: '/tactical', label: t('Tactical') },
-              { to: '/analysis', label: t('Analysis Tools') },
-            ]}
+            links={FOOTER_PRODUCT_LINKS.map((l) => ({
+              to: l.to,
+              label: l.labelKey.startsWith('nav.') ? t(l.labelKey) : t(l.labelKey),
+            }))}
           />
           <FooterSection
             title={t('Resources')}

@@ -427,20 +427,20 @@ export const MiniSelect = <T extends string | number>({
   className?: string;
   'aria-label'?: string;
 }) => (
-  <select
-    aria-label={ariaLabel}
-    value={value}
-    onChange={(e) => onChange(e.target.value as T)}
-    className={cn(
-      'bg-input-bg text-fg border border-border-subtle rounded font-medium cursor-pointer text-xs px-2 py-1',
-      className,
-    )}
-    style={width !== undefined ? { width } : undefined}
-  >
-    {options.map((o) => (
-      <option key={String(o.value)} value={o.value}>
-        {o.label}
-      </option>
-    ))}
-  </select>
+  <Select value={String(value)} onValueChange={(v) => onChange(v as T)}>
+    <SelectTrigger
+      aria-label={ariaLabel}
+      className={cn('h-7 text-xs px-2 py-1 bg-input-bg border-border-subtle', className)}
+      style={width !== undefined ? { width } : undefined}
+    >
+      <SelectValue />
+    </SelectTrigger>
+    <SelectContent>
+      {options.map((o) => (
+        <SelectItem key={String(o.value)} value={String(o.value)}>
+          {o.label}
+        </SelectItem>
+      ))}
+    </SelectContent>
+  </Select>
 );

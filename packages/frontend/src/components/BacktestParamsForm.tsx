@@ -68,12 +68,20 @@ export function BasicParamsFields({
   const { t } = useTranslation();
   useCurrencySync(baseCurrency, onChange);
   const dateRangeMode = startDate === '' && endDate === '' ? 'all' : 'custom';
+  const [dateErrors, setDateErrors] = useState<{
+    startDate?: string | null;
+    endDate?: string | null;
+  }>({});
   const handleDateRangeChange = (value: string) => {
+    setDateErrors({});
     onChange('startDate', value === 'all' ? '' : DEFAULT_BACKTEST_START_DATE);
     onChange('endDate', value === 'all' ? '' : DEFAULT_END_DATE);
   };
   const handleDateChange = (field: 'startDate' | 'endDate', v: string) => {
-    if (!v) return void onChange(field, v);
+    if (!v) {
+      setDateErrors((e) => ({ ...e, [field]: null }));
+      return void onChange(field, v);
+    }
     const other = field === 'startDate' ? endDate : startDate;
     const today = new Date().toLocaleDateString('en-CA');
     let err: string | null = null;
@@ -83,9 +91,11 @@ export function BasicParamsFields({
     else if (field === 'endDate' && other && v < other)
       err = t('End date cannot be earlier than start date');
     if (err) {
+      setDateErrors((e) => ({ ...e, [field]: err }));
       useToastStore.getState().addToast('warning', err);
       return;
     }
+    setDateErrors((e) => ({ ...e, [field]: null }));
     onChange(field, v);
   };
   const [numDraft, setNumDraft] = useState<{
@@ -116,6 +126,7 @@ export function BasicParamsFields({
           value={startDate}
           fallback={DEFAULT_BACKTEST_START_DATE}
           disabled={dateRangeMode === 'all'}
+          error={dateErrors.startDate}
           onChange={(v) => handleDateChange('startDate', v)}
         />
         <DateField
@@ -124,6 +135,7 @@ export function BasicParamsFields({
           value={endDate}
           fallback={DEFAULT_END_DATE}
           disabled={dateRangeMode === 'all'}
+          error={dateErrors.endDate}
           onChange={(v) => handleDateChange('endDate', v)}
         />
         <Field>
