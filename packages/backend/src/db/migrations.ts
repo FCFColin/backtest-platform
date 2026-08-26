@@ -26,6 +26,8 @@ export const migrations: Array<{ version: number; upFile: string }> = [
   { version: 5, upFile: '005_remove_dead_schema.sql' },
   { version: 6, upFile: '006_audit_outbox_idempotency.sql' },
   { version: 7, upFile: '007_outbox_notify_trigger.sql' },
+  { version: 8, upFile: '008_outbox_attempts.sql' },
+  { version: 9, upFile: '009_treasury_rates.sql' },
 ];
 
 export async function initSchema(): Promise<void> {

@@ -12,6 +12,8 @@ export default tseslint.config(
   {
     ignores: [
       '**/dist/**',
+      'dist-ssr/**',
+      'temp_*',
       '.dev-logs/**',
       'node_modules/**',
       'coverage/**',
