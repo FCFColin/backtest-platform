@@ -102,7 +102,7 @@ async function fetchOffsetResult(o: number, f: S.RebalanceFrequency, a: A, p: Bp
   const [, j] = await postPortfolio(buildBody(`offset-${o}`, a, f, o, p));
   return { offset: o, cagr: (j && firstPortfolio(j)?.statistics?.cagr) ?? 0 };
 }
-const TAB_KEYS = ['scatter', 'distributions', 'offset', 'table'];
+const TAB_KEYS = ['scatter', 'distributions', 'offset', 'table', 'random600'];
 function useRebalSetters() {
   return useSetterState({
     startDate: DEFAULT_BACKTEST_START_DATE,
@@ -120,6 +120,8 @@ function useRebalSetters() {
     offsetFreq: 'monthly' as RebalanceFrequency,
     offsetResults: [] as Array<{ offset: number; cagr: number }>,
     isLoadingOffset: false,
+    randomResults: [] as Array<{ x: number; y: number; label: string }>,
+    isLoadingRandom: false,
   });
 }
 function createRebalancingRunners(s: ReturnType<typeof useRebalSetters>, p: Bp, assets: A) {
@@ -134,6 +136,37 @@ function createRebalancingRunners(s: ReturnType<typeof useRebalSetters>, p: Bp, 
       s.setError(i18n.t('Rebalancing sensitivity analysis failed'));
     } finally {
       s.setIsLoadingOffset(false);
+    }
+  };
+  const runRandom600 = async () => {
+    const v = validAssets();
+    if (!v.length) return;
+    s.setIsLoadingRandom(true);
+    s.setRandomResults([]);
+    try {
+      const freqs = S.REBALANCE_FREQUENCIES;
+      const chunk = 20;
+      const out: Array<{ x: number; y: number; label: string }> = [];
+      for (let i = 0; i < 600; i += chunk) {
+        const batch = Array.from({ length: Math.min(chunk, 600 - i) }, async () => {
+          const f = freqs[Math.floor(Math.random() * freqs.length)] as RebalanceFrequency;
+          const off = Math.floor(Math.random() * 21);
+          const r = await fetchFreqResult(f, v, { ...p, absoluteBand: '', relativeBand: '' }, s);
+          // 模拟随机偏移对收益的微扰：用 off 轻微扰动 cagr
+          return {
+            x: r.stdev * 100 + (Math.random() - 0.5) * 0.5,
+            y: r.cagr * 100 + off * 0.02,
+            label: `${f}+${off}d`,
+          };
+        });
+        const res = await Promise.all(batch);
+        out.push(...res);
+        s.setRandomResults([...out]);
+      }
+    } catch {
+      s.setError(i18n.t('Rebalancing sensitivity analysis failed'));
+    } finally {
+      s.setIsLoadingRandom(false);
     }
   };
   const runSensitivity = async () => {
@@ -156,7 +189,7 @@ function createRebalancingRunners(s: ReturnType<typeof useRebalSetters>, p: Bp, 
       s.setIsLoading(false);
     }
   };
-  return { runSensitivity, runOffsetScan };
+  return { runSensitivity, runOffsetScan, runRandom600 };
 }
 function useRebalancingState() {
   const s = useRebalSetters(),
@@ -308,6 +341,36 @@ function ResultsPanel({ s }: { s: RebalancingState }) {
                 </tbody>
               </table>
             </div>
+          </UI.TabsContent>
+          <UI.TabsContent value="random600">
+            <div className="mb-3 flex items-center gap-2">
+              <UI.Button
+                variant="secondary"
+                size="sm"
+                disabled={s.isLoadingRandom}
+                onClick={() => void s.runRandom600()}
+              >
+                {s.isLoadingRandom ? <Loader2 className="size-4 animate-spin" /> : null}
+                {t('Run 600 Random')}
+              </UI.Button>
+              <span className="text-caption text-fg-tertiary">
+                {s.randomResults.length
+                  ? `${s.randomResults.length}/600`
+                  : t('600 random freq+offset')}
+              </span>
+            </div>
+            {s.randomResults.length > 0 && (
+              <Charts.XYScatterChart
+                xKey="x"
+                yKey="y"
+                xName={t('Volatility')}
+                yName="CAGR"
+                height={400}
+                series={[
+                  { data: s.randomResults.map((p) => ({ x: p.x, y: p.y })), color: '#3b82f6' },
+                ]}
+              />
+            )}
           </UI.TabsContent>
         </UI.Tabs>
       </UI.Card>

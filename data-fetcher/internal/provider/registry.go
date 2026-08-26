@@ -13,7 +13,7 @@ import (
 // DailyPrice.AdjustedClose 语义（R-12 数据质量红线）：
 //
 //	nil  = 源未确认提供复权数据（finnhub/akshare）→ 落库为 NULL，消费端走 adjusted_close ?? close
-//	非nil = 源明确提供复权口径（yfinance adjclose 列；twelvedata adjust=split 仅拆股调整，已在源注释声明）
+//	非nil = 源明确提供复权口径（yfinance adjclose 列；twelvedata adjust=split 仅拆股调整；sim 合成已复权，已在源注释声明）
 //
 // 新增数据源必须在下方登记复权状态，禁止用 Close 值冒充 AdjustedClose。
 type DailyPrice struct {
@@ -43,6 +43,9 @@ func (r *Registry) Register(p Provider) {
 }
 func (r *Registry) ForTicker(ticker string) []Provider {
 	upper := strings.ToUpper(ticker)
+	if strings.HasSuffix(upper, "SIM") {
+		return r.forMarket("sim")
+	}
 	if strings.HasSuffix(upper, ".SZ") || strings.HasSuffix(upper, ".SH") || strings.HasSuffix(upper, ".SS") ||
 		strings.HasSuffix(upper, "_SZ") || strings.HasSuffix(upper, "_SH") || strings.HasSuffix(upper, "_SS") {
 		// A股专属数据源：未注册时不回落到美股链（避免送错市场）

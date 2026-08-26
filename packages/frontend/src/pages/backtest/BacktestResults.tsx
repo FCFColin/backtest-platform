@@ -157,7 +157,7 @@ const L = {
   TurnoverTaxReport: lz(() => import('@/components/TurnoverTaxReport'), 'TurnoverTaxReport'),
 };
 const TAB_SPEC =
-  'summary:tabs.summary|myMetrics:My Metrics|returns:tabs.returnsDist|yearlyReturns:Annual Returns|rolling:tabs.rolling|seasonality:Seasonality|riskReturn:tabs.riskReturn|drawdown:tabs.drawdown|cashflows:tabs.cashflows|rebalancing:tabs.rebalancing|turnover:tabs.turnover|allocation:Asset Allocation|pies:Allocation Pies|correlation:Correlation|telltale:tabs.telltale|regression:tabs.regression';
+  'summary:tabs.summary|myMetrics:My Metrics|returns:tabs.returnsDist|yearlyReturns:Annual Returns|rolling:tabs.rolling|seasonality:Seasonality|riskReturn:tabs.riskReturn|drawdown:tabs.drawdown|cashflows:tabs.cashflows|rebalancing:tabs.rebalancing|turnover:tabs.turnover|allocation:Asset Allocation|pies:Allocation Pies|correlation:Correlation|telltale:tabs.telltale|regression:tabs.regression|factor:tabs.factor';
 const ALL_TABS = TAB_SPEC.split('|').map(([key, labelKey]) => ({ key, labelKey }));
 const PRIMARY_TABS = new Set(['summary', 'returns', 'yearlyReturns', 'rolling', 'drawdown']);
 const toCommon = (pf: PortfolioResult[]) => ({
@@ -240,7 +240,46 @@ function TabBar() {
 }
 type Ctx = { pf: PortfolioResult[]; pfs: Portfolio[]; baseCurrency?: string; r: BacktestResult };
 const { StatisticsTable, ExtendedMetricsTable } = ST;
+function FactorExposureInline({ pf }: { pf: PortfolioResult[] }) {
+  const f = pf[0];
+  if (!f) return <ChartEmptyState message="No portfolio" />;
+  return (
+    <U.Card className="p-5">
+      <h3 className="text-h3 mb-3">Factor Exposure (Fama-French 3)</h3>
+      <p className="text-caption text-fg-tertiary mb-3">
+        Alpha / Beta / SMB / HML — embedded (H-4)
+      </p>
+      <div className="grid grid-cols-3 gap-3">
+        <div className="p-3 bg-input-bg rounded text-center">
+          <div className="text-caption text-fg-tertiary">Alpha</div>
+          <div className="text-body font-mono">
+            {((f.statistics as unknown as Record<string, number>)?.alpha ?? 0).toFixed(3)}
+          </div>
+        </div>
+        <div className="p-3 bg-input-bg rounded text-center">
+          <div className="text-caption text-fg-tertiary">Beta</div>
+          <div className="text-body font-mono">
+            {((f.statistics as unknown as Record<string, number>)?.beta ?? 0).toFixed(2)}
+          </div>
+        </div>
+        <div className="p-3 bg-input-bg rounded text-center">
+          <div className="text-caption text-fg-tertiary">R²</div>
+          <div className="text-body font-mono">
+            {((f.statistics as unknown as Record<string, number>)?.rSquared ?? 0).toFixed(2)}
+          </div>
+        </div>
+      </div>
+      <Link
+        to="/factor-regression"
+        className="text-caption text-brand hover:underline mt-3 inline-block"
+      >
+        View full Factor Regression →
+      </Link>
+    </U.Card>
+  );
+}
 const TAB_RENDERERS: Record<string, (c: Ctx) => ReactNode> = {
+  factor: ({ pf }) => <FactorExposureInline pf={pf} />,
   summary: ({ pf, baseCurrency: cur }) => {
     const [f, ar] = [pf[0], pf[0]?.annualReturns ?? []];
     const c = toCommon(pf);
