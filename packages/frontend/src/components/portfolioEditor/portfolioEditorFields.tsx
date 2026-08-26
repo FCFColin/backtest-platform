@@ -21,30 +21,21 @@ type SelectCoreProps = { value: string; onChange: (v: string) => void };
 type GpVals = Pick<Portfolio, 'glidepathFrom' | 'glidepathTo' | 'glidepathYears'>;
 type GpProps = { g: GpVals; portfolios: StorePortfolio[]; set: (q: Partial<GpVals>) => void };
 
-function MiniSelect(p: SelectCoreProps & { items: [string, string][]; cls?: string }) {
-  return (
-    <UI.Select value={p.value} onValueChange={p.onChange}>
-      <UI.SelectTrigger className={p.cls ?? 'h-8 w-[120px]'}>
-        <UI.SelectValue />
-      </UI.SelectTrigger>
-      <UI.SelectContent>
-        {p.items.map(([v, l]) => (
-          <UI.SelectItem key={v} value={v}>
-            {l}
-          </UI.SelectItem>
-        ))}
-      </UI.SelectContent>
-    </UI.Select>
-  );
-}
 function PortfolioSelect(p: SelectCoreProps & { portfolios: StorePortfolio[]; label: string }) {
   return (
     <ParamCard label={p.label}>
-      <MiniSelect
-        value={p.value}
-        onChange={p.onChange}
-        items={p.portfolios.map((pf, i) => [pf.id, pf.name || `${p.label} ${i + 1}`])}
-      />
+      <UI.Select value={p.value} onValueChange={p.onChange}>
+        <UI.SelectTrigger className="h-8 w-[120px]">
+          <UI.SelectValue />
+        </UI.SelectTrigger>
+        <UI.SelectContent>
+          {p.portfolios.map((pf, i) => (
+            <UI.SelectItem key={pf.id} value={pf.id}>
+              {pf.name || `${p.label} ${i + 1}`}
+            </UI.SelectItem>
+          ))}
+        </UI.SelectContent>
+      </UI.Select>
     </ParamCard>
   );
 }
@@ -182,7 +173,7 @@ export function AssetWeightRow(p: {
         <UI.Button
           variant="ghost"
           size="icon"
-          className="h-7 w-7 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 transition-opacity hover:text-danger"
+          className="h-7 w-7 lg:opacity-0 lg:group-hover:opacity-100 lg:group-focus-within:opacity-100 transition-opacity hover:text-danger"
           onClick={p.onDelete}
           aria-label={t('Remove {{ticker}}', { ticker: p.asset.ticker })}
         >
@@ -233,14 +224,23 @@ export function RebalanceControls(
   const { t } = useTranslation();
   return (
     <>
-      <MiniSelect
+      <UI.Select
         value={p.portfolio.rebalanceFrequency}
-        cls="h-8 w-[110px] shrink-0"
-        items={p.rebalanceOptions.map((o) => [o.value, o.label])}
-        onChange={(v) =>
+        onValueChange={(v) =>
           p.onUpdate(p.portfolio.id, { rebalanceFrequency: v as RebalanceFrequency })
         }
-      />
+      >
+        <UI.SelectTrigger className="h-8 w-[110px] shrink-0">
+          <UI.SelectValue />
+        </UI.SelectTrigger>
+        <UI.SelectContent>
+          {p.rebalanceOptions.map((o) => (
+            <UI.SelectItem key={o.value} value={o.value}>
+              {o.label}
+            </UI.SelectItem>
+          ))}
+        </UI.SelectContent>
+      </UI.Select>
       <NumField
         value={p.portfolio.rebalanceOffset ?? 0}
         min={0}

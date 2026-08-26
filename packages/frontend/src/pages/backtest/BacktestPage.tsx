@@ -89,7 +89,11 @@ export function BacktestHero() {
   const { t } = useTranslation();
   const [exp, setExp] = useState(() => {
     try {
-      return localStorage.getItem(HERO_KEY) !== '0';
+      const v = localStorage.getItem(HERO_KEY);
+      if (v !== null) return v !== '0';
+      return typeof window === 'undefined'
+        ? true
+        : !window.matchMedia('(max-width: 768px)').matches;
     } catch {
       return true;
     }

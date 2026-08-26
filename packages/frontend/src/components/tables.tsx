@@ -8,13 +8,6 @@ const TH_BASE =
   'text-caption text-fg-tertiary uppercase tracking-wide font-semibold py-2.5 px-3 whitespace-nowrap';
 const TD_BASE = 'py-2 px-3 text-body text-fg';
 const ZEBRA = 'bg-[color-mix(in_srgb,hsl(var(--elevated))_40%,hsl(var(--surface)))]';
-const handleSortKey =
-  (onSort: (key: string) => void, colKey: string) => (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      onSort(colKey);
-    }
-  };
 
 export function TableFrame({ className, children }: { className?: string; children: ReactNode }) {
   return (
@@ -79,20 +72,19 @@ function BaseTable<T extends Record<string, any>>({
                   aria-sort={
                     isSorted ? (sortDir === 'asc' ? 'ascending' : 'descending') : undefined
                   }
-                  onClick={onSort ? () => onSort(colKey) : undefined}
-                  onKeyDown={onSort ? handleSortKey(onSort, colKey) : undefined}
-                  tabIndex={onSort ? 0 : undefined}
                   className={cn(
                     TH_BASE,
-                    onSort &&
-                      'cursor-pointer text-left hover:text-fg transition-colors duration-150',
                     col.align === 'right' ? 'text-right' : 'text-left',
                     col.sticky === 'left' && 'sticky left-0 z-10 bg-elevated',
                   )}
                   style={TH_BORDER}
                 >
                   {onSort ? (
-                    <span className="inline-flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => onSort(colKey)}
+                      className="inline-flex items-center gap-1 text-left hover:text-fg transition-colors duration-150"
+                    >
                       {col.label}
                       {isSorted &&
                         (sortDir === 'asc' ? (
@@ -100,7 +92,7 @@ function BaseTable<T extends Record<string, any>>({
                         ) : (
                           <ChevronDown className="size-3 text-brand" />
                         ))}
-                    </span>
+                    </button>
                   ) : (
                     col.label
                   )}

@@ -264,7 +264,7 @@ function InviteDialog({
   };
   return (
     <div>
-      <h2 className="text-[15px] font-bold text-fg flex items-center gap-2 mb-3">
+      <h2 className="text-h3 font-bold text-fg flex items-center gap-2 mb-3">
         <Mail className="w-4 h-4" /> {t('Invite Member')}
       </h2>
       <form onSubmit={submit} className="flex gap-2 mb-4 flex-wrap">

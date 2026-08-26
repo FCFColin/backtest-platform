@@ -57,6 +57,11 @@ select option {
   background: hsl(var(--fg-tertiary));
 }
 
-a {
+a.link,
+.link {
   color: hsl(var(--brand));
+}
+a.link:hover,
+.link:hover {
+  color: hsl(var(--brand-hover));
 }

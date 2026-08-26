@@ -1,5 +1,6 @@
 ﻿/* P3-3: HSL 通道变量，组件经 hsl(var(--x)) 消费；暗色经 [data-theme="dark"] 切换 */
 :root {
+  --nav-h: 3.75rem;
   color-scheme: light;
   --app: 213 33% 96%;
   --surface: 0 0% 100%;

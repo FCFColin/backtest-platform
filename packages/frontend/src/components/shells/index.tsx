@@ -74,7 +74,7 @@ function PageHeaderActions({
     <div className="flex items-center gap-3 shrink-0">
       {(showAbout || showRelated) && (
         <button
-          className="text-[13px] text-fg-tertiary no-underline bg-transparent border-none cursor-pointer p-0 transition-colors hover:text-brand"
+          className="text-caption text-fg-tertiary no-underline bg-transparent border-none cursor-pointer p-0 transition-colors hover:text-brand"
           onClick={onToggle}
         >
           {showAbout ? t('About') : t('Related Tools:')}
@@ -145,7 +145,7 @@ export function ComputeToolShell<S>({
             <h1 className="text-page-title text-fg shrink-0">{t(config.titleKey)}</h1>
           )}
           {config.seoSubtitleKey && (
-            <span className="text-[13px] text-fg-tertiary flex-1 min-w-0">
+            <span className="text-caption text-fg-tertiary flex-1 min-w-0">
               {t(config.seoSubtitleKey)}
             </span>
           )}
@@ -176,7 +176,7 @@ export function ComputeToolShell<S>({
           results={Results ? <Results state={state} /> : undefined}
         />
       ) : (
-        <div style={{ minHeight: 400 }} />
+        <div className="min-h-[240px] sm:min-h-[320px] animate-pulse bg-surface border border-border rounded-xl" />
       )}
       {ready && Extra && <Extra state={state} />}
     </div>

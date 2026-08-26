@@ -279,8 +279,8 @@ export function PromoBar({
   };
   const v = PROMO_VARIANTS[variant];
   return (
-    <div className={cn('h-10 border-b flex items-center', v.bar)}>
-      <div className="page-container w-full flex items-center justify-center gap-3">
+    <div className={cn('min-h-10 py-2 border-b flex items-center', v.bar)}>
+      <div className="page-container w-full flex flex-wrap items-center justify-center gap-3">
         <span className={cn('w-2 h-2 rounded-full animate-pulse', v.dot)} />
         <span className="text-body">{message}</span>
         {ctaLabel && ctaLink && (

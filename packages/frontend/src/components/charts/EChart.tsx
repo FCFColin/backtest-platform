@@ -94,7 +94,11 @@ export default function EChart({ option, height, className, ariaLabel, onClick }
     };
   }, []);
   useEffect(() => {
-    chartRef.current?.setOption(resolveTheme(option), { notMerge: true });
+    const chart = chartRef.current;
+    if (!chart) return;
+    chart.setOption(resolveTheme(option), { notMerge: true });
+    // hidden→visible 时容器从 0 高度恢复，ResizeObserver 不触发，需显式重绘
+    requestAnimationFrame(() => chart.resize());
   }, [option, themeTick]);
   return (
     <div

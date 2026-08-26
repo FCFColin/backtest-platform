@@ -27,14 +27,13 @@ import {
   createEmptyStatistics,
 } from '@backtest/shared';
 const SCLS =
-  'sticky top-15 z-40 h-14 bg-sticky-bg/95 backdrop-blur-md border-b border-border shadow-md';
+  'sticky top-[var(--nav-h)] z-40 h-14 bg-sticky-bg/95 backdrop-blur-md border-b border-border shadow-md';
 const ICLS = 'h-14 bg-transparent border-b border-border-subtle';
 const ROWCLS = 'flex items-center justify-between gap-3';
 const DDCLS = 'text-caption font-mono tabular-nums font-semibold text-right';
 const CARDMCLS = 'flex-shrink-0 min-w-[130px] p-3';
 const LBLCLS = 'text-label-tiny text-fg-tertiary mb-1 whitespace-nowrap';
 const VALCLS = 'text-body font-mono tabular-nums font-semibold';
-const ACTCLS = 'shrink-0 text-brand border-b-2 border-brand rounded-b-none';
 type TimeRange = { start: string; end: string; years: number };
 const EMPTY_TITLE = 'Configure parameters and portfolios, then click "Run Backtest" to see results';
 type ActionBarProps = { timeRange: TimeRange; onExport?: (f: 'csv' | 'json') => void };
@@ -110,7 +109,10 @@ function SummarySidebar({ stats: s, ty, py, name, color }: SidebarProps) {
           </U.Card>
         ))}
       </div>
-      <U.Card className="hidden lg:block p-4 lg:sticky lg:top-15" data-testid="summary-sidebar">
+      <U.Card
+        className="hidden lg:block p-4 lg:sticky lg:top-[calc(var(--nav-h)+3.5rem)]"
+        data-testid="summary-sidebar"
+      >
         <h3 className="text-h3 mb-3">{t('Key Metrics')}</h3>
         {name && (
           <div className="flex items-center gap-1.5 mb-3">
@@ -190,24 +192,32 @@ function TabBar() {
     tab !== active &&
     (setActive(tab), setSp(new URLSearchParams({ ...Object.fromEntries(sp), tab })));
   const more = ALL_TABS.filter((x) => !PRIMARY_TABS.has(x.key));
+  const isMoreActive = more.some((x) => x.key === active);
   return (
-    <div className="flex items-center justify-between gap-2 border-b border-border-subtle pb-2 mb-3">
-      <div className="flex items-center gap-1 overflow-x-auto">
-        {ALL_TABS.filter((x) => PRIMARY_TABS.has(x.key)).map((x) => (
-          <U.Button
-            key={x.key}
-            variant={active === x.key ? 'secondary' : 'ghost'}
-            size="sm"
-            className={active === x.key ? ACTCLS : 'shrink-0'}
-            aria-pressed={active === x.key}
-            onClick={() => sel(x.key)}
-          >
-            {t(x.labelKey)}
-          </U.Button>
-        ))}
+    <U.Tabs value={active} onValueChange={sel} className="w-full">
+      <div className="flex items-center gap-1 border-b border-border-subtle pb-2 mb-3 overflow-x-auto">
+        <U.TabsList className="h-9 bg-transparent border-0 p-0 gap-1">
+          {ALL_TABS.filter((x) => PRIMARY_TABS.has(x.key)).map((x) => (
+            <U.TabsTrigger
+              key={x.key}
+              value={x.key}
+              className="data-[state=active]:bg-hover data-[state=active]:text-fg data-[state=active]:shadow-none shrink-0"
+            >
+              {t(x.labelKey)}
+            </U.TabsTrigger>
+          ))}
+        </U.TabsList>
         <U.DropdownMenu>
           <U.DropdownMenuTrigger asChild>
-            <U.Button variant="ghost" size="sm" className="shrink-0">
+            <U.Button
+              variant="ghost"
+              size="sm"
+              className={
+                isMoreActive
+                  ? 'shrink-0 text-brand border-b-2 border-brand rounded-b-none'
+                  : 'shrink-0'
+              }
+            >
               <MoreHorizontal className="size-4" />
               {t(more.find((x) => x.key === active)?.labelKey ?? 'More')}
             </U.Button>
@@ -225,7 +235,7 @@ function TabBar() {
           </U.DropdownMenuContent>
         </U.DropdownMenu>
       </div>
-    </div>
+    </U.Tabs>
   );
 }
 type Ctx = { pf: PortfolioResult[]; pfs: Portfolio[]; baseCurrency?: string; r: BacktestResult };

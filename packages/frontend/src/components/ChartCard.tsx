@@ -8,12 +8,28 @@ interface ChartExporterProps {
   filename?: string;
   label?: string;
 }
-function ChartExporter({ data, filename = 'chart-data', label }: ChartExporterProps) {
+function ChartExporter({
+  data,
+  filename = 'chart-data',
+  label,
+  title,
+}: ChartExporterProps & { title?: ReactNode }) {
   const { t } = useTranslation();
   const handleExport = () => downloadCSV(data, filename);
   const disabled = data.length === 0;
+  const ariaLabel =
+    typeof title === 'string'
+      ? t('Download {{title}} CSV', { title })
+      : (label ?? t('Download chart CSV'));
   return (
-    <Button type="button" variant="ghost" size="sm" onClick={handleExport} disabled={disabled}>
+    <Button
+      type="button"
+      variant="ghost"
+      size="sm"
+      onClick={handleExport}
+      disabled={disabled}
+      aria-label={ariaLabel}
+    >
       <Download />
       {label ?? t('Chart')}
     </Button>
@@ -49,7 +65,7 @@ export default function ChartCard({
           {hasRightContent && (
             <div className="flex items-center gap-2">
               {hasHeaderExtra && headerExtra}
-              {showExporter && <ChartExporter data={data} filename={csvFilename} />}
+              {showExporter && <ChartExporter data={data} filename={csvFilename} title={title} />}
             </div>
           )}
         </CardHeader>

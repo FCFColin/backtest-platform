@@ -99,6 +99,8 @@ function ChartLegend({
             key={p.id}
             type="button"
             onClick={() => onToggle(p.id)}
+            aria-pressed={!isHidden}
+            title={isHidden ? 'Hidden' : undefined}
             className={cn(
               'flex items-center gap-2 transition-opacity',
               isHidden ? 'opacity-30' : 'opacity-100',

@@ -216,7 +216,7 @@ export default function Navbar() {
   const isActive = (to: string) =>
     location.pathname === to || (to !== '/' && location.pathname.startsWith(`${to}/`));
   return (
-    <nav className="sticky top-0 z-50 h-15 border-b border-border-subtle bg-app/80 backdrop-blur-md">
+    <nav className="sticky top-0 z-50 h-[var(--nav-h)] border-b border-border-subtle bg-app/80 backdrop-blur-md">
       <div className="page-container h-full flex items-center gap-4">
         <NavbarMobileMenu
           mobileOpen={mobileOpen}

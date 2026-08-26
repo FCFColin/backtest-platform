@@ -38,7 +38,7 @@ export function ToolPageLayout({
 }: ToolPageLayoutProps) {
   return (
     <div className="flex w-full flex-col gap-3">
-      <Card id="parameters" className="scroll-mt-32 p-5">
+      <Card id="parameters" className="scroll-mt-[calc(var(--nav-h)+1rem)] p-5">
         {title && (
           <div className="mb-2.5 flex items-center justify-between">
             <h2 className="text-body font-semibold text-fg">{title}</h2>
@@ -49,7 +49,7 @@ export function ToolPageLayout({
       </Card>
       {afterParams}
       {results && (
-        <div id="results" className="scroll-mt-32">
+        <div id="results" className="scroll-mt-[calc(var(--nav-h)+1rem)]">
           <div className="w-full">{results}</div>
         </div>
       )}
