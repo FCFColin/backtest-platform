@@ -23,6 +23,7 @@ const sharedTypeAliases: Record<string, string> = {
   '@backtest/shared': `${sharedTypesDir}/index.ts`,
 };
 
+const frontendSrc = path.resolve(projectRoot, 'packages/frontend/src');
 const feNm = (p: string) => path.resolve(projectRoot, 'packages/frontend/node_modules', p);
 const FE_PACKAGES = [
   'react',
@@ -34,7 +35,7 @@ const FE_PACKAGES = [
   'react-i18next',
 ];
 const frontendAlias: Record<string, string> = {
-  '@': path.resolve(projectRoot, 'packages/frontend/src'),
+  '@': frontendSrc,
   'react/jsx-dev-runtime': feNm('react/jsx-dev-runtime.js'),
   'react/jsx-runtime': feNm('react/jsx-runtime.js'),
   'react-dom/client': feNm('react-dom/client.js'),
@@ -101,7 +102,7 @@ export default defineConfig(async ({ mode }) => {
           resolve: {
             alias: {
               ...sharedTypeAliases,
-              '@': path.resolve(projectRoot, 'packages/frontend/src'),
+              '@': frontendSrc,
               ...Object.fromEntries(
                 [
                   'express',
@@ -157,7 +158,7 @@ export default defineConfig(async ({ mode }) => {
             // 实验共享同一 docker 栈全局状态，串行由脚本层 --maxWorkers=1 保证
             //（maxWorkers/minWorkers/fileParallelism 为 NonProjectOptions，项目级配置会被忽略）
           },
-          resolve: { alias: { '@': path.resolve(projectRoot, './packages/frontend/src') } },
+          resolve: { alias: { '@': frontendSrc } },
         },
       ],
       coverage: {

@@ -74,8 +74,8 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           pnpm-version: ${{ env.PNPM_VERSION }}
-      # 阈值 10：exhaustive-deps 等 warn 项允许少量存在（当前 0 违规），超 10 即失败
-      - run: pnpm exec eslint . --max-warnings 10
+      # 阈值 3：与 lint-staged 一致（当前 0 违规），防本地过 CI 挂
+      - run: pnpm exec eslint . --max-warnings 3
       - run: pnpm format:check
       - run: pnpm check
       # 测试套件类型门禁：tests/**（unit/integration/contract/property/chaos/helpers/mocks）全量 tsc
