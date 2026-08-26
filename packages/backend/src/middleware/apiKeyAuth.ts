@@ -24,6 +24,8 @@ async function resolveApiKeyUser(apiKey: string): Promise<JwtPayload | null> {
   };
   if (verified.isPlatformAdmin)
     return { sub: 'platform:break-glass', role: 'admin', platform_admin: true, ...common };
+  // 租户 API Key 有意 hardcode 为 analyst/org_role:analyst（最小权限原则）：
+  // api_keys 仅关联 org_id 不存储用户角色，owner 能力通过 JWT 登录获取，避免密钥泄露导致提权。
   return {
     sub: `apikey:${verified.keyId}`,
     role: 'analyst',

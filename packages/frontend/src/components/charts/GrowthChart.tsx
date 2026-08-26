@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Eye, EyeOff, FunctionSquare } from 'lucide-react';
-import { Button } from '@/components/ui/uiComponents.js';
+import { Button, Card } from '@/components/ui/uiComponents.js';
 import { SimpleChart } from '@/components/charts/sharedChartContent.js';
 import { ChartEmptyState } from '@/components/stateDisplay.js';
 import { totalMonths } from './chartUtils.js';
@@ -207,7 +207,7 @@ export function GrowthChart({
     return maybeDownsample(data);
   }, [chartData, timeRange]);
   return (
-    <div className="bg-surface border border-border rounded-xl">
+    <Card className="overflow-hidden">
       <GrowthHeader
         timeRange={timeRange}
         onTimeRange={setTimeRange}
@@ -239,6 +239,6 @@ export function GrowthChart({
             />
           </>
         ))}
-    </div>
+    </Card>
   );
 }

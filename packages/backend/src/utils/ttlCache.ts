@@ -1,4 +1,4 @@
-export function createTtlCache<T>(ttlMs: number) {
+export function createTtlCache<T>(ttlMs: number, maxEntries = 500) {
   const cache = new Map<string, { data: T; expiresAt: number }>();
   return {
     get(key: string): T | undefined {
@@ -8,6 +8,10 @@ export function createTtlCache<T>(ttlMs: number) {
       return undefined;
     },
     set(key: string, data: T) {
+      if (cache.size >= maxEntries) {
+        const oldest = cache.keys().next().value;
+        if (oldest) cache.delete(oldest);
+      }
       cache.set(key, { data, expiresAt: Date.now() + ttlMs });
     },
     clear() {
