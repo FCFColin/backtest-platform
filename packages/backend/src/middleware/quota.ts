@@ -22,7 +22,8 @@ function extractTickerCount(body: unknown): number {
     b,
     ...portfolios.filter((p): p is Record<string, unknown> => !!p && typeof p === 'object'),
   ]) {
-    for (const field of ['tickers', 'symbols', 'assets']) count += countList(entry[field]);
+    for (const f of ['tickers', 'ticker', 'symbols', 'symbol', 'assets'])
+      count += countList(entry[f]);
   }
   return count;
 }

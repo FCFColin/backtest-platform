@@ -7,7 +7,7 @@ import (
 )
 
 func DateToUnix(dateStr string) (int64, error) {
-	t, err := time.Parse("2006-01-02", dateStr)
+	t, err := time.ParseInLocation("2006-01-02", dateStr, time.UTC)
 	if err != nil {
 		return 0, err
 	}

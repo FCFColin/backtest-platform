@@ -64,7 +64,8 @@ function configureServiceMock(m: BacktestMockHandles, config: ServiceMockConfig)
 
     let payload = config.buildEnginePayload ? config.buildEnginePayload(...args) : { tickers };
     if (config.capIterations) {
-      const numIterations = args[4] as number | undefined;
+      const raw = args[4] as number | { numIterations?: number } | undefined;
+      const numIterations = typeof raw === 'object' ? raw?.numIterations : raw;
       payload = {
         ...payload,
         numIterations: numIterations ? Math.min(numIterations, 100000) : 10000,

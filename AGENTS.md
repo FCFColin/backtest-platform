@@ -63,8 +63,8 @@ PortfolioMetrics：AI Assistant+Credits 在线【实测】；
 翻译规则：每项工程纪律改进必须有用户可见产出
 （校验徽章/精度说明/Bogleheads 式对照实验帖）
 
-【服务拓扑】React :5173 → Express :15001
-├─ Go 引擎 :15002 fail-closed 503+Retry-After (ADR-008)
+【服务拓扑】React :15173 → Express :15001
+├─ Go 引擎 :15004 fail-closed 503+Retry-After (ADR-008)
 ├─ data-fetcher :15003 缺失行情带 degraded 标记
 │ AdjustedClose 仅源确认复权时写入（R-12）
 ├─ PostgreSQL 业务数据 + 审计 outbox 双写

@@ -61,12 +61,10 @@ const CPI_DEGRADED_WARNING = 'Go 数据服务不可用，已降级到 PostgreSQL
 
 // ── U-2 Phase 2：窗口匹配年化无风险利率 ──────────────────────────────
 // DB(treasury_rates) → 空 则 FRED 端点拉取。
-// 关键口径：DGS3MO 等为「年化报价」非每日复利因子 → 年化 = 窗口内观测算术平均
-//（与引擎 (CAGR−rf)/σ 的单一年化 rf 用法一致）。序列 <60 个交易日视为不可信
-// → 返回 null，引擎走 legacy 常量（golden 零漂移保障）。
-const TREASURY_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
-let treasuryRfCache: { value: number | null; ts: number } | null = null;
-
+// 关键口径：DGS3MO 为「年化报价」→ 年化 = 窗口内算术平均（与引擎 (CAGR−rf)/σ 一致）。
+// 序列 <60 视为不可信 → null → 引擎 legacy 常量（golden 零漂移）。
+// 旧单值缓存按窗口错配（不同 start/end 共用同一 value），现改为无缓存直查 DB；
+// treasury_rates 全表 <10k 行且按 (series,date) 索引，单次查询 <5ms，无需 24h TTL。
 export function annualizeTbillRates(
   rates: Array<{ date: string; rate: number }>,
   start: string,
@@ -97,13 +95,9 @@ async function fetchTreasuryFromGo(
 }
 
 export async function loadAnnualRiskFreeRate(start: string, end: string): Promise<number | null> {
-  if (treasuryRfCache && Date.now() - treasuryRfCache.ts < TREASURY_CACHE_TTL_MS)
-    return treasuryRfCache.value;
   let rates = await loadTreasurySeriesFromDb('DGS3MO');
   if (rates.length === 0) rates = await fetchTreasuryFromGo('DGS3MO', start, end);
-  const value = annualizeTbillRates(rates, start, end);
-  treasuryRfCache = { value, ts: Date.now() };
-  return value;
+  return annualizeTbillRates(rates, start, end);
 }
 
 interface CpiRouteResult {

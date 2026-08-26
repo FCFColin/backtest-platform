@@ -110,7 +110,7 @@ export async function queryPricesFromDb(
     if (validTickers.length === 0 && hasUnknownTickers)
       return { result: {}, missing: [], dbDegraded: false };
     const { rows } = await pgCircuitBreaker.fire(
-      'SELECT ticker, date, close FROM prices WHERE ticker = ANY($1) AND date >= $2 AND date <= $3',
+      'SELECT ticker, date, COALESCE(adjusted_close, close) AS close FROM prices WHERE ticker = ANY($1) AND date >= $2 AND date <= $3',
       [validTickers, s, e],
     );
     const result: Record<string, Record<string, number>> = {};

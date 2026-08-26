@@ -44,7 +44,7 @@ export async function registerUser(
 export async function verifyUser(username: string, password: string): Promise<User | null> {
   const pool = getPool();
   const { rows } = await pool.query(
-    'SELECT id, username, password_hash, role, created_at, is_active FROM users WHERE username = $1 AND is_active = true',
+    'SELECT id, username, password_hash, role, created_at, is_active FROM users WHERE lower(username) = lower($1) AND is_active = true',
     [username],
   );
 

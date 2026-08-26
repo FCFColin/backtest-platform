@@ -1,4 +1,5 @@
-// P0-01: L1 LRU + L2 Redis 两级缓存；Redis 不可用时 L2 静默跳过（ADR-008）；多租户 key 前缀（ADR-009）
+// P0-01: L1 LRU + L2 Redis 两级缓存；Redis 不可用时 L2 静默跳过（ADR-008）。
+// 行情为全局公开数据，key 有意 shared 跨租户共享以提升命中率（非私域数据）。
 import { gzipSync, gunzipSync } from 'node:zlib';
 import { createHash } from 'node:crypto';
 import { logger } from '../utils/logger.js';
@@ -12,7 +13,7 @@ const L1_MAX_ENTRIES = 1000;
 const L1_TTL_MS = 5 * 60 * 1000;
 const COMPRESS_THRESHOLD_BYTES = 1024;
 const GZIP_PREFIX = 'gzip:';
-const CACHE_KEY_PREFIX = 'cache:org:';
+const CACHE_KEY_PREFIX = 'cache:org:'; // 保留 org 前缀兼容历史 scanDel，前缀+shared 构成全局共享域
 
 interface L1Entry {
   data: unknown;
@@ -32,7 +33,10 @@ function l1Get(key: string): unknown | null {
   return entry.data;
 }
 function l1Set(key: string, data: unknown): void {
-  if (l1Cache.size >= L1_MAX_ENTRIES) evictExpiredL1();
+  if (l1Cache.size >= L1_MAX_ENTRIES) {
+    const now = Date.now();
+    for (const [k, e] of l1Cache) if (now > e.expiresAt) l1Cache.delete(k);
+  }
   while (l1Cache.size >= L1_MAX_ENTRIES) {
     const oldest = l1Cache.keys().next().value;
     if (!oldest) break;
@@ -43,10 +47,6 @@ function l1Set(key: string, data: unknown): void {
 }
 function l1Clear(): void {
   l1Cache.clear();
-}
-function evictExpiredL1(): void {
-  const now = Date.now();
-  for (const [key, entry] of l1Cache) if (now > entry.expiresAt) l1Cache.delete(key);
 }
 
 function sanitize(s: string): string {
