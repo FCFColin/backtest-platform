@@ -13,34 +13,9 @@ const tailwindcss = frontendRequire('tailwindcss');
 const autoprefixer = frontendRequire('autoprefixer');
 const tailwindConfigPath = path.resolve(projectRoot, 'tailwind.config.cjs');
 
-const sharedTypesDir = path.resolve(projectRoot, 'packages/shared/types');
-const sharedTypeAliases: Record<string, string> = {
-  '@backtest/shared/types/tactical': `${sharedTypesDir}/tactical.ts`,
-  '@backtest/shared/types/signal': `${sharedTypesDir}/signal.ts`,
-  '@backtest/shared/types/index': `${sharedTypesDir}/index.ts`,
-  '@backtest/shared/types': `${sharedTypesDir}/index.ts`,
-  '@backtest/shared/constants': path.resolve(projectRoot, 'packages/shared/constants.ts'),
-  '@backtest/shared': `${sharedTypesDir}/index.ts`,
-};
-
+import { sharedAliases as sharedTypeAliases, frontendAlias, FE_PKGS } from './vite.alias.js';
 const frontendSrc = path.resolve(projectRoot, 'packages/frontend/src');
 const feNm = (p: string) => path.resolve(projectRoot, 'packages/frontend/node_modules', p);
-const FE_PACKAGES = [
-  'react',
-  'react-dom',
-  'react-router',
-  'echarts',
-  'lucide-react',
-  'i18next',
-  'react-i18next',
-];
-const frontendAlias: Record<string, string> = {
-  '@': frontendSrc,
-  'react/jsx-dev-runtime': feNm('react/jsx-dev-runtime.js'),
-  'react/jsx-runtime': feNm('react/jsx-runtime.js'),
-  'react-dom/client': feNm('react-dom/client.js'),
-  ...Object.fromEntries(FE_PACKAGES.map((p) => [p, feNm(p)])),
-};
 
 function zustandEsmResolver(): Plugin {
   const esm = feNm('zustand/esm');
@@ -194,7 +169,7 @@ export default defineConfig(async ({ mode }) => {
       },
     },
     optimizeDeps: {
-      include: FE_PACKAGES,
+      include: FE_PKGS,
       exclude: ['zustand'],
     },
     build: {
