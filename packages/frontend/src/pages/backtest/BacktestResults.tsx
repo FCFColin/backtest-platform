@@ -5,6 +5,7 @@ import { Link, useSearchParams } from 'react-router';
 import { MoreHorizontal, Download } from 'lucide-react';
 import { useBacktestStore } from '@/store/backtestStore';
 import { DataQualityBadge } from '@/components/DataQualityBadge';
+import { AiExplanation } from '@/components/AiExplanation';
 import * as U from '@/components/ui/uiComponents';
 import * as ST from '@/components/statistics-table/StatisticsTable.js';
 import { getPortfolioColor } from '@/lib/chart-theme.js';
@@ -197,11 +198,12 @@ function FactorExposureInline({ pf }: { pf: PortfolioResult[] }) {
 const TAB_RENDERERS: Record<string, (c: Ctx) => ReactNode> = {
   factor: ({ pf }) => <FactorExposureInline pf={pf} />,
   summary: ({ pf, baseCurrency: cur }) => {
-    const f = pf[0], ar = f?.annualReturns ?? [], c = toCommon(pf);
+    const f = pf[0], ar = f?.annualReturns ?? [], c = toCommon(pf), stats = f?.statistics ?? createEmptyStatistics();
     return (
       <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-4 items-start">
-        <SummarySidebar stats={f?.statistics ?? createEmptyStatistics()} ty={ar.length} py={ar.filter((r) => r.return > 0).length} name={f?.name} color={getPortfolioColor(0)} />
+        <SummarySidebar stats={stats} ty={ar.length} py={ar.filter((r) => r.return > 0).length} name={f?.name} color={getPortfolioColor(0)} />
         <div className="space-y-4 min-w-0">
+          <AiExplanation stats={stats} />
           <L.GrowthChart portfolios={toGrowth(pf)} currency={cur} />
           <L.DrawdownChart portfolios={mapDD(pf)} />
           <StatisticsTable {...c} currency={cur} extendedTable={<ExtendedMetricsTable {...c} />} />
