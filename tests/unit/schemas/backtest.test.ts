@@ -14,66 +14,15 @@ import {
 } from '../../../packages/backend/src/schemas/analysisSchemas.js';
 import { set, del, mutSuite } from '../../helpers/schemaMutators.js';
 
-const validPortfolio = () => ({
-  assets: [{ ticker: 'AAPL', weight: 100 }],
-  rebalanceFrequency: 'monthly' as const,
-});
-const validParams = () => ({ startDate: '2020-01-01', endDate: '2024-12-31' });
-const validBody = () => ({ portfolios: [validPortfolio()], parameters: validParams() });
-const cfLeg = (type: string, amount = 1000) => ({
-  id: 'leg-1',
-  amount,
-  type,
-  frequency: 'monthly' as const,
-});
-const otcCF = (type: string, date: string, amount = 1000) => ({ id: 'cf-1', amount, type, date });
-
-function makeBacktestInput(): Record<string, unknown> {
-  return {
-    portfolio: { assets: [{ ticker: 'AAPL', weight: 100 }] },
-    parameterSpace: {
-      rebalanceFrequencies: ['monthly', 'quarterly'],
-      initialCapital: { min: 1000, max: 10000, step: 1000 },
-    },
-    parameters: { startDate: '2020-01-01', endDate: '2024-12-31' },
-    objective: 'maxSharpe',
-  };
-}
-function makeOptimizerInput(): Record<string, unknown> {
-  return {
-    targetAmount: 1000000,
-    initialAmount: 10000,
-    years: 20,
-    assets: [{ ticker: 'VTI', weight: 100 }],
-  };
-}
-function makeLetfInput(): Record<string, unknown> {
-  return {
-    letfTicker: 'TQQQ',
-    benchmarkTicker: 'QQQ',
-    leverage: 3,
-    startDate: '2020-01-01',
-    endDate: '2024-12-31',
-  };
-}
-function makePcaInput(): Record<string, unknown> {
-  return { tickers: ['AAPL', 'MSFT', 'GOOG'], startDate: '2020-01-01', endDate: '2024-12-31' };
-}
+const validPortfolio = () => ({ assets: [{ ticker: 'AAPL', weight: 100 }], rebalanceFrequency: 'monthly' as const }), validParams = () => ({ startDate: '2020-01-01', endDate: '2024-12-31' }), validBody = () => ({ portfolios: [validPortfolio()], parameters: validParams() }), cfLeg = (type: string, amount = 1000) => ({ id: 'leg-1', amount, type, frequency: 'monthly' as const }), otcCF = (type: string, date: string, amount = 1000) => ({ id: 'cf-1', amount, type, date });
+function makeBacktestInput(): Record<string, unknown> { return { portfolio: { assets: [{ ticker: 'AAPL', weight: 100 }] }, parameterSpace: { rebalanceFrequencies: ['monthly', 'quarterly'], initialCapital: { min: 1000, max: 10000, step: 1000 } }, parameters: { startDate: '2020-01-01', endDate: '2024-12-31' }, objective: 'maxSharpe' }; }
+function makeOptimizerInput(): Record<string, unknown> { return { targetAmount: 1000000, initialAmount: 10000, years: 20, assets: [{ ticker: 'VTI', weight: 100 }] }; }
+function makeLetfInput(): Record<string, unknown> { return { letfTicker: 'TQQQ', benchmarkTicker: 'QQQ', leverage: 3, startDate: '2020-01-01', endDate: '2024-12-31' }; }
+function makePcaInput(): Record<string, unknown> { return { tickers: ['AAPL', 'MSFT', 'GOOG'], startDate: '2020-01-01', endDate: '2024-12-31' }; }
 
 type ZodLike = { parse: (d: unknown) => unknown };
 
-function dataSuite(
-  schema: ZodLike,
-  valid: Array<[string, Record<string, unknown>]>,
-  invalid: Array<[string, Record<string, unknown>]>,
-) {
-  it.each<[string, Record<string, unknown>]>(valid)('%s 应通过校验', (_n, d) => {
-    expect(() => schema.parse(d)).not.toThrow();
-  });
-  it.each<[string, Record<string, unknown>]>(invalid)('%s 应抛错', (_n, d) => {
-    expect(() => schema.parse(d)).toThrow();
-  });
-}
+function dataSuite(schema: ZodLike, valid: Array<[string, Record<string, unknown>]>, invalid: Array<[string, Record<string, unknown>]>) { it.each<[string, Record<string, unknown>]>(valid)('%s 应通过校验', (_n, d) => { expect(() => schema.parse(d)).not.toThrow(); }); it.each<[string, Record<string, unknown>]>(invalid)('%s 应抛错', (_n, d) => { expect(() => schema.parse(d)).toThrow(); }); }
 
 describe('portfolioBacktestSchema', () => {
   mutSuite(portfolioBacktestSchema, validBody, [
