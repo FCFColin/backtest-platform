@@ -237,53 +237,16 @@ function LeverageSelector({ value, onChange }: { value: number; onChange: (v: nu
 }
 
 function LETFParamsPanel({ state: s }: { state: LETFState }) {
-  const { t } = useTranslation();
-  const letfId = useId(),
-    benchId = useId(),
-    levId = useId(),
-    startId = useId(),
-    endId = useId();
+  const { t } = useTranslation(); const letfId = useId(), benchId = useId(), levId = useId(), startId = useId(), endId = useId();
   return (
     <div className="flex flex-col gap-4">
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <LabeledField htmlFor={letfId} label={t('Leveraged ETF')}>
-          <Input
-            id={letfId}
-            type="text"
-            value={s.letfTicker}
-            onChange={(e) => s.setLetfTicker(e.target.value)}
-            placeholder={t('e.g. TQQQ')}
-          />
-        </LabeledField>
-        <LabeledField htmlFor={benchId} label={t('Benchmark Index')}>
-          <Input
-            id={benchId}
-            type="text"
-            value={s.benchmarkTicker}
-            onChange={(e) => s.setBenchmarkTicker(e.target.value)}
-            placeholder={t('e.g. QQQ')}
-          />
-        </LabeledField>
-        <Field>
-          <FieldLabel htmlFor={levId}>{t('Leverage Multiplier')}</FieldLabel>
-          <LeverageSelector value={s.leverage} onChange={s.setLeverage} />
-        </Field>
+        <LabeledField htmlFor={letfId} label={t('Leveraged ETF')}><Input id={letfId} type="text" value={s.letfTicker} onChange={(e) => s.setLetfTicker(e.target.value)} placeholder={t('e.g. TQQQ')} /></LabeledField>
+        <LabeledField htmlFor={benchId} label={t('Benchmark Index')}><Input id={benchId} type="text" value={s.benchmarkTicker} onChange={(e) => s.setBenchmarkTicker(e.target.value)} placeholder={t('e.g. QQQ')} /></LabeledField>
+        <Field><FieldLabel htmlFor={levId}>{t('Leverage Multiplier')}</FieldLabel><LeverageSelector value={s.leverage} onChange={s.setLeverage} /></Field>
       </div>
-      <div className="grid grid-cols-2 gap-4">
-        <DateField
-          id={startId}
-          label={t('Start Date')}
-          value={s.startDate}
-          onChange={s.setStartDate}
-        />
-        <DateField id={endId} label={t('End Date')} value={s.endDate} onChange={s.setEndDate} />
-      </div>
-      <RunButton
-        isLoading={s.isLoading}
-        onClick={s.runAnalysis}
-        label={t('Run Analysis')}
-        loadingLabel={t('Analyzing...')}
-      />
+      <div className="grid grid-cols-2 gap-4"><DateField id={startId} label={t('Start Date')} value={s.startDate} onChange={s.setStartDate} /><DateField id={endId} label={t('End Date')} value={s.endDate} onChange={s.setEndDate} /></div>
+      <RunButton isLoading={s.isLoading} onClick={s.runAnalysis} label={t('Run Analysis')} loadingLabel={t('Analyzing...')} />
     </div>
   );
 }
