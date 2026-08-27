@@ -52,24 +52,9 @@ pnpm dev:all          # 全栈开发：PG/Redis + Go 引擎/数据服务 + API 1
 
 **3. 数据库迁移**（只增不减，up-only）：`pnpm --filter @backtest/backend migrate`（首次部署前执行，幂等可重跑）。
 
-**4. 全栈拉起**：
+**4. 拉起与验证**：`docker compose up -d --build`（含观测栈；可选 `--profile redis-ha/edge/cdc`）→ `docker compose ps` 全 `healthy` → `curl -f http://127.0.0.1:15001/api/health` 200（引擎503按ADR-008）→ 前端反代域名 → Grafana :3000
 
-```bash
-docker compose up -d --build   # 核心 + 观测栈（prometheus/grafana/alertmanager 默认随栈拉起）
-# 可选 profile：--profile redis-ha（Sentinel 高可用）/ edge / cdc
-```
-
-核心服务均带 healthcheck 与资源限制（`lim-m/lim-s` 锚点）；等待健康：`docker compose ps` 全部 `healthy`。
-
-**5. 验证**：
-
-- API 健康：`curl -f http://127.0.0.1:15001/api/health` → 200（引擎不可用时计算端点按 ADR-008 返回 503+Retry-After）
-- 前端：访问反代域名 → SPA 登录页
-- 监控：Grafana :3000（默认 admin/`GRAFANA_ADMIN_PASSWORD`）
-
-**6. K8s 路径**（替代 compose）：`k8s/overlays/{dev,staging,production}` 三套 kustomize overlay，密钥经 `k8s/*-secret.yaml`（gitignored，模板 `*.example`）；构建校验 `kubectl kustomize k8s/overlays/production`。
-
-**7. 升级**：拉取新代码 → 重跑迁移 → `docker compose up -d --build`（滚动重建健康检查门控）。回滚策略=镜像/代码回退+迁移 up-only 前滚兼容（ADR-002）。
+**5. K8s/升级**：`k8s/overlays/{dev,staging,production}` 三叠加（密钥 `*-secret.yaml` gitignored）；升级=拉码→迁移→`up -d --build`，回滚=镜像回退+迁移前滚兼容（ADR-002）
 
 ## 文档
 
