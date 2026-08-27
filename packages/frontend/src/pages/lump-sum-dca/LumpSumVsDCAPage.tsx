@@ -196,73 +196,13 @@ function ConclusionAnalysis({ ls, dca, f }: { ls: CompareResult; dca: CompareRes
   );
 }
 function LumpSumVsDCAParamsForm({ state: s }: { state: LumpSumVsDCAState }) {
-  const { t } = useTranslation();
-  const setFreq = (v: string) => s.setDcaFrequency(v as DcaFrequency);
+  const { t } = useTranslation(); const setFreq = (v: string) => s.setDcaFrequency(v as DcaFrequency);
   return (
     <div className="flex flex-col gap-4">
-      <BasicParamsFields
-        {...s}
-        onChange={(f, v) => {
-          // setter 命名约定来自 useSetterState：set + 首字母大写字段名
-          const setters = s as unknown as Record<string, ((x: never) => void) | undefined>;
-          setters[`set${f[0].toUpperCase()}${f.slice(1)}`]?.(v as never);
-        }}
-      />
-      <div className="mt-4">
-        <div className={CAP}>{t('DCA Parameters')}</div>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <Field>
-            <FieldLabel htmlFor="lumpsum-dca-frequency">{t('DCA Frequency')}</FieldLabel>
-            <U.Select value={s.dcaFrequency} onValueChange={setFreq}>
-              <U.SelectTrigger id="lumpsum-dca-frequency">
-                <U.SelectValue />
-              </U.SelectTrigger>
-              <U.SelectContent position="popper" sideOffset={4}>
-                <U.SelectItem value="monthly">{t('Monthly')}</U.SelectItem>
-                <U.SelectItem value="quarterly">{t('Quarterly')}</U.SelectItem>
-              </U.SelectContent>
-            </U.Select>
-          </Field>
-          <Field>
-            <FieldLabel>{t('DCA Periods')}</FieldLabel>
-            <U.AffixInput
-              type="number"
-              value={s.dcaPeriods}
-              onChange={(e) => s.setDcaPeriods(Number(e.target.value) || 1)}
-              min={1}
-              max={360}
-              suffix={t('periods')}
-            />
-          </Field>
-          <Field>
-            <FieldLabel>{t('Per-Period Amount')}</FieldLabel>
-            <U.AffixInput
-              type="text"
-              prefix={s.baseCurrency === 'usd' ? '$' : '¥'}
-              className="opacity-70"
-              value={Math.round(s.startingValue / s.dcaPeriods).toLocaleString()}
-              readOnly
-            />
-          </Field>
-        </div>
-      </div>
-      <PortfolioEditor
-        singleMode
-        assets={s.assets}
-        totalWeight={s.totalWeight}
-        onAdd={s.addAsset}
-        onRemove={s.removeAsset}
-        onUpdate={s.updateAsset}
-      />
-      <U.LoadingButton
-        isLoading={s.isLoading}
-        onClick={s.runComparison}
-        loadingText={t('Comparing...')}
-        className="w-full"
-      >
-        <Play className="size-4" />
-        {t('Start Comparison')}
-      </U.LoadingButton>
+      <BasicParamsFields {...s} onChange={(f, v) => { const m = s as unknown as Record<string, (x: never) => void>; m[`set${f[0].toUpperCase()}${f.slice(1)}`]?.(v as never); }} />
+      <div className="mt-4"><div className={CAP}>{t('DCA Parameters')}</div><div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4"><Field><FieldLabel htmlFor="lumpsum-dca-frequency">{t('DCA Frequency')}</FieldLabel><U.Select value={s.dcaFrequency} onValueChange={setFreq}><U.SelectTrigger id="lumpsum-dca-frequency"><U.SelectValue /></U.SelectTrigger><U.SelectContent position="popper" sideOffset={4}><U.SelectItem value="monthly">{t('Monthly')}</U.SelectItem><U.SelectItem value="quarterly">{t('Quarterly')}</U.SelectItem></U.SelectContent></U.Select></Field><Field><FieldLabel>{t('DCA Periods')}</FieldLabel><U.AffixInput type="number" value={s.dcaPeriods} onChange={(e) => s.setDcaPeriods(Number(e.target.value) || 1)} min={1} max={360} suffix={t('periods')} /></Field><Field><FieldLabel>{t('Per-Period Amount')}</FieldLabel><U.AffixInput type="text" prefix={s.baseCurrency === 'usd' ? '$' : '¥'} className="opacity-70" value={Math.round(s.startingValue / s.dcaPeriods).toLocaleString()} readOnly /></Field></div></div>
+      <PortfolioEditor singleMode assets={s.assets} totalWeight={s.totalWeight} onAdd={s.addAsset} onRemove={s.removeAsset} onUpdate={s.updateAsset} />
+      <U.LoadingButton isLoading={s.isLoading} onClick={s.runComparison} loadingText={t('Comparing...')} className="w-full"><Play className="size-4" />{t('Start Comparison')}</U.LoadingButton>
     </div>
   );
 }
