@@ -109,7 +109,7 @@ verify-infra PASS ✓ 7/7（C-007 已根治@dc4e9448，ROOT 无偏离全通）
 ε-2 fix→Repro: 机器强制 在线 ✓【实测·husky
 .husky/commit-msg 内联实现（非 commitlint 库）；
 负向探针拦截成功@本会话】
-ε-3 TestKit 夹具脚本 暂挂 ⏸ 等 TestKit 自然沉淀
+ε-3 TestKit 夹具脚本 在线 ✓【实测·tests/helpers/testKit.ts `mkApp/resetTestKit` 2 辅助，R-03 合规】
 ε-4 收口报告模板 在线 ✓【实测】
 
 【已实测证伪的假设（不得重走）】
