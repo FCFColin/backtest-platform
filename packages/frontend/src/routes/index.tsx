@@ -20,6 +20,7 @@ const SignupPage = lazyNamed(() => import('@/pages/auth/LoginPage'), 'SignupPage
 const PricingPage = lazyDefault(() => import('@/pages/account/PricingPage'));
 const AccountPage = lazyDefault(() => import('@/pages/account/AccountPage'));
 const DataEnginePage = lazyDefault(() => import('@/pages/data-engine/DataEnginePage'));
+const DemoPage = lazyDefault(() => import('@/pages/DemoPage'));
 const AboutPage = lazyNamed(() => import('@/pages/staticPages'), 'AboutPage');
 const ContactPage = lazyNamed(() => import('@/pages/staticPages'), 'ContactPage');
 const HelpPage = lazyDefault(() => import('@/pages/HelpPage'));
@@ -90,6 +91,7 @@ const TOOL_ROUTES: RouteDef[] = [
   { path: '/goal-optimizer', element: page('goal-optimizer'), name: 'goal-optimizer' },
 ];
 const PUBLIC_ROUTES: RouteDef[] = [
+  { path: '/demo', element: <DemoPage />, name: 'demo' },
   { path: '/about', element: <AboutPage />, name: 'about' },
   { path: '/contact', element: <ContactPage />, name: 'contact' },
   { path: '/help', element: <HelpPage />, name: 'help' },
@@ -124,6 +126,7 @@ function renderRoutes(routes: RouteDef[], protect = false): ReactNode[] {
   ));
 }
 const ROUTE_TITLES: Record<string, string> = {
+  '/demo': 'Demo',
   '/': 'nav.portfolioBacktest',
   '/analysis': 'nav.assetAnalysis',
   '/monte-carlo': 'nav.monteCarlo',
