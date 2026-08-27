@@ -66,32 +66,10 @@ import type {
   BacktestJobResult,
 } from '../../../packages/backend/src/queues/backtestQueue.js';
 import type { Job } from 'bullmq';
-function makeJob(data: BacktestJobData, id = 'job-1'): Job<BacktestJobData> {
-  return {
-    id,
-    data,
-    token: 'tok',
-    moveToDelayed: vi.fn().mockResolvedValue(undefined),
-  } as unknown as Job<BacktestJobData>;
-}
-const TENANT = '11111111-1111-1111-1111-111111111111';
-const inflightKey = `inflight:${TENANT}`;
-function mockOrg(plan = 'pro') {
-  vi.mocked(getOrg).mockResolvedValueOnce({
-    orgId: TENANT,
-    name: 'A',
-    slug: 'a',
-    plan,
-    status: 'active',
-  });
-}
-function mockOptSuccess() {
-  // 故意携带类型外冗余字段 success，验证 worker 对完整结果的透传
-  vi.mocked(executeOptimization).mockResolvedValueOnce({
-    success: true,
-    data: { ok: 1 },
-  } as Awaited<ReturnType<typeof executeOptimization>>);
-}
+function makeJob(data: BacktestJobData, id = 'job-1'): Job<BacktestJobData> { return { id, data, token: 'tok', moveToDelayed: vi.fn().mockResolvedValue(undefined) } as unknown as Job<BacktestJobData>; }
+const TENANT = '11111111-1111-1111-1111-111111111111', inflightKey = `inflight:${TENANT}`;
+function mockOrg(plan = 'pro') { vi.mocked(getOrg).mockResolvedValueOnce({ orgId: TENANT, name: 'A', slug: 'a', plan, status: 'active' }); }
+function mockOptSuccess() { vi.mocked(executeOptimization).mockResolvedValueOnce({ success: true, data: { ok: 1 } } as Awaited<ReturnType<typeof executeOptimization>>); }
 
 describe('processBacktestJob - 任务分发', () => {
   beforeEach(() => {
@@ -197,30 +175,7 @@ describe('processBacktestJob - 任务分发', () => {
   });
 
   describe('tenant-fair 调度（ADR-010）', () => {
-    const noop = () => {};
-    const noIncr = () => expect(appRedis.incr).not.toHaveBeenCalled();
-    const noDecr = () => expect(appRedis.decr).not.toHaveBeenCalled();
-    const decrCheck = () => expect(appRedis.decr).toHaveBeenCalledWith(inflightKey);
-    const slotCheck = () => {
-      expect(appRedis.incr).toHaveBeenCalledWith(inflightKey);
-      expect(appRedis.decr).toHaveBeenCalledWith(inflightKey);
-    };
-    const proSlot = () => {
-      mockOrg('pro');
-      vi.mocked(appRedis.incr).mockResolvedValueOnce(1);
-    };
-    const orgFails = () => {
-      vi.mocked(getOrg).mockRejectedValueOnce(new Error('DB 连接失败'));
-      vi.mocked(appRedis.incr).mockResolvedValueOnce(1);
-    };
-    const incrFails = () => {
-      mockOrg('pro');
-      vi.mocked(appRedis.incr).mockRejectedValueOnce(new Error('Redis 连接失败'));
-    };
-    const decrFailsSetup = () => {
-      proSlot();
-      vi.mocked(appRedis.decr).mockRejectedValueOnce(new Error('Redis 关闭中'));
-    };
+    const noop = () => {}, noIncr = () => expect(appRedis.incr).not.toHaveBeenCalled(), noDecr = () => expect(appRedis.decr).not.toHaveBeenCalled(), decrCheck = () => expect(appRedis.decr).toHaveBeenCalledWith(inflightKey), slotCheck = () => { expect(appRedis.incr).toHaveBeenCalledWith(inflightKey); expect(appRedis.decr).toHaveBeenCalledWith(inflightKey); }, proSlot = () => { mockOrg('pro'); vi.mocked(appRedis.incr).mockResolvedValueOnce(1); }, orgFails = () => { vi.mocked(getOrg).mockRejectedValueOnce(new Error('DB 连接失败')); vi.mocked(appRedis.incr).mockResolvedValueOnce(1); }, incrFails = () => { mockOrg('pro'); vi.mocked(appRedis.incr).mockRejectedValueOnce(new Error('Redis 连接失败')); }, decrFailsSetup = () => { proSlot(); vi.mocked(appRedis.decr).mockRejectedValueOnce(new Error('Redis 关闭中')); };
     it.each<[string, string | undefined, () => void, () => void]>([
       ['未携带 tenantId 时跳过在途门控（不触碰 Redis）', undefined, noop, noIncr],
       ['在途数未超上限时正常处理并释放名额', TENANT, proSlot, slotCheck],
