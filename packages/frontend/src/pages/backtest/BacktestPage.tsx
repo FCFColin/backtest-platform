@@ -87,22 +87,8 @@ function CapabilityCard({ icon: Icon, title, items, tools, link, subtitle }: Cap
 }
 export function BacktestHero() {
   const { t } = useTranslation();
-  const [exp, setExp] = useState(() => {
-    try {
-      const v = localStorage.getItem(HERO_KEY);
-      if (v !== null) return v !== '0';
-      return typeof window === 'undefined'
-        ? true
-        : !window.matchMedia('(max-width: 768px)').matches;
-    } catch {
-      return true;
-    }
-  });
-  useEffect(() => {
-    try {
-      localStorage.setItem(HERO_KEY, exp ? '1' : '0');
-    } catch {}
-  }, [exp]);
+  const [exp, setExp] = useState(() => { try { const v = localStorage.getItem(HERO_KEY); if (v !== null) return v !== '0'; return typeof window === 'undefined' ? true : !window.matchMedia('(max-width: 768px)').matches; } catch { return true; } });
+  useEffect(() => { try { localStorage.setItem(HERO_KEY, exp ? '1' : '0'); } catch {} }, [exp]);
   const cards: CapProps[] = [
     {
       icon: L.Settings,
