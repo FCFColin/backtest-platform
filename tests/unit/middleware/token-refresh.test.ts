@@ -30,58 +30,16 @@ import { idempotencyKey } from '../../../packages/backend/src/middleware/idempot
 
 beforeEach(() => (vi.clearAllMocks(), redisMocks.useRedisSuccess(), mockMembershipActive()));
 
-async function expiredToken(s: number) {
-  vi.useFakeTimers();
-  const t = await generateRefreshToken('expired-user', 'admin');
-  vi.advanceTimersByTime(s * 1000);
-  return t;
-}
-const expireStoredToken = async (u: string) => {
-  const t = await generateRefreshToken(u, 'admin'),
-    k = `refresh_token:${sha256Hex(t)}`,
-    v = JSON.parse(redisMocks.store.get(k)!);
-  redisMocks.store.set(k, JSON.stringify({ ...v, expiresAt: Math.floor(Date.now() / 1000) - 10 }));
-  return t;
-};
-const o1 = { tenantId: 'org-1', orgRole: 'owner', platformAdmin: true } as const;
-const o42 = { tenantId: 'org-42', orgRole: 'owner', platformAdmin: true } as const;
-const oRem = { tenantId: 'org-removed', orgRole: 'admin' } as const;
-const oDem = { tenantId: 'org-demote', orgRole: 'admin' } as const;
-const expTenant = {
-  sub: 'tenant-refresh',
-  role: 'admin',
-  tenant_id: 'org-42',
-  org_role: 'owner',
-  platform_admin: true,
-};
-const failSet = async () => (
-  redisMocks.set.mockRejectedValueOnce(new Error('Redis write failed')),
-  generateRefreshToken('user-fallback', 'admin')
-);
-const failGet = async (u: string, fn: (t: string) => unknown) => {
-  const t = await generateRefreshToken(u, 'admin');
-  redisMocks.get.mockRejectedValueOnce(new Error('redis read failed'));
-  return fn(t);
-};
-const failSmembers = async () => (
-  await generateRefreshToken('revoke-fallback-user', 'admin'),
-  redisMocks.smembers.mockRejectedValueOnce(new Error('smembers failed')),
-  revokeAllUserSessions('revoke-fallback-user')
-);
-const failIsRevoked = async () => (
-  await revokeAllUserSessions('redis-fallback-check-user'),
-  redisMocks.get.mockRejectedValueOnce(new Error('get failed')),
-  isAccessTokenRevokedForUser('redis-fallback-check-user', 1)
-);
-const throwing = (msg: string) => (): never => {
-  throw new Error(msg);
-};
-const checkRedis = (t: string) =>
-  expect(redisMocks.store.has(`refresh_token:${sha256Hex(t)}`)).toBe(false);
-const runKey = (...a: Parameters<typeof fx.createIdempotencyReqRes>) => {
-  const r = fx.createIdempotencyReqRes(...a);
-  return (idempotencyKey(r.req, r.res, r.next), r);
-};
+async function expiredToken(s: number) { vi.useFakeTimers(); const t = await generateRefreshToken('expired-user', 'admin'); vi.advanceTimersByTime(s * 1000); return t; }
+const expireStoredToken = async (u: string) => { const t = await generateRefreshToken(u, 'admin'), k = `refresh_token:${sha256Hex(t)}`, v = JSON.parse(redisMocks.store.get(k)!); redisMocks.store.set(k, JSON.stringify({ ...v, expiresAt: Math.floor(Date.now() / 1000) - 10 })); return t; };
+const o1 = { tenantId: 'org-1', orgRole: 'owner', platformAdmin: true } as const, o42 = { tenantId: 'org-42', orgRole: 'owner', platformAdmin: true } as const, oRem = { tenantId: 'org-removed', orgRole: 'admin' } as const, oDem = { tenantId: 'org-demote', orgRole: 'admin' } as const, expTenant = { sub: 'tenant-refresh', role: 'admin', tenant_id: 'org-42', org_role: 'owner', platform_admin: true };
+const failSet = async () => (redisMocks.set.mockRejectedValueOnce(new Error('Redis write failed')), generateRefreshToken('user-fallback', 'admin'));
+const failGet = async (u: string, fn: (t: string) => unknown) => { const t = await generateRefreshToken(u, 'admin'); redisMocks.get.mockRejectedValueOnce(new Error('redis read failed')); return fn(t); };
+const failSmembers = async () => (await generateRefreshToken('revoke-fallback-user', 'admin'), redisMocks.smembers.mockRejectedValueOnce(new Error('smembers failed')), revokeAllUserSessions('revoke-fallback-user'));
+const failIsRevoked = async () => (await revokeAllUserSessions('redis-fallback-check-user'), redisMocks.get.mockRejectedValueOnce(new Error('get failed')), isAccessTokenRevokedForUser('redis-fallback-check-user', 1));
+const throwing = (msg: string) => (): never => { throw new Error(msg); };
+const checkRedis = (t: string) => expect(redisMocks.store.has(`refresh_token:${sha256Hex(t)}`)).toBe(false);
+const runKey = (...a: Parameters<typeof fx.createIdempotencyReqRes>) => { const r = fx.createIdempotencyReqRes(...a); return (idempotencyKey(r.req, r.res, r.next), r); };
 describe('Refresh Token 生命周期与 Redis', () => {
   beforeEach(() => mockUser());
   it('生成：64 位 hex、写入 Redis（TTL + family + 集合）', async () => {
