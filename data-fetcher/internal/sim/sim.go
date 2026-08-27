@@ -10,12 +10,11 @@ import (
 type simProvider struct{ base provider.BaseProvider }
 
 func NewProvider() provider.Provider { return &simProvider{} }
-func (p *simProvider) Name() string { return "sim" }
+func (p *simProvider) Name() string  { return "sim" }
 
 // SIM 合成基金：BNDSIM 等以底层ETF为锚，早期用合成5%年化+噪声外推至1986
 // 极简实现：仅支持 BNDSIM/SPYSIM/VTISIM 三档，其余 SIM 透传去后缀
 func (p *simProvider) FetchStockDaily(ticker, startDate, endDate string) ([]provider.DailyPrice, error) {
-	upper := ticker
 	// 仅处理 SIM 后缀
 	if len(ticker) < 4 || ticker[len(ticker)-3:] != "SIM" {
 		return nil, nil

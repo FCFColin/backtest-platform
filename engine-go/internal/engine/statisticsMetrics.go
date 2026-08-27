@@ -339,10 +339,11 @@ func resampleByPeriod(values []float64, dates []string, monthly bool) []periodBu
 		if !monthly {
 			m = 0
 		}
-		if buckets[y*12+m] == nil {
-			buckets[y*12+m] = &periodBucket{y, m, v, v}
+		k := y*12 + m
+		if buckets[k] == nil {
+			buckets[k] = &periodBucket{y, m, v, v}
 		}
-		buckets[y*12+m].last = v
+		buckets[k].last = v
 	}
 	out := make([]periodBucket, 0, len(buckets))
 	for _, b := range buckets {
@@ -352,28 +353,28 @@ func resampleByPeriod(values []float64, dates []string, monthly bool) []periodBu
 	return out
 }
 func CalcAnnualReturns(values []float64, dates []string) []AnnualReturn {
-	buckets := resampleByPeriod(values, dates, false)
-	result := make([]AnnualReturn, 0, len(buckets))
-	for idx, b := range buckets {
-		startValue := values[0]
-		if idx > 0 {
-			startValue = buckets[idx-1].last
+	bs := resampleByPeriod(values, dates, false)
+	res := make([]AnnualReturn, 0, len(bs))
+	for i, b := range bs {
+		sv := values[0]
+		if i > 0 {
+			sv = bs[i-1].last
 		}
-		if startValue > 0 {
-			result = append(result, AnnualReturn{Year: b.year, Return: b.last/startValue - 1})
+		if sv > 0 {
+			res = append(res, AnnualReturn{Year: b.year, Return: b.last/sv - 1})
 		}
 	}
-	return result
+	return res
 }
 func CalcMonthlyReturns(values []float64, dates []string) []MonthlyReturn {
-	buckets := resampleByPeriod(values, dates, true)
-	result := make([]MonthlyReturn, 0, len(buckets))
-	for _, b := range buckets {
+	bs := resampleByPeriod(values, dates, true)
+	res := make([]MonthlyReturn, 0, len(bs))
+	for _, b := range bs {
 		if b.first > 0 {
-			result = append(result, MonthlyReturn{Year: b.year, Month: b.month + 1, Return: b.last/b.first - 1})
+			res = append(res, MonthlyReturn{Year: b.year, Month: b.month + 1, Return: b.last/b.first - 1})
 		}
 	}
-	return result
+	return res
 }
 func parseYearMonth(dateStr string) (int, int) {
 	for _, layout := range [...]string{"2006-01-02", "2006-01"} {
@@ -430,56 +431,31 @@ func computeBenchmarkMetrics(portfolioReturns, benchmarkReturns []float64, cagr,
 	return computeBenchmarkMetricsWithRF(riskFreeRate, portfolioReturns, benchmarkReturns, cagr, benchmarkCagr)
 }
 
-// U-2 Phase 2：rf 显式版本（backtest 路径窗口匹配利率；legacy 路径走常量委托）
-func computeBenchmarkMetricsWithRF(rf float64, portfolioReturns, benchmarkReturns []float64, cagr, benchmarkCagr float64) benchmarkMetrics {
-	pr, br := portfolioReturns, benchmarkReturns
+func computeBenchmarkMetricsWithRF(rf float64, pr, br []float64, cagr, benchmarkCagr float64) benchmarkMetrics {
 	beta, trackErr := CalcBeta(pr, br), CalcTrackingError(pr, br)
-	alpha, upside, downside := CalcAlphaWithRF(rf, cagr, beta, benchmarkCagr), CalcCaptureRatio(pr, br, true), CalcCaptureRatio(pr, br, false)
-	benchStd := CalcAnnualizedStdev(br)
-	return benchmarkMetrics{
-		Beta: beta, Alpha: alpha, TrackingError: trackErr, InformationRatio: CalcInformationRatio(alpha, trackErr),
-		RSquared:      CalcRSquared(pr, br),
-		UpsideCapture: upside, DownsideCapture: downside, CaptureSpread: upside - downside,
-		BenchmarkCorrelation: CalcCorrelation(pr, br),
-		UpsideCorrelation:    calcFiltered(pr, br, true, CalcCorrelation),
-		DownsideCorrelation:  calcFiltered(pr, br, false, CalcCorrelation),
-		UpsideBeta:           calcFiltered(pr, br, true, CalcBeta),
-		DownsideBeta:         calcFiltered(pr, br, false, CalcBeta),
-		Treynor:              CalcTreynorWithRF(rf, cagr, beta),
-		M2:                   CalcM2WithRF(rf, CalcSharpeWithRF(rf, cagr, benchStd), benchStd),
-		AlphaDaily:           calcAlphaDaily(pr, br, beta),
-		ActiveReturn:         cagr - benchmarkCagr,
-	}
+	alpha, benchStd := CalcAlphaWithRF(rf, cagr, beta, benchmarkCagr), CalcAnnualizedStdev(br)
+	up, down := CalcCaptureRatio(pr, br, true), CalcCaptureRatio(pr, br, false)
+	return benchmarkMetrics{Beta: beta, Alpha: alpha, TrackingError: trackErr, InformationRatio: CalcInformationRatio(alpha, trackErr), RSquared: CalcRSquared(pr, br), UpsideCapture: up, DownsideCapture: down, CaptureSpread: up - down, BenchmarkCorrelation: CalcCorrelation(pr, br), UpsideCorrelation: calcFiltered(pr, br, true, CalcCorrelation), DownsideCorrelation: calcFiltered(pr, br, false, CalcCorrelation), UpsideBeta: calcFiltered(pr, br, true, CalcBeta), DownsideBeta: calcFiltered(pr, br, false, CalcBeta), Treynor: CalcTreynorWithRF(rf, cagr, beta), M2: CalcM2WithRF(rf, CalcSharpeWithRF(rf, cagr, benchStd), benchStd), AlphaDaily: calcAlphaDaily(pr, br, beta), ActiveReturn: cagr - benchmarkCagr}
 }
 
 // ── H-1 高级指标包（Foliolytic 公式公开口径）────────────────────────
 
-// CalcPSR 概率化夏普比率（Bailey & López de Prado）：
-// PSR(SR*) = Φ( (SR−SR*)·√(n−1) / √(1−γ₃·SR + (γ₄−1)/4·SR²) )
-// 输入为日频收益与年化 rf；SR* 为基准 Sharpe（同日频口径）。样本不足或分母非法返回 0.5。
+// CalcPSR 概率化夏普比率 Bailey & López de Prado；样本不足或分母非法返回 0.5
 func CalcPSR(dailyReturns []float64, rfAnnual, srRef float64) float64 {
 	n := len(dailyReturns)
 	if n < 3 {
 		return 0.5
 	}
 	rfDaily := RiskFreeDailyFrom(rfAnnual)
-	mean := 0.0
-	for _, r := range dailyReturns {
-		mean += r - rfDaily
+	adj := make([]float64, n)
+	for i, r := range dailyReturns {
+		adj[i] = r - rfDaily
 	}
-	mean /= float64(n)
-	vari := 0.0
-	for _, r := range dailyReturns {
-		d := r - rfDaily - mean
-		vari += d * d
-	}
-	sd := math.Sqrt(vari / float64(n))
+	mean, sd := stat.Mean(adj, nil), stat.StdDev(adj, nil)
 	if sd < 1e-12 {
 		return 0.5
 	}
-	sr := mean / sd
-	g3 := CalcSkewness(dailyReturns)
-	g4 := CalcExcessKurtosis(dailyReturns) + 3 // Pearson 峰度
+	sr, g3, g4 := mean/sd, CalcSkewness(dailyReturns), CalcExcessKurtosis(dailyReturns)+3
 	denom := 1 - g3*sr + (g4-1)/4*sr*sr
 	if denom <= 0 {
 		return 0.5
@@ -488,36 +464,27 @@ func CalcPSR(dailyReturns []float64, rfAnnual, srRef float64) float64 {
 	return 0.5 * (1 + math.Erf(z/math.Sqrt2))
 }
 
-// CalcHurstExponent R/S 分析多尺度回归：H = log-log 斜率。n<16 返回 0.5（不可判定缺省）。
+// CalcHurstExponent R/S 多尺度回归 log-log 斜率；n<16 返回 0.5
 func CalcHurstExponent(values []float64) float64 {
 	n := len(values)
 	if n < 16 {
 		return 0.5
 	}
-	size, xs, ys := 8, []float64{}, []float64{}
-	for size <= n/2 {
-		chunks := n / size
-		rsSum, rsCount := 0.0, 0.0
-		for ch := 0; ch < chunks; ch++ {
-			sub := values[ch*size : (ch+1)*size]
-			mean := stat.Mean(sub, nil)
+	xs, ys := []float64{}, []float64{}
+	for size := 8; size <= n/2; size *= 2 {
+		chunks, rsSum, rsCount := n/size, 0.0, 0.0
+		for ch := range chunks {
+			sub, mean := values[ch*size:(ch+1)*size], stat.Mean(values[ch*size:(ch+1)*size], nil)
 			cum, devSum, mn, mx := 0.0, 0.0, math.Inf(1), math.Inf(-1)
 			for _, v := range sub {
 				cum += v - mean
 				devSum += cum * cum
-				if cum < mn {
-					mn = cum
-				}
-				if cum > mx {
-					mx = cum
-				}
+				mn, mx = min(mn, cum), max(mx, cum)
 			}
-			s := math.Sqrt(devSum / float64(size))
-			if s <= 0 {
-				continue
+			if s := math.Sqrt(devSum / float64(size)); s > 0 {
+				rsSum += (mx - mn) / s
+				rsCount++
 			}
-			rsSum += (mx - mn) / s
-			rsCount++
 		}
 		if rsCount > 0 {
 			xs = append(xs, math.Log(float64(size)))
@@ -526,12 +493,10 @@ func CalcHurstExponent(values []float64) float64 {
 		if size == n/2 {
 			break
 		}
-		size *= 2
 	}
 	if len(xs) < 2 {
 		return 0.5
 	}
-	// 最小二乘斜率
 	mx, my := stat.Mean(xs, nil), stat.Mean(ys, nil)
 	num, den := 0.0, 0.0
 	for i := range xs {
@@ -558,40 +523,40 @@ func topKDesc(a []float64, k int) []float64 {
 	return ds[len(ds)-k:]
 }
 
-// CalcBurkeRatio 超额 CAGR / Σ(前 K 大回撤深度²)，无回撤样本返回 0。
-func CalcBurkeRatio(cagr, rfAnnual float64, drawdownDepths []float64) float64 {
-	top := topKDesc(drawdownDepths, h1TopDrawdowns)
-	sumSq := 0.0
+// CalcBurkeRatio 超额 CAGR / Σ前K大回撤²
+func CalcBurkeRatio(cagr, rfAnnual float64, dds []float64) float64 {
+	top := topKDesc(dds, h1TopDrawdowns)
+	s := 0.0
 	for _, v := range top {
-		sumSq += v * v
+		s += v * v
 	}
-	return safeRatio(cagr-rfAnnual, sumSq)
+	return safeRatio(cagr-rfAnnual, s)
 }
 
-// CalcSterlingRatio 超额 CAGR / 前 K 大回撤深度均值。
-func CalcSterlingRatio(cagr, rfAnnual float64, drawdownDepths []float64) float64 {
-	top := topKDesc(drawdownDepths, h1TopDrawdowns)
+// CalcSterlingRatio 超额 CAGR / 前K大回撤均值
+func CalcSterlingRatio(cagr, rfAnnual float64, dds []float64) float64 {
+	top := topKDesc(dds, h1TopDrawdowns)
 	if len(top) == 0 {
 		return 0
 	}
-	sum := 0.0
+	s := 0.0
 	for _, v := range top {
-		sum += v
+		s += v
 	}
-	return safeRatio(cagr-rfAnnual, sum/float64(len(top)))
+	return safeRatio(cagr-rfAnnual, s/float64(len(top)))
 }
 
-// CalcBattingAverage 相对基准的胜率：min(pr,br)>0 且 pr>br 的配对占比。
-func CalcBattingAverage(portfolioReturns, benchmarkReturns []float64) float64 {
-	pr, br := alignPair(portfolioReturns, benchmarkReturns)
-	if len(pr) == 0 {
+// CalcBattingAverage 相对基准胜率 pr>br 占比
+func CalcBattingAverage(pr, br []float64) float64 {
+	a, b := alignPair(pr, br)
+	if len(a) == 0 {
 		return 0
 	}
-	wins := 0
-	for i := range pr {
-		if pr[i] > br[i] {
-			wins++
+	w := 0
+	for i := range a {
+		if a[i] > b[i] {
+			w++
 		}
 	}
-	return float64(wins) / float64(len(pr))
+	return float64(w) / float64(len(a))
 }
