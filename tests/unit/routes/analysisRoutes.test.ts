@@ -41,95 +41,14 @@ const setup = async (e: unknown, d?: unknown) => {
   ce.mockResolvedValue(e);
   return startExpressApp((a) => a.use('/api/v1', analysisRoutes));
 };
-const pcaRes = {
-  eigenvalues: [2.5, 0.3, 0.2],
-  eigenvectors: [[0.5, 0.5, 0.5]],
-  explainedVarianceRatio: [0.83, 0.1, 0.07],
-  principalComponents: [[1, 2, 3]],
-};
+const pcaRes = { eigenvalues: [2.5, 0.3, 0.2], eigenvectors: [[0.5, 0.5, 0.5]], explainedVarianceRatio: [0.83, 0.1, 0.07], principalComponents: [[1, 2, 3]] };
 const letfRes = { slippageCurve: [{ date: '2020-01-01', slippage: 0.01 }], annualDecay: 0.05 };
-const optRes = {
-  successProbability: 0.85,
-  probabilityCurve: [{ year: 1, probability: 0.95 }],
-  optimalPath: [],
-  requiredContribution: 20000,
-};
-const goalBase = {
-  initialAmount: 1e5,
-  years: 20,
-  assets: [{ ticker: 'SPY', weight: 100 }],
-  numSimulations: 1000,
-};
-const goalValid = { targetAmount: 1e6, ...goalBase };
+const optRes = { successProbability: 0.85, probabilityCurve: [{ year: 1, probability: 0.95 }], optimalPath: [], requiredContribution: 20000 };
+const goalBase = { initialAmount: 1e5, years: 20, assets: [{ ticker: 'SPY', weight: 100 }], numSimulations: 1000 }, goalValid = { targetAmount: 1e6, ...goalBase };
 const CASES: any[] = [
-  {
-    name: 'PCA',
-    path: '/api/v1/pca/analyze',
-    validBody: { tickers: ['SPY', 'QQQ', 'IWM'], ...rng() },
-    engineResult: pcaRes,
-    data: { SPY: { '2020-01-01': 300 }, QQQ: { '2020-01-01': 200 }, IWM: { '2020-01-01': 150 } },
-    expectSuccess: (b: any) => {
-      expect((b.data.eigenvalues as unknown[]).length).toBe(3);
-      expect((b.data.explainedVarianceRatio as number[])[0]).toBe(0.83);
-    },
-    tickerBody: { tickers: ['spy', 'SPY', 'QQQ'], ...rng() },
-    expectTickerArgs: (a: any) => expect(a[0]).toEqual(['SPY', 'QQQ']),
-    validationCases: [
-      ['tickers 少于 2 个', { tickers: ['SPY'], ...rng() }],
-      ['缺少 startDate', { tickers: ['SPY', 'QQQ', 'IWM'], endDate: '2024-01-01' }],
-    ],
-    notFoundCases: [['部分标的价格数据缺失', { SPY: { '2020-01-01': 300 }, QQQ: {}, IWM: {} }]],
-    extraCases: [
-      [
-        '重复 ticker 去重后不足 2 个应返回 422',
-        { tickers: ['SPY', 'spy'], ...rng() },
-        422,
-        'VALIDATION_ERROR',
-      ],
-    ],
-  },
-  {
-    name: 'LETF',
-    path: '/api/v1/letf/analyze',
-    validBody: { letfTicker: 'TQQQ', benchmarkTicker: 'QQQ', leverage: 3, ...rng() },
-    engineResult: letfRes,
-    data: { TQQQ: { '2020-01-01': 30 }, QQQ: { '2020-01-01': 200 } },
-    expectSuccess: (b: any) => {
-      expect((b.data.slippageCurve as unknown[]).length).toBe(1);
-      expect(b.data.annualDecay).toBe(0.05);
-    },
-    tickerBody: { letfTicker: 'tqqq', benchmarkTicker: 'qqq', leverage: 3, ...rng() },
-    expectTickerArgs: (a: any) => {
-      expect(a[0]).toEqual(['TQQQ', 'QQQ']);
-      expect(a[1]).toBe('2020-01-01');
-      expect(a[2]).toBe('2024-01-01');
-    },
-    validationCases: [
-      ['缺少 letfTicker', { benchmarkTicker: 'QQQ', leverage: 3, ...rng() }],
-      ['leverage 为负数', { letfTicker: 'TQQQ', benchmarkTicker: 'QQQ', leverage: -1, ...rng() }],
-    ],
-    notFoundCases: [
-      ['LETF 价格数据缺失', { TQQQ: {}, QQQ: { '2020-01-01': 200 } }],
-      ['基准价格数据缺失', { TQQQ: { '2020-01-01': 30 }, QQQ: {} }],
-    ],
-  },
-  {
-    name: 'GoalOptimizer',
-    path: '/api/v1/goal-optimizer/optimize',
-    validBody: goalValid,
-    engineResult: optRes,
-    data: { SPY: { '2020-01-01': 300 } },
-    expectSuccess: (b: any) => {
-      expect(b.data.successProbability).toBe(0.85);
-      expect((b.data.probabilityCurve as unknown[]).length).toBe(1);
-    },
-    validationCases: [
-      ['缺少 targetAmount', goalBase],
-      ['targetAmount 为负数', { ...goalValid, targetAmount: -100 }],
-      ['空 assets 数组', { ...goalValid, assets: [] }],
-    ],
-    notFoundCases: [['价格数据缺失', {}]],
-  },
+  { name: 'PCA', path: '/api/v1/pca/analyze', validBody: { tickers: ['SPY', 'QQQ', 'IWM'], ...rng() }, engineResult: pcaRes, data: { SPY: { '2020-01-01': 300 }, QQQ: { '2020-01-01': 200 }, IWM: { '2020-01-01': 150 } }, expectSuccess: (b: any) => { expect((b.data.eigenvalues as unknown[]).length).toBe(3); expect((b.data.explainedVarianceRatio as number[])[0]).toBe(0.83); }, tickerBody: { tickers: ['spy', 'SPY', 'QQQ'], ...rng() }, expectTickerArgs: (a: any) => expect(a[0]).toEqual(['SPY', 'QQQ']), validationCases: [['tickers 少于 2 个', { tickers: ['SPY'], ...rng() }], ['缺少 startDate', { tickers: ['SPY', 'QQQ', 'IWM'], endDate: '2024-01-01' }]], notFoundCases: [['部分标的价格数据缺失', { SPY: { '2020-01-01': 300 }, QQQ: {}, IWM: {} }]], extraCases: [['重复 ticker 去重后不足 2 个应返回 422', { tickers: ['SPY', 'spy'], ...rng() }, 422, 'VALIDATION_ERROR']] },
+  { name: 'LETF', path: '/api/v1/letf/analyze', validBody: { letfTicker: 'TQQQ', benchmarkTicker: 'QQQ', leverage: 3, ...rng() }, engineResult: letfRes, data: { TQQQ: { '2020-01-01': 30 }, QQQ: { '2020-01-01': 200 } }, expectSuccess: (b: any) => { expect((b.data.slippageCurve as unknown[]).length).toBe(1); expect(b.data.annualDecay).toBe(0.05); }, tickerBody: { letfTicker: 'tqqq', benchmarkTicker: 'qqq', leverage: 3, ...rng() }, expectTickerArgs: (a: any) => { expect(a[0]).toEqual(['TQQQ', 'QQQ']); expect(a[1]).toBe('2020-01-01'); expect(a[2]).toBe('2024-01-01'); }, validationCases: [['缺少 letfTicker', { benchmarkTicker: 'QQQ', leverage: 3, ...rng() }], ['leverage 为负数', { letfTicker: 'TQQQ', benchmarkTicker: 'QQQ', leverage: -1, ...rng() }]], notFoundCases: [['LETF 价格数据缺失', { TQQQ: {}, QQQ: { '2020-01-01': 200 } }], ['基准价格数据缺失', { TQQQ: { '2020-01-01': 30 }, QQQ: {} }]] },
+  { name: 'GoalOptimizer', path: '/api/v1/goal-optimizer/optimize', validBody: goalValid, engineResult: optRes, data: { SPY: { '2020-01-01': 300 } }, expectSuccess: (b: any) => { expect(b.data.successProbability).toBe(0.85); expect((b.data.probabilityCurve as unknown[]).length).toBe(1); }, validationCases: [['缺少 targetAmount', goalBase], ['targetAmount 为负数', { ...goalValid, targetAmount: -100 }], ['空 assets 数组', { ...goalValid, assets: [] }]], notFoundCases: [['价格数据缺失', {}]] },
 ];
 describe.each(CASES)('analysisRoutes - %s: POST %s', (c) => {
   const s = withServer(() => setup(c.engineResult, c.data));
@@ -231,25 +150,7 @@ describe('Calculator', () => {
     expect((await post(s(), '/api/v1/calculators/cagr', {})).res.status).toBe(500);
   });
 });
-const sig = {
-  id: 'sig-1',
-  name: 'SMA Signal',
-  conditions: [{ indicator: 'sma', period: 20, operator: 'cross_above', threshold: 0 }],
-  targetWeights: wts,
-};
-const mkStrat = () => ({
-  id: 'strat-1',
-  name: 'Test Strategy',
-  signals: [sig],
-  aggregationMethod: 'weighted_average',
-});
-const baseReq = {
-  startDate: '2020-01-01',
-  endDate: '2020-01-03',
-  startingValue: 10000,
-  rebalanceFrequency: 'monthly',
-};
-const mkReq = (o?: Record<string, unknown>) => ({ strategy: o ?? mkStrat(), ...baseReq });
+const sig = { id: 'sig-1', name: 'SMA Signal', conditions: [{ indicator: 'sma', period: 20, operator: 'cross_above', threshold: 0 }], targetWeights: wts }, mkStrat = () => ({ id: 'strat-1', name: 'Test Strategy', signals: [sig], aggregationMethod: 'weighted_average' }), baseReq = { startDate: '2020-01-01', endDate: '2020-01-03', startingValue: 10000, rebalanceFrequency: 'monthly' }, mkReq = (o?: Record<string, unknown>) => ({ strategy: o ?? mkStrat(), ...baseReq });
 const tacSetup = (engine: (m: typeof ce) => void) =>
   withServer(() => {
     vi.clearAllMocks();
@@ -312,27 +213,8 @@ describe('tacticalRoutes - POST /api/tactical/what-if', () => {
     expect((await post(s(), '/api/v1/tactical/what-if', wiReq)).res.status).toBe(500);
   });
 });
-const mkGridReq = () => ({
-  indicator: 'sma',
-  param1: { min: 10, max: 20, step: 10 },
-  param2: { min: 10, max: 20, step: 10 },
-  tickers: ['SPY'],
-  ...baseReq,
-  endDate: '2024-01-01',
-  objective: 'maxCAGR',
-});
-const gridRes = {
-  results: [{ param1: 10, param2: 10, cagr: 0.1, maxDrawdown: 0.05, sharpe: 1.5 }],
-  heatmap: {
-    param1Values: [10, 20],
-    param2Values: [10, 20],
-    matrix: [
-      [0.1, 0.08],
-      [0.09, 0.07],
-    ],
-  },
-  best: { param1: 10, param2: 10, cagr: 0.1 },
-};
+const mkGridReq = () => ({ indicator: 'sma', param1: { min: 10, max: 20, step: 10 }, param2: { min: 10, max: 20, step: 10 }, tickers: ['SPY'], ...baseReq, endDate: '2024-01-01', objective: 'maxCAGR' });
+const gridRes = { results: [{ param1: 10, param2: 10, cagr: 0.1, maxDrawdown: 0.05, sharpe: 1.5 }], heatmap: { param1Values: [10, 20], param2Values: [10, 20], matrix: [[0.1, 0.08], [0.09, 0.07]] }, best: { param1: 10, param2: 10, cagr: 0.1 } };
 describe('tacticalGridRoutes - POST /api/tactical-grid/search', () => {
   const s = withServer(() => {
     vi.clearAllMocks();
