@@ -151,7 +151,7 @@ function createRebalancingRunners(s: ReturnType<typeof useRebalSetters>, p: Bp, 
         const batch = Array.from({ length: Math.min(chunk, 600 - i) }, async () => {
           const f = freqs[Math.floor(Math.random() * freqs.length)] as RebalanceFrequency;
           const off = Math.floor(Math.random() * 21);
-          const r = await fetchFreqResult(f, v, { ...p, absoluteBand: '', relativeBand: '' }, s);
+          const r = await fetchFreqResult(f, v, p, s);
           // 模拟随机偏移对收益的微扰：用 off 轻微扰动 cagr
           return {
             x: r.stdev * 100 + (Math.random() - 0.5) * 0.5,
