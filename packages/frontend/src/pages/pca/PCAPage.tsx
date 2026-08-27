@@ -115,77 +115,10 @@ function PCAParamsPanel({ state: s }: { state: PCAState }) {
     </div>
   );
 }
-function EigenvalueBarChart({ data }: { data: { component: string; eigenvalue: number }[] }) {
-  const { t } = useTranslation();
-  return (
-    <Card className="p-4">
-      <BarChartContent
-        data={data.map((d) => ({ component: d.component, Eigenvalue: d.eigenvalue }))}
-        seriesNames={[t('Eigenvalues')]}
-        xDataKey="component"
-        height={300}
-        yTickFormatter={(v) => v.toFixed(2)}
-        tooltipValueFormatter={(v) => [v.toFixed(4), t('Eigenvalues')]}
-        showLegend={false}
-      />
-    </Card>
-  );
-}
-function CumulativeVarianceChart({ data }: { data: { component: string; cumulative: number }[] }) {
-  const { t } = useTranslation();
-  return (
-    <Card className="p-4">
-      <TimeSeriesLineChart
-        data={data}
-        xDataKey="component"
-        height={300}
-        yDomain={[0, 100]}
-        yTickFormatter={(v) => `${v.toFixed(0)}%`}
-        tooltipValueFormatter={(v) => [`${v.toFixed(2)}%`, t('Cumulative Variance')]}
-        referenceY={90}
-        showLegend={false}
-        colorOffset={1}
-        series={[{ dataKey: 'cumulative', showDots: true, dotR: 4, activeDotR: 6 }]}
-      />
-    </Card>
-  );
-}
-function LoadingMatrix({ results }: { results: PCAResult }) {
-  return (
-    <Card className="p-4">
-      <MatrixHeatmap
-        rowLabels={results.tickers}
-        columnLabels={results.eigenvalues.map((_, j) => `PC${j + 1}`)}
-        matrix={results.loadings}
-        getBackgroundColor={getCorrelationColor}
-        getTextColor={getCorrelationTextColor}
-        formatValue={(v) => v.toFixed(2)}
-        formatTitle={(v, rowLabel, colLabel) => `${rowLabel} · ${colLabel}: ${v.toFixed(3)}`}
-        minCellWidth={56}
-      />
-    </Card>
-  );
-}
-function PCAScatterChart({ data }: { data: { pc1: number; pc2: number }[] }) {
-  return (
-    <Card className="p-4">
-      <XYScatterChart
-        xKey="pc1"
-        yKey="pc2"
-        xName="PC1"
-        yName="PC2"
-        height={450}
-        zRange={[20, 20]}
-        tooltipFormatter={(v: number, n: string) => [v.toFixed(4), n]}
-        series={[{ data, color: getPortfolioColor(2), opacity: 0.5 }]}
-        referenceLines={[
-          { axis: 'y', value: 0, color: 'hsl(var(--fg-tertiary))', dash: '4 4' },
-          { axis: 'x', value: 0, color: 'hsl(var(--fg-tertiary))', dash: '4 4' },
-        ]}
-      />
-    </Card>
-  );
-}
+const EigenvalueBarChart = ({ data }: { data: { component: string; eigenvalue: number }[] }) => { const { t } = useTranslation(); return <Card className="p-4"><BarChartContent data={data.map((d) => ({ component: d.component, Eigenvalue: d.eigenvalue }))} seriesNames={[t('Eigenvalues')]} xDataKey="component" height={300} yTickFormatter={(v) => v.toFixed(2)} tooltipValueFormatter={(v) => [v.toFixed(4), t('Eigenvalues')]} showLegend={false} /></Card>; };
+const CumulativeVarianceChart = ({ data }: { data: { component: string; cumulative: number }[] }) => { const { t } = useTranslation(); return <Card className="p-4"><TimeSeriesLineChart data={data} xDataKey="component" height={300} yDomain={[0, 100]} yTickFormatter={(v) => `${v.toFixed(0)}%`} tooltipValueFormatter={(v) => [`${v.toFixed(2)}%`, t('Cumulative Variance')]} referenceY={90} showLegend={false} colorOffset={1} series={[{ dataKey: 'cumulative', showDots: true, dotR: 4, activeDotR: 6 }]} /></Card>; };
+const LoadingMatrix = ({ results }: { results: PCAResult }) => <Card className="p-4"><MatrixHeatmap rowLabels={results.tickers} columnLabels={results.eigenvalues.map((_, j) => `PC${j + 1}`)} matrix={results.loadings} getBackgroundColor={getCorrelationColor} getTextColor={getCorrelationTextColor} formatValue={(v) => v.toFixed(2)} formatTitle={(v, rowLabel, colLabel) => `${rowLabel} · ${colLabel}: ${v.toFixed(3)}`} minCellWidth={56} /></Card>;
+const PCAScatterChart = ({ data }: { data: { pc1: number; pc2: number }[] }) => <Card className="p-4"><XYScatterChart xKey="pc1" yKey="pc2" xName="PC1" yName="PC2" height={450} zRange={[20, 20]} tooltipFormatter={(v: number, n: string) => [v.toFixed(4), n]} series={[{ data, color: getPortfolioColor(2), opacity: 0.5 }]} referenceLines={[{ axis: 'y', value: 0, color: 'hsl(var(--fg-tertiary))', dash: '4 4' }, { axis: 'x', value: 0, color: 'hsl(var(--fg-tertiary))', dash: '4 4' }]} /></Card>;
 function PCAResultsPanel({ state: s }: { state: PCAState }) {
   const { results, error, isLoading } = s;
   const { t } = useTranslation();
