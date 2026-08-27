@@ -193,13 +193,7 @@ spec:
             - { secretRef: { name: postgres-secret } }
             - { secretRef: { name: auth-tokens } }
           livenessProbe:
-            exec:
-              command:
-                - /bin/sh
-                - -c
-                - |
-                  # WORKDIR 为 /app，ioredis 仅存在于 packages/backend/node_modules（同 docker/worker/Dockerfile HEALTHCHECK）
-                  cd /app/packages/backend && node -e "const redis = new (require('ioredis'))(process.env.REDIS_URL || 'redis://redis:6379', { password: process.env.REDIS_PASSWORD }); redis.get('worker:heartbeat').then(v => { redis.quit(); process.exit(v ? 0 : 1); }).catch(() => process.exit(1));"
+            exec: { command: ['/bin/sh', '-c', 'redis-cli -h redis -a "$REDIS_PASSWORD" --raw get worker:heartbeat | grep -q .'] }
             initialDelaySeconds: 20
             periodSeconds: 30
             timeoutSeconds: 10
