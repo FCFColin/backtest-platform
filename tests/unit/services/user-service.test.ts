@@ -3,18 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createWithTransactionMock } from '../../helpers/poolFixture.js';
 import { mockUserRecord, mockUserRecordWithPassword } from '../../helpers/authFixtures.js';
 
-const mocks = vi.hoisted(() => ({
-  argon2: { hash: vi.fn(), verify: vi.fn(), argon2id: 'argon2id' },
-  pool: { query: vi.fn(), connect: vi.fn() },
-  poolClient: { query: vi.fn(), release: vi.fn() },
-  crypto: {
-    randomBytes: vi.fn(() => ({ toString: vi.fn(() => 'mocked-random-token') })),
-    createHash: vi.fn(() => ({
-      update: vi.fn().mockReturnThis(),
-      digest: vi.fn(() => 'mocked-sha256-hex'),
-    })),
-  },
-}));
+const mocks = vi.hoisted(() => ({ argon2: { hash: vi.fn(), verify: vi.fn(), argon2id: 'argon2id' }, pool: { query: vi.fn(), connect: vi.fn() }, poolClient: { query: vi.fn(), release: vi.fn() }, crypto: { randomBytes: vi.fn(() => ({ toString: vi.fn(() => 'mocked-random-token') })), createHash: vi.fn(() => ({ update: vi.fn().mockReturnThis(), digest: vi.fn(() => 'mocked-sha256-hex') })) } }));
 vi.mock('argon2', () => ({ default: mocks.argon2, ...mocks.argon2 }));
 vi.mock('crypto', () => ({
   default: { randomBytes: mocks.crypto.randomBytes, createHash: mocks.crypto.createHash },
@@ -38,16 +27,7 @@ import {
   registerUser,
 } from '../../../packages/backend/src/application/auth/userService.js';
 
-const reset = () => {
-  vi.clearAllMocks();
-  mocks.argon2.hash.mockResolvedValue('hashed-password');
-};
-const setupTxPoolMocks = () => {
-  vi.clearAllMocks();
-  mocks.pool.connect.mockResolvedValue(mocks.poolClient);
-  mocks.poolClient.query.mockReset();
-  mocks.poolClient.release.mockReset();
-};
+const reset = () => (vi.clearAllMocks(), mocks.argon2.hash.mockResolvedValue('hashed-password')), setupTxPoolMocks = () => (vi.clearAllMocks(), mocks.pool.connect.mockResolvedValue(mocks.poolClient), mocks.poolClient.query.mockReset(), mocks.poolClient.release.mockReset());
 const qOnce = (rows: unknown[]) => mocks.pool.query.mockResolvedValueOnce({ rows });
 const qRowCount = (n: number) => mocks.pool.query.mockResolvedValueOnce({ rowCount: n });
 const txClient = (row: Record<string, unknown>) => ({
