@@ -39,6 +39,7 @@ export const DEFAULT_COLUMNS: StatColumn[] = [
   { key: 'burkeRatio', label: 'statsTable.burkeRatio', format: 'number' },
   { key: 'martinRatio', label: 'statsTable.martinRatio', format: 'number' },
   { key: 'sterlingRatio', label: 'statsTable.sterlingRatio', format: 'number' },
+  { key: 'm2', label: 'statsTable.m2', format: 'percent', colorize: true },
   { key: 'battingAverage', label: 'statsTable.battingAverage', format: 'percent' },
 ];
 
