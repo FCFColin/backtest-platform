@@ -174,53 +174,9 @@ function createLimiter(opts: LimiterOptions): RequestHandler {
   };
 }
 
-export const apiLimiter = createLimiter({
-  windowMs: 15 * 60 * 1000,
-  max: 100,
-  storePrefix: 'rl:api:',
-  // 挂载于认证之前：按原始 token/API key 哈希分桶，伪造 token 只烧自己桶，多租户共享 NAT 不误伤
-  keyGenerator: computeRateLimitKey,
-  code: 'RATE_LIMITED',
-  detail: '请求过于频繁，请稍后再试',
-});
-export const computeLimiter = createLimiter({
-  windowMs: 60 * 1000,
-  max: config.COMPUTE_RATE_LIMIT_MAX,
-  storePrefix: 'rl:compute:',
-  // 按子路径分组：单个计算端点的高频调用不挤占其他计算端点的配额
-  keyGenerator: computePathRateLimitKey,
-  code: 'RATE_LIMITED',
-  detail: '请求过于频繁，请稍后再试',
-});
-export const adminLimiter = createLimiter({
-  windowMs: 60 * 1000,
-  max: 30,
-  storePrefix: 'rl:admin:',
-  keyGenerator: computeRateLimitKey,
-  code: 'RATE_LIMITED',
-  detail: '管理接口请求过于频繁，请稍后再试',
-});
-export const loginLimiter = createLimiter({
-  windowMs: 15 * 60 * 1000,
-  max: 10,
-  storePrefix: 'rl:auth:',
-  keyGenerator: authRateLimitKey,
-  code: 'AUTH_RATE_LIMITED',
-  detail: '登录尝试过于频繁，请稍后再试',
-});
-export const refreshLimiter = createLimiter({
-  windowMs: 15 * 60 * 1000,
-  max: 20,
-  storePrefix: 'rl:auth-refresh:',
-  keyGenerator: authRateLimitKey,
-  code: 'AUTH_RATE_LIMITED',
-  detail: '刷新尝试过于频繁，请稍后再试',
-});
-export const registerLimiter = createLimiter({
-  windowMs: 60 * 60 * 1000,
-  max: 3,
-  storePrefix: 'rl:register:',
-  keyGenerator: authRateLimitKey,
-  code: 'REGISTER_RATE_LIMITED',
-  detail: '注册尝试过于频繁，请稍后再试',
-});
+export const apiLimiter = createLimiter({ windowMs: 15 * 60 * 1000, max: 100, storePrefix: 'rl:api:', keyGenerator: computeRateLimitKey, code: 'RATE_LIMITED', detail: '请求过于频繁，请稍后再试' });
+export const computeLimiter = createLimiter({ windowMs: 60 * 1000, max: config.COMPUTE_RATE_LIMIT_MAX, storePrefix: 'rl:compute:', keyGenerator: computePathRateLimitKey, code: 'RATE_LIMITED', detail: '请求过于频繁，请稍后再试' });
+export const adminLimiter = createLimiter({ windowMs: 60 * 1000, max: 30, storePrefix: 'rl:admin:', keyGenerator: computeRateLimitKey, code: 'RATE_LIMITED', detail: '管理接口请求过于频繁，请稍后再试' });
+export const loginLimiter = createLimiter({ windowMs: 15 * 60 * 1000, max: 10, storePrefix: 'rl:auth:', keyGenerator: authRateLimitKey, code: 'AUTH_RATE_LIMITED', detail: '登录尝试过于频繁，请稍后再试' });
+export const refreshLimiter = createLimiter({ windowMs: 15 * 60 * 1000, max: 20, storePrefix: 'rl:auth-refresh:', keyGenerator: authRateLimitKey, code: 'AUTH_RATE_LIMITED', detail: '刷新尝试过于频繁，请稍后再试' });
+export const registerLimiter = createLimiter({ windowMs: 60 * 60 * 1000, max: 3, storePrefix: 'rl:register:', keyGenerator: authRateLimitKey, code: 'REGISTER_RATE_LIMITED', detail: '注册尝试过于频繁，请稍后再试' });
