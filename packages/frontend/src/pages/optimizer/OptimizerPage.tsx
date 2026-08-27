@@ -7,27 +7,11 @@ import { useOptimizerState } from './OptimizerUtils.js';
 import type { EfficientFrontierState } from './OptimizerUtils.js';
 import { ComputeToolShell, type ComputeToolConfig } from '../../components/shells/index.js';
 import { TOOL_LINKS } from '../../components/shells/constants.js';
-function OptimizerParamsWrapper({ state }: { state: EfficientFrontierState }) {
-  return <OptimizerParams s={state} />;
-}
-function OptimizerResultsWrapper({ state }: { state: EfficientFrontierState }) {
-  return <OptimizerResults s={state} />;
-}
-const OPTIMIZER_PRESETS = [
+const PRESETS = [
   ['optimizer.presets.equityBond6040', ['VTI', 'BND'], 'maxSharpe', 5, 95],
   ['optimizer.presets.threeFund', ['VTI', 'VXUS', 'BND'], 'maxSharpe'],
   ['optimizer.presets.minVolatility', ['VTI', 'VXUS', 'BND', 'QQQ'], 'minVolatility'],
 ] as const;
-const buildPresets = (s: EfficientFrontierState) =>
-  OPTIMIZER_PRESETS.map(([key, tickers, objective, min = 0, max = 100]) => ({
-    label: i18n.t(key),
-    onClick: () => {
-      s.setTickers([...tickers]);
-      s.setObjective(objective);
-      s.setMinWeight(min);
-      s.setMaxWeight(max);
-    },
-  }));
 const config: ComputeToolConfig<EfficientFrontierState> = {
   titleKey: 'nav.portfolioOptimize',
   seoDescKey: 'optimizer.seoDesc',
@@ -35,16 +19,11 @@ const config: ComputeToolConfig<EfficientFrontierState> = {
     { titleKey: 'Objective', descKey: 'optimizer.seoObjectiveDesc' },
     { titleKey: 'goalOptimizer.seo.outputTitle', descKey: 'optimizer.seoOutputDesc' },
   ],
-  relatedTools: [
-    TOOL_LINKS.backtest,
-    TOOL_LINKS.efficientF,
-    TOOL_LINKS.analysis,
-    TOOL_LINKS.monteCarlo,
-  ],
+  relatedTools: [TOOL_LINKS.backtest, TOOL_LINKS.efficientF, TOOL_LINKS.analysis, TOOL_LINKS.monteCarlo],
   hideParamsTitle: true,
-  presets: buildPresets,
-  params: OptimizerParamsWrapper,
-  results: OptimizerResultsWrapper,
+  presets: (s: EfficientFrontierState) => PRESETS.map(([k, t, o, mn = 0, mx = 100]) => ({ label: i18n.t(k), onClick: () => (s.setTickers([...t]), s.setObjective(o as never), s.setMinWeight(mn), s.setMaxWeight(mx)) })),
+  params: ({ state }: { state: EfficientFrontierState }) => <OptimizerParams s={state} />,
+  results: ({ state }: { state: EfficientFrontierState }) => <OptimizerResults s={state} />,
 };
 export default function OptimizerPage() {
   const { t } = useTranslation();
