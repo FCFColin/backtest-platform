@@ -19,46 +19,18 @@ interface DataEngineAction {
   doAction: (url: string, label: string, method: 'POST' | 'PUT' | 'PATCH') => void;
 }
 function useDataEngineState(): DataEngineAction {
-  const { t } = useTranslation();
-  const tRef = useRef<TFunc>(t as TFunc);
-  tRef.current = t as TFunc;
-  const [stats, setStats] = useState<Stats | null>(null);
-  const [universe, setUniverse] = useState<UniverseStats | null>(null);
-  const [actionMsg, setActionMsg] = useState('');
-  const [error, setError] = useState('');
-  const [loadStage, setLoadStage] = useState(t('Connecting...'));
-  const pollCountRef = useRef(0);
-  const fetchStartRef = useRef(0);
-  const fetchStats = useCallback(
-    (force = false) =>
-      doFetchStats(
-        tRef.current,
-        force,
-        { pollCountRef, fetchStartRef },
-        { setStats, setUniverse, setError, setLoadStage },
-      ),
-    [],
-  );
-  useEffect(() => {
-    fetchStats();
-  }, [fetchStats]);
-  const doAction = useCallback(
-    (url: string, label: string, method: 'POST' | 'PUT' | 'PATCH') =>
-      doActionFn(tRef.current, url, label, setActionMsg, method),
-    [],
-  );
+  const { t } = useTranslation(); const tRef = useRef<TFunc>(t as TFunc); tRef.current = t as TFunc;
+  const [stats, setStats] = useState<Stats | null>(null); const [universe, setUniverse] = useState<UniverseStats | null>(null);
+  const [actionMsg, setActionMsg] = useState(''); const [error, setError] = useState(''); const [loadStage, setLoadStage] = useState(t('Connecting...'));
+  const pollCountRef = useRef(0); const fetchStartRef = useRef(0);
+  const fetchStats = useCallback((force = false) => doFetchStats(tRef.current, force, { pollCountRef, fetchStartRef }, { setStats, setUniverse, setError, setLoadStage }), []);
+  useEffect(() => { fetchStats(); }, [fetchStats]);
+  const doAction = useCallback((url: string, label: string, method: 'POST' | 'PUT' | 'PATCH') => doActionFn(tRef.current, url, label, setActionMsg, method), []);
   return { stats, universe, actionMsg, error, loadStage, fetchStats, doAction };
 }
 function DataEngineError({ error, onRetry }: { error: string; onRetry: () => void }) {
   const { t } = useTranslation();
-  return (
-    <Card className="flex flex-col items-center p-10 text-center">
-      <div className="mb-3 text-body leading-relaxed text-danger">{error}</div>
-      <Button variant="secondary" size="sm" onClick={onRetry}>
-        <RotateCcw className="size-3.5" /> {t('Retry')}
-      </Button>
-    </Card>
-  );
+  return <Card className="flex flex-col items-center p-10 text-center"><div className="mb-3 text-body leading-relaxed text-danger">{error}</div><Button variant="secondary" size="sm" onClick={onRetry}><RotateCcw className="size-3.5" /> {t('Retry')}</Button></Card>;
 }
 export default function DataEnginePage() {
   const { t } = useTranslation();
