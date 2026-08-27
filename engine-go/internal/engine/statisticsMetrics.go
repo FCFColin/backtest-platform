@@ -546,33 +546,39 @@ func CalcHurstExponent(values []float64) float64 {
 
 const h1TopDrawdowns = 5
 
+func topKDesc(a []float64, k int) []float64 {
+	ds := append([]float64(nil), a...)
+	sort.Float64s(ds)
+	if k > len(ds) {
+		k = len(ds)
+	}
+	if k == 0 {
+		return nil
+	}
+	return ds[len(ds)-k:]
+}
+
 // CalcBurkeRatio 超额 CAGR / Σ(前 K 大回撤深度²)，无回撤样本返回 0。
 func CalcBurkeRatio(cagr, rfAnnual float64, drawdownDepths []float64) float64 {
-	ds := append([]float64(nil), drawdownDepths...)
-	sort.Float64s(ds)
+	top := topKDesc(drawdownDepths, h1TopDrawdowns)
 	sumSq := 0.0
-	for i := 0; i < h1TopDrawdowns && i < len(ds); i++ {
-		sumSq += ds[len(ds)-1-i] * ds[len(ds)-1-i]
+	for _, v := range top {
+		sumSq += v * v
 	}
 	return safeRatio(cagr-rfAnnual, sumSq)
 }
 
 // CalcSterlingRatio 超额 CAGR / 前 K 大回撤深度均值。
 func CalcSterlingRatio(cagr, rfAnnual float64, drawdownDepths []float64) float64 {
-	ds := append([]float64(nil), drawdownDepths...)
-	sort.Float64s(ds)
-	k := h1TopDrawdowns
-	if len(ds) < k {
-		k = len(ds)
-	}
-	if k == 0 {
+	top := topKDesc(drawdownDepths, h1TopDrawdowns)
+	if len(top) == 0 {
 		return 0
 	}
 	sum := 0.0
-	for i := len(ds) - k; i < len(ds); i++ {
-		sum += ds[i]
+	for _, v := range top {
+		sum += v
 	}
-	return safeRatio(cagr-rfAnnual, sum/float64(k))
+	return safeRatio(cagr-rfAnnual, sum/float64(len(top)))
 }
 
 // CalcBattingAverage 相对基准的胜率：min(pr,br)>0 且 pr>br 的配对占比。
