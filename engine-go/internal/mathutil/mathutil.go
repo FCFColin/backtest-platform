@@ -33,9 +33,18 @@ func GaussianRandom(rnd *rand.Rand, mean, std float64) float64 {
 	z := math.Sqrt(-2*math.Log(u1)) * math.Cos(2*math.Pi*u2)
 	return mean + std*z
 }
-func DailyReturns(prices []float64) []float64 {
+func dailyReturnsCore(prices []float64, keepZeros bool) []float64 {
 	if len(prices) < 2 {
 		return nil
+	}
+	if keepZeros {
+		rets := make([]float64, len(prices)-1)
+		for i := 1; i < len(prices); i++ {
+			if prices[i-1] > 0 {
+				rets[i-1] = dailyReturn(prices[i-1], prices[i], nextPrice(prices, i+1))
+			}
+		}
+		return rets
 	}
 	rets := make([]float64, 0, len(prices)-1)
 	for i := 1; i < len(prices); i++ {
@@ -45,18 +54,8 @@ func DailyReturns(prices []float64) []float64 {
 	}
 	return rets
 }
-func DailyReturnsWithZeros(prices []float64) []float64 {
-	if len(prices) < 2 {
-		return nil
-	}
-	rets := make([]float64, len(prices)-1)
-	for i := 1; i < len(prices); i++ {
-		if prices[i-1] > 0 {
-			rets[i-1] = dailyReturn(prices[i-1], prices[i], nextPrice(prices, i+1))
-		}
-	}
-	return rets
-}
+func DailyReturns(prices []float64) []float64 { return dailyReturnsCore(prices, false) }
+func DailyReturnsWithZeros(prices []float64) []float64 { return dailyReturnsCore(prices, true) }
 
 // dailyReturn 把 0 视为缺失而非真实清零：后续仍有报价判定为缺口（记 0），否则为清算（记 -100%）。
 func dailyReturn(prev, cur, next float64) float64 {
