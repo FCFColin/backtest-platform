@@ -170,32 +170,12 @@ const correlationExtra: CalcConfig['extra'] = (s, set) => (
     max={1}
   />
 );
-const CAGR = createCalculator({
-  icon: TrendingUp,
-  title: 'CAGR Calculator',
-  defaultOpen: true,
-  cols: 3,
-  fields: [
-    { key: 'initial', label: 'Initial Value', default: 10000, step: 1000, min: 0 },
-    { key: 'finalVal', label: 'Final Value', default: 50000, step: 1000, min: 0 },
-    { key: 'years', label: 'Years', default: 10, suffix: 'y', step: 1, min: 1 },
-  ],
-  info: 'Formula: CAGR = (Final Value / Initial Value)^(1 / Years) - 1',
-  compute: (s) => {
-    const c = s.initial > 0 && s.years > 0 ? Math.pow(s.finalVal / s.initial, 1 / s.years) - 1 : 0;
-    return { rows: [R('CAGR', fmtPct(c), 'brand')] };
-  },
-});
+const CAGR = createCalculator({ icon: TrendingUp, title: 'CAGR Calculator', defaultOpen: true, cols: 3, fields: [{ key: 'initial', label: 'Initial Value', default: 10000, step: 1000, min: 0 }, { key: 'finalVal', label: 'Final Value', default: 50000, step: 1000, min: 0 }, { key: 'years', label: 'Years', default: 10, suffix: 'y', step: 1, min: 1 }], info: 'Formula: CAGR = (Final Value / Initial Value)^(1 / Years) - 1', compute: (s) => ({ rows: [R('CAGR', fmtPct(s.initial > 0 && s.years > 0 ? Math.pow(s.finalVal / s.initial, 1 / s.years) - 1 : 0), 'brand')] }) });
 const FutureValue = createCalculator({
   icon: DollarSign,
   title: 'Future Value Calculation',
   defaultOpen: true,
-  fields: [
-    { key: 'initial', label: 'Initial Value', default: 10000, step: 1000, min: 0 },
-    { key: 'cagr', label: 'CAGR', default: 8, suffix: '%', step: 0.5 },
-    { key: 'years', label: 'Years', default: 20, suffix: 'y', step: 1, min: 1 },
-    { key: 'monthly', label: 'Monthly Contribution', default: 500, step: 100, min: 0 },
-  ],
+  fields: [{ key: 'initial', label: 'Initial Value', default: 10000, step: 1000, min: 0 }, { key: 'cagr', label: 'CAGR', default: 8, suffix: '%', step: 0.5 }, { key: 'years', label: 'Years', default: 20, suffix: 'y', step: 1, min: 1 }, { key: 'monthly', label: 'Monthly Contribution', default: 500, step: 100, min: 0 }],
   compute: (s, t) => {
     const r = s.cagr / 100,
       mr = r / 12,
