@@ -90,7 +90,7 @@ const engineConfig = {
 export const authConfig = {
   DEV_SKIP_AUTH: bool(process.env.DEV_SKIP_AUTH),
   JWT_SECRET: requireSecret('JWT_SECRET'),
-  JWT_ACCESS_TTL: intFromEnv('JWT_ACCESS_TTL', 600),
+  JWT_ACCESS_TTL: intFromEnv('JWT_ACCESS_TTL', 900),
   JWT_REFRESH_TTL: intFromEnv('JWT_REFRESH_TTL', 604800),
   JWT_ALGORITHM: resolveJwtAlgorithm(),
   JWT_PRIVATE_KEY: str(process.env.JWT_PRIVATE_KEY, ''),
