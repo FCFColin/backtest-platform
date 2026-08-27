@@ -115,6 +115,14 @@ func computeGrowthCurve(pf PortfolioInput, priceData PriceDataMap, cpiData map[s
 	if pf.Drag > 0 {
 		dailyDrag = math.Pow(1.0-pf.Drag/100.0, 1.0/tradingDaysPerYear)
 	}
+	dailyFees := make([]float64, n)
+	for i, a := range pf.Assets {
+		if a.Fee > 0 {
+			dailyFees[i] = math.Pow(1.0-a.Fee/100.0, 1.0/tradingDaysPerYear)
+		} else {
+			dailyFees[i] = 1.0
+		}
+	}
 	var glidepathTo []float64
 	if len(pf.GlidepathToWeights) == n {
 		glidepathTo = pf.GlidepathToWeights
@@ -163,6 +171,9 @@ func computeGrowthCurve(pf PortfolioInput, priceData PriceDataMap, cpiData map[s
 			}
 			if dailyDrag != 1.0 {
 				holdings[i] *= dailyDrag
+			}
+			if dailyFees[i] != 1.0 {
+				holdings[i] *= dailyFees[i]
 			}
 			pv += holdings[i]
 		}

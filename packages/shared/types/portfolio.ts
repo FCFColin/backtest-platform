@@ -2,6 +2,7 @@ export interface Asset {
   id?: string;
   ticker: string;
   weight: number;
+  fee?: number;
 }
 
 export type RebalanceFrequency =

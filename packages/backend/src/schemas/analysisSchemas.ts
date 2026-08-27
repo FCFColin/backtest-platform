@@ -10,6 +10,7 @@ export const assetSchema = z.object({
     .max(32)
     .refine((t) => isValidTicker(t.toUpperCase())),
   weight: z.number().nonnegative(),
+  fee: z.number().min(0).max(5).optional(),
 });
 
 export const tickerWeightSchema = z.object({ ticker: z.string().min(1), weight: z.number() });

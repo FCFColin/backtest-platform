@@ -175,6 +175,7 @@ type OneTimeCashflow struct {
 type AssetInput struct {
 	Ticker string  `json:"ticker"`
 	Weight float64 `json:"weight"`
+	Fee    float64 `json:"fee"`
 }
 type BacktestResult struct {
 	Portfolios        []PortfolioResult `json:"portfolios"`

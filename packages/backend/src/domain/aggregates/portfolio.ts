@@ -8,6 +8,7 @@ import type {
 export interface PortfolioHolding {
   ticker: Ticker;
   weight: Weight;
+  fee?: number;
 }
 
 const PORTFOLIO_WEIGHT_SUM_TOLERANCE = 1;
@@ -59,7 +60,7 @@ export class Portfolio {
     const { assets, ...rest } = dto;
     const holdings: PortfolioHolding[] = assets.map((asset) => {
       try {
-        return { ticker: Ticker.create(asset.ticker), weight: Weight.create(asset.weight) };
+        return { ticker: Ticker.create(asset.ticker), weight: Weight.create(asset.weight), fee: asset.fee };
       } catch (err) {
         throw new DomainValidationError((err as Error).message);
       }
@@ -93,6 +94,7 @@ export class Portfolio {
       assets: this.holdings.map((h) => ({
         ticker: h.ticker.value,
         weight: h.weight.value,
+        ...(h.fee !== undefined ? { fee: h.fee } : {}),
       })),
       rebalanceFrequency: this.rebalanceFrequency,
       rebalanceThreshold: this.rebalanceThreshold,
