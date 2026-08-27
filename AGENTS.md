@@ -8,7 +8,7 @@
 
 # 本文件是单一权威源。冲突时以本文件为准。
 
-# 口径：scripts/count-prod-loc.ps1（四层输出，G-1 唯一权威）
+# 口径：G-1=scripts/count-prod-loc.ps1 四层净值（ex-契约 ex-迁移）唯一权威；全仓=scripts/count-loc.ps1 scc全量（含测试/文档/配置/YAML/SQL，排除自动生成见脚本 $exclude）【实测】
 
 ═══════════════════════════════════════════════
 §0 读我优先：本文件的使用协议
@@ -79,12 +79,12 @@ UI: degraded 在 banner/导出/outbox 三处可见
 §2 当前状态快照（@8ca8c631 · 实测）
 ═══════════════════════════════════════════════
 
-【LOC 四层口径】(powershell -NoProfile -File scripts/count-prod-loc.ps1, @9cce4eeb)
-全仓 87,927
+【LOC 四层口径】(powershell -NoProfile -File scripts/count-prod-loc.ps1, @9cce4eeb)【实测】
+全仓 87,927 ← scc全量=scripts/count-loc.ps1（含所有 测试/文档/配置，排除自动生成见 count-loc.ps1:$exclude）【实测】
 生产域毛值 53,934 含契约层
 契约层(扣除) 1,057 backend/src/schemas 8 文件
 迁移(单列观测) 447 migrations/*.sql 只增不减
-净生产代码 52,877 ← G-1 门禁口径
+净生产代码 52,877 ← G-1 门禁口径（ex-契约 ex-迁移 唯一权威）
 
 【G-1 门禁】硬上限 ≤55,000 · 目标 ≤52,000
 距目标差 499 行（U-1+U-2P1 feat 净增后；U-2 Phase 2 落地将触发
@@ -332,8 +332,8 @@ R-02：ΔLOC 构成 + ledger 最新条目
 ═══════════════════════════════════════════════
 §11 速查：核心命令
 ═══════════════════════════════════════════════
-pnpm loc # 全仓权威口径
-powershell -NoProfile -File scripts/count-prod-loc.ps1 # 四层口径·G-1 权威
+pnpm loc # 全仓 scc全量（含测试/文档/配置，排除自动生成见 count-loc.ps1:$exclude）
+powershell -NoProfile -File scripts/count-prod-loc.ps1 # 四层口径·G-1 权威（ex-契约 ex-迁移）
 pnpm test:unit / test:contract / test:property
 pnpm check:tests / lint / verify-static / audit:i18n
 go test ./engine-go/... -run TestStatisticsGoldenFile -v
