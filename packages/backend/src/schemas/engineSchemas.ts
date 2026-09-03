@@ -90,6 +90,16 @@ export const backtestResultSchema = z.object({
   benchmarkGrowth: z.array(dataPointSchema).nullable(),
   assetTickers: z.array(str).nullable(),
   assetCorrelations: z.array(z.array(num)).nullable(),
+  // H-2 季度相关矩阵（engine-go types.go:187, omitempty 空序列时缺字段 → 必须 optional）
+  quarterlyCorrelations: z
+    .array(
+      z.object({
+        quarter: str,
+        matrix: z.array(z.array(num)),
+        tickers: z.array(str),
+      }),
+    )
+    .optional(),
 });
 
 const assetAnalysisItemSchema = z.object({
