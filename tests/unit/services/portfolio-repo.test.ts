@@ -153,8 +153,20 @@ describe('Redis Sentinel 模式（DADR-045）', () => {
   });
 });
 
-const TENANT = '11111111-1111-1111-1111-111111111111', PORTFOLIO_ID = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
-const baseRow = { id: PORTFOLIO_ID, name: 'Test Portfolio', assets: [{ ticker: 'SPY', weight: 60 }, { ticker: 'BND', weight: 40 }], rebalance_frequency: 'quarterly', owner_user_id: 'u1', created_at: new Date('2026-01-01T00:00:00.000Z'), updated_at: new Date('2026-06-01T00:00:00.000Z') };
+const TENANT = '11111111-1111-1111-1111-111111111111',
+  PORTFOLIO_ID = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+const baseRow = {
+  id: PORTFOLIO_ID,
+  name: 'Test Portfolio',
+  assets: [
+    { ticker: 'SPY', weight: 60 },
+    { ticker: 'BND', weight: 40 },
+  ],
+  rebalance_frequency: 'quarterly',
+  owner_user_id: 'u1',
+  created_at: new Date('2026-01-01T00:00:00.000Z'),
+  updated_at: new Date('2026-06-01T00:00:00.000Z'),
+};
 
 describe('portfolioRepo CRUD', () => {
   beforeEach(() => vi.clearAllMocks());
@@ -200,7 +212,11 @@ describe('portfolioRepo CRUD', () => {
   });
 
   describe('listPortfolios — LIMIT 与分页', () => {
-    async function callList(limit?: number, offset?: number): Promise<unknown[]> { dbMocks.query.mockResolvedValueOnce({ rows: [] }); await listPortfolios(TENANT, limit, offset); return dbMocks.query.mock.calls[0][1] as unknown[]; }
+    async function callList(limit?: number, offset?: number): Promise<unknown[]> {
+      dbMocks.query.mockResolvedValueOnce({ rows: [] });
+      await listPortfolios(TENANT, limit, offset);
+      return dbMocks.query.mock.calls[0][1] as unknown[];
+    }
 
     it.each<[string, number | undefined, number | undefined, unknown[]]>([
       ['默认 limit 50 / offset 0', undefined, undefined, [TENANT, 50, 0]],

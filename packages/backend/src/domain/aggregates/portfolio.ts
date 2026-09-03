@@ -60,7 +60,11 @@ export class Portfolio {
     const { assets, ...rest } = dto;
     const holdings: PortfolioHolding[] = assets.map((asset) => {
       try {
-        return { ticker: Ticker.create(asset.ticker), weight: Weight.create(asset.weight), fee: asset.fee };
+        return {
+          ticker: Ticker.create(asset.ticker),
+          weight: Weight.create(asset.weight),
+          fee: asset.fee,
+        };
       } catch (err) {
         throw new DomainValidationError((err as Error).message);
       }

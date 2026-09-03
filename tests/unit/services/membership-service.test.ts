@@ -23,7 +23,41 @@ import * as inv from '../../../packages/backend/src/application/org/invitationSe
 
 beforeEach(() => vi.clearAllMocks());
 
-const row = (orgId: string, role: string, status = 'active') => ({ org_id: orgId, role, org_name: `Org ${orgId}`, org_slug: `org-${orgId}`, org_plan: 'free', org_status: status }), membership = (orgId: string, role: string) => ({ orgId, orgName: `Org ${orgId}`, orgSlug: `org-${orgId}`, orgPlan: 'free', orgStatus: 'active', role }), ORG = '11111111-1111-1111-1111-111111111111', INV_ID = '22222222-2222-2222-2222-222222222222', USER = '33333333-3333-3333-3333-333333333333', invRow = (overrides: Record<string, unknown> = {}) => ({ id: INV_ID, org_id: ORG, email: 'a@b.com', role: 'analyst', invited_by: USER, expires_at: new Date(Date.now() + 86400000), accepted_at: null, created_at: new Date('2026-01-01T00:00:00Z'), ...overrides }), mockInviteLookup = (invite: Record<string, unknown> | null) => dbMocks.client.query.mockResolvedValueOnce(undefined).mockResolvedValueOnce({ rows: invite ? [invite] : [] }).mockResolvedValueOnce({ rows: invite ? [{ email: invite.email ?? 'a@b.com' }] : [] });
+const row = (orgId: string, role: string, status = 'active') => ({
+    org_id: orgId,
+    role,
+    org_name: `Org ${orgId}`,
+    org_slug: `org-${orgId}`,
+    org_plan: 'free',
+    org_status: status,
+  }),
+  membership = (orgId: string, role: string) => ({
+    orgId,
+    orgName: `Org ${orgId}`,
+    orgSlug: `org-${orgId}`,
+    orgPlan: 'free',
+    orgStatus: 'active',
+    role,
+  }),
+  ORG = '11111111-1111-1111-1111-111111111111',
+  INV_ID = '22222222-2222-2222-2222-222222222222',
+  USER = '33333333-3333-3333-3333-333333333333',
+  invRow = (overrides: Record<string, unknown> = {}) => ({
+    id: INV_ID,
+    org_id: ORG,
+    email: 'a@b.com',
+    role: 'analyst',
+    invited_by: USER,
+    expires_at: new Date(Date.now() + 86400000),
+    accepted_at: null,
+    created_at: new Date('2026-01-01T00:00:00Z'),
+    ...overrides,
+  }),
+  mockInviteLookup = (invite: Record<string, unknown> | null) =>
+    dbMocks.client.query
+      .mockResolvedValueOnce(undefined)
+      .mockResolvedValueOnce({ rows: invite ? [invite] : [] })
+      .mockResolvedValueOnce({ rows: invite ? [{ email: invite.email ?? 'a@b.com' }] : [] });
 
 describe('orgRoleToGlobalRole', () => {
   it.each([

@@ -28,9 +28,23 @@ export function useTheme() {
   const dark = useMediaQuery('(prefers-color-scheme: dark)');
   const t = pref === 'system' ? (dark ? 'dark' : 'light') : pref;
   useEffect(() => void (document.documentElement.dataset.theme = t), [t]);
-  return { theme: pref, resolvedTheme: t, isDark: t === 'dark', setTheme: useSettingsStore((s) => s.setTheme), toggleTheme: useSettingsStore((s) => s.toggleTheme) };
+  return {
+    theme: pref,
+    resolvedTheme: t,
+    isDark: t === 'dark',
+    setTheme: useSettingsStore((s) => s.setTheme),
+    toggleTheme: useSettingsStore((s) => s.toggleTheme),
+  };
 }
-export function usePolling(fn: F, ms: number, { enabled = true, deps = [], immediate = true }: { enabled?: boolean; deps?: unknown[]; immediate?: boolean } = {}) {
+export function usePolling(
+  fn: F,
+  ms: number,
+  {
+    enabled = true,
+    deps = [],
+    immediate = true,
+  }: { enabled?: boolean; deps?: unknown[]; immediate?: boolean } = {},
+) {
   useEffect(() => {
     if (!enabled) return;
     if (immediate) fn();
@@ -52,7 +66,8 @@ export function useIdleTimeout(timeoutMs: number, enabled: boolean): void {
     navigate('/login?reason=session_expired', { replace: true });
   }, [logout, navigate]);
   const checkTimeout = useCallback(() => {
-    if (enabled && timeoutMs > 0 && Date.now() - lastActivity.current >= timeoutMs) void triggerTimeout();
+    if (enabled && timeoutMs > 0 && Date.now() - lastActivity.current >= timeoutMs)
+      void triggerTimeout();
   }, [enabled, timeoutMs, triggerTimeout]);
   useEffect(() => {
     if (!enabled || timeoutMs <= 0) return;

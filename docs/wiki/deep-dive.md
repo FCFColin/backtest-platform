@@ -17,16 +17,16 @@
 
 ## 3. 路由清单
 
-| 文件 | 挂载点 | 中间件 |
-| --- | --- | --- |
-| healthRoutes | /api | 无 |
-| dataRoutes | /api/v1/data | optionalJwtAuth |
-| dataManageRoutes | /api/v1/data/manage | readOnlyAuth+DATA_READ |
-| backtestRoutes | /api/v1/backtest | computeMiddleware+limiter |
-| analysisRoutes | /api/v1/{pca,letf,...} | 独立链 |
-| authRoutes | /api/v1/auth | 公开+限流 |
-| workspaceRoutes | /api/v1/{runs,configs,...} | crudMiddleware |
-| adminRoutes | /api/v1/admin | adminMiddleware |
+| 文件             | 挂载点                     | 中间件                    |
+| ---------------- | -------------------------- | ------------------------- |
+| healthRoutes     | /api                       | 无                        |
+| dataRoutes       | /api/v1/data               | optionalJwtAuth           |
+| dataManageRoutes | /api/v1/data/manage        | readOnlyAuth+DATA_READ    |
+| backtestRoutes   | /api/v1/backtest           | computeMiddleware+limiter |
+| analysisRoutes   | /api/v1/{pca,letf,...}     | 独立链                    |
+| authRoutes       | /api/v1/auth               | 公开+限流                 |
+| workspaceRoutes  | /api/v1/{runs,configs,...} | crudMiddleware            |
+| adminRoutes      | /api/v1/admin              | adminMiddleware           |
 
 > computeMiddleware(p) = jwtAuth → resolveTenant → requireTenant → requirePermission(p) → idempotencyKey → enforceQuota → auditLog
 > crudMiddleware(p) = jwtAuth → resolveTenant → requireTenant → requirePermission(p)

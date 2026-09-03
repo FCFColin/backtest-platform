@@ -193,7 +193,15 @@ spec:
             - { secretRef: { name: postgres-secret } }
             - { secretRef: { name: auth-tokens } }
           livenessProbe:
-            exec: { command: ['/bin/sh', '-c', 'redis-cli -h redis -a "$REDIS_PASSWORD" --raw get worker:heartbeat | grep -q .'] }
+            exec:
+              {
+                command:
+                  [
+                    '/bin/sh',
+                    '-c',
+                    'redis-cli -h redis -a "$REDIS_PASSWORD" --raw get worker:heartbeat | grep -q .',
+                  ],
+              }
             initialDelaySeconds: 20
             periodSeconds: 30
             timeoutSeconds: 10

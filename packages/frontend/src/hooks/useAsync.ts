@@ -22,7 +22,13 @@ export function useAsyncAction() {
       setIsLoading(false);
     }
   }, []);
-  return { isLoading, error, run, reset: useCallback(() => (setIsLoading(false), setError(null)), []), setError };
+  return {
+    isLoading,
+    error,
+    run,
+    reset: useCallback(() => (setIsLoading(false), setError(null)), []),
+    setError,
+  };
 }
 
 export function useComputeTool<R>(c: () => Promise<R>, v?: () => string | null) {
@@ -33,7 +39,14 @@ export function useComputeTool<R>(c: () => Promise<R>, v?: () => string | null) 
     if (e) return void setError(e);
     run(() => c().then(setResults));
   }, [c, v, run, setError]);
-  return { isLoading, error, results, runCompute, setResults, reset: useCallback(() => (resetAction(), setResults(null)), [resetAction]) };
+  return {
+    isLoading,
+    error,
+    results,
+    runCompute,
+    setResults,
+    reset: useCallback(() => (resetAction(), setResults(null)), [resetAction]),
+  };
 }
 
 export function useAnalysisState<S extends Dict, R>(e: string, i: S, b: B<S>, v: V<S>) {

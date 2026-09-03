@@ -19,9 +19,23 @@ const config: ComputeToolConfig<EfficientFrontierState> = {
     { titleKey: 'Objective', descKey: 'optimizer.seoObjectiveDesc' },
     { titleKey: 'goalOptimizer.seo.outputTitle', descKey: 'optimizer.seoOutputDesc' },
   ],
-  relatedTools: [TOOL_LINKS.backtest, TOOL_LINKS.efficientF, TOOL_LINKS.analysis, TOOL_LINKS.monteCarlo],
+  relatedTools: [
+    TOOL_LINKS.backtest,
+    TOOL_LINKS.efficientF,
+    TOOL_LINKS.analysis,
+    TOOL_LINKS.monteCarlo,
+  ],
   hideParamsTitle: true,
-  presets: (s: EfficientFrontierState) => PRESETS.map(([k, t, o, mn = 0, mx = 100]) => ({ label: i18n.t(k), onClick: () => (s.setTickers([...t]), s.setObjective(o as never), s.setMinWeight(mn), s.setMaxWeight(mx)) })),
+  presets: (s: EfficientFrontierState) =>
+    PRESETS.map(([k, t, o, mn = 0, mx = 100]) => ({
+      label: i18n.t(k),
+      onClick: () => (
+        s.setTickers([...t]),
+        s.setObjective(o as never),
+        s.setMinWeight(mn),
+        s.setMaxWeight(mx)
+      ),
+    })),
   params: ({ state }: { state: EfficientFrontierState }) => <OptimizerParams s={state} />,
   results: ({ state }: { state: EfficientFrontierState }) => <OptimizerResults s={state} />,
 };

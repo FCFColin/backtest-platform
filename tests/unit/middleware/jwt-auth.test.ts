@@ -43,9 +43,33 @@ import {
 } from '../../../packages/backend/src/middleware/jwtAuth.js';
 redisMocks.useRedisSuccess();
 
-const mockReqRes = (reqInit: Record<string, unknown> = {}) => ({ req: createMockRequest(reqInit) as unknown as AuthenticatedRequest, res: createMockResponse(), next: createMockNext() as unknown as NextFunction });
-async function expectAuthRejected(headers: Record<string, unknown>, code?: string, mw = jwtAuth, status = 401) { const { req, res, next } = mockReqRes({ headers }); await new Promise<void>((done) => { const json = res.json.bind(res); res.json = vi.fn((...a: unknown[]) => { json(...a); done(); return res; }) as typeof res.json; mw(req, res, next); }); expect(next).not.toHaveBeenCalled(); if (code) expectProblem(res, code, status); else expect(res.status).toHaveBeenCalledWith(status); }
-const HACKER = { sub: 'hacker', role: 'admin', iat: 0, exp: 9999999999 }, setupAuthEnv = () => setupJwtAuthTestMocks(mocks, redisMocks);
+const mockReqRes = (reqInit: Record<string, unknown> = {}) => ({
+  req: createMockRequest(reqInit) as unknown as AuthenticatedRequest,
+  res: createMockResponse(),
+  next: createMockNext() as unknown as NextFunction,
+});
+async function expectAuthRejected(
+  headers: Record<string, unknown>,
+  code?: string,
+  mw = jwtAuth,
+  status = 401,
+) {
+  const { req, res, next } = mockReqRes({ headers });
+  await new Promise<void>((done) => {
+    const json = res.json.bind(res);
+    res.json = vi.fn((...a: unknown[]) => {
+      json(...a);
+      done();
+      return res;
+    }) as typeof res.json;
+    mw(req, res, next);
+  });
+  expect(next).not.toHaveBeenCalled();
+  if (code) expectProblem(res, code, status);
+  else expect(res.status).toHaveBeenCalledWith(status);
+}
+const HACKER = { sub: 'hacker', role: 'admin', iat: 0, exp: 9999999999 },
+  setupAuthEnv = () => setupJwtAuthTestMocks(mocks, redisMocks);
 
 describe('JWT 生成与验证', () => {
   beforeEach(() => setupAuthEnv());

@@ -1,9 +1,93 @@
 ﻿import { DATE_TICK_FORMATTER } from '@/lib/chart-theme.js';
 import { fmtAmount } from '@/utils/format';
 import { SimpleChart } from './sharedChartContent.js';
-type Cfg = { dataKey: string; legendName?: string; strokeWidth?: number; strokeDasharray?: string; color?: string; activeDotR?: number; showDots?: boolean; dotR?: number; connectNulls?: boolean; strokeOpacity?: number };
-export function TimeSeriesLineChart({ data, series, xDataKey = 'date', height = 350, yTickFormatter = (v: number) => v.toFixed(0), tooltipValueFormatter = (v: number, _n: string) => [fmtAmount(v), ''] as [string, string], tooltipLabelFormatter, yDomain, referenceY, showBrush = false, showLegend = true, defaultStrokeWidth = 2, colorOffset = 0, yLabel, xTickInterval, xTickFontSize, xTickFormatter = DATE_TICK_FORMATTER }: { data: Record<string, number | string | null>[]; series: (Cfg | string)[]; xDataKey?: string; height?: number; yTickFormatter?: (v: number) => string; tooltipValueFormatter?: (value: number, name: string) => string | [string, string]; tooltipLabelFormatter?: (l: string) => string; yDomain?: [number | 'auto', number | 'auto']; referenceY?: number; showBrush?: boolean; showLegend?: boolean; defaultStrokeWidth?: number; colorOffset?: number; yLabel?: string; xTickInterval?: number | 'preserveStartEnd'; xTickFontSize?: number; xTickFormatter?: (v: number | string) => string }) {
-  const norm = series.map((s) => { const c = typeof s === 'string' ? { dataKey: s } : s; return { dataKey: c.dataKey, name: c.legendName ?? c.dataKey, width: c.strokeWidth ?? defaultStrokeWidth, dash: c.strokeDasharray, color: c.color, symbol: c.showDots ? 'circle' : 'none', symbolSize: c.dotR ?? 3, connectNulls: c.connectNulls ?? false, opacity: c.strokeOpacity, emphasisDotR: c.showDots ? (c.activeDotR ?? 4) + 1 : undefined }; });
-  const fmt = (v: number, n: string) => { const r = (tooltipValueFormatter as (a:number,b:string)=>string|[string,string])(v,n); return Array.isArray(r) ? r : [r, n] as [string,string]; };
-  return <SimpleChart data={data} xDataKey={xDataKey} height={height} xTickFormatter={xTickFormatter} xTickInterval={xTickInterval} xTickFontSize={xTickFontSize} yTickFormatter={yTickFormatter} yDomain={yDomain} yLabel={yLabel} tooltipFormatter={fmt as never} tooltipLabelFormatter={tooltipLabelFormatter} showLegend={showLegend} colorOffset={colorOffset} dataZoom={showBrush} ariaLabel={norm.map((s) => s.name).join(',')} referenceLines={referenceY !== undefined ? [{ axis: 'y', value: referenceY }] : undefined} series={norm as never} />;
+type Cfg = {
+  dataKey: string;
+  legendName?: string;
+  strokeWidth?: number;
+  strokeDasharray?: string;
+  color?: string;
+  activeDotR?: number;
+  showDots?: boolean;
+  dotR?: number;
+  connectNulls?: boolean;
+  strokeOpacity?: number;
+};
+export function TimeSeriesLineChart({
+  data,
+  series,
+  xDataKey = 'date',
+  height = 350,
+  yTickFormatter = (v: number) => v.toFixed(0),
+  tooltipValueFormatter = (v: number, _n: string) => [fmtAmount(v), ''] as [string, string],
+  tooltipLabelFormatter,
+  yDomain,
+  referenceY,
+  showBrush = false,
+  showLegend = true,
+  defaultStrokeWidth = 2,
+  colorOffset = 0,
+  yLabel,
+  xTickInterval,
+  xTickFontSize,
+  xTickFormatter = DATE_TICK_FORMATTER,
+}: {
+  data: Record<string, number | string | null>[];
+  series: (Cfg | string)[];
+  xDataKey?: string;
+  height?: number;
+  yTickFormatter?: (v: number) => string;
+  tooltipValueFormatter?: (value: number, name: string) => string | [string, string];
+  tooltipLabelFormatter?: (l: string) => string;
+  yDomain?: [number | 'auto', number | 'auto'];
+  referenceY?: number;
+  showBrush?: boolean;
+  showLegend?: boolean;
+  defaultStrokeWidth?: number;
+  colorOffset?: number;
+  yLabel?: string;
+  xTickInterval?: number | 'preserveStartEnd';
+  xTickFontSize?: number;
+  xTickFormatter?: (v: number | string) => string;
+}) {
+  const norm = series.map((s) => {
+    const c = typeof s === 'string' ? { dataKey: s } : s;
+    return {
+      dataKey: c.dataKey,
+      name: c.legendName ?? c.dataKey,
+      width: c.strokeWidth ?? defaultStrokeWidth,
+      dash: c.strokeDasharray,
+      color: c.color,
+      symbol: c.showDots ? 'circle' : 'none',
+      symbolSize: c.dotR ?? 3,
+      connectNulls: c.connectNulls ?? false,
+      opacity: c.strokeOpacity,
+      emphasisDotR: c.showDots ? (c.activeDotR ?? 4) + 1 : undefined,
+    };
+  });
+  const fmt = (v: number, n: string) => {
+    const r = (tooltipValueFormatter as (a: number, b: string) => string | [string, string])(v, n);
+    return Array.isArray(r) ? r : ([r, n] as [string, string]);
+  };
+  return (
+    <SimpleChart
+      data={data}
+      xDataKey={xDataKey}
+      height={height}
+      xTickFormatter={xTickFormatter}
+      xTickInterval={xTickInterval}
+      xTickFontSize={xTickFontSize}
+      yTickFormatter={yTickFormatter}
+      yDomain={yDomain}
+      yLabel={yLabel}
+      tooltipFormatter={fmt as never}
+      tooltipLabelFormatter={tooltipLabelFormatter}
+      showLegend={showLegend}
+      colorOffset={colorOffset}
+      dataZoom={showBrush}
+      ariaLabel={norm.map((s) => s.name).join(',')}
+      referenceLines={referenceY !== undefined ? [{ axis: 'y', value: referenceY }] : undefined}
+      series={norm as never}
+    />
+  );
 }

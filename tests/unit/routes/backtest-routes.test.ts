@@ -37,19 +37,95 @@ const get = (url: string, h?: Record<string, string>) =>
   reqJson(url, 'GET', void 0, h).then(({ res, body }) => ({ res, json: body }));
 const portfolioJobServer = () => (resetQueueMocks(), setupPortfolioServer(backtestRoutes, m));
 const MT = Array.from({ length: 51 }, (_, i) => `T${i}`);
-const t1 = { tickers: [{ ticker: 'AAPL' }, { ticker: 'BND' }], correlations: [[1]] }, t2 = { assets: [{ ticker: 'AAPL', cagr: 0.1 }], correlations: [[1]] }, expMc = { numSimulations: 100, numYears: 20, minBlockYears: 1, maxBlockYears: 3, successThreshold: 1 }, evil = { numSimulations: 50, __proto__: { polluted: true }, constructor: 'evil', maliciousKey: 'strip-me' };
+const t1 = { tickers: [{ ticker: 'AAPL' }, { ticker: 'BND' }], correlations: [[1]] },
+  t2 = { assets: [{ ticker: 'AAPL', cagr: 0.1 }], correlations: [[1]] },
+  expMc = {
+    numSimulations: 100,
+    numYears: 20,
+    minBlockYears: 1,
+    maxBlockYears: 3,
+    successThreshold: 1,
+  },
+  evil = {
+    numSimulations: 50,
+    __proto__: { polluted: true },
+    constructor: 'evil',
+    maliciousKey: 'strip-me',
+  };
 const sent = () => m.callEngineStrict.mock.calls[0][1] as any;
-const tk = (mock: any, body: any, ck: (d: any) => void) => async (url: string, c: EngineCase) => { m.callEngineStrict.mockResolvedValue(mock); const { res, json } = await postJson(url, { ...c.validBody(), tickers: body }); expect(res.status).toBe(200); ck(json.data); };
-const h1 = tk(t1, 'AAPL BND', () => expect(sent().tickers).toEqual(['AAPL', 'BND'])), h2 = tk(t2, ['AAPL'], (d) => expect(d.tickers).toEqual([{ ticker: 'AAPL', cagr: 0.1 }]));
-const h3 = async (url: string, c: EngineCase) => { await postJson(url, c.validBody()); expect(sent().mcParams).toEqual(expMc); };
-const h4 = async (url: string) => { await postJson(url, { portfolio: VP(), parameters: P(), mcParams: evil }); expect(sent().mcParams).toEqual({ numSimulations: 50 }); expect(sent().mcParams).not.toHaveProperty('maliciousKey'); };
-const h5 = async (url: string, c: EngineCase) => { const body = { ...c.validBody(), objective: 'minVolatility', numIterations: 50000 }; const { res } = await postJson(url, body); expect(res.status).toBe(200); expect(sent().numIterations).toBe(50000); };
-const fp = { weights: { AAPL: 1 }, expectedReturn: 0.1, expectedVolatility: 0.2, sharpeRatio: 0.5 }, metrics = { expectedReturn: 0.1, expectedVolatility: 0.15, sharpeRatio: 1.2 };
+const tk = (mock: any, body: any, ck: (d: any) => void) => async (url: string, c: EngineCase) => {
+  m.callEngineStrict.mockResolvedValue(mock);
+  const { res, json } = await postJson(url, { ...c.validBody(), tickers: body });
+  expect(res.status).toBe(200);
+  ck(json.data);
+};
+const h1 = tk(t1, 'AAPL BND', () => expect(sent().tickers).toEqual(['AAPL', 'BND'])),
+  h2 = tk(t2, ['AAPL'], (d) => expect(d.tickers).toEqual([{ ticker: 'AAPL', cagr: 0.1 }]));
+const h3 = async (url: string, c: EngineCase) => {
+  await postJson(url, c.validBody());
+  expect(sent().mcParams).toEqual(expMc);
+};
+const h4 = async (url: string) => {
+  await postJson(url, { portfolio: VP(), parameters: P(), mcParams: evil });
+  expect(sent().mcParams).toEqual({ numSimulations: 50 });
+  expect(sent().mcParams).not.toHaveProperty('maliciousKey');
+};
+const h5 = async (url: string, c: EngineCase) => {
+  const body = { ...c.validBody(), objective: 'minVolatility', numIterations: 50000 };
+  const { res } = await postJson(url, body);
+  expect(res.status).toBe(200);
+  expect(sent().numIterations).toBe(50000);
+};
+const fp = { weights: { AAPL: 1 }, expectedReturn: 0.1, expectedVolatility: 0.2, sharpeRatio: 0.5 },
+  metrics = { expectedReturn: 0.1, expectedVolatility: 0.15, sharpeRatio: 1.2 };
 const rawEngineCases: Omit<EngineCase, 'path' | 'enginePath'>[] = [
-  { name: 'analysis', errorCode: 'ANALYSIS_ERROR', logOnError: true, result: { tickers: [{ ticker: 'AAPL', cagr: 0.1 }], correlations: [[1]] }, validBody: () => ({ tickers: ['AAPL', 'BND'], parameters: P() }), invalidBodies: [['缺失 tickers', { parameters: P() }], ['ticker 数量超限', { tickers: MT, parameters: P() }]], specials: [['tickers 为空格分隔字符串时应正常处理', h1], ['引擎返回 assets 字段时应映射为 tickers', h2]] },
-  { name: 'monte-carlo', errorCode: 'MONTE_CARLO_ERROR', result: { paths: [], statistics: {} }, validBody: () => ({ portfolio: VP(), parameters: P(), mcParams: expMc }), invalidBodies: [['缺少 portfolio', { parameters: P() }]], specials: [['mcParams 应透传到引擎', h3], ['恶意 mcParams 键应被剥离', h4]] },
-  { name: 'optimize', errorCode: 'OPTIMIZATION_ERROR', result: { optimalWeights: { AAPL: 0.6, BND: 0.4 }, ...metrics }, validBody: () => ({ tickers: ['AAPL', 'BND'], objective: 'maxSharpe', parameters: P() }), invalidBodies: [['无效 objective', { tickers: ['AAPL'], objective: 'invalidObjective', parameters: P() }], ['ticker 数量超限', { tickers: MT, objective: 'maxSharpe', parameters: P() }]], specials: [['numIterations 应被正确上限截断', h5]] },
-  { name: 'efficient-frontier', errorCode: 'EFFICIENT_FRONTIER_ERROR', result: { frontier: [fp] }, validBody: () => ({ tickers: ['AAPL', 'BND'], parameters: P(), numPoints: 10 }), invalidBodies: [['空 tickers 数组', { tickers: [], parameters: P() }], ['ticker 数量超限', { tickers: MT, parameters: P() }]] },
+  {
+    name: 'analysis',
+    errorCode: 'ANALYSIS_ERROR',
+    logOnError: true,
+    result: { tickers: [{ ticker: 'AAPL', cagr: 0.1 }], correlations: [[1]] },
+    validBody: () => ({ tickers: ['AAPL', 'BND'], parameters: P() }),
+    invalidBodies: [
+      ['缺失 tickers', { parameters: P() }],
+      ['ticker 数量超限', { tickers: MT, parameters: P() }],
+    ],
+    specials: [
+      ['tickers 为空格分隔字符串时应正常处理', h1],
+      ['引擎返回 assets 字段时应映射为 tickers', h2],
+    ],
+  },
+  {
+    name: 'monte-carlo',
+    errorCode: 'MONTE_CARLO_ERROR',
+    result: { paths: [], statistics: {} },
+    validBody: () => ({ portfolio: VP(), parameters: P(), mcParams: expMc }),
+    invalidBodies: [['缺少 portfolio', { parameters: P() }]],
+    specials: [
+      ['mcParams 应透传到引擎', h3],
+      ['恶意 mcParams 键应被剥离', h4],
+    ],
+  },
+  {
+    name: 'optimize',
+    errorCode: 'OPTIMIZATION_ERROR',
+    result: { optimalWeights: { AAPL: 0.6, BND: 0.4 }, ...metrics },
+    validBody: () => ({ tickers: ['AAPL', 'BND'], objective: 'maxSharpe', parameters: P() }),
+    invalidBodies: [
+      ['无效 objective', { tickers: ['AAPL'], objective: 'invalidObjective', parameters: P() }],
+      ['ticker 数量超限', { tickers: MT, objective: 'maxSharpe', parameters: P() }],
+    ],
+    specials: [['numIterations 应被正确上限截断', h5]],
+  },
+  {
+    name: 'efficient-frontier',
+    errorCode: 'EFFICIENT_FRONTIER_ERROR',
+    result: { frontier: [fp] },
+    validBody: () => ({ tickers: ['AAPL', 'BND'], parameters: P(), numPoints: 10 }),
+    invalidBodies: [
+      ['空 tickers 数组', { tickers: [], parameters: P() }],
+      ['ticker 数量超限', { tickers: MT, parameters: P() }],
+    ],
+  },
 ];
 const engineCases: EngineCase[] = rawEngineCases.map((c) => ({
   ...c,
@@ -64,17 +140,46 @@ describeEngineRouteTests({
   unavailableError: EngineUnavailableErrorStub,
   mocks: () => ({ callEngineStrict: m.callEngineStrict, loggerError: loggerMocks.error }),
 })(engineCases);
-const SD = '2020-01-01', ED = '2024-01-01';
+const SD = '2020-01-01',
+  ED = '2024-01-01';
 const sigBase = { indicator: 'sma', period: 20, threshold: 0, startDate: SD, endDate: ED };
 const mkSig = (t = 'SPY') => ({ ticker: t, signalType: 'both' as const, ...sigBase });
-const mockSignalResult = { signals: [{ date: '2020-01-02', type: 'buy', price: 301 }], statistics: { totalSignals: 1, winRate: 1, avgReturn: 0.01, maxDrawdown: 0, sharpe: 2 }, equityCurve: [{ date: '2020-01-01', value: 10000 }] };
+const mockSignalResult = {
+  signals: [{ date: '2020-01-02', type: 'buy', price: 301 }],
+  statistics: { totalSignals: 1, winRate: 1, avgReturn: 0.01, maxDrawdown: 0, sharpe: 2 },
+  equityCurve: [{ date: '2020-01-01', value: 10000 }],
+};
 const noTicker = (): any => ((r: any) => (delete r.ticker, r))(mkSig());
 const dualPair = () => ({ signal1: mkSig('SPY'), signal2: mkSig('QQQ') });
 const rsi = { ...mkSig('SPY'), indicator: 'rsi', period: 14, threshold: 30 };
 const signalCases: SignalCase[] = [
-  { path: '/api/v1/signal/analyze', data: { SPY: { '2020-01-01': 300, '2020-01-02': 301 } }, engineResult: mockSignalResult, validReq: () => mkSig(), validation: [['缺失 ticker', noTicker], ['无效 signalType', () => ({ ...mkSig(), signalType: 'invalid' })]] },
-  { path: '/api/v1/signal/dual', data: { SPY: { '2020-01-01': 300 }, QQQ: { '2020-01-01': 200 } }, engineResult: { ...mockSignalResult, equityCurve: [] }, validReq: () => ({ ...dualPair(), combinationMethod: 'and' }), validation: [['缺少 combinationMethod', dualPair]] },
-  { path: '/api/v1/signal/multi', data: { SPY: { '2020-01-01': 300, '2020-01-02': 301 } }, engineResult: { ...mockSignalResult, equityCurve: [] }, validReq: () => ({ signals: [mkSig('SPY'), rsi], aggregationMethod: 'voting' }), validation: [['空 signals 数组', () => ({ signals: [], aggregationMethod: 'voting' })], ['缺少 aggregationMethod', () => ({ signals: [mkSig('SPY')] })]] },
+  {
+    path: '/api/v1/signal/analyze',
+    data: { SPY: { '2020-01-01': 300, '2020-01-02': 301 } },
+    engineResult: mockSignalResult,
+    validReq: () => mkSig(),
+    validation: [
+      ['缺失 ticker', noTicker],
+      ['无效 signalType', () => ({ ...mkSig(), signalType: 'invalid' })],
+    ],
+  },
+  {
+    path: '/api/v1/signal/dual',
+    data: { SPY: { '2020-01-01': 300 }, QQQ: { '2020-01-01': 200 } },
+    engineResult: { ...mockSignalResult, equityCurve: [] },
+    validReq: () => ({ ...dualPair(), combinationMethod: 'and' }),
+    validation: [['缺少 combinationMethod', dualPair]],
+  },
+  {
+    path: '/api/v1/signal/multi',
+    data: { SPY: { '2020-01-01': 300, '2020-01-02': 301 } },
+    engineResult: { ...mockSignalResult, equityCurve: [] },
+    validReq: () => ({ signals: [mkSig('SPY'), rsi], aggregationMethod: 'voting' }),
+    validation: [
+      ['空 signals 数组', () => ({ signals: [], aggregationMethod: 'voting' })],
+      ['缺少 aggregationMethod', () => ({ signals: [mkSig('SPY')] })],
+    ],
+  },
 ];
 describeSignalRouteTests({
   startServer: (c) => () => (
@@ -95,8 +200,10 @@ describe('backtestRoutes - POST /api/v1/backtest/portfolio', () => {
     expect(json.data).toMatchObject({ jobId: 'job-test-001', status: 'queued' });
     expect(json.data.statusUrl).toContain('/api/v1/backtest/runs/');
   });
-  const badDate = (): any => Object.assign(createValidRequestBody(), { parameters: { ...P(), startDate: 'not-a-date' } });
-  const PF = { assets: [{ ticker: 'AAPL', weight: 100 }], rebalanceFrequency: 'monthly' }, dp = { startDate: '2024-01-01', endDate: '2024-06-30' };
+  const badDate = (): any =>
+    Object.assign(createValidRequestBody(), { parameters: { ...P(), startDate: 'not-a-date' } });
+  const PF = { assets: [{ ticker: 'AAPL', weight: 100 }], rebalanceFrequency: 'monthly' },
+    dp = { startDate: '2024-01-01', endDate: '2024-06-30' };
   it.each([
     ['无效日期格式', badDate],
     ['缺少 portfolios', () => ({ parameters: dp })],
@@ -155,7 +262,19 @@ describe('backtestRoutes - GET /api/v1/backtest/runs/:jobId', () => {
     auth: { user: { sub: 'test-user', role: 'admin' }, tenantId: 'tenant-456' },
     configure: () => resetQueueMocks(),
   });
-  const cr = { data: { portfolios: [{ name: 'Test', growthCurve: [] }] }, warnings: [], dateRange: { start: '2024-01-01', end: '2024-06-30' } }, JD = { type: 'optimizer', tenantId: 'tenant-456' }, RVC = { status: 'completed', result: cr }, RVF = { status: 'failed', error: 'Parameter validation failed' }, j1 = { id: 'job-done', data: JD, state: 'completed', progress: 100, returnvalue: RVC }, j2 = { id: 'job-failed', data: JD, state: 'failed', failedReason: 'Engine timeout' }, j3 = { id: 'job-running', data: JD, state: 'active', progress: 45 }, j4 = { id: 'job-delayed', data: JD, state: 'delayed', progress: 0 }, j5 = { id: 'job-rv-failed', data: JD, state: 'completed', progress: 100, returnvalue: RVF };
+  const cr = {
+      data: { portfolios: [{ name: 'Test', growthCurve: [] }] },
+      warnings: [],
+      dateRange: { start: '2024-01-01', end: '2024-06-30' },
+    },
+    JD = { type: 'optimizer', tenantId: 'tenant-456' },
+    RVC = { status: 'completed', result: cr },
+    RVF = { status: 'failed', error: 'Parameter validation failed' },
+    j1 = { id: 'job-done', data: JD, state: 'completed', progress: 100, returnvalue: RVC },
+    j2 = { id: 'job-failed', data: JD, state: 'failed', failedReason: 'Engine timeout' },
+    j3 = { id: 'job-running', data: JD, state: 'active', progress: 45 },
+    j4 = { id: 'job-delayed', data: JD, state: 'delayed', progress: 0 },
+    j5 = { id: 'job-rv-failed', data: JD, state: 'completed', progress: 100, returnvalue: RVF };
   it.each([
     ['completed 状态返回结果', j1, { status: 'completed', progress: 100, result: cr }],
     ['failed 状态返回错误', j2, { status: 'failed', error: 'Job execution failed', noRes: true }],
@@ -220,7 +339,15 @@ describe('jobRoutes - GET /api/v1/jobs/:id', () => {
     expect(json.data.status).toBe('failed');
     expect(json.data.error).not.toContain('Engine timeout');
   });
-  const mkJob = (id: string, data: any = {}) => createMockJob({ id, data: { type: 'optimizer', userId: 'owner-user', ...data } }), st = (s: string) => vi.fn().mockResolvedValue(s), oj = mkJob('job-owned'), mj = mkJob('job-mine'), ta = mkJob('job-tenant-a', { tenantId: 'org-a' }), ok = mkJob('job-tenant-ok', { userId: 'someone', tenantId: 'org-a' }), pa = mkJob('job-tenant-pa', { userId: 'someone', tenantId: 'org-a' }), TEST_HDRS = ['x-test-sub', 'x-test-role', 'x-test-tenant', 'x-test-platform'];
+  const mkJob = (id: string, data: any = {}) =>
+      createMockJob({ id, data: { type: 'optimizer', userId: 'owner-user', ...data } }),
+    st = (s: string) => vi.fn().mockResolvedValue(s),
+    oj = mkJob('job-owned'),
+    mj = mkJob('job-mine'),
+    ta = mkJob('job-tenant-a', { tenantId: 'org-a' }),
+    ok = mkJob('job-tenant-ok', { userId: 'someone', tenantId: 'org-a' }),
+    pa = mkJob('job-tenant-pa', { userId: 'someone', tenantId: 'org-a' }),
+    TEST_HDRS = ['x-test-sub', 'x-test-role', 'x-test-tenant', 'x-test-platform'];
   it.each([
     ['越权访问他人任务', oj, ['attacker', 'analyst'], 404],
     ['所有者本人可访问', mj, ['owner-user', 'analyst'], 200],

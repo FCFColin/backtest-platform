@@ -1,13 +1,107 @@
 /** RFC 7807 Problem Details 统一错误响应 + 类型化错误层级。 */
 import type { Response } from 'express';
-interface SendProblemOptions { detail?: string; headers?: Record<string, string>; }
-export function problemBody(code: string, status: number, title?: string, detail?: string, instance?: string): Record<string, unknown> { return { success: false, error: { type: `https://backtest.platform/errors/${code}`, title: title ?? code, status, code, ...(detail !== undefined ? { detail } : {}), ...(instance !== undefined ? { instance } : {}) } }; }
-export function errorMessage(err: unknown): string { return err instanceof Error ? err.message : String(err); }
-export abstract class ApplicationError extends Error { abstract readonly statusCode: number; abstract readonly errorCode: string; abstract readonly errorTitle: string; }
-export class ValidationError extends ApplicationError { readonly statusCode = 422; readonly errorCode: string; readonly errorTitle: string; constructor(message: string, code: string = 'VALIDATION_ERROR', title: string = 'Validation failed') { super(message); this.name = 'ValidationError'; this.errorCode = code; this.errorTitle = title; } }
-export class DataNotFoundError extends ApplicationError { readonly statusCode = 404; readonly errorCode = 'DATA_NOT_FOUND'; readonly errorTitle = 'Data not found'; constructor(message: string) { super(message); this.name = 'DataNotFoundError'; } }
-export class RedisUnavailableError extends ApplicationError { readonly statusCode = 503; readonly errorCode = 'REDIS_UNAVAILABLE'; readonly errorTitle = 'Redis unavailable'; constructor(message: string = 'Redis unavailable') { super(message); this.name = 'RedisUnavailableError'; } }
-export class BillingNotConfiguredError extends ApplicationError { readonly statusCode = 503; readonly errorCode = 'PRICE_NOT_CONFIGURED'; readonly errorTitle = 'Billing not configured'; constructor(message: string) { super(message); this.name = 'BillingNotConfiguredError'; } }
-export class NoStripeCustomerError extends ApplicationError { readonly statusCode = 404; readonly errorCode = 'NO_CUSTOMER'; readonly errorTitle = 'No billing customer'; }
-export class UpstreamProblemError extends Error { readonly status: number; readonly code: string; readonly title: string; readonly detail: string; constructor(status: number, code: string, title: string, detail: string) { super(detail || title); this.name = 'UpstreamProblemError'; this.status = status; this.code = code; this.title = title; this.detail = detail; } }
-export function sendProblem(res: Response, status: number, code: string, title?: string, options?: SendProblemOptions): void { if (res.headersSent) return; const { detail, headers } = options ?? {}; const r = res.status(status).header('Content-Type', 'application/problem+json'); if (headers) for (const [key, value] of Object.entries(headers)) r.header(key, value); r.json(problemBody(code, status, title, detail, res.req?.path)); }
+interface SendProblemOptions {
+  detail?: string;
+  headers?: Record<string, string>;
+}
+export function problemBody(
+  code: string,
+  status: number,
+  title?: string,
+  detail?: string,
+  instance?: string,
+): Record<string, unknown> {
+  return {
+    success: false,
+    error: {
+      type: `https://backtest.platform/errors/${code}`,
+      title: title ?? code,
+      status,
+      code,
+      ...(detail !== undefined ? { detail } : {}),
+      ...(instance !== undefined ? { instance } : {}),
+    },
+  };
+}
+export function errorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
+export abstract class ApplicationError extends Error {
+  abstract readonly statusCode: number;
+  abstract readonly errorCode: string;
+  abstract readonly errorTitle: string;
+}
+export class ValidationError extends ApplicationError {
+  readonly statusCode = 422;
+  readonly errorCode: string;
+  readonly errorTitle: string;
+  constructor(
+    message: string,
+    code: string = 'VALIDATION_ERROR',
+    title: string = 'Validation failed',
+  ) {
+    super(message);
+    this.name = 'ValidationError';
+    this.errorCode = code;
+    this.errorTitle = title;
+  }
+}
+export class DataNotFoundError extends ApplicationError {
+  readonly statusCode = 404;
+  readonly errorCode = 'DATA_NOT_FOUND';
+  readonly errorTitle = 'Data not found';
+  constructor(message: string) {
+    super(message);
+    this.name = 'DataNotFoundError';
+  }
+}
+export class RedisUnavailableError extends ApplicationError {
+  readonly statusCode = 503;
+  readonly errorCode = 'REDIS_UNAVAILABLE';
+  readonly errorTitle = 'Redis unavailable';
+  constructor(message: string = 'Redis unavailable') {
+    super(message);
+    this.name = 'RedisUnavailableError';
+  }
+}
+export class BillingNotConfiguredError extends ApplicationError {
+  readonly statusCode = 503;
+  readonly errorCode = 'PRICE_NOT_CONFIGURED';
+  readonly errorTitle = 'Billing not configured';
+  constructor(message: string) {
+    super(message);
+    this.name = 'BillingNotConfiguredError';
+  }
+}
+export class NoStripeCustomerError extends ApplicationError {
+  readonly statusCode = 404;
+  readonly errorCode = 'NO_CUSTOMER';
+  readonly errorTitle = 'No billing customer';
+}
+export class UpstreamProblemError extends Error {
+  readonly status: number;
+  readonly code: string;
+  readonly title: string;
+  readonly detail: string;
+  constructor(status: number, code: string, title: string, detail: string) {
+    super(detail || title);
+    this.name = 'UpstreamProblemError';
+    this.status = status;
+    this.code = code;
+    this.title = title;
+    this.detail = detail;
+  }
+}
+export function sendProblem(
+  res: Response,
+  status: number,
+  code: string,
+  title?: string,
+  options?: SendProblemOptions,
+): void {
+  if (res.headersSent) return;
+  const { detail, headers } = options ?? {};
+  const r = res.status(status).header('Content-Type', 'application/problem+json');
+  if (headers) for (const [key, value] of Object.entries(headers)) r.header(key, value);
+  r.json(problemBody(code, status, title, detail, res.req?.path));
+}

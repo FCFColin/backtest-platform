@@ -24,21 +24,309 @@ import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants
 import { normalizeTicker } from '@/utils/ticker';
 import { lazyNamed } from '@/utils/lazyImport';
 import { cn } from '@/lib/utils';
-const TABS = [{ key: 'summary', labelKey: 'tabs.summary' }, { key: 'telltale', labelKey: 'tabs.telltale' }, { key: 'correlations', labelKey: 'tabs.correlationsBeta' }, { key: 'rolling', labelKey: 'tabs.rollingMetrics' }, { key: 'risk-return', labelKey: 'Risk vs Return' }, { key: 'returns', labelKey: 'tabs.returns' }] as const;
-const PAGE_DEFAULTS = { startDate: DEFAULT_BACKTEST_START_DATE, endDate: DEFAULT_END_DATE, startingValue: 10000, rollingWindow: 12, correlationWindow: 12, activeTab: 'summary' };
+const TABS = [
+  { key: 'summary', labelKey: 'tabs.summary' },
+  { key: 'telltale', labelKey: 'tabs.telltale' },
+  { key: 'correlations', labelKey: 'tabs.correlationsBeta' },
+  { key: 'rolling', labelKey: 'tabs.rollingMetrics' },
+  { key: 'risk-return', labelKey: 'Risk vs Return' },
+  { key: 'returns', labelKey: 'tabs.returns' },
+] as const;
+const PAGE_DEFAULTS = {
+  startDate: DEFAULT_BACKTEST_START_DATE,
+  endDate: DEFAULT_END_DATE,
+  startingValue: 10000,
+  rollingWindow: 12,
+  correlationWindow: 12,
+  activeTab: 'summary',
+};
 type FetchCtx = Omit<typeof PAGE_DEFAULTS, 'activeTab'>;
-async function fetchAnalysisResult(tks: string[], ctx: FetchCtx, t: (k: string) => string): Promise<AssetAnalysisResult> {
-  const c = new AbortController(), id = setTimeout(() => c.abort(), 180_000);
-  try { const r = await apiFetch('/api/v1/backtest/analysis', { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: c.signal, body: JSON.stringify({ tickers: tks, parameters: { startDate: ctx.startDate, endDate: ctx.endDate, startingValue: ctx.startingValue, rollingWindowMonths: ctx.rollingWindow, correlationWindowMonths: ctx.correlationWindow, baseCurrency: 'usd', cashflowLegs: [], oneTimeCashflows: [] } }) }); const j = await r.json().catch(() => { throw new Error(t('Server response abnormal, please confirm backend service is running and retry')); }); if (!r.ok || j.success === false) { const e = j.error as { detail?: unknown } | string | undefined, d = (typeof e === 'object' && e !== null && 'detail' in e ? String(e.detail) : '') || (typeof e === 'string' ? e : ''); throw new Error(d || (!r.ok ? `HTTP ${r.status}` : t('Analysis failed'))); } const raw = (j.data ?? j) as Record<string, unknown>, tickers = (raw.tickers ?? raw.assets ?? []) as AssetAnalysisResult['tickers']; for (const x of tickers) { if (x.growthCurve?.length > 500) x.growthCurve = downsample(x.growthCurve, 500); if (x.drawdownCurve?.length > 500) x.drawdownCurve = downsample(x.drawdownCurve, 500); } return { tickers, correlations: (raw.correlations ?? []) as number[][] }; } catch (e) { if (e instanceof DOMException && e.name === 'AbortError') throw new Error(t('Connection timeout, please confirm backend service is running and retry')); if (e instanceof TypeError && e.message.includes('fetch')) throw new Error(t('Network error: unable to connect to server, please confirm backend service is running')); throw e instanceof Error ? e : new Error(String(e)); } finally { clearTimeout(id); }
+async function fetchAnalysisResult(
+  tks: string[],
+  ctx: FetchCtx,
+  t: (k: string) => string,
+): Promise<AssetAnalysisResult> {
+  const c = new AbortController(),
+    id = setTimeout(() => c.abort(), 180_000);
+  try {
+    const r = await apiFetch('/api/v1/backtest/analysis', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      signal: c.signal,
+      body: JSON.stringify({
+        tickers: tks,
+        parameters: {
+          startDate: ctx.startDate,
+          endDate: ctx.endDate,
+          startingValue: ctx.startingValue,
+          rollingWindowMonths: ctx.rollingWindow,
+          correlationWindowMonths: ctx.correlationWindow,
+          baseCurrency: 'usd',
+          cashflowLegs: [],
+          oneTimeCashflows: [],
+        },
+      }),
+    });
+    const j = await r.json().catch(() => {
+      throw new Error(
+        t('Server response abnormal, please confirm backend service is running and retry'),
+      );
+    });
+    if (!r.ok || j.success === false) {
+      const e = j.error as { detail?: unknown } | string | undefined,
+        d =
+          (typeof e === 'object' && e !== null && 'detail' in e ? String(e.detail) : '') ||
+          (typeof e === 'string' ? e : '');
+      throw new Error(d || (!r.ok ? `HTTP ${r.status}` : t('Analysis failed')));
+    }
+    const raw = (j.data ?? j) as Record<string, unknown>,
+      tickers = (raw.tickers ?? raw.assets ?? []) as AssetAnalysisResult['tickers'];
+    for (const x of tickers) {
+      if (x.growthCurve?.length > 500) x.growthCurve = downsample(x.growthCurve, 500);
+      if (x.drawdownCurve?.length > 500) x.drawdownCurve = downsample(x.drawdownCurve, 500);
+    }
+    return { tickers, correlations: (raw.correlations ?? []) as number[][] };
+  } catch (e) {
+    if (e instanceof DOMException && e.name === 'AbortError')
+      throw new Error(t('Connection timeout, please confirm backend service is running and retry'));
+    if (e instanceof TypeError && e.message.includes('fetch'))
+      throw new Error(
+        t('Network error: unable to connect to server, please confirm backend service is running'),
+      );
+    throw e instanceof Error ? e : new Error(String(e));
+  } finally {
+    clearTimeout(id);
+  }
 }
-function useAnalysisPageState() { const { t } = useTranslation(), [tickers, setTickers] = useState(['SPY', 'TLT', 'GLD']), s = useSetterState(PAGE_DEFAULTS), { isLoading, error, results, setResults, runCompute: runAnalysis } = useComputeTool<AssetAnalysisResult>(() => fetchAnalysisResult(tickers.filter(Boolean).map(normalizeTicker), s, t), () => (tickers.filter(Boolean).length ? null : t('Please enter at least one ticker'))); return { tickers, ...s, isLoading, error, results, setTickers, setResults, runAnalysis }; }
+function useAnalysisPageState() {
+  const { t } = useTranslation(),
+    [tickers, setTickers] = useState(['SPY', 'TLT', 'GLD']),
+    s = useSetterState(PAGE_DEFAULTS),
+    {
+      isLoading,
+      error,
+      results,
+      setResults,
+      runCompute: runAnalysis,
+    } = useComputeTool<AssetAnalysisResult>(
+      () => fetchAnalysisResult(tickers.filter(Boolean).map(normalizeTicker), s, t),
+      () => (tickers.filter(Boolean).length ? null : t('Please enter at least one ticker')),
+    );
+  return { tickers, ...s, isLoading, error, results, setTickers, setResults, runAnalysis };
+}
 type AnalysisPageState = ReturnType<typeof useAnalysisPageState>;
-function AnalysisParamsPanel(p: AnalysisPageState) { const { t } = useTranslation(), all = p.startDate === '' && p.endDate === ''; return <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 items-end"><Field className="sm:col-span-2 lg:col-span-3"><TickerTagInput tickers={p.tickers.filter(Boolean)} onChange={p.setTickers} minCount={1} placeholder={t('Enter symbol, e.g. SPY')} /></Field><AllHistoryCheckbox startDate={p.startDate} endDate={p.endDate} onStartDateChange={p.setStartDate} onEndDateChange={p.setEndDate} label={t('All History')} /><DateField id="analysis-start-date" label={t('Start Date')} value={p.startDate} fallback={DEFAULT_BACKTEST_START_DATE} onChange={p.setStartDate} disabled={all} /><DateField id="analysis-end-date" label={t('End Date')} value={p.endDate} fallback={DEFAULT_END_DATE} onChange={p.setEndDate} disabled={all} /><LabeledField htmlFor="analysis-starting-value" label={t('Starting Value')}><DollarInput id="analysis-starting-value" type="number" value={p.startingValue} onChange={(e) => p.setStartingValue(Number(e.target.value))} /></LabeledField><LabeledField htmlFor="analysis-rolling-window" label={t('Rolling Window')}><U.AffixInput id="analysis-rolling-window" type="number" className="pr-14" value={p.rollingWindow} onChange={(e) => p.setRollingWindow(Number(e.target.value))} suffix={t('months')} /></LabeledField><LabeledField htmlFor="analysis-correlation-window" label={t('Correlation Window')}><U.AffixInput id="analysis-correlation-window" type="number" className="pr-14" value={p.correlationWindow} onChange={(e) => p.setCorrelationWindow(Number(e.target.value))} suffix={t('months')} /></LabeledField><div className="flex justify-end sm:col-span-1 lg:col-span-2"><RunButton isLoading={p.isLoading} onClick={p.runAnalysis} label={t('Run Analysis')} loadingLabel={t('Analyzing...')} className={cn(U.buttonVariants({ variant: 'primary', size: 'default' }), 'w-auto')} /></div></div>; }
-const LA = (n: string) => lazyNamed(() => import('../../components/charts/analysis.js'), n), LT = (n: string) => lazyNamed(() => import('../../components/charts/tables.js'), n), LR = (n: string) => lazyNamed(() => import('../../components/charts/rolling.js'), n), LRR = (n: string) => lazyNamed(() => import('../../components/charts/riskReturn.js'), n);
-const OverviewCharts = LA('OverviewCharts'), TelltaleChart = LA('TelltaleChart'), MonthlyHeatmap = LA('MonthlyHeatmap'), CorrelationMatrixTable = LT('CorrelationMatrixTable'), BetaMatrixTable = LT('BetaMatrixTable'), RollingCorrelationChart = LR('RollingCorrelationChart'), RollingMetricsChart = LR('RollingMetricsChart'), RiskReturnChart = LRR('RiskReturnChart'), AnnualReturnChart = lazy(() => import('../../components/charts/AnnualReturnChart.js'));
-function CorrelationsBetaTab(p: { results: AssetAnalysisResult; correlationWindow: number }) { const tickers = p.results.tickers.map((x) => x.ticker), [pair, setPair] = useState<[number, number]>([0, Math.min(1, tickers.length - 1)]), { betaMatrix } = useAnalysisData(p.results), rollingCorrData = useMemo(() => computePairRollingCorrelation(p.results.tickers, pair, p.correlationWindow), [p.results, pair, p.correlationWindow]); return <div className="space-y-6"><CorrelationMatrixTable tickers={p.results.tickers} correlations={p.results.correlations} /><BetaMatrixTable tickers={tickers} betaMatrix={betaMatrix} />{p.results.tickers.length >= 2 && <RollingCorrelationChart tickers={tickers} rollingPair={pair} setRollingPair={setPair} rollingCorrData={rollingCorrData} />}</div>; }
-function AnalysisResultsPanel({ state: s }: { state: AnalysisPageState }) { const { error, results, activeTab, setActiveTab, isLoading, correlationWindow, rollingWindow } = s, { t } = useTranslation(); return <ResultsShell error={error} isLoading={isLoading} hasResults={!!results} errorPrefix={`${t('Analysis failed')}: `} loadingLabel={t('Analyzing...')} emptyTitle={t('Set parameters and click "Run Analysis" to view results')} emptyIcon={LineChart}>{results && <U.Tabs value={activeTab} onValueChange={setActiveTab} className="w-full"><U.TabsList className="flex w-full justify-start overflow-x-auto">{TABS.map((x) => <U.TabsTrigger key={x.key} value={x.key}>{t(x.labelKey)}</U.TabsTrigger>)}</U.TabsList>{TABS.map((x) => <U.TabsContent key={x.key} value={x.key} className="pt-4"><Suspense fallback={<TabFallback />}>{(x.key === 'summary' ? <OverviewCharts results={results} StatsTable={StatsTable} /> : x.key === 'telltale' ? <TelltaleChart results={results} /> : x.key === 'correlations' ? <CorrelationsBetaTab results={results} correlationWindow={correlationWindow} /> : x.key === 'rolling' ? <RollingMetricsChart results={results} rollingWindow={rollingWindow} /> : x.key === 'risk-return' ? <RiskReturnChart results={results} /> : <div className="space-y-6"><AnnualReturnChart results={results} /><MonthlyHeatmap results={results} /></div>)}</Suspense></U.TabsContent>)}</U.Tabs>}
-</ResultsShell>; }
-export default createComputeToolPage(useAnalysisPageState, { titleKey: 'nav.assetAnalysis', seoDescKey: 'analysis.seoDesc', hideParamsTitle: true, seoFeatures: [{ titleKey: 'analysis.seoAnalyzable', descKey: 'analysis.seoDesc' }, { titleKey: 'analysis.seoViewable', descKey: 'analysis.seoViewableDesc' }], relatedTools: [TOOL_LINKS.backtest, TOOL_LINKS.optimizer, TOOL_LINKS.efficientF], params: ({ state }) => <AnalysisParamsPanel {...state} />, results: AnalysisResultsPanel });
-const STATS_KEYS = ['cagr', 'maxDrawdown', 'avgDrawdown', 'maxDrawdownDuration', 'stdev', 'sharpe', 'sortino', 'calmar', 'ulcerIndex', 'ulcerPerformanceIndex', 'beta'] as const, STATS_COLUMNS: StatRow[] = rowsFromMeta(STATS_KEYS);
-const StatsTable = memo(function StatsTable(p: { tickers: AssetAnalysisResult['tickers'] }) { const { t } = useTranslation(), fmt = (v: number | undefined, f: StatRow['fmt'], days: string) => f === 'duration' ? (v == null ? '—' : `${v} ${days}`) : f === 'pct' ? fmtPct(v) : fmtNum(v, 2), rows = STATS_COLUMNS.filter((c) => p.tickers.some((x) => x.statistics[c.key] != null)), metricLabel = (c: StatRow) => (c.label.includes('.') ? t(c.label) : c.label), cols: SimpleTableColumn<StatRow>[] = [{ key: 'metric', label: t('Metric'), render: metricLabel }, ...p.tickers.map((x, i) => ({ key: x.ticker, label: <U.PortfolioLabel color={getPortfolioColor(i)} name={x.ticker} />, align: 'right' as const, render: (c: StatRow) => { const v = x.statistics[c.key] as number | undefined, txt = fmt(v, c.fmt, t('days')); return c.colorize && v != null ? <span className={getColorClass(v)}>{txt}</span> : txt; } }))]; return <SimpleTable columns={cols} data={rows} rowKey={(c) => c.key} />; });
+function AnalysisParamsPanel(p: AnalysisPageState) {
+  const { t } = useTranslation(),
+    all = p.startDate === '' && p.endDate === '';
+  return (
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 items-end">
+      <Field className="sm:col-span-2 lg:col-span-3">
+        <TickerTagInput
+          tickers={p.tickers.filter(Boolean)}
+          onChange={p.setTickers}
+          minCount={1}
+          placeholder={t('Enter symbol, e.g. SPY')}
+        />
+      </Field>
+      <AllHistoryCheckbox
+        startDate={p.startDate}
+        endDate={p.endDate}
+        onStartDateChange={p.setStartDate}
+        onEndDateChange={p.setEndDate}
+        label={t('All History')}
+      />
+      <DateField
+        id="analysis-start-date"
+        label={t('Start Date')}
+        value={p.startDate}
+        fallback={DEFAULT_BACKTEST_START_DATE}
+        onChange={p.setStartDate}
+        disabled={all}
+      />
+      <DateField
+        id="analysis-end-date"
+        label={t('End Date')}
+        value={p.endDate}
+        fallback={DEFAULT_END_DATE}
+        onChange={p.setEndDate}
+        disabled={all}
+      />
+      <LabeledField htmlFor="analysis-starting-value" label={t('Starting Value')}>
+        <DollarInput
+          id="analysis-starting-value"
+          type="number"
+          value={p.startingValue}
+          onChange={(e) => p.setStartingValue(Number(e.target.value))}
+        />
+      </LabeledField>
+      <LabeledField htmlFor="analysis-rolling-window" label={t('Rolling Window')}>
+        <U.AffixInput
+          id="analysis-rolling-window"
+          type="number"
+          className="pr-14"
+          value={p.rollingWindow}
+          onChange={(e) => p.setRollingWindow(Number(e.target.value))}
+          suffix={t('months')}
+        />
+      </LabeledField>
+      <LabeledField htmlFor="analysis-correlation-window" label={t('Correlation Window')}>
+        <U.AffixInput
+          id="analysis-correlation-window"
+          type="number"
+          className="pr-14"
+          value={p.correlationWindow}
+          onChange={(e) => p.setCorrelationWindow(Number(e.target.value))}
+          suffix={t('months')}
+        />
+      </LabeledField>
+      <div className="flex justify-end sm:col-span-1 lg:col-span-2">
+        <RunButton
+          isLoading={p.isLoading}
+          onClick={p.runAnalysis}
+          label={t('Run Analysis')}
+          loadingLabel={t('Analyzing...')}
+          className={cn(U.buttonVariants({ variant: 'primary', size: 'default' }), 'w-auto')}
+        />
+      </div>
+    </div>
+  );
+}
+const LA = (n: string) => lazyNamed(() => import('../../components/charts/analysis.js'), n),
+  LT = (n: string) => lazyNamed(() => import('../../components/charts/tables.js'), n),
+  LR = (n: string) => lazyNamed(() => import('../../components/charts/rolling.js'), n),
+  LRR = (n: string) => lazyNamed(() => import('../../components/charts/riskReturn.js'), n);
+const OverviewCharts = LA('OverviewCharts'),
+  TelltaleChart = LA('TelltaleChart'),
+  MonthlyHeatmap = LA('MonthlyHeatmap'),
+  CorrelationMatrixTable = LT('CorrelationMatrixTable'),
+  BetaMatrixTable = LT('BetaMatrixTable'),
+  RollingCorrelationChart = LR('RollingCorrelationChart'),
+  RollingMetricsChart = LR('RollingMetricsChart'),
+  RiskReturnChart = LRR('RiskReturnChart'),
+  AnnualReturnChart = lazy(() => import('../../components/charts/AnnualReturnChart.js'));
+function CorrelationsBetaTab(p: { results: AssetAnalysisResult; correlationWindow: number }) {
+  const tickers = p.results.tickers.map((x) => x.ticker),
+    [pair, setPair] = useState<[number, number]>([0, Math.min(1, tickers.length - 1)]),
+    { betaMatrix } = useAnalysisData(p.results),
+    rollingCorrData = useMemo(
+      () => computePairRollingCorrelation(p.results.tickers, pair, p.correlationWindow),
+      [p.results, pair, p.correlationWindow],
+    );
+  return (
+    <div className="space-y-6">
+      <CorrelationMatrixTable tickers={p.results.tickers} correlations={p.results.correlations} />
+      <BetaMatrixTable tickers={tickers} betaMatrix={betaMatrix} />
+      {p.results.tickers.length >= 2 && (
+        <RollingCorrelationChart
+          tickers={tickers}
+          rollingPair={pair}
+          setRollingPair={setPair}
+          rollingCorrData={rollingCorrData}
+        />
+      )}
+    </div>
+  );
+}
+function AnalysisResultsPanel({ state: s }: { state: AnalysisPageState }) {
+  const { error, results, activeTab, setActiveTab, isLoading, correlationWindow, rollingWindow } =
+      s,
+    { t } = useTranslation();
+  return (
+    <ResultsShell
+      error={error}
+      isLoading={isLoading}
+      hasResults={!!results}
+      errorPrefix={`${t('Analysis failed')}: `}
+      loadingLabel={t('Analyzing...')}
+      emptyTitle={t('Set parameters and click "Run Analysis" to view results')}
+      emptyIcon={LineChart}
+    >
+      {results && (
+        <U.Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <U.TabsList className="flex w-full justify-start overflow-x-auto">
+            {TABS.map((x) => (
+              <U.TabsTrigger key={x.key} value={x.key}>
+                {t(x.labelKey)}
+              </U.TabsTrigger>
+            ))}
+          </U.TabsList>
+          {TABS.map((x) => (
+            <U.TabsContent key={x.key} value={x.key} className="pt-4">
+              <Suspense fallback={<TabFallback />}>
+                {x.key === 'summary' ? (
+                  <OverviewCharts results={results} StatsTable={StatsTable} />
+                ) : x.key === 'telltale' ? (
+                  <TelltaleChart results={results} />
+                ) : x.key === 'correlations' ? (
+                  <CorrelationsBetaTab results={results} correlationWindow={correlationWindow} />
+                ) : x.key === 'rolling' ? (
+                  <RollingMetricsChart results={results} rollingWindow={rollingWindow} />
+                ) : x.key === 'risk-return' ? (
+                  <RiskReturnChart results={results} />
+                ) : (
+                  <div className="space-y-6">
+                    <AnnualReturnChart results={results} />
+                    <MonthlyHeatmap results={results} />
+                  </div>
+                )}
+              </Suspense>
+            </U.TabsContent>
+          ))}
+        </U.Tabs>
+      )}
+    </ResultsShell>
+  );
+}
+export default createComputeToolPage(useAnalysisPageState, {
+  titleKey: 'nav.assetAnalysis',
+  seoDescKey: 'analysis.seoDesc',
+  hideParamsTitle: true,
+  seoFeatures: [
+    { titleKey: 'analysis.seoAnalyzable', descKey: 'analysis.seoDesc' },
+    { titleKey: 'analysis.seoViewable', descKey: 'analysis.seoViewableDesc' },
+  ],
+  relatedTools: [TOOL_LINKS.backtest, TOOL_LINKS.optimizer, TOOL_LINKS.efficientF],
+  params: ({ state }) => <AnalysisParamsPanel {...state} />,
+  results: AnalysisResultsPanel,
+});
+const STATS_KEYS = [
+    'cagr',
+    'maxDrawdown',
+    'avgDrawdown',
+    'maxDrawdownDuration',
+    'stdev',
+    'sharpe',
+    'sortino',
+    'calmar',
+    'ulcerIndex',
+    'ulcerPerformanceIndex',
+    'beta',
+  ] as const,
+  STATS_COLUMNS: StatRow[] = rowsFromMeta(STATS_KEYS);
+const StatsTable = memo(function StatsTable(p: { tickers: AssetAnalysisResult['tickers'] }) {
+  const { t } = useTranslation(),
+    fmt = (v: number | undefined, f: StatRow['fmt'], days: string) =>
+      f === 'duration'
+        ? v == null
+          ? '—'
+          : `${v} ${days}`
+        : f === 'pct'
+          ? fmtPct(v)
+          : fmtNum(v, 2),
+    rows = STATS_COLUMNS.filter((c) => p.tickers.some((x) => x.statistics[c.key] != null)),
+    metricLabel = (c: StatRow) => (c.label.includes('.') ? t(c.label) : c.label),
+    cols: SimpleTableColumn<StatRow>[] = [
+      { key: 'metric', label: t('Metric'), render: metricLabel },
+      ...p.tickers.map((x, i) => ({
+        key: x.ticker,
+        label: <U.PortfolioLabel color={getPortfolioColor(i)} name={x.ticker} />,
+        align: 'right' as const,
+        render: (c: StatRow) => {
+          const v = x.statistics[c.key] as number | undefined,
+            txt = fmt(v, c.fmt, t('days'));
+          return c.colorize && v != null ? <span className={getColorClass(v)}>{txt}</span> : txt;
+        },
+      })),
+    ];
+  return <SimpleTable columns={cols} data={rows} rowKey={(c) => c.key} />;
+});

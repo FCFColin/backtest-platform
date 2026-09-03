@@ -5,23 +5,42 @@ import { useToastStore } from '@/store/toastStore';
 import i18n from '@/i18n/index.js';
 import { useAsyncAction } from './useAsync.js';
 
-export { useOrgAuth, useMediaQuery, useChartAnimation, useTheme, usePolling, useIdleTimeout } from './usePolling.js';
+export {
+  useOrgAuth,
+  useMediaQuery,
+  useChartAnimation,
+  useTheme,
+  usePolling,
+  useIdleTimeout,
+} from './usePolling.js';
 export { useAsyncAction, useComputeTool, useAnalysisState } from './useAsync.js';
 export { useSetterState, useAssetList } from './useSetter.js';
 export { useTickerMeta, useAnnouncements, useDataMeta, createResourceCache } from './useCache.js';
 export type { WorkerTask } from './useCache.js';
 
-export function useAdminFetch<T>(u: string, p: (d: Record<string, unknown>) => T, init: T, name: string) {
+export function useAdminFetch<T>(
+  u: string,
+  p: (d: Record<string, unknown>) => T,
+  init: T,
+  name: string,
+) {
   const [data, setData] = useState(init);
   const [lastRefresh, setLastRefresh] = useState('');
   const { isLoading: loading, run } = useAsyncAction();
-  const fetch = () => run(async () => {
-    try {
-      const r = await apiFetch(u);
-      const j = r.ok ? await r.json() : null;
-      if (j?.success && j?.data) { setData(p(j.data)); setLastRefresh(new Date().toLocaleTimeString(i18n.language)); }
-    } catch (e) { reportError(e, { component: name, action: 'fetch' }); useToastStore.getState().addToast('error', i18n.t('Load failed')); }
-  });
+  const fetch = () =>
+    run(async () => {
+      try {
+        const r = await apiFetch(u);
+        const j = r.ok ? await r.json() : null;
+        if (j?.success && j?.data) {
+          setData(p(j.data));
+          setLastRefresh(new Date().toLocaleTimeString(i18n.language));
+        }
+      } catch (e) {
+        reportError(e, { component: name, action: 'fetch' });
+        useToastStore.getState().addToast('error', i18n.t('Load failed'));
+      }
+    });
   return { data, loading, lastRefresh, fetch };
 }
 
@@ -34,7 +53,9 @@ export function useChartCalcWorker<T>(task: import('./useCache.js').WorkerTask |
   const lastId = useRef<number | null>(null);
   const lastKey = useRef('');
   useEffect(() => {
-    const w = new Worker(new URL('../workers/chartCalc.worker.ts', import.meta.url), { type: 'module' });
+    const w = new Worker(new URL('../workers/chartCalc.worker.ts', import.meta.url), {
+      type: 'module',
+    });
     workerRef.current = w;
     let dead = false;
     w.onmessage = (e: MessageEvent<{ id: number; result: T; error?: string }>) => {
@@ -43,7 +64,11 @@ export function useChartCalcWorker<T>(task: import('./useCache.js').WorkerTask |
       setError(e.data.error ?? null);
       if (!e.data.error) setData(e.data.result);
     };
-    return () => { dead = true; w.terminate(); workerRef.current = null; };
+    return () => {
+      dead = true;
+      w.terminate();
+      workerRef.current = null;
+    };
   }, []);
   useEffect(() => {
     if (!task || !workerRef.current) return;

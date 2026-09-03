@@ -8,14 +8,37 @@ type AnyMock = ReturnType<typeof vi.fn>;
 
 const eventMocks = vi.hoisted(() => ({ handleAuditEvent: vi.fn(async () => {}) }));
 const metricMocks = vi.hoisted(() => ({ deadLetterInc: vi.fn() }));
-const clientMock = vi.hoisted(() => ({ connect: vi.fn().mockResolvedValue(undefined), query: vi.fn().mockResolvedValue({ rows: [] }), end: vi.fn().mockResolvedValue(undefined), on: vi.fn() }));
+const clientMock = vi.hoisted(() => ({
+  connect: vi.fn().mockResolvedValue(undefined),
+  query: vi.fn().mockResolvedValue({ rows: [] }),
+  end: vi.fn().mockResolvedValue(undefined),
+  on: vi.fn(),
+}));
 
-vi.mock('../../../packages/backend/src/application/auditEventHandler.js', () => ({ AUDIT_EVENT_TYPE: 'AuditEvent', handleAuditEvent: eventMocks.handleAuditEvent }));
-vi.mock('pg', () => ({ default: { Client: vi.fn(() => clientMock), Pool: vi.fn() }, __esModule: true }));
-vi.mock('prom-client', () => ({ default: { Gauge: vi.fn(() => ({ set: vi.fn() })), Counter: vi.fn(() => ({ inc: vi.fn(), set: vi.fn() })) } }));
-vi.mock('../../../packages/backend/src/utils/metrics.js', () => ({ getPrometheusRegister: () => ({ registerMetric: vi.fn() }), outboxDeadLettersTotal: { inc: metricMocks.deadLetterInc } }));
-vi.mock('../../../packages/backend/src/config/index.js', () => ({ config: { CDC_KAFKA_ENABLED: false, OUTBOX_RETENTION_DAYS: 7 } }));
-vi.mock('../../../packages/backend/src/infrastructure/outboxKafkaConsumer.js', () => ({ OutboxKafkaConsumer: vi.fn() }));
+vi.mock('../../../packages/backend/src/application/auditEventHandler.js', () => ({
+  AUDIT_EVENT_TYPE: 'AuditEvent',
+  handleAuditEvent: eventMocks.handleAuditEvent,
+}));
+vi.mock('pg', () => ({
+  default: { Client: vi.fn(() => clientMock), Pool: vi.fn() },
+  __esModule: true,
+}));
+vi.mock('prom-client', () => ({
+  default: {
+    Gauge: vi.fn(() => ({ set: vi.fn() })),
+    Counter: vi.fn(() => ({ inc: vi.fn(), set: vi.fn() })),
+  },
+}));
+vi.mock('../../../packages/backend/src/utils/metrics.js', () => ({
+  getPrometheusRegister: () => ({ registerMetric: vi.fn() }),
+  outboxDeadLettersTotal: { inc: metricMocks.deadLetterInc },
+}));
+vi.mock('../../../packages/backend/src/config/index.js', () => ({
+  config: { CDC_KAFKA_ENABLED: false, OUTBOX_RETENTION_DAYS: 7 },
+}));
+vi.mock('../../../packages/backend/src/infrastructure/outboxKafkaConsumer.js', () => ({
+  OutboxKafkaConsumer: vi.fn(),
+}));
 
 import { OutboxPublisher } from '../../../packages/backend/src/infrastructure/outboxPublisher.js';
 import {
@@ -23,11 +46,43 @@ import {
   type OutboxEvent,
 } from '../../../packages/backend/src/infrastructure/outbox.js';
 
-function createMockPool() { const clientQuery = vi.fn().mockResolvedValue({ rows: [], rowCount: 0 }), pool = { query: vi.fn().mockResolvedValue({ rows: [], rowCount: 0 }), connect: vi.fn().mockResolvedValue({ query: clientQuery, release: vi.fn() }) }; return [pool as unknown as pg.Pool & { query: AnyMock }, clientQuery] as const; }
-function queueClientTxn(mock: AnyMock, selectRows: unknown): void { mock.mockResolvedValueOnce({ rows: [] }).mockResolvedValueOnce(selectRows).mockResolvedValueOnce({ rows: [] }); }
-function createOutboxRow(overrides: Record<string, unknown> = {}) { return { id: 1, aggregate_type: 'BacktestSession', aggregate_id: 'backtest-1700000000000', event_type: 'BacktestCompleted', payload: { totalReturn: 0.2, maxDrawdown: 0.15 }, created_at: new Date('2024-01-01T00:00:00Z'), ...overrides }; }
-function makeEvent(overrides: Partial<OutboxEvent> = {}): OutboxEvent { return { aggregateType: 'BacktestSession', aggregateId: 'backtest-1700000000000', eventType: 'BacktestCompleted', payload: { totalReturn: 0.2, maxDrawdown: 0.15 }, ...overrides }; }
-const sqlOf = (m: AnyMock, s: string): string | undefined => (m.mock.calls as unknown[][]).find((c) => typeof c[0] === 'string' && c[0].includes(s))?.[0] as string | undefined;
+function createMockPool() {
+  const clientQuery = vi.fn().mockResolvedValue({ rows: [], rowCount: 0 }),
+    pool = {
+      query: vi.fn().mockResolvedValue({ rows: [], rowCount: 0 }),
+      connect: vi.fn().mockResolvedValue({ query: clientQuery, release: vi.fn() }),
+    };
+  return [pool as unknown as pg.Pool & { query: AnyMock }, clientQuery] as const;
+}
+function queueClientTxn(mock: AnyMock, selectRows: unknown): void {
+  mock
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce(selectRows)
+    .mockResolvedValueOnce({ rows: [] });
+}
+function createOutboxRow(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 1,
+    aggregate_type: 'BacktestSession',
+    aggregate_id: 'backtest-1700000000000',
+    event_type: 'BacktestCompleted',
+    payload: { totalReturn: 0.2, maxDrawdown: 0.15 },
+    created_at: new Date('2024-01-01T00:00:00Z'),
+    ...overrides,
+  };
+}
+function makeEvent(overrides: Partial<OutboxEvent> = {}): OutboxEvent {
+  return {
+    aggregateType: 'BacktestSession',
+    aggregateId: 'backtest-1700000000000',
+    eventType: 'BacktestCompleted',
+    payload: { totalReturn: 0.2, maxDrawdown: 0.15 },
+    ...overrides,
+  };
+}
+const sqlOf = (m: AnyMock, s: string): string | undefined =>
+  (m.mock.calls as unknown[][]).find((c) => typeof c[0] === 'string' && c[0].includes(s))?.[0] as
+    string | undefined;
 
 describe('OutboxPublisher', () => {
   let pool: pg.Pool & { query: AnyMock };
