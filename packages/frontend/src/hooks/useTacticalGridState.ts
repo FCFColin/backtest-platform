@@ -1,3 +1,4 @@
+import { useRef, useEffect } from 'react';
 import type { TFunction } from 'i18next';
 import type { RebalanceFrequency } from '@backtest/shared';
 import { useComputeTool, useSetterState } from './miscHooks.js';
@@ -44,6 +45,13 @@ export interface TacticalGridState {
 }
 
 export function useTacticalGridState(t: TFunction): TacticalGridState {
+  const pollCtrl = useRef<AbortController | null>(null);
+  useEffect(
+    () => () => {
+      pollCtrl.current?.abort();
+    },
+    [],
+  );
   const s = useSetterState({
     indicator: 'sma' as IndicatorType,
     param1: { min: 10, max: 50, step: 5 } as GridParamRange,
@@ -82,8 +90,11 @@ export function useTacticalGridState(t: TFunction): TacticalGridState {
       const json = await res.json();
       if (!res.ok || json.success === false) throw new Error(extractApiErrorDetail(json));
       if (res.status === 202 && json.data?.statusUrl) {
-        const polled = await pollJobStatus(json.data.statusUrl, new AbortController().signal, null);
-        return polled.data as TacticalGridResponse;
+        const ctrl = new AbortController();
+        pollCtrl.current = ctrl;
+        const polled = await pollJobStatus(json.data.statusUrl, ctrl.signal, null);
+        pollCtrl.current = null;
+        return polled.data as unknown as TacticalGridResponse;
       }
       return json.data as TacticalGridResponse;
     },

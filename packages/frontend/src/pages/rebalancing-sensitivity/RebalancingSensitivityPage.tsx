@@ -1,4 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
+import { useRef, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import * as S from '@backtest/shared';
@@ -10,6 +11,7 @@ import PortfolioEditor from '../../components/PortfolioEditor.js';
 import { Field, FieldLabel } from '@/components/form/Field';
 import { RunButton } from '@/components/form/sharedFields';
 import { ResultsShell } from '@/components/resultsShell.js';
+import { useUnloadGuard } from '../../hooks/useUnloadGuard.js';
 import * as Charts from '@/components/charts/sharedChartContent.js';
 import * as UI from '@/components/ui/uiComponents';
 import { apiFetch } from '@/utils/apiClient';
@@ -121,7 +123,12 @@ function useRebalSetters() {
     isLoadingRandom: false,
   });
 }
-function createRebalancingRunners(s: ReturnType<typeof useRebalSetters>, p: Bp, assets: A) {
+function createRebalancingRunners(
+  s: ReturnType<typeof useRebalSetters>,
+  p: Bp,
+  assets: A,
+  randomCancel: { current: boolean },
+) {
   const validAssets = () => assets.filter((a) => a.ticker.trim() !== '');
   const runOffsetScan = async (f: RebalanceFrequency, v = validAssets() as A) => {
     if (!v.length) return;
@@ -140,10 +147,12 @@ function createRebalancingRunners(s: ReturnType<typeof useRebalSetters>, p: Bp, 
     if (!v.length) return;
     s.setIsLoadingRandom(true);
     s.setRandomResults([]);
+    randomCancel.current = false;
     try {
       const freqs = S.REBALANCE_FREQUENCIES,
         out: Array<{ x: number; y: number; label: string }> = [];
       for (let i = 0; i < 600; i += 20) {
+        if (randomCancel.current) break;
         const batch = Array.from({ length: Math.min(20, 600 - i) }, async () => {
           const f = freqs[Math.floor(Math.random() * freqs.length)] as RebalanceFrequency,
             off = Math.floor(Math.random() * 21);
@@ -159,8 +168,9 @@ function createRebalancingRunners(s: ReturnType<typeof useRebalSetters>, p: Bp, 
         s.setRandomResults([...out]);
       }
     } catch {
-      s.setError(i18n.t('Rebalancing sensitivity analysis failed'));
+      if (!randomCancel.current) s.setError(i18n.t('Rebalancing sensitivity analysis failed'));
     } finally {
+      randomCancel.current = false;
       s.setIsLoadingRandom(false);
     }
   };
@@ -192,8 +202,19 @@ function useRebalancingState() {
     toggleFreq = (f: RebalanceFrequency) =>
       s.setSelectedFreqs(freqs.includes(f) ? freqs.filter((x) => x !== f) : [...freqs, f]),
     list = useAssetList<A[number]>([...DEFAULT_60_40_ASSETS], () => ({ ticker: '', weight: 0 }), 0),
-    runners = createRebalancingRunners(s, s, list.assets);
-  return { ...s, ...list, toggleFreq, ...runners };
+    randomCancel = useRef(false),
+    runners = createRebalancingRunners(s, s, list.assets, randomCancel),
+    cancelRandom600 = () => {
+      randomCancel.current = true;
+    };
+  useEffect(
+    () => () => {
+      randomCancel.current = true;
+    },
+    [],
+  );
+  useUnloadGuard(s.isLoading || s.isLoadingOffset || s.isLoadingRandom);
+  return { ...s, ...list, toggleFreq, ...runners, cancelRandom600 };
 }
 type RebalancingState = ReturnType<typeof useRebalancingState>;
 const TABLE_COLS: Array<[string, NumKey, (v: number) => string]> = [
@@ -348,15 +369,16 @@ function ResultsPanel({ s }: { s: RebalancingState }) {
           </UI.TabsContent>
           <UI.TabsContent value="random600">
             <div className="mb-3 flex items-center gap-2">
-              <UI.Button
-                variant="secondary"
-                size="sm"
-                disabled={s.isLoadingRandom}
-                onClick={() => void s.runRandom600()}
-              >
-                {s.isLoadingRandom ? <Loader2 className="size-4 animate-spin" /> : null}
-                {t('Run 600 Random')}
-              </UI.Button>
+              {s.isLoadingRandom ? (
+                <UI.Button variant="destructive" size="sm" onClick={s.cancelRandom600}>
+                  <Loader2 className="size-4 animate-spin" />
+                  {t('Cancel')}
+                </UI.Button>
+              ) : (
+                <UI.Button variant="secondary" size="sm" onClick={() => void s.runRandom600()}>
+                  {t('Run 600 Random')}
+                </UI.Button>
+              )}
               <span className="text-caption text-fg-tertiary">
                 {s.randomResults.length
                   ? `${s.randomResults.length}/600`

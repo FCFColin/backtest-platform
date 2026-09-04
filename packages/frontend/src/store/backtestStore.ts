@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any -- store 动态 patch 需 any */
 import { create } from 'zustand';
 import { startTransition } from 'react';
 import i18n from '@/i18n/index.js';
@@ -77,25 +76,39 @@ type StatePatch = Partial<BacktestState> | ((s: BacktestState) => Partial<Backte
 export type SetFn = (p: StatePatch) => void;
 export type GetFn = () => BacktestState;
 let currentRequestId = 0;
+interface JobEnvelope {
+  success?: boolean;
+  error?: unknown;
+  data?: {
+    status?: string;
+    state?: string;
+    error?: string;
+    result?: { data?: BacktestResultLike } & BacktestResultLike;
+  };
+}
+type BacktestResultLike = Record<string, unknown>;
+interface JobStatus {
+  success: true;
+  data: BacktestResultLike;
+}
 export async function pollJobStatus(
   url: string,
   signal: AbortSignal,
   rid: number | null,
-): Promise<Record<string, unknown>> {
+): Promise<JobStatus> {
   for (let d = 50; ; d = Math.min(d * 2, 500)) {
     await cancellableSleep(d, signal);
     if (signal.aborted || (rid !== null && rid !== currentRequestId))
       throw new DOMException('Aborted', 'AbortError');
     const r = await apiFetch(url, { cache: 'no-store', signal }),
-      j = await r.json();
+      j = (await r.json()) as JobEnvelope;
     if (!r.ok || j.success === false) throw new Error(extractApiErrorDetail(j));
-    const x = j.data as any,
-      s = x.status ?? x.state;
-    if (s === 'completed' && x.result)
-      return { success: true, data: x.result.data ?? x.result } as any;
+    const x = j.data;
+    const s = x?.status ?? x?.state;
+    if (s === 'completed' && x?.result) return { success: true, data: x.result.data ?? x.result };
     if (s === 'failed')
       throw new Error(
-        x.error || i18n.t('Backtest failed. Please check ticker symbols and parameters.'),
+        x?.error || i18n.t('Backtest failed. Please check ticker symbols and parameters.'),
       );
   }
 }
