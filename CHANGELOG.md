@@ -10,6 +10,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - feat(engine-go 授权待执行)：金样本重基线授权已下，gonum 化改造待立项
 - fix(backend 治理待裁)：jobSubmission 队列兜底向 compute 响应透传 degraded——ADR-008 字面冲突，语义裁决挂起（C-023 保持可见）
 
+> 以下为 2026-08-24（0.4.2 发布）之后至 2026-09-04 的回补，严格按 git log subject 归纳，分界窗口 2026-08-24 → 2026-09-04。
+
+### Added
+
+- P-URGENT 三项兑现：U-1 数据质量校验徽章（结果页常驻信任信号）；U-2 真实日频 T-bill 双阶段——FRED 无风险利率数据链路 Phase 1（拉取/落库/端点）+ Phase 2 引擎按窗口匹配年化 rf 消费（signal/optimize 路径 rf 贯通，golden 零漂移）；U-3 MC 估计法菜单（trimmed/ewWeighted 双变体全栈）
+- H-1 高级指标包六件全栈（PSR/Hurst/Burke/Martin/Sterling/BattingAverage）+ M² 列补齐（Go 已有 CalcM2WithRF）
+- H-2 季度相关矩阵序列（引擎侧全链路 + 前端 details 折叠逐季矩阵表）
+- H-3 再平衡交易日志升级（逐资产买卖金额明细全链路 + rebalancing tab 内嵌明细表）
+- M-1 per-ticker 费率（资产级 expense ratio，日化摊薄）；M-2 sim-fund 框架（任意 XXXSIM 按前缀差异化年化/波动）；M-3 匿名演示 /demo（公开路由+静态样例）；M-4 AI 解释层（BacktestResults summary 内建 AiExplanation）
+- feat: 一二三+响应式 极简落地；feat: 完成剩余该做项（P1/P2 10 项）
+- feat: ε-3 TestKit 夹具沉淀（mkApp/resetTestKit 辅助，R-03 合规）
+- test(engine): 金样本 golden file 字节级门禁（B1，R-04 机器化）
+- feat(i18n): DEV 门控运行时 key 采样插桩（D-5 前置）+ postProcessor 拦截改造 + 构建开关
+- chore(ci): page-smoke a11y 门禁挂入 PR gate（repeat-each=3）；ci(nightly): loc-stats 追加 ledger 写入（ε-1）；chore(husky): fix 类型强制 body 含 Repro（ε-2/R-02 机器化）
+
+### Fixed
+
+- fix(audit): outbox 毒丸 attempts 上限+死信停泊指标（A1）；outbox 写入失败从 warn 升级 error+AUDIT_LOSS 标记（P0-1 路径B）
+- fix(ws): 心跳+连接上限+握手限流+订阅竞态收口四合一（A2）
+- fix(auth): JWT_ALGORITHM 枚举 fail-fast+删静默兜底（A3）；fix(config): 恢复 JWT_ACCESS_TTL 默认值 900（修复回归）
+- fix(data): finnhub/akshare 未复权价不再冒充 AdjustedClose（A4·R-12）
+- fix(jobs): 提交即落 queued 行+stale pending 对账清扫（A5）
+- fix(p0): SSR 页面流永不终止（删除幻影 PipeableStream.on 接口+硬超时）；jobAccess 属主租户豁免收紧（封堵跨租户 IDOR）；三处边界语义收紧；P0 热修复（复权口径/UTC/大小写/i18n 去重/端口）
+- fix(db): 注册 008/009 迁移至 migrations.ts，修复 C-017
+- fix(build): import.meta.env.DEV/PROD 钉死到 --mode，阻断 NODE_ENV 泄漏
+- fix(contract): backtestResultSchema 钉住 quarterlyCorrelations（堵 ADR-008 静默穿透实例）；契约扫描器识别表驱动路由注册
+- fix(a11y): 三处 critical/moderate 可访问性缺陷修复；fix(ux): ComputeToolShell ready 门消除导航 CLS
+- fix(k8s): HPA 锚点模板展开为自足资源（C-007 根治）
+- chore(deadcode): knip 清零（RU 命名空间导入消误报+d5 白名单）；删除孤儿导出 fetchJson 与实测死代码（portfolioToEngineBody/data-fetcher 重复测试对）
+- chore(deps): 清除全部生产依赖 moderate 漏洞（qs/stream-json/decode-uri-component overrides）
+- fix(scripts): count-loc.ps1 基线硬编码改本地账本滚动对比；verify-i18n 完整 unused 列表+ns 分组+动态键保护桶+returnObjects 中间节点叶键并入 used
+- test: auth-routes TS2554 修复、OrgMembersPage exhaustive-deps 修复、IDOR 收紧后夹具对齐、page-smoke 断言锚定与 reducedMotion 稳定化、e2e fuzz 错误判定收窄、audit 独立模式断言迁移新契约（error+AUDIT_LOSS）
+
+### Changed
+
+- refactor(ssr): 纯 SPA 收敛——删除全链路 SSR（D-1 已授权）
+- refactor(engine): Mean/Std/Covariance 替换为 gonum/stat；Histogram min/max 换 slices.Min/Max（4000 样本逐位一致实证）；Go DailyReturns 合 core 去重、Burke/Sterling 抽 topKDesc 去重
+- refactor(i18n): 删除 275 个三重过滤确认的死键（D-5）；双 init 死调用收割
+- refactor: 大规模"激进重写/声明式压缩/减行"批次（08-24~~08-28 两波，覆盖 pages/components/charts/hooks/store/utils/后端路由/Go statisticsMetrics 等约 70 个文件，单文件普遍 −50~~−400 行）
+- refactor(style): 全仓 prettier 重排 + 清偿存量 lint 错误（D1 裁决：接受 +10.9k 重排并重基线门禁）
+- chore(scripts): 生产代码 LOC 口径固化 count-prod-loc.ps1（口径战线）
+- refactor(data-fetcher): ParseStringInt 收敛为 ParseStringFloat 薄封装（语义逐位等价）
+- refactor(backend): withTtlCache 统一 6 处 TTL 缓存读取骨架、微样板三连收敛（sendCreated 统一 201 信封/探针 toBool 三合一/membership SQL 片段常量化）
+- refactor(contract): 运行时枚举替代源码正则扫描（ADR-013 终局落地）
+- refactor(tests): mock 样板收敛（createPoolModuleMock 选项化+metrics picks 参数化+injectAuth 工厂）；T1 fetch 前奏微家族收割；TestKit 建立→按实测裁决回滚（Revert 归档）
+- docs: README 生产部署 7 步→2 步、compose 资源限制锚点、deep-dive 路由清单收敛、AGENTS.md v2.1→v2.2→v3.2 治理内化与锚点校准系列
+- docs(adr): ADR-008 数据级 degraded 语义补充（C-023 裁决）；ADR-013 契约扫描器实现适配补录与运行时枚举终局落地；ADR-012 撞号重编号
+
 ## [0.4.2] - 2026-08-24
 
 - refactor(frontend): 重删死导出 ResultsPanelProps；signalState 收敛

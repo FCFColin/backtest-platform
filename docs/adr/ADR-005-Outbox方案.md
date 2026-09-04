@@ -56,3 +56,13 @@ Outbox 的唯一写入点为 backtest-service 的事务写入。~~BacktestComple
 - Outbox/事件分发基础设施按本 ADR 落地，但当前唯一事件类型为 `AuditEvent`（审计日志）。属有意的过渡态：未引入新领域事件（回测完成、订阅变更等）是因为尚无消费者，不因"基础设施已就绪"而凭空造消费者。
 - 后续引入领域事件时须复用本 ADR 的事件模型与幂等契约（outbox 行 id 透传、消费端幂等），不要另起事件管道。
 - 若长期无领域事件需求，再评估将管道收缩为审计专用路径（需独立 ADR 记录，避免删基础设施无门禁）。
+
+## 补充（2026-09-04）：生产审计路径实态澄清
+
+生产环境的审计持久化路径自始即为**单写者分层结构**，与本 ADR Decision 第 1 节描述的"业务事务中同时写入 Outbox 表"不同——`writeEventInTransaction` 的带事务 client 形态虽存在（`writeOutboxEvent(auditEntry, client)` 供未来业务事务内调用），但当前唯一调用方 `auditMiddleware` 传入的是独立连接（`getPool()`）或无 client（独立重试模式），**生产请求路径上不存在"业务数据与审计事件同事务双写"**。实际路径为三层：
+
+1. **权威源：pino 同步写**——`auditMiddleware` 在 `res.finish` 时经 `auditLogger.info()`（pino，stdout 同步落日志管道）写入审计事件。日志不存在即丢失，不存在异步窗口。
+2. **outbox 为 best-effort 异步复制**——同一事件以独立连接写 outbox（非业务事务内），失败时按 100/200ms 指数退避重试 3 次，仍失败则记 `AUDIT_LOSS`（pino error + `audit_outbox_write_failures_total` 计数器），不阻断业务响应。outbox 的定位是"给下游消费的异步副本"，不是审计的持久性保证。
+3. **消费端可靠性契约**——outbox 消费用 `FOR UPDATE SKIP LOCKED` 领取（多实例安全）；连续失败达 `OUTBOX_MAX_ATTEMPTS` 的事件毒丸停泊并暴露 `AUDIT_DEAD_LETTER` 信号（人工重置 attempts 后重入队）；定时补偿扫描兜底重投超时未处理事件。
+
+含义：审计的防篡改/持久性承诺由 pino 同步路径承担；outbox 链路任何环节失效只影响副本分发（有 AUDIT_LOSS/AUDIT_DEAD_LETTER 可观测信号），不会造成审计记录整体丢失。本补充不改变原 Decision 的 outbox/幂等/CDC 设计，仅澄清审计路径的实态归属。
