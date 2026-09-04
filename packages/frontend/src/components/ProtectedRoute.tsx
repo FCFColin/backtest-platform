@@ -16,7 +16,7 @@ export default function ProtectedRoute({ children, requireAdmin }: ProtectedRout
     return <Navigate to="/login" state={{ from: location.pathname + location.search }} replace />;
   }
   if (requireAdmin && !user.platformAdmin && user.role !== 'admin') {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/403" replace />;
   }
   return <>{children}</>;
 }

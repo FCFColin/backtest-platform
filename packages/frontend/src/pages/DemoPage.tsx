@@ -1,19 +1,54 @@
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router';
+import { useNavigate } from 'react-router';
 import { Card, Button } from '@/components/ui/uiComponents';
 import { ToolPageLayout } from '@/components/layout/ToolPageLayout';
+import type { Portfolio } from '@backtest/shared';
+import {
+  DEFAULT_BACKTEST_START_DATE,
+  DEFAULT_END_DATE,
+  buildBacktestParameters,
+} from '@/utils/constants';
+
+const DEMO_CONFIG: {
+  portfolios: Portfolio[];
+  parameters: ReturnType<typeof buildBacktestParameters>;
+} = {
+  portfolios: [
+    {
+      id: 'portfolio-demo-1',
+      name: '60/40 Demo',
+      assets: [
+        { ticker: 'VTI', weight: 60 },
+        { ticker: 'BND', weight: 40 },
+      ],
+      rebalanceFrequency: 'annual',
+    },
+  ],
+  parameters: buildBacktestParameters(DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE, {
+    baseCurrency: 'usd',
+    adjustForInflation: false,
+  }),
+};
+
 export default function DemoPage() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const preset = [
     { ticker: 'VTI', weight: 60 },
     { ticker: 'BND', weight: 40 },
   ];
+  const startFullBacktest = () => {
+    try {
+      localStorage.setItem('bt_load_from_optimizer', JSON.stringify(DEMO_CONFIG));
+    } catch {}
+    navigate('/');
+  };
   return (
     <div className="page-container flex flex-col gap-4 pb-6">
       <h1 className="text-page-title text-fg">{t('Demo — 60/40 Portfolio')}</h1>
       <p className="text-body text-fg-secondary max-w-[720px]">
         {t(
-          'Experience the platform without login. This demo uses a classic 60/40 allocation and shows sample results.',
+          'This demo uses preset demo data with a classic 60/40 allocation — no login required. Results shown are samples.',
         )}
       </p>
       <ToolPageLayout
@@ -31,9 +66,9 @@ export default function DemoPage() {
                 </div>
               ))}
             </div>
-            <Link to="/">
-              <Button variant="primary">{t('Try Full Backtest')}</Button>
-            </Link>
+            <Button variant="primary" onClick={startFullBacktest}>
+              {t('Try Full Backtest')}
+            </Button>
           </Card>
         }
         results={

@@ -128,17 +128,17 @@ function McDistTab({ r, dm, setDm, sv }: DistProps) {
   );
 }
 
-const SC_LINES = [
-  { dataKey: 'best', color: getPortfolioColor(2), width: 2, name: 'Best', smooth: true },
-  { dataKey: 'p75', color: getPortfolioColor(0), width: 1.5, name: 'P75', smooth: true },
-  { dataKey: 'median', color: getPortfolioColor(4), width: 2.5, name: 'Median', smooth: true },
-  { dataKey: 'p25', color: getPortfolioColor(1), width: 1.5, name: 'P25', smooth: true },
-  { dataKey: 'worst', color: getPortfolioColor(3), width: 2, name: 'Worst', smooth: true },
-];
 function McScenTab({ r, sv }: BaseProps) {
   const { t } = useTranslation(),
     { data } = mcu.buildScenarioData(r, sv);
   if (!data.length) return <NoDataCard />;
+  const scLines = [
+    { dataKey: 'best', color: getPortfolioColor(2), width: 2, name: t('Best'), smooth: true },
+    { dataKey: 'p75', color: getPortfolioColor(0), width: 1.5, name: t('P75'), smooth: true },
+    { dataKey: 'median', color: getPortfolioColor(4), width: 2.5, name: t('Median'), smooth: true },
+    { dataKey: 'p25', color: getPortfolioColor(1), width: 1.5, name: t('P25'), smooth: true },
+    { dataKey: 'worst', color: getPortfolioColor(3), width: 2, name: t('Worst'), smooth: true },
+  ];
   return (
     <Card className="p-5">
       <SimpleChart
@@ -155,7 +155,7 @@ function McScenTab({ r, sv }: BaseProps) {
         tooltipFormatter={(v) => fmtAmount(v as number)}
         tooltipLabelFormatter={(l) => mcu.yearLabelFormatter(t, Number(l))}
         ariaLabel={t('Scenario Paths')}
-        series={SC_LINES}
+        series={scLines}
       />
     </Card>
   );

@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
-import { FileQuestion } from 'lucide-react';
+import { FileQuestion, ShieldBan } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { Button, Card } from '@/components/ui/uiComponents';
 interface StatusErrorPageProps {
@@ -48,4 +48,21 @@ function NotFoundPage(): ReactNode {
     />
   );
 }
+function ForbiddenPage(): ReactNode {
+  const { t } = useTranslation();
+  return (
+    <StatusErrorPage
+      statusCode={403}
+      icon={ShieldBan}
+      title={t('Access Denied')}
+      description={t('You do not have permission to access this page.')}
+      action={
+        <Button asChild variant="primary">
+          <Link to="/">{t('Go home')}</Link>
+        </Button>
+      }
+    />
+  );
+}
+export { ForbiddenPage };
 export default NotFoundPage;

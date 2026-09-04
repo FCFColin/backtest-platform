@@ -6,7 +6,7 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 import { Spinner } from '@/components/ui/uiComponents';
 import { onNavEnd } from '../utils/performanceReporter.js';
 import { lazyDefault, lazyNamed } from '@/utils/lazyImport';
-import NotFoundPage from '@/pages/errors/ErrorPages';
+import NotFoundPage, { ForbiddenPage } from '@/pages/errors/ErrorPages';
 import {
   PAGE_LOADERS,
   TacticalGridPage,
@@ -167,6 +167,7 @@ const ROUTE_TITLES: Record<string, string> = {
   '/admin/monitor': 'System Monitor',
   '/admin/data': 'Data Management',
   '/admin/settings': 'System Settings',
+  '/403': 'Access Denied',
   '/*': 'Page Not Found',
 };
 function RouteChangeTracker(): null {
@@ -196,6 +197,7 @@ export function AppRoutes() {
           <Route path="data" element={withBoundary(<DataManagement />, 'admin-data')} />
           <Route path="settings" element={withBoundary(<SystemSettings />, 'admin-settings')} />
         </Route>
+        <Route path="/403" element={withBoundary(<ForbiddenPage />, 'forbidden')} />
         <Route path="*" element={withBoundary(<NotFoundPage />, 'not-found')} />
       </Routes>
       <RouteChangeTracker />

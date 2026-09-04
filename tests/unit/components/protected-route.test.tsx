@@ -58,7 +58,7 @@ describe('ProtectedRoute', () => {
     screen.getByText('受保护内容');
   });
 
-  it('非管理员访问管理员路由时重定向到首页', () => {
+  it('非管理员访问管理员路由时重定向到 /403', () => {
     mockState.initialized = true;
     mockState.user = {
       userId: '1',
@@ -72,7 +72,7 @@ describe('ProtectedRoute', () => {
         <div>管理员内容</div>
       </ProtectedRoute>,
     );
-    expect(screen.getByTestId('navigate').textContent).toBe('/');
+    expect(screen.getByTestId('navigate').textContent).toBe('/403');
     expect(screen.queryByText('管理员内容')).toBeNull();
   });
 
