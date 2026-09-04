@@ -179,31 +179,31 @@ jobs:
 
       # SBOM（CycloneDX）— 恢复 NOTICE/security.md 承诺的 sbom-cyclonedx 制品
       - name: SBOM (API)
-        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610
+        uses: anchore/sbom-action@3ad7283483fc7af8ff2b4ea19663c2d5ca935e26
         with:
           image: backtest-api:scan
           format: cyclonedx-json
           output-file: sbom-backtest-api.json
       - name: SBOM (data-fetcher)
-        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610
+        uses: anchore/sbom-action@3ad7283483fc7af8ff2b4ea19663c2d5ca935e26
         with:
           image: data-fetcher:scan
           format: cyclonedx-json
           output-file: sbom-data-fetcher.json
       - name: SBOM (engine-go)
-        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610
+        uses: anchore/sbom-action@3ad7283483fc7af8ff2b4ea19663c2d5ca935e26
         with:
           image: engine-go:scan
           format: cyclonedx-json
           output-file: sbom-engine-go.json
       - name: SBOM (worker)
-        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610
+        uses: anchore/sbom-action@3ad7283483fc7af8ff2b4ea19663c2d5ca935e26
         with:
           image: backtest-worker:scan
           format: cyclonedx-json
           output-file: sbom-backtest-worker.json
       - name: SBOM (frontend)
-        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610
+        uses: anchore/sbom-action@3ad7283483fc7af8ff2b4ea19663c2d5ca935e26
         with:
           image: frontend:scan
           format: cyclonedx-json
