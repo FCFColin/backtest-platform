@@ -2,6 +2,8 @@ import { useToastStore } from '../store/toastStore.js';
 import i18n from '../i18n/index.js';
 import { getErrorI18nKey } from './errorReporter.js';
 import { trackApiCall } from './performanceReporter.js';
+import { reportError } from './errorReporter.js';
+import type { ZodType } from 'zod';
 const ADMIN_API_KEY_STORAGE = 'admin_api_key';
 const FETCH_TIMEOUT_MS = 10_000;
 let accessToken = '';
@@ -143,6 +145,7 @@ async function apiJSON<T>(
   url: string,
   init: RequestInit | undefined,
   errorMsg = i18n.t('Request failed'),
+  schema?: ZodType<T>,
 ): Promise<T> {
   const res = await apiFetch(url, init);
   const json = await res.json().catch(() => null);
@@ -150,15 +153,38 @@ async function apiJSON<T>(
     throw new Error(resolveErrorMessage(json?.error) || errorMsg);
   }
   if (json?.success === false) throw new Error((json.error?.detail ?? json.error) || errorMsg);
-  return (json?.data ?? json) as T;
+  const raw = (json?.data ?? json) as T;
+  if (!schema) return raw;
+  const parsed = schema.safeParse(raw);
+  if (!parsed.success) {
+    reportError(new Error(`Schema validation failed for ${url}: ${parsed.error.message}`), {
+      component: 'apiClient',
+      action: 'apiJSON',
+      url,
+    });
+    throw new Error(errorMsg);
+  }
+  return parsed.data;
 }
-export const apiPostJSON = <T>(url: string, body: unknown, errorMsg = i18n.t('Request failed')) =>
+export const apiPostJSON = <T>(
+  url: string,
+  body: unknown,
+  errorMsg = i18n.t('Request failed'),
+  schema?: ZodType<T>,
+) =>
   apiJSON<T>(
     url,
     { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) },
     errorMsg,
+    schema,
   );
-export const apiGetJSON = <T>(url: string, errorMsg = i18n.t('Request failed')) =>
-  apiJSON<T>(url, undefined, errorMsg);
-export const apiDeleteJSON = <T>(url: string, errorMsg = i18n.t('Request failed')) =>
-  apiJSON<T>(url, { method: 'DELETE' }, errorMsg);
+export const apiGetJSON = <T>(
+  url: string,
+  errorMsg = i18n.t('Request failed'),
+  schema?: ZodType<T>,
+) => apiJSON<T>(url, undefined, errorMsg, schema);
+export const apiDeleteJSON = <T>(
+  url: string,
+  errorMsg = i18n.t('Request failed'),
+  schema?: ZodType<T>,
+) => apiJSON<T>(url, { method: 'DELETE' }, errorMsg, schema);

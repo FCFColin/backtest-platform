@@ -194,7 +194,6 @@ export default defineConfig(async ({ mode }) => {
               : afterNm.split('/')[0];
             if (pkg === 'react-dom') {
               const subPath = afterNm.split('/').slice(1).join('/');
-              if (subPath.startsWith('server')) return 'react-dom-server';
               if (subPath.startsWith('client')) return 'react-dom-client';
               return 'react-dom';
             }

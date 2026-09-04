@@ -1,12 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 
-const { apiFetchMock } = vi.hoisted(() => ({
+const { apiFetchMock, apiGetJSONMock } = vi.hoisted(() => ({
   apiFetchMock: vi.fn(),
+  apiGetJSONMock: vi.fn(),
 }));
 
 vi.mock('../../../packages/frontend/src/utils/apiClient', () => ({
   apiFetch: apiFetchMock,
+  apiGetJSON: apiGetJSONMock,
   apiPostJSON: vi.fn(),
   apiPost: vi.fn(),
   apiDelete: vi.fn(),
@@ -23,11 +25,12 @@ const ANNOUNCEMENTS = [
 describe('useAnnouncements 成功路径', () => {
   beforeEach(() => {
     apiFetchMock.mockReset();
+    apiGetJSONMock.mockReset();
+    apiGetJSONMock.mockResolvedValue(ANNOUNCEMENTS);
     localStorage.clear();
   });
 
   it('应展示公告并计算未读数', async () => {
-    apiFetchMock.mockResolvedValue({ ok: true, json: async () => ({ data: ANNOUNCEMENTS }) });
     const { result } = renderHook(() => useAnnouncements());
     await act(async () => {});
     expect(result.current.announcements).toHaveLength(2);
@@ -35,7 +38,6 @@ describe('useAnnouncements 成功路径', () => {
   });
 
   it('markAllRead 应全部标记已读并持久化', async () => {
-    apiFetchMock.mockResolvedValue({ ok: true, json: async () => ({ data: ANNOUNCEMENTS }) });
     const { result } = renderHook(() => useAnnouncements());
     await act(async () => {});
     act(() => result.current.markAllRead());
@@ -45,7 +47,6 @@ describe('useAnnouncements 成功路径', () => {
 
   it('localStorage 已读数据损坏时视为未读', async () => {
     localStorage.setItem('announcements-read', '{oops');
-    apiFetchMock.mockResolvedValue({ ok: true, json: async () => ({ data: ANNOUNCEMENTS }) });
     const { result } = renderHook(() => useAnnouncements());
     await act(async () => {});
     expect(result.current.announcements).toHaveLength(2);

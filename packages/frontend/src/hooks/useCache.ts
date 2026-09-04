@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { apiFetch } from '@/utils/apiClient';
+import { z } from 'zod';
+import { apiFetch, apiGetJSON } from '@/utils/apiClient';
 interface TickerMeta {
   ticker: string;
   name: string;
@@ -70,10 +71,22 @@ interface Announcement {
   variant: 'info' | 'success' | 'warning';
   publishedAt: string;
 }
+const announcementSchema = z
+  .object({
+    id: z.number(),
+    slug: z.string().default(''),
+    title: z.string(),
+    body: z.string(),
+    ctaLabel: z.string().optional(),
+    ctaLink: z.string().optional(),
+    variant: z.enum(['info', 'success', 'warning']).catch('info'),
+    publishedAt: z.string().catch(''),
+  })
+  .passthrough();
+const announcementsSchema = z.array(announcementSchema);
 const announceCache = createResourceCache<Announcement[]>(() =>
-  apiFetch('/api/v1/announcements', { silent: true })
-    .then((r) => (r.ok ? r.json() : { data: [] }))
-    .then((j) => (Array.isArray(j.data ?? j) ? (j.data ?? j) : []))
+  apiGetJSON<Announcement[]>('/api/v1/announcements', 'Request failed', announcementsSchema)
+    .then((d) => (Array.isArray(d) ? d : []))
     .catch(() => []),
 );
 export function useAnnouncements() {
@@ -103,27 +116,13 @@ interface DataMeta {
   earliestDate: string;
   dataPointCount: number;
 }
-const metaInitial = (): DataMeta | null => {
-  try {
-    const g = (window as { __INITIAL_DATA__?: Record<string, unknown> }).__INITIAL_DATA__;
-    const d = g && ((g.data ?? g) as Partial<DataMeta>);
-    if (!d || d.tickerCount === undefined || !d.lastUpdated) return null;
-    return {
-      ...d,
-      earliestDate: d.earliestDate || '',
-      dataPointCount: d.dataPointCount || 0,
-    } as DataMeta;
-  } catch {
-    return null;
-  }
-};
 const metaCache = createResourceCache<DataMeta | null>(
   () =>
     apiFetch('/api/v1/data/meta', { silent: true })
       .then((r) => (r.ok ? r.json() : null))
       .then((j) => ((j?.data ?? j)?.lastUpdated ? (j?.data ?? j) : null))
       .catch(() => null),
-  metaInitial(),
+  null,
   5 * 60 * 1000,
 );
 export const useDataMeta = (): DataMeta | null => useCachedResource(metaCache);
