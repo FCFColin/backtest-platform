@@ -39,12 +39,47 @@ secretGroup = 1
 keywords = ["JWT_SECRET"]
 
 [allowlist]
-description = "Allowlisted paths"
+description = "Allowlisted paths + DEFAULT_SECRETS dev 占位字面量精确例外"
 paths = [
   '''^\.env\.example$''',
   '''^\.gitleaks\.toml$''',
   '''^docs/.*''',
-  '''^packages/backend/src/config/.*''',
   # 测试夹具使用假密钥（如 'env-admin-key'），非真实凭据
   '''^tests/''',
+  # 构建产物（dist*）与 gitignored 的本地部署 secret 实值文件均不入库（git 历史扫描 0 finding）；
+  # 权威源（src / *.yaml.example）不在豁免面内，误入真凭据仍会报警
+  '''^dist-ssr/''',
+  '''^packages/(backend|frontend)/dist/''',
+  '''^k8s/(auth|postgres|alertmanager-webhooks)-secret\.yaml$''',
+]
+# DEFAULT_SECRETS dev 占位字面量精确例外：仅放行下列已知非机密的开发占位值，
+# 不再整目录豁免 packages/backend/src/config/（真凭据误入该目录必须报警）。
+# 字面量单一事实源：packages/backend/src/config/assertNoDefaultSecrets.ts（fail-closed 启动自检）。
+# 注意：regexes 匹配 gitleaks 的 secret 捕获组而非整行，故按捕获组内容书写。
+regexes = [
+  '''dev-only-jwt-secret-change-in-production''',
+  '''dev-engine-auth-token''',
+  '''dev-data-service-auth-token''',
+  # config/index.ts 中 `=== DEFAULT_SECRETS.XXX` 比较表达式（本规则的 secret 捕获组贪婪缺陷的已知形态）
+  '''DEFAULT_SECRETS\.(JWT_SECRET|ENGINE_AUTH_TOKEN|DATA_SERVICE_AUTH_TOKEN)''',
+  # jwtSigner.ts:9 `const JWT_SECRET = config.JWT_SECRET;` —— 配置引用语句被捕获组误读为字面量
+  '''config\.JWT_SECRET;''',
+  # i18n 键名误报（generic-api-key 把 monteCarlo.presets.preset6040 当作 key-like 串）
+  '''^monteCarlo\.(presets|histogram)\.''',
+]
+# 历史提交豁免（逐条 SHA 可审计）：engine/data-service token 校验行
+# `config.X === 'dev-*-auth-token'` 的捕获组贪婪缺陷（捕获 "=="），行内字面量已被上述 regexes 覆盖，
+# 但历史形态（validation.ts 已删除文件 / 旧目录 api/config）无法按现行 regexes 放行。
+commits = [
+  'e02a88592aad09e69b7fe6d133b24c6bc2c7bf8a', # refactor(backend): env 解析辅助（DEFAULT_SECRETS 校验行）
+  'df4d779aacd71b9a133e63c7f596b4f51a722d0d', # jwtAuth 简化（DEFAULT_SECRETS 校验行）
+  '52db1f019a4f223296188d2cebb18b49b178f7c9', # config validation.ts（已删除文件）
+  '16b464988f4846fe3cc75a385edddf3f6472bd51', # 大规模重构清理（DEFAULT_SECRETS 校验行）
+  '965cb24d8b2edc5d6f845277156970b4881400d1', # Phase1 重构（校验行 + inspection 文档历史记录行）
+  'eca502eebace36ea1f97e1d2211a0a071463f86d', # CQRS 重构（api/config 校验行）
+  '72b4d7aa2292870737b70fe79e3ec4633122650f', # 初始化（api/config 校验行 + StatisticsTable i18n 键误报）
+  'ab6db54f63b8c081dae5a1a7d6fa13796715471c', # statistics-table 重构（i18n 键误报）
+  '196fd6ac25f00a4e19a6f87e20a131deb67bb050', # statistics-table 重构（i18n 键误报）
+  'bb23ab8936c4a484212976c6fd5c72b402caa8d6', # statistics-table 重构（i18n 键误报）
+  '71cd274699a6d805cb612b74eba15863e63df29b', # StatisticsTable 重构（i18n 键误报）
 ]

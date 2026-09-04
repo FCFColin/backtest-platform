@@ -10,7 +10,14 @@ if (Test-Path $ledgerPath) {
   if ($last.total) { $baseline = [int]$last.total }
 }
 $target = 100000
-$exclude = 'node_modules,dist,dist-ssr,.dev-logs,coverage,.git,data,report,.turbo,.cache,.vite,playwright-report,test-results,docs/audit,.github,.husky,.devcontainer,docker,config,k8s'
+# 排除串单一事实源：scripts/loc-exclude.txt（nightly.yml 同读，防双实现漂移）；文件缺失时回退内联副本并告警
+$excludeFile = Join-Path $PSScriptRoot 'loc-exclude.txt'
+if (Test-Path $excludeFile) {
+  $exclude = (Get-Content $excludeFile -TotalCount 1).Trim()
+} else {
+  Write-Host 'WARN: scripts/loc-exclude.txt 缺失，使用内联回退排除串（可能与 nightly 漂移）' -ForegroundColor Yellow
+  $exclude = 'node_modules,dist,dist-ssr,.dev-logs,coverage,.git,data,report,.turbo,.cache,.vite,playwright-report,test-results,docs/audit,.github,.husky,.devcontainer,docker,config,k8s'
+}
 
 $result = scc $root --exclude-dir $exclude --no-cocomo --sort lines --format json | ConvertFrom-Json
 

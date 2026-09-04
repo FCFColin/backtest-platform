@@ -178,10 +178,28 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          # golden 门禁（R-04）需要 origin/master 对比历史；fetch-depth:0 仅多拉取提交对象
+          fetch-depth: 0
       - uses: ./.github/actions/pnpm-setup
         with:
           node-version: ${{ env.NODE_VERSION }}
           pnpm-version: ${{ env.PNPM_VERSION }}
+      # golden 门禁（R-04）：statistics_golden.json 变更的 PR，提交标题必须带 [golden] 标记（授权重基线可追溯）
+      - name: Enforce golden re-baseline marker (R-04)
+        run: |
+          changed=$(git diff --name-only origin/master...HEAD -- engine-go/testdata/statistics_golden.json)
+          if [ -n "$changed" ]; then
+            echo "statistics_golden.json changed in this PR — [golden] marker required in commit titles"
+            subjects=$(git log --format=%s origin/master..HEAD)
+            echo "$subjects"
+            if ! echo "$subjects" | grep -q '\[golden\]'; then
+              echo "::error::statistics_golden.json 变更但 origin/master..HEAD 提交标题均不含 [golden] 标记（R-04 重基线授权纪律）"
+              exit 1
+            fi
+          else
+            echo "statistics_golden.json 未变更 — 跳过"
+          fi
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff
         with:
           go-version: '1.26.5'

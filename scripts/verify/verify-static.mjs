@@ -2,8 +2,11 @@
 // 纯静态 CRITICAL 修复验证：不依赖 DB/前端服务，CI 始终执行
 // C-015 (ADR) + C-016 (CHANGELOG) + C-017 (migration chain) + C-018 (singleflight) + C-019 (frontend dead code)
 // + C-020 (engine timeout) + C-021 (BullMQ DLQ) + C-022 (OpenAPI) + C-023 (degraded)
+// + C-027 (AGENTS 数字机器校验) + C-028 (prettier format)
+import { execFileSync } from 'node:child_process';
+import { statSync } from 'node:fs';
 import { existsSync, readdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, sep } from 'node:path';
 import {
   runCmd,
   fileExists,
@@ -58,7 +61,7 @@ await runCheck(results, 'C-015', () => {
   };
 });
 
-// ── C-016: CHANGELOG 新鲜度 + 版本一致性 + Unreleased 非空 ──
+// ── C-016: CHANGELOG 新鲜度 + 版本一致性 + Unreleased 非空 + 沉默提交双门 ──
 await runCheck(results, 'C-016', () => {
   if (!fileExists('CHANGELOG.md')) return { status: 'FAIL', summary: 'CHANGELOG.md 不存在' };
   const changelog = readFileContent('CHANGELOG.md');
@@ -79,12 +82,36 @@ await runCheck(results, 'C-016', () => {
   const unreleased = changelog.match(/## \[Unreleased\]\n([\s\S]*?)(?=\n## |$)/)?.[1] ?? '';
   const unreleasedItems = unreleased.split('\n').filter((l) => l.trim().startsWith('-')).length;
   if (unreleasedItems === 0) reasons.push('Unreleased 为空（应记录未发布改动）');
+  // 双门 2（沉默提交数）：changelog 最后日期之后落库的提交 > 40 视为回补失职——
+  // 事件驱动的新鲜度断言在密集提交期可因"恰有旧条目"而漏报，提交量计数堵该缺口。
+  // 用 execFileSync 避免 shell 注入面（date 字面量由脚本生成，不拼接用户输入）。
+  let commitsAfter = -1;
+  try {
+    const out = execFileSync(
+      'git',
+      ['rev-list', '--count', `--since=${latestDate} 23:59:59`, 'HEAD'],
+      {
+        cwd: PROJECT_ROOT_PATH,
+        encoding: 'utf-8',
+        timeout: 30000,
+      },
+    ).trim();
+    commitsAfter = parseInt(out, 10);
+  } catch (e) {
+    return {
+      status: 'WARN',
+      summary: `C-016 沉默提交门无法执行: ${e.message.slice(0, 120)}`,
+      details: { latestDate },
+    };
+  }
+  if (commitsAfter > 40) reasons.push(`changelog 日期后已有 ${commitsAfter} 次提交未回补（>40）`);
   const ok = reasons.length === 0;
   return {
     status: ok ? 'PASS' : 'FAIL',
     summary: ok
-      ? `CHANGELOG ${latestDate} 新鲜 + 版本 ${pkgVersion} 一致 + Unreleased ${unreleasedItems} 条`
+      ? `CHANGELOG ${latestDate} 新鲜 + 版本 ${pkgVersion} 一致 + Unreleased ${unreleasedItems} 条 + 沉默提交 ${commitsAfter}`
       : `C-016 失败: ${reasons.join('; ')}`,
+    details: { latestDate, diffDays, latestVersion, pkgVersion, unreleasedItems, commitsAfter },
   };
 });
 
@@ -196,6 +223,112 @@ await runCheck(results, 'C-023', () => {
     summary: pass
       ? 'compute 路由无 degraded 字段 (ADR-008)'
       : `${refs.length} 处 compute degraded 引用`,
+  };
+});
+
+// ── C-027: AGENTS 净生产数字与 LOC ledger 末条机器校验 ─────────
+// 口径：AGENTS.md 中"净生产代码"后的数字（G-1 权威口径）对比 loc-ledger.jsonl 末条 net 值。
+// 判定：偏差 >500 且 ledger 末条日期新于 AGENTS.md 文件修改时间 → FAIL（手册数字过时）；
+//       其余偏差情形 → WARN 说明原因（账本滞后于手册时无裁决权）；ledger 缺失 → SKIP。
+await runCheck(results, 'C-027', () => {
+  if (!fileExists('docs/audit/loc-ledger.jsonl'))
+    return { status: 'SKIP', summary: 'docs/audit/loc-ledger.jsonl 缺失，跳过 AGENTS 数字校验' };
+  const agentsRel = ['AGENTS.md', 'docs/AGENTS.md'].find((p) => fileExists(p));
+  if (!agentsRel) return { status: 'FAIL', summary: 'AGENTS.md 未找到（根目录与 docs/ 均无）' };
+  const agents = readFileContent(agentsRel);
+  // 手册内多处出现"净生产代码"；取标注 G-1 门禁口径的那条（唯一权威），否则退回首个匹配
+  const netMatches = [...agents.matchAll(/净生产代码\s*([0-9,]+)/g)].map((m) =>
+    Number(m[1].replace(/,/g, '')),
+  );
+  if (netMatches.length === 0)
+    return { status: 'SKIP', summary: 'AGENTS.md 中未找到"净生产代码"数字' };
+  const g1Line = agents.split('\n').find((l) => /净生产代码/.test(l) && /G-1/.test(l));
+  const agentsNet = g1Line
+    ? Number((g1Line.match(/净生产代码\s*([0-9,]+)/) ?? [])[1]?.replace(/,/g, '') ?? NaN)
+    : netMatches[0];
+  if (!Number.isFinite(agentsNet))
+    return { status: 'WARN', summary: 'AGENTS.md G-1 净生产数字解析失败', details: { netMatches } };
+  const lines = readFileContent('docs/audit/loc-ledger.jsonl')
+    .split('\n')
+    .map((l) => l.trim())
+    .filter(Boolean);
+  let last = null;
+  for (const l of lines) {
+    try {
+      const j = JSON.parse(l);
+      if (typeof j.net === 'number') last = j;
+    } catch {}
+  }
+  if (!last) {
+    // ledger 尚无 net 字段（净值口径未入账）：退化为全仓 total 对比（count-loc.ps1 同口径），
+    // 从 AGENTS.md"全仓 N 行"标题行取数，同 FAIL/WARN 判定
+    for (const l of lines) {
+      try {
+        const j = JSON.parse(l);
+        if (typeof j.total === 'number') last = j;
+      } catch {}
+    }
+    const allRepo = agents.match(/全仓\s*([0-9,]+)\s*行/)?.[1];
+    if (!last || !allRepo)
+      return {
+        status: 'SKIP',
+        summary: 'ledger 末条无 net/total 字段或 AGENTS 无全仓数字——无法机器对比',
+        details: { ledgerLines: lines.length },
+      };
+    const agentsTotal = Number(allRepo.replace(/,/g, ''));
+    const agentsMtime = statSync(join(PROJECT_ROOT_PATH, agentsRel.split('/').join(sep))).mtime;
+    const ledgerNewer = new Date(last.date) > new Date(agentsMtime.toDateString());
+    const deviation = Math.abs(last.total - agentsTotal);
+    if (deviation > 500 && ledgerNewer) {
+      return {
+        status: 'FAIL',
+        summary: `AGENTS 全仓 ${agentsTotal} 与 ledger 末条 total ${last.total} 偏差 ${deviation}（>500），且 ledger（${last.date}）新于 AGENTS 修改时间——手册数字过时（净生产口径待 ledger 入账后启用）`,
+        details: { agentsTotal, ledgerTotal: last.total, deviation, ledgerDate: last.date },
+      };
+    }
+    return {
+      status: 'WARN',
+      summary:
+        deviation > 500
+          ? `全仓偏差 ${deviation}（>500）但 ledger 末条（${last.date}）不新于 AGENTS.md 修改时间（${agentsMtime.toISOString().slice(0, 10)}）——无裁决权，仅告警（net 口径未入账）`
+          : `AGENTS 全仓 ${agentsTotal} 与 ledger 末条 total ${last.total} 偏差 ${deviation}（≤500，容差内）`,
+      details: { agentsTotal, ledgerTotal: last.total, deviation, ledgerDate: last.date },
+    };
+  }
+  const agentsMtime = statSync(join(PROJECT_ROOT_PATH, agentsRel.split('/').join(sep))).mtime;
+  const ledgerNewer = new Date(last.date) > new Date(agentsMtime.toDateString());
+  const deviation = Math.abs(last.net - agentsNet);
+  if (deviation > 500 && ledgerNewer) {
+    return {
+      status: 'FAIL',
+      summary: `AGENTS 净生产 ${agentsNet} 与 ledger 末条 net ${last.net} 偏差 ${deviation}（>500），且 ledger（${last.date}）新于 AGENTS 修改时间——手册数字过时`,
+      details: { agentsNet, ledgerNet: last.net, deviation, ledgerDate: last.date },
+    };
+  }
+  return {
+    status: 'WARN',
+    summary:
+      deviation > 500
+        ? `偏差 ${deviation}（>500）但 ledger 末条（${last.date}）不新于 AGENTS.md 修改时间（${agentsMtime.toISOString().slice(0, 10)}）——无裁决权，仅告警`
+        : `AGENTS 净生产 ${agentsNet} 与 ledger 末条 net ${last.net} 偏差 ${deviation}（≤500，容差内）`,
+    details: { agentsNet, ledgerNet: last.net, deviation, ledgerDate: last.date, ledgerNewer },
+  };
+});
+
+// ── C-028: prettier 格式一致性（全仓 --check）──────────────────
+await runCheck(results, 'C-028', () => {
+  const r = runCmd('npx prettier --check .', { timeout: 120000 });
+  const out = (r.out + r.err)
+    .split('\n')
+    .filter((l) => l.includes('[warn]'))
+    .slice(0, 15);
+  return {
+    status: r.code === 0 ? 'PASS' : 'FAIL',
+    summary:
+      r.code === 0
+        ? 'prettier --check 全仓通过'
+        : `prettier 不一致文件 ${out.length}+ 个（exit ${r.code}）: ${out.join(' | ').slice(0, 300)}`,
+    details: { exitCode: r.code, warnSample: out },
   };
 });
 

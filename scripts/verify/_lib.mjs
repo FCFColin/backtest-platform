@@ -11,9 +11,11 @@ mkdirSync(OUTPUT_DIR, { recursive: true });
 mkdirSync(join(OUTPUT_DIR, 'screenshots'), { recursive: true });
 
 // pg 只存在于 backend workspace（pnpm 不提升到根），经 backend 的 require 解析
+// WARN 状态：检查发现偏差但按门禁定义不具阻断权（如 C-027 账本滞后），计入通过但保留痕迹
+const NON_BLOCKING_STATUSES = new Set(['PASS', 'SKIP', 'WARN']);
 export function writeAggregatedResult(aggregateId, results) {
   const timestamp = new Date().toISOString();
-  const allPass = Object.values(results).every((r) => r.status === 'PASS' || r.status === 'SKIP');
+  const allPass = Object.values(results).every((r) => NON_BLOCKING_STATUSES.has(r.status));
   const output = {
     aggregateId,
     timestamp,
