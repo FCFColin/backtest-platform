@@ -269,8 +269,8 @@ export default function CorrelationWithBeta({
                                 ri === ci
                                   ? undefined
                                   : v > 0
-                                    ? 'var(--color-success)'
-                                    : 'var(--color-danger)',
+                                    ? 'hsl(var(--success))'
+                                    : 'hsl(var(--danger))',
                             }}
                           >
                             {v.toFixed(2)}

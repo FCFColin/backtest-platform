@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'fs';
+import { readFileSync, readdirSync, statSync } from 'fs';
 import { join } from 'path';
 
 const tokensPath = join(
@@ -17,6 +17,18 @@ const tokensContent = readFileSync(tokensPath, 'utf-8');
 
 const tailwindConfigPath = join(__dirname, '..', '..', '..', 'tailwind.config.cjs');
 const tailwindConfigContent = readFileSync(tailwindConfigPath, 'utf-8');
+
+const frontendSrcDir = join(__dirname, '..', '..', '..', 'packages', 'frontend', 'src');
+
+function collectTsFiles(dir: string, exts: string[]): string[] {
+  const out: string[] = [];
+  for (const entry of readdirSync(dir)) {
+    const full = join(dir, entry);
+    if (statSync(full).isDirectory()) out.push(...collectTsFiles(full, exts));
+    else if (exts.some((ext) => entry.endsWith(ext))) out.push(full);
+  }
+  return out;
+}
 
 describe('tokens.css P0-2 CSS 变量', () => {
   describe('亮色主题（:root）', () => {
@@ -86,5 +98,45 @@ describe('tailwind.config.cjs P0-1 fontSize 阶梯', () => {
     ['h1 字重 700', /h1:\s*\['24px'[^}]*fontWeight:\s*'700'/],
   ])('%s', (_name, re) => {
     expect(tailwindConfigContent).toMatch(re);
+  });
+});
+
+describe('tokens.css 反向断言：frontend src 无幽灵 CSS 变量引用', () => {
+  const tokenNameRe = /^\s*(--[a-z0-9-]+)\s*:/gm;
+  const defined = new Set<string>();
+  for (const m of tokensContent.matchAll(tokenNameRe)) defined.add(m[1]);
+
+  // Radix UI 运行时注入的定位变量（非本项目 token 体系，无法在 tokens.css 定义）
+  const externalAllowed = new Set([
+    '--radix-select-trigger-height',
+    '--radix-select-trigger-width',
+  ]);
+
+  const files = collectTsFiles(frontendSrcDir, ['.ts', '.tsx']);
+  const refs = new Map<string, string[]>();
+  for (const file of files) {
+    const text = readFileSync(file, 'utf-8')
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/^\s*\/\/.*$/gm, '');
+    for (const m of text.matchAll(/var\((--[a-z0-9-]+)/g)) {
+      const list = refs.get(m[1]) ?? [];
+      list.push(file);
+      refs.set(m[1], list);
+    }
+  }
+
+  it('tokens.css 至少定义了 40 个自定义属性（防解析失效空跑）', () => {
+    expect(defined.size).toBeGreaterThanOrEqual(40);
+  });
+
+  it('扫描到至少 10 个 var() 引用点（防正则失效空跑）', () => {
+    expect(refs.size).toBeGreaterThanOrEqual(10);
+  });
+
+  it('所有 var(--x) 引用的变量均在 tokens.css 定义（或列入外部白名单）', () => {
+    const unknown = [...refs.keys()].filter(
+      (name) => !defined.has(name) && !externalAllowed.has(name),
+    );
+    expect(unknown).toEqual([]);
   });
 });
