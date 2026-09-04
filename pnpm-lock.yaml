@@ -224,8 +224,8 @@ importers:
         specifier: ^4.2.0
         version: 4.3.1(express-rate-limit@7.5.1(express@4.22.2))
       stripe:
-        specifier: ^17.7.0
-        version: 17.7.0
+        specifier: ^22.6.0
+        version: 22.6.0(@types/node@22.20.0)
       swagger-ui-express:
         specifier: ^5.0.1
         version: 5.0.1(express@4.22.2)
@@ -5450,9 +5450,14 @@ packages:
   strip-literal@3.1.0:
     resolution: {integrity: sha512-8r3mkIM/2+PpjHoOtiAW8Rg3jJLHaV7xPwG+YRGrv6FP0wwk/toTpATxWYOW0BKdWwl82VT2tFYi5DlROa0Mxg==}
 
-  stripe@17.7.0:
-    resolution: {integrity: sha512-aT2BU9KkizY9SATf14WhhYVv2uOapBWX0OFWF4xvcj1mPaNotlSc2CsxpS4DS46ZueSppmCF5BX1sNYBtwBvfw==}
-    engines: {node: '>=12.*'}
+  stripe@22.6.0:
+    resolution: {integrity: sha512-Ezk+WYEEwX2DLxFrKfb6coznlCMZvCaCYMNPXNHFSZkBIEzF5Hgm7RLb38q/0h9Ol5jsUJGJRorvhzAvckgfhw==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      '@types/node': '>=18'
+    peerDependenciesMeta:
+      '@types/node':
+        optional: true
 
   strnum@2.4.1:
     resolution: {integrity: sha512-M9eUSMT2dCB2cTNPG7UYj6KuK7RJR2SN2+yCV/fTW3xzTCS6EaGZ5pSMgDIjB7r8zSfTGk+dvvn9rTjpVS9Mwg==}
@@ -11503,10 +11508,9 @@ snapshots:
     dependencies:
       js-tokens: 9.0.1
 
-  stripe@17.7.0:
-    dependencies:
+  stripe@22.6.0(@types/node@22.20.0):
+    optionalDependencies:
       '@types/node': 22.20.0
-      qs: 6.16.0
 
   strnum@2.4.1:
     dependencies:
