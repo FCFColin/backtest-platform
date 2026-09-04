@@ -302,3 +302,39 @@ func TestRebalanceOffset(t *testing.T) {
 		})
 	}
 }
+
+// U-2 stretch：rebalanceLog 上限 200 条——保留最近，超出丢最旧
+func TestRebalanceLogCap(t *testing.T) {
+	pf := PortfolioInput{
+		Name:               "t",
+		Assets:             []AssetInput{{Ticker: "A", Weight: 100}},
+		RebalanceFrequency: "daily",
+	}
+	dates := make([]time.Time, 0, 210)
+	pd := PriceDataMap{}
+	for i := 0; i < 210; i++ {
+		d := time.Date(2023, 1, 2+i, 0, 0, 0, 0, time.UTC)
+		dates = append(dates, d)
+		pd["A"] = map[string]float64{}
+	}
+	// 价格单调变化使每日再平衡都有真实换仓
+	for i, d := range dates {
+		key := d.Format("2006-01-02")
+		pd["A"][key] = 100 + float64(i%7)
+	}
+	_, _, _, rebLog, err := computeGrowthCurve(pf, pd, nil, nil, dates, BacktestParams{StartingValue: 1000})
+	if err != nil {
+		t.Fatalf("computeGrowthCurve 返回错误: %v", err)
+	}
+	if len(rebLog) != maxRebalanceLogEntries {
+		t.Fatalf("rebalanceLog 长度 = %d, want 精确 %d（210 交易日日频应触发截断）", len(rebLog), maxRebalanceLogEntries)
+	}
+	if len(rebLog) == 0 {
+		t.Fatal("rebalanceLog 为空")
+	}
+	// 保留的是最近的：末条必须是最后一个交易日
+	last := rebLog[len(rebLog)-1]
+	if want := dates[len(dates)-1].Format("2006-01-02"); last.Date != want {
+		t.Errorf("rebalanceLog 末条日期 = %s, want 最近交易日 %s", last.Date, want)
+	}
+}

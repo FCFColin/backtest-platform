@@ -86,6 +86,18 @@ func computeBenchmarkGrowth(benchmarkTicker string, priceData PriceDataMap, trad
 	return curve
 }
 
+// maxRebalanceLogEntries 上限保留最近的再平衡日志，超出丢弃最旧（防 50 年日频组合响应体膨胀）
+const maxRebalanceLogEntries = 200
+
+func appendRebalanceTrade(log []RebalanceTrade, trade RebalanceTrade) []RebalanceTrade {
+	log = append(log, trade)
+	if len(log) > maxRebalanceLogEntries {
+		copy(log, log[1:])
+		log = log[:maxRebalanceLogEntries]
+	}
+	return log
+}
+
 func computeGrowthCurve(pf PortfolioInput, priceData PriceDataMap, cpiData map[string]float64, exchangeRates map[string]float64, tradingDates []time.Time, params BacktestParams) ([]DataPoint, []AllocationPoint, []Cashflow, []RebalanceTrade, error) {
 	startValue := engineutil.DefaultStartingValue(params.StartingValue)
 	n := len(pf.Assets)
@@ -246,7 +258,7 @@ func recalculateShares(holdings []float64, shares *[]float64, lastPrices []float
 			after := pv * currentWeights[i]
 			items[i] = RebalanceTradeItem{Ticker: ticker, BeforeValue: holdings[i], AfterValue: after, DeltaValue: after - holdings[i]}
 		}
-		*tradeLog = append(*tradeLog, RebalanceTrade{Date: date, Trades: items})
+		*tradeLog = appendRebalanceTrade(*tradeLog, RebalanceTrade{Date: date, Trades: items})
 		trades = &(*tradeLog)[len(*tradeLog)-1].Trades
 	}
 	for i := range holdings {

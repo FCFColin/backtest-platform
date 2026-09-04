@@ -54,7 +54,7 @@ func dailyReturnsCore(prices []float64, keepZeros bool) []float64 {
 	}
 	return rets
 }
-func DailyReturns(prices []float64) []float64 { return dailyReturnsCore(prices, false) }
+func DailyReturns(prices []float64) []float64          { return dailyReturnsCore(prices, false) }
 func DailyReturnsWithZeros(prices []float64) []float64 { return dailyReturnsCore(prices, true) }
 
 // dailyReturn 把 0 视为缺失而非真实清零：后续仍有报价判定为缺口（记 0），否则为清算（记 -100%）。

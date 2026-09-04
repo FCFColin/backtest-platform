@@ -58,7 +58,7 @@ var expectedOneTimeCashflowFields = []string{
 	"amount", "type", "date",
 }
 var expectedAssetInputFields = []string{
-	"ticker", "weight",
+	"ticker", "weight", "fee",
 }
 var expectedPortfolioResultFields = []string{
 	"name", "growthCurve", "drawdownCurve", "rollingReturns",
