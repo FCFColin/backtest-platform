@@ -267,7 +267,9 @@ func CalcUlcerIndex(values []float64) float64 {
 	return math.Sqrt(safeRatio(sumSq, float64(len(values))))
 }
 func CalcCalmar(cagr, maxDrawdown float64) float64 { return safeRatio(cagr, maxDrawdown) }
-func CalcUPI(cagr, ulcerIndex float64) float64     { return safeRatio(cagr-riskFreeRate, ulcerIndex) }
+
+// CalcUPI UPI 显式 rf 口径（U-2 收尾：与同文件 MartinRatio 一致，调用方传窗口 rfAnnual）
+func CalcUPI(cagr, ulcerIndex, rf float64) float64 { return safeRatio(cagr-rf, ulcerIndex) }
 func CalcDrawdownCurve(values []float64, dates []string) []DrawdownPoint {
 	if len(values) == 0 {
 		return nil

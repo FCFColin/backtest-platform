@@ -101,10 +101,26 @@ func TestCalcRatioFuncs(t *testing.T) {
 		{"Calmar zero drawdown", CalcCalmar, 0.10, 0, 0},
 		{"Calmar normal case", CalcCalmar, 0.10, 0.20, 0.5},
 		{"Calmar negative cagr", CalcCalmar, -0.05, 0.20, -0.25},
-		{"UPI zero ulcer", CalcUPI, 0.10, 0, 0},
-		{"UPI normal case", CalcUPI, 0.10, 0.15, (0.10 - 0.02) / 0.15},
 	} {
 		t.Run(tc.name, func(t *testing.T) { assertFloatApprox(t, tc.fn(tc.a, tc.b), tc.want, "ratio") })
+	}
+}
+
+// U-2 收尾：CalcUPI 改显式 rf（与 MartinRatio 口径一致）；rf=0.02 时与旧实现数值相同
+func TestCalcUPI(t *testing.T) {
+	for _, tc := range []struct {
+		name               string
+		cagr, ulcerIdx, rf float64
+		want               float64
+	}{
+		{"legacy rf 0.02 same as before", 0.10, 0.15, 0.02, (0.10 - 0.02) / 0.15},
+		{"zero ulcer", 0.10, 0, 0.02, 0},
+		{"explicit non-legacy rf", 0.10, 0.15, 0.05, (0.10 - 0.05) / 0.15},
+		{"negative cagr", -0.05, 0.20, 0.02, (-0.05 - 0.02) / 0.20},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			assertFloatApprox(t, CalcUPI(tc.cagr, tc.ulcerIdx, tc.rf), tc.want, "CalcUPI")
+		})
 	}
 }
 func TestCalcSortino(t *testing.T) {

@@ -122,7 +122,7 @@ func CalculateStatisticsFromRequest(req StatisticsRequest) Statistics {
 		CAGR: cagr, MWRR: mwrr, Stdev: stdevDaily, Sharpe: sharpe, Sortino: sortino, MaxDrawdown: dd.MaxDrawdown, MaxDrawdownDuration: dd.MaxDrawdownDuration,
 		BestYear: maxAnnualRet, WorstYear: minAnnualRet, AvgYear: avgAnnual, TotalReturn: totalReturn,
 		MaxMonthlyReturn: MaxValue(req.MonthlyReturnValues), MinMonthlyReturn: MinValue(req.MonthlyReturnValues), AvgDrawdown: CalcAvgDrawdown(req.Values), UlcerIndex: ulcerIdx,
-		Calmar: CalcCalmar(cagr, dd.MaxDrawdown), UlcerPerformanceIndex: CalcUPI(cagr, ulcerIdx), Beta: bm.Beta, Alpha: bm.Alpha, RSquared: bm.RSquared,
+		Calmar: CalcCalmar(cagr, dd.MaxDrawdown), UlcerPerformanceIndex: CalcUPI(cagr, ulcerIdx, rfAnnual), Beta: bm.Beta, Alpha: bm.Alpha, RSquared: bm.RSquared,
 		TrackingError: bm.TrackingError, InformationRatio: bm.InformationRatio, UpsideCapture: bm.UpsideCapture, DownsideCapture: bm.DownsideCapture,
 		MaxDailyReturn: maxDailyRet, MinDailyReturn: minDailyRet, PWR: pwr,
 		Var: vaRByFrequency(freqs, CalcVaR), Cvar: vaRByFrequency(freqs, CalcCVaR),
@@ -142,7 +142,9 @@ func CalculateStatisticsFromRequest(req StatisticsRequest) Statistics {
 		AvgMonthlyGain: avgMonthlyGain, AvgMonthlyLoss: avgMonthlyLoss, GainLossRatioMonthly: gainLossRatioMonthly,
 		AvgAnnualGain: avgAnnualGain, AvgAnnualLoss: avgAnnualLoss, GainLossRatioAnnual: gainLossRatioAnnual,
 		SWR: swr, SWR10Y: pwrAll.SWR10Y, PWR10Y: pwrAll.PWR10Y, SWR20Y: pwrAll.SWR20Y, PWR20Y: pwrAll.PWR20Y, SWR30Y: pwrAll.SWR30Y, PWR30Y: pwrAll.PWR30Y, SWR40Y: pwrAll.SWR40Y, PWR40Y: pwrAll.PWR40Y,
-		PSR:            CalcPSR(req.DailyReturns, rfAnnual, riskFreeRate),
+		// U-2 收尾：srRef 参照口径统一——第三参是 PSR 检验的参照 Sharpe 基准，
+		// 与本函数其余 rf 消费（Sortino/Sharpe/Downside）一致改用 rfAnnual，不再用 legacy 常量
+		PSR:            CalcPSR(req.DailyReturns, rfAnnual, rfAnnual),
 		HurstExponent:  CalcHurstExponent(req.Values),
 		BurkeRatio:     CalcBurkeRatio(cagr, rfAnnual, episodeDepths(episodes)),
 		MartinRatio:    safeRatio(cagr-rfAnnual, ulcerIdx),

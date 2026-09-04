@@ -1,6 +1,7 @@
 package optimizer
 
 import (
+	"engine-go/internal/engineutil"
 	"fmt"
 	"gonum.org/v1/gonum/stat"
 	"math"
@@ -158,7 +159,7 @@ func TestSolveFrontierPoint(t *testing.T) {
 		{0.095, []float64{0.9, 0.1}},
 	} {
 		t.Run(fmt.Sprintf("targetRet=%.3f", tc.targetRet), func(t *testing.T) {
-			w := solveFrontierPoint(mu, sigma, tc.targetRet, c)
+			w := solveFrontierPoint(engineutil.RiskFreeRate, mu, sigma, tc.targetRet, c)
 			for i := range w {
 				if math.Abs(w[i]-tc.want[i]) > 1e-6 {
 					t.Errorf("权重 %d = %.6f，期望 %.6f", i, w[i], tc.want[i])

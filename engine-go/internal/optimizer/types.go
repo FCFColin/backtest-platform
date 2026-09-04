@@ -23,6 +23,8 @@ type FrontierRequest struct {
 	Tickers   []string                      `json:"tickers"`
 	PriceData map[string]map[string]float64 `json:"priceData"`
 	NumPoints int                           `json:"numPoints"`
+	// U-2 收尾：年化无风险利率（nil→legacy 常量 0.02），用于 frontier 各点 SharpeRatio 输出
+	RiskFreeRate *float64 `json:"riskFreeRate,omitempty"`
 }
 type FrontierResponse struct {
 	Frontier []FrontierPoint `json:"frontier"`

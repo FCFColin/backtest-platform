@@ -258,7 +258,8 @@ func RunTacticalBacktest(ctx context.Context, req TacticalBacktestRequest) (*Tac
 			values[i], dts[i] = g.Value, g.Date
 		}
 		dailyRets := mathutil.DailyReturnsWithZeros(values)
-		stats = engine.CalculateStatisticsFromRequest(engine.StatisticsRequest{Values: values, Dates: dts, StartingValue: req.StartingValue, DailyReturns: dailyRets, AnnualReturnValues: []float64{}, MonthlyReturnValues: []float64{}, MwrrCashflows: []engine.Cashflow{}})
+		// U-2 收尾：rf 透传（nil→engine 层 legacy 常量回退，模式与 signal.go 完成态一致）
+		stats = engine.CalculateStatisticsFromRequest(engine.StatisticsRequest{Values: values, Dates: dts, StartingValue: req.StartingValue, DailyReturns: dailyRets, AnnualReturnValues: []float64{}, MonthlyReturnValues: []float64{}, MwrrCashflows: []engine.Cashflow{}, RiskFreeRate: req.RiskFreeRate})
 	}
 	return &TacticalBacktestResult{Portfolio: engine.PortfolioResult{Name: "战术分配", GrowthCurve: growthCurve, Statistics: stats}, SignalHistory: signalHistory}, nil
 }

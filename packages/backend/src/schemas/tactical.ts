@@ -35,6 +35,7 @@ export const tacticalBacktestSchema = z.object({
   endDate: z.string().min(1),
   startingValue: z.number().positive(),
   rebalanceFrequency: z.enum(ALL_REBALANCE_FREQUENCIES),
+  riskFreeRate: z.number().optional(), // U-2 收尾：年化无风险利率（FRED 优先，缺省回退引擎 legacy 0.02）
 });
 
 export const tacticalWhatIfSchema = z.object({

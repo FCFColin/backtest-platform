@@ -18,6 +18,7 @@ import {
   ensureSufficientTradingDays,
 } from './backtest/backtestEngineUtils.js';
 import { translateDomainError, type DegradedResult } from './backtest-helpers.js';
+import { loadAnnualRiskFreeRate } from '../infrastructure/dataServices.js';
 import { toDateStr, todayStr } from '../utils/misc.js';
 
 export function collectTickers(strategy: TacticalStrategy): string[] {
@@ -99,7 +100,7 @@ async function prepareTacticalPriceData(
 export async function executeTacticalBacktest(
   req: TacticalBacktestRequest,
 ): Promise<DegradedResult<TacticalBacktestResult>> {
-  const { strategy, startDate, endDate, startingValue, rebalanceFrequency } = req;
+  const { strategy, startDate, endDate, startingValue, rebalanceFrequency, riskFreeRate } = req;
   const allTickers = collectTickers(strategy);
 
   const { priceData, dates, degraded, degradedWarning } = await prepareTacticalPriceData(
@@ -107,6 +108,11 @@ export async function executeTacticalBacktest(
     startDate,
     endDate,
   );
+
+  // U-2 收尾：FRED 窗口匹配 rf 优先，用户显式其次（同 optimize-service 模式）；
+  // 均 null/undefined → 不传 → 引擎 legacy 常量，与 backtest 主路径同源
+  const fredRf = await loadAnnualRiskFreeRate(startDate, endDate);
+  const rf = fredRf ?? riskFreeRate;
 
   const [tacticalResult, benchmarkResult] = await Promise.all([
     callEngineStrict<{
@@ -120,6 +126,7 @@ export async function executeTacticalBacktest(
         dates,
         startingValue,
         rebalanceFrequency,
+        ...(rf != null ? { riskFreeRate: rf } : {}),
       },
       tacticalBacktestResultSchema,
     ),

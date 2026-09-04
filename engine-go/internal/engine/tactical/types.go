@@ -53,6 +53,8 @@ type TacticalBacktestRequest struct {
 	Dates              []string                      `json:"dates"`
 	StartingValue      float64                       `json:"startingValue"`
 	RebalanceFrequency string                        `json:"rebalanceFrequency"`
+	// U-2 收尾：年化无风险利率（nil→legacy 常量 0.02），透传 StatisticsRequest.RiskFreeRate
+	RiskFreeRate *float64 `json:"riskFreeRate,omitempty"`
 }
 type TacticalBacktestResult struct {
 	Portfolio     engine.PortfolioResult `json:"portfolio"`

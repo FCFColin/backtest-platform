@@ -35,15 +35,17 @@ func closedFormMinVolatility(sigmaInv [][]float64) ([]float64, error) {
 	}
 	return normalizedSol("closed form", denseMulVec(sigmaInv, ones))
 }
-func optimizeMinVolatility(mu []float64, sigma [][]float64, c Constraints, numIter int) []float64 {
+
+// U-2 收尾：rf 显式参数（frontier 兜底路径贯通；minVolatility 目标下 score=-vol 不依赖 rf，仅消除包级常量引用）
+func optimizeMinVolatility(rf float64, mu []float64, sigma [][]float64, c Constraints, numIter int) []float64 {
 	n := len(mu)
 	sigmaInv, err := invertDense(sigma)
 	if err != nil {
-		return randomSearch(riskFreeRate, mu, sigma, c, "minVolatility", numIter)
+		return randomSearch(rf, mu, sigma, c, "minVolatility", numIter)
 	}
 	weights, err := closedFormMinVolatility(sigmaInv)
 	if err != nil {
-		return randomSearch(riskFreeRate, mu, sigma, c, "minVolatility", numIter)
+		return randomSearch(rf, mu, sigma, c, "minVolatility", numIter)
 	}
 	if satisfiesConstraints(weights, c) {
 		return weights
@@ -66,7 +68,7 @@ func optimizeMinVolatility(mu []float64, sigma [][]float64, c Constraints, numIt
 	if isValidPortfolio(w) {
 		return w
 	}
-	return randomSearch(riskFreeRate, mu, sigma, c, "minVolatility", numIter)
+	return randomSearch(rf, mu, sigma, c, "minVolatility", numIter)
 }
 func optimizeMaxSharpe(rf float64, mu []float64, sigma [][]float64, c Constraints, numIter int) []float64 {
 	n := len(mu)

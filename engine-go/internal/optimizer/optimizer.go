@@ -10,7 +10,8 @@ import (
 )
 
 const (
-	riskFreeRate       = engineutil.RiskFreeRate // U-2 backlog：贯通需 tangentPortfolio/portfolioMetrics 签名链改造（~120 行），模式参照 engine.CalcSharpeWithRF
+	// U-2 收尾：legacy 回退常量——请求未显式传 rf 时使用（frontier 贯通已完成，此注释替代原 backlog 说明）
+	riskFreeRate       = engineutil.RiskFreeRate
 	tradingDaysPerYear = engineutil.TradingDaysPerYear
 	defaultIterations  = 10000
 	maxIterations      = 200000
@@ -68,7 +69,7 @@ func Optimize(ctx context.Context, req OptimizeRequest) (*OptimizeResponse, erro
 	var weights []float64
 	switch req.Objective {
 	case "minVolatility":
-		weights = optimizeMinVolatility(mu, sigma, req.Constraints, req.NumIterations)
+		weights = optimizeMinVolatility(rf, mu, sigma, req.Constraints, req.NumIterations)
 	case "maxSharpe":
 		weights = optimizeMaxSharpe(rf, mu, sigma, req.Constraints, req.NumIterations)
 	case "maxReturn":
@@ -85,9 +86,14 @@ func ComputeEfficientFrontier(ctx context.Context, req FrontierRequest) (*Fronti
 	if err != nil {
 		return nil, err
 	}
+	// U-2 收尾：显式 rf 优先，nil→legacy 常量（与 Optimize 路径同模式，golden/存量调用零漂移）
+	rf := riskFreeRate
+	if req.RiskFreeRate != nil {
+		rf = *req.RiskFreeRate
+	}
 	c := Constraints{MinWeight: 0, MaxWeight: 1}
-	retMin, _, _ := portfolioMetrics(riskFreeRate, optimizeMinVolatility(mu, sigma, c, defaultIterations), mu, sigma)
-	retMax, _, _ := portfolioMetrics(riskFreeRate, optimizeMaxReturn(mu, c), mu, sigma)
+	retMin, _, _ := portfolioMetrics(rf, optimizeMinVolatility(rf, mu, sigma, c, defaultIterations), mu, sigma)
+	retMax, _, _ := portfolioMetrics(rf, optimizeMaxReturn(mu, c), mu, sigma)
 	if retMax <= retMin {
 		retMax = retMin + 0.01
 	}
@@ -99,8 +105,8 @@ func ComputeEfficientFrontier(ctx context.Context, req FrontierRequest) (*Fronti
 		default:
 		}
 		targetRet := retMin + (retMax-retMin)*float64(i)/float64(req.NumPoints-1)
-		w := solveFrontierPoint(mu, sigma, targetRet, c)
-		ret, vol, sharpe := portfolioMetrics(riskFreeRate, w, mu, sigma)
+		w := solveFrontierPoint(rf, mu, sigma, targetRet, c)
+		ret, vol, sharpe := portfolioMetrics(rf, w, mu, sigma)
 		frontier = append(frontier, FrontierPoint{Weights: makeWeightMap(req.Tickers, w), ExpectedReturn: ret, ExpectedVolatility: vol, SharpeRatio: sharpe})
 	}
 	return &FrontierResponse{Frontier: frontier}, nil
@@ -149,11 +155,11 @@ func computeReturnCovariance(tickers []string, priceData map[string]map[string]f
 	}
 	return mu, cov, nil
 }
-func solveFrontierPoint(mu []float64, sigma [][]float64, targetRet float64, c Constraints) []float64 {
+func solveFrontierPoint(rf float64, mu []float64, sigma [][]float64, targetRet float64, c Constraints) []float64 {
 	n := len(mu)
 	sigmaInv, err := invertDense(sigma)
 	if err != nil {
-		return randomSearch(riskFreeRate, mu, sigma, c, "minVolatility", defaultIterations)
+		return randomSearch(rf, mu, sigma, c, "minVolatility", defaultIterations)
 	}
 	ones := make([]float64, n)
 	for i := range ones {
@@ -169,7 +175,7 @@ func solveFrontierPoint(mu []float64, sigma [][]float64, targetRet float64, c Co
 	}
 	det := a*cc - b*b
 	if math.Abs(det) < 1e-15 {
-		return randomSearch(riskFreeRate, mu, sigma, c, "minVolatility", defaultIterations)
+		return randomSearch(rf, mu, sigma, c, "minVolatility", defaultIterations)
 	}
 	lambda1 := (cc - b*targetRet) / det
 	lambda2 := (a*targetRet - b) / det
@@ -179,7 +185,7 @@ func solveFrontierPoint(mu []float64, sigma [][]float64, targetRet float64, c Co
 	}
 	for _, w := range weights {
 		if w < -1e-10 {
-			return linearInterpolationFallback(mu, sigma, targetRet, c)
+			return linearInterpolationFallback(rf, mu, sigma, targetRet, c)
 		}
 	}
 	sumW := mathutil.Sum(weights)
@@ -193,11 +199,11 @@ func solveFrontierPoint(mu []float64, sigma [][]float64, targetRet float64, c Co
 	}
 	return clipWeights(weights, c)
 }
-func linearInterpolationFallback(mu []float64, sigma [][]float64, targetRet float64, c Constraints) []float64 {
-	wMinVol := optimizeMinVolatility(mu, sigma, c, defaultIterations)
+func linearInterpolationFallback(rf float64, mu []float64, sigma [][]float64, targetRet float64, c Constraints) []float64 {
+	wMinVol := optimizeMinVolatility(rf, mu, sigma, c, defaultIterations)
 	wMaxRet := optimizeMaxReturn(mu, c)
-	retMin, _, _ := portfolioMetrics(riskFreeRate, wMinVol, mu, sigma)
-	retMax, _, _ := portfolioMetrics(riskFreeRate, wMaxRet, mu, sigma)
+	retMin, _, _ := portfolioMetrics(rf, wMinVol, mu, sigma)
+	retMax, _, _ := portfolioMetrics(rf, wMaxRet, mu, sigma)
 	if math.Abs(retMax-retMin) < 1e-15 {
 		return wMinVol
 	}
