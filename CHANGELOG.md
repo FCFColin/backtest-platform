@@ -7,8 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- feat(engine-go 授权待执行)：金样本重基线授权已下，gonum 化改造待立项
-- fix(backend 治理待裁)：jobSubmission 队列兜底向 compute 响应透传 degraded——ADR-008 字面冲突，语义裁决挂起（C-023 保持可见）
+### Added
+
+- 契约机器化：data-fetcher 响应 zod 契约（pricePoint/cpi/treasury/batch）；contract 响应体形状抽样（5 端点）；backtestResultSchema 钉住 quarterlyCorrelations
+- 治理门禁：golden 重基线 `[golden]` 标记门禁、C-016 沉默提交双门、C-027 AGENTS 数字机器校验、C-028 全仓 format 检查、nightly ledger 写权限修复（ε-1 实态化）
+
+### Fixed
+
+- P0：jobAccess 读已更名 userId 字段致非 admin 轮询全断（3 周存量）
+- P1：A5 提交行与 jobId 脱钩产生永久幽灵 failed；清扫加队列存活守卫
+- U-2 口径统一收尾：CalcUPI/CalcPSR/frontier(17 处)/tactical 全部显式 rf；optimize 请求键名 risk_free_rate→riskFreeRate（原被 Go 静默丢弃）
+- 季度相关矩阵幽灵 CSS 变量；SSR 死代码清除；长任务取消/卸载守卫；403 页；demo 转化闭环；i18n 泄漏首批
+
+## [0.4.3] - 2026-09-04
 
 > 以下为 2026-08-24（0.4.2 发布）之后至 2026-09-04 的回补，严格按 git log subject 归纳，分界窗口 2026-08-24 → 2026-09-04。
 

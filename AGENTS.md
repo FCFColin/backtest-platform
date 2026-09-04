@@ -1,10 +1,12 @@
 # AGENTS.md — 回测平台工程推进操作手册
 
-# 版本：v3.2 · 基准：master@8ca8c631
+# 版本：v3.3 · 基准：master@cdfdc292（本轮收口 @本会话）
 
-# P-URGENT 三项（U-1/U-2/U-3）已全部兑现
+# P-URGENT 三项（U-1/U-2/U-3）已全部兑现 · U-2 口径分裂已收尾
 
-# 全仓 87,911 行 · 净生产代码 52,499（ex-契约 ex-迁移）
+# 全仓 90,889 行 · 净生产代码 54,705（ex-契约 ex-迁移）
+
+# D1 裁决已执行：全仓 prettier 重排 +10.9k 净增被接受并重基线 G-1
 
 # 本文件是单一权威源。冲突时以本文件为准。
 
@@ -79,33 +81,33 @@ UI: degraded 在 banner/导出/outbox 三处可见
 §2 当前状态快照（@8ca8c631 · 实测）
 ═══════════════════════════════════════════════
 
-【LOC 四层口径】(powershell -NoProfile -File scripts/count-prod-loc.ps1, @9cce4eeb)【实测】
-全仓 87,927 ← scc全量=scripts/count-loc.ps1（含所有 测试/文档/配置，排除自动生成见 count-loc.ps1:$exclude）【实测】
-生产域毛值 53,934 含契约层
-契约层(扣除) 1,057 backend/src/schemas 8 文件
-迁移(单列观测) 447 migrations/*.sql 只增不减
-净生产代码 52,877 ← G-1 门禁口径（ex-契约 ex-迁移 唯一权威）
+【LOC 四层口径】(powershell -NoProfile -File scripts/count-prod-loc.ps1)【实测·本会话】
+全仓 90,889 ← scc全量=scripts/count-loc.ps1（含所有 测试/文档/配置，排除自动生成见 scripts/loc-exclude.txt 单源）【实测】
+生产域毛值 55,855 含契约层
+契约层(扣除) 1,150 backend/src/schemas 9 文件
+迁移(单列观测) 456 migrations/*.sql 只增不减
+净生产代码 54,705 ← G-1 门禁口径（ex-契约 ex-迁移 唯一权威）
 
-【G-1 门禁】硬上限 ≤55,000 · 目标 ≤52,000
-距目标差 499 行（U-1+U-2P1 feat 净增后；U-2 Phase 2 落地将触发
-golden 授权重基线，属语义升级非回归）；达标路径 = 待新收割侦察
-或 U/H 实现时顺手重构抵扣（52k 为里程碑非硬约束）
-功能差异化 > 行数美学；若 U/H 档全做稳定 ~53k+
-则该值为正确目标（52k 为里程碑非硬约束）
+【G-1 门禁】硬上限 ≤58,000 · 目标 ≤55,000（D1 裁决重基线：prettier 重排
+净 +9,841 后 52k/55k 旧口径作废）净 54,705 距目标余 295 行
+功能差异化 > 行数美学；U/H 档增量预算走本门禁
 
-【测试套件状态 @f4025e38→ceffc913 期间全绿·unit/contract/property/golden 未受 docs/yml 改动影响】
-unit 2267/2267 ✓ 129 文件
-contract 15/15 ✓ 含金丝雀
+【测试套件状态 @本会话收口·全绿】
+unit 2289/2289 ✓ 133 文件
+contract 20/20 ✓ 含金丝雀+响应体形状抽样 5 端点
 property 24/24 ✓
 golden PASS ✓ 24 项统计函数字节级锁定
-data-fetcher 11 包 ok ✓ vet/gofmt 静音
-engine-go 16 包 ok ✓
+data-fetcher 12 包 ok ✓ vet/gofmt 干净
+engine-go 16 包 ok ✓（conformance fee 红已修）
 check:tests 0 错误 ✓ / lint 0e/2w ✓
-verify-static PASS ✓
-verify-infra PASS ✓ 7/7（C-007 已根治@dc4e9448，ROOT 无偏离全通）
+verify-static：C-016 双门+027+028 新增；C-027 WARN 属预期（net 口径未入账）
+verify-infra PASS ✓ 7/7
 
 【ε 护栏实态（R-13 合规·本行须随实态维护）】
-ε-1 nightly LOC ledger 在线 ✓【实测】
+ε-1 nightly LOC ledger 在线 ✓【实测·本会话修复
+nightly.yml job 级 contents:write（原 workflow 只读下 push 必 403，
+ε-1 此前从未真实在线——16 条历史 ledger 均人工提交）；
+push 实效待下次 nightly run 确认【未验】】
 ε-2 fix→Repro: 机器强制 在线 ✓【实测·husky
 .husky/commit-msg 内联实现（非 commitlint 库）；
 负向探针拦截成功@本会话】
@@ -120,6 +122,13 @@ B 战线 ChartSpec/PageSpec → 已 ResultsShell 化
 "testfol.io 无 MC" → 已上 block bootstrap（勘误）
 "ε-2 未落地" → husky 内联实现早已在线（审计搜索
 盲区教训：证伪前先搜实现本体而非只搜配置文件名）
+"17 工具匿名可跑=付费墙漏洞" → 前提错：compute 链 jwtAuth fail-closed
+401，匿名仅只读行情（红队复核证伪）
+"全仓 prettier --write 低风险" → 实测 +12,155 行，须门禁重基线先行
+（已按 D1 裁决执行并重基线）
+"TanStack Query 收益>成本" → 92 调用点/21 文件迁移面 vs
+一按钮一算使用形态，R-11 不过（维持 4 自研 hook 现状）
+"表格虚拟化真实需求" → 渲染面恒 slice(-12)，无万行场景
 
 ═══════════════════════════════════════════════
 §3 硬规则（任何情况下不得违反）
@@ -141,8 +150,10 @@ go test ./engine-go/... -run TestStatisticsGoldenFile -v
 gonum 替换 ULP 偏差须上报人类裁决
 
 R-05 契约红线：Engine fail-closed/Data+Compute degraded
-语义、审计 HMAC+outbox 双写、RBAC 密钥哈希(ADR-007)、
-OpenAPI contract 15/15 含金丝雀；扫描器变更=契约变更同 PR 补 ADR
+语义、审计 pino 权威源+outbox best-effort 复制（ADR-005
+2026-09-04 澄清：同事务双写从未在生产路径存在）、
+RBAC 密钥哈希(ADR-007)、
+OpenAPI contract 20/20 含金丝雀+响应体抽样；扫描器变更=契约变更同 PR 补 ADR
 
 R-06 性能优化师出有名：无基准数据不加 memo/useMemo/useCallback
 
@@ -174,32 +185,31 @@ R-13 手册自身一致性："在线/已完成"必须附【实测】；
 6-9 个月内 testfol 会复制吗？
 
 ── P-URGENT 3 个月内 ──
-U-1 数据质量校验徽章（绿=复权校验通过/黄=降级列表可展开）
+U-1 ✓已兑现 数据质量校验徽章（绿=复权校验通过/黄=降级列表可展开）
 基础：degraded 三处一致✓+A4✓ ΔLOC ~80【推断】
 
-U-2 真实日频 T-bill 替换固定 riskFreeRate
-现状：engineutil.go:115 const RiskFreeRate = 0.02【实测】
+U-2 ✓已兑现（本会话收尾口径统一）真实日频 T-bill 替换固定 riskFreeRate
 Foliolytic 实证静态假设致 Sharpe 偏移 0.3-0.5
 动作：data-fetcher 新建 FRED provider（现有四源均无）
 → 新建存储迁移 → 引擎按日查询
 （注意：macro 服务层测试在但 PG 表不存在，均为新建件）
 ΔLOC ~120±40【推断】
 
-U-3 MC 估计法菜单扩展（block bootstrap 之上加
+U-3 ✓已兑现 MC 估计法菜单扩展（block bootstrap 之上加
 Trimmed Mean/Equal-Weight Mean/Ledoit-Wolf Shrinkage）
 对标 PMetrics 参数化天花板；golden 兜底
 竞品锚点：testfol 免费层 500次/15年/5年块
 ΔLOC ~120【推断】
 
 ── P-HIGH 3-6 个月 ──
-H-1 高级指标包（PSR/Hurst/Burke/Martin/Sterling/M²/
+H-1 ✓已兑现 高级指标包（PSR/Hurst/Burke/Martin/Sterling/M²/
 Batting Average——Foliolytic 公式公开，golden 锁定）
 ΔLOC ~100 Go+前端【推断】
-H-2 季度相关矩阵序列（对标 AWALYT；现仅静态矩阵）
+H-2 ✓已兑现 季度相关矩阵序列（对标 AWALYT；现仅静态矩阵）
 ΔLOC ~50【推断】
-H-3 再平衡交易日志升级（权重快照→买卖金额/数量）
+H-3 ✓已兑现 再平衡交易日志升级（权重快照→买卖金额/数量）
 ΔLOC ~70【推断】
-H-4 FF 结果页内建化（factor exposure 卡嵌入 BacktestResults；
+H-4 ✓已兑现 FF 结果页内建化（factor exposure 卡嵌入 BacktestResults；
 落地后 §1 六角交集主张完全成真）
 ΔLOC ~30-50【推断】
 
@@ -213,16 +223,16 @@ Black-Litterman(PV 护城河) / 移动端重构(流量>30% 再议)
 实盘工作台 / brotli 流式重构 / application 编排层
 
 ═══════════════════════════════════════════════
-§5 工程战线状态板（@8ca8c631）
+§5 工程战线状态板（@cdfdc292 + 本会话批）
 ═══════════════════════════════════════════════
 
 ✓ 口径固化 count-prod-loc.ps1 @f3e37b8b
-✓ SSR 收敛 cef5c228 净−344（fallback 仅+6 行）
+✓ SSR 收敛 cef5c228 净−344（本会话补清 main.tsx/useCache 死分支 −23）
 ✓ ε-2 .husky/commit-msg（负向探针实证@本会话）
 ✓ A4 复权置空 f4025e38 ±17（NULL 链路全通）
-✓ A5 queued 行落库 0c28ea9c +46（createRun@提交+
-withPlatformContext 清扫 pending>30min→failed；
-save() 本为 UPSERT 故 worker 推进侧零改动）
+✓ A5 queued 行落库 0c28ea9c +46 → 本会话修正：createRun 随机 UUID 与
+worker UPSERT(jobId) 永不相交产生幽灵 failed；已改 save(jobId 主键)+
+清扫存活守卫（原实现与 commit message 所称"UPSERT 推进"不符【实测】）
 ✓ B3 文档三缺口 ceffc913 +39（README 生产部署7步/
 compose lim-m·lim-s 锚点10服务/ADR-012撞号→014）
 ✓ a11y 三缺陷修复 e3aee0ee +21（SelectField useId 关联
@@ -234,6 +244,12 @@ TickerInput combobox/TacticalSignalEditor 空 label）
 ✓ page-smoke 门禁达成：a11y 清零后单次 6/6→
 --repeat-each=10 十连 51 passed→ci.yml PR gate
 挂载 17538092（CI repeat-each=3 控时长）
+✓ 本会话 D1 批：prettier 重排+lint 存量清偿（0e/2w）；
+jobAccess P0/A5 修复；审计三路由补挂；readiness 摘流豁免；
+状态 DB 兜底；U-2 口径收尾；dataServiceSchemas 契约；
+contract 响应体抽样 20/20；长任务取消+403+demo 闭环+i18n 首批；
+rebalanceLog 截断 200；golden/沉默提交/format/AGENTS 数字门禁机器化；
+Makefile 退役；gitleaks 收窄（全历史 0 finding）；qs 等 4 moderate 清零
 
 ■ gonum 战线已关闭（spike 裁决@本会话）：
 可替换候选仅 Sum×3/Percentile×4（其余为业务语义）；
@@ -249,22 +265,24 @@ VITE_I18N_SAMPLING 开关@4295e332）→30 路由采得
 工具化留档 scripts/d5-prune-i18n.mjs（knip 白名单）
 
 ═══════════════════════════════════════════════
-§6 预算全景（基线已迁移至净口径 52,133）
+§6 预算全景（D1 重基线：净口径 54,705）
 ═══════════════════════════════════════════════
 
 已兑现累计：α−34 β−29 gonum替换−89 第8会话fix+152
 SSR−344 A4+17 A5+46 B3+39 a11y+21 U-1+67 U-2+343 → 净 +156【全部实测】
+本会话（D1 批）：prettier 重排 +9,841（D1 裁决接受）；
+SSR 清除−23；修复批净 +593（W1 队列/审计/readiness +
+W2 前端 + W3 U-2 收尾 + W5 契约，含新测试）
+→ 净生产 44,864 → 54,705【全部实测】
 
-G-1 即时状态：52,877，距 ≤52,000 差 877 行
-（P-URGENT 三项 feat 净增后；既定裁决：差异化>行数美学）
-达标路径：D-5 已裁决关闭（零候选@运行时采样证伪）；
-gonum 已关闭 → 现无既有路径，差 106 行待新收割侦察
-或 U/H 实现时顺手重构抵扣（52k 为里程碑非硬约束）
+G-1 即时状态：54,705，距目标 ≤55,000 余 295 行
+（D1 重基线：硬上限 ≤58,000 · 目标 ≤55,000）
+达标路径：无既有收割路径；U/H 档增量预算走本门禁；
+超额即触发"差异化>行数美学"裁决重议
 
 产品档位增行预算：见 §4 各条【均为推断】
 三档情景方法论保留：悲观/中性/乐观 = LOC 最坏程度
-分档（非发生概率）；功能档全兑现稳态约 53k±200，
-此时 53k 即正确目标（人类已裁决：差异化>行数美学）
+分档（非发生概率）；门禁以 §2 G-1 行为准
 
 ═══════════════════════════════════════════════
 §7 决策树（每次会话执行）
