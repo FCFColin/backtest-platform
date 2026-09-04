@@ -18,7 +18,7 @@ COPY data-fetcher ./data-fetcher
 RUN cd data-fetcher && CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /data-fetcher-bin .
 
 # Stage 2: runner (digest pin)
-FROM alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc AS runner
+FROM alpine:3.24@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b AS runner
 
 RUN apk add --no-cache ca-certificates wget tzdata \
     && cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
