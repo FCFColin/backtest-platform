@@ -75,8 +75,31 @@ export const deleteRun = repo.delete;
 // A5 对账：Redis 数据丢失时 queued(pending) 行永悬——超时的置 failed，
 // 用户视角从"任务消失"变为"明确失败"。nContext 平台逃逸跨租户清扫；
 // worker 启动与周期调用。
-export async function markStalePendingRunsFailed(olderThanMinutes = 30): Promise<number> {
+// aliveCheck：队列存活守卫（依赖注入而非 import 队列单例，保持可测性）——
+// 返回仍在队列中存活的 jobId 集合，命中者豁免清扫（BullMQ 正常接管中）。
+export async function markStalePendingRunsFailed(
+  olderThanMinutes = 30,
+  aliveCheck?: (jobIds: string[]) => Promise<Set<string>>,
+): Promise<number> {
   return withPlatformContext(async (client) => {
+    if (aliveCheck) {
+      const { rows } = await client.query<{ id: string }>(
+        `SELECT id FROM backtest_runs
+         WHERE status = 'pending' AND created_at < NOW() - ($1 || ' minutes')::interval`,
+        [String(olderThanMinutes)],
+      );
+      const candidates = rows.map((r) => r.id);
+      if (candidates.length === 0) return 0;
+      const alive = await aliveCheck(candidates);
+      const stale = candidates.filter((id) => !alive.has(id));
+      if (stale.length === 0) return 0;
+      const { rowCount } = await client.query(
+        `UPDATE backtest_runs SET status = 'failed', result = $2::jsonb
+         WHERE id = ANY($1::uuid[]) AND status = 'pending'`,
+        [stale, JSON.stringify({ error: 'stale: job never started' })],
+      );
+      return rowCount ?? 0;
+    }
     const { rowCount } = await client.query(
       `UPDATE backtest_runs SET status = 'failed', result = $2::jsonb
        WHERE status = 'pending' AND created_at < NOW() - ($1 || ' minutes')::interval`,

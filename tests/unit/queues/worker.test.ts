@@ -5,6 +5,8 @@ import { redisModuleMock } from '../../helpers/redisFixture.js';
 import { engineMocks } from '../../helpers/engineFixture.js';
 vi.mock('../../../packages/backend/src/queues/backtestQueue.js', () => ({
   createBacktestWorker: vi.fn(() => ({ close: vi.fn().mockResolvedValue(undefined) })),
+  // worker.ts A5 清扫的队列存活守卫读取 backtestQueue.getJobs
+  backtestQueue: { getJobs: vi.fn().mockResolvedValue([]) },
 }));
 vi.mock('../../../packages/backend/src/application/optimize-service.js', () => ({
   executeOptimization: vi.fn(),
@@ -23,8 +25,9 @@ vi.mock('../../../packages/backend/src/queues/queueUtils.js', () => ({
   releaseJobClaim: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock('../../../packages/backend/src/repositories/backtestRunRepo.js', () => ({
-  createRun: vi.fn().mockResolvedValue({ id: 'run-1' }),
+  // createRun 已退役：A5 落库统一走 save（jobId 主键 UPSERT，jobSubmission/worker 共用）
   save: vi.fn().mockResolvedValue({ id: 'run-1' }),
+  markStalePendingRunsFailed: vi.fn().mockResolvedValue(0),
 }));
 const membershipMocks = vi.hoisted(() => ({ getOrg: vi.fn() }));
 vi.mock(
@@ -60,7 +63,7 @@ import { getOrg } from '../../../packages/backend/src/application/org/membership
 import { appRedis } from '../../../packages/backend/src/infrastructure/redisClient.js';
 import { DelayedError } from 'bullmq';
 import { UpstreamProblemError } from '../../../packages/backend/src/utils/errors.js';
-import { createRun, save } from '../../../packages/backend/src/repositories/backtestRunRepo.js';
+import { save } from '../../../packages/backend/src/repositories/backtestRunRepo.js';
 import type {
   BacktestJobData,
   BacktestJobResult,
@@ -267,7 +270,6 @@ describe('processBacktestJob - 任务分发', () => {
     expect(result.status).toBe('completed');
     expect(save).toHaveBeenCalledTimes(1);
     expect(save).toHaveBeenCalledWith(TENANT, expect.objectContaining({ id: 'job-1' }));
-    expect(createRun).not.toHaveBeenCalled();
   });
   it('handler 返回 success:false 时仍将完整结果落库', async () => {
     mockOrg('pro');
@@ -290,6 +292,7 @@ describe('shutdownWorker（优雅关闭）', () => {
     workerCloseMock = vi.fn().mockResolvedValue(undefined);
     vi.doMock('../../../packages/backend/src/queues/backtestQueue.js', () => ({
       createBacktestWorker: () => ({ close: workerCloseMock }),
+      backtestQueue: { getJobs: vi.fn().mockResolvedValue([]) },
     }));
     vi.resetModules();
     workerModule = await import('../../../packages/backend/src/queues/worker.js');

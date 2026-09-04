@@ -315,7 +315,7 @@ describe('jobRoutes - GET /api/v1/jobs/:id', () => {
       createMockJob({
         id: 'job-123',
         returnvalue: rb,
-        data: { type: 'optimizer', userId: 'test-user' },
+        data: { type: 'optimizer', ownerUserId: 'test-user' },
       }),
     );
     const { res, json } = await get(`${getServer().url}/api/v1/jobs/job-123`, {
@@ -340,13 +340,18 @@ describe('jobRoutes - GET /api/v1/jobs/:id', () => {
     expect(json.data.error).not.toContain('Engine timeout');
   });
   const mkJob = (id: string, data: any = {}) =>
-      createMockJob({ id, data: { type: 'optimizer', userId: 'owner-user', ...data } }),
+      createMockJob({ id, data: { type: 'optimizer', ownerUserId: 'owner-user', ...data } }),
     st = (s: string) => vi.fn().mockResolvedValue(s),
     oj = mkJob('job-owned'),
     mj = mkJob('job-mine'),
     ta = mkJob('job-tenant-a', { tenantId: 'org-a' }),
-    ok = mkJob('job-tenant-ok', { userId: 'someone', tenantId: 'org-a' }),
-    pa = mkJob('job-tenant-pa', { userId: 'someone', tenantId: 'org-a' }),
+    ok = mkJob('job-tenant-ok', { ownerUserId: 'someone', tenantId: 'org-a' }),
+    pa = mkJob('job-tenant-pa', { ownerUserId: 'someone', tenantId: 'org-a' }),
+    // 兼容锁定：存量 Redis 任务仅携带旧 userId 字段（无 ownerUserId），owner 读法须保持可用
+    legacy = createMockJob({
+      id: 'job-legacy-userid',
+      data: { type: 'optimizer', userId: 'legacy-owner', tenantId: 'org-a' },
+    }),
     TEST_HDRS = ['x-test-sub', 'x-test-role', 'x-test-tenant', 'x-test-platform'];
   it.each([
     ['越权访问他人任务', oj, ['attacker', 'analyst'], 404],
@@ -354,6 +359,7 @@ describe('jobRoutes - GET /api/v1/jobs/:id', () => {
     ['跨租户访问应返回 404', ta, ['admin-user', 'admin', 'org-b'], 404],
     ['同租户 admin 可访问', ok, ['admin-user', 'admin', 'org-a'], 200],
     ['平台管理员可跨租户', pa, ['op', 'admin', 'org-b', 'true'], 200],
+    ['旧 userId 字段兼容可访问', legacy, ['legacy-owner', 'analyst', 'org-a'], 200],
   ])('%s', async (_n: unknown, job: any, hd: string[], exp: number) => {
     queueMocks.getJob.mockResolvedValue(job);
     const h = Object.fromEntries(hd.map((v, i) => [TEST_HDRS[i], v]));
@@ -381,7 +387,7 @@ describe('jobRoutes - GET /api/v1/jobs/:id', () => {
       id: 'ja',
       finishedOn: void 0,
       getState: st('active'),
-      data: { type: 'optimizer', userId: 'test-user' },
+      data: { type: 'optimizer', ownerUserId: 'test-user' },
     });
     queueMocks.getJob.mockResolvedValue(ja);
     const { json } = await get(`${getServer().url}/api/v1/jobs/${ja.id}`, {

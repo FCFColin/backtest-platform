@@ -17,6 +17,7 @@ import {
   type TacticalGridRequest,
 } from '../application/grid-application-service.js';
 import { save, markStalePendingRunsFailed } from '../repositories/backtestRunRepo.js';
+import { backtestQueue } from './backtestQueue.js';
 import { getOrgPlanLimit } from '../application/billing/planLimitsService.js';
 import { appRedis } from '../infrastructure/redisClient.js';
 import { logger } from '../utils/logger.js';
@@ -207,10 +208,16 @@ logger.info('[worker] Backtest worker started, waiting for jobs...');
 
 // A5 对账清扫：pending 行超 30 分钟无 worker 认领（典型于 Redis 数据丢失）→ 置 failed。
 // 启动即扫一次 + 每 30 分钟一轮；失败仅告警不阻断 worker 服务。
+// 队列存活守卫：清扫前收集 BullMQ 中仍存活（active/delayed/waiting）的 jobId，
+// 命中者豁免——避免把正常排队/重试中的任务误杀为 stale。
 const STALE_SWEEP_INTERVAL_MS = 30 * 60_000;
+const STALE_SWEEP_ALIVE_STATES = ['active', 'delayed', 'wait'] as const;
 async function sweepStalePendingRuns(): Promise<void> {
   try {
-    const n = await markStalePendingRunsFailed(30);
+    const n = await markStalePendingRunsFailed(30, async () => {
+      const jobs = await backtestQueue.getJobs([...STALE_SWEEP_ALIVE_STATES]);
+      return new Set(jobs.map((j) => String(j.id)));
+    });
     if (n > 0) logger.warn({ reclaimed: n }, '[worker] stale pending 回收为 failed（A5 对账）');
   } catch (err) {
     logger.warn({ err: String(err) }, '[worker] stale pending 清扫失败（下轮重试）');

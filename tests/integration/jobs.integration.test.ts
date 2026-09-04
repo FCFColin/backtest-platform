@@ -80,7 +80,7 @@ function createFakeJob(overrides: Partial<FakeJobData> & { id?: string } = {}): 
     data: {
       type: 'optimizer',
       payload: {},
-      userId: 'someone-else',
+      ownerUserId: 'someone-else',
       tenantId: orgA,
       ...overrides,
     },
@@ -95,15 +95,23 @@ function createFakeJob(overrides: Partial<FakeJobData> & { id?: string } = {}): 
 describe('异步任务 IDOR 防护集成测试', () => {
   it('非 admin 且非 owner 被拒绝（404 不泄露存在性）', async () => {
     setIdentity('analyst', orgA);
-    const job = createFakeJob({ userId: 'someone-else', tenantId: orgA });
+    const job = createFakeJob({ ownerUserId: 'someone-else', tenantId: orgA });
     const res = await fetch(`${baseUrl}/api/v1/jobs/${job.id}`);
     expect(res.status).toBe(404);
+  });
+
+  it('旧 userId 字段兼容：存量 Redis 任务（仅旧字段无 ownerUserId）仍可被 owner 命中', async () => {
+    setIdentity('analyst', orgA);
+    const job = createFakeJob({ ownerUserId: undefined, userId: requesterUserId, tenantId: orgA });
+    job.returnvalue = { ok: true };
+    const res = await fetch(`${baseUrl}/api/v1/jobs/${job.id}`);
+    expect(res.status).toBe(200);
   });
 
   it('跨租户访问被拒绝（404），即便同租户 owner', async () => {
     setIdentity('analyst', orgA);
     const job = createFakeJob({
-      userId: requesterUserId,
+      ownerUserId: requesterUserId,
       tenantId: orgB,
     });
     const res = await fetch(`${baseUrl}/api/v1/jobs/${job.id}`);
@@ -113,7 +121,7 @@ describe('异步任务 IDOR 防护集成测试', () => {
   it('提交者本人可读（owner）', async () => {
     setIdentity('analyst', orgA);
     const job = createFakeJob({
-      userId: requesterUserId,
+      ownerUserId: requesterUserId,
       tenantId: orgA,
     });
     job.returnvalue = { metrics: { sharpe: 1.5 } };
@@ -127,7 +135,7 @@ describe('异步任务 IDOR 防护集成测试', () => {
 
   it('admin 可读同租户任意任务', async () => {
     setIdentity('admin', orgA);
-    const job = createFakeJob({ userId: 'another-user', tenantId: orgA });
+    const job = createFakeJob({ ownerUserId: 'another-user', tenantId: orgA });
     job.returnvalue = { ok: true };
     const res = await fetch(`${baseUrl}/api/v1/jobs/${job.id}`);
     expect(res.status).toBe(200);

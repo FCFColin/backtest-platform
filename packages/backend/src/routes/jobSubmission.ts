@@ -12,7 +12,7 @@ import { logger } from '../utils/logger.js';
 import { TimeoutError, withTimeout } from '../utils/misc.js';
 import { config } from '../config/index.js';
 import { recordBacktestRequest } from '../utils/metrics.js';
-import { createRun } from '../repositories/backtestRunRepo.js';
+import { save as saveRun } from '../repositories/backtestRunRepo.js';
 
 interface SubmitQueueJobConfig {
   type: BacktestJobData['type'];
@@ -80,14 +80,17 @@ export function submitQueueJob(cfg: SubmitQueueJobConfig): RequestHandler {
           { jobId: randomUUID() },
         );
         const jobId = job.id!;
-        // A5：提交即落 queued（DB 状态 pending）行——Redis 数据丢失时任务不再凭空蒸发；
-        // worker persistRunIfTenant 的 UPSERT 会将其推进到 completed/failed
+        // A5：提交即以 jobId 为主键落 queued（DB 状态 pending）行——Redis 数据丢失时任务不再凭空蒸发；
+        // worker persistRunIfTenant 的 ON CONFLICT(id) UPSERT 会将其推进到 completed/failed。
+        // 必须用 save(jobId 主键) 而非 createRun(随机 UUID)，否则 worker UPSERT 接不上形成幽灵行
         if (authReq.tenantId) {
           try {
-            await createRun(authReq.tenantId, ownerOf(authReq), {
+            await saveRun(authReq.tenantId, {
+              id: jobId,
               name: type,
               request: req.body,
               status: 'pending',
+              ownerUserId: ownerOf(authReq),
             });
           } catch (persistErr) {
             logger.warn(
