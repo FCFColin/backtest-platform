@@ -11,6 +11,7 @@ import type { AuthenticatedRequest } from '../middleware/jwtAuth.js';
 import { hasTenant } from '../middleware/tenantContext.js';
 import { jobAccessGranted } from '../middleware/jobAccess.js';
 import { backtestQueue } from '../queues/backtestQueue.js';
+import { getRun } from '../repositories/backtestRunRepo.js';
 import { validate } from '../middleware/miscMiddleware.js';
 import type { Warning } from '../application/backtest-helpers.js';
 type BacktestResult = { data: unknown; warnings?: (Warning | string)[]; dateRange?: unknown } & {
@@ -69,11 +70,54 @@ export async function resolveAuthorizedJob(
     return null;
   }
   const job = await backtestQueue.getJob(jobId);
-  if (!job || !jobAccessGranted(job, req.user, req.tenantId)) {
+  if (job) {
+    if (jobAccessGranted(job, req.user, req.tenantId)) return job;
     sendProblem(res, 404, 'JOB_NOT_FOUND');
     return null;
   }
-  return job;
+  return resolveAuthorizedJobFromDb(req, res, jobId);
+}
+
+// DB 兜底：BullMQ 已 removeOnComplete/数据丢失但 backtest_runs 有行时，用 DB 行拼出
+// buildJobStatus 可消费的形状。owner/tenant 校验与 jobAccessGranted 同语义（fail-closed）。
+async function resolveAuthorizedJobFromDb(
+  req: AuthenticatedRequest,
+  res: Response,
+  jobId: string,
+): Promise<Job | null> {
+  if (!isUuid(jobId) || !req.tenantId) {
+    sendProblem(res, 404, 'JOB_NOT_FOUND');
+    return null;
+  }
+  let run: Awaited<ReturnType<typeof getRun>> | null = null;
+  try {
+    run = await getRun(req.tenantId, jobId);
+  } catch (err) {
+    logger.warn({ err, jobId }, '[routeUtils] 状态查询 DB 兜底失败');
+  }
+  if (!run) {
+    sendProblem(res, 404, 'JOB_NOT_FOUND');
+    return null;
+  }
+  // getRun 已按租户 RLS 查询（withTenant），租户匹配由此保证；将 tenantId 注入 data
+  // 使 jobAccessGranted 的租户判定与 BullMQ 路径同语义
+  if (!jobAccessGranted({ data: { ...run, tenantId: req.tenantId } }, req.user, req.tenantId)) {
+    sendProblem(res, 404, 'JOB_NOT_FOUND');
+    return null;
+  }
+  // DB 行 status=pending 且队列已无此任务 → 与清扫语义一致：队列中消失的 pending 即 stale 失败
+  const state = run.status === 'pending' ? 'failed' : run.status;
+  return {
+    id: jobId,
+    data: run,
+    timestamp: Date.parse(run.createdAt),
+    processedOn: Date.parse(run.createdAt),
+    finishedOn: state === 'completed' || state === 'failed' ? Date.parse(run.createdAt) : undefined,
+    progress: 0,
+    state,
+    getState: async () => state,
+    returnvalue: state === 'completed' ? { status: 'completed', result: run.result } : undefined,
+  } as unknown as Job;
 }
 interface RouteErrorConfig {
   logMsg: string;

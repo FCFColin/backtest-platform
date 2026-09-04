@@ -104,10 +104,9 @@ router.get('/ready', async (_req: Request, res: Response) => {
       checkSentinelMaster(),
     ]);
 
-    if (!goEngineOk) {
-      sendProblem(res, 503, 'ENGINE_UNAVAILABLE', undefined, { headers: { 'Retry-After': '30' } });
-      return;
-    }
+    // 方案 A（2026-09-04 裁决）：readiness 不再因 engine 探活失败摘流——
+    // engine 语义由请求路径 503+Retry-After 透传（errorMapper），/ready 仅反映 API 自身可服务性。
+    // engine 状态保留在响应体供观测；DB/Redis 检查维持硬性。
     if (!dbOk) {
       sendProblem(res, 503, 'DATABASE_UNAVAILABLE');
       return;
@@ -129,7 +128,10 @@ router.get('/ready', async (_req: Request, res: Response) => {
       data: {
         status: 'ok',
         timestamp: new Date().toISOString(),
-        engine: { go: goEngineOk },
+        engine: {
+          status: goEngineOk ? 'available' : 'unavailable',
+          ...(goEngineOk ? {} : { retryAfter: 30 }),
+        },
         dependencies: {
           database: dbOk,
           redis: redisOk,

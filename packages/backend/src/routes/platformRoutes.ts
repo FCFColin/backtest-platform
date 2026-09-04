@@ -17,6 +17,66 @@ import { createTtlCache, withTtlCache } from '../utils/ttlCache.js';
 
 const router = Router();
 
+// Prometheus 标签基数防爆炸：endpoint/component 仅放行白名单（与前端实际上报路径对齐），
+// 未知值归一为 other，防止任意字符串（含用户可控 URL）无上界撑爆直方图标签基数
+const ENDPOINT_ALLOWLIST = new Set([
+  '/api/v1/admin/stats',
+  '/api/v1/admin/system',
+  '/api/v1/analysis/factor-regression',
+  '/api/v1/announcements',
+  '/api/v1/auth/login/password',
+  '/api/v1/auth/logout',
+  '/api/v1/auth/me',
+  '/api/v1/auth/orgs',
+  '/api/v1/auth/refresh',
+  '/api/v1/auth/register',
+  '/api/v1/auth/switch-org',
+  '/api/v1/auth/verify-email',
+  '/api/v1/backtest/analysis',
+  '/api/v1/backtest/efficient-frontier',
+  '/api/v1/backtest/monte-carlo',
+  '/api/v1/backtest/optimize',
+  '/api/v1/backtest/portfolio',
+  '/api/v1/backtest/portfolio/series',
+  '/api/v1/backtest-optimizer/optimize',
+  '/api/v1/billing/checkout',
+  '/api/v1/billing/portal',
+  '/api/v1/billing/subscription',
+  '/api/v1/configs',
+  '/api/v1/data/factors',
+  '/api/v1/data/health',
+  '/api/v1/data/manage/stats',
+  '/api/v1/data/manage/universe',
+  '/api/v1/data/manage/update/full',
+  '/api/v1/data/manage/update/inc',
+  '/api/v1/data/meta',
+  '/api/v1/data/recent-updates',
+  '/api/v1/data/ticker-meta',
+  '/api/v1/goal-optimizer/optimize',
+  '/api/v1/letf/analyze',
+  '/api/v1/orgs/invitations',
+  '/api/v1/orgs/invitations/accept',
+  '/api/v1/orgs/members',
+  '/api/v1/pca/analyze',
+  '/api/v1/signal/analyze',
+  '/api/v1/signal/dual',
+  '/api/v1/signal/multi',
+  '/api/v1/tactical/backtest',
+  '/api/v1/tactical/configs',
+  '/api/v1/tactical/what-if',
+  '/api/v1/tactical-grid/search',
+]);
+const COMPONENT_ALLOWLIST = new Set([
+  'DataEngine',
+  'ErrorBoundary',
+  'RouteErrorBoundary',
+  'DataManagement',
+  'SystemSettings',
+  'backtestStore',
+  'portfolioStorage',
+]);
+const allowlisted = (v: string, allow: Set<string>): string => (allow.has(v) ? v : 'other');
+
 const announcementCache = createTtlCache<object[]>(60 * 1000);
 
 router.get(
@@ -110,7 +170,7 @@ function handleFrontendReport(req: Request, res: Response): void {
         );
         if (str(b.endpoint) && num())
           recordFrontendApiCall(
-            b.endpoint,
+            allowlisted((b.endpoint as string).split('?')[0].slice(0, 128), ENDPOINT_ALLOWLIST),
             req.method || 'GET',
             typeof b.statusCode === 'number' ? b.statusCode : 0,
             b.value,
@@ -122,7 +182,11 @@ function handleFrontendReport(req: Request, res: Response): void {
           '[frontend-component-render] Component render timing reported',
         );
         if (str(b.component) && str(b.phase) && num())
-          recordFrontendComponentRender(b.component, b.phase, b.value);
+          recordFrontendComponentRender(
+            allowlisted(b.component as string, COMPONENT_ALLOWLIST),
+            b.phase as string,
+            b.value,
+          );
       },
       page_timing: () => {
         logger.info(

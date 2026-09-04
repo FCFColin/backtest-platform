@@ -161,11 +161,13 @@ app.use('/api/v1/backtest', ...computeMiddleware(Permission.BACKTEST_RUN), backt
 app.use('/api/v1', analysisRoutes);
 app.use('/api/v1/admin', adminRoutes);
 app.use('/api/v1/auth', authRoutes);
-app.use('/api/v1/orgs', jwtAuth, resolveTenant, enforceOrgActive(), orgRoutes);
-app.use('/api/v1/billing', jwtAuth, resolveTenant, enforceOrgActive(), billingRoutes);
+app.use('/api/v1/orgs', jwtAuth, resolveTenant, enforceOrgActive(), auditLog, orgRoutes);
+app.use('/api/v1/billing', jwtAuth, resolveTenant, enforceOrgActive(), auditLog, billingRoutes);
 app.use('/api/v1', jobRoutes);
 app.use('/api/v1', apiKeyRoutes);
-app.use('/api/v1', workspaceRoutes);
+// auditLog 在鉴权中间件之后挂载（对齐 dataManage）；workspace 外层无 jwtAuth，
+// 但 audit 条目在 res finish 回调时读取 req.user，此时 crudMiddleware 已完成鉴权+租户解析
+app.use('/api/v1', auditLog, workspaceRoutes);
 app.use('/api/v1', platformRoutes);
 
 setupOpenApiUi(app);

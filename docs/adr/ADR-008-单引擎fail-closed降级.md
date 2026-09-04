@@ -28,3 +28,11 @@ compute 端点可透传 data.degraded 标记，语义为"所用行情数据存�
 与计算服务自身的 fail-closed 行为正交。compute 自身失败仍须 503，
 不得以 degraded 代替成功。载体：jobSubmission.ts 队列不可用同步兜底路径
 （P-2 要求 degraded 三处一致可见，压制将致 grid 页静默展示不可信结果）。
+
+## 补充（2026-09-04）：readiness 不再因 engine 摘流
+
+/ready 仅反映 API 自身可服务性（DB/Redis/Sentinel 硬性），不再因 engine 探活失败
+返回 503 ENGINE_UNAVAILABLE——engine 语义由请求路径 503+Retry-After 透传
+（errorMapper 的 EngineUnavailableError 映射）。engine 状态保留在 /ready 响应体
+（engine.status: available/unavailable，unavailable 时附 retryAfter: 30）供观测与告警。
+上文正文中"同步请求 503"语义不变；k8s readinessProbe 不再被 Go 引擎抖动连带摘除 API Pod。

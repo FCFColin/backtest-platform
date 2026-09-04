@@ -86,21 +86,22 @@ describe('healthRoutes', () => {
 
       const { body } = await expectFetchOk(`${getServer().url}/api/ready`);
       expect(body.data.status).toBe('ok');
-      expect(body.data.engine.go).toBe(true);
+      expect(body.data.engine.status).toBe('available');
       expect(body.data.dependencies.database).toBe(true);
     });
 
-    it('无鉴权且 Go 引擎不可用时应 fail-closed 返回 503 + Retry-After（ADR-008）', async () => {
+    it('Go 引擎不可用时 readiness 仍 200，engine.status=unavailable 透出（方案 A，R-03 迁移自 503 断言）', async () => {
       globalThis.fetch = createFetchMock({
         goEngine: new Error('ECONNREFUSED'),
       }) as typeof fetch;
 
-      const res = await fetch(`${getServer().url}/api/ready`);
-      const body = await res.json();
+      const { body } = await expectFetchOk(`${getServer().url}/api/ready`);
 
-      expect(res.status).toBe(503);
-      expect(res.headers.get('Retry-After')).toBe('30');
-      expect(body.error.code).toBe('ENGINE_UNAVAILABLE');
+      expect(body.success).toBe(true);
+      expect(body.data.status).toBe('ok');
+      expect(body.data.engine.status).toBe('unavailable');
+      expect(body.data.engine.retryAfter).toBe(30);
+      expect(body.data.dependencies.database).toBe(true);
     });
   });
 
