@@ -103,6 +103,65 @@ function applyCachedHistory(
   return cachedMissing.length === 0 ? null : cachedMissing;
 }
 
+/** DB 阶段：查询 + 合流 dbDegraded / unadjusted（R-12/A4 可观测）degraded 语义 */
+async function fetchDbStage(ctx: {
+  validTickers: string[];
+  hasUnknownTickers: boolean;
+  startDate: string;
+  endDate: string;
+  result: Record<string, Record<string, number>>;
+}): Promise<{ missingTickers: string[]; degraded: boolean; degradedWarning?: string }> {
+  const {
+    result: dbResult,
+    missing: missingTickers,
+    dbDegraded,
+    unadjustedCount,
+  } = await queryPricesFromDb(ctx.validTickers, ctx.startDate, ctx.endDate, ctx.hasUnknownTickers);
+  Object.assign(ctx.result, dbResult);
+  if (dbDegraded) {
+    return { missingTickers, degraded: true, degradedWarning: '数据库不可用，部分数据可能缺失' };
+  }
+  // R-12/A4 可观测：DB 内存在未确认复权的行（COALESCE 落 close）→ 转 DATA_DEGRADED warning，
+  // 经既有 degraded 通道透传（backtest-helpers: preparePriceDataAndWarnings → warnings 推送）
+  if (unadjustedCount > 0) {
+    return {
+      missingTickers,
+      degraded: true,
+      degradedWarning: `${unadjustedCount} 行价格未确认复权（adjusted_close 缺失，按未复权 close 计算）`,
+    };
+  }
+  return { missingTickers, degraded: false };
+}
+
+/** 缓存阶段：读历史缓存补齐缺失 ticker；全部命中返回 null，部分命中返回仍需 Go 补取的集合 */
+async function applyHistoryCache(
+  tickersToFetch: string[],
+  startDate: string,
+  endDate: string,
+  result: Record<string, Record<string, number>>,
+): Promise<{ cachedMissing: string[] | null; cacheKey: string }> {
+  const cacheKey = getCacheKey('history', {
+    tickers: tickersToFetch.sort().join(','),
+    start: startDate,
+    end: endDate,
+  });
+  const cached = await readCache(cacheKey);
+  if (!cached) return { cachedMissing: tickersToFetch, cacheKey };
+  return { cachedMissing: applyCachedHistory(cached, tickersToFetch, result), cacheKey };
+}
+
+/** Go 补取阶段降级合流：degradedWarning 以 '；' 连接（保持既有合流语义） */
+function mergeGoDegradation(
+  cur: { degraded: boolean; degradedWarning?: string },
+  go: { degraded: boolean; degradedWarning?: string },
+): { degraded: boolean; degradedWarning?: string } {
+  if (!go.degraded) return cur;
+  return {
+    degraded: true,
+    degradedWarning: [cur.degradedWarning, go.degradedWarning].filter(Boolean).join('；'),
+  };
+}
+
 async function fetchHistoryDataImpl(
   tickers: string[],
   startDate: string,
@@ -136,16 +195,15 @@ async function fetchHistoryDataImpl(
 
   const hasUnknownTickers = unknownTickers.length > 0;
 
-  const {
-    result: dbResult,
-    missing: missingTickers,
-    dbDegraded,
-  } = await queryPricesFromDb(validTickers, startDate, endDate, hasUnknownTickers);
-  Object.assign(result, dbResult);
-
-  if (dbDegraded) [degraded, degradedWarning] = [true, '数据库不可用，部分数据可能缺失'];
-
-  let tickersToFetch = [...missingTickers, ...unknownTickers];
+  const dbStage = await fetchDbStage({
+    validTickers,
+    hasUnknownTickers,
+    startDate,
+    endDate,
+    result,
+  });
+  ({ degraded, degradedWarning } = dbStage);
+  let tickersToFetch = [...dbStage.missingTickers, ...unknownTickers];
 
   if (tickersToFetch.length === 0) {
     span.setAttribute('cache_hit', true);
@@ -156,27 +214,22 @@ async function fetchHistoryDataImpl(
     return { data: result, degraded, degradedWarning };
   }
 
-  const cacheKey = getCacheKey('history', {
-    tickers: tickersToFetch.sort().join(','),
-    start: startDate,
-    end: endDate,
-  });
-
-  const cached = await readCache(cacheKey);
-  if (cached) {
+  const { cachedMissing, cacheKey } = await applyHistoryCache(
+    tickersToFetch,
+    startDate,
+    endDate,
+    result,
+  );
+  if (cachedMissing === null) {
     span.setAttribute('cache_hit', true);
-    const cachedMissing = applyCachedHistory(cached, tickersToFetch, result);
-    if (cachedMissing === null) {
-      span.setAttribute('missing_count', 0);
-      logger.info(
-        `[dataService] fetchHistoryData: ${totalFetchable} tickers, ${tickersToFetch.length} missing (cache hit), took ${Date.now() - fetchStart}ms`,
-      );
-      return { data: result, degraded, degradedWarning };
-    }
-    tickersToFetch = cachedMissing;
+    span.setAttribute('missing_count', 0);
+    logger.info(
+      `[dataService] fetchHistoryData: ${totalFetchable} tickers, ${tickersToFetch.length} missing (cache hit), took ${Date.now() - fetchStart}ms`,
+    );
+    return { data: result, degraded, degradedWarning };
   }
-
   span.setAttribute('cache_hit', false);
+  tickersToFetch = cachedMissing;
   span.setAttribute('missing_count', tickersToFetch.length);
 
   const goDegradation = await fetchFromGoWithDegradation(
@@ -186,10 +239,10 @@ async function fetchHistoryDataImpl(
     result,
     { cacheKey, orgId },
   );
-  if (goDegradation.degraded) {
-    degraded = true;
-    degradedWarning = [degradedWarning, goDegradation.degradedWarning].filter(Boolean).join('；');
-  }
+  ({ degraded, degradedWarning } = mergeGoDegradation(
+    { degraded, degradedWarning },
+    goDegradation,
+  ));
 
   logger.info(
     `[dataService] fetchHistoryData: ${totalFetchable} tickers (${validTickers.length} known, ${unknownTickers.length} unknown), ${tickersToFetch.length} fetched from Go, took ${Date.now() - fetchStart}ms`,

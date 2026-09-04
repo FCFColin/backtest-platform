@@ -7,6 +7,7 @@ import { registerCircuitBreakerMetrics } from '../utils/metrics.js';
 import { isValidTicker } from '../utils/tickerValidation.js';
 import { writeCache, HISTORY_CACHE_TTL_SEC } from './dataCache.js';
 import { fetchGoJson } from './goDataServiceClient.js';
+import { pricePointArraySchema, summarizeZodIssues } from '../schemas/dataServiceSchemas.js';
 import { scanMarketStatsFromDb, getDbEngineStatus, type DbMarketStats } from '../db/marketStats.js';
 
 interface TickerSearchResult {
@@ -95,8 +96,11 @@ export async function queryPricesFromDb(
   result: Record<string, Record<string, number>>;
   missing: string[];
   dbDegraded: boolean;
+  /** adjusted_close IS NULL 的行数（未确认复权 → COALESCE 落 close），供上层转 DATA_DEGRADED warning */
+  unadjustedCount: number;
 }> {
-  if (!isDbAvailable()) return { result: {}, missing: [...validTickers], dbDegraded: true };
+  if (!isDbAvailable())
+    return { result: {}, missing: [...validTickers], dbDegraded: true, unadjustedCount: 0 };
   try {
     let [s, e] = [startDate, endDate];
     if (startDate === '' && endDate === '') {
@@ -104,24 +108,36 @@ export async function queryPricesFromDb(
         (await computeCommonDateRange(validTickers, hasUnknownTickers)) ??
         (hasUnknownTickers ? { start: DEFAULT_START_DATE, end: toDateStr(new Date()) } : null);
       // 无区间（标的在 DB 无任何数据）：视为缺失而非 DB 降级，避免空区间查询抛错产生假 dbDegraded
-      if (!range) return { result: {}, missing: validTickers, dbDegraded: false };
+      if (!range)
+        return { result: {}, missing: validTickers, dbDegraded: false, unadjustedCount: 0 };
       [s, e] = [range.start, range.end];
     }
     if (validTickers.length === 0 && hasUnknownTickers)
-      return { result: {}, missing: [], dbDegraded: false };
+      return { result: {}, missing: [], dbDegraded: false, unadjustedCount: 0 };
     const { rows } = await pgCircuitBreaker.fire(
-      'SELECT ticker, date, COALESCE(adjusted_close, close) AS close FROM prices WHERE ticker = ANY($1) AND date >= $2 AND date <= $3',
+      `SELECT ticker, date, COALESCE(adjusted_close, close) AS close,
+              COUNT(*) FILTER (WHERE adjusted_close IS NULL) AS unadjusted_count
+       FROM prices WHERE ticker = ANY($1) AND date >= $2 AND date <= $3
+       GROUP BY ticker, date`,
       [validTickers, s, e],
     );
     const result: Record<string, Record<string, number>> = {};
-    const priceRows = rows as Array<{ ticker: string; date: Date | string; close: number }>;
-    for (const { ticker, date, close } of priceRows)
+    let unadjustedCount = 0;
+    const priceRows = rows as Array<{
+      ticker: string;
+      date: Date | string;
+      close: number;
+      unadjusted_count?: string | number;
+    }>;
+    for (const { ticker, date, close, unadjusted_count } of priceRows) {
       (result[ticker] ??= {})[toDateStr(date)] = close;
+      if (Number(unadjusted_count) > 0) unadjustedCount += Number(unadjusted_count);
+    }
     const missing = missingTickers(result, validTickers);
-    return { result, missing, dbDegraded: false };
+    return { result, missing, dbDegraded: false, unadjustedCount };
   } catch (err) {
     logger.warn({ err }, '[dataService] fetchHistoryData: PostgreSQL 查询失败');
-    return { result: {}, missing: [...validTickers], dbDegraded: true };
+    return { result: {}, missing: [...validTickers], dbDegraded: true, unadjustedCount: 0 };
   }
 }
 
@@ -145,18 +161,26 @@ export async function fetchMissingFromGoService(
           `/api/data/price/${encodeURIComponent(ticker)}?start=${startDate}&end=${endDate}`,
           orgId,
         );
-        if (success && Array.isArray(data)) {
-          // 清洗脏值：NaN/Inf/非正价格与空日期不入缓存，避免坏数据穿透到引擎（与 Go SanitizePrices 互补）
-          const priceMap: Record<string, number> = {};
-          for (const p of data as Array<{ date: string; close: number }>) {
-            if (typeof p.date === 'string' && p.date && Number.isFinite(p.close) && p.close > 0)
-              priceMap[p.date] = p.close;
-          }
-          if (Object.keys(priceMap).length > 0) {
-            goResult[ticker] = priceMap;
-          }
-          if (tickerDegraded) degraded = true;
+        if (!success) return;
+        // zod 契约校验（dataServiceSchemas，绑定 store.go PricePoint）：失败 log warn +
+        // 走缺失降级语义（不入 goResult → missingTickers → 上层 DATA_DEGRADED 可观测），不炸请求
+        const parsed = pricePointArraySchema.safeParse(data);
+        if (!parsed.success) {
+          logger.warn(
+            { ticker, issues: summarizeZodIssues(parsed.error) },
+            '[dataService] Go 价格响应契约校验失败，该标的按缺失降级处理',
+          );
+          return;
         }
+        // 清洗脏值：NaN/Inf/非正价格与空日期不入缓存，避免坏数据穿透到引擎（与 Go SanitizePrices 互补）
+        const priceMap: Record<string, number> = {};
+        for (const p of parsed.data ?? []) {
+          if (p.date && Number.isFinite(p.close) && p.close > 0) priceMap[p.date] = p.close;
+        }
+        if (Object.keys(priceMap).length > 0) {
+          goResult[ticker] = priceMap;
+        }
+        if (tickerDegraded) degraded = true;
       } catch (e) {
         logger.warn(`[dataService] Go data service failed for ${ticker}: ${(e as Error).message}`);
       }

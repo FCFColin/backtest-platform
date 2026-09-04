@@ -2,6 +2,11 @@ import { logger } from '../utils/logger.js';
 import { loadCpiSeriesFromDb, loadTreasurySeriesFromDb } from '../db/macroData.js';
 import { fetchGoJson } from './goDataServiceClient.js';
 import {
+  cpiEntryArraySchema,
+  treasuryRateArraySchema,
+  summarizeZodIssues,
+} from '../schemas/dataServiceSchemas.js';
+import {
   dataUpdateQueue,
   getActiveUpdateJobs,
   type DataUpdateJobData,
@@ -30,13 +35,19 @@ async function fetchCpiFromGo(
   try {
     const { success, data } = await fetchGoJson(`/api/data/cpi/${country}`);
     if (!success || !data) return { raw: null, map: {} };
-    if (!Array.isArray(data)) return { raw: data, map: {} };
-    const map = Object.fromEntries(
-      (data as Array<{ date: string; value: number }>)
-        .filter((item) => item && typeof item.date === 'string')
-        .map((item) => [item.date.slice(0, 10), item.value]),
-    );
-    return { raw: data, map };
+    // zod 契约校验（dataServiceSchemas，绑定 store.go CPIEntry）：失败 log warn +
+    // 降级为空 map（loadCpiMap 回落 DB / notFound 语义），不炸请求但可观测
+    const parsed = cpiEntryArraySchema.safeParse(data);
+    if (!parsed.success) {
+      logger.warn(
+        { country, issues: summarizeZodIssues(parsed.error) },
+        '[cpiService] Go CPI 响应契约校验失败，按无数据降级处理',
+      );
+      return { raw: null, map: {} };
+    }
+    if (!Array.isArray(parsed.data)) return { raw: parsed.data, map: {} };
+    const map = Object.fromEntries(parsed.data.map((item) => [item.date.slice(0, 10), item.value]));
+    return { raw: parsed.data, map };
   } catch (err) {
     logger.warn({ err: err as Error, country }, '[cpiService] Go data-fetcher CPI 调用失败');
     return { raw: null, map: {} };
@@ -86,8 +97,18 @@ async function fetchTreasuryFromGo(
     const { success, data } = await fetchGoJson(
       `/api/data/treasury/${series}?start=${start}&end=${end}`,
     );
-    if (!success || !Array.isArray(data)) return [];
-    return data as Array<{ date: string; rate: number }>;
+    if (!success) return [];
+    // zod 契约校验（dataServiceSchemas，绑定 store.go TreasuryRate）：失败 log warn +
+    // 返回空序列（annualizeTbillRates <60 → null → 引擎 legacy 常量，golden 零漂移）
+    const parsed = treasuryRateArraySchema.safeParse(data);
+    if (!parsed.success) {
+      logger.warn(
+        { series, issues: summarizeZodIssues(parsed.error) },
+        '[treasuryService] Go 利率响应契约校验失败，按无数据降级处理',
+      );
+      return [];
+    }
+    return parsed.data ?? [];
   } catch (err) {
     logger.warn({ err: err as Error, series }, '[treasuryService] Go data-fetcher 调用失败');
     return [];

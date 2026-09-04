@@ -13,6 +13,7 @@ import {
 } from './queueDefinitions.js';
 import { createQueueWorker } from './workerFactory.js';
 import { invalidateAllCache } from '../infrastructure/dataCache.js';
+import { batchPriceResponseSchema, summarizeZodIssues } from '../schemas/dataServiceSchemas.js';
 
 const BATCH_SIZE = 50;
 
@@ -48,18 +49,26 @@ async function fetchBatchPrices(
       throw new Error(`data-fetcher batch response: HTTP ${response.status}`);
     }
 
-    const json = (await response.json()) as {
-      success: boolean;
-      data: Record<string, unknown>;
-    };
+    // zod 契约校验（dataServiceSchemas，绑定 handlers/data.go HandleBatchPriceData 信封 +
+    // store.go PricePoint）：失败 log warn + 整批按失败降级（走既有 failedTickers 语义，不炸 worker）
+    const parsed = batchPriceResponseSchema.safeParse(await response.json());
+    if (!parsed.success) {
+      logger.warn(
+        { issues: summarizeZodIssues(parsed.error), batch: `${tickers[0]}..` },
+        '[dataUpdateWorker] batch 响应契约校验失败，本批按失败处理',
+      );
+      return { successCount: 0, failedTickers: [...tickers] };
+    }
+    const json = parsed.data;
 
     let successCount = 0;
     const failedTickers: string[] = [];
-    for (const [ticker, value] of Object.entries(json.data ?? {})) {
-      if (value && typeof value === 'object' && 'error' in value) {
-        failedTickers.push(ticker);
-      } else {
+    for (const [ticker, value] of Object.entries(json.data)) {
+      // 数组/null（nil 切片）= 成功；{error} 对象 = 失败（不能用 'error' in value，null 会抛 TypeError）
+      if (value === null || Array.isArray(value)) {
         successCount++;
+      } else {
+        failedTickers.push(ticker);
       }
     }
 
