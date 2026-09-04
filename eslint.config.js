@@ -36,7 +36,18 @@ export default tseslint.config(
       'react-refresh/only-export-components': ['error', { allowConstantExport: true }],
     },
   },
-  { files: ['packages/backend/src/**/*.ts'], languageOptions: { globals: globals.node } },
+  // backend 块启用 type-checked linting：no-floating-promises 需要类型信息
+  {
+    files: ['packages/backend/src/**/*.ts'],
+    languageOptions: {
+      globals: globals.node,
+      parserOptions: {
+        project: './tsconfig.backend.json',
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
+    rules: { '@typescript-eslint/no-floating-promises': 'error' },
+  },
   {
     files: ['tests/**/*.ts'],
     languageOptions: { globals: { ...globals.node, ...globals.browser } },

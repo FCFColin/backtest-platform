@@ -44,7 +44,12 @@ function createAndInstrumentPool(opts: CreatePoolOptions): pg.Pool {
   }
   const newPool = new Pool(poolConfig);
   newPool.on('connect', (client: pg.PoolClient) => {
-    client.query(`SET statement_timeout = ${config.DB_STATEMENT_TIMEOUT_MS}`);
+    // SET 是连接级无结果语句，失败由后续查询的超时行为兜底；仅防未处理 rejection
+    client
+      .query(`SET statement_timeout = ${config.DB_STATEMENT_TIMEOUT_MS}`)
+      .catch((err: Error) => {
+        logger.error({ err }, `[db] ${opts.poolName} statement_timeout 设置失败`);
+      });
   });
   newPool.on('error', (err: Error) => {
     logger.error({ err }, `[db] ${opts.poolName}发生未捕获错误`);

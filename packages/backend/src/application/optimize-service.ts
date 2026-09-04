@@ -74,7 +74,7 @@ export async function runOptimization(
       objective,
       constraints: constraints || {},
       numIterations: opts.numIterations ? Math.min(opts.numIterations, 100000) : 10000,
-      ...(rf != null ? { risk_free_rate: rf } : {}),
+      ...(rf != null ? { riskFreeRate: rf } : {}),
     },
     optimizeResultSchema,
   );
